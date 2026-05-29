@@ -1,0 +1,20 @@
+# AI settings（符号链接自 ai-settings 仓库）
+.claude/skills
+.claude/commands
+.cursor/commands
+.windsurf/skills
+.windsurf/workflows
+.opencode/skills
+.opencode/command
+.github/agents
+.github/prompts
+.github/skills
+.specify/scripts
+.specify/templates
+.codex/skills
+
+# 本地配置文件（不要提交）
+.claude/settings.local.json
+.cursor/settings.local.json
+.windsurf/settings.local.json
+.codex/config.toml
