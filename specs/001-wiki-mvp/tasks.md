@@ -129,15 +129,15 @@ readability.
 
 ### Tests for User Story 3
 
-- [ ] T040 [P] [US3] Add theme token application coverage in `apps/web/tests/integration/themes.test.ts`
+- [x] T040 [P] [US3] Add theme token application coverage in `apps/web/tests/integration/themes.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T041 [P] [US3] Implement theme validation and a zero-runtime-dependency token registry in `apps/web/src/server/services/themes/theme-service.ts`, `apps/web/src/server/services/themes/accessibility.ts`, and `packages/shared/src/theme/tokens.ts`
-- [ ] T042 [P] [US3] Implement theme tRPC and REST routes plus activation workflow in `apps/web/src/server/trpc/routers/themes.ts` and `apps/web/src/server/rest/routes/admin-themes.ts`
-- [ ] T043 [US3] Build the theme admin editor and activation UI in `apps/web/app/(admin)/admin/themes/page.tsx` and `apps/web/src/components/admin/theme-editor.tsx`
-- [ ] T044 [US3] Apply CSS custom properties across public, editor, and admin shells in `apps/web/app/globals.css`, `apps/web/src/components/ui/theme-provider.tsx`, and `apps/web/src/components/common/app-shell.tsx`
-- [ ] T045 [US3] Create the default documentation-led theme as plain shared token objects and build the preview surface in `packages/shared/src/theme/default-theme.ts` and `apps/web/src/components/admin/theme-preview.tsx`
+- [x] T041 [P] [US3] Implement theme validation and a zero-runtime-dependency token registry in `apps/web/src/server/services/themes/theme-service.ts`, `apps/web/src/server/services/themes/accessibility.ts`, and `packages/shared/src/theme/tokens.ts`
+- [x] T042 [P] [US3] Implement theme tRPC and REST routes plus activation workflow in `apps/web/src/server/trpc/routers/themes.ts` and `apps/web/src/server/rest/routes/admin-themes.ts`
+- [x] T043 [US3] Build the theme admin editor and activation UI in `apps/web/app/(admin)/admin/themes/page.tsx` and `apps/web/src/components/admin/theme-editor.tsx`
+- [x] T044 [US3] Apply CSS custom properties across public, editor, and admin shells in `apps/web/app/globals.css`, `apps/web/src/components/ui/theme-provider.tsx`, and `apps/web/src/components/common/app-shell.tsx`
+- [x] T045 [US3] Create the default documentation-led theme as plain shared token objects and build the preview surface in `packages/shared/src/theme/default-theme.ts` and `apps/web/src/components/admin/theme-preview.tsx`
 
 **Checkpoint**: The product has a consistent token-based visual system with one
 active site-wide theme.

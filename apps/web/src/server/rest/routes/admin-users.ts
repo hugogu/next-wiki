@@ -106,6 +106,12 @@ export async function handleAdminRoute(req: NextRequest, path: string): Promise<
       if (tokenId && req.method === "DELETE") { await revokeApiToken(tokenId, actor); return NextResponse.json({ success: true }); }
     }
 
+    // /admin/themes[/:id[/activate]]
+    if (path.startsWith("/admin/themes")) {
+      const { handleAdminThemesRoute } = await import("@/server/rest/routes/admin-themes");
+      return handleAdminThemesRoute(req, path, actor);
+    }
+
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   } catch (err) {
     return handleRestError(err);

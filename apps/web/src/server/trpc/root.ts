@@ -51,11 +51,13 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 
 import { pagesRouter } from "./routers/pages";
 import { searchRouter } from "./routers/search";
+import { themesRouter } from "./routers/themes";
 
-// Root router — explicit registration, no dynamic discovery (P9).
+// Root router — explicit registration, no dynamic discovery.
 export const appRouter = createTRPCRouter({
   pages: pagesRouter,
   search: searchRouter,
+  themes: themesRouter,
 });
 
 export type AppRouter = typeof appRouter;
