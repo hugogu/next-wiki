@@ -5,7 +5,7 @@
 
 -- Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgvector"; -- optional; used for AI embeddings
+CREATE EXTENSION IF NOT EXISTS "vector"; -- optional; used for AI embeddings
 
 -- =============================================================================
 -- AUTH TABLES
