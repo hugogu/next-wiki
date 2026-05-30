@@ -1,7 +1,8 @@
 # next-wiki Project Constitution
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Ratification Date**: 2026-05-30
+**Last Amended**: 2026-05-30
 
 ---
 
@@ -13,8 +14,10 @@ write, organize, search, protect, integrate, and operate.
 
 next-wiki is deployed via Docker Compose or Kubernetes, built on Next.js,
 TypeScript, and PostgreSQL, and designed around a small default footprint. AI
-capabilities are first-class integrations, but the wiki remains fully useful
-without an LLM provider.
+capabilities are first-class integrations: when an LLM provider is configured,
+a persistent AI chat side pane is available throughout the wiki, letting users
+ask questions, explore content, and generate new pages through conversation.
+The wiki remains fully useful without an LLM provider.
 
 The project optimizes for operational simplicity, clear architecture, reliable
 permissions, versioned content, open integration surfaces, and grounded AI
@@ -39,20 +42,30 @@ storage, and MCP MUST NOT increase the baseline deployment footprint.
 Rationale: Self-hosted software succeeds when installation, backup, upgrade, and
 debugging stay ordinary. A smaller core is easier to trust and maintain.
 
-### P2: AI as Optional Enhancement
+### P2: AI as Optional Enhancement, Chat as First-Class UI
 
 The system MUST function as a fully capable wiki without any LLM configuration.
-AI features are activated only by explicit provider configuration, either via
-environment variables (`LLM_PROVIDER`, `LLM_API_KEY`) or an encrypted admin
-setting. The AI layer MUST NOT make outbound model calls, embedding calls, or
-provider discovery calls when AI mode is disabled.
+AI features are activated only by explicit provider configuration via environment
+variables (`LLM_PROVIDER`, `LLM_API_KEY`) or an encrypted admin setting. The AI
+layer MUST NOT make outbound model calls, embedding calls, or provider discovery
+calls when AI mode is disabled.
+
+When AI mode is active, a persistent **AI chat side pane** MUST be available
+throughout the wiki — on reader pages, the editor, and the admin dashboard. The
+chat pane is the primary AI interaction surface. It is context-aware (knows the
+current page), permission-scoped (only retrieves content the user can read), and
+capable of answering questions, generating page drafts, and suggesting edits.
+Generated content MUST go through the normal page creation or edit flow and MUST
+NOT be auto-published without user confirmation.
 
 AI output MUST be grounded in retrieved page revisions and MUST expose citations
-or source links in user-facing answers. AI features MUST degrade to ordinary
-search, links, and summaries when provider credentials are absent or invalid.
+or source links in user-facing answers. AI features MUST degrade gracefully when
+provider credentials are absent or invalid.
 
 Rationale: AI should improve retrieval and synthesis without making the wiki
-dependent on a model provider or unsafe for private deployments.
+dependent on a model provider or unsafe for private deployments. The chat pane
+makes AI interaction discoverable and consistent rather than scattered across
+individual features.
 
 ### P3: Rendering Pipeline is Sacred
 
@@ -407,6 +420,44 @@ Embedding and summary jobs MUST be restartable and idempotent. Changing the
 embedding model or summary prompt MUST create a new index version or trigger a
 tracked rebuild job.
 
+### AI Chat Side Pane
+
+The AI chat side pane is the primary user-facing AI interaction surface. It is
+a persistent, collapsible panel rendered alongside the main content area on
+reader pages, the editor, and the admin dashboard. It is only rendered when AI
+mode is active.
+
+**Context and scope:**
+- The pane is context-aware: it receives the current page's `(space_id, path,
+  locale, revision_hash)` as implicit context for every message.
+- Users MAY explicitly expand scope to the full wiki or a specific space.
+- All retrieval is permission-scoped: the pane MUST NOT surface content the
+  current user cannot read.
+
+**Capabilities:**
+- Answer questions grounded in retrieved page revisions with citations.
+- Generate a new page draft from a conversation; the draft opens in the editor
+  and MUST NOT be auto-published.
+- Suggest edits to the current page; suggestions appear as a diff the user
+  reviews and accepts or rejects before any write occurs.
+- Summarize the current page or a set of search results.
+
+**Streaming and state:**
+- Responses MUST stream via Server-Sent Events (SSE). The pane renders tokens
+  as they arrive.
+- Chat history is session-scoped by default and is NOT persisted to the
+  database unless a future feature spec defines a persistence model.
+- Each assistant turn MUST include source citations (page path + revision hash)
+  for any retrieved content used in the answer.
+
+**Boundaries:**
+- The chat pane MUST NOT auto-execute write operations. Every mutation
+  (create page, update page) requires explicit user confirmation.
+- The chat pane MUST NOT expose content from spaces or pages the user cannot
+  read, even as indirect evidence in an answer.
+- If AI mode is disabled, the pane is hidden entirely; no placeholder or
+  upsell UI is shown in the default layout.
+
 ---
 
 ## Anti-Patterns
@@ -466,6 +517,7 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 | Containerization | Docker Compose + Kubernetes manifests | Single compose for normal install; K8s for production operators |
 | Testing | Vitest + Playwright | Unit/integration plus E2E coverage |
 | LLM Integration | OpenAI-compatible API plus provider adapters | Provider-agnostic, works with self-hosted or commercial compatible LLMs |
+| AI Chat Streaming | Server-Sent Events (SSE) via Next.js Route Handler | Token-by-token streaming to chat pane; no WebSocket dependency |
 | Monorepo | pnpm workspaces + Turborepo | Shared packages, fast incremental builds |
 
 ---
@@ -504,6 +556,7 @@ next-wiki/
 |           |   |-- ui/             # Mantine wrappers
 |           |   |-- admin/          # Admin dashboard components
 |           |   |-- editor/         # Editor components (Tiptap)
+|           |   |-- chat/           # AI chat side pane components
 |           |   `-- common/         # Shared components
 |           `-- hooks/              # Custom React hooks
 |-- packages/
@@ -542,6 +595,8 @@ These rules are NON-NEGOTIABLE. Violations are architecture defects.
 | URL / filter state | Next.js search params | `searchParams` / `useSearchParams` |
 | Auth session | Better Auth session | Server auth context / `useSession` |
 | Job progress | TanStack Query polling or subscription adapter | Job status endpoint |
+| AI chat messages | Zustand (session-scoped) | `useChatStore`; NOT persisted to DB by default |
+| AI streaming response | Local component state | SSE stream via `useChat` hook; tokens appended on arrival |
 
 Storing server-derived data in Zustand is PROHIBITED. TanStack Query is the
 client server-state manager. Caching API responses in Zustand is an architecture
