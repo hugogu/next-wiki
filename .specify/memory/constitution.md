@@ -1,64 +1,24 @@
-<!--
-SYNC IMPACT REPORT
-==================
-Version change: 1.1.0 -> 1.2.0 (MINOR: added product/operations guidance and
-clarified architecture rules for the Wiki.js rewrite goal)
-Modified:
-  - Mission: clarified that next-wiki is a product rewrite of Wiki.js, not a
-    line-by-line port or architecture clone
-  - P1: expanded deployment simplicity into a default-stateful-dependency rule
-  - P2: expanded AI optionality with privacy, provenance, and no-hidden-network
-    requirements
-  - P3: corrected renderer prohibition wording and made plugins explicit
-  - P8: reconciled tRPC and REST/OpenAPI derivation rules
-  - P9: narrowed explicit-registration rules so framework-owned Next.js routing
-    conventions remain valid
-  - P10 added: Operator Experience is Product Surface
-  - P11 added: Rewrite Wiki.js, Do Not Recreate Its Complexity
-  - Page Tree & Path System: fixed locale-aware page identity and redirect
-    permission leakage
-  - Multi-language Content: aligned translations with the page identity model
-  - API Architecture: clarified tRPC, REST, and MCP contracts and exceptions
-  - AI Knowledge Layer: added grounding, source revision, rebuild, and privacy
-    requirements
-  - Technology Decisions: updated framework target to Next.js 16 + React 19.2
-    and added Node.js runtime baseline
-  - Project Structure: fixed Next.js server import boundary and added REST/MCP
-    route locations
-  - Frontend Data Flow: added React Server Component and client state boundaries
-  - Governance: clarified two-maintainer ratification before amendment merge
-Added sections:
-  - Product Scope & Feature Tiers
-  - Deployment & Operations Baseline
-Removed sections:
-  - None
-Templates requiring updates: N/A (no templates exist yet)
-Deferred TODOs: None
--->
-
 # next-wiki Project Constitution
 
-**Version**: 1.2.0
-**Ratification Date**: 2026-05-29
-**Last Amended**: 2026-05-30
+**Version**: 1.0.0
+**Ratification Date**: 2026-05-30
 
 ---
 
 ## Mission
 
 next-wiki is an open-source, self-hosted wiki system for personal and
-enterprise knowledge management. It is a product rewrite of Wiki.js: it keeps
-the user-facing promise of a capable, approachable, self-hosted wiki, but it
-does not copy Wiki.js internals, dependency sprawl, or all historical extension
-surfaces.
+enterprise knowledge management. It exists to make durable knowledge easy to
+write, organize, search, protect, integrate, and operate.
 
 next-wiki is deployed via Docker Compose or Kubernetes, built on Next.js,
-TypeScript, and PostgreSQL, and designed to be simple to operate, easy to
-extend, and optionally enhanced by LLM-powered AI features.
+TypeScript, and PostgreSQL, and designed around a small default footprint. AI
+capabilities are first-class integrations, but the wiki remains fully useful
+without an LLM provider.
 
-The project exists to deliver what Wiki.js promised with a cleaner architecture,
-a modern stack, a smaller default scope, and AI-native knowledge retrieval as a
-first-class optional capability.
+The project optimizes for operational simplicity, clear architecture, reliable
+permissions, versioned content, open integration surfaces, and grounded AI
+retrieval over broad feature accumulation.
 
 ---
 
@@ -76,9 +36,8 @@ Every new default dependency or service requires explicit justification in the
 feature spec. Optional features such as AI, Git sync, SSO, Meilisearch, object
 storage, and MCP MUST NOT increase the baseline deployment footprint.
 
-Rationale: Wiki.js accumulated many storage backends, search engines, auth
-modules, and optional services. next-wiki chooses a smaller core so self-hosting
-stays ordinary.
+Rationale: Self-hosted software succeeds when installation, backup, upgrade, and
+debugging stay ordinary. A smaller core is easier to trust and maintain.
 
 ### P2: AI as Optional Enhancement
 
@@ -92,8 +51,8 @@ AI output MUST be grounded in retrieved page revisions and MUST expose citations
 or source links in user-facing answers. AI features MUST degrade to ordinary
 search, links, and summaries when provider credentials are absent or invalid.
 
-Rationale: Forcing LLM dependencies raises the barrier to self-hosting and
-creates privacy concerns for air-gapped or compliance-sensitive deployments.
+Rationale: AI should improve retrieval and synthesis without making the wiki
+dependent on a model provider or unsafe for private deployments.
 
 ### P3: Rendering Pipeline is Sacred
 
@@ -101,12 +60,12 @@ The content rendering pipeline (`source -> parse -> transform[] -> render`) MUST
 be a first-class, pluggable pipeline from day one. Renderers MUST NOT be
 hardcoded into page components. Every transformation step, including Markdown
 parsing, syntax highlighting, math rendering, diagram rendering, embeds, and
-link rewriting, MUST be a discrete, replaceable plugin with typed inputs and
+link processing, MUST be a discrete, replaceable plugin with typed inputs and
 outputs.
 
-Rationale: Wiki.js tightly coupled editor format, render behavior, and runtime
-module discovery. A clean pipeline prevents that lock-in while keeping Markdown
-as the reference format.
+Rationale: Content rendering is core infrastructure. Keeping it explicit and
+replaceable makes new content types possible without coupling editors, storage,
+and page components together.
 
 ### P4: Permissions are First-Class
 
@@ -116,17 +75,16 @@ route, server component loader, background job, search query, and AI retrieval
 operation MUST check permissions before returning data. Anonymous read access
 MUST be a configurable permission, not a special code path.
 
-Rationale: Retrofitting fine-grained permissions onto an existing system is one
-of the most expensive refactors possible. It touches every query, every API
-endpoint, and every integration surface.
+Rationale: Permissions touch every query, every integration surface, and every
+AI retrieval path. Treating them as infrastructure prevents expensive retrofits
+and data leaks.
 
 ### P5: Style System Independence
 
 The UI MUST be built on a design token system based on CSS custom properties.
 Color, spacing, radius, and typography values MUST NOT be hardcoded in feature
-component styles. Themes are JSON files that map to CSS variables. The default
-theme MAY reference the visual character of Wiki.js documentation, but the
-system MUST support full theme replacement without code changes.
+component styles. Themes are JSON files that map to CSS variables. The system
+MUST support full theme replacement without code changes.
 
 ### P6: Async-First for Heavy Operations
 
@@ -160,9 +118,9 @@ integration MUST use provider-agnostic interfaces, preferably OpenAI-compatible
 HTTP APIs or explicit provider adapters. Export formats MUST include standard
 Markdown + frontmatter. No vendor lock-in belongs in the critical path.
 
-Rationale: tRPC eliminates the dual-maintenance burden of writing types twice
-for internal CRUD-heavy UI work. REST + OpenAPI remains the stable public
-contract for bots, scripts, integrations, and non-TypeScript clients.
+Rationale: tRPC keeps first-party development type-safe and fast. REST + OpenAPI
+provides the stable public contract for scripts, integrations, bots, and
+non-TypeScript clients.
 
 ### P9: Explicit Over Implicit
 
@@ -179,9 +137,8 @@ Custom runtime discovery through filesystem scanning, filename conventions, or
 dynamic imports is prohibited unless the feature spec defines a bounded registry
 and testable loading contract.
 
-Rationale: Wiki.js used `autoload()` for module discovery and a `WIKI` global
-object for state sharing. That made the system fragile to restructure and hard
-to test. next-wiki imports MUST be traceable.
+Rationale: Explicit registration makes the system understandable by reading the
+entry points and testable without hidden runtime state.
 
 ### P10: Operator Experience is Product Surface
 
@@ -195,25 +152,24 @@ The application MUST NOT require internet access after images and packages have
 been obtained. Update checks, telemetry, marketplace calls, theme downloads, and
 language downloads MUST be opt-in.
 
-Rationale: The project is meant to be easy to deploy and keep running. Agents
-MUST treat operations work as part of the core product, not as documentation to
-write later.
+Rationale: next-wiki is meant to be easy to deploy and keep running. Agents MUST
+treat operations work as part of the core product, not as documentation to write
+later.
 
-### P11: Rewrite Wiki.js, Do Not Recreate Its Complexity
+### P11: Focused Scope Over Feature Accumulation
 
-Wiki.js is the product reference for user expectations, not the implementation
-template. next-wiki MUST prioritize the common wiki workflows: create, edit,
-organize, search, protect, version, import, export, and integrate. It MUST NOT
-chase feature parity when parity would add default dependencies, multiple core
-storage models, hard-to-test plugin magic, or permanent feature-flag branches.
+next-wiki MUST prioritize common wiki workflows: create, edit, organize,
+search, protect, version, import, export, and integrate. It MUST NOT add
+default dependencies, storage models, runtime plugin systems, or permanent
+feature-flag branches to satisfy rarely used workflows.
 
-Migration support from Wiki.js SHOULD focus on documented exports, Markdown
-content, assets, users/groups where practical, and page metadata. Compatibility
-work MUST be implemented as import/export tooling around the next-wiki data
-model, not as legacy architecture inside the runtime.
+Migration support SHOULD focus on documented exports, Markdown content, assets,
+users/groups where practical, and page metadata. Compatibility work MUST be
+implemented as import/export tooling around the next-wiki data model, not as
+legacy architecture inside the runtime.
 
-Rationale: A rewrite succeeds by preserving the product value while cutting the
-architecture down to the parts that remain understandable.
+Rationale: A focused product is easier to learn, operate, extend, and reason
+about. Broad compatibility belongs at the edges, not in the core runtime.
 
 ---
 
@@ -300,7 +256,7 @@ Search indexing respects the page locale.
 The rendering pipeline MUST follow `source -> parse -> transform[] -> render`.
 Each stage is a discrete function with a typed input/output contract.
 Transformers such as syntax highlight, math, diagrams, embeds, and link
-rewriters are registered plugins. Transformers MUST NOT access the database
+processors are registered plugins. Transformers MUST NOT access the database
 directly; they receive resolved inputs, capability objects, or asset loaders
 from the pipeline context. The pipeline MUST be executable server-side and
 cacheable per revision hash.
@@ -453,13 +409,13 @@ tracked rebuild job.
 
 ---
 
-## Anti-Patterns (Lessons from Wiki.js)
+## Anti-Patterns
 
 These patterns are PROHIBITED. Any PR introducing them MUST be rejected.
 
-- **Feature parity chase with Wiki.js**: Matching a Wiki.js feature is not a
+- **Scope expansion by comparison**: Matching another product's feature is not a
   reason to add a default dependency, architecture branch, or permanent runtime
-  option. The feature MUST fit next-wiki's smaller model.
+  option. The feature MUST fit next-wiki's focused model.
 - **REST as sole API for internal consumption**: Internal frontend-backend
   communication MUST use tRPC. REST is reserved for the public integration API.
 - **GraphQL as primary API**: Adds schema maintenance overhead without enough
@@ -519,43 +475,43 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 This layout is NON-NEGOTIABLE. AI agents MUST NOT generate a different
 directory structure. Any deviation requires a constitution amendment.
 
-```
+```text
 next-wiki/
-├── apps/
-│   └── web/                        # Next.js full-stack application
-│       ├── app/                    # App Router routes and route shells
-│       │   ├── (public)/           # Public content pages (SSR + SEO)
-│       │   ├── (auth)/             # Login / register
-│       │   ├── (admin)/            # Admin dashboard
-│       │   ├── (editor)/           # Page editor
-│       │   └── api/
-│       │       ├── trpc/[trpc]/    # tRPC HTTP handler
-│       │       ├── v1/             # Public REST route handlers
-│       │       └── mcp/            # Optional MCP transport handlers
-│       └── src/
-│           ├── server/             # Server-only code
-│           │   ├── trpc/           # tRPC routers and procedures
-│           │   ├── rest/           # REST adapters and OpenAPI metadata
-│           │   ├── mcp/            # MCP tool adapters
-│           │   ├── services/       # Business logic layer
-│           │   ├── db/             # Drizzle schema + migrations
-│           │   ├── auth/           # Better Auth integration
-│           │   ├── pipeline/       # Rendering pipeline (remark/rehype)
-│           │   ├── ai/             # Optional AI provider and retrieval layer
-│           │   └── jobs/           # pg-boss job definitions
-│           ├── client/             # Client-only code
-│           ├── components/
-│           │   ├── ui/             # Mantine wrappers
-│           │   ├── admin/          # Admin dashboard components
-│           │   ├── editor/         # Editor components (Tiptap)
-│           │   └── common/         # Shared components
-│           └── hooks/              # Custom React hooks
-├── packages/
-│   ├── shared/                     # Zod schemas, types, constants
-│   └── editor/                     # Tiptap extensions, CodeMirror configs
-├── docker/                         # Dockerfiles and compose files
-├── turbo.json
-└── pnpm-workspace.yaml
+|-- apps/
+|   `-- web/                        # Next.js full-stack application
+|       |-- app/                    # App Router routes and route shells
+|       |   |-- (public)/           # Public content pages (SSR + SEO)
+|       |   |-- (auth)/             # Login / register
+|       |   |-- (admin)/            # Admin dashboard
+|       |   |-- (editor)/           # Page editor
+|       |   `-- api/
+|       |       |-- trpc/[trpc]/    # tRPC HTTP handler
+|       |       |-- v1/             # Public REST route handlers
+|       |       `-- mcp/            # Optional MCP transport handlers
+|       `-- src/
+|           |-- server/             # Server-only code
+|           |   |-- trpc/           # tRPC routers and procedures
+|           |   |-- rest/           # REST adapters and OpenAPI metadata
+|           |   |-- mcp/            # MCP tool adapters
+|           |   |-- services/       # Business logic layer
+|           |   |-- db/             # Drizzle schema + migrations
+|           |   |-- auth/           # Better Auth integration
+|           |   |-- pipeline/       # Rendering pipeline (remark/rehype)
+|           |   |-- ai/             # Optional AI provider and retrieval layer
+|           |   `-- jobs/           # pg-boss job definitions
+|           |-- client/             # Client-only code
+|           |-- components/
+|           |   |-- ui/             # Mantine wrappers
+|           |   |-- admin/          # Admin dashboard components
+|           |   |-- editor/         # Editor components (Tiptap)
+|           |   `-- common/         # Shared components
+|           `-- hooks/              # Custom React hooks
+|-- packages/
+|   |-- shared/                     # Zod schemas, types, constants
+|   `-- editor/                     # Tiptap extensions, CodeMirror configs
+|-- docker/                         # Dockerfiles and compose files
+|-- turbo.json
+`-- pnpm-workspace.yaml
 ```
 
 Key rules derived from this structure:
@@ -628,6 +584,6 @@ manual verification notes for those surfaces.
 
 ### Ratifiers
 
-This constitution was ratified by the project founder on 2026-05-29.
+This constitution was ratified by the project founder on 2026-05-30.
 Subsequent amendments are ratified by any two active maintainers, or by the
 founder while the project has fewer than two active maintainers.
