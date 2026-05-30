@@ -1,0 +1,724 @@
+openapi: 3.1.0
+info:
+  title: next-wiki MVP Public API
+  version: 1.0.0
+  summary: Public REST contract for authentication configuration, wiki content, search, theming, AI chat, and job visibility.
+servers:
+  - url: https://example.com/api/v1
+paths:
+  /setup/init:
+    post:
+      summary: Complete first-run initialization
+      operationId: initializeSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializeSiteRequest'
+      responses:
+        '201':
+          description: Site initialized
+
+  /auth/providers:
+    get:
+      summary: List configured external authentication providers
+      operationId: listAuthProviders
+      responses:
+        '200':
+          description: Authentication providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuthProvider'
+    post:
+      summary: Create an external authentication provider configuration
+      operationId: createAuthProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAuthProviderRequest'
+      responses:
+        '201':
+          description: Authentication provider created
+
+  /spaces:
+    get:
+      summary: List spaces visible to the caller
+      operationId: listSpaces
+      responses:
+        '200':
+          description: Visible spaces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Space'
+    post:
+      summary: Create a new space
+      operationId: createSpace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSpaceRequest'
+      responses:
+        '201':
+          description: Space created
+
+  /spaces/{spaceKey}/pages:
+    post:
+      summary: Create a page in a space
+      operationId: createPage
+      parameters:
+        - $ref: '#/components/parameters/SpaceKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePageRequest'
+      responses:
+        '201':
+          description: Page created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageDetail'
+
+  /spaces/{spaceKey}/pages/{pagePath}:
+    get:
+      summary: Retrieve a page by canonical path and locale
+      operationId: getPageByPath
+      parameters:
+        - $ref: '#/components/parameters/SpaceKey'
+        - $ref: '#/components/parameters/PagePath'
+        - name: locale
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Page returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageDetail'
+        '302':
+          description: Redirect to canonical path when permitted
+        '404':
+          description: Page not found or not readable
+
+  /pages/{pageId}:
+    patch:
+      summary: Update page content, metadata, locale data, or tags
+      operationId: updatePage
+      parameters:
+        - $ref: '#/components/parameters/PageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePageRequest'
+      responses:
+        '200':
+          description: Page updated and new revision created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageDetail'
+
+  /pages/{pageId}/move:
+    post:
+      summary: Move a page to a new canonical path or space
+      operationId: movePage
+      parameters:
+        - $ref: '#/components/parameters/PageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovePageRequest'
+      responses:
+        '200':
+          description: Page moved and redirects created
+
+  /pages/{pageId}/revisions:
+    get:
+      summary: List page revisions
+      operationId: listPageRevisions
+      parameters:
+        - $ref: '#/components/parameters/PageId'
+      responses:
+        '200':
+          description: Revision list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PageRevision'
+
+  /pages/{pageId}/revisions/{revisionNumber}/restore:
+    post:
+      summary: Restore a prior page revision
+      operationId: restorePageRevision
+      parameters:
+        - $ref: '#/components/parameters/PageId'
+        - name: revisionNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '202':
+          description: Restore requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundTask'
+
+  /pages:
+    get:
+      summary: List pages with filtering by space, locale, and tag
+      operationId: listPages
+      parameters:
+        - name: space
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: locale
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Page list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PageSummary'
+
+  /search:
+    get:
+      summary: Search visible wiki content by keyword
+      operationId: searchPages
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: space
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: locale
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchResult'
+
+  /tags:
+    get:
+      summary: List tags
+      operationId: listTags
+      responses:
+        '200':
+          description: Tag list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+    post:
+      summary: Create a tag
+      operationId: createTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTagRequest'
+      responses:
+        '201':
+          description: Tag created
+
+  /admin/themes:
+    get:
+      summary: List available themes
+      operationId: listThemes
+      responses:
+        '200':
+          description: Theme list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Theme'
+    post:
+      summary: Create or import a theme
+      operationId: createTheme
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateThemeRequest'
+      responses:
+        '201':
+          description: Theme created
+
+  /admin/themes/{themeId}/activate:
+    post:
+      summary: Activate a theme site-wide
+      operationId: activateTheme
+      parameters:
+        - $ref: '#/components/parameters/ThemeId'
+      responses:
+        '200':
+          description: Theme activated
+
+  /admin/ai/providers:
+    get:
+      summary: List AI providers
+      operationId: listAiProviders
+      responses:
+        '200':
+          description: AI provider list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AiProvider'
+    post:
+      summary: Create an AI provider configuration
+      operationId: createAiProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAiProviderRequest'
+      responses:
+        '201':
+          description: AI provider created
+
+  /ai/chat/conversations:
+    post:
+      summary: Start a new AI conversation
+      operationId: createAiConversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAiConversationRequest'
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiConversation'
+
+  /ai/chat/conversations/{conversationId}/messages:
+    post:
+      summary: Ask a grounded question against wiki content
+      operationId: createAiMessage
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAiMessageRequest'
+      responses:
+        '202':
+          description: AI response generation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundTask'
+
+  /jobs/{jobId}:
+    get:
+      summary: Retrieve background task status
+      operationId: getJobStatus
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Background task status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundTask'
+
+components:
+  parameters:
+    SpaceKey:
+      name: spaceKey
+      in: path
+      required: true
+      schema:
+        type: string
+    PagePath:
+      name: pagePath
+      in: path
+      required: true
+      schema:
+        type: string
+    PageId:
+      name: pageId
+      in: path
+      required: true
+      schema:
+        type: string
+    ThemeId:
+      name: themeId
+      in: path
+      required: true
+      schema:
+        type: string
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    InitializeSiteRequest:
+      type: object
+      required: [siteName, adminEmail, adminPassword, defaultLocale]
+      properties:
+        siteName:
+          type: string
+        adminEmail:
+          type: string
+          format: email
+        adminPassword:
+          type: string
+        defaultLocale:
+          type: string
+    AuthProvider:
+      type: object
+      required: [id, providerType, key, label, status]
+      properties:
+        id:
+          type: string
+        providerType:
+          type: string
+        key:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+    CreateAuthProviderRequest:
+      type: object
+      required: [providerType, key, label]
+      properties:
+        providerType:
+          type: string
+        key:
+          type: string
+        label:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+    Space:
+      type: object
+      required: [id, key, name, defaultLocale]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+        name:
+          type: string
+        defaultLocale:
+          type: string
+    CreateSpaceRequest:
+      type: object
+      required: [key, name, defaultLocale]
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        defaultLocale:
+          type: string
+    PageSummary:
+      type: object
+      required: [id, title, path, locale, status]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        path:
+          type: string
+        locale:
+          type: string
+        status:
+          type: string
+    PageDetail:
+      allOf:
+        - $ref: '#/components/schemas/PageSummary'
+        - type: object
+          properties:
+            sourceFormat:
+              type: string
+            sourceContent:
+              type: string
+            renderedContent:
+              type: string
+            revisionNumber:
+              type: integer
+            tags:
+              type: array
+              items:
+                $ref: '#/components/schemas/Tag'
+    CreatePageRequest:
+      type: object
+      required: [path, locale, title, sourceContent]
+      properties:
+        path:
+          type: string
+        locale:
+          type: string
+        title:
+          type: string
+        sourceContent:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+    UpdatePageRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        sourceContent:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        changeSummary:
+          type: string
+    MovePageRequest:
+      type: object
+      required: [newPath]
+      properties:
+        newPath:
+          type: string
+        destinationSpaceKey:
+          type: string
+    PageRevision:
+      type: object
+      required: [revisionNumber, createdAt]
+      properties:
+        revisionNumber:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        changeSummary:
+          type: string
+    Tag:
+      type: object
+      required: [id, slug, label]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+    CreateTagRequest:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+        description:
+          type: string
+    SearchResult:
+      type: object
+      required: [pageId, title, path, locale, snippet]
+      properties:
+        pageId:
+          type: string
+        title:
+          type: string
+        path:
+          type: string
+        locale:
+          type: string
+        snippet:
+          type: string
+    Theme:
+      type: object
+      required: [id, key, name, status]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+    CreateThemeRequest:
+      type: object
+      required: [name, tokenSet]
+      properties:
+        name:
+          type: string
+        tokenSet:
+          type: object
+          additionalProperties: true
+        chromeConfig:
+          type: object
+          additionalProperties: true
+    AiProvider:
+      type: object
+      required: [id, key, label, status]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+    CreateAiProviderRequest:
+      type: object
+      required: [key, label, providerType, defaultModel]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        providerType:
+          type: string
+        endpoint:
+          type: string
+        defaultModel:
+          type: string
+        embeddingModel:
+          type: string
+        credentials:
+          type: object
+          additionalProperties: true
+    AiConversation:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+    CreateAiConversationRequest:
+      type: object
+      properties:
+        contextType:
+          type: string
+        contextId:
+          type: string
+        title:
+          type: string
+    CreateAiMessageRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+    BackgroundTask:
+      type: object
+      required: [id, taskType, status, createdAt]
+      properties:
+        id:
+          type: string
+        taskType:
+          type: string
+        status:
+          type: string
+        progressLabel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
