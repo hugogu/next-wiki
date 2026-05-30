@@ -13,7 +13,7 @@ export const auth = betterAuth({
     schema: {
       user: authSchema.users,
       session: authSchema.sessions,
-      account: authSchema.userIdentities,
+      account: authSchema.accounts,  // uses dedicated accounts table with password field
     },
   }),
 
@@ -33,7 +33,6 @@ export const auth = betterAuth({
 
   user: {
     additionalFields: {
-      displayName: { type: "string", required: false },
       avatarUrl: { type: "string", required: false },
       status: { type: "string", required: false, defaultValue: "active" },
       preferredLocale: { type: "string", required: false, defaultValue: "en" },
@@ -41,6 +40,8 @@ export const auth = betterAuth({
   },
 
   advanced: {
+    // Use UUID v4 so IDs match our uuid-typed primary key columns.
+    generateId: () => crypto.randomUUID(),
     defaultCookieAttributes: {
       sameSite: "lax",
       httpOnly: true,

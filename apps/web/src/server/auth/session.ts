@@ -7,7 +7,7 @@ export type AuthSession = {
   user: {
     id: string;
     email: string | null;
-    displayName: string;
+    name: string;
     status: string;
   };
   session: { id: string; expiresAt: Date };
@@ -25,7 +25,7 @@ export async function getSession(): Promise<AuthSession | null> {
     user: {
       id: session.user.id,
       email: session.user.email ?? null,
-      displayName: (session.user as { displayName?: string }).displayName ?? session.user.name ?? "User",
+      name: (session.user as { name?: string }).name ?? session.user.name ?? "User",
       status: (session.user as { status?: string }).status ?? "active",
     },
     session: {
@@ -62,13 +62,13 @@ export async function buildPermissionContext(
   }
 
   const { getDb } = await import("@/server/db/client");
+  const { sql } = await import("drizzle-orm");
   const db = getDb();
   const rows = await db.execute(
-    `SELECT gm.group_id, g.key
-     FROM group_memberships gm
-     JOIN groups g ON g.id = gm.group_id
-     WHERE gm.user_id = $1`,
-    [userId],
+    sql`SELECT gm.group_id, g.key
+        FROM group_memberships gm
+        JOIN groups g ON g.id = gm.group_id
+        WHERE gm.user_id = ${userId}`,
   );
 
   const groupIds = (rows.rows as Array<{ group_id: string; key: string }>).map(

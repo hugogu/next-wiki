@@ -11,7 +11,7 @@ import type { PermissionContext } from "@/server/services/permissions/context";
 export type User = {
   id: string;
   email: string | null;
-  displayName: string;
+  name: string;
   avatarUrl: string | null;
   status: string;
   preferredLocale: string;
@@ -36,7 +36,7 @@ function toUser(row: typeof users.$inferSelect): User {
   return {
     id: row.id,
     email: row.email ?? null,
-    displayName: row.displayName,
+    name: row.name,
     avatarUrl: row.avatarUrl ?? null,
     status: row.status,
     preferredLocale: row.preferredLocale,
@@ -80,7 +80,7 @@ export async function listUsers(
   if (q && q.trim().length > 0) {
     const pattern = `%${q.trim()}%`;
     conditions.push(
-      or(ilike(users.email, pattern), ilike(users.displayName, pattern)),
+      or(ilike(users.email, pattern), ilike(users.name, pattern)),
     );
   }
 

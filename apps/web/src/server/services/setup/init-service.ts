@@ -1,13 +1,8 @@
 import { eq } from "drizzle-orm";
-import { hash } from "@node-rs/argon2";
 import { getDb } from "@/server/db/client";
-import { users, userIdentities, groups, groupMemberships, siteSettings } from "@/server/db/schema/auth";
+import { users, groups, groupMemberships, siteSettings } from "@/server/db/schema/auth";
 import { isSetupComplete, markSetupComplete } from "./setup-service";
 import { ValidationError } from "@next-wiki/shared";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type InitInput = {
   adminEmail: string;
@@ -20,10 +15,6 @@ export type InitResult = {
   adminUserId: string;
   alreadyInitialized: boolean;
 };
-
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,61 +30,57 @@ function validateInput(input: InitInput): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Core
-// ---------------------------------------------------------------------------
-
 /**
- * Initialize the wiki on first run.
- * Idempotent — safe to call multiple times.
+ * Initialize the wiki on first run. Idempotent — safe to call multiple times.
+ * Uses Better Auth's sign-up API so credentials are stored in the format
+ * Better Auth expects (accounts table with argon2-hashed password).
  */
 export async function initializeWiki(input: InitInput): Promise<InitResult> {
-  // Step 1: already done?
   if (await isSetupComplete()) {
     return { adminUserId: "", alreadyInitialized: true };
   }
 
-  // Step 2: validate
   validateInput(input);
 
   const db = getDb();
 
-  // Step 3: check for existing user with this email (partial / interrupted run)
+  // Check for existing user (handles partial / interrupted run).
   const existing = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.email, input.adminEmail))
     .limit(1);
 
-  if (existing.length > 0) {
-    // A previous interrupted run already created the user; mark complete and return.
-    const adminUserId = existing[0].id;
-    await markSetupComplete();
-    return { adminUserId, alreadyInitialized: false };
+  let adminUserId: string;
+
+  if (existing.length > 0 && existing[0]) {
+    adminUserId = existing[0].id;
+  } else {
+    // Use Better Auth's sign-up API — it handles password hashing and
+    // creates the correct account record in the accounts table.
+    const { auth } = await import("@/server/auth/index");
+    const result = await auth.api.signUpEmail({
+      body: {
+        email: input.adminEmail,
+        password: input.adminPassword,
+        name: input.adminDisplayName.trim(),
+      },
+    });
+
+    if (!result?.user?.id) {
+      throw new Error("Better Auth sign-up did not return a user ID");
+    }
+
+    adminUserId = result.user.id;
+
+    // Sync name into our extended users table (Better Auth stores `name`).
+    await db
+      .update(users)
+      .set({ name: input.adminDisplayName.trim() })
+      .where(eq(users.id, adminUserId));
   }
 
-  // Step 4: create admin user directly in DB (better-auth stores password in user_identities)
-  const passwordHash = await hash(input.adminPassword);
-  const adminUserId = crypto.randomUUID();
-
-  await db.insert(users).values({
-    id: adminUserId,
-    email: input.adminEmail,
-    displayName: input.adminDisplayName.trim(),
-    status: "active",
-  });
-
-  // Insert local identity with the argon2 hash as the external_subject / metadata
-  await db.insert(userIdentities).values({
-    id: crypto.randomUUID(),
-    userId: adminUserId,
-    providerType: "local",
-    providerKey: input.adminEmail,
-    externalSubject: input.adminEmail,
-    metadata: { passwordHash },
-  });
-
-  // Step 5: ensure 'administrators' system group exists, then add membership
+  // Ensure 'administrators' system group exists and add user to it.
   const existingGroup = await db
     .select({ id: groups.id })
     .from(groups)
@@ -101,18 +88,21 @@ export async function initializeWiki(input: InitInput): Promise<InitResult> {
     .limit(1);
 
   let adminGroupId: string;
-  if (existingGroup.length > 0) {
+  if (existingGroup.length > 0 && existingGroup[0]) {
     adminGroupId = existingGroup[0].id;
   } else {
     adminGroupId = crypto.randomUUID();
-    await db.insert(groups).values({
-      id: adminGroupId,
-      key: "administrators",
-      name: "Administrators",
-      description: "Full site administration access",
-      isSystem: true,
-    }).onConflictDoNothing();
-    // Re-fetch in case of a race / conflict
+    await db
+      .insert(groups)
+      .values({
+        id: adminGroupId,
+        key: "administrators",
+        name: "Administrators",
+        description: "Full site administration access",
+        isSystem: true,
+      })
+      .onConflictDoNothing();
+
     const refetched = await db
       .select({ id: groups.id })
       .from(groups)
@@ -121,14 +111,12 @@ export async function initializeWiki(input: InitInput): Promise<InitResult> {
     adminGroupId = refetched[0]?.id ?? adminGroupId;
   }
 
-  await db.insert(groupMemberships).values({
-    id: crypto.randomUUID(),
-    userId: adminUserId,
-    groupId: adminGroupId,
-    role: "member",
-  }).onConflictDoNothing();
+  await db
+    .insert(groupMemberships)
+    .values({ id: crypto.randomUUID(), userId: adminUserId, groupId: adminGroupId, role: "member" })
+    .onConflictDoNothing();
 
-  // Step 6: site name
+  // Persist site name if provided.
   if (input.siteName?.trim()) {
     await db
       .insert(siteSettings)
@@ -141,16 +129,10 @@ export async function initializeWiki(input: InitInput): Promise<InitResult> {
       })
       .onConflictDoUpdate({
         target: siteSettings.key,
-        set: {
-          value: input.siteName.trim(),
-          updatedByUserId: adminUserId,
-          updatedAt: new Date(),
-        },
+        set: { value: input.siteName.trim(), updatedByUserId: adminUserId, updatedAt: new Date() },
       });
   }
 
-  // Step 7: mark setup complete
   await markSetupComplete();
-
   return { adminUserId, alreadyInitialized: false };
 }

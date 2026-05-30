@@ -9,7 +9,7 @@ import { ForbiddenError } from "@next-wiki/shared";
  */
 export async function requireAuth(callbackUrl?: string): Promise<{
   userId: string;
-  displayName: string;
+  name: string;
 }> {
   const session = await getSession();
   if (!session) {
@@ -20,7 +20,7 @@ export async function requireAuth(callbackUrl?: string): Promise<{
   }
   return {
     userId: session.user.id,
-    displayName: session.user.displayName,
+    name: session.user.name,
   };
 }
 

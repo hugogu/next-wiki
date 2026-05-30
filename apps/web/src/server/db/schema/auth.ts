@@ -14,10 +14,12 @@ import {
 // ---------------------------------------------------------------------------
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id").primaryKey(),  // text to accept Better Auth's generated IDs
   email: text("email").unique(), // nullable — external accounts may have no email
-  displayName: text("display_name").notNull(),
-  avatarUrl: text("avatar_url"),
+  name: text("name").notNull(),           // Better Auth required: display name
+  emailVerified: boolean("email_verified").notNull().default(false), // Better Auth required
+  image: text("image"),                   // Better Auth required: avatar URL
+  avatarUrl: text("avatar_url"),          // our own alias (same data as image)
   // enum: invited | active | suspended
   status: text("status").notNull().default("active"),
   preferredLocale: text("preferred_locale").notNull().default("en"),
@@ -52,14 +54,14 @@ export const userIdentities = pgTable(
 // ---------------------------------------------------------------------------
 
 export const sessions = pgTable("sessions", {
-  // Better Auth uses text tokens as session IDs
   id: text("id").primaryKey(),
-  userId: uuid("user_id")
+  token: text("token").notNull().unique(),   // Better Auth: actual session token
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
 });
@@ -78,6 +80,29 @@ export const authProviders = pgTable("auth_providers", {
   status: text("status").notNull().default("disabled"),
   config: jsonb("config").notNull().default({}),
   errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// accounts (Better Auth credential storage — separate from user_identities)
+// Better Auth uses this table internally for email/password and OAuth tokens.
+// ---------------------------------------------------------------------------
+
+export const accounts = pgTable("accounts", {
+  id: text("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull(),   // email for credential, sub for OAuth
+  providerId: text("provider_id").notNull(), // "credential" | "google" | etc.
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  scope: text("scope"),
+  password: text("password"),               // argon2 hash for credential provider
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -20,7 +20,7 @@ export type Group = {
 export type User = {
   id: string;
   email: string | null;
-  displayName: string;
+  name: string;
   avatarUrl: string | null;
   status: string;
   preferredLocale: string;
@@ -47,7 +47,7 @@ function toUser(row: typeof users.$inferSelect): User {
   return {
     id: row.id,
     email: row.email ?? null,
-    displayName: row.displayName,
+    name: row.name,
     avatarUrl: row.avatarUrl ?? null,
     status: row.status,
     preferredLocale: row.preferredLocale,

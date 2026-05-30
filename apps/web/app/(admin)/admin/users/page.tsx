@@ -55,7 +55,7 @@ export default async function AdminUsersPage({
             {result.items.map((user: any) => (
               <tr key={user.id} className="hover:bg-surface">
                 <td className="px-3 py-2">{user.email ?? "—"}</td>
-                <td className="px-3 py-2 font-medium">{user.displayName}</td>
+                <td className="px-3 py-2 font-medium">{user.name}</td>
                 <td className="px-3 py-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
