@@ -1,0 +1,36 @@
+{
+  "name": "@next-wiki/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./contracts/*": {
+      "import": "./src/contracts/*.ts",
+      "types": "./src/contracts/*.ts"
+    },
+    "./theme/*": {
+      "import": "./src/theme/*.ts",
+      "types": "./src/theme/*.ts"
+    },
+    "./errors": {
+      "import": "./src/errors.ts",
+      "types": "./src/errors.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  }
+}

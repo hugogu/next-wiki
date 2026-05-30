@@ -21,10 +21,10 @@ implemented and validated independently once the shared foundation is complete.
 **Purpose**: Create the monorepo, toolchain, and Docker-first baseline that all
 implementation work will use.
 
-- [ ] T001 Create the workspace manifests and shared TypeScript base config in `package.json`, `pnpm-workspace.yaml`, and `tsconfig.base.json`
-- [ ] T002 Scaffold the web app and shared package manifests in `apps/web/package.json`, `apps/web/tsconfig.json`, `packages/shared/package.json`, and `packages/editor/package.json`
-- [ ] T003 [P] Configure repo-wide lint, format, and test entrypoints in `eslint.config.js`, `prettier.config.cjs`, `vitest.workspace.ts`, and `turbo.json`
-- [ ] T004 [P] Create the Docker-first local stack and sample environment in `docker-compose.yml`, `docker/web.Dockerfile`, and `.env.example`
+- [x] T001 Create the workspace manifests and shared TypeScript base config in `package.json`, `pnpm-workspace.yaml`, and `tsconfig.base.json`
+- [x] T002 Scaffold the web app and shared package manifests in `apps/web/package.json`, `apps/web/tsconfig.json`, `packages/shared/package.json`, and `packages/editor/package.json`
+- [x] T003 [P] Configure repo-wide lint, format, and test entrypoints in `eslint.config.js`, `prettier.config.cjs`, `vitest.workspace.ts`, and `turbo.json`
+- [x] T004 [P] Create the Docker-first local stack and sample environment in `docker-compose.yml`, `docker/web.Dockerfile`, and `.env.example`
 
 ---
 
@@ -36,16 +36,16 @@ pipeline shell.
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete.
 
-- [ ] T005 Implement environment loading and runtime secret validation in `apps/web/src/server/config/env.ts` and `apps/web/src/server/config/runtime.ts`
-- [ ] T006 Create the full MVP Drizzle schema and initial migration in `apps/web/src/server/db/schema/auth.ts`, `apps/web/src/server/db/schema/wiki.ts`, `apps/web/src/server/db/schema/ai.ts`, and `apps/web/src/server/db/migrations/0001_mvp_init.sql`
-- [ ] T007 [P] Wire the PostgreSQL client, schema exports, and migration runner in `apps/web/src/server/db/client.ts`, `apps/web/src/server/db/index.ts`, and `apps/web/src/server/db/migrate.ts`
-- [ ] T008 [P] Establish Better Auth core, session adapters, and local credential auth in `apps/web/src/server/auth/index.ts`, `apps/web/src/server/auth/providers.ts`, and `apps/web/src/server/auth/session.ts`
-- [ ] T009 [P] Implement the permission context model and precedence engine in `apps/web/src/server/services/permissions/context.ts` and `apps/web/src/server/services/permissions/engine.ts`
-- [ ] T010 [P] Create shared Zod contracts and service error primitives in `packages/shared/src/contracts/common.ts`, `packages/shared/src/contracts/wiki.ts`, and `packages/shared/src/errors.ts`
-- [ ] T011 [P] Scaffold the internal tRPC, public REST, MCP, and OpenAPI entrypoints in `apps/web/src/server/trpc/root.ts`, `apps/web/app/api/trpc/[trpc]/route.ts`, `apps/web/app/api/v1/[...route]/route.ts`, `apps/web/app/api/mcp/route.ts`, and `apps/web/app/api/v1/openapi/route.ts`
-- [ ] T012 [P] Set up pg-boss, task persistence, and the worker bootstrap in `apps/web/src/server/jobs/boss.ts`, `apps/web/src/server/jobs/task-service.ts`, and `apps/web/src/server/jobs/worker.ts`
-- [ ] T013 [P] Build the render pipeline skeleton and non-optional sanitization stage in `apps/web/src/server/pipeline/index.ts`, `apps/web/src/server/pipeline/cache.ts`, and `apps/web/src/server/pipeline/plugins/sanitize.ts`
-- [ ] T014 Implement the setup gate, site bootstrap state, and root app shell in `apps/web/app/layout.tsx`, `apps/web/app/(auth)/setup/page.tsx`, and `apps/web/src/server/services/setup/setup-service.ts`
+- [x] T005 Implement environment loading and runtime secret validation in `apps/web/src/server/config/env.ts` and `apps/web/src/server/config/runtime.ts`
+- [x] T006 Create the full MVP Drizzle schema and initial migration in `apps/web/src/server/db/schema/auth.ts`, `apps/web/src/server/db/schema/wiki.ts`, `apps/web/src/server/db/schema/ai.ts`, and `apps/web/src/server/db/migrations/0001_mvp_init.sql`
+- [x] T007 [P] Wire the PostgreSQL client, schema exports, and migration runner in `apps/web/src/server/db/client.ts`, `apps/web/src/server/db/index.ts`, and `apps/web/src/server/db/migrate.ts`
+- [x] T008 [P] Establish Better Auth core, session adapters, and local credential auth in `apps/web/src/server/auth/index.ts`, `apps/web/src/server/auth/providers.ts`, and `apps/web/src/server/auth/session.ts`
+- [x] T009 [P] Implement the permission context model and precedence engine in `apps/web/src/server/services/permissions/context.ts` and `apps/web/src/server/services/permissions/engine.ts`
+- [x] T010 [P] Create shared Zod contracts and service error primitives in `packages/shared/src/contracts/common.ts`, `packages/shared/src/contracts/wiki.ts`, and `packages/shared/src/errors.ts`
+- [x] T011 [P] Scaffold the internal tRPC, public REST, MCP, and OpenAPI entrypoints in `apps/web/src/server/trpc/root.ts`, `apps/web/app/api/trpc/[trpc]/route.ts`, `apps/web/app/api/v1/[...route]/route.ts`, `apps/web/app/api/mcp/route.ts`, and `apps/web/app/api/v1/openapi/route.ts`
+- [x] T012 [P] Set up pg-boss, task persistence, and the worker bootstrap in `apps/web/src/server/jobs/boss.ts`, `apps/web/src/server/jobs/task-service.ts`, and `apps/web/src/server/jobs/worker.ts`
+- [x] T013 [P] Build the render pipeline skeleton and non-optional sanitization stage in `apps/web/src/server/pipeline/index.ts`, `apps/web/src/server/pipeline/cache.ts`, and `apps/web/src/server/pipeline/plugins/sanitize.ts`
+- [x] T014 Implement the setup gate, site bootstrap state, and root app shell in `apps/web/app/layout.tsx`, `apps/web/app/(auth)/setup/page.tsx`, and `apps/web/src/server/services/setup/setup-service.ts`
 
 **Checkpoint**: Database, auth, permissions, API shells, background jobs, and
 rendering infrastructure are in place. User story work can now proceed.
