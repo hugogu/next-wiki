@@ -7,6 +7,20 @@ import type { ThemeTokens } from "@next-wiki/shared";
 
 export type ThemeRow = typeof themes.$inferSelect;
 
+function deepMerge<T extends object>(base: T, override: Partial<T>): T {
+  const result = { ...base } as T;
+  for (const key in override) {
+    const b = base[key];
+    const o = override[key];
+    if (o !== undefined && b !== null && typeof b === "object" && typeof o === "object" && !Array.isArray(b)) {
+      result[key] = deepMerge(b as object, o as Partial<object>) as T[typeof key];
+    } else if (o !== undefined) {
+      result[key] = o as T[typeof key];
+    }
+  }
+  return result;
+}
+
 export async function getActiveThemeTokens(): Promise<ThemeTokens> {
   try {
     const db = getDb();
@@ -16,7 +30,8 @@ export async function getActiveThemeTokens(): Promise<ThemeTokens> {
       .where(eq(themes.status, "active"))
       .limit(1);
     if (active?.tokenSet && Object.keys(active.tokenSet as object).length > 0) {
-      return active.tokenSet as ThemeTokens;
+      // Deep-merge stored tokens onto defaults so partial tokenSets always yield a complete ThemeTokens.
+      return deepMerge(defaultThemeTokens, active.tokenSet as Partial<ThemeTokens>);
     }
   } catch {
     // DB unavailable during cold start — fall through to defaults

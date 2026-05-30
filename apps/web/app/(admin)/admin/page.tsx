@@ -1,7 +1,8 @@
 import { getDb } from "@/server/db/client";
-import { users, groups, pages, backgroundTasks } from "@/server/db/schema/auth";
+import { users, groups } from "@/server/db/schema/auth";
 import { pages as wikiPages } from "@/server/db/schema/wiki";
-import { eq, count, and, isNull } from "drizzle-orm";
+import { backgroundTasks } from "@/server/db/schema/ai";
+import { eq, count } from "drizzle-orm";
 
 export const metadata = { title: "Admin Dashboard — next-wiki" };
 

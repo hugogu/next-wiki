@@ -43,7 +43,7 @@ export async function handleAdminThemesRoute(
 
     if (id && req.method === "DELETE") {
       await deleteTheme(id, actor);
-      return NextResponse.json({ success: true });
+      return new NextResponse(null, { status: 204 });
     }
 
     return NextResponse.json({ error: "Not found" }, { status: 404 });

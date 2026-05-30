@@ -9,11 +9,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const tokens = await getActiveThemeTokens();
-  const cssVars = tokensToCssVars(tokens);
-  const cssVarString = Object.entries(cssVars)
-    .map(([k, v]) => `${k}:${v}`)
-    .join(";");
+  let cssVarString = "";
+  try {
+    const tokens = await getActiveThemeTokens();
+    const cssVars = tokensToCssVars(tokens);
+    cssVarString = Object.entries(cssVars).map(([k, v]) => `${k}:${v}`).join(";");
+  } catch {
+    // Fall back to CSS defaults defined in globals.css
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
