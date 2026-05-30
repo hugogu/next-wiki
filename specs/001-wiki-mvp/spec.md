@@ -126,8 +126,10 @@ citations and respects permissions.
 **Acceptance Scenarios**:
 
 1. **Given** no AI provider is configured, **When** a user visits the AI chat
-   surface, **Then** the product clearly indicates that AI is unavailable while
-   the rest of the wiki remains fully usable.
+   settings or another AI-specific entry point, **Then** the default wiki
+   layout does not render the AI chat pane, the product clearly indicates that
+   AI is unavailable in those AI-specific surfaces, and the rest of the wiki
+   remains fully usable.
 2. **Given** an AI provider is configured and indexed content exists, **When** a
    user asks a question about wiki content they are allowed to read, **Then**
    the system returns a grounded answer with citations or links to source pages.
@@ -297,7 +299,7 @@ citations and respects permissions.
 - **FR-046**: The system MUST allow administrators to define, enable, disable,
   and rotate one or more AI providers without making AI mandatory for core wiki
   usage.
-- **FR-047**: When AI is enabled, the system MUST provide a persistent
+- **FR-047**: When AI mode is active, the system MUST provide a persistent
   permission-scoped chat experience that is available throughout the wiki.
 - **FR-048**: When AI is enabled, the system MUST allow authorized users to ask
   questions against wiki content and receive answers grounded in content they are
@@ -308,7 +310,8 @@ citations and respects permissions.
   and save flow and MUST NOT bypass revision history or user confirmation.
 - **FR-051**: The system MUST continue to provide full non-AI wiki functionality
   when no AI provider is configured or when an AI provider is temporarily
-  unavailable.
+  unavailable. When AI mode is disabled, the default wiki layout MUST hide the
+  AI chat pane entirely.
 - **FR-052**: Any operation likely to exceed 500 milliseconds, including AI
   inference, indexing, search rebuilds, and bulk import, MUST execute as a
   background task and return a task identifier immediately to the caller.
@@ -333,7 +336,9 @@ citations and respects permissions.
   as human users.
 - **FR-062**: The MVP MUST initialize and expose administrative surfaces for all
   MVP data-backed domains, including site settings, themes, tags, permissions,
-  assets, AI providers, AI conversations, and background task visibility.
+  assets, AI providers, AI conversations, and background task visibility. This
+  feature spec explicitly defines AI conversations as a persisted MVP domain
+  rather than using the constitution's default session-only chat history.
 - **FR-063**: The system MUST preserve page history, tags, theme settings, AI
   provider configuration, and AI conversation records across restarts when
   persistent data volumes are retained.
@@ -402,6 +407,8 @@ citations and respects permissions.
   content rather than advanced collaborative diagram editing workflows.
 - AI chat is scoped to question-answering and draft generation over wiki
   content, not autonomous editing or workflow orchestration.
+- This MVP intentionally invokes the constitution's AI chat persistence
+  exception by defining AI conversations as persistent, admin-visible records.
 - A single site-wide visual system is sufficient for MVP, with room for
   multiple saved themes even if only one is active at a time.
 - The MVP should feel production-capable for self-hosted use even if later

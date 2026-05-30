@@ -1,6 +1,6 @@
 # Implementation Plan: Wiki MVP Foundation
 
-**Branch**: `001-wiki-mvp` | **Date**: 2026-05-30 | **Spec**: [spec.md](/Users/gqq/OpenSource/next-wiki/specs/001-wiki-mvp/spec.md)
+**Branch**: `001-wiki-mvp` | **Date**: 2026-05-30 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-wiki-mvp/spec.md`
 
 ## Summary
