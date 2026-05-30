@@ -12,9 +12,11 @@ CREATE EXTENSION IF NOT EXISTS "vector"; -- optional; used for AI embeddings
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS users (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              TEXT PRIMARY KEY,
     email           TEXT UNIQUE,                         -- nullable: external accounts may have none
-    display_name    TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    email_verified  BOOLEAN NOT NULL DEFAULT false,
+    image           TEXT,
     avatar_url      TEXT,
     status          TEXT NOT NULL DEFAULT 'active',      -- invited | active | suspended
     preferred_locale TEXT NOT NULL DEFAULT 'en',
@@ -24,7 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS user_identities (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     provider_type    TEXT NOT NULL,                      -- local | oidc | ldap | saml
     provider_key     TEXT NOT NULL,
     external_subject TEXT NOT NULL,
@@ -35,11 +37,12 @@ CREATE TABLE IF NOT EXISTS user_identities (
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
-    id           TEXT PRIMARY KEY,                       -- Better Auth uses text tokens
-    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id           TEXT PRIMARY KEY,
+    token        TEXT NOT NULL UNIQUE,
+    user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at   TIMESTAMPTZ NOT NULL,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     ip_address   TEXT,
     user_agent   TEXT
 );
@@ -56,6 +59,25 @@ CREATE TABLE IF NOT EXISTS auth_providers (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS accounts (
+    id                        TEXT PRIMARY KEY,
+    user_id                   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id                TEXT NOT NULL,
+    provider_id               TEXT NOT NULL,
+    access_token              TEXT,
+    refresh_token             TEXT,
+    id_token                  TEXT,
+    access_token_expires_at   TIMESTAMPTZ,
+    refresh_token_expires_at  TIMESTAMPTZ,
+    scope                     TEXT,
+    password                  TEXT,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS accounts_user_id_idx ON accounts (user_id);
+CREATE INDEX IF NOT EXISTS accounts_provider_idx ON accounts (provider_id, account_id);
+
 CREATE TABLE IF NOT EXISTS groups (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     key         TEXT NOT NULL UNIQUE,
@@ -67,7 +89,7 @@ CREATE TABLE IF NOT EXISTS groups (
 
 CREATE TABLE IF NOT EXISTS group_memberships (
     id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     group_id  UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     role      TEXT NOT NULL DEFAULT 'member',
     joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -80,7 +102,7 @@ CREATE TABLE IF NOT EXISTS api_tokens (
     token_hash          TEXT NOT NULL UNIQUE,
     scope_set           TEXT[] NOT NULL DEFAULT '{}',
     status              TEXT NOT NULL DEFAULT 'active',  -- active | revoked
-    created_by_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by_user_id  TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_used_at        TIMESTAMPTZ
 );
@@ -90,7 +112,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
     key                 TEXT NOT NULL UNIQUE,
     value               TEXT NOT NULL,
     value_type          TEXT NOT NULL DEFAULT 'string',  -- string | boolean | integer | json | secret
-    updated_by_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_by_user_id  TEXT REFERENCES users(id) ON DELETE SET NULL,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -126,8 +148,8 @@ CREATE TABLE IF NOT EXISTS pages (
     status               TEXT NOT NULL DEFAULT 'draft',  -- draft | published | archived | deleted
     current_revision_id  UUID,                           -- set after first revision; FK added below
     search_vector        TSVECTOR,
-    created_by_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
-    updated_by_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by_user_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
+    updated_by_user_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
     deleted_at           TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -143,7 +165,7 @@ CREATE TABLE IF NOT EXISTS page_revisions (
     source_content      TEXT NOT NULL,
     content_hash        TEXT NOT NULL,
     change_summary      TEXT,
-    authored_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    authored_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (page_id, revision_number)
 );
@@ -191,7 +213,7 @@ CREATE TABLE IF NOT EXISTS page_tags (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     page_id             UUID NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
     tag_id              UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-    assigned_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    assigned_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     assigned_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (page_id, tag_id)
 );
@@ -205,7 +227,7 @@ CREATE TABLE IF NOT EXISTS assets (
     byte_size           BIGINT NOT NULL,
     checksum            TEXT NOT NULL,
     kind                TEXT NOT NULL DEFAULT 'other',   -- image | document | diagram-source | theme-asset | other
-    uploaded_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    uploaded_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -237,7 +259,7 @@ CREATE TABLE IF NOT EXISTS themes (
     origin            TEXT NOT NULL DEFAULT 'custom',    -- system | custom
     token_set         JSONB NOT NULL DEFAULT '{}',
     chrome_config     JSONB NOT NULL DEFAULT '{}',
-    created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -279,7 +301,7 @@ CREATE TABLE IF NOT EXISTS ai_knowledge_records (
 
 CREATE TABLE IF NOT EXISTS ai_conversations (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     provider_id  UUID REFERENCES ai_providers(id) ON DELETE SET NULL,
     context_type TEXT NOT NULL DEFAULT 'global',         -- global | space | page
     context_id   UUID,
@@ -310,7 +332,7 @@ CREATE TABLE IF NOT EXISTS ai_citations (
 CREATE TABLE IF NOT EXISTS background_tasks (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_type             TEXT NOT NULL,
-    requested_by_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+    requested_by_user_id  TEXT REFERENCES users(id) ON DELETE SET NULL,
     resource_type         TEXT,
     resource_id           UUID,
     status                TEXT NOT NULL DEFAULT 'queued', -- queued | running | completed | failed | cancelled
