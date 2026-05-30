@@ -31,6 +31,10 @@ async function dispatch(req: NextRequest): Promise<NextResponse> {
       const { handleAiRoute } = await import("@/server/rest/routes/ai");
       return handleAiRoute(req, pathname);
     }
+    if (pathname.startsWith("/setup")) {
+      const { handleSetupRoute } = await import("@/server/rest/routes/setup");
+      return handleSetupRoute(req, pathname);
+    }
     if (pathname === "/openapi" || pathname === "/openapi.json") {
       const { handleOpenApiRoute } = await import("@/server/rest/routes/openapi");
       return handleOpenApiRoute(req);

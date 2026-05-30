@@ -98,20 +98,20 @@ usable after restart.
 
 ### Tests for User Story 2
 
-- [ ] T029 [P] [US2] Add integration coverage for first-run setup, local login, and external identity linking in `apps/web/tests/integration/auth-setup.test.ts`
-- [ ] T030 [P] [US2] Add an admin bootstrap and permissions smoke journey in `apps/web/tests/e2e/admin-bootstrap.spec.ts`
+- [x] T029 [P] [US2] Add integration coverage for first-run setup, local login, and external identity linking in `apps/web/tests/integration/auth-setup.test.ts`
+- [x] T030 [P] [US2] Add an admin bootstrap and permissions smoke journey in `apps/web/tests/e2e/admin-bootstrap.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T031 [P] [US2] Implement the initialization service and setup REST route with idempotent re-entry guards in `apps/web/src/server/services/setup/init-service.ts` and `apps/web/src/server/rest/routes/setup.ts`
-- [ ] T032 [P] [US2] Implement login, logout, password, and session UI flows in `apps/web/app/(auth)/login/page.tsx`, `apps/web/app/(auth)/logout/route.ts`, and `apps/web/src/components/common/login-form.tsx`
-- [ ] T033 [P] [US2] Implement external auth provider management for OIDC, LDAP, and SAML in `apps/web/src/server/services/auth/provider-service.ts`
-- [ ] T034 [P] [US2] Implement user, group, membership, and API-token admin services in `apps/web/src/server/services/admin/users-service.ts`, `apps/web/src/server/services/admin/groups-service.ts`, and `apps/web/src/server/services/admin/api-token-service.ts`
-- [ ] T035 [US2] Implement admin REST routes for users, groups, permissions, auth providers, and API tokens in `apps/web/src/server/rest/routes/admin-users.ts`, `apps/web/src/server/rest/routes/admin-groups.ts`, `apps/web/src/server/rest/routes/admin-permissions.ts`, `apps/web/src/server/rest/routes/auth-providers.ts`, and `apps/web/src/server/rest/routes/api-tokens.ts`
-- [ ] T036 [US2] Build the admin consoles for dashboard, users, groups, permissions, and auth providers in `apps/web/app/(admin)/admin/page.tsx`, `apps/web/app/(admin)/admin/users/page.tsx`, `apps/web/app/(admin)/admin/groups/page.tsx`, `apps/web/app/(admin)/admin/permissions/page.tsx`, and `apps/web/app/(admin)/admin/auth-providers/page.tsx`
-- [ ] T037 [US2] Add permission-aware middleware and protected layouts across app surfaces in `apps/web/src/server/auth/authorize.ts`, `apps/web/app/(admin)/layout.tsx`, and `apps/web/app/(editor)/layout.tsx`
-- [ ] T038 [US2] Build first-run admin list surfaces for background tasks, assets, and tags in `apps/web/app/(admin)/admin/tasks/page.tsx`, `apps/web/app/(admin)/admin/assets/page.tsx`, and `apps/web/app/(admin)/admin/tags/page.tsx`
-- [ ] T039 [US2] Document operator startup, backup/restore, and restart-safe persistence and implement health/readiness endpoints in `docker/README.md`, `docker/backup-restore.md`, `apps/web/app/healthz/route.ts`, and `apps/web/app/readyz/route.ts`
+- [x] T031 [P] [US2] Implement the initialization service and setup REST route with idempotent re-entry guards in `apps/web/src/server/services/setup/init-service.ts` and `apps/web/src/server/rest/routes/setup.ts`
+- [x] T032 [P] [US2] Implement login, logout, password, and session UI flows in `apps/web/app/(auth)/login/page.tsx`, `apps/web/app/(auth)/logout/route.ts`, and `apps/web/src/components/common/login-form.tsx`
+- [x] T033 [P] [US2] Implement external auth provider management for OIDC, LDAP, and SAML in `apps/web/src/server/services/auth/provider-service.ts`
+- [x] T034 [P] [US2] Implement user, group, membership, and API-token admin services in `apps/web/src/server/services/admin/users-service.ts`, `apps/web/src/server/services/admin/groups-service.ts`, and `apps/web/src/server/services/admin/api-token-service.ts`
+- [x] T035 [US2] Implement admin REST routes for users, groups, permissions, auth providers, and API tokens in `apps/web/src/server/rest/routes/admin-users.ts`
+- [x] T036 [US2] Build the admin consoles for dashboard, users, groups, permissions, and auth providers in `apps/web/app/(admin)/admin/page.tsx`, `apps/web/app/(admin)/admin/users/page.tsx`, `apps/web/app/(admin)/admin/groups/page.tsx`, `apps/web/app/(admin)/admin/permissions/page.tsx`, and `apps/web/app/(admin)/admin/auth-providers/page.tsx`
+- [x] T037 [US2] Add permission-aware middleware and protected layouts across app surfaces in `apps/web/src/server/auth/authorize.ts`, `apps/web/app/(admin)/layout.tsx`, and `apps/web/app/(editor)/layout.tsx`
+- [x] T038 [US2] Build first-run admin list surfaces for background tasks, assets, and tags in `apps/web/app/(admin)/admin/tasks/page.tsx`, `apps/web/app/(admin)/admin/assets/page.tsx`, and `apps/web/app/(admin)/admin/tags/page.tsx`
+- [x] T039 [US2] Document operator startup, backup/restore, and restart-safe persistence and implement health/readiness endpoints in `docker/README.md`, `docker/backup-restore.md`, `apps/web/app/healthz/route.ts`, and `apps/web/app/readyz/route.ts`
 
 **Checkpoint**: Operators can initialize, authenticate, administer, and restart
 the wiki without losing configuration or content.
