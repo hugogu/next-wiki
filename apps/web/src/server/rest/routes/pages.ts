@@ -24,11 +24,11 @@ export async function handlePagesRoute(req: NextRequest, path: string): Promise<
     const pagePath = "/" + pagePathSegments.join("/");
 
     if (revIdx === -1) {
-      return handlePageCrud(req, spaceKey, pagePath, locale, actor, session);
+      return await handlePageCrud(req, spaceKey, pagePath, locale, actor, session);
     }
 
     const afterRevisions = segments.slice(revIdx + 1);
-    return handleRevisions(req, spaceKey, pagePath, locale, afterRevisions, actor, session);
+    return await handleRevisions(req, spaceKey, pagePath, locale, afterRevisions, actor, session);
   } catch (err) {
     return handleRestError(err);
   }

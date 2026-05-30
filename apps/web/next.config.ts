@@ -6,15 +6,8 @@ const config: NextConfig = {
   // Transpile workspace packages.
   transpilePackages: ["@next-wiki/shared", "@next-wiki/editor"],
 
-  experimental: {
-    // Enable React Server Components optimizations.
-    serverComponentsExternalPackages: [
-      "pg",
-      "pg-boss",
-      "better-auth",
-      "drizzle-orm",
-    ],
-  },
+  // Packages that must run in Node.js runtime (not Edge), not bundled by Next.js.
+  serverExternalPackages: ["pg", "pg-boss", "better-auth", "drizzle-orm"],
 
   // Security headers.
   async headers() {
