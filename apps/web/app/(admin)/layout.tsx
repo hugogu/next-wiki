@@ -45,6 +45,7 @@ export default async function AdminLayout({
             { href: "/admin/permissions", label: "Permissions" },
             { href: "/admin/auth-providers", label: "Auth Providers" },
             { href: "/admin/themes", label: "Themes" },
+            { href: "/admin/ai", label: "AI Providers" },
             { href: "/admin/tags", label: "Tags" },
             { href: "/admin/assets", label: "Assets" },
             { href: "/admin/tasks", label: "Background Tasks" },

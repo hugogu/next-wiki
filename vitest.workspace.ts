@@ -1,7 +1,11 @@
 import { defineWorkspace } from "vitest/config";
+import path from "path";
+
+const webAlias = { "@": path.resolve(__dirname, "apps/web/src") };
 
 export default defineWorkspace([
   {
+    resolve: { alias: webAlias },
     test: {
       name: "web-unit",
       include: ["apps/web/tests/unit/**/*.test.ts", "apps/web/tests/unit/**/*.test.tsx"],
@@ -9,6 +13,7 @@ export default defineWorkspace([
     },
   },
   {
+    resolve: { alias: webAlias },
     test: {
       name: "web-integration",
       include: ["apps/web/tests/integration/**/*.test.ts"],
@@ -16,6 +21,7 @@ export default defineWorkspace([
     },
   },
   {
+    resolve: { alias: webAlias },
     test: {
       name: "web-contracts",
       include: ["apps/web/tests/contracts/**/*.test.ts"],

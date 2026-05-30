@@ -1,4 +1,6 @@
 import type { TaskPayload } from "@/server/jobs/task-service";
+import { getActiveProvider, getProvider } from "@/server/services/ai/provider-service";
+import { ingestPage } from "@/server/services/ai/knowledge-service";
 
 export type SearchIndexPayload = {
   pageId: string;
@@ -20,7 +22,22 @@ export async function handleSearchIndexPage(
 }
 
 export async function handleAiIngestPage(
-  _payload: TaskPayload<AiIngestPayload>,
+  payload: TaskPayload<AiIngestPayload>,
 ): Promise<void> {
-  // Implemented in Phase 6 — T048 AI knowledge service.
+  const { pageId, revisionId } = payload.data;
+  let { providerId } = payload.data;
+
+  if (providerId === "default") {
+    const active = await getActiveProvider();
+    if (!active) {
+      console.log(`[ai-ingest] no active provider — skipping page ${pageId}`);
+      return;
+    }
+    providerId = active.id;
+  }
+
+  const record = await ingestPage({ pageId, revisionId, providerId });
+  console.log(
+    `[ai-ingest] page ${pageId} rev ${revisionId} ingested as knowledge record ${record.id} (status=${record.ingestionStatus})`,
+  );
 }
