@@ -32,15 +32,20 @@ export async function processMarkdown(
     .use(rehypeRaw)
     .use(rehypeStringify);
 
-  // Apply registered transform plugins. Transformers receive the AST and context
-  // but MUST NOT mutate persistent data or perform database calls.
-  let tree: Node = processor.parse(source);
+  // Parse markdown to mdast, then convert mdast → hast via processor.run().
+  const mdast: Node = processor.parse(source);
+  const hastTree = await processor.run(mdast);
+
+  // Apply registered transform plugins to the hast tree.
+  // Transformers receive the hast AST and context; they MUST NOT perform
+  // write operations but may execute read-only database queries (e.g. link
+  // validation).
+  let tree: Node = hastTree;
   for (const plugin of additionalPlugins) {
     tree = await plugin.transform(tree, context);
   }
 
-  const file = await processor.run(tree);
-  const rawHtml = String(processor.stringify(file));
+  const rawHtml = String(processor.stringify(tree));
 
   // Extract metadata from the source for link tracking and SEO.
   const headings: MarkdownResult["metadata"]["headings"] = [];

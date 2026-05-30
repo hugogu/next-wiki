@@ -63,23 +63,23 @@ earlier revision without data loss.
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Add REST contract coverage for page, revision, and search flows in `apps/web/tests/contracts/pages.contract.test.ts`
-- [ ] T016 [P] [US1] Add an end-to-end authoring, move, search, and restore journey in `apps/web/tests/e2e/wiki-content.spec.ts`
+- [x] T015 [P] [US1] Add REST contract coverage for page, revision, and search flows in `apps/web/tests/contracts/pages.contract.test.ts`
+- [x] T016 [P] [US1] Add an end-to-end authoring, move, search, and restore journey in `apps/web/tests/e2e/wiki-content.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T017 [P] [US1] Implement space, page, translation-group, revision, and source-level diff services in `apps/web/src/server/services/wiki/space-service.ts`, `apps/web/src/server/services/wiki/page-service.ts`, and `apps/web/src/server/services/wiki/revision-diff-service.ts`
-- [ ] T018 [P] [US1] Implement tag, outbound-link, and redirect services in `apps/web/src/server/services/wiki/tag-service.ts`, `apps/web/src/server/services/wiki/link-service.ts`, and `apps/web/src/server/services/wiki/redirect-service.ts`
-- [ ] T019 [P] [US1] Implement locale-aware search indexing and query services in `apps/web/src/server/services/search/index-service.ts` and `apps/web/src/server/services/search/query-service.ts`
-- [ ] T020 [P] [US1] Implement Markdown, Mermaid, LaTeX, draw.io, and internal-link render plugins in `apps/web/src/server/pipeline/plugins/markdown.ts`, `apps/web/src/server/pipeline/plugins/mermaid.ts`, `apps/web/src/server/pipeline/plugins/math.ts`, `apps/web/src/server/pipeline/plugins/drawio.ts`, and `apps/web/src/server/pipeline/plugins/internal-links.ts`
-- [ ] T021 [US1] Implement page and search tRPC routers in `apps/web/src/server/trpc/routers/pages.ts` and `apps/web/src/server/trpc/routers/search.ts`
-- [ ] T022 [US1] Implement page, revision-restore, and search REST routes in `apps/web/src/server/rest/routes/pages.ts` and `apps/web/src/server/rest/routes/search.ts`
-- [ ] T023 [US1] Build public page reading routes with locale fallback and redirect handling in `apps/web/app/(public)/[spaceKey]/[[...pagePath]]/page.tsx` and `apps/web/src/components/common/page-view.tsx`
-- [ ] T024 [US1] Build the editor route, Markdown editing UI, revision history panel, and revision diff view in `apps/web/app/(editor)/spaces/[spaceKey]/pages/[[...pagePath]]/page.tsx`, `apps/web/src/components/editor/page-editor.tsx`, `apps/web/src/components/editor/revision-history.tsx`, and `apps/web/src/components/editor/revision-diff-view.tsx`
-- [ ] T025 [US1] Build keyword search, tag filtering, and backlink discovery surfaces in `apps/web/app/(public)/search/page.tsx`, `apps/web/src/components/common/search-panel.tsx`, and `apps/web/src/components/common/tag-filter.tsx`
-- [ ] T026 [US1] Implement asset upload and draw.io artifact reference flows in `apps/web/src/server/services/assets/asset-service.ts` and `apps/web/src/server/rest/routes/assets.ts`
-- [ ] T027 [US1] Integrate page-save hooks for revisions, redirects, outbound links, and indexing jobs in `apps/web/src/server/services/wiki/save-page.ts`
-- [ ] T028 [US1] Build the locale switcher and missing-translation notice in `apps/web/src/components/common/locale-switcher.tsx` and `apps/web/src/components/common/missing-translation-banner.tsx`
+- [x] T017 [P] [US1] Implement space, page, translation-group, revision, and source-level diff services in `apps/web/src/server/services/wiki/space-service.ts`, `apps/web/src/server/services/wiki/page-service.ts`, and `apps/web/src/server/services/wiki/revision-diff-service.ts`
+- [x] T018 [P] [US1] Implement tag, outbound-link, and redirect services in `apps/web/src/server/services/wiki/tag-service.ts`, `apps/web/src/server/services/wiki/link-service.ts`, and `apps/web/src/server/services/wiki/redirect-service.ts`
+- [x] T019 [P] [US1] Implement locale-aware search indexing and query services in `apps/web/src/server/services/search/index-service.ts` and `apps/web/src/server/services/search/query-service.ts`
+- [x] T020 [P] [US1] Implement Markdown, Mermaid, LaTeX, draw.io, and internal-link render plugins in `apps/web/src/server/pipeline/plugins/markdown.ts`, `apps/web/src/server/pipeline/plugins/mermaid.ts`, `apps/web/src/server/pipeline/plugins/math.ts`, `apps/web/src/server/pipeline/plugins/drawio.ts`, and `apps/web/src/server/pipeline/plugins/internal-links.ts`
+- [x] T021 [US1] Implement page and search tRPC routers in `apps/web/src/server/trpc/routers/pages.ts` and `apps/web/src/server/trpc/routers/search.ts`
+- [x] T022 [US1] Implement page, revision-restore, and search REST routes in `apps/web/src/server/rest/routes/pages.ts` and `apps/web/src/server/rest/routes/search.ts`
+- [x] T023 [US1] Build public page reading routes with locale fallback and redirect handling in `apps/web/app/(public)/[spaceKey]/[[...pagePath]]/page.tsx` and `apps/web/src/components/common/page-view.tsx`
+- [x] T024 [US1] Build the editor route, Markdown editing UI, revision history panel, and revision diff view in `apps/web/app/(editor)/spaces/[spaceKey]/pages/[[...pagePath]]/page.tsx`, `apps/web/src/components/editor/page-editor.tsx`, `apps/web/src/components/editor/revision-history.tsx`, and `apps/web/src/components/editor/revision-diff-view.tsx`
+- [x] T025 [US1] Build keyword search, tag filtering, and backlink discovery surfaces in `apps/web/app/(public)/search/page.tsx`, `apps/web/src/components/common/search-panel.tsx`, and `apps/web/src/components/common/tag-filter.tsx`
+- [x] T026 [US1] Implement asset upload and draw.io artifact reference flows in `apps/web/src/server/services/assets/asset-service.ts` and `apps/web/src/server/rest/routes/assets.ts`
+- [x] T027 [US1] Integrate page-save hooks for revisions, redirects, outbound links, and indexing jobs in `apps/web/src/server/services/wiki/save-page.ts`
+- [x] T028 [US1] Build the locale switcher and missing-translation notice in `apps/web/src/components/common/locale-switcher.tsx` and `apps/web/src/components/common/missing-translation-banner.tsx`
 
 **Checkpoint**: Editors can author, render, search, move, translate, and
 restore wiki content independently of later stories.

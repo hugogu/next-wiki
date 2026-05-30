@@ -49,9 +49,13 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   return next({ ctx });
 });
 
-// Root router — routers are registered here.
+import { pagesRouter } from "./routers/pages";
+import { searchRouter } from "./routers/search";
+
+// Root router — explicit registration, no dynamic discovery (P9).
 export const appRouter = createTRPCRouter({
-  // Populated when user story routers are implemented.
+  pages: pagesRouter,
+  search: searchRouter,
 });
 
 export type AppRouter = typeof appRouter;
