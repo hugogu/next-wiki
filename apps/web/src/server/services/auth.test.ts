@@ -76,4 +76,24 @@ describe('authService', () => {
       ).rejects.toThrow('INVALID_CREDENTIALS');
     });
   });
+
+  describe('getCurrentActor', () => {
+    it('returns anonymous when the session id does not exist', async () => {
+      // Seed a user/session so that a buggy "return first row" query would
+      // incorrectly return a user instead of anonymous.
+      const { userId } = await authService.register({
+        email: 'actor-check@example.com',
+        password: 'Password123!',
+      });
+      await db.insert(schema.sessions).values({
+        id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        userId,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      });
+
+      const actor = await authService.resolveActorFromSession('no-such-session-id');
+
+      expect(actor).toBeNull();
+    });
+  });
 });

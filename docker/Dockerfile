@@ -1,5 +1,5 @@
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 
 FROM base AS deps
@@ -16,7 +16,7 @@ RUN pnpm --filter @next-wiki/web exec drizzle-kit generate
 RUN pnpm --filter @next-wiki/web build
 
 FROM node:22-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/web/package.json ./apps/web/

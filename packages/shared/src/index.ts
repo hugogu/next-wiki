@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export * from './auth';
+export * from './pages';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 
@@ -36,6 +37,15 @@ export const livePageSchema = z.object({
   authorDisplayName: z.string().nullable(),
 });
 export type LivePage = z.infer<typeof livePageSchema>;
+
+export const editableViewSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  contentSource: z.string(),
+  latestVersion: z.number(),
+  status: revisionStatusSchema,
+});
+export type EditableView = z.infer<typeof editableViewSchema>;
 
 export const revisionSummarySchema = z.object({
   version: z.number(),

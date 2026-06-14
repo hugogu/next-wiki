@@ -103,14 +103,14 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [ ] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (slug regex+uniqueness validation; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
-- [ ] T032 [P] [US3] tRPC `pages.create/newDraft/getForEdit/getHistory/getRevision` procedures
-- [ ] T033 [US3] Tiptap Markdown editor client component `apps/web/src/components/editor/MarkdownEditor.tsx` (serialize to raw Markdown; ProseMirror AST never leaves the browser — research D10)
-- [ ] T034 [US3] Create-page route `apps/web/app/(public)/new/page.tsx` (form: slug + title + content; editor/admin only; slug-collision shows clear error per FR-023)
-- [ ] T035 [US3] Edit route `apps/web/app/(public)/[slug]/edit/page.tsx` (load latest revision source; save creates a new draft revision; immutable slug)
-- [ ] T036 [US3] History route `apps/web/app/(public)/[slug]/history/page.tsx` (author/editor/admin)
-- [ ] T037 [US3] Revision view route `apps/web/app/(public)/[slug]/revisions/[n]/page.tsx` (draft revisions: author/admin only; others not-found)
-- [ ] T038 [P] [US3] Unit tests in `apps/web/src/server/services/pages.test.ts`: create validates slug + renders and stores HTML/hash; `newDraft` increments version atomically; concurrent last-write-wins preserves both revisions; reader cannot create/edit (denied without leak)
+- [x] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (slug regex+uniqueness validation; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
+- [x] T032 [P] [US3] tRPC `pages.create/newDraft/getForEdit/getHistory/getRevision` procedures
+- [x] T033 [US3] Tiptap Markdown editor client component `apps/web/src/components/editor/MarkdownEditor.tsx` (serialize to raw Markdown; ProseMirror AST never leaves the browser — research D10)
+- [x] T034 [US3] Create-page route `apps/web/app/(public)/new/page.tsx` (form: slug + title + content; editor/admin only; slug-collision shows clear error per FR-023)
+- [x] T035 [US3] Edit route `apps/web/app/(public)/[slug]/edit/page.tsx` (load latest revision source; save creates a new draft revision; immutable slug)
+- [x] T036 [US3] History route `apps/web/app/(public)/[slug]/history/page.tsx` (author/editor/admin)
+- [x] T037 [US3] Revision view route `apps/web/app/(public)/[slug]/revisions/[n]/page.tsx` (draft revisions: author/admin only; others not-found)
+- [x] T038 [P] [US3] Unit tests in `apps/web/src/server/services/pages.test.ts`: create validates slug + renders and stores HTML/hash; `newDraft` increments version atomically; concurrent last-write-wins preserves both revisions; reader cannot create/edit (denied without leak)
 
 **Checkpoint**: US3 independently functional — authoring + version history work for editors.
 

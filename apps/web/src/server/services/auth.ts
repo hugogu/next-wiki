@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
-import { eq, gt } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
@@ -8,6 +8,27 @@ import type { Actor } from '@/server/permissions';
 
 const SESSION_COOKIE = 'next-wiki-session';
 const SESSION_MAX_AGE_DAYS = 30;
+
+export async function resolveActorFromSession(sessionId: string): Promise<Actor | null> {
+  const now = new Date();
+  const session = await db.query.sessions.findFirst({
+    where: (t) => and(eq(t.id, sessionId), gt(t.expiresAt, now)),
+    with: {
+      user: true,
+    },
+  });
+
+  if (!session) {
+    return null;
+  }
+
+  const user = session.user;
+  return {
+    kind: 'user',
+    userId: user.id,
+    role: user.role,
+  };
+}
 
 export async function register(input: { email: string; password: string }): Promise<{ userId: string }> {
   const existing = await db.query.users.findFirst({
@@ -102,25 +123,14 @@ export async function getCurrentActor(): Promise<Actor> {
     return { kind: 'anonymous' };
   }
 
-  const now = new Date();
-  const session = await db.query.sessions.findFirst({
-    where: (t) => eq(t.id, sessionId) && gt(t.expiresAt, now),
-    with: {
-      user: true,
-    },
-  });
+  const actor = await resolveActorFromSession(sessionId);
 
-  if (!session) {
+  if (!actor) {
     cookieStore.delete(SESSION_COOKIE);
     return { kind: 'anonymous' };
   }
 
-  const user = session.user;
-  return {
-    kind: 'user',
-    userId: user.id,
-    role: user.role,
-  };
+  return actor;
 }
 
 export type { Actor };

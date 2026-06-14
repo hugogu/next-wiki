@@ -1,8 +1,9 @@
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, desc, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
-import type { LivePage, PageSummary } from '@next-wiki/shared';
+import { renderMarkdown } from '@/server/pipeline';
+import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -10,6 +11,10 @@ async function getDefaultSpace() {
   return db.query.spaces.findFirst({
     where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
   });
+}
+
+function getUserId(ctx: PermCtx): string | null {
+  return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
 }
 
 export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
@@ -87,5 +92,278 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
     version: row.version,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     authorDisplayName: row.authorDisplayName,
+  };
+}
+
+function validateSlug(slug: string): { ok: true } | { ok: false; error: string } {
+  if (!slug) return { ok: false, error: 'Slug is required' };
+  if (slug.length > 100) return { ok: false, error: 'Slug must be 100 characters or fewer' };
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
+    return { ok: false, error: 'Slug must be lowercase letters, numbers, and hyphens, starting with a letter or number' };
+  }
+  return { ok: true };
+}
+
+export class PageServiceError extends Error {
+  constructor(public code: string, message: string) {
+    super(message);
+    this.name = 'PageServiceError';
+  }
+}
+
+export async function create(
+  ctx: PermCtx,
+  input: { slug: string; title: string; contentSource: string },
+): Promise<{ pageId: string; versionId: string }> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new PageServiceError('UNAUTHORIZED', 'Sign in to create pages');
+  }
+
+  const space = await getDefaultSpace();
+  if (!space) throw new PageServiceError('SPACE_MISSING', 'Default space not found');
+
+  if (!can(ctx, 'create', { kind: 'page_list' })) {
+    throw new PageServiceError('FORBIDDEN', 'You do not have permission to create pages');
+  }
+
+  const slugCheck = validateSlug(input.slug);
+  if (!slugCheck.ok) throw new PageServiceError('INVALID_SLUG', slugCheck.error);
+
+  return await db.transaction(async (tx) => {
+    const existing = await tx.query.pages.findFirst({
+      where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.slug, input.slug)),
+    });
+    if (existing) {
+      throw new PageServiceError('SLUG_EXISTS', 'A page with this slug already exists');
+    }
+
+    const { html, hash } = renderMarkdown(input.contentSource);
+
+    const [page] = await tx
+      .insert(schema.pages)
+      .values({
+        spaceId: space.id,
+        slug: input.slug,
+        path: input.slug,
+        title: input.title,
+        authorId: userId,
+      })
+      .returning();
+
+    if (!page) throw new PageServiceError('CREATE_FAILED', 'Failed to create page');
+
+    const [revision] = await tx
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: page.id,
+        versionNumber: 1,
+        contentType: 'text/markdown',
+        contentSource: input.contentSource,
+        contentHtml: html,
+        contentHash: hash,
+        authorId: userId,
+        status: 'draft',
+      })
+      .returning();
+
+    if (!revision) throw new PageServiceError('CREATE_FAILED', 'Failed to create revision');
+
+    await tx
+      .update(schema.pages)
+      .set({ latestVersionId: revision.id })
+      .where(eq(schema.pages.id, page.id));
+
+    return { pageId: page.id, versionId: revision.id };
+  });
+}
+
+export async function newDraft(
+  ctx: PermCtx,
+  input: { slug: string; title: string; contentSource: string },
+): Promise<{ versionId: string; versionNumber: number }> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new PageServiceError('UNAUTHORIZED', 'Sign in to edit pages');
+  }
+
+  const space = await getDefaultSpace();
+  if (!space) throw new PageServiceError('SPACE_MISSING', 'Default space not found');
+
+  return await db.transaction(async (tx) => {
+    const page = await tx.query.pages.findFirst({
+      where: and(
+        eq(schema.pages.spaceId, space.id),
+        eq(schema.pages.slug, input.slug),
+        isNull(schema.pages.deletedAt),
+      ),
+    });
+
+    if (!page) throw new PageServiceError('NOT_FOUND', 'Page not found');
+
+    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id })) {
+      throw new PageServiceError('FORBIDDEN', 'You do not have permission to edit this page');
+    }
+
+    const maxResult = await tx
+      .select({ value: max(schema.pageRevisions.versionNumber) })
+      .from(schema.pageRevisions)
+      .where(eq(schema.pageRevisions.pageId, page.id));
+
+    const nextVersion = (maxResult[0]?.value ?? 0) + 1;
+    const { html, hash } = renderMarkdown(input.contentSource);
+
+    const [revision] = await tx
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: page.id,
+        versionNumber: nextVersion,
+        contentType: 'text/markdown',
+        contentSource: input.contentSource,
+        contentHtml: html,
+        contentHash: hash,
+        authorId: userId,
+        status: 'draft',
+      })
+      .returning();
+
+    if (!revision) throw new PageServiceError('CREATE_FAILED', 'Failed to create revision');
+
+    await tx
+      .update(schema.pages)
+      .set({
+        title: input.title,
+        latestVersionId: revision.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, page.id));
+
+    return { versionId: revision.id, versionNumber: revision.versionNumber };
+  });
+}
+
+export async function getForEdit(ctx: PermCtx, slug: string): Promise<EditableView | null> {
+  const userId = getUserId(ctx);
+  const space = await getDefaultSpace();
+  if (!space) return null;
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, slug),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+
+  if (!page) return null;
+
+  const isAuthor = userId ? page.authorId === userId : false;
+  if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, { isAuthor })) {
+    return null;
+  }
+
+  const revision = page.latestVersionId
+    ? await db.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, page.latestVersionId),
+      })
+    : null;
+
+  if (!revision) return null;
+
+  return {
+    slug: page.slug,
+    title: page.title,
+    contentSource: revision.contentSource,
+    latestVersion: revision.versionNumber,
+    status: revision.status,
+  };
+}
+
+export async function getHistory(ctx: PermCtx, slug: string): Promise<RevisionSummary[]> {
+  const userId = getUserId(ctx);
+  const space = await getDefaultSpace();
+  if (!space) return [];
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, slug),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+
+  if (!page) return [];
+
+  const isAuthor = userId ? page.authorId === userId : false;
+  if (!can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor })) {
+    return [];
+  }
+
+  const rows = await db
+    .select({
+      version: schema.pageRevisions.versionNumber,
+      status: schema.pageRevisions.status,
+      authorDisplayName: schema.users.displayName,
+      createdAt: schema.pageRevisions.createdAt,
+      contentHash: schema.pageRevisions.contentHash,
+    })
+    .from(schema.pageRevisions)
+    .innerJoin(schema.users, eq(schema.pageRevisions.authorId, schema.users.id))
+    .where(eq(schema.pageRevisions.pageId, page.id))
+    .orderBy(desc(schema.pageRevisions.versionNumber));
+
+  return rows.map((r) => ({
+    version: r.version,
+    status: r.status,
+    authorDisplayName: r.authorDisplayName,
+    createdAt: r.createdAt.toISOString(),
+    contentHash: r.contentHash,
+  }));
+}
+
+export async function getRevision(
+  ctx: PermCtx,
+  slug: string,
+  version: number,
+): Promise<RevisionView | null> {
+  const userId = getUserId(ctx);
+  const space = await getDefaultSpace();
+  if (!space) return null;
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, slug),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+
+  if (!page) return null;
+
+  const revision = await db.query.pageRevisions.findFirst({
+    where: and(
+      eq(schema.pageRevisions.pageId, page.id),
+      eq(schema.pageRevisions.versionNumber, version),
+    ),
+  });
+
+  if (!revision) return null;
+
+  const isAuthor = userId ? revision.authorId === userId : false;
+  if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version }, { isAuthor })) {
+    return null;
+  }
+
+  const author = await db.query.users.findFirst({
+    where: eq(schema.users.id, revision.authorId),
+  });
+
+  return {
+    version: revision.versionNumber,
+    status: revision.status,
+    contentHtml: revision.contentHtml,
+    contentSource: revision.contentSource,
+    authorDisplayName: author?.displayName ?? null,
+    createdAt: revision.createdAt.toISOString(),
   };
 }

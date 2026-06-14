@@ -9,6 +9,7 @@ const config = [
   {
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'react-hooks/incompatible-library': 'off',
     },
   },
 ];
