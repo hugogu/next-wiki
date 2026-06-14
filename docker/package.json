@@ -1,0 +1,10 @@
+{
+  "name": "next-wiki-migrate",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "drizzle-orm": "^0.40.0",
+    "postgres": "^3.4.5"
+  }
+}

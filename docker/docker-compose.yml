@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: next-wiki-db
+    environment:
+      POSTGRES_USER: wiki
+      POSTGRES_PASSWORD: wiki
+      POSTGRES_DB: wiki
+    volumes:
+      - next-wiki-pgdata:/var/lib/postgresql/data
+    # DB is reachable inside the compose network only; expose loopback port for local dev/tests.
+    ports:
+      - "127.0.0.1:15433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiki -d wiki"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      target: runner
+    container_name: next-wiki-web
+    environment:
+      DATABASE_URL: postgresql://wiki:wiki@db:5432/wiki
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-change-me-change-me-change-me}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_WIKI_SEED: 'true'
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - next-wiki-pgdata-shared:/tmp # ensure shared data not lost during restarts
+
+volumes:
+  next-wiki-pgdata:
+  next-wiki-pgdata-shared:

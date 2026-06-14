@@ -18,3 +18,35 @@
 .cursor/settings.local.json
 .windsurf/settings.local.json
 .codex/config.toml
+commands
+extensions
+integrations
+workflows
+
+# 构建产物
+dist/
+build/
+coverage/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# 本地包与包管理器目录
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+.yarn/build-state.yml
+AGENTS.md
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Docker
+.dockerignore

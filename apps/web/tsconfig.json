@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./.next/",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@next-wiki/shared": ["../../packages/shared/src"]
+    },
+    "plugins": [{ "name": "next" }],
+    "noEmit": true,
+    "jsx": "preserve",
+    "types": ["vitest/globals"]
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", ".next", "dist"]
+}
