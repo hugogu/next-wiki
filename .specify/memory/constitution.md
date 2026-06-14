@@ -1,8 +1,46 @@
+<!--
+  Sync Impact Report
+  ==================
+  Version change: 1.2.0 -> 1.3.0
+  Bump rationale: MINOR — restructure to separate durable governance
+  (constitution: principles, anti-patterns, decisions) from detailed
+  architecture reference. No principle removed or redefined; all mandates
+  relocated verbatim to docs/architecture/ and referenced by a short index.
+  P5 and P12 trimmed back to terse declarations since their operational
+  detail now lives in docs/architecture/mandates.md.
+
+  Relocated (binding text unchanged, now in docs/architecture/):
+    - Architectural Mandates (12 mandates) -> docs/architecture/mandates.md
+    - Project Structure                  -> docs/architecture/project-structure.md
+    - Frontend Data Flow                 -> docs/architecture/frontend-data-flow.md
+
+  Modified principles:
+    - P5 trimmed (detail moved to docs/architecture/mandates.md)
+    - P12 trimmed (URL schemes moved to docs/architecture/mandates.md)
+
+  Added sections:
+    - "Architectural Mandates" index (links to docs/architecture/)
+
+  Removed sections (content relocated, not deleted):
+    - Detailed Architectural Mandates body
+    - Project Structure body
+    - Frontend Data Flow body
+
+  Templates requiring updates:
+    - .specify/templates/plan-template.md       — no change (Constitution
+      Check derives gates from principles + index, which remain in this file)
+    - .specify/templates/spec-template.md        — no change (generic)
+    - .specify/templates/tasks-template.md       — no change (generic)
+
+  Follow-up TODOs: none. When a mandate in docs/architecture/ changes in a way
+  that redefines an invariant, bump the constitution version per Governance.
+-->
+
 # next-wiki Project Constitution
 
-**Version**: 1.1.0
+**Version**: 1.3.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-05-30
+**Last Amended**: 2026-06-14
 
 ---
 
@@ -92,12 +130,21 @@ Rationale: Permissions touch every query, every integration surface, and every
 AI retrieval path. Treating them as infrastructure prevents expensive retrofits
 and data leaks.
 
-### P5: Style System Independence
+### P5: Style System Independence & UI Consistency
 
-The UI MUST be built on a design token system based on CSS custom properties.
-Color, spacing, radius, and typography values MUST NOT be hardcoded in feature
-component styles. Themes are JSON files that map to CSS variables. The system
-MUST support full theme replacement without code changes.
+The UI MUST be built on a design token system (CSS custom properties). Color,
+spacing, radius, and typography MUST NOT be hardcoded in feature components.
+Themes are JSON files mapping to CSS variables; the system MUST support full
+theme replacement without code changes.
+
+All visual resources (icons, fonts, stylesheets, components) MUST flow through
+one unified design system surface in `src/components/ui/`. Vendored copies and
+ad-hoc per-feature assets are PROHIBITED. The overall UI/UX style MUST be
+consistent across every page (reader, editor, admin, auth, chat); divergence
+MUST be expressed as tokens or shared components, never inline overrides.
+
+Rationale: A single source of truth for styling and resources keeps the product
+coherent and themeable as the codebase grows.
 
 ### P6: Async-First for Heavy Operations
 
@@ -184,6 +231,30 @@ legacy architecture inside the runtime.
 Rationale: A focused product is easier to learn, operate, extend, and reason
 about. Broad compatibility belongs at the edges, not in the core runtime.
 
+### P12: Native Web Navigation & Unified Entry Points
+
+Every user-facing surface MUST have a complete, server-aware route, and every
+route MUST render a breadcrumb derived from the route hierarchy and the page
+tree.
+
+The application MUST preserve native browser behavior: back/forward, refresh,
+deep linking, copy/share, bookmarking, and "open in new tab" MUST work on every
+navigable URL. Client-side navigation MUST update the URL and history. Any
+user-reachable state without a corresponding URL is PROHIBITED.
+
+URLs MUST follow RESTful resource conventions — a URL identifies a resource,
+not an action; mutations use HTTP methods or dedicated sub-resources, never
+verb-style path segments. Every feature MUST have exactly one canonical entry
+point; duplicate routes or shadow entry points to the same resource are
+PROHIBITED.
+
+Rationale: Respecting the web platform keeps next-wiki debuggable, shareable,
+and bookmarkable. RESTful URLs are predictable for humans, scripts, and AI
+agents. Unified entry points prevent drift between parallel navigation paths.
+
+Concrete URL schemes, breadcrumb rules, and canonical-entry-point mechanics
+live in `docs/architecture/mandates.md` (§ Frontend Routing & URL Contract).
+
 ---
 
 ## Product Scope & Feature Tiers
@@ -231,232 +302,27 @@ proxy or edge service for rate limiting and DDoS protection.
 ## Architectural Mandates
 
 These are non-negotiable structural decisions that MUST be reflected in the
-data model, API design, and module boundaries from the first commit.
+data model, API design, and module boundaries from the first commit. The
+full, binding rules for each mandate live in `docs/architecture/`; this
+section is the constitutional index. Redefining any invariant below (or in
+the linked docs) requires a constitution amendment.
 
-### Page Tree & Path System
-
-Pages are addressed by hierarchical paths such as
-`/engineering/backend/auth`. The canonical public page key is
-`(space_id, path, locale)`. The path is language-neutral; the locale selects the
-localized page record. A space MAY have one `/getting-started` page per locale,
-and another space MAY have its own `/getting-started` pages. Internal surrogate
-IDs MAY exist for foreign keys, but routing, imports, exports, permissions, and
-public APIs MUST treat the path key as canonical.
-
-The data model MUST store path and locale as first-class indexed fields. Pages
-in the same translation group share a `translation_group_id`. The tree
-structure MUST be derivable from paths alone, without a separate adjacency
-table.
-
-Moving a page MUST update the path and create redirect records. A redirect
-record contains `(space_id, from_path, to_path, created_at)` and applies to all
-locale variants unless a feature spec defines locale-specific redirects. If a
-new page is created at a previously redirected path, the redirect is deleted.
-Redirect chains are resolved to their final target at write time, not read time.
-
-Redirect handling MUST NOT leak protected page existence or destination paths.
-Routing MAY resolve a redirect internally to identify the final target, but the
-response MUST check read permission against the final target before returning a
-redirect, page content, or canonical URL. Unauthorized callers receive the same
-not-found or forbidden behavior used for direct access to the target.
-
-Pages MUST be indexed for PostgreSQL full-text search at save time. Search
-queries MUST enforce the caller's permission context before returning results.
-Search indexing respects the page locale.
-
-### Rendering Pipeline
-
-The rendering pipeline MUST follow `source -> parse -> transform[] -> render`.
-Each stage is a discrete function with a typed input/output contract.
-Transformers such as syntax highlight, math, diagrams, embeds, and link
-processors are registered plugins. Transformers MUST NOT access the database
-directly; they receive resolved inputs, capability objects, or asset loaders
-from the pipeline context. The pipeline MUST be executable server-side and
-cacheable per revision hash.
-
-### Permission Model
-
-The permission model has three axes: **subject** (user or group), **resource**
-(space, page, asset, job, or integration token), and **action** (read, write,
-delete, manage, execute). Permissions are evaluated in order: explicit deny >
-explicit allow > inherited from parent page > space default > global default.
-The parent of a top-level page is its space.
-
-When a page is moved between spaces, its explicit page-level permissions are
-dropped and it inherits from the destination space. This is the only safe
-default because the source space's permission context no longer applies. Admin
-capability is modeled inside the permission context; data-fetching functions
-MUST NOT contain hardcoded admin bypass branches.
-
-Every data-fetching function MUST accept a permission context and enforce it.
-Background jobs and AI retrieval jobs MUST run with an explicit actor context:
-the user who requested the job, a scoped system actor, or a scoped integration
-token.
-
-### Content Versioning
-
-Every page mutation creates a `page_revision` row with revision number, author,
-timestamp, locale, content type, content hash, and full content snapshot. The
-current page row holds a foreign key to the latest revision. Diff is always
-computed at the source level (raw Markdown or raw source text), never on
-rendered HTML. This means diff output is meaningful for any registered editor
-format without requiring the editor plugin to be present.
-
-Revisions are NEVER deleted by normal operations. Only a configurable retention
-policy job MAY prune them, and that job MUST preserve enough metadata to
-explain that pruning happened.
-
-### Multi-language Content
-
-A page path is language-neutral. Translations are localized page records keyed
-by `(space_id, path, locale)` and linked by `translation_group_id`. The default
-locale is configurable per space. The UI MUST fall back gracefully when a
-translation is missing by showing the default locale with a clear banner. The
-data model MUST NOT conflate locale with path hierarchy.
-
-Permissions are NOT inherited across translations. Each localized page record is
-an independent page resource with its own permission entries. Write access to
-the English page does not imply write access to the French page. This keeps the
-permission model uniform and avoids a special-case inheritance path.
-
-### Editor Extensibility
-
-The editor layer is a pluggable interface with separate write-side and read-side
-contracts. The write-side interface is:
-`{ id, label, contentType: string, EditorComponent, serialize(state): string }`.
-`contentType` declares the MIME type of the serialized output, such as
-`text/markdown` or `text/asciidoc`. `serialize` MUST return raw source text,
-never HTML. The read-side is handled entirely by the rendering pipeline; editor
-plugins have no render responsibility.
-
-The client-server boundary is strict. The default Markdown editor uses Tiptap
-(ProseMirror-based) on the client. Tiptap's internal ProseMirror AST MUST NEVER
-leave the browser. The editor serializes to raw Markdown text, which is stored
-in the database. On the server, remark/rehype parses that raw Markdown into a
-separate AST for rendering. These are independent AST systems connected only by
-raw source text.
-
-Markdown is the default and reference implementation. Additional editors
-(WYSIWYG, AsciiDoc, reStructuredText) are registered plugins. Editor plugins
-MUST NOT be required for reading or rendering existing content.
-
-### Git Storage Sync
-
-Git sync is an optional, async, one-way or two-way bridge between the wiki
-database and a Git repository. It MUST be implemented as a pg-boss job, never as
-a synchronous request operation. The page revision model MUST allow a Git commit
-hash to be stored alongside a revision record without schema changes. Git sync
-is disabled by default.
-
-Two-way sync implementation MUST NOT ship until its feature spec defines
-conflict detection, conflict presentation, conflict resolution, retry behavior,
-and permission checks. The default product MUST remain database-backed even when
-Git sync is enabled.
-
-### API Architecture
-
-next-wiki exposes three API layers, all backed by the same service layer and Zod
-schemas:
-
-| Layer | Consumers | Auth | Format |
-|-------|-----------|------|--------|
-| tRPC | Next.js frontend | Session (Better Auth) | TypeScript-native |
-| REST + OpenAPI | Bots, integrations, external clients | API token | HTTP + JSON |
-| MCP Server | AI agents and coding assistants | API token | Model Context Protocol |
-
-Rules:
-
-- Business logic lives in the service layer only. API layers are thin adapters.
-- All API layers share Zod schemas for input validation and output contracts.
-- tRPC is the primary development interface for the first-party web app.
-- REST is derived from tRPC where possible; hand-written REST endpoints require
-  explicit OpenAPI contracts and MUST call the same services.
-- REST API versioning is URL-based (`/api/v1/`, `/api/v2/`). Breaking public
-  API changes require a new major version prefix.
-- MCP is optional and MAY be enabled independently of public REST, but it uses
-  the same token scopes, permission model, and services.
-- API tokens are scoped (`read`, `write`, `admin`, `ai`, `mcp`) and managed via
-  the admin panel.
-- MCP tools that return page content MUST return source revision identifiers or
-  citations. MCP tools that mutate content MUST require write scope and MUST
-  create normal page revisions.
-- API layers MUST NOT bypass the permission model.
-
-### Deployment & Operations Baseline
-
-The default Docker Compose deployment MUST include PostgreSQL, the next-wiki
-application, and any required worker process. PostgreSQL data and local assets
-MUST be mounted on named volumes. The application image MUST run migrations
-idempotently or provide a documented one-command migration step.
-
-The application MUST expose:
-
-- `/healthz` for process and dependency health
-- `/readyz` for readiness after migrations and required startup checks
-- A job status surface for long-running imports, exports, AI ingestion, search
-  indexing, and Git sync
-- Structured logs suitable for container runtimes
-- A documented backup and restore procedure for PostgreSQL plus local assets
-
-Configuration MUST be expressible through environment variables and persisted
-admin settings. Secrets stored in the database MUST be encrypted at rest using a
-deployment-provided secret key.
-
-### AI Knowledge Layer
-
-When AI mode is active, each indexed page revision MAY have an associated
-knowledge record containing embedding vector, provider/model metadata,
-LLM-generated summary, extracted entities, cross-reference links, source
-revision hash, and ingestion timestamp. This record is populated asynchronously
-by an ingest worker after each page save.
-
-Raw page revisions are the source of truth. The knowledge layer is a derived,
-rebuildable index. AI retrieval MUST respect space, path, locale, and permission
-scope. AI answers MUST be grounded in retrieved revisions and expose citations
-or source links. If no permitted source supports an answer, the UI MUST say so
-instead of inventing unsupported content.
-
-Embedding and summary jobs MUST be restartable and idempotent. Changing the
-embedding model or summary prompt MUST create a new index version or trigger a
-tracked rebuild job.
-
-### AI Chat Side Pane
-
-The AI chat side pane is the primary user-facing AI interaction surface. It is
-a persistent, collapsible panel rendered alongside the main content area on
-reader pages, the editor, and the admin dashboard. It is only rendered when AI
-mode is active.
-
-**Context and scope:**
-- The pane is context-aware: it receives the current page's `(space_id, path,
-  locale, revision_hash)` as implicit context for every message.
-- Users MAY explicitly expand scope to the full wiki or a specific space.
-- All retrieval is permission-scoped: the pane MUST NOT surface content the
-  current user cannot read.
-
-**Capabilities:**
-- Answer questions grounded in retrieved page revisions with citations.
-- Generate a new page draft from a conversation; the draft opens in the editor
-  and MUST NOT be auto-published.
-- Suggest edits to the current page; suggestions appear as a diff the user
-  reviews and accepts or rejects before any write occurs.
-- Summarize the current page or a set of search results.
-
-**Streaming and state:**
-- Responses MUST stream via Server-Sent Events (SSE). The pane renders tokens
-  as they arrive.
-- Chat history is session-scoped by default and is NOT persisted to the
-  database unless a future feature spec defines a persistence model.
-- Each assistant turn MUST include source citations (page path + revision hash)
-  for any retrieved content used in the answer.
-
-**Boundaries:**
-- The chat pane MUST NOT auto-execute write operations. Every mutation
-  (create page, update page) requires explicit user confirmation.
-- The chat pane MUST NOT expose content from spaces or pages the user cannot
-  read, even as indirect evidence in an answer.
-- If AI mode is disabled, the pane is hidden entirely; no placeholder or
-  upsell UI is shown in the default layout.
+| Mandate | One-line invariant | Detail |
+|---------|--------------------|--------|
+| Page Tree & Path System | Pages addressed by canonical key `(space_id, path, locale)`; path is language-neutral and authoritative for routing, imports, exports, and permissions. | `docs/architecture/mandates.md` |
+| Rendering Pipeline | Pipeline is `source -> parse -> transform[] -> render` with discrete, typed, registered plugins; transformers never touch the DB directly. | `docs/architecture/mandates.md` |
+| Permission Model | Three axes (subject, resource, action); evaluation order explicit deny > allow > parent > space default > global default; no hardcoded admin bypass. | `docs/architecture/mandates.md` |
+| Content Versioning | Every mutation creates an immutable `page_revision`; diff at source level only; revisions never deleted by normal operations. | `docs/architecture/mandates.md` |
+| Multi-language Content | Translations keyed by `(space_id, path, locale)` via `translation_group_id`; permissions NOT inherited across translations. | `docs/architecture/mandates.md` |
+| Editor Extensibility | Pluggable editor interface; client-side AST never leaves browser; serialize to raw source only; Markdown is default. | `docs/architecture/mandates.md` |
+| Git Storage Sync | Optional, async, pg-boss job; two-way sync blocked until conflict model specified; DB stays source of truth. | `docs/architecture/mandates.md` |
+| API Architecture | Three layers (tRPC internal, REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions. | `docs/architecture/mandates.md` |
+| Deployment & Operations Baseline | Single `docker compose up`; PostgreSQL + named volumes; `/healthz`, `/readyz`, job status, structured logs, documented backup/restore. | `docs/architecture/mandates.md` |
+| AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations. | `docs/architecture/mandates.md` |
+| AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
+| Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
+| Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; Mantine isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
+| Frontend Data Flow | Server state via TanStack Query + tRPC; UI state via Zustand; never mix; URL state in search params. | `docs/architecture/frontend-data-flow.md` |
 
 ---
 
@@ -491,6 +357,22 @@ These patterns are PROHIBITED. Any PR introducing them MUST be rejected.
   downloads, and language downloads are opt-in.
 - **Feature flags as permanent code paths**: Feature flags are for rollout, not
   permanent conditional logic. Ship the feature or remove it.
+- **Broken browser navigation**: Any route where back, forward, refresh, deep
+  link, or "open in new tab" fails or silently loses user state. The web
+  platform's navigation contract is mandatory, not optional.
+- **State without a URL**: User-reachable application states that cannot be
+  shared, bookmarked, or reached via browser history. If a user can arrive at
+  a state, that state MUST have a URL.
+- **Verb-style URLs**: Path segments that encode actions (`/createPage`,
+  `/doSave`, `/deleteUser`) instead of resources. URLs identify resources;
+  HTTP methods and sub-resources express mutations.
+- **Duplicate feature entry points**: Multiple navigation links, routes, or
+  menus that lead to the same resource under different URLs or labels. Each
+  resource has exactly one canonical entry point.
+- **Per-page bespoke styling**: Feature components that bypass the unified
+  design system with inline colors, spacing, fonts, icons, or copy-pasted
+  styles. All visual resources flow through `src/components/ui/` and the token
+  system.
 
 ---
 
@@ -513,100 +395,12 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 | Editor (client) | Tiptap (ProseMirror) | Rich Markdown editing; AST stays in browser |
 | Vector Search | pgvector (PostgreSQL extension) | No extra service, integrates with PostgreSQL |
 | Full-text Search | PostgreSQL tsvector default + Meilisearch optional | Zero-dependency baseline; Meilisearch for CJK and scale |
-| Styling & UI | Mantine + Tailwind CSS + CSS custom properties | Mantine for admin controls; Tailwind for content layout; tokens for themes |
+| Styling & UI | Mantine + Tailwind CSS + CSS custom properties | Unified design system in `src/components/ui/`; Mantine for controls, Tailwind for content layout, tokens for themes; single source of truth for all resources and cross-page UX consistency |
 | Containerization | Docker Compose + Kubernetes manifests | Single compose for normal install; K8s for production operators |
 | Testing | Vitest + Playwright | Unit/integration plus E2E coverage |
 | LLM Integration | OpenAI-compatible API plus provider adapters | Provider-agnostic, works with self-hosted or commercial compatible LLMs |
 | AI Chat Streaming | Server-Sent Events (SSE) via Next.js Route Handler | Token-by-token streaming to chat pane; no WebSocket dependency |
 | Monorepo | pnpm workspaces + Turborepo | Shared packages, fast incremental builds |
-
----
-
-## Project Structure
-
-This layout is NON-NEGOTIABLE. AI agents MUST NOT generate a different
-directory structure. Any deviation requires a constitution amendment.
-
-```text
-next-wiki/
-|-- apps/
-|   `-- web/                        # Next.js full-stack application
-|       |-- app/                    # App Router routes and route shells
-|       |   |-- (public)/           # Public content pages (SSR + SEO)
-|       |   |-- (auth)/             # Login / register
-|       |   |-- (admin)/            # Admin dashboard
-|       |   |-- (editor)/           # Page editor
-|       |   `-- api/
-|       |       |-- trpc/[trpc]/    # tRPC HTTP handler
-|       |       |-- v1/             # Public REST route handlers
-|       |       `-- mcp/            # Optional MCP transport handlers
-|       `-- src/
-|           |-- server/             # Server-only code
-|           |   |-- trpc/           # tRPC routers and procedures
-|           |   |-- rest/           # REST adapters and OpenAPI metadata
-|           |   |-- mcp/            # MCP tool adapters
-|           |   |-- services/       # Business logic layer
-|           |   |-- db/             # Drizzle schema + migrations
-|           |   |-- auth/           # Better Auth integration
-|           |   |-- pipeline/       # Rendering pipeline (remark/rehype)
-|           |   |-- ai/             # Optional AI provider and retrieval layer
-|           |   `-- jobs/           # pg-boss job definitions
-|           |-- client/             # Client-only code
-|           |-- components/
-|           |   |-- ui/             # Mantine wrappers
-|           |   |-- admin/          # Admin dashboard components
-|           |   |-- editor/         # Editor components (Tiptap)
-|           |   |-- chat/           # AI chat side pane components
-|           |   `-- common/         # Shared components
-|           `-- hooks/              # Custom React hooks
-|-- packages/
-|   |-- shared/                     # Zod schemas, types, constants
-|   `-- editor/                     # Tiptap extensions, CodeMirror configs
-|-- docker/                         # Dockerfiles and compose files
-|-- turbo.json
-`-- pnpm-workspace.yaml
-```
-
-Key rules derived from this structure:
-
-- `src/server/` MUST NOT be imported by Client Components, `src/client/`, or
-  browser-only packages.
-- Server Components, route handlers, and server actions MAY import `src/server/`
-  through designated server entry modules.
-- Files under `app/` are route shells. Business logic lives in `src/server/`.
-- Mantine MUST only be imported inside `src/components/ui/`. All other
-  components use the `ui/` wrappers. This isolates the component library from
-  the rest of the codebase.
-- `packages/shared/` has zero runtime dependencies. It contains only types, Zod
-  schemas, constants, and pure utility functions.
-
----
-
-## Frontend Data Flow
-
-These rules are NON-NEGOTIABLE. Violations are architecture defects.
-
-| Data type | Storage | Access pattern |
-|-----------|---------|----------------|
-| Server-rendered page data | React Server Components | Server service calls with permission context |
-| Client server state (CRUD) | TanStack Query cache | `useQuery` / `useMutation` via tRPC |
-| Client UI state | Zustand | `useStore` |
-| Form state | React Hook Form | `useForm` / `useController` |
-| URL / filter state | Next.js search params | `searchParams` / `useSearchParams` |
-| Auth session | Better Auth session | Server auth context / `useSession` |
-| Job progress | TanStack Query polling or subscription adapter | Job status endpoint |
-| AI chat messages | Zustand (session-scoped) | `useChatStore`; NOT persisted to DB by default |
-| AI streaming response | Local component state | SSE stream via `useChat` hook; tokens appended on arrival |
-
-Storing server-derived data in Zustand is PROHIBITED. TanStack Query is the
-client server-state manager. Caching API responses in Zustand is an architecture
-violation. If a client component needs server data, it uses tRPC through
-TanStack Query. If it needs shared UI state, it uses Zustand. These concerns
-MUST NOT be mixed.
-
-React Server Components MAY fetch server data directly through service-layer
-entry points, but they MUST construct and pass a permission context. Client
-Components MUST NOT import server services.
 
 ---
 
@@ -621,13 +415,29 @@ Components MUST NOT import server services.
 4. Obtain approval from two active maintainers before merge. If the project has
    fewer than two active maintainers, approval from the founder satisfies this
    ratification requirement.
-5. All dependent templates and docs MUST be updated in the same PR.
+5. All dependent templates, the Architectural Mandates index in this file, and
+   the linked `docs/architecture/` documents MUST be updated in the same PR.
 
 ### Versioning Policy
 
-- **MAJOR**: Removal or redefinition of a Core Principle or Architectural Mandate.
-- **MINOR**: New principle, mandate, section, or technology decision added.
-- **PATCH**: Clarifications, wording fixes, typo fixes, non-semantic refinements.
+- **MAJOR**: Removal or redefinition of a Core Principle, Anti-Pattern, or the
+  one-line invariant of any Architectural Mandate (including in
+  `docs/architecture/`).
+- **MINOR**: New principle, mandate, anti-pattern, technology decision, or
+  material restructure of how governance is organized.
+- **PATCH**: Clarifications, wording fixes, typo fixes, non-semantic refinements
+  to this file or to `docs/architecture/`.
+
+Editorial refinement of `docs/architecture/` detail that does not change an
+invariant does not require a constitution version bump; it is reviewed via
+normal PR.
+
+### Authoritative Sources
+
+This constitution is the source of truth for principles, anti-patterns, and
+technology decisions. `docs/architecture/` holds the binding detailed rules for
+each Architectural Mandate and is governed by this constitution. When the two
+appear to conflict, this file prevails; resolve the conflict via an amendment.
 
 ### Compliance Review
 
