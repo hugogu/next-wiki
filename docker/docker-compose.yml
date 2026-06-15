@@ -25,7 +25,6 @@ services:
     container_name: next-wiki-web
     environment:
       DATABASE_URL: postgresql://wiki:wiki@db:5432/wiki
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-change-me-change-me-change-me}
       APP_URL: ${APP_URL:-http://localhost:3000}
       NODE_ENV: ${NODE_ENV:-production}
       NEXT_WIKI_SEED: 'true'
