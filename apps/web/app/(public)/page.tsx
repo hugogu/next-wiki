@@ -5,8 +5,6 @@ import { PageList } from '@/components/ui/PageList';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
-import { seedDatabase } from '@/server/seed';
-import { runMigrations } from '@/server/db/migrate';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,14 +12,8 @@ export const metadata: Metadata = {
   title: 'next-wiki',
 };
 
-async function getData() {
-  await runMigrations();
-  await seedDatabase();
-  return pageService.listPublished(buildAnonymousCtx());
-}
-
 export default async function HomePage() {
-  const pages = await getData();
+  const pages = await pageService.listPublished(buildAnonymousCtx());
 
   return (
     <Layout>

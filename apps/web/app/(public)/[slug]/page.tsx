@@ -4,8 +4,6 @@ import { Layout } from '@/components/ui/Layout';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
-import { seedDatabase } from '@/server/seed';
-import { runMigrations } from '@/server/db/migrate';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,15 +14,9 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   return { title: slug };
 }
 
-async function getData(slug: string) {
-  await runMigrations();
-  await seedDatabase();
-  return pageService.getLive(buildAnonymousCtx(), slug);
-}
-
 export default async function PageRead({ params }: { params: PageParams }) {
   const { slug } = await params;
-  const page = await getData(slug);
+  const page = await pageService.getLive(buildAnonymousCtx(), slug);
 
   if (!page) {
     notFound();
