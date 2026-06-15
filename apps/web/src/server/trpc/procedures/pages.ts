@@ -4,52 +4,37 @@ import { publicProcedure, router } from '@/server/trpc/context';
 import * as pageService from '@/server/services/pages';
 
 export const pagesRouter = router({
-  listPublished: publicProcedure.query(async ({ ctx }) => {
-    const rows = await pageService.listPublished(ctx);
-    return rows.map((r) => shared.pageSummarySchema.parse(r));
-  }),
+  listPublished: publicProcedure
+    .output(z.array(shared.pageSummarySchema))
+    .query(({ ctx }) => pageService.listPublished(ctx)),
 
   getLive: publicProcedure
     .input(z.object({ slug: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const row = await pageService.getLive(ctx, input.slug);
-      return row ? shared.livePageSchema.parse(row) : null;
-    }),
+    .output(shared.livePageSchema.nullable())
+    .query(({ ctx, input }) => pageService.getLive(ctx, input.slug)),
 
   create: publicProcedure
     .input(shared.createPageInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const result = await pageService.create(ctx, input);
-      return result;
-    }),
+    .mutation(({ ctx, input }) => pageService.create(ctx, input)),
 
   newDraft: publicProcedure
     .input(shared.newDraftInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const result = await pageService.newDraft(ctx, input);
-      return result;
-    }),
+    .mutation(({ ctx, input }) => pageService.newDraft(ctx, input)),
 
   getForEdit: publicProcedure
     .input(z.object({ slug: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const row = await pageService.getForEdit(ctx, input.slug);
-      return row ? shared.editableViewSchema.parse(row) : null;
-    }),
+    .output(shared.editableViewSchema.nullable())
+    .query(({ ctx, input }) => pageService.getForEdit(ctx, input.slug)),
 
   getHistory: publicProcedure
     .input(z.object({ slug: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const rows = await pageService.getHistory(ctx, input.slug);
-      return rows.map((r) => shared.revisionSummarySchema.parse(r));
-    }),
+    .output(z.array(shared.revisionSummarySchema))
+    .query(({ ctx, input }) => pageService.getHistory(ctx, input.slug)),
 
   getRevision: publicProcedure
     .input(z.object({ slug: z.string(), version: z.number().int().min(1) }))
-    .query(async ({ ctx, input }) => {
-      const row = await pageService.getRevision(ctx, input.slug, input.version);
-      return row ? shared.revisionViewSchema.parse(row) : null;
-    }),
+    .output(shared.revisionViewSchema.nullable())
+    .query(({ ctx, input }) => pageService.getRevision(ctx, input.slug, input.version)),
 });
 
 export type PagesRouter = typeof pagesRouter;

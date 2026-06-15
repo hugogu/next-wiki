@@ -27,7 +27,7 @@ export const authRouter = router({
     return { ok: true };
   }),
 
-  me: publicProcedure.query(async () => {
+  me: publicProcedure.output(meOutputSchema.nullable()).query(async () => {
     const actor = await authService.getCurrentActor();
     if (actor.kind === 'anonymous') return null;
 
@@ -37,12 +37,12 @@ export const authRouter = router({
 
     if (!user) return null;
 
-    return meOutputSchema.parse({
+    return {
       id: user.id,
       email: user.email,
       role: user.role,
       displayName: user.displayName ?? null,
-    });
+    };
   }),
 });
 
