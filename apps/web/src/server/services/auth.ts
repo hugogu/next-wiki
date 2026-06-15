@@ -4,6 +4,7 @@ import { and, eq, gt } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
+import { DomainError } from '@/server/errors';
 import type { Actor } from '@/server/permissions';
 
 const SESSION_COOKIE = 'next-wiki-session';
@@ -36,7 +37,7 @@ export async function register(input: { email: string; password: string }): Prom
   });
 
   if (existing) {
-    throw new Error('EMAIL_EXISTS');
+    throw new DomainError('CONFLICT', 'An account with this email already exists');
   }
 
   const passwordHash = await bcrypt.hash(input.password, 10);
@@ -64,12 +65,12 @@ export async function login(input: { email: string; password: string }): Promise
   });
 
   if (!user || user.status === 'disabled') {
-    throw new Error('INVALID_CREDENTIALS');
+    throw new DomainError('UNAUTHORIZED', 'Invalid email or password');
   }
 
   const valid = await bcrypt.compare(input.password, user.passwordHash);
   if (!valid) {
-    throw new Error('INVALID_CREDENTIALS');
+    throw new DomainError('UNAUTHORIZED', 'Invalid email or password');
   }
 
   return { userId: user.id };

@@ -38,7 +38,7 @@ describe('authService', () => {
       await authService.register({ email: 'dup@example.com', password: 'Password123!' });
       await expect(
         authService.register({ email: 'dup@example.com', password: 'Password123!' }),
-      ).rejects.toThrow('EMAIL_EXISTS');
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
     });
   });
 
@@ -61,7 +61,7 @@ describe('authService', () => {
       await authService.register({ email: 'badpass@example.com', password: 'Password123!' });
       await expect(
         authService.login({ email: 'badpass@example.com', password: 'wrong-password' }),
-      ).rejects.toThrow('INVALID_CREDENTIALS');
+      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
     });
 
     it('rejects disabled account', async () => {
@@ -73,7 +73,7 @@ describe('authService', () => {
 
       await expect(
         authService.login({ email: 'disabled@example.com', password: 'Password123!' }),
-      ).rejects.toThrow('INVALID_CREDENTIALS');
+      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
     });
   });
 

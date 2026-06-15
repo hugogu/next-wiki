@@ -3,6 +3,8 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
+import { DomainError } from '@/server/errors';
+import { slugSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 
 const DEFAULT_SPACE_SLUG = 'default';
@@ -95,47 +97,33 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
   };
 }
 
-function validateSlug(slug: string): { ok: true } | { ok: false; error: string } {
-  if (!slug) return { ok: false, error: 'Slug is required' };
-  if (slug.length > 100) return { ok: false, error: 'Slug must be 100 characters or fewer' };
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
-    return { ok: false, error: 'Slug must be lowercase letters, numbers, and hyphens, starting with a letter or number' };
-  }
-  return { ok: true };
-}
-
-export class PageServiceError extends Error {
-  constructor(public code: string, message: string) {
-    super(message);
-    this.name = 'PageServiceError';
-  }
-}
-
 export async function create(
   ctx: PermCtx,
   input: { slug: string; title: string; contentSource: string },
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
-    throw new PageServiceError('UNAUTHORIZED', 'Sign in to create pages');
+    throw new DomainError('UNAUTHORIZED', 'Sign in to create pages');
   }
 
   const space = await getDefaultSpace();
-  if (!space) throw new PageServiceError('SPACE_MISSING', 'Default space not found');
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   if (!can(ctx, 'create', { kind: 'page_list' })) {
-    throw new PageServiceError('FORBIDDEN', 'You do not have permission to create pages');
+    throw new DomainError('FORBIDDEN', 'You do not have permission to create pages');
   }
 
-  const slugCheck = validateSlug(input.slug);
-  if (!slugCheck.ok) throw new PageServiceError('INVALID_SLUG', slugCheck.error);
+  const slugCheck = slugSchema.safeParse(input.slug);
+  if (!slugCheck.success) {
+    throw new DomainError('BAD_REQUEST', slugCheck.error.issues[0]?.message ?? 'Invalid slug');
+  }
 
   return await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
       where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.slug, input.slug)),
     });
     if (existing) {
-      throw new PageServiceError('SLUG_EXISTS', 'A page with this slug already exists');
+      throw new DomainError('CONFLICT', 'A page with this slug already exists');
     }
 
     const { html, hash } = renderMarkdown(input.contentSource);
@@ -151,7 +139,7 @@ export async function create(
       })
       .returning();
 
-    if (!page) throw new PageServiceError('CREATE_FAILED', 'Failed to create page');
+    if (!page) throw new Error('Failed to create page');
 
     const [revision] = await tx
       .insert(schema.pageRevisions)
@@ -167,7 +155,7 @@ export async function create(
       })
       .returning();
 
-    if (!revision) throw new PageServiceError('CREATE_FAILED', 'Failed to create revision');
+    if (!revision) throw new Error('Failed to create revision');
 
     await tx
       .update(schema.pages)
@@ -184,11 +172,11 @@ export async function newDraft(
 ): Promise<{ versionId: string; versionNumber: number }> {
   const userId = getUserId(ctx);
   if (!userId) {
-    throw new PageServiceError('UNAUTHORIZED', 'Sign in to edit pages');
+    throw new DomainError('UNAUTHORIZED', 'Sign in to edit pages');
   }
 
   const space = await getDefaultSpace();
-  if (!space) throw new PageServiceError('SPACE_MISSING', 'Default space not found');
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   return await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
@@ -199,10 +187,10 @@ export async function newDraft(
       ),
     });
 
-    if (!page) throw new PageServiceError('NOT_FOUND', 'Page not found');
+    if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
 
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id })) {
-      throw new PageServiceError('FORBIDDEN', 'You do not have permission to edit this page');
+      throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
 
     const maxResult = await tx
@@ -227,7 +215,7 @@ export async function newDraft(
       })
       .returning();
 
-    if (!revision) throw new PageServiceError('CREATE_FAILED', 'Failed to create revision');
+    if (!revision) throw new Error('Failed to create revision');
 
     await tx
       .update(schema.pages)

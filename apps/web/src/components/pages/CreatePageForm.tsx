@@ -19,9 +19,9 @@ export function CreatePageForm() {
       window.location.href = `/${vars.slug}`;
     },
     onError: (err) => {
-      if (err.message === 'SLUG_EXISTS') {
+      if (err.data?.code === 'CONFLICT') {
         setServerError('A page with this slug already exists.');
-      } else if (err.message === 'FORBIDDEN' || err.message === 'UNAUTHORIZED') {
+      } else if (err.data?.code === 'FORBIDDEN' || err.data?.code === 'UNAUTHORIZED') {
         setServerError('You do not have permission to create pages.');
       } else {
         setServerError(err.message || 'Failed to create page.');

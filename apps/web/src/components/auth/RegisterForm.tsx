@@ -15,7 +15,7 @@ export function RegisterForm() {
       window.location.href = '/';
     },
     onError: (err) => {
-      if (err.message === 'EMAIL_EXISTS') {
+      if (err.data?.code === 'CONFLICT') {
         setServerError('An account with this email already exists.');
       } else {
         setServerError('Registration failed. Please try again.');

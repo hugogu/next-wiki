@@ -19,7 +19,7 @@ export function EditPageForm({ slug, initial }: { slug: string; initial: { title
       window.location.href = `/${slug}/history`;
     },
     onError: (err) => {
-      if (err.message === 'FORBIDDEN' || err.message === 'UNAUTHORIZED') {
+      if (err.data?.code === 'FORBIDDEN' || err.data?.code === 'UNAUTHORIZED') {
         setServerError('You do not have permission to edit this page.');
       } else {
         setServerError(err.message || 'Failed to save changes.');
