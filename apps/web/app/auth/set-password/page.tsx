@@ -2,10 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { SetPasswordForm } from '@/components/auth/SetPasswordForm';
-import { getCurrentActor } from '@/server/services/auth';
-import { db } from '@/server/db';
-import * as schema from '@/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { getCurrentActor, mustResetPassword } from '@/server/services/auth';
 
 export const metadata: Metadata = {
   title: 'Set new password',
@@ -21,11 +18,8 @@ export default async function SetPasswordPage() {
     redirect('/auth/login');
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, actor.userId),
-  });
-
-  if (!user || !user.mustResetPassword) {
+  const needsReset = await mustResetPassword({ actor });
+  if (!needsReset) {
     redirect('/');
   }
 

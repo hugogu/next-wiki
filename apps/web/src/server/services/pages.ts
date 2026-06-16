@@ -97,6 +97,16 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
   };
 }
 
+/**
+ * Returns true if the caller is allowed to create pages in the default space.
+ * Used by the `/new` route to decide whether to render the form or 404.
+ */
+export async function canCreate(ctx: PermCtx): Promise<boolean> {
+  const space = await getDefaultSpace();
+  if (!space) return false;
+  return can(ctx, 'create', { kind: 'page_list' });
+}
+
 export async function create(
   ctx: PermCtx,
   input: { slug: string; title: string; contentSource: string },

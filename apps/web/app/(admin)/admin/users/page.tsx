@@ -15,12 +15,11 @@ export const metadata: Metadata = {
 export default async function AdminUsersPage() {
   const actor = await getCurrentActor();
 
-  // Admin-only surface: non-admins get a not-found response (no metadata leak).
-  if (actor.kind !== 'user' || actor.role !== 'admin') {
+  // Service-level permission check: returns null for non-admins (no leak).
+  const users = await userService.listSafe({ actor });
+  if (!users) {
     notFound();
   }
-
-  const users = await userService.list({ actor });
 
   return (
     <Layout>

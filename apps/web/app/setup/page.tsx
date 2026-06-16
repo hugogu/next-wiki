@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { SetupForm } from '@/components/auth/SetupForm';
-import { db } from '@/server/db';
-import * as schema from '@/server/db/schema';
-import { eq } from 'drizzle-orm';
+import * as setupService from '@/server/services/setup';
 
 export const metadata: Metadata = {
   title: 'First-run setup',
@@ -13,12 +11,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function SetupPage() {
-  const adminExists = await db.query.users.findFirst({
-    where: eq(schema.users.role, 'admin'),
-  });
-
   // Self-disabling: once any admin exists, the setup route refuses.
-  if (adminExists) {
+  const needed = await setupService.isSetupNeeded();
+  if (!needed) {
     redirect('/');
   }
 

@@ -18,7 +18,19 @@ function requireAdmin(ctx: PermCtx): void {
 
 export async function list(ctx: PermCtx): Promise<UserView[]> {
   requireAdmin(ctx);
+  return listInternal();
+}
 
+/**
+ * Returns null when the caller lacks manage_users permission (no data leak).
+ * Used by the admin route to decide whether to render or 404.
+ */
+export async function listSafe(ctx: PermCtx): Promise<UserView[] | null> {
+  if (!can(ctx, 'manage_users', { kind: 'users' })) return null;
+  return listInternal();
+}
+
+async function listInternal(): Promise<UserView[]> {
   const rows = await db.query.users.findMany({
     orderBy: schema.users.createdAt,
   });

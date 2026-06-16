@@ -6,6 +6,16 @@ import * as authService from '@/server/services/auth';
 import { DomainError } from '@/server/errors';
 
 /**
+ * Returns true if the first-run setup is still needed (zero admins exist).
+ */
+export async function isSetupNeeded(): Promise<boolean> {
+  const existingAdmin = await db.query.users.findFirst({
+    where: eq(schema.users.role, 'admin'),
+  });
+  return !existingAdmin;
+}
+
+/**
  * One-time bootstrap: create the first admin account.
  *
  * This is safe to call repeatedly because it is gated by a DB check for zero

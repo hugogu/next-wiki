@@ -4,7 +4,7 @@ import { Layout } from '@/components/ui/Layout';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { CreatePageForm } from '@/components/pages/CreatePageForm';
 import { getCurrentActor } from '@/server/services/auth';
-import { can } from '@/server/permissions';
+import * as pageService from '@/server/services/pages';
 
 export const metadata: Metadata = {
   title: 'New page',
@@ -15,7 +15,8 @@ export const dynamic = 'force-dynamic';
 export default async function NewPage() {
   const actor = await getCurrentActor();
 
-  if (!can({ actor }, 'create', { kind: 'page_list' })) {
+  const allowed = await pageService.canCreate({ actor });
+  if (!allowed) {
     notFound();
   }
 

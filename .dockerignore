@@ -1,0 +1,22 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+.turbo/
+.pnpm-store/
+.git/
+.gitignore
+*.log
+.env
+.env.*
+!.env.example
+
+# AI tooling
+.claude/
+.cursor/
+.windsurf/
+.opencode/
+.codex/
+.github/

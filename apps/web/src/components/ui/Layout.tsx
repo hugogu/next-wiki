@@ -3,18 +3,13 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import * as authService from '@/server/services/auth';
 import { LogoutButton } from '@/components/auth/LogoutButton';
-import { db } from '@/server/db';
-import * as schema from '@/server/db/schema';
-import { eq } from 'drizzle-orm';
 
 export async function Layout({ children, skipPasswordGate = false }: { children: ReactNode; skipPasswordGate?: boolean }) {
   const actor = await authService.getCurrentActor();
 
   if (!skipPasswordGate && actor.kind === 'user') {
-    const user = await db.query.users.findFirst({
-      where: eq(schema.users.id, actor.userId),
-    });
-    if (user?.mustResetPassword) {
+    const needsReset = await authService.mustResetPassword({ actor });
+    if (needsReset) {
       redirect('/auth/set-password');
     }
   }

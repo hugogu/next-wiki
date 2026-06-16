@@ -31,6 +31,7 @@ coverage/
 out/
 .turbo/
 *.tsbuildinfo
+*.log
 
 # 本地包与包管理器目录
 node_modules/
@@ -47,6 +48,3 @@ AGENTS.md
 .env
 .env.*
 !.env.example
-
-# Docker
-.dockerignore

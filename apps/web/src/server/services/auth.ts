@@ -152,4 +152,16 @@ export async function setMyPassword(ctx: PermCtx, newPassword: string): Promise<
     .where(eq(schema.users.id, userId));
 }
 
+/**
+ * Returns true if the signed-in user must reset their password before
+ * continuing. Returns false for anonymous callers.
+ */
+export async function mustResetPassword(ctx: PermCtx): Promise<boolean> {
+  if (ctx.actor.kind !== 'user') return false;
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, ctx.actor.userId),
+  });
+  return user?.mustResetPassword ?? false;
+}
+
 export type { Actor };
