@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
@@ -37,7 +38,7 @@ export async function seedDatabase() {
     .insert(schema.users)
     .values({
       email: 'admin@example.com',
-      passwordHash: 'UNUSED-SEED-PASSWORD-HASH',
+      passwordHash: await bcrypt.hash('admin123', 10),
       role: 'admin',
       status: 'active',
       displayName: 'Admin',

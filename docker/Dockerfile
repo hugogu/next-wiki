@@ -1,4 +1,5 @@
-FROM node:22-alpine AS base
+ARG NODE_IMAGE=node:24-alpine
+FROM ${NODE_IMAGE} AS base
 RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 
@@ -15,7 +16,7 @@ ENV DATABASE_URL=postgresql://localhost:5432/next_wiki
 RUN pnpm --filter @next-wiki/web exec drizzle-kit generate
 RUN pnpm --filter @next-wiki/web build
 
-FROM node:22-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./

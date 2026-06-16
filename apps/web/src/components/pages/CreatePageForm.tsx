@@ -8,6 +8,7 @@ import { createPageInputSchema, type CreatePageInput } from '@next-wiki/shared';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Alert } from '@/components/ui/Alert';
 import { MarkdownEditor } from '@/components/editor/MarkdownEditor';
 
 export function CreatePageForm() {
@@ -50,11 +51,7 @@ export function CreatePageForm() {
       })}
       className="space-y-md"
     >
-      {serverError && (
-        <div className="p-md bg-danger/10 text-danger rounded-md text-sm" role="alert">
-          {serverError}
-        </div>
-      )}
+      {serverError && <Alert>{serverError}</Alert>}
       <div>
         <label htmlFor="slug" className="block text-sm font-medium mb-sm">Slug</label>
         <Input id="slug" {...register('slug')} />
@@ -72,6 +69,7 @@ export function CreatePageForm() {
           onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
           placeholder="Write your page content in Markdown..."
           disabled={create.isPending}
+          aria-label="Page content"
         />
         {errors.contentSource && <p className="text-danger text-sm mt-xs">{errors.contentSource.message}</p>}
       </div>

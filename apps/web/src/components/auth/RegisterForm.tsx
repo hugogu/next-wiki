@@ -7,6 +7,7 @@ import { registerInputSchema, type RegisterInput } from '@next-wiki/shared';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Alert } from '@/components/ui/Alert';
 
 export function RegisterForm() {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -39,11 +40,7 @@ export function RegisterForm() {
       })}
       className="space-y-md"
     >
-      {serverError && (
-        <div className="p-md bg-danger/10 text-danger rounded-md text-sm" role="alert">
-          {serverError}
-        </div>
-      )}
+      {serverError && <Alert>{serverError}</Alert>}
       <div>
         <label htmlFor="email" className="block text-sm font-medium mb-sm">
           Email

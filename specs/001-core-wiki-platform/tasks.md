@@ -27,7 +27,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T002 [P] Scaffold Next.js 16 app in `apps/web/` (`package.json`, `next.config.ts`, `tsconfig.json`, App Router shell)
 - [x] T003 [P] Configure TypeScript strict, ESLint, Prettier, Vitest, Playwright at repo root
 - [x] T004 [P] Install runtime deps: Drizzle, Better Auth, pg-boss, unified/remark/rehype, Tiptap, Mantine, Tailwind, TanStack Query, Zustand, React Hook Form, Zod, tRPC
-- [x] T005 [P] Create `docker/docker-compose.yml` (app + postgres:16 + named volumes) and `docker/Dockerfile` (builds `apps/web`, runs migrations on start)
+- [x] T005 [P] Create `docker-compose.yml` at project root (app + postgres:16 + named volumes) and `docker/Dockerfile` (builds `apps/web`, runs migrations on start)
 - [x] T006 [P] Zod-validated env config in `apps/web/src/server/config.ts` (`DATABASE_URL`, `BETTER_AUTH_SECRET`, etc.)
 
 **Checkpoint**: Repo builds and `docker compose up` starts (empty app) + Postgres.
@@ -124,10 +124,10 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [ ] T039 [P] [US4] `revisionService.publish(ctx, slug, version)` in `apps/web/src/server/services/revisions.ts` (author-of-draft or admin; atomically set revision `status='published'` + `pages.current_published_version_id` in one transaction)
-- [ ] T040 [P] [US4] tRPC `revisions.publish` procedure in `apps/web/src/server/trpc/procedures/revisions.ts`
-- [ ] T041 [US4] Publish UI on the edit + history pages (publish button visible only to author/admin; post mutation; refresh shows live content to readers)
-- [ ] T042 [P] [US4] Unit tests in `apps/web/src/server/services/revisions.test.ts`: publish atomically swaps the live version; a reader reading a published page does not see a newer draft; a draft is visible only to its author + admin
+- [x] T039 [P] [US4] `revisionService.publish(ctx, slug, version)` in `apps/web/src/server/services/revisions.ts` (author-of-draft or admin; atomically set revision `status='published'` + `pages.current_published_version_id` in one transaction)
+- [x] T040 [P] [US4] tRPC `revisions.publish` procedure in `apps/web/src/server/trpc/procedures/revisions.ts`
+- [x] T041 [US4] Publish UI on the edit + history pages (publish button visible only to author/admin; post mutation; refresh shows live content to readers)
+- [x] T042 [P] [US4] Unit tests in `apps/web/src/server/services/revisions.test.ts`: publish atomically swaps the live version; a reader reading a published page does not see a newer draft; a draft is visible only to its author + admin
 
 **Checkpoint**: US4 independently functional — the draft/publish lifecycle is correct and leak-proof.
 
@@ -141,11 +141,11 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [ ] T043 [P] [US5] `userService.list/setRole/setStatus/resetPassword/setMyPassword` in `apps/web/src/server/services/users.ts` (admin-only via `can('manage_users')`; `resetPassword` sets `must_reset_password=true`)
-- [ ] T044 [P] [US5] tRPC `users.list/setRole/setStatus/resetPassword` + `auth.setMyPassword` procedures
-- [ ] T045 [US5] Admin users route `apps/web/app/(admin)/admin/users/page.tsx` (table + role select + reset-password + disable; admin-only, non-admins not-found/forbidden)
-- [ ] T046 [US5] Forced password-change gate: when `must_reset_password=true`, redirect to a set-password screen before reaching `/`
-- [ ] T047 [P] [US5] Unit tests in `apps/web/src/server/services/users.test.ts`: `setRole` is effective on the next request (no stale elevation); `resetPassword` sets the flag; non-admin callers are denied without leaking user data
+- [x] T043 [P] [US5] `userService.list/setRole/setStatus/resetPassword/setMyPassword` in `apps/web/src/server/services/users.ts` (admin-only via `can('manage_users')`; `resetPassword` sets `must_reset_password=true`)
+- [x] T044 [P] [US5] tRPC `users.list/setRole/setStatus/resetPassword` + `auth.setMyPassword` procedures
+- [x] T045 [US5] Admin users route `apps/web/app/(admin)/admin/users/page.tsx` (table + role select + reset-password + disable; admin-only, non-admins not-found/forbidden)
+- [x] T046 [US5] Forced password-change gate: when `must_reset_password=true`, redirect to a set-password screen before reaching `/`
+- [x] T047 [P] [US5] Unit tests in `apps/web/src/server/services/users.test.ts`: `setRole` is effective on the next request (no stale elevation); `resetPassword` sets the flag; non-admin callers are denied without leaking user data
 
 **Checkpoint**: All five user stories independently functional.
 
@@ -155,12 +155,12 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 **Purpose**: Deployment readiness, the no-SPA navigation contract, and operational surfaces.
 
-- [ ] T048 [P] First-run admin setup route `apps/web/app/setup/page.tsx` (DB-gated: only when zero admins exist; self-disables after — research D7)
-- [ ] T049 [P] Playwright no-SPA E2E suite `apps/web/e2e/navigation.spec.ts`: for each route assert direct-URL entry, refresh, back/forward, and "open in new tab" land on correct state; GET never mutates (research D11, SC-008)
-- [ ] T050 [P] Playwright role/publish E2E `apps/web/e2e/flows.spec.ts`: reader denied editor/admin/draft URLs (no leak); publish workflow; admin role change effective mid-session (SC-006)
-- [ ] T051 [P] Accessibility pass across all pages: semantic headings, form labels, visible focus, keyboard navigation (FR-016 consistent UX)
-- [ ] T052 [P] Consistent empty/loading/error states on every page using the design system (no bespoke per-page styling — P5)
-- [ ] T053 [P] Structured logging in `apps/web/src/server/logger.ts` (container-runtime suitable; no secrets)
+- [x] T048 [P] First-run admin setup route `apps/web/app/setup/page.tsx` (DB-gated: only when zero admins exist; self-disables after — research D7)
+- [x] T049 [P] Playwright no-SPA E2E suite `apps/web/e2e/navigation.spec.ts`: for each route assert direct-URL entry, refresh, back/forward, and "open in new tab" land on correct state; GET never mutates (research D11, SC-008)
+- [x] T050 [P] Playwright role/publish E2E `apps/web/e2e/flows.spec.ts`: reader denied editor/admin/draft URLs (no leak); publish workflow; admin role change effective mid-session (SC-006)
+- [x] T051 [P] Accessibility pass across all pages: semantic headings, form labels, visible focus, keyboard navigation (FR-016 consistent UX)
+- [x] T052 [P] Consistent empty/loading/error states on every page using the design system (no bespoke per-page styling — P5)
+- [x] T053 [P] Structured logging in `apps/web/src/server/logger.ts` (container-runtime suitable; no secrets)
 - [ ] T054 Run `specs/001-core-wiki-platform/quickstart.md` end-to-end (SC-001 → SC-008) and record results
 - [x] T055 Docker build verification: `docker compose up --build` yields a healthy app with a working wiki within 5 minutes (SC-001)
 

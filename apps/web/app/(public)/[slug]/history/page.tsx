@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
+import { PublishButton } from '@/components/pages/PublishButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,9 @@ export default async function HistoryPage({ params }: { params: Params }) {
                   {new Date(r.createdAt).toLocaleString()} by {r.authorDisplayName ?? 'Unknown'}
                 </p>
               </div>
+              {r.status === 'draft' && r.canPublish ? (
+                <PublishButton slug={slug} version={r.version} />
+              ) : null}
             </li>
           ))}
         </ul>

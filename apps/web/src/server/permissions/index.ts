@@ -61,8 +61,12 @@ export function can(
       return role === 'editor' || role === 'admin';
 
     case 'publish': {
+      // Per data-model.md permission matrix:
+      //   - admin → always allowed
+      //   - author-of-draft → allowed (editors become authors by creating a
+      //     draft; readers can never author because they lack 'create')
+      //   - everyone else → denied
       if (role === 'admin') return true;
-      if (role === 'anonymous' || role === 'reader' || role === 'editor') return false;
       return isAuthor;
     }
 

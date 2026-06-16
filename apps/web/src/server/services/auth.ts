@@ -5,7 +5,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
 import { DomainError } from '@/server/errors';
-import type { Actor } from '@/server/permissions';
+import type { Actor, PermCtx } from '@/server/permissions';
 
 const SESSION_COOKIE = 'next-wiki-session';
 const SESSION_MAX_AGE_DAYS = 30;
@@ -59,7 +59,7 @@ export async function register(input: { email: string; password: string }): Prom
   return { userId: user.id };
 }
 
-export async function login(input: { email: string; password: string }): Promise<{ userId: string }> {
+export async function login(input: { email: string; password: string }): Promise<{ userId: string; mustResetPassword: boolean }> {
   const user = await db.query.users.findFirst({
     where: eq(schema.users.email, input.email),
   });
@@ -73,7 +73,7 @@ export async function login(input: { email: string; password: string }): Promise
     throw new DomainError('UNAUTHORIZED', 'Invalid email or password');
   }
 
-  return { userId: user.id };
+  return { userId: user.id, mustResetPassword: user.mustResetPassword };
 }
 
 export async function establishSession(userId: string): Promise<void> {
@@ -132,6 +132,24 @@ export async function getCurrentActor(): Promise<Actor> {
   }
 
   return actor;
+}
+
+export async function setMyPassword(ctx: PermCtx, newPassword: string): Promise<void> {
+  const userId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to change your password');
+  }
+
+  if (newPassword.length < 8) {
+    throw new DomainError('BAD_REQUEST', 'Password must be at least 8 characters');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+
+  await db
+    .update(schema.users)
+    .set({ passwordHash, mustResetPassword: false, updatedAt: new Date() })
+    .where(eq(schema.users.id, userId));
 }
 
 export type { Actor };

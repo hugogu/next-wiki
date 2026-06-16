@@ -1,14 +1,10 @@
 import { z } from 'zod';
+import { userRoleSchema, userStatusSchema } from './auth';
+
 export * from './auth';
 export * from './pages';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
-
-export const userRoleSchema = z.enum(['admin', 'editor', 'reader']);
-export type UserRole = z.infer<typeof userRoleSchema>;
-
-export const userStatusSchema = z.enum(['active', 'disabled']);
-export type UserStatus = z.infer<typeof userStatusSchema>;
 
 export const revisionStatusSchema = z.enum(['draft', 'published']);
 export type RevisionStatus = z.infer<typeof revisionStatusSchema>;
@@ -44,6 +40,7 @@ export const editableViewSchema = z.object({
   contentSource: z.string(),
   latestVersion: z.number(),
   status: revisionStatusSchema,
+  canPublish: z.boolean(),
 });
 export type EditableView = z.infer<typeof editableViewSchema>;
 
@@ -53,6 +50,7 @@ export const revisionSummarySchema = z.object({
   authorDisplayName: z.string().nullable(),
   createdAt: z.string(),
   contentHash: z.string(),
+  canPublish: z.boolean(),
 });
 export type RevisionSummary = z.infer<typeof revisionSummarySchema>;
 

@@ -1,0 +1,97 @@
+import bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
+import { db } from '@/server/db';
+import * as schema from '@/server/db/schema';
+import { can, type PermCtx } from '@/server/permissions';
+import { DomainError } from '@/server/errors';
+import type { UserView } from '@next-wiki/shared';
+
+function getUserId(ctx: PermCtx): string | null {
+  return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+}
+
+function requireAdmin(ctx: PermCtx): void {
+  if (!can(ctx, 'manage_users', { kind: 'users' })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to manage users');
+  }
+}
+
+export async function list(ctx: PermCtx): Promise<UserView[]> {
+  requireAdmin(ctx);
+
+  const rows = await db.query.users.findMany({
+    orderBy: schema.users.createdAt,
+  });
+
+  return rows.map((u) => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    status: u.status,
+    displayName: u.displayName,
+    createdAt: u.createdAt.toISOString(),
+  }));
+}
+
+export async function setRole(ctx: PermCtx, userId: string, role: 'admin' | 'editor' | 'reader'): Promise<void> {
+  requireAdmin(ctx);
+
+  // Prevent an admin from removing their own admin role and locking themselves out.
+  const currentUserId = getUserId(ctx);
+  if (userId === currentUserId && role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'You cannot remove your own admin role');
+  }
+
+  const [updated] = await db
+    .update(schema.users)
+    .set({ role, updatedAt: new Date() })
+    .where(eq(schema.users.id, userId))
+    .returning();
+
+  if (!updated) {
+    throw new DomainError('NOT_FOUND', 'User not found');
+  }
+}
+
+export async function setStatus(ctx: PermCtx, userId: string, status: 'active' | 'disabled'): Promise<void> {
+  requireAdmin(ctx);
+
+  const currentUserId = getUserId(ctx);
+  if (userId === currentUserId && status === 'disabled') {
+    throw new DomainError('FORBIDDEN', 'You cannot disable your own account');
+  }
+
+  const [updated] = await db
+    .update(schema.users)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(schema.users.id, userId))
+    .returning();
+
+  if (!updated) {
+    throw new DomainError('NOT_FOUND', 'User not found');
+  }
+}
+
+export async function resetPassword(
+  ctx: PermCtx,
+  userId: string,
+  tempPassword: string,
+): Promise<void> {
+  requireAdmin(ctx);
+
+  if (tempPassword.length < 8) {
+    throw new DomainError('BAD_REQUEST', 'Temporary password must be at least 8 characters');
+  }
+
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+  const [updated] = await db
+    .update(schema.users)
+    .set({ passwordHash, mustResetPassword: true, updatedAt: new Date() })
+    .where(eq(schema.users.id, userId))
+    .returning();
+
+  if (!updated) {
+    throw new DomainError('NOT_FOUND', 'User not found');
+  }
+}

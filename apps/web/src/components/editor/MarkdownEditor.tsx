@@ -36,9 +36,10 @@ interface MarkdownEditorProps {
   onChange: (markdown: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  'aria-label'?: string;
 }
 
-export function MarkdownEditor({ value, onChange, placeholder, disabled }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, placeholder, disabled, 'aria-label': ariaLabel }: MarkdownEditorProps) {
   const prevValueRef = useRef(value);
 
   const editor = useEditor({
@@ -52,6 +53,13 @@ export function MarkdownEditor({ value, onChange, placeholder, disabled }: Markd
       const markdown = getMarkdown(editor);
       prevValueRef.current = markdown;
       onChange(markdown);
+    },
+    editorProps: {
+      attributes: {
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': ariaLabel ?? 'Markdown editor',
+      },
     },
   });
 

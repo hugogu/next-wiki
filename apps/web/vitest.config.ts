@@ -5,6 +5,16 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    sequence: {
+      concurrent: false,
+    },
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    exclude: ['node_modules', 'dist', '.next', 'e2e'],
   },
   resolve: {
     alias: {

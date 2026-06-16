@@ -1,7 +1,15 @@
 import { eq } from 'drizzle-orm';
-import { registerInputSchema, loginInputSchema, meOutputSchema } from '@next-wiki/shared';
+import {
+  registerInputSchema,
+  loginInputSchema,
+  loginOutputSchema,
+  meOutputSchema,
+  setMyPasswordInputSchema,
+  setupInputSchema,
+} from '@next-wiki/shared';
 import { publicProcedure, router } from '@/server/trpc/context';
 import * as authService from '@/server/services/auth';
+import * as setupService from '@/server/services/setup';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 
@@ -16,10 +24,11 @@ export const authRouter = router({
 
   login: publicProcedure
     .input(loginInputSchema)
+    .output(loginOutputSchema)
     .mutation(async ({ input }) => {
-      const { userId } = await authService.login(input);
-      await authService.establishSession(userId);
-      return { userId };
+      const result = await authService.login(input);
+      await authService.establishSession(result.userId);
+      return result;
     }),
 
   logout: publicProcedure.mutation(async () => {
@@ -44,6 +53,14 @@ export const authRouter = router({
       displayName: user.displayName ?? null,
     };
   }),
+
+  setMyPassword: publicProcedure
+    .input(setMyPasswordInputSchema)
+    .mutation(({ ctx, input }) => authService.setMyPassword(ctx, input.newPassword)),
+
+  setup: publicProcedure
+    .input(setupInputSchema)
+    .mutation(({ input }) => setupService.setupAdmin(input)),
 });
 
 export type AuthRouter = typeof authRouter;

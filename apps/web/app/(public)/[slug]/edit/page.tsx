@@ -34,7 +34,7 @@ export default async function EditPage({ params }: { params: Params }) {
         ]}
       />
       <h1 className="text-2xl font-semibold mb-md">Edit page</h1>
-      <EditPageForm slug={slug} initial={{ title: view.title, contentSource: view.contentSource }} />
+      <EditPageForm slug={slug} initial={{ title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
     </Layout>
   );
 }

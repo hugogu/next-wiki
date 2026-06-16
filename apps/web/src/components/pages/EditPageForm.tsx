@@ -8,9 +8,11 @@ import { newDraftInputSchema, type NewDraftInput } from '@next-wiki/shared';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Alert } from '@/components/ui/Alert';
 import { MarkdownEditor } from '@/components/editor/MarkdownEditor';
+import { PublishButton } from '@/components/pages/PublishButton';
 
-export function EditPageForm({ slug, initial }: { slug: string; initial: { title: string; contentSource: string } }) {
+export function EditPageForm({ slug, initial }: { slug: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const save = trpc.pages.newDraft.useMutation({
@@ -48,11 +50,7 @@ export function EditPageForm({ slug, initial }: { slug: string; initial: { title
       })}
       className="space-y-md"
     >
-      {serverError && (
-        <div className="p-md bg-danger/10 text-danger rounded-md text-sm" role="alert">
-          {serverError}
-        </div>
-      )}
+      {serverError && <Alert>{serverError}</Alert>}
       <input type="hidden" {...register('slug')} />
       <div>
         <label htmlFor="title" className="block text-sm font-medium mb-sm">Title</label>
@@ -66,12 +64,16 @@ export function EditPageForm({ slug, initial }: { slug: string; initial: { title
           onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
           placeholder="Edit page content..."
           disabled={save.isPending}
+          aria-label="Page content"
         />
         {errors.contentSource && <p className="text-danger text-sm mt-xs">{errors.contentSource.message}</p>}
       </div>
-      <Button type="submit" disabled={isSubmitting || save.isPending}>
-        {save.isPending ? 'Saving draft...' : 'Save new draft'}
-      </Button>
+      <div className="flex items-center gap-md">
+        <Button type="submit" disabled={isSubmitting || save.isPending}>
+          {save.isPending ? 'Saving draft...' : 'Save new draft'}
+        </Button>
+        {initial.canPublish && <PublishButton slug={slug} version={initial.latestVersion} />}
+      </div>
     </form>
   );
 }
