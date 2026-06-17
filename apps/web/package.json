@@ -20,8 +20,6 @@
     "@hookform/resolvers": "^5.4.0",
     "@next-wiki/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.0",
-    "@toast-ui/editor": "^3.2.2",
-    "@toast-ui/react-editor": "^3.2.3",
     "@types/bcryptjs": "^3.0.0",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.41.0",
