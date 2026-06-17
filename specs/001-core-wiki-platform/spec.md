@@ -61,8 +61,8 @@ login the user lands on the wiki home showing the page list.
 **Acceptance Scenarios**:
 
 1. **Given** the visitor has no account, **When** they submit the registration
-   form with valid credentials, **Then** an account is created with the Reader
-   role and they are signed in.
+   form with valid credentials, **Then** an account is created (the first account
+   becomes Admin, later accounts receive the Reader role) and they are signed in.
 2. **Given** a registered account, **When** the user signs out and back in with
    correct credentials, **Then** they reach the wiki home.
 3. **Given** invalid credentials on login, **When** the user submits the form,
@@ -177,8 +177,8 @@ another user's password; confirm both changes take effect.
   an account with credentials.
 - **FR-002**: System MUST provide a login page that establishes a session; after
   login the user lands on the wiki home.
-- **FR-003**: System MUST assign every newly registered user the Reader role by
-  default.
+- **FR-003**: System MUST assign the first registered user the Admin role, and
+  every subsequent newly registered user the Reader role by default.
 - **FR-004**: System MUST display the wiki home as a list of published pages
   visible to all permitted users (including anonymous visitors by default).
 - **FR-005**: System MUST serve each published page at a unique, shareable URL
@@ -290,8 +290,8 @@ revised via `/speckit.clarify` before planning.
 - **A2 — Anonymous read is on by default**. Published pages are readable by
   anyone (not signed in), matching "发布的都可以访问". An admin can switch the
   site to require-login for reading (FR-019).
-- **A3 — Open self-service registration**. Anyone can register; new accounts
-  receive the Reader role automatically.
+- **A3 — Open self-service registration**. Anyone can register; the first account
+  becomes Admin, and subsequent new accounts receive the Reader role automatically.
 - **A4 — Admin-initiated password reset without email**. An admin resets a
   user's password to a temporary value (relayed out-of-band by the admin) and
   the user is prompted to set a new password on next sign-in. No email/SMS

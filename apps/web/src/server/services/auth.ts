@@ -42,12 +42,16 @@ export async function register(input: { email: string; password: string }): Prom
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
+  const anyAdmin = await db.query.users.findFirst({
+    where: eq(schema.users.role, 'admin'),
+  });
+
   const [user] = await db
     .insert(schema.users)
     .values({
       email: input.email,
       passwordHash,
-      role: 'reader',
+      role: anyAdmin ? 'reader' : 'admin',
       status: 'active',
     })
     .returning({ id: schema.users.id });

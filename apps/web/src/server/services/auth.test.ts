@@ -18,7 +18,23 @@ describe('authService', () => {
   });
 
   describe('register', () => {
-    it('creates a user with reader role', async () => {
+    it('creates the first user with admin role', async () => {
+      const { userId } = await authService.register({
+        email: 'first@example.com',
+        password: 'Password123!',
+      });
+
+      const user = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+      });
+
+      expect(user).toBeTruthy();
+      expect(user?.role).toBe('admin');
+      expect(user?.status).toBe('active');
+      expect(await bcrypt.compare('Password123!', user!.passwordHash)).toBe(true);
+    });
+
+    it('creates subsequent users with reader role', async () => {
       const { userId } = await authService.register({
         email: 'reader@example.com',
         password: 'Password123!',
@@ -30,8 +46,6 @@ describe('authService', () => {
 
       expect(user).toBeTruthy();
       expect(user?.role).toBe('reader');
-      expect(user?.status).toBe('active');
-      expect(await bcrypt.compare('Password123!', user!.passwordHash)).toBe(true);
     });
 
     it('rejects duplicate emails', async () => {
