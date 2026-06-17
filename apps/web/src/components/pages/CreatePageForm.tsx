@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPageInputSchema, type CreatePageInput } from '@next-wiki/shared';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
+import { getPageHref } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -15,12 +16,12 @@ export function CreatePageForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const create = useApiMutation<CreatePageInput, { pageId: string; versionId: string }>('/api/pages', {
     onSuccess: (_data, vars) => {
-      router.push(`/${vars.slug}`);
-      window.location.href = `/${vars.slug}`;
+      router.push(getPageHref(vars.path));
+      window.location.href = getPageHref(vars.path);
     },
     onError: (err: ApiError) => {
       if (err.code === 'CONFLICT') {
-        setServerError('A page with this slug already exists.');
+        setServerError('A page with this path already exists.');
       } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setServerError('You do not have permission to create pages.');
       } else {
@@ -37,7 +38,7 @@ export function CreatePageForm() {
     formState: { errors, isSubmitting },
   } = useForm<CreatePageInput>({
     resolver: zodResolver(createPageInputSchema),
-    defaultValues: { slug: '', title: '', contentSource: '' },
+    defaultValues: { path: '', title: '', contentSource: '' },
   });
 
   const contentSource = watch('contentSource');
@@ -52,14 +53,14 @@ export function CreatePageForm() {
     >
       <div className="shrink-0 flex items-center gap-md px-lg py-md border-b border-border bg-surface">
         <div className="flex-1 flex items-center gap-md">
-          <div className="w-40">
+          <div className="w-56">
             <Input
-              {...register('slug')}
-              placeholder="slug"
-              aria-label="Slug"
+              {...register('path')}
+              placeholder="path/to/page"
+              aria-label="Path"
               className="text-sm"
             />
-            {errors.slug && <p className="text-danger text-xs mt-xs">{errors.slug.message}</p>}
+            {errors.path && <p className="text-danger text-xs mt-xs">{errors.path.message}</p>}
           </div>
           <div className="flex-1">
             <Input

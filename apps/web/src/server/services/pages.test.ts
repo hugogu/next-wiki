@@ -57,7 +57,7 @@ describe('pageService US3', () => {
       const ctx = buildUserCtx(editor.id, 'editor');
 
       const result = await pageService.create(ctx, {
-        slug: 'test-create',
+        path: 'test-create',
         title: 'Test Create',
         contentSource: '# Hello\n\nThis is **bold**.',
       });
@@ -72,7 +72,7 @@ describe('pageService US3', () => {
         where: eq(schema.pageRevisions.id, result.versionId),
       });
 
-      expect(page?.slug).toBe('test-create');
+      expect(page?.path).toBe('test-create');
       expect(page?.latestVersionId).toBe(result.versionId);
       expect(revision?.versionNumber).toBe(1);
       expect(revision?.status).toBe('draft');
@@ -80,22 +80,39 @@ describe('pageService US3', () => {
       expect(revision?.contentHash).toBeTruthy();
     });
 
-    it('rejects invalid slug format', async () => {
+    it('creates a nested path', async () => {
+      const editor = await createUser('editor-nested@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const result = await pageService.create(ctx, {
+        path: 'docs/intro',
+        title: 'Intro',
+        contentSource: 'hello',
+      });
+
+      const page = await db.query.pages.findFirst({
+        where: eq(schema.pages.id, result.pageId),
+      });
+      expect(page?.path).toBe('docs/intro');
+      expect(page?.slug).toBe('intro');
+    });
+
+    it('rejects invalid path format', async () => {
       const editor = await createUser('editor-slug@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
       await expect(
-        pageService.create(ctx, { slug: 'Invalid Slug!', title: 'T', contentSource: 'c' }),
+        pageService.create(ctx, { path: 'Invalid Path!', title: 'T', contentSource: 'c' }),
       ).rejects.toThrow('lowercase');
     });
 
-    it('rejects duplicate slug', async () => {
+    it('rejects duplicate path', async () => {
       const editor = await createUser('editor-dup@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
-      await pageService.create(ctx, { slug: 'dup-slug', title: 'T', contentSource: 'c' });
+      await pageService.create(ctx, { path: 'dup-path', title: 'T', contentSource: 'c' });
       await expect(
-        pageService.create(ctx, { slug: 'dup-slug', title: 'T2', contentSource: 'c2' }),
+        pageService.create(ctx, { path: 'dup-path', title: 'T2', contentSource: 'c2' }),
       ).rejects.toThrow('already exists');
     });
 
@@ -103,11 +120,11 @@ describe('pageService US3', () => {
       const reader = await createUser('reader-create@example.com', 'reader');
 
       await expect(
-        pageService.create(buildAnonymousCtx(), { slug: 'anon', title: 'T', contentSource: 'c' }),
+        pageService.create(buildAnonymousCtx(), { path: 'anon', title: 'T', contentSource: 'c' }),
       ).rejects.toThrow('Sign in');
 
       await expect(
-        pageService.create(buildUserCtx(reader.id, 'reader'), { slug: 'reader', title: 'T', contentSource: 'c' }),
+        pageService.create(buildUserCtx(reader.id, 'reader'), { path: 'reader', title: 'T', contentSource: 'c' }),
       ).rejects.toThrow('permission');
     });
   });
@@ -118,13 +135,12 @@ describe('pageService US3', () => {
       const ctx = buildUserCtx(editor.id, 'editor');
 
       const { pageId } = await pageService.create(ctx, {
-        slug: 'draft-test',
+        path: 'draft-test',
         title: 'Draft Test',
         contentSource: 'v1',
       });
 
-      const result = await pageService.newDraft(ctx, {
-        slug: 'draft-test',
+      const result = await pageService.newDraft(ctx, 'draft-test', {
         title: 'Draft Test Updated',
         contentSource: 'v2',
       });
@@ -140,11 +156,11 @@ describe('pageService US3', () => {
       const editor = await createUser('editor-concurrent@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
-      await pageService.create(ctx, { slug: 'concurrent', title: 'T', contentSource: 'v1' });
+      await pageService.create(ctx, { path: 'concurrent', title: 'T', contentSource: 'v1' });
 
       const [a, b] = await Promise.all([
-        pageService.newDraft(ctx, { slug: 'concurrent', title: 'T', contentSource: 'v2' }),
-        pageService.newDraft(ctx, { slug: 'concurrent', title: 'T', contentSource: 'v3' }),
+        pageService.newDraft(ctx, 'concurrent', { title: 'T', contentSource: 'v2' }),
+        pageService.newDraft(ctx, 'concurrent', { title: 'T', contentSource: 'v3' }),
       ]);
 
       expect(new Set([a.versionNumber, b.versionNumber]).size).toBe(2);
@@ -156,10 +172,10 @@ describe('pageService US3', () => {
       const editorCtx = buildUserCtx(editor.id, 'editor');
       const readerCtx = buildUserCtx(reader.id, 'reader');
 
-      await pageService.create(editorCtx, { slug: 'denied-edit', title: 'T', contentSource: 'c' });
+      await pageService.create(editorCtx, { path: 'denied-edit', title: 'T', contentSource: 'c' });
 
       await expect(
-        pageService.newDraft(readerCtx, { slug: 'denied-edit', title: 'T2', contentSource: 'c2' }),
+        pageService.newDraft(readerCtx, 'denied-edit', { title: 'T2', contentSource: 'c2' }),
       ).rejects.toThrow('permission');
     });
   });
@@ -169,7 +185,7 @@ describe('pageService US3', () => {
       const editor = await createUser('editor-getedit@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
-      await pageService.create(ctx, { slug: 'get-edit', title: 'T', contentSource: 'source' });
+      await pageService.create(ctx, { path: 'get-edit', title: 'T', contentSource: 'source' });
 
       const view = await pageService.getForEdit(ctx, 'get-edit');
       expect(view?.contentSource).toBe('source');
@@ -178,7 +194,7 @@ describe('pageService US3', () => {
     it('returns null for reader', async () => {
       const editor = await createUser('editor-getedit2@example.com', 'editor');
       const reader = await createUser('reader-getedit@example.com', 'reader');
-      await pageService.create(buildUserCtx(editor.id, 'editor'), { slug: 'get-edit2', title: 'T', contentSource: 'c' });
+      await pageService.create(buildUserCtx(editor.id, 'editor'), { path: 'get-edit2', title: 'T', contentSource: 'c' });
 
       const view = await pageService.getForEdit(buildUserCtx(reader.id, 'reader'), 'get-edit2');
       expect(view).toBeNull();
@@ -190,8 +206,8 @@ describe('pageService US3', () => {
       const editor = await createUser('editor-history@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
-      await pageService.create(ctx, { slug: 'history-test', title: 'T', contentSource: 'v1' });
-      await pageService.newDraft(ctx, { slug: 'history-test', title: 'T', contentSource: 'v2' });
+      await pageService.create(ctx, { path: 'history-test', title: 'T', contentSource: 'v1' });
+      await pageService.newDraft(ctx, 'history-test', { title: 'T', contentSource: 'v2' });
 
       const history = await pageService.getHistory(ctx, 'history-test');
       expect(history).toHaveLength(2);
@@ -205,11 +221,26 @@ describe('pageService US3', () => {
       const editor = await createUser('editor-rev@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
-      await pageService.create(ctx, { slug: 'rev-test', title: 'T', contentSource: '# One' });
+      await pageService.create(ctx, { path: 'rev-test', title: 'T', contentSource: '# One' });
 
       const rev = await pageService.getRevision(ctx, 'rev-test', 1);
       expect(rev?.contentSource).toBe('# One');
       expect(rev?.contentHtml).toContain('<h1>One</h1>');
+    });
+  });
+
+  describe('updateProperties', () => {
+    it('updates the page path', async () => {
+      const editor = await createUser('editor-props@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId } = await pageService.create(ctx, { path: 'old-path', title: 'T', contentSource: 'c' });
+
+      const result = await pageService.updateProperties(ctx, 'old-path', { path: 'new/path' });
+      expect(result.newPath).toBe('new/path');
+
+      const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
+      expect(page?.path).toBe('new/path');
     });
   });
 });

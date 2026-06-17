@@ -10,17 +10,9 @@ function getUserId(ctx: PermCtx): string | null {
   return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
 }
 
-/**
- * Publish a revision: atomically set its status to 'published' and point the
- * page's `current_published_version_id` at it. Permission: author-of-draft or
- * admin (the `can('publish', ...)` chokepoint interprets the matrix).
- *
- * Published content becomes visible to readers immediately; the previous live
- * revision (if any) stays in history as a regular published revision.
- */
 export async function publish(
   ctx: PermCtx,
-  input: { slug: string; version: number },
+  input: { path: string; version: number },
 ): Promise<{ versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -36,11 +28,10 @@ export async function publish(
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.slug, input.slug),
+        eq(schema.pages.path, input.path),
         isNull(schema.pages.deletedAt),
       ),
     });
-    // Identical error for missing page vs missing revision: no metadata leak.
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
 
     const revision = await tx.query.pageRevisions.findFirst({
@@ -53,14 +44,9 @@ export async function publish(
 
     const isAuthor = revision.authorId === userId;
     if (!can(ctx, 'publish', { kind: 'revision', pageId: page.id, version: input.version }, { isAuthor })) {
-      // FORBIDDEN (not NOT_FOUND): the caller is signed in but lacks rights.
-      // We still keep the message generic to avoid leaking whether the resource
-      // exists to a caller who already failed the existence check above.
       throw new DomainError('FORBIDDEN', 'You do not have permission to publish this revision');
     }
 
-    // Idempotency: publishing an already-published revision is a no-op
-    // (still returns its versionId).
     if (revision.status !== 'published') {
       await tx
         .update(schema.pageRevisions)
@@ -68,7 +54,6 @@ export async function publish(
         .where(eq(schema.pageRevisions.id, revision.id));
     }
 
-    // Atomic swap of the page's live version pointer.
     await tx
       .update(schema.pages)
       .set({

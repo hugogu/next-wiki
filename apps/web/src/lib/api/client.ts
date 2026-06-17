@@ -8,10 +8,12 @@ export type ApiError = {
   message: string;
 };
 
+type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+
 async function apiFetch<TInput, TOutput>(
   path: string,
   input: TInput,
-  method: 'POST' | 'GET' = 'POST',
+  method: HttpMethod = 'POST',
 ): Promise<TOutput> {
   const options: RequestInit = {
     method,
@@ -19,7 +21,7 @@ async function apiFetch<TInput, TOutput>(
     credentials: 'same-origin',
   };
 
-  if (method === 'POST') {
+  if (method !== 'GET') {
     options.headers = {
       ...options.headers,
       'Content-Type': 'application/json',
@@ -38,21 +40,30 @@ async function apiFetch<TInput, TOutput>(
   return data as TOutput;
 }
 
+type MutationOptions<TInput, TOutput> = Omit<UseMutationOptions<TOutput, ApiError, TInput>, 'mutationFn'> & {
+  method?: HttpMethod;
+};
+
 export function useApiMutation<TInput = void, TOutput = unknown>(
   path: string | ((input: TInput) => string),
-  options?: Omit<UseMutationOptions<TOutput, ApiError, TInput>, 'mutationFn'>,
+  options?: MutationOptions<TInput, TOutput>,
 ) {
+  const { method = 'POST', ...rest } = options ?? {};
   return useMutation<TOutput, ApiError, TInput>({
     mutationFn: (input) => {
       const resolvedPath = typeof path === 'function' ? path(input) : path;
-      return apiFetch<TInput, TOutput>(resolvedPath, input, 'POST');
+      return apiFetch<TInput, TOutput>(resolvedPath, input, method);
     },
-    ...options,
+    ...rest,
   });
 }
 
 export async function apiPost<TInput, TOutput>(path: string, input: TInput): Promise<TOutput> {
   return apiFetch<TInput, TOutput>(path, input, 'POST');
+}
+
+export async function apiPatch<TInput, TOutput>(path: string, input: TInput): Promise<TOutput> {
+  return apiFetch<TInput, TOutput>(path, input, 'PATCH');
 }
 
 export async function apiGet<TOutput>(path: string): Promise<TOutput> {

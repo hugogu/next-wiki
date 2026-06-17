@@ -4,25 +4,28 @@ import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
+import { getPagePathFromParams, getHistoryHref } from '@/lib/path';
 
 export const dynamic = 'force-dynamic';
 
-type Params = Promise<{ slug: string; n: string }>;
+type Params = Promise<{ path: string[]; n: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug, n } = await params;
-  return { title: `Revision ${n} - ${slug}` };
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
+  return { title: `Revision ${raw.n} - ${path}` };
 }
 
 export default async function RevisionPage({ params }: { params: Params }) {
-  const { slug, n } = await params;
-  const version = parseInt(n, 10);
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
+  const version = parseInt(raw.n, 10);
   if (Number.isNaN(version) || version < 1) {
     notFound();
   }
 
   const actor = await getCurrentActor();
-  const revision = await pageService.getRevision({ actor }, slug, version);
+  const revision = await pageService.getRevision({ actor }, path, version);
 
   if (!revision) {
     notFound();
@@ -31,12 +34,12 @@ export default async function RevisionPage({ params }: { params: Params }) {
   const canEdit = await pageService.canCreate({ actor });
 
   return (
-    <Layout pageContext={{ slug, title: `Revision ${version}`, status: revision.status, canEdit, canPublish: false, version }}>
+    <Layout pageContext={{ path, title: `Revision ${version}`, status: revision.status, canEdit, canPublish: false, version }}>
       <div className="max-w-3xl mx-auto px-lg py-xl">
         <div className="flex items-center justify-between mb-md">
           <h1 className="font-display text-3xl font-semibold">Revision {version}</h1>
           <Link
-            href={`/${slug}/history`}
+            href={getHistoryHref(path)}
             className="text-sm text-primary hover:underline"
           >
             ← Back to history

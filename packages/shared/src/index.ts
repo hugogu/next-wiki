@@ -15,7 +15,7 @@ export type ContentType = z.infer<typeof contentTypeSchema>;
 // ---- Shared view shapes (returned by services / tRPC) -----------------------
 
 export const pageSummarySchema = z.object({
-  slug: z.string(),
+  path: z.string(),
   title: z.string(),
   authorDisplayName: z.string().nullable(),
   publishedAt: z.string().nullable(),
@@ -24,7 +24,7 @@ export const pageSummarySchema = z.object({
 export type PageSummary = z.infer<typeof pageSummarySchema>;
 
 export const livePageSchema = z.object({
-  slug: z.string(),
+  path: z.string(),
   title: z.string(),
   contentHtml: z.string(),
   contentHash: z.string(),
@@ -37,7 +37,7 @@ export const livePageSchema = z.object({
 export type LivePage = z.infer<typeof livePageSchema>;
 
 export const editableViewSchema = z.object({
-  slug: z.string(),
+  path: z.string(),
   title: z.string(),
   contentSource: z.string(),
   latestVersion: z.number(),

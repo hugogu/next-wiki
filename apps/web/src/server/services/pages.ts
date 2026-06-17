@@ -4,7 +4,7 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
-import { slugSchema } from '@next-wiki/shared';
+import { pathSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 
 const DEFAULT_SPACE_SLUG = 'default';
@@ -19,6 +19,10 @@ function getUserId(ctx: PermCtx): string | null {
   return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
 }
 
+function leafSlugFromPath(path: string): string {
+  return path.split('/').pop() ?? path;
+}
+
 export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
   const space = await getDefaultSpace();
   if (!space) return [];
@@ -29,7 +33,7 @@ export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
 
   const rows = await db
     .select({
-      slug: schema.pages.slug,
+      path: schema.pages.path,
       title: schema.pages.title,
       authorDisplayName: schema.users.displayName,
       publishedAt: schema.pageRevisions.publishedAt,
@@ -44,10 +48,10 @@ export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
         isNull(schema.pages.deletedAt),
       ),
     )
-    .orderBy(schema.pages.updatedAt);
+    .orderBy(schema.pages.path);
 
   return rows.map((r) => ({
-    slug: r.slug,
+    path: r.path,
     title: r.title,
     authorDisplayName: r.authorDisplayName,
     publishedAt: r.publishedAt?.toISOString() ?? null,
@@ -55,7 +59,7 @@ export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
   }));
 }
 
-export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | null> {
+export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | null> {
   const space = await getDefaultSpace();
   if (!space) return null;
 
@@ -66,7 +70,7 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
   const page = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.slug, slug),
+      eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
     ),
   });
@@ -87,7 +91,7 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
     });
 
     return {
-      slug: page.slug,
+      path: page.path,
       title: page.title,
       contentHtml: revision.contentHtml,
       contentHash: revision.contentHash,
@@ -115,7 +119,7 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
   });
 
   return {
-    slug: page.slug,
+    path: page.path,
     title: page.title,
     contentHtml: draft.contentHtml,
     contentHash: draft.contentHash,
@@ -127,9 +131,24 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
   };
 }
 
+export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | null> {
+  const space = await getDefaultSpace();
+  if (!space) return null;
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.id, pageId),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+
+  if (!page) return null;
+  return getLive(ctx, page.path);
+}
+
 /**
  * Returns true if the caller is allowed to create pages in the default space.
- * Used by the `/new` route to decide whether to render the form or 404.
  */
 export async function canCreate(ctx: PermCtx): Promise<boolean> {
   const space = await getDefaultSpace();
@@ -139,7 +158,7 @@ export async function canCreate(ctx: PermCtx): Promise<boolean> {
 
 export async function create(
   ctx: PermCtx,
-  input: { slug: string; title: string; contentSource: string },
+  input: { path: string; title: string; contentSource: string },
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -153,17 +172,17 @@ export async function create(
     throw new DomainError('FORBIDDEN', 'You do not have permission to create pages');
   }
 
-  const slugCheck = slugSchema.safeParse(input.slug);
-  if (!slugCheck.success) {
-    throw new DomainError('BAD_REQUEST', slugCheck.error.issues[0]?.message ?? 'Invalid slug');
+  const pathCheck = pathSchema.safeParse(input.path);
+  if (!pathCheck.success) {
+    throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
   }
 
   return await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
-      where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.slug, input.slug)),
+      where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, input.path)),
     });
     if (existing) {
-      throw new DomainError('CONFLICT', 'A page with this slug already exists');
+      throw new DomainError('CONFLICT', 'A page with this path already exists');
     }
 
     const { html, hash } = renderMarkdown(input.contentSource);
@@ -172,8 +191,8 @@ export async function create(
       .insert(schema.pages)
       .values({
         spaceId: space.id,
-        slug: input.slug,
-        path: input.slug,
+        slug: leafSlugFromPath(input.path),
+        path: input.path,
         title: input.title,
         authorId: userId,
       })
@@ -208,7 +227,8 @@ export async function create(
 
 export async function newDraft(
   ctx: PermCtx,
-  input: { slug: string; title: string; contentSource: string },
+  path: string,
+  input: { title: string; contentSource: string },
 ): Promise<{ versionId: string; versionNumber: number }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -222,7 +242,7 @@ export async function newDraft(
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.slug, input.slug),
+        eq(schema.pages.path, path),
         isNull(schema.pages.deletedAt),
       ),
     });
@@ -270,7 +290,62 @@ export async function newDraft(
   });
 }
 
-export async function getForEdit(ctx: PermCtx, slug: string): Promise<EditableView | null> {
+export async function updateProperties(
+  ctx: PermCtx,
+  currentPath: string,
+  input: { path: string },
+): Promise<{ pageId: string; newPath: string }> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to edit page properties');
+  }
+
+  const space = await getDefaultSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+
+  const pathCheck = pathSchema.safeParse(input.path);
+  if (!pathCheck.success) {
+    throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
+  }
+
+  return await db.transaction(async (tx) => {
+    const page = await tx.query.pages.findFirst({
+      where: and(
+        eq(schema.pages.spaceId, space.id),
+        eq(schema.pages.path, currentPath),
+        isNull(schema.pages.deletedAt),
+      ),
+    });
+
+    if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+
+    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id })) {
+      throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
+    }
+
+    if (input.path !== currentPath) {
+      const existing = await tx.query.pages.findFirst({
+        where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, input.path)),
+      });
+      if (existing) {
+        throw new DomainError('CONFLICT', 'A page with this path already exists');
+      }
+    }
+
+    await tx
+      .update(schema.pages)
+      .set({
+        path: input.path,
+        slug: leafSlugFromPath(input.path),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, page.id));
+
+    return { pageId: page.id, newPath: input.path };
+  });
+}
+
+export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableView | null> {
   const userId = getUserId(ctx);
   const space = await getDefaultSpace();
   if (!space) return null;
@@ -278,7 +353,7 @@ export async function getForEdit(ctx: PermCtx, slug: string): Promise<EditableVi
   const page = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.slug, slug),
+      eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
     ),
   });
@@ -307,7 +382,7 @@ export async function getForEdit(ctx: PermCtx, slug: string): Promise<EditableVi
   );
 
   return {
-    slug: page.slug,
+    path: page.path,
     title: page.title,
     contentSource: revision.contentSource,
     latestVersion: revision.versionNumber,
@@ -316,7 +391,7 @@ export async function getForEdit(ctx: PermCtx, slug: string): Promise<EditableVi
   };
 }
 
-export async function getHistory(ctx: PermCtx, slug: string): Promise<RevisionSummary[]> {
+export async function getHistory(ctx: PermCtx, path: string): Promise<RevisionSummary[]> {
   const userId = getUserId(ctx);
   const space = await getDefaultSpace();
   if (!space) return [];
@@ -324,7 +399,7 @@ export async function getHistory(ctx: PermCtx, slug: string): Promise<RevisionSu
   const page = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.slug, slug),
+      eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
     ),
   });
@@ -376,7 +451,7 @@ export async function getHistory(ctx: PermCtx, slug: string): Promise<RevisionSu
 
 export async function getRevision(
   ctx: PermCtx,
-  slug: string,
+  path: string,
   version: number,
 ): Promise<RevisionView | null> {
   const userId = getUserId(ctx);
@@ -386,7 +461,7 @@ export async function getRevision(
   const page = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.slug, slug),
+      eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
     ),
   });

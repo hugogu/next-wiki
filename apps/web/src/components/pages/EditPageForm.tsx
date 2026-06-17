@@ -6,17 +6,18 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { newDraftBodySchema, type NewDraftBody } from '@next-wiki/shared';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
+import { getApiPageEditUrl, getHistoryHref } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
-export function EditPageForm({ slug, initial }: { slug: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
+export function EditPageForm({ path, initial }: { path: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
-  const save = useApiMutation<NewDraftBody, { versionId: string; versionNumber: number }>(`/api/pages/${encodeURIComponent(slug)}/edit`, {
+  const save = useApiMutation<NewDraftBody, { versionId: string; versionNumber: number }>(getApiPageEditUrl(path), {
     onSuccess: () => {
-      router.push(`/${slug}/history`);
-      window.location.href = `/${slug}/history`;
+      router.push(getHistoryHref(path));
+      window.location.href = getHistoryHref(path);
     },
     onError: (err: ApiError) => {
       if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {

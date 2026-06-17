@@ -22,4 +22,9 @@ export function formatZodError(error: ZodError): string {
 
 export const uuidSchema = z.string().uuid();
 export const slugParamSchema = z.string().min(1).max(100);
+export const pathParamSchema = z.array(z.string().min(1)).min(1).max(20);
 export const versionParamSchema = z.coerce.number().int().min(1);
+
+export function getPathFromParams(params: { path: string[] }): string {
+  return params.path.map((segment) => decodeURIComponent(segment)).join('/');
+}

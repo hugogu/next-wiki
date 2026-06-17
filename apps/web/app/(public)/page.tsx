@@ -3,6 +3,7 @@ import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
+import { getPageHref } from '@/lib/path';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,9 +34,9 @@ export default async function HomePage() {
               <h2 className="font-display text-2xl font-semibold mb-md">Published pages</h2>
               <ul className="space-y-sm">
                 {pages.map((page) => (
-                  <li key={page.slug}>
+                  <li key={page.path}>
                     <a
-                      href={`/${page.slug}`}
+                      href={getPageHref(page.path)}
                       className="block p-md bg-surface border border-border rounded-lg hover:border-primary transition-colors group"
                     >
                       <span className="font-display text-xl font-medium group-hover:text-primary transition-colors">{page.title}</span>

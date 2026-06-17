@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { slugParamSchema, parseParams, formatZodError } from '@/server/api/validate';
+import { pathParamSchema, parseParams, getPathFromParams, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 
-export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
-  const { slug } = await params;
-  const parsed = parseParams(slugParamSchema, slug);
+  const raw = await params;
+  const parsed = parseParams(pathParamSchema, raw.path);
   if (!parsed.ok) {
     return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
   }
 
+  const path = getPathFromParams(raw);
+
   try {
-    const page = await pageService.getLive(ctx, parsed.data);
+    const page = await pageService.getLive(ctx, path);
     if (!page) {
       return apiError('NOT_FOUND', 'Page not found', 404);
     }

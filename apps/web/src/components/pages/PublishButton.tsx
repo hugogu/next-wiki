@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
+import { getPageHref } from '@/lib/path';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 
-export function PublishButton({ slug, version }: { slug: string; version: number }) {
+export function PublishButton({ path, version }: { path: string; version: number }) {
   const [error, setError] = useState<string | null>(null);
-  const publish = useApiMutation<{ slug: string; version: number }, { versionId: string }>('/api/revisions/publish', {
+  const publish = useApiMutation<{ path: string; version: number }, { versionId: string }>('/api/revisions/publish', {
     onSuccess: () => {
-      // Hard navigate so the server re-renders the now-live page.
-      window.location.href = `/${slug}`;
+      window.location.href = getPageHref(path);
     },
     onError: (err: ApiError) => {
       if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
@@ -30,7 +30,7 @@ export function PublishButton({ slug, version }: { slug: string; version: number
         disabled={publish.isPending}
         onClick={() => {
           setError(null);
-          publish.mutate({ slug, version });
+          publish.mutate({ path, version });
         }}
       >
         {publish.isPending ? 'Publishing...' : 'Publish this revision'}

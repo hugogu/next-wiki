@@ -6,21 +6,24 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { PublishButton } from '@/components/pages/PublishButton';
+import { getPagePathFromParams, getRevisionHref } from '@/lib/path';
 
 export const dynamic = 'force-dynamic';
 
-type Params = Promise<{ slug: string }>;
+type Params = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug } = await params;
-  return { title: `History: ${slug}` };
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
+  return { title: `History: ${path}` };
 }
 
 export default async function HistoryPage({ params }: { params: Params }) {
-  const { slug } = await params;
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
-  const revisions = await pageService.getHistory({ actor }, slug);
-  const page = await pageService.getLive({ actor }, slug);
+  const revisions = await pageService.getHistory({ actor }, path);
+  const page = await pageService.getLive({ actor }, path);
 
   if (revisions.length === 0 && !page) {
     notFound();
@@ -28,7 +31,7 @@ export default async function HistoryPage({ params }: { params: Params }) {
 
   const pageContext = page
     ? {
-        slug,
+        path,
         title: page.title,
         status: page.status,
         canEdit: await pageService.canCreate({ actor }),
@@ -40,7 +43,7 @@ export default async function HistoryPage({ params }: { params: Params }) {
   return (
     <Layout pageContext={pageContext}>
       <div className="max-w-3xl mx-auto px-lg py-xl">
-        <h1 className="font-display text-3xl font-semibold mb-md">Version history: {page?.title ?? slug}</h1>
+        <h1 className="font-display text-3xl font-semibold mb-md">Version history: {page?.title ?? path}</h1>
         {revisions.length === 0 ? (
           <EmptyState title="No revisions visible">
             <p>You do not have permission to view this page&#39;s history.</p>
@@ -50,7 +53,7 @@ export default async function HistoryPage({ params }: { params: Params }) {
             {revisions.map((r) => (
               <li key={r.version} className="flex items-center justify-between p-md bg-surface border border-border rounded-lg">
                 <div>
-                  <Link href={`/${slug}/revisions/${r.version}`} className="font-medium text-primary hover:underline">
+                  <Link href={getRevisionHref(path, r.version)} className="font-medium text-primary hover:underline">
                     Version {r.version}
                   </Link>
                   <span className="ml-sm text-sm text-muted capitalize">{r.status}</span>
@@ -59,7 +62,7 @@ export default async function HistoryPage({ params }: { params: Params }) {
                   </p>
                 </div>
                 {r.status === 'draft' && r.canPublish ? (
-                  <PublishButton slug={slug} version={r.version} />
+                  <PublishButton path={path} version={r.version} />
                 ) : null}
               </li>
             ))}

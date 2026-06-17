@@ -2,7 +2,7 @@ import type { Actor } from '@/server/permissions';
 import type { PageSummary } from '@next-wiki/shared';
 
 export type PageContext = {
-  slug: string;
+  path: string;
   title: string;
   status: 'draft' | 'published';
   canEdit: boolean;

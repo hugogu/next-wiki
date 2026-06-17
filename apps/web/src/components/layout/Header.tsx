@@ -11,11 +11,13 @@ import {
   HistoryIcon,
   PublishIcon,
   EyeIcon,
+  SettingsIcon,
   UsersIcon,
   LogOutIcon,
   LogInIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
+import { getPageHref, getEditHref, getHistoryHref, getPropertiesHref } from '@/lib/path';
 
 function IconButton({
   href,
@@ -74,11 +76,11 @@ export function Header({
     if (!pageContext || !pageContext.canPublish || pageContext.status === 'published') return;
     setPublishing(true);
     try {
-      await apiPost<{ slug: string; version: number }, { versionId: string }>('/api/revisions/publish', {
-        slug: pageContext.slug,
+      await apiPost<{ path: string; version: number }, { versionId: string }>('/api/revisions/publish', {
+        path: pageContext.path,
         version: pageContext.version,
       });
-      window.location.href = `/${pageContext.slug}`;
+      window.location.href = getPageHref(pageContext.path);
     } catch {
       setPublishing(false);
     }
@@ -108,13 +110,13 @@ export function Header({
         )}
 
         {pageContext && pageContext.canEdit && (
-          <IconButton href={`/${pageContext.slug}/edit`} label="Edit page">
+          <IconButton href={getEditHref(pageContext.path)} label="Edit page">
             <EditIcon />
           </IconButton>
         )}
 
         {pageContext && isSignedIn && (
-          <IconButton href={`/${pageContext.slug}/history`} label="View history">
+          <IconButton href={getHistoryHref(pageContext.path)} label="View history">
             <HistoryIcon />
           </IconButton>
         )}
@@ -125,6 +127,12 @@ export function Header({
           </IconButton>
         )}
 
+        {pageContext && pageContext.canEdit && (
+          <IconButton href={getPropertiesHref(pageContext.path)} label="Page properties">
+            <SettingsIcon />
+          </IconButton>
+        )}
+
         {role === 'admin' && (
           <IconButton href="/admin/users" label="Admin">
             <UsersIcon />
@@ -132,7 +140,7 @@ export function Header({
         )}
 
         {pageContext && (
-          <IconButton href={`/${pageContext.slug}`} label="View page" active>
+          <IconButton href={getPageHref(pageContext.path)} label="View page" active>
             <EyeIcon />
           </IconButton>
         )}

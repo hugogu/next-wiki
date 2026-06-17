@@ -4,27 +4,30 @@ import { Layout } from '@/components/ui/Layout';
 import { EditPageForm } from '@/components/pages/EditPageForm';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
+import { getPagePathFromParams } from '@/lib/path';
 
 export const dynamic = 'force-dynamic';
 
-type Params = Promise<{ slug: string }>;
+type Params = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug } = await params;
-  return { title: `Edit ${slug}` };
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
+  return { title: `Edit ${path}` };
 }
 
 export default async function EditPage({ params }: { params: Params }) {
-  const { slug } = await params;
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
-  const view = await pageService.getForEdit({ actor }, slug);
+  const view = await pageService.getForEdit({ actor }, path);
 
   if (!view) {
     notFound();
   }
 
   const pageContext = {
-    slug,
+    path,
     title: view.title,
     status: view.status,
     canEdit: true,
@@ -35,7 +38,7 @@ export default async function EditPage({ params }: { params: Params }) {
   return (
     <Layout pageContext={pageContext}>
       <div className="h-full flex flex-col">
-        <EditPageForm slug={slug} initial={{ title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
+        <EditPageForm path={path} initial={{ title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
       </div>
     </Layout>
   );

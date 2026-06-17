@@ -15,7 +15,7 @@ export function AppShell({ user, pages, pageContext, admin = false, children }: 
         <Navigator
           pages={pages}
           admin={admin}
-          currentSlug={pageContext?.slug}
+          currentPath={pageContext?.path}
           isOpen={navOpen}
           onClose={() => setNavOpen(false)}
         />

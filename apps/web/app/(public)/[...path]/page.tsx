@@ -3,20 +3,23 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
+import { getPagePathFromParams } from '@/lib/path';
 
 export const dynamic = 'force-dynamic';
 
-type PageParams = Promise<{ slug: string }>;
+type PageParams = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
-  const { slug } = await params;
-  return { title: slug };
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
+  return { title: path };
 }
 
 export default async function PageRead({ params }: { params: PageParams }) {
-  const { slug } = await params;
+  const raw = await params;
+  const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
-  const page = await pageService.getLive({ actor }, slug);
+  const page = await pageService.getLive({ actor }, path);
 
   if (!page) {
     notFound();
@@ -27,7 +30,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const canPublish = page.status === 'draft' && (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
 
   const pageContext = {
-    slug,
+    path,
     title: page.title,
     status: page.status,
     canEdit,

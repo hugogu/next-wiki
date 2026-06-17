@@ -53,12 +53,12 @@ describe('revisionService US4', () => {
       const ctx = buildUserCtx(editor.id, 'editor');
 
       const { pageId } = await pageService.create(ctx, {
-        slug: 'publish-atomic',
+        path: 'publish-atomic',
         title: 'Publish Atomic',
         contentSource: 'v1',
       });
 
-      const result = await revisionService.publish(ctx, { slug: 'publish-atomic', version: 1 });
+      const result = await revisionService.publish(ctx, { path: 'publish-atomic', version: 1 });
 
       const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
       expect(page?.currentPublishedVersionId).toBe(result.versionId);
@@ -76,13 +76,13 @@ describe('revisionService US4', () => {
       const editorCtx = buildUserCtx(editor.id, 'editor');
       const readerCtx = buildUserCtx(reader.id, 'reader');
 
-      await pageService.create(editorCtx, { slug: 'publish-live', title: 'Live', contentSource: 'published body' });
-      await revisionService.publish(editorCtx, { slug: 'publish-live', version: 1 });
+      await pageService.create(editorCtx, { path: 'publish-live', title: 'Live', contentSource: 'published body' });
+      await revisionService.publish(editorCtx, { path: 'publish-live', version: 1 });
 
       const live1 = await pageService.getLive(readerCtx, 'publish-live');
       expect(live1?.contentHtml).toContain('published body');
 
-      await pageService.newDraft(editorCtx, { slug: 'publish-live', title: 'Live', contentSource: 'draft body' });
+      await pageService.newDraft(editorCtx, 'publish-live', { title: 'Live', contentSource: 'draft body' });
 
       const live2 = await pageService.getLive(readerCtx, 'publish-live');
       expect(live2?.contentHtml).toContain('published body');
@@ -96,13 +96,11 @@ describe('revisionService US4', () => {
       const reader = await createUser('reader-denied-draft@example.com', 'reader');
 
       const authorCtx = buildUserCtx(editor.id, 'editor');
-      await pageService.create(authorCtx, { slug: 'draft-private', title: 'Draft', contentSource: 'secret' });
+      await pageService.create(authorCtx, { path: 'draft-private', title: 'Draft', contentSource: 'secret' });
 
-      // Author and admin can read the draft revision.
       expect((await pageService.getRevision(authorCtx, 'draft-private', 1))?.contentSource).toBe('secret');
       expect((await pageService.getRevision(buildUserCtx(admin.id, 'admin'), 'draft-private', 1))?.contentSource).toBe('secret');
 
-      // Other editor and reader cannot.
       expect(await pageService.getRevision(buildUserCtx(other.id, 'editor'), 'draft-private', 1)).toBeNull();
       expect(await pageService.getRevision(buildUserCtx(reader.id, 'reader'), 'draft-private', 1)).toBeNull();
       expect(await pageService.getRevision(buildAnonymousCtx(), 'draft-private', 1)).toBeNull();
@@ -114,10 +112,10 @@ describe('revisionService US4', () => {
       const authorCtx = buildUserCtx(owner.id, 'editor');
       const otherCtx = buildUserCtx(other.id, 'editor');
 
-      await pageService.create(authorCtx, { slug: 'draft-owned', title: 'Owned', contentSource: 'x' });
+      await pageService.create(authorCtx, { path: 'draft-owned', title: 'Owned', contentSource: 'x' });
 
       await expect(
-        revisionService.publish(otherCtx, { slug: 'draft-owned', version: 1 }),
+        revisionService.publish(otherCtx, { path: 'draft-owned', version: 1 }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
@@ -126,14 +124,14 @@ describe('revisionService US4', () => {
       const reader = await createUser('reader-deny@example.com', 'reader');
       const editorCtx = buildUserCtx(editor.id, 'editor');
 
-      await pageService.create(editorCtx, { slug: 'deny-publish', title: 'Deny', contentSource: 'x' });
+      await pageService.create(editorCtx, { path: 'deny-publish', title: 'Deny', contentSource: 'x' });
 
       await expect(
-        revisionService.publish(buildAnonymousCtx(), { slug: 'deny-publish', version: 1 }),
+        revisionService.publish(buildAnonymousCtx(), { path: 'deny-publish', version: 1 }),
       ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
 
       await expect(
-        revisionService.publish(buildUserCtx(reader.id, 'reader'), { slug: 'deny-publish', version: 1 }),
+        revisionService.publish(buildUserCtx(reader.id, 'reader'), { path: 'deny-publish', version: 1 }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
   });
