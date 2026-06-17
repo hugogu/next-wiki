@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { newDraftInputSchema, type NewDraftInput } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { newDraftBodySchema, type NewDraftBody } from '@next-wiki/shared';
+import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -15,13 +15,13 @@ import { PublishButton } from '@/components/pages/PublishButton';
 export function EditPageForm({ slug, initial }: { slug: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
-  const save = trpc.pages.newDraft.useMutation({
+  const save = useApiMutation<NewDraftBody, { versionId: string; versionNumber: number }>(`/api/pages/${encodeURIComponent(slug)}/edit`, {
     onSuccess: () => {
       router.push(`/${slug}/history`);
       window.location.href = `/${slug}/history`;
     },
-    onError: (err) => {
-      if (err.data?.code === 'FORBIDDEN' || err.data?.code === 'UNAUTHORIZED') {
+    onError: (err: ApiError) => {
+      if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setServerError('You do not have permission to edit this page.');
       } else {
         setServerError(err.message || 'Failed to save changes.');
@@ -35,9 +35,9 @@ export function EditPageForm({ slug, initial }: { slug: string; initial: { title
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<NewDraftInput>({
-    resolver: zodResolver(newDraftInputSchema),
-    defaultValues: { slug, title: initial.title, contentSource: initial.contentSource },
+  } = useForm<NewDraftBody>({
+    resolver: zodResolver(newDraftBodySchema),
+    defaultValues: { title: initial.title, contentSource: initial.contentSource },
   });
 
   const contentSource = watch('contentSource');
@@ -51,7 +51,6 @@ export function EditPageForm({ slug, initial }: { slug: string; initial: { title
       className="space-y-md"
     >
       {serverError && <Alert>{serverError}</Alert>}
-      <input type="hidden" {...register('slug')} />
       <div>
         <label htmlFor="title" className="block text-sm font-medium mb-sm">Title</label>
         <Input id="title" {...register('title')} />

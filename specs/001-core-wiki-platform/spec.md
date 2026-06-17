@@ -187,8 +187,9 @@ another user's password; confirm both changes take effect.
   back, forward, refresh, deep-linking, and "open in new tab" without losing
   state. (The product is delivered through server-rendered pages with real URLs,
   not a single-page application.)
-- **FR-007**: System MUST provide a Markdown editor for creating and editing
-  pages.
+- **FR-007**: System MUST provide a Markdown editor (Toast UI Editor) for creating
+  and editing pages. The editor MUST serialize to raw Markdown source only; no
+  rendered HTML or proprietary AST leaves the browser.
 - **FR-008**: System MUST render Markdown content into viewable form at save
   time so that page reads are served from the pre-rendered output.
 - **FR-009**: System MUST create a new, immutable version record for every save,

@@ -159,9 +159,9 @@ The `must_reset_password` flag also covers first-run if ever needed.
 **Alternatives considered**:
 - *Email reset link*: requires external mail service (rejected, P1/A4).
 
-## D10 — Tiptap editor boundary (ProseMirror AST never leaves the browser)
+## D10 — Toast UI Editor boundary (editor AST never leaves the browser)
 
-**Decision**: The editor is a client component using Tiptap (ProseMirror). Its
+**Decision**: The editor is a client component using Toast UI Editor. Its
 internal AST exists only in the browser. The only thing sent to the server on
 save is **serialized raw Markdown**. The server independently parses that raw
 Markdown with remark into its own AST for rendering.
@@ -204,6 +204,6 @@ for fast-follows (search reindex, delete retention, AI ingestion).
 | D7 | First-run admin | One-time `/setup` route gated on zero admins |
 | D8 | Role change | Role read from DB per request; no stale elevation |
 | D9 | Password reset | Admin sets temp password + `must_reset_password` flag |
-| D10 | Editor boundary | Tiptap AST stays in browser; serialize to raw Markdown |
+| D10 | Editor boundary | Toast UI Editor AST stays in browser; serialize to raw Markdown |
 | D11 | No-SPA verification | Playwright asserts native nav contract per route |
 | D12 | Job queue | pg-boss wired; no jobs exercised this slice |

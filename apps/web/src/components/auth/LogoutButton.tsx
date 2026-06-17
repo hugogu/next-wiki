@@ -1,10 +1,10 @@
 'use client';
 
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 
 export function LogoutButton() {
-  const logout = trpc.auth.logout.useMutation({
+  const logout = useApiMutation<Record<string, never>, { ok: true }>('/api/auth/logout', {
     onSuccess: () => {
       window.location.href = '/';
     },
@@ -14,7 +14,7 @@ export function LogoutButton() {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        logout.mutate();
+        logout.mutate({});
       }}
     >
       <Button type="submit" variant="ghost" disabled={logout.isPending}>

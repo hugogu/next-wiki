@@ -163,24 +163,16 @@ support future Git sync without schema changes.
 
 ### P8: Open Standards Over Proprietary
 
-The internal API MUST use tRPC for end-to-end TypeScript type safety, with Zod
-schemas shared between server validation and client inference. The public API
-for third-party integrations MUST be REST + JSON with OpenAPI documentation.
-REST endpoints SHOULD be derived from tRPC procedures where the adapter can
-preserve the contract cleanly. When a REST endpoint cannot be derived cleanly,
-it MUST still use the same service layer and Zod schemas, and it MUST have an
-explicit OpenAPI contract.
+The public API for client integrations MUST be REST + JSON with OpenAPI documentation.
 
-GraphQL is not the primary API. Local email/password authentication is the
-baseline. Federated authentication MUST use OAuth 2.0 / OIDC standard flows
+Federated authentication MUST use OAuth 2.0 / OIDC standard flows
 unless an enterprise SSO feature spec explicitly approves another protocol. AI
 integration MUST use provider-agnostic interfaces, preferably OpenAI-compatible
 HTTP APIs or explicit provider adapters. Export formats MUST include standard
 Markdown + frontmatter. No vendor lock-in belongs in the critical path.
 
-Rationale: tRPC keeps first-party development type-safe and fast. REST + OpenAPI
-provides the stable public contract for scripts, integrations, bots, and
-non-TypeScript clients.
+Rationale: REST + OpenAPI provides the stable public contract for scripts, 
+integrations, bots, and non-TypeScript clients.
 
 ### P9: Explicit Over Implicit
 
@@ -189,7 +181,7 @@ providers, and integration handlers MUST be explicitly registered in a single,
 traceable entry point per subsystem. If a module exists but is not imported or
 registered, it does not exist at runtime. Global singleton objects are
 PROHIBITED. Dependencies are injected through function parameters or
-framework-managed lifecycle such as Next.js App Router, route handlers, tRPC
+framework-managed lifecycle such as Next.js App Router, route handlers, API
 context, and pg-boss job context.
 
 Framework-owned conventions such as Next.js file-system routing are allowed.
@@ -200,38 +192,7 @@ and testable loading contract.
 Rationale: Explicit registration makes the system understandable by reading the
 entry points and testable without hidden runtime state.
 
-### P10: Operator Experience is Product Surface
-
-Installation, first-run setup, upgrades, backups, restores, health checks, and
-configuration are product features, not afterthoughts. A default deployment MUST
-include a web first-run flow for creating the initial admin account, an
-idempotent migration path, a documented `.env` surface, a `/healthz` endpoint,
-and a supported backup/restore path for PostgreSQL data plus local assets.
-
-The application MUST NOT require internet access after images and packages have
-been obtained. Update checks, telemetry, marketplace calls, theme downloads, and
-language downloads MUST be opt-in.
-
-Rationale: next-wiki is meant to be easy to deploy and keep running. Agents MUST
-treat operations work as part of the core product, not as documentation to write
-later.
-
-### P11: Focused Scope Over Feature Accumulation
-
-next-wiki MUST prioritize common wiki workflows: create, edit, organize,
-search, protect, version, import, export, and integrate. It MUST NOT add
-default dependencies, storage models, runtime plugin systems, or permanent
-feature-flag branches to satisfy rarely used workflows.
-
-Migration support SHOULD focus on documented exports, Markdown content, assets,
-users/groups where practical, and page metadata. Compatibility work MUST be
-implemented as import/export tooling around the next-wiki data model, not as
-legacy architecture inside the runtime.
-
-Rationale: A focused product is easier to learn, operate, extend, and reason
-about. Broad compatibility belongs at the edges, not in the core runtime.
-
-### P12: Native Web Navigation & Unified Entry Points
+### P10: Native Web Navigation & Unified Entry Points
 
 Every user-facing surface MUST have a complete, server-aware route, and every
 route MUST render a breadcrumb derived from the route hierarchy and the page
@@ -257,48 +218,6 @@ live in `docs/architecture/mandates.md` (§ Frontend Routing & URL Contract).
 
 ---
 
-## Product Scope & Feature Tiers
-
-These tiers guide AI agents when a feature request is underspecified.
-
-### V1 Core
-
-V1 core features MUST work without AI, Git sync, SSO, object storage,
-Meilisearch, or Kubernetes:
-
-- Spaces and hierarchical pages addressed by paths
-- Markdown editing, preview, rendering, and reading
-- Page create, edit, move, delete, restore, revision history, diff, and revert
-- Assets stored on local filesystem by default
-- Search backed by PostgreSQL full-text search
-- Groups, users, sessions, page permissions, and anonymous read configuration
-- Admin setup, user management, theme selection, health status, and job status
-- Import/export for Markdown + frontmatter and local assets
-- Docker Compose deployment, database migrations, backup, and restore
-
-### V1 Optional
-
-These features MAY ship in v1.x only if they do not expand the baseline
-deployment footprint:
-
-- AI knowledge layer, semantic search, summaries, and Q&A
-- MCP server for AI agents
-- Git sync
-- SSO providers
-- Meilisearch for CJK and large-scale search
-- S3-compatible object storage for assets
-- Additional editor formats and render plugins
-- Kubernetes manifests
-
-### Not in Scope for v1.x
-
-Redis, Elasticsearch, multiple SQL database engines, separate microservices,
-native mobile apps, real-time collaborative editing (CRDT), and application
-layer DDoS protection are out of scope for v1.x. Operators SHOULD use a reverse
-proxy or edge service for rate limiting and DDoS protection.
-
----
-
 ## Architectural Mandates
 
 These are non-negotiable structural decisions that MUST be reflected in the
@@ -316,13 +235,13 @@ the linked docs) requires a constitution amendment.
 | Multi-language Content | Translations keyed by `(space_id, path, locale)` via `translation_group_id`; permissions NOT inherited across translations. | `docs/architecture/mandates.md` |
 | Editor Extensibility | Pluggable editor interface; client-side AST never leaves browser; serialize to raw source only; Markdown is default. | `docs/architecture/mandates.md` |
 | Git Storage Sync | Optional, async, pg-boss job; two-way sync blocked until conflict model specified; DB stays source of truth. | `docs/architecture/mandates.md` |
-| API Architecture | Three layers (tRPC internal, REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions. | `docs/architecture/mandates.md` |
+| API Architecture | Two layers (REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions. | `docs/architecture/mandates.md` |
 | Deployment & Operations Baseline | Single `docker compose up`; PostgreSQL + named volumes; `/healthz`, `/readyz`, job status, structured logs, documented backup/restore. | `docs/architecture/mandates.md` |
 | AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations. | `docs/architecture/mandates.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
 | Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
 | Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; Mantine isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
-| Frontend Data Flow | Server state via TanStack Query + tRPC; UI state via Zustand; never mix; URL state in search params. | `docs/architecture/frontend-data-flow.md` |
+| Frontend Data Flow | Server state via TanStack Query; UI state via Zustand; never mix; URL state in search params. | `docs/architecture/frontend-data-flow.md` |
 
 ---
 
@@ -330,33 +249,8 @@ the linked docs) requires a constitution amendment.
 
 These patterns are PROHIBITED. Any PR introducing them MUST be rejected.
 
-- **Scope expansion by comparison**: Matching another product's feature is not a
-  reason to add a default dependency, architecture branch, or permanent runtime
-  option. The feature MUST fit next-wiki's focused model.
-- **REST as sole API for internal consumption**: Internal frontend-backend
-  communication MUST use tRPC. REST is reserved for the public integration API.
-- **GraphQL as primary API**: Adds schema maintenance overhead without enough
-  benefit for this product.
-- **Multiple database engines in core**: next-wiki uses PostgreSQL. Other SQL
-  engines are not supported in v1.x.
-- **Multiple page storage backends in core**: next-wiki uses PostgreSQL for page
-  records and local filesystem for default assets. S3-compatible object storage
-  is an optional asset backend, not a page storage backend.
-- **Synchronous LLM or heavy operations in request handlers**: Any operation
-  that calls an external service or may take more than 500ms goes through
-  pg-boss.
-- **Hardcoded admin bypass in permission checks**: Every query goes through the
-  permission layer with an explicit actor context.
 - **Editor format stored as rendered HTML**: Always store raw source. HTML is
   always derived, never canonical.
-- **Monolithic page component that owns rendering**: The rendering pipeline is a
-  separate, testable module. Page components call it; they do not contain it.
-- **AI answers without citations**: User-facing AI output MUST be grounded in
-  permitted source revisions.
-- **Hidden network calls**: Update checks, telemetry, provider discovery, theme
-  downloads, and language downloads are opt-in.
-- **Feature flags as permanent code paths**: Feature flags are for rollout, not
-  permanent conditional logic. Ship the feature or remove it.
 - **Broken browser navigation**: Any route where back, forward, refresh, deep
   link, or "open in new tab" fails or silently loses user state. The web
   platform's navigation contract is mandatory, not optional.
@@ -388,11 +282,10 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 | ORM | Drizzle ORM | SQL-first, pure TS schema, zero generation step, native Zod integration |
 | Job Queue | pg-boss | Runs in PostgreSQL, zero extra services |
 | Auth | Better Auth | Local auth baseline, OAuth/OIDC support, Drizzle adapter, self-host friendly |
-| API (internal) | tRPC | End-to-end type safety, zero codegen, Zod schema shared |
 | API (public REST) | REST + OpenAPI | Third-party integrations, scriptable clients, stable public contract |
 | API (AI agents) | MCP Server (optional) | AI-agent integration over permissioned tools |
 | Markdown Parser | unified / remark / rehype | AST-based, pluggable, server-side rendering |
-| Editor (client) | Tiptap (ProseMirror) | Rich Markdown editing; AST stays in browser |
+| Editor (client) | Toast UI Editor (Naver) | Split or WYSIWYG mode, excellent table support, mature API |
 | Vector Search | pgvector (PostgreSQL extension) | No extra service, integrates with PostgreSQL |
 | Full-text Search | PostgreSQL tsvector default + Meilisearch optional | Zero-dependency baseline; Meilisearch for CJK and scale |
 | Styling & UI | Mantine + Tailwind CSS + CSS custom properties | Unified design system in `src/components/ui/`; Mantine for controls, Tailwind for content layout, tokens for themes; single source of truth for all resources and cross-page UX consistency |

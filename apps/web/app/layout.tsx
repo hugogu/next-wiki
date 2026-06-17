@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { TRPCProvider } from '@/lib/trpc/client';
+import { ApiProvider } from '@/lib/api/provider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="antialiased">
-        <TRPCProvider>{children}</TRPCProvider>
+        <ApiProvider>{children}</ApiProvider>
       </body>
     </html>
   );

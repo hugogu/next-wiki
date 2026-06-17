@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserView } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -13,23 +13,50 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
   const [tempPassword, setTempPassword] = useState('');
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
 
-  const setRole = trpc.users.setRole.useMutation({
-    onSuccess: () => router.refresh(),
-  });
-  const setStatus = trpc.users.setStatus.useMutation({
-    onSuccess: () => router.refresh(),
-  });
-  const resetPassword = trpc.users.resetPassword.useMutation({
-    onSuccess: (_data, vars) => {
-      const user = users.find((u) => u.id === vars.userId);
-      if (user) {
-        setResetResult({ email: user.email, password: tempPassword });
-      }
-      setResettingUserId(null);
-      setTempPassword('');
-      router.refresh();
+  const setRole = useApiMutation<{ userId: string; role: UserView['role'] }, { ok: true }>(
+    ({ userId }) => `/api/users/${encodeURIComponent(userId)}/role`,
+    {
+      onSuccess: () => router.refresh(),
     },
-  });
+  );
+  const setStatus = useApiMutation<{ userId: string; status: UserView['status'] }, { ok: true }>(
+    ({ userId }) => `/api/users/${encodeURIComponent(userId)}/status`,
+    {
+      onSuccess: () => router.refresh(),
+    },
+  );
+  const resetPassword = useApiMutation<{ userId: string; tempPassword: string }, { ok: true }>(
+    ({ userId }) => `/api/users/${encodeURIComponent(userId)}/reset-password`,
+    {
+      onSuccess: () => {
+        setResettingUserId(null);
+        setTempPassword('');
+        router.refresh();
+      },
+    },
+  );
+
+  const handleSetRole = (userId: string, role: UserView['role']) => {
+    setRole.mutate({ userId, role });
+  };
+
+  const handleSetStatus = (userId: string, status: UserView['status']) => {
+    setStatus.mutate({ userId, status });
+  };
+
+  const handleResetPassword = (userId: string, tempPassword: string, email: string) => {
+    resetPassword.mutate(
+      { userId, tempPassword },
+      {
+        onSuccess: () => {
+          setResetResult({ email, password: tempPassword });
+          setResettingUserId(null);
+          setTempPassword('');
+          router.refresh();
+        },
+      },
+    );
+  };
 
   return (
     <div className="space-y-md">
@@ -62,7 +89,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                     aria-label={`Change role for ${user.email}`}
                     value={user.role}
                     disabled={setRole.isPending}
-                    onChange={(e) => setRole.mutate({ userId: user.id, role: e.target.value as UserView['role'] })}
+                    onChange={(e) => handleSetRole(user.id, e.target.value as UserView['role'])}
                     className="rounded-md border border-border bg-surface px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <option value="reader">Reader</option>
@@ -78,7 +105,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
-                          resetPassword.mutate({ userId: user.id, tempPassword });
+                          handleResetPassword(user.id, tempPassword, user.email);
                         }}
                         className="flex items-center gap-sm"
                       >
@@ -118,10 +145,10 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                       variant={user.status === 'active' ? 'danger' : 'primary'}
                       disabled={setStatus.isPending}
                       onClick={() =>
-                        setStatus.mutate({
-                          userId: user.id,
-                          status: user.status === 'active' ? 'disabled' : 'active',
-                        })
+                        handleSetStatus(
+                          user.id,
+                          user.status === 'active' ? 'disabled' : 'active',
+                        )
                       }
                     >
                       {user.status === 'active' ? 'Disable' : 'Enable'}

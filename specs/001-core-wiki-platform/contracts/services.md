@@ -3,9 +3,9 @@
 **Feature**: `001-core-wiki-platform`
 **Mandate**: Constitution P8/P9 + `docs/architecture/mandates.md` § API Architecture.
 
-The service layer is the **only** place business logic lives. tRPC procedures
-(this slice) and future REST/MCP adapters are thin callers of these services.
-Each function takes an explicit **permission context** and enforces
+The service layer is the **only** place business logic lives. REST route handlers
+(this slice) and future MCP adapters are thin callers of these services. Each
+function takes an explicit **permission context** and enforces
 `can(actor, action, resource)` (P4/D3). No global singletons; dependencies are
 injected (DB handle, pipeline, etc.).
 
@@ -85,9 +85,9 @@ renderMarkdown(source: string): { html: string; hash: string }
 
 ## Boundary rules
 
-- Procedures call services; services call Drizzle + pipeline + `can()`.
+- Route handlers call services; services call Drizzle + pipeline + `can()`.
 - Services never read the session directly — they receive an `Actor` from the
-  procedure's `getCurrentActor`.
+  route handler's `getCurrentActor`.
 - No service returns a draft's content to a caller that fails `can('read_draft')`;
   not-found semantics are decided in the service, not the route.
 - All mutations run in a Drizzle transaction where version numbering / publish

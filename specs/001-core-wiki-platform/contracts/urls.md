@@ -33,7 +33,7 @@ false, anonymous visitors are redirected to `/auth/login`.
 ## Rules
 
 - **Resources, not verbs.** No `/createPage`, `/doSave`, `/deleteUser`. Mutations
-  use POST (forms / server actions / tRPC mutations) against resource-oriented
+  use POST (forms / REST endpoints) against resource-oriented
   routes; reads are idempotent GET.
 - **Canonical entry points.** Each page has exactly one URL: `/{slug}`. The slug
   is immutable (A12), so no trailing-slash/case duplicate handling is needed

@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginInputSchema, type LoginInput } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
 export function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
-  const login = trpc.auth.login.useMutation({
+  const login = useApiMutation<LoginInput, { userId: string; mustResetPassword: boolean }>('/api/auth/login', {
     onSuccess: (data) => {
       if (data.mustResetPassword) {
         window.location.href = '/auth/set-password';

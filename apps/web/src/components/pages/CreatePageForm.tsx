@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPageInputSchema, type CreatePageInput } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -14,15 +14,15 @@ import { MarkdownEditor } from '@/components/editor/MarkdownEditor';
 export function CreatePageForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
-  const create = trpc.pages.create.useMutation({
+  const create = useApiMutation<CreatePageInput, { pageId: string; versionId: string }>('/api/pages', {
     onSuccess: (_data, vars) => {
       router.push(`/${vars.slug}`);
       window.location.href = `/${vars.slug}`;
     },
-    onError: (err) => {
-      if (err.data?.code === 'CONFLICT') {
+    onError: (err: ApiError) => {
+      if (err.code === 'CONFLICT') {
         setServerError('A page with this slug already exists.');
-      } else if (err.data?.code === 'FORBIDDEN' || err.data?.code === 'UNAUTHORIZED') {
+      } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setServerError('You do not have permission to create pages.');
       } else {
         setServerError(err.message || 'Failed to create page.');

@@ -12,42 +12,51 @@ export async function seedDatabase() {
     return;
   }
 
-  const existingSpace = await db.query.spaces.findFirst({
+  let space = await db.query.spaces.findFirst({
     where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
   });
 
-  if (existingSpace) {
+  if (!space) {
+    const [created] = await db
+      .insert(schema.spaces)
+      .values({
+        slug: DEFAULT_SPACE_SLUG,
+        name: 'Default',
+        defaultLocale: 'en',
+        anonymousRead: true,
+      })
+      .returning();
+    if (!created) throw new Error('Seed failed: could not create default space');
+    space = created;
+  }
+
+  let admin = await db.query.users.findFirst({
+    where: eq(schema.users.email, 'admin@example.com'),
+  });
+
+  if (!admin) {
+    const [created] = await db
+      .insert(schema.users)
+      .values({
+        email: 'admin@example.com',
+        passwordHash: await bcrypt.hash('admin123', 10),
+        role: 'admin',
+        status: 'active',
+        displayName: 'Admin',
+      })
+      .returning();
+    if (!created) throw new Error('Seed failed: could not create admin user');
+    admin = created;
+  }
+
+  const existingPage = await db.query.pages.findFirst({
+    where: eq(schema.pages.slug, 'welcome'),
+  });
+
+  if (existingPage) {
     return;
   }
 
-  // Create the default space.
-  const [space] = await db
-    .insert(schema.spaces)
-    .values({
-      slug: DEFAULT_SPACE_SLUG,
-      name: 'Default',
-      defaultLocale: 'en',
-      anonymousRead: true,
-    })
-    .returning();
-
-  if (!space) throw new Error('Seed failed: could not create default space');
-
-  // Create a dev admin user for local development.
-  const [admin] = await db
-    .insert(schema.users)
-    .values({
-      email: 'admin@example.com',
-      passwordHash: await bcrypt.hash('admin123', 10),
-      role: 'admin',
-      status: 'active',
-      displayName: 'Admin',
-    })
-    .returning();
-
-  if (!admin) throw new Error('Seed failed: could not create admin user');
-
-  // Create a sample published page for the MVP read slice.
   const source = `# Welcome to next-wiki
 
 This is the first published page. Every page is authored in **Markdown** and

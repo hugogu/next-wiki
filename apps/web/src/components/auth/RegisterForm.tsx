@@ -4,19 +4,19 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerInputSchema, type RegisterInput } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
 export function RegisterForm() {
   const [serverError, setServerError] = useState<string | null>(null);
-  const register = trpc.auth.register.useMutation({
+  const register = useApiMutation<RegisterInput, { userId: string }>('/api/auth/register', {
     onSuccess: () => {
       window.location.href = '/';
     },
-    onError: (err) => {
-      if (err.data?.code === 'CONFLICT') {
+    onError: (err: ApiError) => {
+      if (err.code === 'CONFLICT') {
         setServerError('An account with this email already exists.');
       } else {
         setServerError('Registration failed. Please try again.');

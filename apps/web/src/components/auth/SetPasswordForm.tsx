@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { setMyPasswordInputSchema } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -21,12 +21,12 @@ type FormValues = z.infer<typeof formSchema>;
 
 export function SetPasswordForm() {
   const [serverError, setServerError] = useState<string | null>(null);
-  const setPassword = trpc.auth.setMyPassword.useMutation({
+  const setPassword = useApiMutation<{ newPassword: string }, { ok: true }>('/api/auth/set-password', {
     onSuccess: () => {
       window.location.href = '/';
     },
-    onError: (err) => {
-      if (err.data?.code === 'BAD_REQUEST') {
+    onError: (err: ApiError) => {
+      if (err.code === 'BAD_REQUEST') {
         setServerError(err.message);
       } else {
         setServerError('Failed to update password.');

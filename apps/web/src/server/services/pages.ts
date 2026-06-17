@@ -63,37 +63,65 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
     return null;
   }
 
-  const [row] = await db
-    .select({
-      slug: schema.pages.slug,
-      title: schema.pages.title,
-      contentHtml: schema.pageRevisions.contentHtml,
-      contentHash: schema.pageRevisions.contentHash,
-      version: schema.pageRevisions.versionNumber,
-      publishedAt: schema.pageRevisions.publishedAt,
-      authorDisplayName: schema.users.displayName,
-    })
-    .from(schema.pages)
-    .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
-    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
-    .where(
-      and(
-        eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.slug, slug),
-        isNull(schema.pages.deletedAt),
-      ),
-    );
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, slug),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
 
-  if (!row) return null;
+  if (!page) return null;
+
+  const userId = getUserId(ctx);
+  const isAuthor = userId ? page.authorId === userId : false;
+
+  if (page.currentPublishedVersionId) {
+    const revision = await db.query.pageRevisions.findFirst({
+      where: eq(schema.pageRevisions.id, page.currentPublishedVersionId),
+    });
+    if (!revision) return null;
+
+    const author = await db.query.users.findFirst({
+      where: eq(schema.users.id, page.authorId),
+    });
+
+    return {
+      slug: page.slug,
+      title: page.title,
+      contentHtml: revision.contentHtml,
+      contentHash: revision.contentHash,
+      version: revision.versionNumber,
+      publishedAt: revision.publishedAt?.toISOString() ?? null,
+      authorDisplayName: author?.displayName ?? null,
+      status: 'published',
+    };
+  }
+
+  if (!can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor })) {
+    return null;
+  }
+
+  if (!page.latestVersionId) return null;
+
+  const draft = await db.query.pageRevisions.findFirst({
+    where: eq(schema.pageRevisions.id, page.latestVersionId),
+  });
+  if (!draft) return null;
+
+  const author = await db.query.users.findFirst({
+    where: eq(schema.users.id, page.authorId),
+  });
 
   return {
-    slug: row.slug,
-    title: row.title,
-    contentHtml: row.contentHtml,
-    contentHash: row.contentHash,
-    version: row.version,
-    publishedAt: row.publishedAt?.toISOString() ?? null,
-    authorDisplayName: row.authorDisplayName,
+    slug: page.slug,
+    title: page.title,
+    contentHtml: draft.contentHtml,
+    contentHash: draft.contentHash,
+    version: draft.versionNumber,
+    publishedAt: null,
+    authorDisplayName: author?.displayName ?? null,
+    status: 'draft',
   };
 }
 

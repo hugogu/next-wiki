@@ -33,19 +33,16 @@ export const meOutputSchema = z.object({
 export type MeOutput = z.infer<typeof meOutputSchema>;
 
 export const setRoleInputSchema = z.object({
-  userId: z.string(),
   role: userRoleSchema,
 });
 export type SetRoleInput = z.infer<typeof setRoleInputSchema>;
 
 export const setStatusInputSchema = z.object({
-  userId: z.string(),
   status: userStatusSchema,
 });
 export type SetStatusInput = z.infer<typeof setStatusInputSchema>;
 
 export const resetPasswordInputSchema = z.object({
-  userId: z.string(),
   tempPassword: z.string().min(8).max(128),
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;

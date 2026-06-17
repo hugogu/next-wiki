@@ -22,6 +22,12 @@ export const newDraftInputSchema = z.object({
 });
 export type NewDraftInput = z.infer<typeof newDraftInputSchema>;
 
+export const newDraftBodySchema = z.object({
+  title: z.string().min(1).max(200),
+  contentSource: z.string().min(1),
+});
+export type NewDraftBody = z.infer<typeof newDraftBodySchema>;
+
 export const slugInputSchema = z.object({
   slug: z.string(),
 });

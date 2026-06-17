@@ -4,23 +4,23 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { setupInputSchema, type SetupInput } from '@next-wiki/shared';
-import { trpc } from '@/lib/trpc/client';
+import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
 export function SetupForm() {
   const [serverError, setServerError] = useState<string | null>(null);
-  const setup = trpc.auth.setup.useMutation({
+  const setup = useApiMutation<SetupInput, { ok: true }>('/api/auth/setup', {
     onSuccess: () => {
       window.location.href = '/';
     },
-    onError: (err) => {
-      if (err.data?.code === 'CONFLICT') {
+    onError: (err: ApiError) => {
+      if (err.code === 'CONFLICT') {
         setServerError('An account with this email already exists.');
-      } else if (err.data?.code === 'FORBIDDEN') {
+      } else if (err.code === 'FORBIDDEN') {
         setServerError('Setup is no longer available. An admin account already exists.');
-      } else if (err.data?.code === 'BAD_REQUEST') {
+      } else if (err.code === 'BAD_REQUEST') {
         setServerError(err.message);
       } else {
         setServerError('Failed to create admin account.');

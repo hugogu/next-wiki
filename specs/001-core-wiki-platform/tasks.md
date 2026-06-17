@@ -26,7 +26,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T001 Initialize pnpm workspace + Turborepo: `pnpm-workspace.yaml`, `turbo.json`, root `package.json`
 - [x] T002 [P] Scaffold Next.js 16 app in `apps/web/` (`package.json`, `next.config.ts`, `tsconfig.json`, App Router shell)
 - [x] T003 [P] Configure TypeScript strict, ESLint, Prettier, Vitest, Playwright at repo root
-- [x] T004 [P] Install runtime deps: Drizzle, Better Auth, pg-boss, unified/remark/rehype, Tiptap, Mantine, Tailwind, TanStack Query, Zustand, React Hook Form, Zod, tRPC
+- [x] T004 [P] Install runtime deps: Drizzle, Better Auth, pg-boss, unified/remark/rehype, Toast UI Editor, Mantine, Tailwind, TanStack Query, Zustand, React Hook Form, Zod, REST/OpenAPI tooling
 - [x] T005 [P] Create `docker-compose.yml` at project root (app + postgres:16 + named volumes) and `docker/Dockerfile` (builds `apps/web`, runs migrations on start)
 - [x] T006 [P] Zod-validated env config in `apps/web/src/server/config.ts` (`DATABASE_URL`, `BETTER_AUTH_SECRET`, etc.)
 
@@ -49,7 +49,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T013 Drizzle migration generation + idempotent run-on-startup hook in `apps/web/src/server/db/migrate.ts` (constitution: DB changes via migration only)
 - [x] T014 [P] Health/readiness route handlers `apps/web/app/healthz/route.ts` and `apps/web/app/readyz/route.ts` (process + DB + post-migration)
 - [x] T015 [P] Unified design system in `apps/web/src/components/ui/`: tokens (CSS custom properties), `Button`, `Input`, `Layout`, `Breadcrumbs`, `EmptyState`, `ErrorState`, `PageList`. Mantine imported ONLY here (constitution P5); all other components use these wrappers
-- [x] T016 tRPC root router + context in `apps/web/src/server/trpc/` (`router.ts`, `context.ts` resolving session → `Actor` per request)
+- [x] T016 REST API helpers in `apps/web/src/server/api/`: OpenAPI document builder, Zod request/response validation, `getCurrentActor` wrapper, and error-to-HTTP mapping
 - [x] T017 [P] Shared schemas + types in `packages/shared/` (`PageSummary`, `LivePage`, `EditableView`, `RevisionSummary`, `RevisionView`, `UserView`, all Zod schemas — zero runtime deps)
 
 **Checkpoint**: Foundation ready — DB migrates, `/healthz` is green, `can()` and the pipeline work, design system compiles. User story implementation can now begin in parallel.
@@ -65,7 +65,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 ### Implementation
 
 - [x] T018 [P] [US1] `pageService.listPublished(ctx)` and `getLive(ctx, slug)` in `apps/web/src/server/services/pages.ts` (enforce `can()`; `getLive` returns null/404-style for pages with no published version visible to the caller)
-- [x] T019 [P] [US1] tRPC procedures `pages.listPublished` and `pages.getLive` in `apps/web/src/server/trpc/procedures/pages.ts`
+- [x] T019 [P] [US1] REST route handlers: `GET /api/pages` and `GET /api/pages/{slug}` in `apps/web/app/api/pages/`
 - [x] T020 [US1] Wiki home route `apps/web/app/(public)/page.tsx` (RSC: published page list via `listPublished`; empty state)
 - [x] T021 [US1] Page read route `apps/web/app/(public)/[slug]/page.tsx` (RSC: serve stored `contentHtml` from live revision; not-found for invisible/draft pages to non-authors — no metadata leak)
 - [x] T022 [US1] Server-derived `Breadcrumbs` component + public layout in `apps/web/src/components/common/` (segments from route + page tree per contracts/urls.md)
@@ -85,7 +85,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 ### Implementation
 
 - [x] T025 [P] [US2] `authService.register/login/logout/getCurrentActor` in `apps/web/src/server/services/auth.ts` (register assigns `role='reader'`; login rejects disabled; password-strength policy)
-- [x] T026 [P] [US2] tRPC `auth.register/login/logout/me` procedures in `apps/web/src/server/trpc/procedures/auth.ts`
+- [x] T026 [P] [US2] REST auth route handlers in `apps/web/app/api/auth/**`: `POST /register`, `POST /login`, `POST /logout`, `GET /me`, `POST /set-password`, `POST /setup`
 - [x] T027 [US2] Register page `apps/web/app/(auth)/register/page.tsx` (server form + client submit; redirect to `/` on success)
 - [x] T028 [US2] Login page `apps/web/app/(auth)/login/page.tsx`; logout POST route `apps/web/app/(auth)/logout/route.ts`
 - [x] T029 [US2] Auth-aware layout/navigation: sign-in/out links, redirect anonymous from protected surfaces to `/auth/login` when `anonymous_read=false` — layout shows auth links; protected-surface redirect deferred until pages require auth.
@@ -104,8 +104,8 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 ### Implementation
 
 - [x] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (slug regex+uniqueness validation; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
-- [x] T032 [P] [US3] tRPC `pages.create/newDraft/getForEdit/getHistory/getRevision` procedures
-- [x] T033 [US3] Tiptap Markdown editor client component `apps/web/src/components/editor/MarkdownEditor.tsx` (serialize to raw Markdown; ProseMirror AST never leaves the browser — research D10)
+- [x] T032 [P] [US3] REST pages route handlers in `apps/web/app/api/pages/**`: `POST /api/pages`, `GET/POST /api/pages/{slug}/edit`, `GET /api/pages/{slug}/history`, `GET /api/pages/{slug}/revisions/{n}`
+- [x] T033 [US3] Toast UI Editor Markdown client component `apps/web/src/components/editor/MarkdownEditor.tsx` (serialize to raw Markdown; editor AST never leaves the browser — research D10)
 - [x] T034 [US3] Create-page route `apps/web/app/(public)/new/page.tsx` (form: slug + title + content; editor/admin only; slug-collision shows clear error per FR-023)
 - [x] T035 [US3] Edit route `apps/web/app/(public)/[slug]/edit/page.tsx` (load latest revision source; save creates a new draft revision; immutable slug)
 - [x] T036 [US3] History route `apps/web/app/(public)/[slug]/history/page.tsx` (author/editor/admin)
@@ -125,7 +125,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 ### Implementation
 
 - [x] T039 [P] [US4] `revisionService.publish(ctx, slug, version)` in `apps/web/src/server/services/revisions.ts` (author-of-draft or admin; atomically set revision `status='published'` + `pages.current_published_version_id` in one transaction)
-- [x] T040 [P] [US4] tRPC `revisions.publish` procedure in `apps/web/src/server/trpc/procedures/revisions.ts`
+- [x] T040 [P] [US4] REST `POST /api/revisions/publish` route handler in `apps/web/app/api/revisions/publish/route.ts`
 - [x] T041 [US4] Publish UI on the edit + history pages (publish button visible only to author/admin; post mutation; refresh shows live content to readers)
 - [x] T042 [P] [US4] Unit tests in `apps/web/src/server/services/revisions.test.ts`: publish atomically swaps the live version; a reader reading a published page does not see a newer draft; a draft is visible only to its author + admin
 
@@ -142,7 +142,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 ### Implementation
 
 - [x] T043 [P] [US5] `userService.list/setRole/setStatus/resetPassword/setMyPassword` in `apps/web/src/server/services/users.ts` (admin-only via `can('manage_users')`; `resetPassword` sets `must_reset_password=true`)
-- [x] T044 [P] [US5] tRPC `users.list/setRole/setStatus/resetPassword` + `auth.setMyPassword` procedures
+- [x] T044 [P] [US5] REST users route handlers in `apps/web/app/api/users/**`: `GET /api/users`, `POST /api/users/{id}/role`, `POST /api/users/{id}/status`, `POST /api/users/{id}/reset-password`
 - [x] T045 [US5] Admin users route `apps/web/app/(admin)/admin/users/page.tsx` (table + role select + reset-password + disable; admin-only, non-admins not-found/forbidden)
 - [x] T046 [US5] Forced password-change gate: when `must_reset_password=true`, redirect to a set-password screen before reaching `/`
 - [x] T047 [P] [US5] Unit tests in `apps/web/src/server/services/users.test.ts`: `setRole` is effective on the next request (no stale elevation); `resetPassword` sets the flag; non-admin callers are denied without leaking user data
@@ -189,8 +189,8 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Within Each User Story
 
-- Service layer before tRPC procedures.
-- tRPC procedures before routes that call them.
+- Service layer before REST route handlers.
+- REST route handlers before client components that call them.
 - Routes before their tests/E2E.
 - Story complete before moving to the next priority.
 
@@ -206,10 +206,10 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 ## Parallel Example: User Story 3
 
 ```bash
-# Launch the service + procedure + editor tasks together (different files):
+# Launch the service + REST handler + editor tasks together (different files):
 Task: "pageService create/newDraft/... in apps/web/src/server/services/pages.ts"
-Task: "tRPC pages procedures in apps/web/src/server/trpc/procedures/pages.ts"
-Task: "Tiptap MarkdownEditor in apps/web/src/components/editor/MarkdownEditor.tsx"
+Task: "REST pages route handlers in apps/web/app/api/pages/**/route.ts"
+Task: "Toast UI MarkdownEditor in apps/web/src/components/editor/MarkdownEditor.tsx"
 ```
 
 ---

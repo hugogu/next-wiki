@@ -58,7 +58,7 @@ test.describe('publish workflow', () => {
     await page.goto('/new');
     await page.getByLabel('Slug').fill(slug);
     await page.getByLabel('Title').fill('Publish Flow Test');
-    await page.getByLabel('Content').fill('draft content');
+    await page.locator('.toastui-editor-md-container .ProseMirror').fill('draft content');
     await page.getByRole('button', { name: /save draft/i }).click();
     await page.waitForURL(`/${slug}`);
 
@@ -80,7 +80,7 @@ test.describe('publish workflow', () => {
 
     // Editor creates a new draft; reader still sees published content.
     await page.goto(`/${slug}/edit`);
-    await page.getByLabel('Content').fill('updated draft content');
+    await page.locator('.toastui-editor-md-container .ProseMirror').fill('updated draft content');
     await page.getByRole('button', { name: /save new draft/i }).click();
     await page.waitForURL(`/${slug}/history`);
 
