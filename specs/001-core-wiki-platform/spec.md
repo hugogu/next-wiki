@@ -13,7 +13,7 @@
 - Q: Publish granularity — version-level drafts or page-level publish? → A: Version-level drafts. Each save creates a draft version; the author publishes a version to make it live; readers see the latest published version; drafts of already-published pages stay hidden until published.
 - Q: Multi-language / localization — full i18n now, or single locale? → A: Single locale for content + UI for this slice; `locale` stored as a hidden schema field (default locale) so translations/localization can be added later without migration.
 - Q: Scope of delete/restore, search, import/export — in this slice or deferred? → A: Defer all three for this slice. The schema stays soft-delete-ready via a hidden status field, so delete/restore can be added later with no migration. No delete UI, no search, and no import/export in this slice.
-- Q: Page URL / slug derivation — auto from title, author-specified, or opaque ID? → A: Author specifies the slug manually when creating a page. The system validates the slug (URL-safe, unique) and rejects conflicts. The slug is fixed once the page is created; content edits do not change it. Renaming the slug (with redirects from the old URL) is deferred.
+- Q: Page URL / path derivation — auto from title, author-specified, or opaque ID? → A: Author specifies the page path manually when creating a page. The path is URL-safe, may contain multiple `/`-separated segments (e.g. `docs/intro/getting-started`), and must be unique within the default space/locale. The path is editable after creation via a dedicated "Page Properties" screen; editing page content does not change the path. Redirects from old paths after a path change are deferred.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -220,9 +220,9 @@ another user's password; confirm both changes take effect.
 - **FR-019**: System MUST make anonymous read access to published pages
   configurable by an admin (public by default, or require-login).
 - **FR-020**: System MUST store each page with a space reference and a
-  hierarchical path field (hidden, defaulted to a single built-in space) so the
-  data model is hierarchy-ready without exposing spaces in the UI for this
-  slice.
+  user-defined `path` field (hierarchical, defaulted to a single built-in
+  space) so the data model supports multi-segment page URLs without exposing
+  spaces in the UI for this slice.
 - **FR-021**: System MUST store a `locale` field on page content (hidden,
   defaulted to a single built-in locale) so the data model is
   translation-ready without exposing multi-language UI for this slice.
@@ -230,10 +230,18 @@ another user's password; confirm both changes take effect.
   (hidden) so delete/restore can be added later without a schema migration. No
   delete, restore, search, or import/export functionality is exposed in this
   slice.
-- **FR-023**: System MUST let the author specify the page slug (URL path
-  segment) at creation. The slug MUST be validated as URL-safe and unique, and
-  conflicts MUST be rejected with a clear error. The slug is immutable after
-  creation; editing page content does not change the URL.
+- **FR-023**: System MUST let the author specify the page `path` (URL-safe,
+  may contain `/`-separated segments such as `docs/intro/getting-started`) at
+  creation. The `path` MUST be validated as lowercase letters, numbers,
+  hyphens, and slashes, with no leading, trailing, or consecutive slashes, and
+  MUST be unique within the default space/locale. Conflicts MUST be rejected
+  with a clear error. The `path` is editable after creation via the Page
+  Properties screen; editing page content does not change the `path`.
+- **FR-024**: System MUST provide a "Page Properties" screen reachable from the
+  page view, where authorized users (author/editor/admin) may change the page
+  `path` subject to the same validation and uniqueness rules as creation.
+- **FR-025**: System MUST render the wiki navigator as a directory tree based
+  on `/` segments of page paths so multi-segment paths are browsable.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -241,13 +249,16 @@ another user's password; confirm both changes take effect.
   Owns the pages and versions they author.
 - **Role**: one of three built-in permission groups — Admin, Editor, Reader —
   defining what a user may do across the product.
-- **Page**: a wiki page identified by a unique, shareable URL; has a set of
-  versions and a "live" version (the most recently published one) that readers
-  see. The data record also carries a hidden `space` reference and a
-  hierarchical `path` field, defaulted to a single built-in space; these are
-  not exposed in the UI for this slice but keep the model hierarchy-ready. The
-  URL path segment (`slug`) is chosen by the author at creation and is
-  immutable thereafter.
+- **Page**: a wiki page identified by a unique, shareable URL path that may
+  contain `/`-separated segments (e.g. `docs/intro/getting-started`); has a set
+  of versions and a "live" version (the most recently published one) that
+  readers see. The data record also carries a hidden `space` reference and a
+  `locale` field, defaulted to a single built-in space; these are not exposed
+  in the UI for this slice but keep the model hierarchy-ready. The URL path
+  (`path`) is chosen by the author at creation, validated as URL-safe and
+  unique, and may be changed later via the Page Properties screen. The leaf
+  segment of the path is stored as `slug` for internal display but is not the
+  canonical URL key.
 - **Page Version**: an immutable snapshot of the Markdown source plus its
   rendered output, created by a single author at a point in time, carrying a
   status of Draft (unpublished) or Published, a sequential version number, and
@@ -326,8 +337,12 @@ revised via `/speckit.clarify` before planning.
   and import/export are deferred. The schema remains soft-delete-ready via a
   hidden status field (FR-022) so these can be added as fast-follows without
   migration.
-- **A12 — Author-specified, immutable slug** (confirmed). The author chooses
-  the page's URL slug at creation; the system validates URL-safety and
-  uniqueness. The slug is fixed after creation (content edits do not change
-  the URL). Renaming the slug — with redirects from the old URL — is deferred.
-  See FR-023.
+- **A12 — Author-specified, multi-segment, editable path** (confirmed). The
+  author chooses the page's URL `path` at creation; the system validates
+  URL-safety (lowercase letters, numbers, hyphens, slashes; no leading,
+  trailing, or consecutive slashes) and uniqueness within the default
+  space/locale. The `path` may contain `/`-separated segments such as
+  `docs/intro/getting-started`. After creation the `path` may be changed via
+  the Page Properties screen. Redirects from old paths after a path change are
+  deferred; the unique index simply prevents conflicts. See FR-023, FR-024,
+  FR-025.

@@ -147,7 +147,7 @@ List published pages (honors `anonymous_read`).
 
 ```json
 [
-  { "slug": "...", "title": "...", "authorDisplayName": "...|null", "publishedAt": "ISO|null", "updatedAt": "ISO" }
+  { "path": "...", "title": "...", "authorDisplayName": "...|null", "publishedAt": "ISO|null", "updatedAt": "ISO" }
 ]
 ```
 
@@ -157,9 +157,12 @@ Create a new page and its first draft version.
 
 | Field | Type | Notes |
 |---|---|---|
-| `slug` | string | URL-safe, unique within space |
+| `path` | string | optional; lowercase letters, numbers, hyphens, slashes; no leading/trailing/consecutive slashes; unique within space/locale |
 | `title` | string | 1-200 chars |
 | `contentSource` | string | raw Markdown |
+
+If `path` is omitted the backend may assign a temporary path (the current
+implementation still asks for `path` in the create form).
 
 **Response 201**:
 
@@ -167,7 +170,7 @@ Create a new page and its first draft version.
 { "pageId": "uuid", "versionId": "uuid" }
 ```
 
-#### `GET /api/pages/{slug}`
+#### `GET /api/pages/{...path}`
 
 Read the live page (published version, or latest draft for authorized author/editor/admin).
 
@@ -175,7 +178,7 @@ Read the live page (published version, or latest draft for authorized author/edi
 
 ```json
 {
-  "slug": "...",
+  "path": "...",
   "title": "...",
   "contentHtml": "...",
   "contentHash": "...",
@@ -188,15 +191,17 @@ Read the live page (published version, or latest draft for authorized author/edi
 
 Returns 404 for invisible drafts.
 
-#### `GET /api/pages/{slug}/edit`
+#### `GET/POST /api/edit/{...path}`
 
-Load the latest revision source for editing.
+Load the latest revision source for editing (`GET`) or create a new draft
+revision (`POST`). The editor route only updates title and content; it does not
+change the page `path`.
 
-**Response 200**:
+**Response 200 (GET)**:
 
 ```json
 {
-  "slug": "...",
+  "path": "...",
   "title": "...",
   "contentSource": "...",
   "latestVersion": 1,
@@ -205,25 +210,22 @@ Load the latest revision source for editing.
 }
 ```
 
-Returns 404 for callers without `edit` permission.
-
-#### `POST /api/pages/{slug}/edit`
-
-Create a new draft revision of an existing page.
+**POST body**:
 
 | Field | Type | Notes |
 |---|---|---|
-| `slug` | string | same as path param |
 | `title` | string | 1-200 chars |
 | `contentSource` | string | raw Markdown |
 
-**Response 201**:
+**Response 201 (POST)**:
 
 ```json
 { "versionId": "uuid", "versionNumber": 2 }
 ```
 
-#### `GET /api/pages/{slug}/history`
+Returns 404 for callers without `edit` permission.
+
+#### `GET /api/history/{...path}`
 
 List versions of a page.
 
@@ -242,7 +244,7 @@ List versions of a page.
 ]
 ```
 
-#### `GET /api/pages/{slug}/revisions/{n}`
+#### `GET /api/revisions/{n}/{...path}`
 
 View a specific revision.
 
@@ -261,6 +263,25 @@ View a specific revision.
 
 Draft revisions return 404 except for author/admin.
 
+#### `PATCH /api/properties/{...path}`
+
+Update page properties. Currently the only mutable property is the page `path`.
+
+**Request body**:
+
+| Field | Type | Notes |
+|---|---|---|
+| `path` | string | lowercase letters, numbers, hyphens, slashes; no leading/trailing/consecutive slashes; unique within space/locale |
+
+**Response 200**:
+
+```json
+{ "path": "..." }
+```
+
+Changing the path does not create a redirect from the old path; bookmarks to
+the old path will 404 until a redirect feature is added.
+
 ---
 
 ### Revisions
@@ -271,7 +292,7 @@ Publish a specific version.
 
 | Field | Type | Notes |
 |---|---|---|
-| `slug` | string | page slug |
+| `path` | string | page path |
 | `version` | number | version number to publish |
 
 **Response 200**:

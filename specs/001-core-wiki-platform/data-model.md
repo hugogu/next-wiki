@@ -92,14 +92,16 @@ as a permission, not a special path).
 ## Entity: `pages`
 
 A wiki page. Canonical key `(space_id, path, locale)` (Page-Tree mandate); for
-this slice `path = slug` (flat, single space, single locale).
+this slice `path` is user-defined and may contain `/`-separated segments
+(e.g. `docs/intro/getting-started`). `slug` is the leaf segment of `path` and
+is kept for internal display; it is not the canonical URL key.
 
 | Field | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | uuid (pk) | | surrogate PK |
 | `space_id` | uuid | fk → spaces(id), not null | **[hidden]** default space |
-| `slug` | text | not null | author-chosen, URL-safe, unique within space (FR-023) |
-| `path` | text | not null | **[hidden]** equals `slug` now; hierarchy-ready |
+| `slug` | text | not null | leaf segment of `path`, for internal display (FR-023) |
+| `path` | text | not null | user-defined routing path; may contain `/`-separated segments; unique within `(space_id, locale)` (FR-020, FR-023) |
 | `locale` | text | not null default `'en'` | **[hidden]** single locale (FR-021) |
 | `title` | text | not null | current display title |
 | `author_id` | uuid | fk → users(id), not null | creator/original author |
@@ -113,10 +115,15 @@ Indexes: unique(`space_id`, `path`, `locale`) — the canonical key; index on
 (`space_id`) for the page list; partial index where `deleted_at is null and
 current_published_version_id is not null` for the public list query.
 
-Validation (service layer, Zod): `slug` matches `^[a-z0-9][a-z0-9-]{0,99}$`
-(lowercase, URL-safe, 1–100 chars); uniqueness enforced by the unique index →
-conflict returned as a clear validation error (FR-023). `slug` is immutable
-after creation (no update path; rename deferred — A12).
+Validation (service layer, Zod): `path` matches the rules
+`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\/[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`
+(lowercase letters, numbers, hyphens, and slashes; no leading, trailing, or
+consecutive slashes; segments 1–100 chars). Uniqueness is enforced by the
+unique index `(space_id, path, locale)` → conflicts returned as a clear
+validation error (FR-023). `slug` is derived from the final segment of `path`
+and is not edited independently. After creation the `path` may be changed via
+the Page Properties screen; redirects from old paths are deferred, so the
+unique index simply prevents conflicts.
 
 ---
 
@@ -168,8 +175,12 @@ pages.latest_version_id            ──> page_revisions.id    (newest, any sta
 
 - **Registration**: email (valid, unique); password (minimum strength policy,
   e.g. ≥ 8 chars + class checks — enforced in `authService`, not DB).
-- **Page create**: `slug` regex + uniqueness; `title` non-empty; `content_source`
-  non-empty (a page may not be saved empty in this slice).
+- **Page create**: `path` validation (lowercase letters, numbers, hyphens,
+  slashes; no leading/trailing/consecutive slashes) + uniqueness; `title`
+  non-empty; `content_source` non-empty (a page may not be saved empty in this
+  slice). `slug` is derived from the last `/`-separated segment of `path`.
+- **Page properties update**: `path` re-validated and checked for uniqueness;
+  `slug` is re-derived; no redirect from the old path is created (deferred).
 - **Page edit**: produces a new revision; `version_number` =
   `max(existing) + 1` computed in the same transaction; `content_hash` recomputed.
 - **Publish**: only the author (or admin) may publish a revision of a page; on
@@ -236,7 +247,8 @@ deferred (A7) and would extend, not replace, this matrix.
 The following are already in the schema so future slices add features, not
 migrations:
 
-- `spaces` + `pages.space_id` + `pages.path` → multi-space / hierarchy.
+- `spaces` + `pages.space_id` + `pages.path` → multi-space / hierarchy and
+  user-defined multi-segment URLs.
 - `pages.locale` + `page_revisions.locale` → multi-language (with
   `translation_group_id` to be added when i18n lands).
 - `pages.deleted_at` → delete/restore UI.

@@ -64,13 +64,14 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [x] T018 [P] [US1] `pageService.listPublished(ctx)` and `getLive(ctx, slug)` in `apps/web/src/server/services/pages.ts` (enforce `can()`; `getLive` returns null/404-style for pages with no published version visible to the caller)
-- [x] T019 [P] [US1] REST route handlers: `GET /api/pages` and `GET /api/pages/{slug}` in `apps/web/app/api/pages/`
-- [x] T020 [US1] Wiki home route `apps/web/app/(public)/page.tsx` (RSC: published page list via `listPublished`; empty state)
-- [x] T021 [US1] Page read route `apps/web/app/(public)/[slug]/page.tsx` (RSC: serve stored `contentHtml` from live revision; not-found for invisible/draft pages to non-authors — no metadata leak)
+- [x] T018 [P] [US1] `pageService.listPublished(ctx)` and `getLive(ctx, path)` in `apps/web/src/server/services/pages.ts` (enforce `can()`; `getLive` returns null/404-style for pages with no published version visible to the caller)
+- [x] T019 [P] [US1] REST route handlers: `GET /api/pages` and `GET /api/pages/{...path}` in `apps/web/app/api/pages/`
+- [x] T020 [US1] Wiki home route `apps/web/app/(public)/page.tsx` (RSC: published page list via `listPublished`; empty state; navigator tree from page paths)
+- [x] T021 [US1] Page read route `apps/web/app/(public)/[...path]/page.tsx` (RSC: serve stored `contentHtml` from live revision; not-found for invisible/draft pages to non-authors — no metadata leak)
 - [x] T022 [US1] Server-derived `Breadcrumbs` component + public layout in `apps/web/src/components/common/` (segments from route + page tree per contracts/urls.md)
 - [x] T023 [US1] Real 404 route `apps/web/app/not-found.tsx` and 403 route `apps/web/app/forbidden.tsx` (navigable so browser history stays linear)
 - [x] T024 [P] [US1] Unit tests in `apps/web/src/server/services/pages.test.ts`: `listPublished` excludes drafts/non-published/disabled; `getLive` returns null for a draft page to a non-author; anonymous honored only when `anonymous_read=true` (covered by permission + pipeline tests; page-service tests added in next increment)
+- [x] T056 [P] [US1] Navigator tree component in `apps/web/src/components/layout/Navigator.tsx` (directory tree built from `/` segments of published page paths; links to `/{path}`)
 
 **Checkpoint**: US1 fully functional and testable independently — a visitor can read published content end-to-end.
 
@@ -103,14 +104,15 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [x] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (slug regex+uniqueness validation; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
-- [x] T032 [P] [US3] REST pages route handlers in `apps/web/app/api/pages/**`: `POST /api/pages`, `GET/POST /api/pages/{slug}/edit`, `GET /api/pages/{slug}/history`, `GET /api/pages/{slug}/revisions/{n}`
-- [x] T033 [US3] Toast UI Editor Markdown client component `apps/web/src/components/editor/MarkdownEditor.tsx` (serialize to raw Markdown; editor AST never leaves the browser — research D10)
-- [x] T034 [US3] Create-page route `apps/web/app/(public)/new/page.tsx` (form: slug + title + content; editor/admin only; slug-collision shows clear error per FR-023)
-- [x] T035 [US3] Edit route `apps/web/app/(public)/[slug]/edit/page.tsx` (load latest revision source; save creates a new draft revision; immutable slug)
-- [x] T036 [US3] History route `apps/web/app/(public)/[slug]/history/page.tsx` (author/editor/admin)
-- [x] T037 [US3] Revision view route `apps/web/app/(public)/[slug]/revisions/[n]/page.tsx` (draft revisions: author/admin only; others not-found)
-- [x] T038 [P] [US3] Unit tests in `apps/web/src/server/services/pages.test.ts`: create validates slug + renders and stores HTML/hash; `newDraft` increments version atomically; concurrent last-write-wins preserves both revisions; reader cannot create/edit (denied without leak)
+- [x] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (path validation: lowercase letters, numbers, hyphens, slashes, no leading/trailing/consecutive slashes; uniqueness within space/locale; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
+- [x] T032 [P] [US3] REST pages route handlers in `apps/web/app/api/pages/**`: `POST /api/pages`, `GET/POST /api/edit/{...path}`, `GET /api/history/{...path}`, `GET /api/revisions/{n}/{...path}`
+- [x] T033 [US3] Custom side-by-side Markdown editor component `apps/web/src/components/editor/SplitMarkdownEditor.tsx` (textarea source + server-rendered preview via `/api/preview`; no editor AST leaves the browser — research D10)
+- [x] T034 [US3] Create-page route `apps/web/app/(public)/new/page.tsx` (form: path + title + content; editor/admin only; path-collision shows clear error per FR-023)
+- [x] T035 [US3] Edit route `apps/web/app/(public)/edit/[...path]/page.tsx` (load latest revision source; save creates a new draft revision; path is read-only on this screen)
+- [x] T036 [US3] History route `apps/web/app/(public)/history/[...path]/page.tsx` (author/editor/admin)
+- [x] T037 [US3] Revision view route `apps/web/app/(public)/revisions/[n]/[...path]/page.tsx` (draft revisions: author/admin only; others not-found)
+- [x] T038 [P] [US3] Unit tests in `apps/web/src/server/services/pages.test.ts`: create validates path + renders and stores HTML/hash; `newDraft` increments version atomically; concurrent last-write-wins preserves both revisions; reader cannot create/edit (denied without leak)
+- [x] T057 [P] [US3] Page Properties route `apps/web/app/(public)/properties/[...path]/page.tsx` and `PATCH /api/properties/[...path]` handler (change `path`; validate and reject conflicts; no redirect from old path yet)
 
 **Checkpoint**: US3 independently functional — authoring + version history work for editors.
 
@@ -124,7 +126,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [x] T039 [P] [US4] `revisionService.publish(ctx, slug, version)` in `apps/web/src/server/services/revisions.ts` (author-of-draft or admin; atomically set revision `status='published'` + `pages.current_published_version_id` in one transaction)
+- [x] T039 [P] [US4] `revisionService.publish(ctx, path, version)` in `apps/web/src/server/services/revisions.ts` (author-of-draft or admin; atomically set revision `status='published'` + `pages.current_published_version_id` in one transaction)
 - [x] T040 [P] [US4] REST `POST /api/revisions/publish` route handler in `apps/web/app/api/revisions/publish/route.ts`
 - [x] T041 [US4] Publish UI on the edit + history pages (publish button visible only to author/admin; post mutation; refresh shows live content to readers)
 - [x] T042 [P] [US4] Unit tests in `apps/web/src/server/services/revisions.test.ts`: publish atomically swaps the live version; a reader reading a published page does not see a newer draft; a draft is visible only to its author + admin
@@ -156,13 +158,14 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 **Purpose**: Deployment readiness, the no-SPA navigation contract, and operational surfaces.
 
 - [x] T048 [P] First-run admin setup route `apps/web/app/setup/page.tsx` (DB-gated: only when zero admins exist; self-disables after — research D7)
-- [x] T049 [P] Playwright no-SPA E2E suite `apps/web/e2e/navigation.spec.ts`: for each route assert direct-URL entry, refresh, back/forward, and "open in new tab" land on correct state; GET never mutates (research D11, SC-008)
-- [x] T050 [P] Playwright role/publish E2E `apps/web/e2e/flows.spec.ts`: reader denied editor/admin/draft URLs (no leak); publish workflow; admin role change effective mid-session (SC-006)
+- [x] T049 [P] Playwright no-SPA E2E suite `apps/web/e2e/navigation.spec.ts`: for each route assert direct-URL entry, refresh, back/forward, and "open in new tab" land on correct state; GET never mutates; include multi-segment paths (`/docs/intro`, `/edit/docs/intro`, `/properties/docs/intro`) (research D11, SC-008)
+- [x] T050 [P] Playwright role/publish E2E `apps/web/e2e/flows.spec.ts`: reader denied editor/admin/draft URLs (no leak); publish workflow; path-change workflow; admin role change effective mid-session (SC-006)
 - [x] T051 [P] Accessibility pass across all pages: semantic headings, form labels, visible focus, keyboard navigation (FR-016 consistent UX)
 - [x] T052 [P] Consistent empty/loading/error states on every page using the design system (no bespoke per-page styling — P5)
 - [x] T053 [P] Structured logging in `apps/web/src/server/logger.ts` (container-runtime suitable; no secrets)
 - [ ] T054 Run `specs/001-core-wiki-platform/quickstart.md` end-to-end (SC-001 → SC-008) and record results
 - [x] T055 Docker build verification: `docker compose up --build` yields a healthy app with a working wiki within 5 minutes (SC-001)
+- [x] T058 Update OpenSpec docs (`spec.md`, `tasks.md`, `contracts/urls.md`, `contracts/rest-api.md`, `data-model.md`) to reflect user-defined multi-segment `path` feature
 
 ---
 
@@ -198,7 +201,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 - All Phase 1 tasks marked `[P]` can run in parallel.
 - All Phase 2 tasks marked `[P]` (enums, schemas, pipeline, permissions, seed, health, design system, shared types) can run in parallel; T009/T011/T013/T016 are sequential integration points.
-- Once Foundational is complete, US1, US2, US3, and US5 can proceed in parallel by different developers; US4 proceeds in parallel and integrates once US3 lands.
+- Once Foundational is complete, US1, US2, US3, US4, and US5 can proceed in parallel by different developers; the new Page Properties route (T057) and navigator tree (T056) are independent UI additions that can land with US1/US3.
 - Within a story, all `[P]` tasks (services, procedures, tests on different files) can run in parallel.
 
 ---
