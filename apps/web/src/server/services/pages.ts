@@ -330,7 +330,9 @@ export async function getHistory(ctx: PermCtx, slug: string): Promise<RevisionSu
   if (!page) return [];
 
   const isAuthor = userId ? page.authorId === userId : false;
-  if (!can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor })) {
+  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor });
+
+  if (!userId) {
     return [];
   }
 
@@ -348,24 +350,26 @@ export async function getHistory(ctx: PermCtx, slug: string): Promise<RevisionSu
     .where(eq(schema.pageRevisions.pageId, page.id))
     .orderBy(desc(schema.pageRevisions.versionNumber));
 
-  return rows.map((r) => {
-    const isAuthor = userId ? r.authorId === userId : false;
-    const canPublish = can(
-      ctx,
-      'publish',
-      { kind: 'revision', pageId: page.id, version: r.version },
-      { isAuthor },
-    );
+  return rows
+    .filter((r) => canSeeDrafts || r.status === 'published')
+    .map((r) => {
+      const isAuthor = userId ? r.authorId === userId : false;
+      const canPublish = can(
+        ctx,
+        'publish',
+        { kind: 'revision', pageId: page.id, version: r.version },
+        { isAuthor },
+      );
 
-    return {
-      version: r.version,
-      status: r.status,
-      authorDisplayName: r.authorDisplayName,
-      createdAt: r.createdAt.toISOString(),
-      contentHash: r.contentHash,
-      canPublish,
-    };
-  });
+      return {
+        version: r.version,
+        status: r.status,
+        authorDisplayName: r.authorDisplayName,
+        createdAt: r.createdAt.toISOString(),
+        contentHash: r.contentHash,
+        canPublish,
+      };
+    });
 }
 
 export async function getRevision(

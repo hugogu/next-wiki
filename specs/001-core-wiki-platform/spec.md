@@ -90,8 +90,9 @@ history and see both versions.
    rendered into viewable form at save time.
 2. **Given** a page exists, **When** the editor edits and saves, **Then** a new
    version is created and the previous version is retained unchanged in history.
-3. **Given** multiple versions exist, **When** the editor views the page
-   history, **Then** they see the list of versions with author and timestamp.
+3. **Given** multiple versions exist, **When** a signed-in user views the page
+   history, **Then** they see the list of versions they are allowed to see
+   (published versions for readers; all versions for author, editor, or admin).
 
 ---
 

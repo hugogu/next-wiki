@@ -14,7 +14,7 @@ GET never mutates; 404/403 are real, history-linear routes.
 |---|---|---|---|---|
 | Wiki home (published page list) | `/` | GET | no | public\* / any signed-in |
 | Read a page (live published version) | `/{slug}` | GET | no | public\* / any signed-in |
-| Page history | `/{slug}/history` | GET | no | author / editor / admin |
+| Page history | `/{slug}/history` | GET | no | signed-in (readers see published versions; author/editor/admin see all) |
 | View a specific revision | `/{slug}/revisions/{n}` | GET | no | author / editor / admin (draft revisions: author + admin only) |
 | Edit / create new draft | `/{slug}/edit` | GET (form) + POST (save) | POST yes | editor / admin |
 | Create page (new slug) | `/new` | GET (form) + POST | POST yes | editor / admin |
