@@ -7,14 +7,18 @@ const config = {
   theme: {
     extend: {
       colors: {
-        // Design tokens mapped to CSS custom properties (constitution P5)
         primary: 'var(--color-primary)',
         'primary-text': 'var(--color-primary-text)',
+        'primary-hover': 'var(--color-primary-hover)',
         background: 'var(--color-background)',
         surface: 'var(--color-surface)',
+        'surface-elevated': 'var(--color-surface-elevated)',
         border: 'var(--color-border)',
+        'border-strong': 'var(--color-border-strong)',
         muted: 'var(--color-muted)',
+        foreground: 'var(--color-foreground)',
         danger: 'var(--color-danger)',
+        warning: 'var(--color-warning)',
       },
       spacing: {
         xs: 'var(--space-xs)',
@@ -22,6 +26,7 @@ const config = {
         md: 'var(--space-md)',
         lg: 'var(--space-lg)',
         xl: 'var(--space-xl)',
+        '2xl': 'var(--space-2xl)',
       },
       borderRadius: {
         sm: 'var(--radius-sm)',
@@ -29,8 +34,15 @@ const config = {
         lg: 'var(--radius-lg)',
       },
       fontFamily: {
-        sans: 'var(--font-sans)',
+        display: 'var(--font-display)',
+        sans: 'var(--font-body)',
         mono: 'var(--font-mono)',
+      },
+      height: {
+        header: 'var(--header-height)',
+      },
+      width: {
+        nav: 'var(--nav-width)',
       },
     },
   },

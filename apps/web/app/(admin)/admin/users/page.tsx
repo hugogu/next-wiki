@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
-import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { UserManagementTable } from '@/components/admin/UserManagementTable';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userService from '@/server/services/users';
@@ -22,18 +21,14 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <Layout>
-      <Breadcrumbs
-        items={[
-          { label: 'Admin' },
-          { label: 'Users' },
-        ]}
-      />
-      <div className="mb-md">
-        <h1 className="text-2xl font-semibold">User management</h1>
-        <p className="text-muted">Manage roles, status, and passwords.</p>
+    <Layout admin>
+      <div className="max-w-5xl mx-auto px-lg py-xl">
+        <div className="mb-lg">
+          <h1 className="font-display text-3xl font-semibold">User management</h1>
+          <p className="text-muted">Manage roles, status, and passwords.</p>
+        </div>
+        <UserManagementTable users={users} />
       </div>
-      <UserManagementTable users={users} />
     </Layout>
   );
 }

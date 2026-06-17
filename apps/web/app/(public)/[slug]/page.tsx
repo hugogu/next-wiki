@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
-import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 
@@ -24,57 +22,43 @@ export default async function PageRead({ params }: { params: PageParams }) {
     notFound();
   }
 
-  // Check whether the current user can edit — used to show action links.
   const canEdit = await pageService.canCreate({ actor });
+  const isAuthor = actor.kind === 'user' ? page.authorId === actor.userId : false;
+  const canPublish = page.status === 'draft' && (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
+
+  const pageContext = {
+    slug,
+    title: page.title,
+    status: page.status,
+    canEdit,
+    canPublish,
+    version: page.version,
+  };
 
   return (
-    <Layout>
-      <Breadcrumbs
-        items={[
-          { label: 'Home', href: '/' },
-          { label: page.title },
-        ]}
-      />
-      {page.status === 'draft' && (
-        <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-md px-md py-sm mb-md text-sm">
-          This page has not been published yet. Only editors and admins can see this draft.
-        </div>
-      )}
-      <article className="bg-surface border border-border rounded-lg p-lg shadow-sm">
-        <header className="mb-lg border-b border-border pb-md">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-semibold">{page.title}</h1>
-            <div className="flex items-center gap-sm">
-              {canEdit && (
-                <Link
-                  href={`/${slug}/edit`}
-                  className="inline-flex items-center rounded-md px-md py-sm text-sm font-medium bg-primary text-primary-text hover:bg-primary/90 transition-colors"
-                >
-                  Edit
-                </Link>
-              )}
-              {actor && (
-                <Link
-                  href={`/${slug}/history`}
-                  className="inline-flex items-center rounded-md px-md py-sm text-sm font-medium border border-border text-muted hover:text-foreground hover:bg-surface transition-colors"
-                >
-                  History
-                </Link>
-              )}
-            </div>
+    <Layout pageContext={pageContext}>
+      <div className="min-h-full flex flex-col">
+        {page.status === 'draft' && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-lg py-sm text-sm">
+            This page is a draft and not yet published.
           </div>
-          {page.publishedAt && (
-            <p className="text-sm text-muted mt-sm">
-              Published {new Date(page.publishedAt).toLocaleDateString()}
-              {page.authorDisplayName && ` by ${page.authorDisplayName}`}
-            </p>
-          )}
-        </header>
-        <div
-          className="prose max-w-none"
-          dangerouslySetInnerHTML={{ __html: page.contentHtml }}
-        />
-      </article>
+        )}
+        <article className="flex-1 px-lg py-xl max-w-none">
+          <header className="mb-xl">
+            <h1 className="font-display text-4xl font-semibold text-foreground mb-sm">{page.title}</h1>
+            {page.publishedAt && (
+              <p className="text-sm text-muted">
+                Published {new Date(page.publishedAt).toLocaleDateString()}
+                {page.authorDisplayName && ` by ${page.authorDisplayName}`}
+              </p>
+            )}
+          </header>
+          <div
+            className="prose max-w-none"
+            dangerouslySetInnerHTML={{ __html: page.contentHtml }}
+          />
+        </article>
+      </div>
     </Layout>
   );
 }

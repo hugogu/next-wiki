@@ -6,11 +6,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { newDraftBodySchema, type NewDraftBody } from '@next-wiki/shared';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
-import { Button } from '@/components/ui/Button';
+import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
-import { MarkdownEditor } from '@/components/editor/MarkdownEditor';
-import { PublishButton } from '@/components/pages/PublishButton';
 
 export function EditPageForm({ slug, initial }: { slug: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
   const router = useRouter();
@@ -48,30 +46,40 @@ export function EditPageForm({ slug, initial }: { slug: string; initial: { title
         setServerError(null);
         save.mutate(data);
       })}
-      className="space-y-md"
+      className="h-full flex flex-col"
     >
-      {serverError && <Alert>{serverError}</Alert>}
-      <div>
-        <label htmlFor="title" className="block text-sm font-medium mb-sm">Title</label>
-        <Input id="title" {...register('title')} />
-        {errors.title && <p className="text-danger text-sm mt-xs">{errors.title.message}</p>}
+      <div className="shrink-0 flex items-center gap-md px-lg py-md border-b border-border bg-surface">
+        <div className="flex-1">
+          <Input
+            {...register('title')}
+            placeholder="Page title"
+            aria-label="Title"
+            className="text-sm"
+          />
+          {errors.title && <p className="text-danger text-xs mt-xs">{errors.title.message}</p>}
+        </div>
+        <button
+          type="submit"
+          disabled={isSubmitting || save.isPending}
+          className="inline-flex items-center px-md py-sm rounded-md bg-primary text-primary-text text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-60"
+        >
+          {save.isPending ? 'Saving...' : 'Save new draft'}
+        </button>
       </div>
-      <div>
-        <label htmlFor="content" className="block text-sm font-medium mb-sm">Content</label>
-        <MarkdownEditor
+
+      {serverError && (
+        <div className="shrink-0 px-lg py-sm">
+          <Alert>{serverError}</Alert>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-hidden p-md">
+        <SplitMarkdownEditor
           value={contentSource}
           onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
-          placeholder="Edit page content..."
           disabled={save.isPending}
-          aria-label="Page content"
         />
         {errors.contentSource && <p className="text-danger text-sm mt-xs">{errors.contentSource.message}</p>}
-      </div>
-      <div className="flex items-center gap-md">
-        <Button type="submit" disabled={isSubmitting || save.isPending}>
-          {save.isPending ? 'Saving draft...' : 'Save new draft'}
-        </Button>
-        {initial.canPublish && <PublishButton slug={slug} version={initial.latestVersion} />}
       </div>
     </form>
   );

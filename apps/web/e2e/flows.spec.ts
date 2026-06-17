@@ -23,6 +23,10 @@ async function registerReader(page: Page, email: string) {
   await page.waitForURL('/');
 }
 
+function fillEditor(page: Page, content: string) {
+  return page.locator('textarea[placeholder="Write in Markdown..."]').fill(content);
+}
+
 test.describe('access control flows', () => {
   test('reader is denied editor/admin URLs without leaking resource existence', async ({ page }) => {
     await registerReader(page, `reader-denied-${Date.now()}@example.com`);
@@ -58,7 +62,7 @@ test.describe('publish workflow', () => {
     await page.goto('/new');
     await page.getByLabel('Slug').fill(slug);
     await page.getByLabel('Title').fill('Publish Flow Test');
-    await page.locator('.toastui-editor-md-container .ProseMirror').fill('draft content');
+    await fillEditor(page, 'draft content');
     await page.getByRole('button', { name: /save draft/i }).click();
     await page.waitForURL(`/${slug}`);
 
@@ -69,9 +73,9 @@ test.describe('publish workflow', () => {
     await readerPage.goto(`/${slug}`);
     await expect(readerPage.locator('h1:has-text("404")')).toBeVisible();
 
-    // Editor publishes the draft.
+    // Editor publishes the draft using the header publish action.
     await page.goto(`/${slug}/edit`);
-    await page.getByRole('button', { name: /publish this revision/i }).click();
+    await page.getByRole('button', { name: /publish/i }).click();
     await page.waitForURL(`/${slug}`);
 
     // Reader now sees the published content.
@@ -80,7 +84,7 @@ test.describe('publish workflow', () => {
 
     // Editor creates a new draft; reader still sees published content.
     await page.goto(`/${slug}/edit`);
-    await page.locator('.toastui-editor-md-container .ProseMirror').fill('updated draft content');
+    await fillEditor(page, 'updated draft content');
     await page.getByRole('button', { name: /save new draft/i }).click();
     await page.waitForURL(`/${slug}/history`);
 

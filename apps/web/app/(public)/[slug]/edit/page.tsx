@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
-import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { EditPageForm } from '@/components/pages/EditPageForm';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
@@ -24,17 +23,20 @@ export default async function EditPage({ params }: { params: Params }) {
     notFound();
   }
 
+  const pageContext = {
+    slug,
+    title: view.title,
+    status: view.status,
+    canEdit: true,
+    canPublish: view.canPublish,
+    version: view.latestVersion,
+  };
+
   return (
-    <Layout>
-      <Breadcrumbs
-        items={[
-          { label: 'Home', href: '/' },
-          { label: view.title, href: `/${slug}` },
-          { label: 'Edit' },
-        ]}
-      />
-      <h1 className="text-2xl font-semibold mb-md">Edit page</h1>
-      <EditPageForm slug={slug} initial={{ title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
+    <Layout pageContext={pageContext}>
+      <div className="h-full flex flex-col">
+        <EditPageForm slug={slug} initial={{ title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
+      </div>
     </Layout>
   );
 }

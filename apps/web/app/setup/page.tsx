@@ -19,8 +19,8 @@ export default async function SetupPage() {
 
   return (
     <Layout skipPasswordGate>
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-semibold mb-md">Welcome to next-wiki</h1>
+      <div className="max-w-md mx-auto px-lg py-xl">
+        <h1 className="font-display text-2xl font-semibold mb-md">Welcome to next-wiki</h1>
         <p className="text-muted mb-md text-sm">
           Create the initial admin account to get started. This screen is only
           available while no admins exist.

@@ -25,8 +25,8 @@ export default async function SetPasswordPage() {
 
   return (
     <Layout skipPasswordGate>
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-semibold mb-md">Set a new password</h1>
+      <div className="max-w-md mx-auto px-lg py-xl">
+        <h1 className="font-display text-2xl font-semibold mb-md">Set a new password</h1>
         <p className="text-muted mb-md text-sm">
           Your password was reset by an administrator. Choose a new password to continue.
         </p>

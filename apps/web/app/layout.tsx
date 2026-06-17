@@ -1,19 +1,22 @@
-import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
+import { Crimson_Pro, Source_Sans_3 } from 'next/font/google';
 import { ApiProvider } from '@/lib/api/provider';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: {
-    default: 'next-wiki',
-    template: '%s | next-wiki',
-  },
-  description: 'An open-source, self-hosted wiki system.',
-};
+const crimsonPro = Crimson_Pro({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+});
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+const sourceSans = Source_Sans_3({
+  subsets: ['latin'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${crimsonPro.variable} ${sourceSans.variable}`}>
       <body className="antialiased">
         <ApiProvider>{children}</ApiProvider>
       </body>

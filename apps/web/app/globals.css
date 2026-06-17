@@ -4,13 +4,18 @@
 
 :root {
   /* Color tokens */
-  --color-primary: #2563eb;
+  --color-primary: #b45309;
   --color-primary-text: #ffffff;
-  --color-background: #f8fafc;
+  --color-primary-hover: #92400e;
+  --color-background: #fafaf9;
   --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-muted: #64748b;
+  --color-surface-elevated: #f5f5f4;
+  --color-border: #e7e5e4;
+  --color-border-strong: #d6d3d1;
+  --color-muted: #78716c;
+  --color-foreground: #292524;
   --color-danger: #dc2626;
+  --color-warning: #d97706;
 
   /* Spacing tokens */
   --space-xs: 0.25rem;
@@ -18,6 +23,7 @@
   --space-md: 1rem;
   --space-lg: 1.5rem;
   --space-xl: 2rem;
+  --space-2xl: 3rem;
 
   /* Radius tokens */
   --radius-sm: 0.25rem;
@@ -25,29 +31,62 @@
   --radius-lg: 0.75rem;
 
   /* Typography tokens */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Crimson Pro', Georgia, serif;
+  --font-body: 'Source Sans 3', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
+
+  /* Layout tokens */
+  --header-height: 3.5rem;
+  --nav-width: 16rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__next {
+  height: 100%;
 }
 
 body {
   background-color: var(--color-background);
-  color: #0f172a;
-  font-family: var(--font-sans);
+  color: var(--color-foreground);
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
 }
 
 .prose {
   line-height: 1.75;
+  max-width: none;
 }
 
 .prose h1,
 .prose h2,
 .prose h3,
 .prose h4 {
+  font-family: var(--font-display);
   font-weight: 600;
-  margin-top: var(--space-lg);
+  margin-top: var(--space-xl);
   margin-bottom: var(--space-md);
+}
+
+.prose h1 {
+  font-size: 2.25rem;
+  line-height: 1.2;
+}
+
+.prose h2 {
+  font-size: 1.75rem;
+}
+
+.prose h3 {
+  font-size: 1.375rem;
 }
 
 .prose p {
@@ -55,20 +94,56 @@ body {
 }
 
 .prose pre {
-  background-color: #1e293b;
-  color: #f1f5f9;
+  background-color: #1c1917;
+  color: #f5f5f4;
   border-radius: var(--radius-md);
   padding: var(--space-md);
   overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
 }
 
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.875em;
+  background-color: var(--color-surface-elevated);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
 }
 
 .prose ul,
 .prose ol {
   padding-left: var(--space-lg);
   margin-bottom: var(--space-md);
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--color-border-strong);
+  padding-left: var(--space-md);
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
 }

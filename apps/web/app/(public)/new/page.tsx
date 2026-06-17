@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
-import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { CreatePageForm } from '@/components/pages/CreatePageForm';
 import { getCurrentActor } from '@/server/services/auth';
 import * as pageService from '@/server/services/pages';
@@ -22,9 +21,12 @@ export default async function NewPage() {
 
   return (
     <Layout>
-      <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'New page' }]} />
-      <h1 className="text-2xl font-semibold mb-md">Create a new page</h1>
-      <CreatePageForm />
+      <div className="h-full flex flex-col">
+        <div className="shrink-0 px-lg pt-xl pb-md">
+          <h1 className="font-display text-3xl font-semibold">Create a new page</h1>
+        </div>
+        <CreatePageForm />
+      </div>
     </Layout>
   );
 }

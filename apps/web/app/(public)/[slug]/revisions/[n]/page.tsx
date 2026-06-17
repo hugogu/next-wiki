@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
-import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 
@@ -28,27 +28,28 @@ export default async function RevisionPage({ params }: { params: Params }) {
     notFound();
   }
 
+  const canEdit = await pageService.canCreate({ actor });
+
   return (
-    <Layout>
-      <Breadcrumbs
-        items={[
-          { label: 'Home', href: '/' },
-          { label: slug, href: `/${slug}` },
-          { label: 'History', href: `/${slug}/history` },
-          { label: `Revision ${version}` },
-        ]}
-      />
-      <article className="bg-surface border border-border rounded-lg p-lg shadow-sm">
-        <header className="mb-lg border-b border-border pb-md">
-          <h1 className="text-3xl font-semibold">Revision {version}</h1>
-          <p className="text-sm text-muted mt-sm">
-            {revision.status === 'published' ? 'Published' : 'Draft'} on{' '}
-            {new Date(revision.createdAt).toLocaleString()}
-            {revision.authorDisplayName && ` by ${revision.authorDisplayName}`}
-          </p>
-        </header>
-        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: revision.contentHtml }} />
-      </article>
+    <Layout pageContext={{ slug, title: `Revision ${version}`, status: revision.status, canEdit, canPublish: false, version }}>
+      <div className="max-w-3xl mx-auto px-lg py-xl">
+        <div className="flex items-center justify-between mb-md">
+          <h1 className="font-display text-3xl font-semibold">Revision {version}</h1>
+          <Link
+            href={`/${slug}/history`}
+            className="text-sm text-primary hover:underline"
+          >
+            ← Back to history
+          </Link>
+        </div>
+        <p className="text-sm text-muted mb-xl">
+          {revision.status === 'published' ? 'Published' : 'Draft'} on {new Date(revision.createdAt).toLocaleString()}
+          {revision.authorDisplayName && ` by ${revision.authorDisplayName}`}
+        </p>
+        <article className="bg-surface border border-border rounded-lg p-lg">
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: revision.contentHtml }} />
+        </article>
+      </div>
     </Layout>
   );
 }

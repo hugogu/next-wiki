@@ -10,10 +10,10 @@ import { test, expect } from '@playwright/test';
 test.describe('navigation contract', () => {
   test('home page loads and refreshes to the same state', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1:has-text("Wiki Pages")')).toBeVisible();
+    await expect(page.locator('h1:has-text("next-wiki")')).toBeVisible();
 
     await page.reload();
-    await expect(page.locator('h1:has-text("Wiki Pages")')).toBeVisible();
+    await expect(page.locator('h1:has-text("next-wiki")')).toBeVisible();
   });
 
   test('published page supports deep-link, refresh, and back', async ({ page, context }) => {
@@ -51,7 +51,7 @@ test.describe('navigation contract', () => {
     const secondHtml = await page.content();
 
     // The page content should be structurally identical after a refresh.
-    expect(secondHtml).toContain('Wiki Pages');
+    expect(secondHtml).toContain('next-wiki');
     expect(firstHtml.length).toBeGreaterThan(0);
     expect(secondHtml.length).toBeGreaterThan(0);
   });

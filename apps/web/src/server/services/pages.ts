@@ -94,6 +94,7 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
       version: revision.versionNumber,
       publishedAt: revision.publishedAt?.toISOString() ?? null,
       authorDisplayName: author?.displayName ?? null,
+      authorId: page.authorId,
       status: 'published',
     };
   }
@@ -121,6 +122,7 @@ export async function getLive(ctx: PermCtx, slug: string): Promise<LivePage | nu
     version: draft.versionNumber,
     publishedAt: null,
     authorDisplayName: author?.displayName ?? null,
+    authorId: page.authorId,
     status: 'draft',
   };
 }
