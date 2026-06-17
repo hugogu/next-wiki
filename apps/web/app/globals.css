@@ -122,6 +122,18 @@ body {
   margin-bottom: var(--space-md);
 }
 
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li {
+  margin-bottom: var(--space-xs);
+}
+
 .prose blockquote {
   border-left: 3px solid var(--color-border-strong);
   padding-left: var(--space-md);
