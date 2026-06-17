@@ -127,7 +127,6 @@ export async function getCurrentActor(): Promise<Actor> {
   const actor = await resolveActorFromSession(sessionId);
 
   if (!actor) {
-    cookieStore.delete(SESSION_COOKIE);
     return { kind: 'anonymous' };
   }
 
