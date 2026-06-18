@@ -1,10 +1,13 @@
 node_modules/
+**/node_modules/
 .next/
+**/.next/
 out/
 dist/
 build/
 coverage/
 .turbo/
+**/.turbo/
 .pnpm-store/
 .git/
 .gitignore

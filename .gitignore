@@ -48,3 +48,6 @@ AGENTS.md
 .env
 .env.*
 !.env.example
+
+# Runtime files
+.postgres-data/
