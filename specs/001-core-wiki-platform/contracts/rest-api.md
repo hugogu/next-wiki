@@ -170,6 +170,17 @@ implementation still asks for `path` in the create form).
 { "pageId": "uuid", "versionId": "uuid" }
 ```
 
+#### `DELETE /api/pages/{...path}`
+
+Soft-delete a page (admin or author only). Sets `deleted_at` on the page row.
+Deleted pages are excluded from the public list and live view.
+
+**Response 204**: No body.
+
+Permission: admin or author of the page.
+
+---
+
 #### `GET /api/pages/{...path}`
 
 Read the live page (published version, or latest draft for authorized author/editor/admin).
@@ -185,7 +196,9 @@ Read the live page (published version, or latest draft for authorized author/edi
   "version": 1,
   "publishedAt": "ISO|null",
   "authorDisplayName": "...|null",
-  "status": "draft|published"
+  "authorId": "uuid",
+  "status": "draft|published",
+  "createdAt": "ISO"
 }
 ```
 

@@ -23,12 +23,15 @@ soft-delete-ready so these can be added without migration.
 
 **Language/Version**: TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor).
 **Primary Dependencies**: Next.js 16 (App Router, RSC) + React 19.2; Drizzle ORM
-(PostgreSQL); Better Auth (local email/password sessions); pg-boss (job queue,
+(PostgreSQL); custom bcrypt session auth (DB-backed sessions); pg-boss (job queue,
 in-PostgreSQL); unified/remark/rehype (Markdown pipeline); Toast UI Editor
 (client Markdown editor); Mantine + Tailwind CSS (unified design system in
 `src/components/ui/`); TanStack Query (client server state); Zustand (UI state);
-React Hook Form (forms); Zod (schemas); REST + OpenAPI (HTTP API). No external
-services in the default deployment.
+React Hook Form (forms); Zod (schemas); REST + OpenAPI (HTTP API). **i18n**: custom
+lightweight framework (`apps/web/src/i18n/`) with type-safe translation keys,
+cookie-based locale detection, and standalone locale files. **Theme**: client-side
+light/dark/auto toggle with `localStorage` persistence and CSS custom property tokens.
+No external services in the default deployment.
 **Storage**: PostgreSQL 16+ (single database; page content, revisions, users,
 sessions, pg-boss queues all co-located).
 **Testing**: Vitest (unit/integration) + Playwright (E2E, incl. the no-SPA
@@ -70,10 +73,10 @@ in `docs/architecture/`.
 | P11 Focused Scope | PASS | Slice is tightly scoped to read/author/admin. Deferred items (search, delete UI, import/export, AI, spaces UI, i18n, public REST/MCP) are explicit non-goals. |
 | P12 Native Web Navigation | PASS | Server-rendered pages at RESTful resource URLs (`/<slug>`, `/<slug>/edit`, `/<slug>/revisions/<n>`, `/admin/users`, `/auth/login`). Breadcrumbs derived from route + page tree. Browser back/forward/refresh/deep-link/open-in-new-tab must work everywhere. Not an SPA. |
 | Mandate: Page Tree & Path | PASS (scoped) | Pages carry hidden `space_id` + `path` (single default space); canonical key `(space_id, path, locale)`. Slug is author-chosen, unique within the space, immutable. |
-| Mandate: Rendering Pipeline | PASS | `source -> parse -> transform[] -> render`; transformers receive resolved inputs, never touch the DB; output cached per revision hash. |
-| Mandate: Permission Model | PASS (scoped) | 3-axis model in place; for this slice evaluation resolves via role + authorship + anonymous-default; no hardcoded admin bypass; no per-page entries yet. |
+| Mandate: Rendering Pipeline | PASS | `source -> parse -> transform[] -> render`; transformers receive resolved inputs, never touch the DB; output cached per revision hash. Extended with `remark-math`, `rehype-katex`, `rehype-highlight`, and custom Mermaid rehype plugin. |
+| Mandate: Permission Model | PASS (scoped) | 3-axis model in place; for this slice evaluation resolves via role + authorship + anonymous-default; no hardcoded admin bypass; no per-page entries yet. Includes `delete` action (admin or author-of-page). |
 | Mandate: Content Versioning | PASS | `page_revision` with author, timestamp, locale, content_type, content_hash, full source snapshot; diff at source level; revisions never deleted by normal ops. |
-| Mandate: Multi-language | PASS (scoped) | `locale` field present (single default locale); no translation UI; permissions not inherited across translations is trivially satisfied (one locale). |
+| Mandate: Multi-language | PASS (scoped) | `locale` field present (single default locale); **UI i18n added** (EN/ZH) with standalone locale files and cookie detection; content translations deferred. Permissions not inherited across translations is trivially satisfied (one content locale). |
 | Mandate: Editor Extensibility | PASS | Toast UI Editor write-side; serialize to raw Markdown only; client AST never leaves browser; server parses raw Markdown via remark into an independent AST. Markdown is the default editor. |
 | Mandate: Deployment & Ops | PASS | Docker Compose with PostgreSQL + app (+ worker if needed, same image) on named volumes; idempotent migrations; `/healthz`, `/readyz`, structured logs, backup/restore docs. |
 | Mandate: Frontend Routing & URL | PASS | URL schemes in `contracts/urls.md`; breadcrumbs server-derived; canonical entry points (one URL per resource); GET never mutates; 404/403 are real routes. |
@@ -112,10 +115,11 @@ apps/web/
 ├── app/
 │   ├── (public)/
 │   │   ├── page.tsx                  # Wiki home: published page list
-│   │   ├── [slug]/page.tsx           # Read a published page (stored HTML)
-│   │   ├── [slug]/edit/page.tsx      # Editor (editor/admin only)
-│   │   ├── [slug]/revisions/[n]/page.tsx   # View a specific revision
-│   │   └── [slug]/history/page.tsx   # Version history (author/editor/admin)
+│   │   ├── [...path]/page.tsx        # Read a published page (stored HTML)
+│   │   ├── edit/[...path]/page.tsx   # Editor (editor/admin only)
+│   │   ├── revisions/[n]/[...path]/page.tsx   # View a specific revision
+│   │   ├── history/[...path]/page.tsx   # Version history (author/editor/admin)
+│   │   └── properties/[...path]/page.tsx  # Page Properties (change path)
 │   ├── (auth)/
 │   │   ├── login/page.tsx
 │   │   └── register/page.tsx
@@ -132,8 +136,8 @@ apps/web/
 │   │   │   └── setup/route.ts
 │   │   ├── pages/
 │   │   │   ├── route.ts                # GET listPublished, POST create
-│   │   │   └── [slug]/
-│   │   │       ├── route.ts            # GET getLive
+│   │   │   └── [...path]/
+│   │   │       ├── route.ts            # GET getLive, DELETE remove
 │   │   │       ├── edit/route.ts       # GET getForEdit, POST newDraft
 │   │   │       ├── history/route.ts    # GET getHistory
 │   │   │       └── revisions/
@@ -155,20 +159,28 @@ apps/web/
     │   ├── services/{auth,pages,revisions,users}.ts   # Business logic (thin API)
     │   ├── db/schema/*.ts              # Drizzle schema (users, spaces, pages, page_revisions, sessions)
     │   ├── db/migrations/              # Idempotent Drizzle migrations
-    │   ├── auth/                       # Better Auth config + first-run admin bootstrap
+    │   ├── auth/                       # Custom bcrypt session auth + first-run admin bootstrap
     │   ├── pipeline/                   # Markdown pipeline (remark/rehype); cache per revision
+    │   │   └── transformers/           # remark-math, rehype-katex, rehype-highlight, custom mermaid
     │   ├── permissions/                # can(actor, action, resource) chokepoint + contexts
-    │   └── seed/                       # Built-in roles + default space
+    │   └── seed/                       # Built-in roles + default space + welcome page
     ├── components/
     │   ├── ui/                         # Unified design system (Mantine wrappers + tokens)
     │   ├── editor/                     # Toast UI Editor Markdown editor (client)
+    │   ├── renderer/                   # ContentRenderer, CodeBlock, MermaidBlock (client hydration)
     │   ├── common/                     # Layout, breadcrumbs, page-list, empty/error states
-    │   └── admin/                      # User management UI
-    └── hooks/                          # useSession, useChat(n/a here), etc.
+    │   ├── admin/                      # User management UI
+    │   ├── theme/                      # ThemeProvider, ThemeToggle (client)
+    │   ├── i18n/                       # LanguageSwitcher (client)
+    │   └── layout/                     # Header, Navigator, Footer
+    ├── i18n/                           # i18n framework: config, types, utils, server.ts, client.tsx
+    │   └── locales/                    # Standalone locale files: en.ts (canonical), zh.ts
+    ├── hooks/                          # useSession, useHistory, useTranslation, etc.
+    └── lib/                            # Shared client utilities
 ```
 
 **Structure Decision**: Strict adherence to the mandated monorepo layout. The
-`[slug]` dynamic segment realizes the RESTful page URL contract. Read routes
+`[...path]` dynamic segment realizes the RESTful page URL contract. Read routes
 are React Server Components that stream the pre-rendered HTML stored on the
 revision row; edit/admin/auth routes use client islands where interaction is
 needed, but every route remains a real URL with browser history.
@@ -183,8 +195,9 @@ needed, but every route remains a real URL with browser history.
 | Role-based permissions only (no per-page permission entries yet) | Spec A7 scopes this slice to 3 roles + authorship; no per-page overrides in any user story. | A per-page permission_entry table now would add schema + UI surface with zero acceptance-test coverage in this slice. The `can()` chokepoint and permission-context concept are built now, so adding entries later touches one service, not every query. |
 | No public REST + MCP in this slice | Spec user stories are UI-only (read/author/admin); no external API consumers. | Building MCP adapter now is dead surface. The REST + OpenAPI surface is the same one the frontend uses; public consumers can use it once documented. |
 | No background jobs exercised | Nothing in this slice exceeds the 500ms async threshold (Markdown render-at-save is fast). | Spawning pg-boss jobs for sub-ms renders adds latency and operational complexity for no benefit. pg-boss is still wired and ready. |
+| Client-side `createRoot()` for enhanced blocks | `ContentRenderer` hydrates code/Mermaid blocks via isolated `createRoot()` trees that do not inherit parent React context. Each root must be manually wrapped with `I18nProvider` and `ThemeProvider`, reading locale from `document.documentElement.lang`. | Using a single root would require restructuring the static HTML pipeline; isolated roots are simpler but require explicit provider propagation. |
 | Slug immutable (no rename/redirect) | Spec A12 defers rename + redirects. | Building the redirect table + write-time chain resolution now is unused surface. Schema is path-aware so redirects add cleanly later. |
-| Single default space + single locale (hidden fields) | Spec A9/A10. | Exposing multi-space/i18n UI now contradicts the focused slice; the schema fields are present to avoid migration. |
+| Single default space + single content locale (hidden fields) | Spec A9/A10. UI i18n added (EN/ZH) but content remains single-locale. | Exposing multi-space UI now contradicts the focused slice; the schema fields are present to avoid migration. |
 
 Post-design Constitution Check (Phase 1): no regressions. The data model
 satisfies every mandated invariant (canonical path key, immutable revisions,

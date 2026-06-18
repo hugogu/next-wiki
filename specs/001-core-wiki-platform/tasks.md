@@ -113,6 +113,8 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T037 [US3] Revision view route `apps/web/app/(public)/revisions/[n]/[...path]/page.tsx` (draft revisions: author/admin only; others not-found)
 - [x] T038 [P] [US3] Unit tests in `apps/web/src/server/services/pages.test.ts`: create validates path + renders and stores HTML/hash; `newDraft` increments version atomically; concurrent last-write-wins preserves both revisions; reader cannot create/edit (denied without leak)
 - [x] T057 [P] [US3] Page Properties route `apps/web/app/(public)/properties/[...path]/page.tsx` and `PATCH /api/properties/[...path]` handler (change `path`; validate and reject conflicts; no redirect from old path yet)
+- [x] T059 [P] [US3] Page delete service + `DELETE /api/pages/[...path]` endpoint (admin or author only; soft-delete via `deleted_at`)
+- [x] T060 [P] [US3] Content rendering enhancements: `remark-math` + `rehype-katex` (LaTeX), custom Mermaid rehype plugin, `rehype-highlight` (syntax highlighting), GFM table styling
 
 **Checkpoint**: US3 independently functional — authoring + version history work for editors.
 
@@ -165,7 +167,19 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T053 [P] Structured logging in `apps/web/src/server/logger.ts` (container-runtime suitable; no secrets)
 - [ ] T054 Run `specs/001-core-wiki-platform/quickstart.md` end-to-end (SC-001 → SC-008) and record results
 - [x] T055 Docker build verification: `docker compose up --build` yields a healthy app with a working wiki within 5 minutes (SC-001)
-- [x] T058 Update OpenSpec docs (`spec.md`, `tasks.md`, `contracts/urls.md`, `contracts/rest-api.md`, `data-model.md`) to reflect user-defined multi-segment `path` feature
+- [x] T058 Update OpenSpec docs (`spec.md`, `tasks.md`, `contracts/urls.md`, `contracts/rest-api.md`, `data-model.md`) to reflect user-defined multi-segment `path` feature, i18n, theme, content rendering enhancements, and page delete
+- [x] T061 [P] Theme system: `ThemeProvider` + `ThemeToggle` in `apps/web/src/components/theme/` (light/dark/auto, `localStorage` persistence, system sync)
+- [x] T062 [P] i18n framework: `apps/web/src/i18n/` — config, types, utils, server (`getLocale` + `getDictionary`), client (`I18nProvider` + `useTranslation`); standalone locale files `en.ts` (canonical ~140 keys) and `zh.ts`
+- [x] T063 [P] Language detection: cookie `next-wiki-locale` → `Accept-Language` header → default `en`; `LanguageSwitcher` toggle (中/En) in header
+- [x] T064 [P] Translate all hardcoded UI strings across 30+ components and pages (auth, editor, renderer, admin, navigator, home, setup, errors)
+- [x] T065 [P] Editor header redesign: title in top header, slide-out Page Properties panel, Save/Close/Properties icon buttons, icon toolbar (Heading, Bold, Italic, Code, CodeBlock, List, Quote, Link), `EditorContext`
+- [x] T066 [P] Page read view: title in header (centered), metadata in footer below content, `createdAt` in `LivePage`
+- [x] T067 [P] Icon library expansion: Save, Copy, Shield, Trash, Unlock, Lock, Key, Check, Tag, Circle, and editor toolbar icons
+- [x] T068 [P] Internal history stack: `HistoryProvider` + `useHistory` + `BackLink`; properties back link and history back-to-page link use it
+- [x] T069 [P] Code block UX: `CodeBlock` component with hover copy button; `MermaidBlock` with Diagram/Code toggle reusing `CodeBlock`
+- [x] T070 [P] `ContentRenderer` hydrates static HTML with React components for page, revision, and editor preview views; wraps each `createRoot()` with `I18nProvider` and `ThemeProvider`
+- [x] T071 [P] Docker bind mount for Postgres data: `./.postgres-data` in `docker-compose.yml`; `.postgres-data/` in `.dockerignore`
+- [x] T072 [P] Welcome page seed: enriched with LaTeX math, Mermaid diagram, GFM table, and syntax-highlighted JS example
 
 ---
 

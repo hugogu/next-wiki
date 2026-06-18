@@ -36,7 +36,7 @@ A registered account. Owned by this slice's auth + admin features.
 |---|---|---|---|
 | `id` | uuid (pk) | default `gen_random_uuid()` | surrogate PK |
 | `email` | citext | unique not null | login identity; case-insensitive |
-| `password_hash` | text | not null | Better Auth hashed (argon2/bcrypt per Better Auth default) |
+| `password_hash` | text | not null | bcrypt hashed (argon2-compatible cost factor) |
 | `role` | userRole | not null default `'reader'` | default role on registration (FR-003) |
 | `status` | userStatus | not null default `'active'` | admin can disable |
 | `must_reset_password` | boolean | not null default `false` | set on admin reset; forces change on next login (D9) |
@@ -53,7 +53,7 @@ the auth service, not the DB). Registration rejects duplicate emails (edge case)
 
 ## Entity: `session`
 
-Better Auth-managed sessions (D2). Schema follows Better Auth's Drizzle adapter;
+Custom DB-backed sessions. Schema follows a minimal design:
 key columns summarized here.
 
 | Field | Type | Constraints | Notes |
@@ -100,7 +100,7 @@ is kept for internal display; it is not the canonical URL key.
 |---|---|---|---|
 | `id` | uuid (pk) | | surrogate PK |
 | `space_id` | uuid | fk → spaces(id), not null | **[hidden]** default space |
-| `slug` | text | not null | leaf segment of `path`, for internal display (FR-023) |
+| `slug` | text | not null | leaf segment of `path`, for internal display; re-derived when `path` changes (FR-023) |
 | `path` | text | not null | user-defined routing path; may contain `/`-separated segments; unique within `(space_id, locale)` (FR-020, FR-023) |
 | `locale` | text | not null default `'en'` | **[hidden]** single locale (FR-021) |
 | `title` | text | not null | current display title |
@@ -181,6 +181,8 @@ pages.latest_version_id            ──> page_revisions.id    (newest, any sta
   slice). `slug` is derived from the last `/`-separated segment of `path`.
 - **Page properties update**: `path` re-validated and checked for uniqueness;
   `slug` is re-derived; no redirect from the old path is created (deferred).
+- **Page delete**: soft-delete by setting `deleted_at`; only admin or the author
+  may delete; hard delete is not exposed.
 - **Page edit**: produces a new revision; `version_number` =
   `max(existing) + 1` computed in the same transaction; `content_hash` recomputed.
 - **Publish**: only the author (or admin) may publish a revision of a page; on
@@ -231,6 +233,7 @@ Implemented in the `can(actor, action, resource)` chokepoint (D3):
 | create page | ✗ | ✗ | ✓ | ✓ | — |
 | edit (new draft revision) | ✗ | ✗ | ✓ | ✓ | — |
 | publish a revision | ✗ | ✗ | ✗‡ | ✓ | ✓‡ |
+| delete a page | ✗ | ✗ | ✗ | ✓ | ✓ |
 | view history | ✗ | own? | ✓ | ✓ | ✓ |
 | manage users/roles | ✗ | ✗ | ✗ | ✓ | — |
 
@@ -249,8 +252,8 @@ migrations:
 
 - `spaces` + `pages.space_id` + `pages.path` → multi-space / hierarchy and
   user-defined multi-segment URLs.
-- `pages.locale` + `page_revisions.locale` → multi-language (with
-  `translation_group_id` to be added when i18n lands).
+- `pages.locale` + `page_revisions.locale` → content translations (UI i18n already
+  implemented with standalone locale files; content-level translations deferred).
 - `pages.deleted_at` → delete/restore UI.
 - `contentType` enum + pluggable editors → additional editor formats.
 - `content_hash` → render-cache reuse and future Git-sync commit hashing.

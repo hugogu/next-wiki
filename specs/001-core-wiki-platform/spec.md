@@ -2,17 +2,22 @@
 
 **Feature Branch**: `001-core-wiki-platform`
 **Created**: 2026-06-14
-**Status**: Draft
+**Status**: Active
 **Input**: User description: "构建前端风格样式库，注册、登录页面，登陆后进入主页展示Wiki页面列表及相应的添加、编辑页面功能。页面以Markdown编辑，保存时渲染为HTML，以便查看wiki页面尽量减少动态内容，每次编辑形成一个版本。不使用SPA，以便前端路由以及浏览器历史正常运作。后台管理页面提供注册用户的查看、重置、设置角色等功能。内置角色为管理员、编辑、读者。页面有发布和未发布两个状态，发面的都可以访问，未发布的（版本）只有其作者可以访问。一般注册用户只是读者，没有编辑权限。页面样式简洁，明快、专业。单服务基于Node实现，只连接一个PostgreSQL数据库，通过docker-compose一建部署。"
 
 ## Clarifications
+
+### Session 2026-06-18
+
+- Q: Multi-language / localization — full i18n now, or single locale? → A: **Revised**. Multi-language UI support added in this slice. Standalone locale files (`en.ts`, `zh.ts`) with ~140 type-safe translation keys; language detected from cookie (`next-wiki-locale`), `Accept-Language` header, and browser preference. Content still single-locale (English); UI is fully bilingual. Adding a new language is trivial (copy `en.ts` and translate).
+- Q: Scope of delete/restore, search, import/export — in this slice or deferred? → A: **Revised**. Page soft-delete UI is now included (admin or author can delete a page from the edit view). Search and import/export remain deferred. The schema stays soft-delete-ready via `deleted_at`.
+- Q: Theme — light/dark mode? → A: Light / dark / auto theme toggle with `localStorage` persistence and system-preference sync. Dark tokens and syntax-highlighting overrides included.
+- Q: Content rendering — fenced code blocks, tables, LaTeX math, Mermaid diagrams? → A: All included in this slice. Syntax highlighting via `rehype-highlight`; LaTeX via `remark-math` + `rehype-katex`; Mermaid via custom rehype plugin + client-side rendering with Diagram/Code toggle; GFM tables styled.
 
 ### Session 2026-06-14
 
 - Q: Spaces & page hierarchy — visible multi-space hierarchy now, or flat single space? → A: Flat single default space for this slice; the space and hierarchical path are kept as hidden schema fields only (not visualized), so hierarchy can be added later without a data migration.
 - Q: Publish granularity — version-level drafts or page-level publish? → A: Version-level drafts. Each save creates a draft version; the author publishes a version to make it live; readers see the latest published version; drafts of already-published pages stay hidden until published.
-- Q: Multi-language / localization — full i18n now, or single locale? → A: Single locale for content + UI for this slice; `locale` stored as a hidden schema field (default locale) so translations/localization can be added later without migration.
-- Q: Scope of delete/restore, search, import/export — in this slice or deferred? → A: Defer all three for this slice. The schema stays soft-delete-ready via a hidden status field, so delete/restore can be added later with no migration. No delete UI, no search, and no import/export in this slice.
 - Q: Page URL / path derivation — auto from title, author-specified, or opaque ID? → A: Author specifies the page path manually when creating a page. The path is URL-safe, may contain multiple `/`-separated segments (e.g. `docs/intro/getting-started`), and must be unique within the default space/locale. The path is editable after creation via a dedicated "Page Properties" screen; editing page content does not change the path. Redirects from old paths after a path change are deferred.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -169,6 +174,11 @@ another user's password; confirm both changes take effect.
   duplicate versions and no data loss.
 - Rendering a page whose Markdown is malformed: the page still renders with a
   best-effort result and a visible notice rather than crashing the view.
+- Client-side `createRoot()` to hydrate enhanced content blocks (code blocks,
+  Mermaid diagrams) must be wrapped with the same React context providers
+  (`I18nProvider`, `ThemeProvider`) as the parent tree, because isolated roots
+  do not inherit parent context. Failure to do so causes `useTranslation()` to
+  throw silently and fall back to raw code output.
 
 ## Requirements *(mandatory)*
 
@@ -242,6 +252,24 @@ another user's password; confirm both changes take effect.
   `path` subject to the same validation and uniqueness rules as creation.
 - **FR-025**: System MUST render the wiki navigator as a directory tree based
   on `/` segments of page paths so multi-segment paths are browsable.
+- **FR-026**: System MUST provide a light / dark / auto theme toggle with
+  `localStorage` persistence and system-preference sync, so the visual theme
+  is consistent across all pages.
+- **FR-027**: System MUST support multi-language UI with standalone locale
+  files (`en.ts` as canonical key source, `zh.ts` as translation). Language
+  MUST be detected from cookie (`next-wiki-locale`), `Accept-Language`
+  header, and browser preference, with English as the default. Adding a new
+  language MUST require only copying and translating the canonical locale file.
+- **FR-028**: System MUST render Markdown content with syntax highlighting
+  (fenced code blocks), GFM tables, LaTeX math (`remark-math` + `rehype-katex`),
+  and Mermaid diagrams (custom rehype plugin + client-side rendering). The
+  Markdown pipeline MUST produce pure HTML stored at save time.
+- **FR-029**: System MUST provide a copy button on fenced code blocks and a
+  Diagram / Code toggle on Mermaid blocks, so readers can copy code and switch
+  between rendered diagram and source view.
+- **FR-030**: System MUST allow an admin or the author of a page to soft-delete
+  it (set `deleted_at`). Deleted pages MUST be excluded from the public list
+  and live view. Hard delete is not exposed.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -288,6 +316,14 @@ another user's password; confirm both changes take effect.
 - **SC-008**: Browser back, forward, refresh, deep-linking, and "open in new
   tab" work correctly on 100% of navigable pages.
 
+- **SC-009**: A visitor can switch between English and Chinese UI with one
+  click, and their preference persists across sessions via cookie.
+- **SC-010**: A visitor can toggle between light, dark, and auto themes, and the
+  preference persists across sessions via `localStorage`.
+- **SC-011**: Published pages containing fenced code blocks, tables, LaTeX
+  math, or Mermaid diagrams render correctly in both light and dark themes,
+  with copy and toggle interactions functional.
+
 ## Assumptions
 
 These reasonable defaults were inferred from the description; they can be
@@ -329,14 +365,17 @@ revised via `/speckit.clarify` before planning.
   slice is flat (one page list under a single default space). The space and
   hierarchical path are persisted as schema fields only, so adding visible
   spaces/hierarchy later requires no data migration. See FR-020.
-- **A10 — Single locale for now** (confirmed). Content and UI ship in a single
-  default locale for this slice. A `locale` field is persisted on page content
-  so translations and UI localization can be added later without migration. See
-  FR-021.
-- **A11 — Out of scope for this slice** (confirmed): delete/restore UI, search,
-  and import/export are deferred. The schema remains soft-delete-ready via a
-  hidden status field (FR-022) so these can be added as fast-follows without
-  migration.
+- **A10 — Multi-language UI implemented** (revised from single locale). The UI
+  ships with full bilingual support (English + Chinese) via standalone locale
+  files in `apps/web/src/i18n/locales/`. Content remains single-locale
+  (English). A `locale` field is still persisted on page content so content
+  translations can be added later without migration. See FR-021, FR-027.
+- **A11 — Partially in scope** (revised from deferred). Page soft-delete is
+  now exposed: an admin or the author can delete a page via the edit view
+  (`DELETE /api/pages/{...path}` sets `deleted_at`). Search and import/export
+  remain deferred. The schema remains soft-delete-ready via `deleted_at`
+  (FR-022) so restore/hard-delete can be added as fast-follows without
+  migration. See FR-030.
 - **A12 — Author-specified, multi-segment, editable path** (confirmed). The
   author chooses the page's URL `path` at creation; the system validates
   URL-safety (lowercase letters, numbers, hyphens, slashes; no leading,
