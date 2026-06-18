@@ -25,21 +25,27 @@ Authorization: Bearer nwk_<random-token>
 The Bearer header is checked by `resolveActor()` before the session cookie. If
 a Bearer token is present and valid, the request is authenticated as the key's
 owner with the key's scopes intersected with the owner's role (FR-013). If the
-Bearer token is present but invalid/expired, the request is treated as
-anonymous (not session-authenticated) — the session cookie is NOT checked as a
-fallback. This ensures API key auth failures are logged as API key failures,
-not silently falling through to session.
+Bearer token is present but invalid (malformed, no matching key, revoked, or
+owned by a disabled user), the request returns **401**; the session cookie is
+NOT checked as a fallback. For requests without a Bearer header, session cookie
+auth proceeds normally. This makes API key auth failures unambiguous for
+programmatic clients and prevents a broken key from silently falling through to
+a browser session.
 
 ## Common response shapes
 
 Same as 001: success returns 200/201 with JSON; errors return `{ code, message }`.
 
-New error code for this slice:
+- `400 Bad Request` — validation failure or malformed input.
+- `401 Unauthorized` — not signed in, session expired, or invalid API key.
+- `403 Forbidden` — authenticated but not allowed (insufficient role or key scope).
+- `404 Not Found` — resource missing or not visible to caller (no metadata leak).
+- `409 Conflict` — business conflict such as duplicate slug or duplicate email.
+- `500 Internal Server Error` — unexpected server error (opaque message in prod).
 
-- `403 SCOPE_DENIED` — the API key's scopes do not include the required scope
-  (distinct from `FORBIDDEN` which means the role denies the action). This
-  helps API consumers distinguish "your key lacks this scope" from "your account
-  lacks this permission".
+There is no separate `SCOPE_DENIED` error code: both insufficient key scope
+and insufficient role return `403 FORBIDDEN`. This keeps `can()` as a simple
+boolean check and avoids leaking whether the scope or role check failed.
 
 ---
 
@@ -51,10 +57,8 @@ New error code for this slice:
 
 Update the signed-in user's display name (nickname).
 
-**Auth**: session or API key. API key requires `edit` scope (self-management is
-an edit operation). Actually — self-profile management is a user-center action,
-not a content action. Profile management via API key is NOT supported in this
-slice (keys are for wiki content access, not account management). Session only.
+**Auth**: session only. API keys are for wiki content access, not account
+management.
 
 | Field | Type | Notes |
 |---|---|---|

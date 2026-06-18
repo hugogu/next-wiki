@@ -25,11 +25,23 @@ API key auth support with zero code changes to the route itself. The service
 layer's `can()` call sees the resolved actor (with scopes) and makes the
 permission decision.
 
-**Key behavior**: When a Bearer token is present but invalid, the request is
-treated as anonymous — the session cookie is NOT checked as a fallback. This
-ensures API key auth failures are logged as API key failures (FR-021), not
-silently falling through to session auth. A request that sends a bad Bearer
-token gets 401, not "oh, your session cookie works, never mind."
+**Key behavior**: When a Bearer token is present, the API must authenticate
+via that token only. If the token is invalid (malformed, no matching key,
+revoked, or owned by a disabled user), the request returns **401** and the
+session cookie is NOT checked as a fallback. This prevents a broken API key
+from silently falling through to a user's browser session and makes auth
+failures unambiguous for programmatic clients.
+
+For requests with no Bearer header, session cookie auth proceeds as before
+(→ user or anonymous).
+
+**Audit wrapper integration**: `withApiAudit()` resolves the actor **before**
+calling the handler. If Bearer resolution fails, it returns 401 immediately
+and logs the failed-auth audit entry. If Bearer resolution succeeds, the
+resolved context is stored in request-scoped `AsyncLocalStorage` so the
+handler's `createApiContext()` can reuse it without a second DB lookup. RSC
+pages and non-wrapped routes continue to call `createApiContext()`, which
+resolves normally when no ALS store exists.
 
 **Alternatives considered**:
 - *Next.js middleware*: Rejected — Next.js middleware runs in the Edge Runtime,
@@ -46,6 +58,10 @@ token gets 401, not "oh, your session cookie works, never mind."
   Bearer` is the HTTP standard (P8). Inventing a custom header like
   `X-API-Key` is non-standard and breaks the OpenAPI docs "try it" feature
   (FR-019).
+- *Wrapper re-running `resolveActor()` after the handler resolves*: Rejected —
+  would cause a second DB lookup per Bearer request and a second
+  `last_used_at` write. `AsyncLocalStorage` lets the wrapper and handler share
+  one resolved context.
 
 ---
 
@@ -190,10 +206,15 @@ in dev/logs) but a failure in the INSERT does NOT fail the API request. The
 without propagating them. For a small-team wiki, a best-effort audit log is
 sufficient (spec A7 accepts this scale).
 
-**Auth status recording**: The wrapper has access to `ctx.apiKeyInfo` and
-`ctx.authError` from the extended `createApiContext()` (D1 in plan.md). This
-lets it record:
-- `authenticated` — valid key, successful or failed request.
+**Auth status recording**: The wrapper resolves the actor **before** invoking
+the handler (via `resolveActor()`), stores the resolved context in
+`AsyncLocalStorage`, and passes the same context to the handler. After the
+handler completes, the wrapper reads `apiKeyInfo`/`authError` from the stored
+context to record the audit entry. This avoids a second DB lookup and ensures
+`key_id`, `user_id`, and `auth_status` are recorded accurately (FR-020/FR-021).
+
+**Auth status values**:
+- `authenticated` — valid key (request may still return 4xx/5xx from business logic).
 - `invalid_key` — Bearer token doesn't match any key.
 - `revoked_key` — Bearer token matches a revoked key.
 - `disabled_user` — key is valid but owner is disabled.
@@ -212,6 +233,9 @@ lets it record:
 - *Audit in `createApiContext()`*: Rejected — `createApiContext()` runs before
   the handler, so it can't record the response status code or duration. The
   wrapper runs after the handler completes.
+- *Wrapper re-resolving after the handler*: Rejected — causes a redundant DB
+  lookup and a redundant `last_used_at` write. `AsyncLocalStorage` shares the
+  resolved context between wrapper and handler.
 
 ---
 
@@ -524,10 +548,10 @@ in the `user-center.ts` service functions.
 
 | ID | Topic | Decision |
 |---|---|---|
-| D1 | Actor resolution | Unified `resolveActor()`: Bearer → session → anonymous |
+| D1 | Actor resolution | Unified `resolveActor()`: Bearer → session → anonymous; invalid Bearer returns 401 (no session fallback) |
 | D2 | Scope ∩ role | Extend `can()` with `api_key` actor variant; scope-to-action mapping |
 | D3 | Key format & storage | `nwk_` + base64url(32 bytes); AES-256-GCM encrypted; prefix-indexed lookup |
-| D4 | Audit logging | `withApiAudit()` route-handler wrapper; post-response INSERT |
+| D4 | Audit logging | `withApiAudit()` wrapper + `AsyncLocalStorage`; resolves actor before handler; post-response INSERT |
 | D5 | OpenAPI generation | `next-openapi-gen` (user's choice); build-time spec; Scalar/Swagger UI at `/api-docs` |
 | D6 | Preference sync | DB columns + localStorage fast-init; inline `<script>` for flash prevention |
 | D7 | User Center UI | Route group with sub-routes; real URLs for each section |

@@ -28,7 +28,7 @@ light/dark/auto with `localStorage` — this slice adds server-side persistence.
 **New Dependencies (this slice)**: `next-openapi-gen` (OpenAPI spec generation
 from Next.js route definitions + Zod schemas); Node built-in `crypto` (AES-256-GCM
 key encryption — no new dep). **Storage**: PostgreSQL 16+ (single database; new
-`api_keys` + `api_audit_logs` tables + `users` column additions). **Testing**:
+`api_keys` + `api_audit_entries` tables + `users` column additions). **Testing**:
 Vitest (unit/integration) + Playwright (E2E). **Constraints**: Single Node
 service + single PostgreSQL database only; no Redis, email, or external services;
 no SPA (server-rendered pages, real URLs). **Scale/Scope**: Single instance;
@@ -77,10 +77,20 @@ owner.
 2. Session cookie → existing flow → return `{ kind: 'user', userId, role }`.
 3. Neither → `{ kind: 'anonymous' }`.
 
+When a Bearer header is present and invalid, `resolveActor()` returns a clear
+failure (not anonymous) so the caller can return 401 and the audit wrapper can
+record the failure reason (`invalid_key`, `revoked_key`, `disabled_user`, or
+`malformed_token`). The session cookie is NOT used as a fallback when a Bearer
+header is present.
+
 `createApiContext()` calls `resolveActor()` instead of `getCurrentActor()`. The
 returned context carries optional `apiKeyInfo` (keyId, userId) and `authError`
-(for audit logging of failed auth). Existing route handlers continue calling
-`createApiContext()` — no signature change.
+(for audit logging of failed auth). For API routes wrapped by `withApiAudit()`,
+the wrapper resolves the actor first, stores the context in request-scoped
+`AsyncLocalStorage`, and the handler's `createApiContext()` reuses that store
+instead of resolving again. RSC pages and non-wrapped routes continue to
+resolve normally. Existing route handlers call `createApiContext()` — no
+signature change.
 
 **Accessing headers**: `headers()` from `next/headers` is available in route
 handlers and returns the `Authorization` header. This is the same mechanism
@@ -141,7 +151,7 @@ is a 32-byte hex string (64 chars) from `API_KEY_ENCRYPTION_KEY`. Key rotation
 is not in scope; the scheme supports future rotation via re-encryption of all
 keys.
 
-### D4 — Audit Logging via Route Wrapper
+### D4 — Audit Logging via Route Wrapper + AsyncLocalStorage
 
 **Problem**: Every API-key-authenticated request must be audited, including
 failed auth. Inline audit calls in every route handler are error-prone.
@@ -149,14 +159,17 @@ failed auth. Inline audit calls in every route handler are error-prone.
 **Decision**: A `withApiAudit()` higher-order function wraps route handler
 exports. The wrapper:
 
-1. Records start time and extracts Bearer header.
-2. Calls the original handler (which internally calls `createApiContext()`).
-3. Captures the response status code.
-4. If a Bearer header was present (valid or invalid): inserts an audit entry
-   with `{ key_id, user_id, method, path, status_code, duration, timestamp,
-   error_message }`. For failed auth, `key_id`/`user_id` are null and
-   `error_message` records the reason.
-5. Returns the response unchanged.
+1. Records start time and extracts the Bearer header.
+2. Resolves the actor via `resolveActor()` **before** calling the handler. If
+   Bearer resolution fails, returns 401 immediately and records the audit entry.
+3. Stores the resolved context in request-scoped `AsyncLocalStorage` so the
+   handler's `createApiContext()` reuses it (no second DB lookup).
+4. Calls the original handler.
+5. Captures the response status code.
+6. Inserts an audit entry with `{ key_id, user_id, method, path, status_code,
+   duration, timestamp, error_message }`. For failed auth, `key_id`/`user_id`
+   are null and `error_message`/`auth_status` record the reason.
+7. Returns the response unchanged.
 
 **Wrapped routes**: All `/api/**` routes except `/api/auth/**` (session-only)
 and `/api/preview` (no auth). The wrapper is applied as a one-line change per
@@ -164,6 +177,10 @@ route export:
 ```ts
 export const GET = withApiAudit(originalGetHandler);
 ```
+
+**Audit entry shape**: matches FR-020/FR-021. The insert is fire-and-forget
+(awaited but non-blocking to the response). `key_id`/`user_id` come from the
+shared `AsyncLocalStorage` context.
 
 **Audit entry shape**: matches FR-020/FR-021. The insert is fire-and-forget
 (awaited but non-blocking to the response — the response is already constructed
@@ -300,7 +317,7 @@ apps/web/
 │   ├── server/
 │   │   ├── db/schema/
 │   │   │   ├── enums.ts                # MODIFIED: add apiKeyScopeEnum
-│   │   │   └── index.ts                # MODIFIED: add api_keys, api_audit_logs, users cols
+│   │   │   └── index.ts                # MODIFIED: add api_keys, api_audit_entries, users cols
 │   │   ├── services/
 │   │   │   ├── api-keys.ts             # NEW: CRUD + encrypt/decrypt + lookup
 │   │   │   ├── audit.ts                # NEW: write + query audit entries
@@ -309,6 +326,7 @@ apps/web/
 │   │   ├── permissions/index.ts        # MODIFIED: extend Actor + can() for api_key
 │   │   ├── api/
 │   │   │   ├── session.ts              # MODIFIED: createApiContext uses resolveActor
+│   │   │   ├── api-context-store.ts    # NEW: AsyncLocalStorage for shared auth context
 │   │   │   ├── audit-wrapper.ts        # NEW: withApiAudit HOF
 │   │   │   └── openapi.ts              # NEW: next-openapi-gen integration
 │   │   ├── crypto/

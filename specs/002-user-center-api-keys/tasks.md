@@ -78,12 +78,16 @@ wrapper, and shared schemas.
   `manage_users` always denied for `api_key`. Add `buildApiKeyCtx()` helper.
 - [ ] T080 [P] Create `apps/web/src/server/services/api-keys.ts`:
   `create(ctx, name, scopes)` — generates key (`nwk_` + base64url(32 bytes)),
-  encrypts secret, stores prefix + encrypted secret, enforces per-user max (10),
+  encrypts secret, stores prefix + encrypted secret. The prefix has a unique
+  DB index, so `create` must handle the astronomically rare prefix collision
+  by regenerating the key (retry up to 3 times). Enforces per-user max (10),
   returns `{ keySecret, ...view }`. `list(ctx)` — returns user's keys (without
   secret). `reveal(ctx, keyId)` — decrypts and returns secret. `revoke(ctx,
   keyId)` — sets `revoked_at`. `lookupByToken(token)` — extracts prefix,
   queries by prefix, decrypts, constant-time compare, returns resolved key
-  or null. Updates `last_used_at` on successful lookup.
+  or null. Updates `last_used_at` on successful lookup; note that this is a
+  separate write on every key-authenticated request, distinct from the audit
+  log write.
 - [ ] T081 [P] Create `apps/web/src/server/services/audit.ts`:
   `writeEntry({ keyId, userId, method, path, statusCode, durationMs,
   authStatus, errorMessage })` — inserts audit row (fire-and-forget).
@@ -101,20 +105,26 @@ wrapper, and shared schemas.
   token first; if present, calls `apiKeys.lookupByToken()`; if resolved, checks
   user status (disabled → reject), returns `{ actor: { kind: 'api_key', ... },
   apiKeyInfo: { keyId, userId }, authError: null }`. If Bearer present but
-  invalid, returns `{ actor: { kind: 'anonymous' }, apiKeyInfo: null,
-  authError: 'invalid_key' }`. If no Bearer, falls back to `getCurrentActor()`
-  (session). `getCurrentActor()` remains for backward compat (calls
-  `resolveActor().actor` internally).
+  invalid, returns `{ actor: null, apiKeyInfo: null, authError: '<reason>' }`
+  (the caller returns 401; no session fallback). If no Bearer, falls back to
+  `getCurrentActor()` (session). `getCurrentActor()` remains for backward
+  compat (calls `resolveActor()` and falls back to anonymous).
 - [ ] T084 Modify `apps/web/src/server/api/session.ts`:
-  `createApiContext()` calls `resolveActor()` and returns `{ actor }` plus
-  optional `apiKeyInfo` and `authError` on the context object (extended type,
-  backwards-compatible since existing code only reads `ctx.actor`).
+  Create `apps/web/src/server/api/api-context-store.ts` with an
+  `AsyncLocalStorage<PermCtx & { apiKeyInfo?, authError? }>`. `createApiContext()`
+  checks the store first: if a store exists (set by `withApiAudit`), return it;
+  otherwise call `resolveActor()` and return the context. This avoids a second
+  DB lookup when the audit wrapper has already resolved the actor.
 - [ ] T085 [P] Create `apps/web/src/server/api/audit-wrapper.ts`:
   `withApiAudit(handler)` HOF — wraps a route handler. Records start time,
-  extracts Bearer header from `headers()`. After handler completes: if Bearer
-  was present, calls `audit.writeEntry()` with key info (resolved or null),
-  method, path, status code, duration, auth status, error message. Returns the
-  original response unchanged.
+  extracts Bearer header. Resolves the actor via `resolveActor()`; if Bearer
+  resolution fails, returns 401 and writes the audit entry immediately (handler
+  is not called). If resolution succeeds, runs the handler inside the
+  `AsyncLocalStorage` store set by `api-context-store.ts` so the handler's
+  `createApiContext()` reuses the resolved context. After the handler completes,
+  writes an audit entry with key info (resolved or null), method, path, status
+  code, duration, auth status, error message. Returns the original response
+  unchanged.
 - [ ] T086 [P] Update `docker-compose.yml`: add `API_KEY_ENCRYPTION_KEY`
   environment variable to the `web` service (dev default or generate one).
 
@@ -233,8 +243,9 @@ response.
   rendering the interactive docs. Configures the viewer with the API base URL.
 - [ ] T110 [P] [US2] Add OpenAPI metadata to existing route handlers — annotate
   each `/api/**` route with `next-openapi-gen` decorators or metadata exports
-  (summary, description, tags, parameters, request/response schemas). This is
-  the bulk of the work: ~17 existing routes + new 002 routes.
+  (summary, description, tags, parameters, request/response schemas). There are
+  18 existing route files (6 auth + 11 content/admin + 1 preview); the 11
+  content/admin route files plus new 002 routes need metadata.
 - [ ] T111 [P] [US2] Add "API Docs" link to header (or footer) visible to all
   visitors including anonymous.
 - [ ] T112 [P] [US2] [T] Add i18n keys for `/api-docs` page title and any
@@ -288,8 +299,9 @@ key → subsequent calls return 401.
   key with a copy button. Auto-hides after 30 seconds (shoulder-surfing
   prevention).
 - [ ] T121 [US3] Apply `withApiAudit` wrapper to all existing `/api/**` route
-  handlers (except `/api/auth/**` and `/api/preview`). One-line change per
-  export: `export const GET = withApiAudit(originalHandler)`. ~15 routes.
+  handlers except `/api/auth/**` (6 files, session-only) and `/api/preview`
+  (1 file, no auth). That is 11 content/admin route files; apply as a one-line
+  change per export: `export const GET = withApiAudit(originalHandler)`.
 - [ ] T122 [P] [US3] [T] Unit tests in
   `apps/web/src/server/services/api-keys.test.ts`: `create` generates key with
   correct prefix + encrypts secret; `lookupByToken` resolves valid key and
