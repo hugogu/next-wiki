@@ -4,8 +4,37 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserView } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
-import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon } from '@/components/icons';
+
+function IconButton({
+  onClick,
+  label,
+  children,
+  variant = 'default',
+  disabled = false,
+}: {
+  onClick?: () => void;
+  label: string;
+  children: React.ReactNode;
+  variant?: 'default' | 'danger' | 'primary';
+  disabled?: boolean;
+}) {
+  const baseClass =
+    'inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-40 disabled:cursor-not-allowed';
+  const stateClass =
+    variant === 'danger'
+      ? 'text-danger hover:bg-danger/10'
+      : variant === 'primary'
+        ? 'text-primary hover:bg-primary/10'
+        : 'text-muted hover:text-foreground hover:bg-surface-elevated';
+
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`${baseClass} ${stateClass}`}>
+      {children}
+    </button>
+  );
+}
 
 export function UserManagementTable({ users }: { users: UserView[] }) {
   const router = useRouter();
@@ -65,7 +94,15 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
           <p className="text-sm font-medium">Temporary password set for {resetResult.email}</p>
           <code className="block mt-sm p-sm bg-background rounded text-sm break-all">{resetResult.password}</code>
           <p className="text-xs text-muted mt-sm">Share this password securely. The user must set a new password on next sign-in.</p>
-          <Button variant="ghost" className="mt-sm" onClick={() => setResetResult(null)}>Dismiss</Button>
+          <button
+            type="button"
+            onClick={() => setResetResult(null)}
+            className="mt-sm inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
+            aria-label="Dismiss"
+            title="Dismiss"
+          >
+            <XIcon />
+          </button>
         </div>
       )}
 
@@ -99,7 +136,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                 </td>
                 <td className="px-md py-sm capitalize">{user.status}</td>
                 <td className="px-md py-sm text-muted">{new Date(user.createdAt).toLocaleDateString()}</td>
-                <td className="px-md py-sm text-right">
+                <td className="px-md py-sm">
                   <div className="flex items-center justify-end gap-sm">
                     {resettingUserId === user.id ? (
                       <form
@@ -117,42 +154,42 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                           onChange={(e) => setTempPassword(e.target.value)}
                           className="w-48"
                         />
-                        <Button type="submit" disabled={resetPassword.isPending}>
-                          {resetPassword.isPending ? 'Saving...' : 'Set'}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
+                        <IconButton label="Set temporary password" variant="primary">
+                          <CheckIcon />
+                        </IconButton>
+                        <IconButton
+                          label="Cancel"
                           onClick={() => {
                             setResettingUserId(null);
                             setTempPassword('');
                           }}
                         >
-                          Cancel
-                        </Button>
+                          <XIcon />
+                        </IconButton>
                       </form>
                     ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setResettingUserId(user.id)}
-                      >
-                        Reset password
-                      </Button>
+                      <>
+                        <IconButton
+                          label="Reset password"
+                          onClick={() => setResettingUserId(user.id)}
+                        >
+                          <KeyIcon />
+                        </IconButton>
+                        <IconButton
+                          label={user.status === 'active' ? 'Disable user' : 'Enable user'}
+                          variant={user.status === 'active' ? 'danger' : 'primary'}
+                          disabled={setStatus.isPending}
+                          onClick={() =>
+                            handleSetStatus(
+                              user.id,
+                              user.status === 'active' ? 'disabled' : 'active',
+                            )
+                          }
+                        >
+                          {user.status === 'active' ? <LockIcon /> : <UnlockIcon />}
+                        </IconButton>
+                      </>
                     )}
-                    <Button
-                      type="button"
-                      variant={user.status === 'active' ? 'danger' : 'primary'}
-                      disabled={setStatus.isPending}
-                      onClick={() =>
-                        handleSetStatus(
-                          user.id,
-                          user.status === 'active' ? 'disabled' : 'active',
-                        )
-                      }
-                    >
-                      {user.status === 'active' ? 'Disable' : 'Enable'}
-                    </Button>
                   </div>
                 </td>
               </tr>

@@ -13,7 +13,7 @@ import {
   PublishIcon,
   EyeIcon,
   SettingsIcon,
-  UsersIcon,
+  ShieldIcon,
   LogOutIcon,
   LogInIcon,
   SaveIcon,
@@ -142,47 +142,51 @@ export function Header({
           <EditorHeaderActions editor={editor} />
         ) : (
           <>
-            {isSignedIn && (role === 'editor' || role === 'admin') && (
-              <IconButton href="/new" label="New page">
-                <PlusIcon />
-              </IconButton>
-            )}
+            <div className="flex items-center gap-sm pr-sm border-r border-border">
+              {pageContext && pageContext.canEdit && (
+                <IconButton href={getEditHref(pageContext.path)} label="Edit page">
+                  <EditIcon />
+                </IconButton>
+              )}
 
-            {pageContext && pageContext.canEdit && (
-              <IconButton href={getEditHref(pageContext.path)} label="Edit page">
-                <EditIcon />
-              </IconButton>
-            )}
+              {pageContext && isSignedIn && (
+                <IconButton href={getHistoryHref(pageContext.path)} label="View history">
+                  <HistoryIcon />
+                </IconButton>
+              )}
 
-            {pageContext && isSignedIn && (
-              <IconButton href={getHistoryHref(pageContext.path)} label="View history">
-                <HistoryIcon />
-              </IconButton>
-            )}
+              {pageContext && pageContext.canPublish && pageContext.status === 'draft' && (
+                <IconButton onClick={handlePublish} label={publishing ? 'Publishing...' : 'Publish'}>
+                  <PublishIcon />
+                </IconButton>
+              )}
 
-            {pageContext && pageContext.canPublish && pageContext.status === 'draft' && (
-              <IconButton onClick={handlePublish} label={publishing ? 'Publishing...' : 'Publish'}>
-                <PublishIcon />
-              </IconButton>
-            )}
+              {pageContext && pageContext.canEdit && (
+                <IconButton href={getPropertiesHref(pageContext.path)} label="Page properties">
+                  <SettingsIcon />
+                </IconButton>
+              )}
 
-            {pageContext && pageContext.canEdit && (
-              <IconButton href={getPropertiesHref(pageContext.path)} label="Page properties">
-                <SettingsIcon />
-              </IconButton>
-            )}
+              {pageContext && (
+                <IconButton href={getPageHref(pageContext.path)} label="View page" active>
+                  <EyeIcon />
+                </IconButton>
+              )}
+            </div>
 
-            {role === 'admin' && (
-              <IconButton href="/admin/users" label="Admin">
-                <UsersIcon />
-              </IconButton>
-            )}
+            <div className="flex items-center gap-sm">
+              {isSignedIn && (role === 'editor' || role === 'admin') && (
+                <IconButton href="/new" label="New page">
+                  <PlusIcon />
+                </IconButton>
+              )}
 
-            {pageContext && (
-              <IconButton href={getPageHref(pageContext.path)} label="View page" active>
-                <EyeIcon />
-              </IconButton>
-            )}
+              {role === 'admin' && (
+                <IconButton href="/admin/users" label="Admin">
+                  <ShieldIcon />
+                </IconButton>
+              )}
+            </div>
           </>
         )}
 

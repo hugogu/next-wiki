@@ -12,6 +12,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.postgres-data/
 
 # AI tooling
 .claude/
