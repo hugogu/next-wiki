@@ -2,12 +2,12 @@ import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, type PermCtx } from '@/server/permissions';
+import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import type { UserView } from '@next-wiki/shared';
 
 function getUserId(ctx: PermCtx): string | null {
-  return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  return getActorUserId(ctx);
 }
 
 function requireAdmin(ctx: PermCtx): void {

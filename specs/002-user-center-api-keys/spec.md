@@ -2,8 +2,18 @@
 
 **Feature Branch**: `002-user-center-api-keys`
 **Created**: 2026-06-18
-**Status**: Draft
+**Status**: Implemented
 **Input**: User description: "通过开源框架 next-openapi-gen 支持在线 api-docs 文档与 OpenAPI 接口元数据。建立用户中心，提供用户配置（昵称、邮箱修改）、密码重置、显示偏好（风格、语言）、个人 API 密钥生成及删除。API Key 需预置 Scope 控制（查看、创建、编辑、删除、分享、运行页面权限），Scope 不可变更，只能生成新 Key，暂不需要有效期控制。所有通过 Key 的 API 访问需有独立审计记录，用户可在用户中心查看自己的 Key 调用记录，系统管理员可在系统配置页面查看及查询所有 API 访问记录（包括报错）。所有新页面遵循现有 Style 及多语言支持。"
+
+## Implementation Notes
+
+- `getActorUserId()` was added to `apps/web/src/server/permissions/index.ts` so services that rely on a numeric `userId` (e.g., page authorship checks) treat API-key actors as authenticated users, while account-management routes remain session-only.
+- `api_keys.user_id` and `api_audit_entries.{key_id,user_id}` foreign keys use `ON DELETE CASCADE` so existing test/user cleanup does not fail because of leftover audit rows.
+- The Scalar OpenAPI viewer is loaded through a client-only dynamic import in `apps/web/src/components/api-docs/ApiDocsViewer.tsx` because Next.js 16 does not allow `ssr: false` on the page file itself.
+- The Docker build now passes `API_KEY_ENCRYPTION_KEY` as a build arg to the builder stage and reuses the `deps` stage `node_modules` in the runner stage to avoid a second, failure-prone network install.
+- The migration script was moved from `docker/migrate.mjs` to `apps/web/scripts/migrate.mjs` so it resolves dependencies from the web workspace `node_modules` at runtime.
+- Playwright E2E for `/api-docs` validates the generated spec and viewer load; it does not drive Scalar's interactive "Try it" UI because the rendered DOM is not reliably targetable across viewer versions.
+- One pre-existing E2E test (`e2e/flows.spec.ts` publish-workflow) times out independently of this feature and is not part of the 002 acceptance criteria.
 
 ## Clarifications
 

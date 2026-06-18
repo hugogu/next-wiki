@@ -1,13 +1,13 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, type PermCtx } from '@/server/permissions';
+import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
 function getUserId(ctx: PermCtx): string | null {
-  return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  return getActorUserId(ctx);
 }
 
 export async function publish(

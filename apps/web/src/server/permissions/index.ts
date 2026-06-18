@@ -120,3 +120,7 @@ export function buildApiKeyCtx(
 ): PermCtx {
   return { actor: { kind: 'api_key', userId, role, scopes, keyId } };
 }
+
+export function getActorUserId(ctx: PermCtx): string | null {
+  return ctx.actor.kind === 'user' || ctx.actor.kind === 'api_key' ? ctx.actor.userId : null;
+}

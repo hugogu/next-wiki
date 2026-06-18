@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const migrate = spawn('node', [join(__dirname, 'migrate/migrate.mjs')], {
+const migrate = spawn('node', [join(__dirname, 'apps/web/scripts/migrate.mjs')], {
   cwd: __dirname,
   stdio: 'inherit',
 });

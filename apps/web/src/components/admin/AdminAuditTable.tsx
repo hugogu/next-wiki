@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useId } from 'react';
 import { useTranslation } from '@/i18n/client';
 import type { AuditEntry, AuditListResponse } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
@@ -24,6 +24,13 @@ interface AdminAuditTableProps {
 
 export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
   const { t, locale } = useTranslation();
+  const userIdId = useId();
+  const keyIdId = useId();
+  const statusId = useId();
+  const methodId = useId();
+  const pathId = useId();
+  const startTimeId = useId();
+  const endTimeId = useId();
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(initialData.page);
@@ -80,8 +87,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
     <div className="space-y-md">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
         <div>
-          <label className="block text-sm font-medium mb-xs">{t('admin.apiAudit.filterByUser')}</label>
+          <label htmlFor={userIdId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.filterByUser')}</label>
           <input
+            id={userIdId}
             type="text"
             value={filters.userId}
             onChange={(e) => updateFilter('userId', e.target.value)}
@@ -90,8 +98,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-xs">{t('admin.apiAudit.filterByKey')}</label>
+          <label htmlFor={keyIdId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.filterByKey')}</label>
           <input
+            id={keyIdId}
             type="text"
             value={filters.keyId}
             onChange={(e) => updateFilter('keyId', e.target.value)}
@@ -100,8 +109,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-xs">{t('userCenter.audit.filterByStatus')}</label>
+          <label htmlFor={statusId} className="block text-sm font-medium mb-xs">{t('userCenter.audit.filterByStatus')}</label>
           <select
+            id={statusId}
             value={filters.status}
             onChange={(e) => updateFilter('status', e.target.value)}
             className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm"
@@ -112,8 +122,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-xs">{t('admin.apiAudit.method')}</label>
+          <label htmlFor={methodId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.method')}</label>
           <input
+            id={methodId}
             type="text"
             value={filters.method}
             onChange={(e) => updateFilter('method', e.target.value)}
@@ -121,8 +132,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-xs">{t('admin.apiAudit.path')}</label>
+          <label htmlFor={pathId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.path')}</label>
           <input
+            id={pathId}
             type="text"
             value={filters.path}
             onChange={(e) => updateFilter('path', e.target.value)}
@@ -130,8 +142,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-xs">{t('admin.apiAudit.from')}</label>
+          <label htmlFor={startTimeId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.from')}</label>
           <input
+            id={startTimeId}
             type="datetime-local"
             value={filters.startTime}
             onChange={(e) => updateFilter('startTime', e.target.value)}
@@ -139,8 +152,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-xs">{t('admin.apiAudit.to')}</label>
+          <label htmlFor={endTimeId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.to')}</label>
           <input
+            id={endTimeId}
             type="datetime-local"
             value={filters.endTime}
             onChange={(e) => updateFilter('endTime', e.target.value)}

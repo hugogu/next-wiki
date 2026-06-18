@@ -130,7 +130,7 @@ export const apiKeys = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     scopes: apiKeyScopeEnum('scopes').array().notNull(),
     keyPrefix: text('key_prefix').notNull().unique(),
@@ -153,8 +153,8 @@ export const apiAuditEntries = pgTable(
   'api_audit_entries',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    keyId: uuid('key_id').references(() => apiKeys.id),
-    userId: uuid('user_id').references(() => users.id),
+    keyId: uuid('key_id').references(() => apiKeys.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
     method: text('method').notNull(),
     path: text('path').notNull(),
     statusCode: integer('status_code').notNull(),

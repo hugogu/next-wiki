@@ -1,7 +1,7 @@
 import { eq, and, isNull, desc, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, type PermCtx } from '@/server/permissions';
+import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
 import { pathSchema } from '@next-wiki/shared';
@@ -16,7 +16,7 @@ async function getDefaultSpace() {
 }
 
 function getUserId(ctx: PermCtx): string | null {
-  return ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  return getActorUserId(ctx);
 }
 
 function leafSlugFromPath(path: string): string {

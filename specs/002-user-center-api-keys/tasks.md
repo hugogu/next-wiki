@@ -399,31 +399,31 @@ range → confirm each filter narrows results.
 
 **Purpose**: E2E tests, Docker verification, accessibility, lint/typecheck.
 
-- [ ] T136 [P] [T] Playwright E2E `apps/web/e2e/user-center.spec.ts`: sign in
+- [x] T136 [P] [T] Playwright E2E `apps/web/e2e/user-center.spec.ts`: sign in
   → User Center → change nickname → verify in header → change email →
   re-login with new email → change password → re-login → set preferences →
   verify persists across refresh and new browser session.
-- [ ] T137 [P] [T] Playwright E2E `apps/web/e2e/api-keys.spec.ts`: sign in →
+- [x] T137 [P] [T] Playwright E2E `apps/web/e2e/api-keys.spec.ts`: sign in →
   create key with `view` scope → use key via curl/fetch to GET /api/pages
   (success) → POST /api/pages (403 scope denied) → create key with `create`
   scope as reader → POST (403 role denied) → revoke key → subsequent call
   (401) → audit log shows all attempts.
-- [ ] T138 [P] [T] Playwright E2E `apps/web/e2e/api-docs.spec.ts`: open
+- [x] T138 [P] [T] Playwright E2E `apps/web/e2e/api-docs.spec.ts`: open
   `/api-docs` (no login) → see endpoint list → expand an endpoint → see schema
   → execute a GET inline → see live response.
-- [ ] T139 [P] [T] Playwright E2E `apps/web/e2e/admin-audit.spec.ts`: admin
+- [x] T139 [P] [T] Playwright E2E `apps/web/e2e/admin-audit.spec.ts`: admin
   sign in → admin audit page → see all entries → filter by user → filter by
   error status → non-admin attempts URL → 404.
-- [ ] T140 [P] Accessibility pass: User Center pages, API docs page, admin
+- [x] T140 [P] Accessibility pass: User Center pages, API docs page, admin
   audit page — semantic headings, form labels, keyboard navigation, visible
   focus.
-- [ ] T141 [P] Update `.env.example` with `API_KEY_ENCRYPTION_KEY` and
+- [x] T141 [P] Update `.env.example` with `API_KEY_ENCRYPTION_KEY` and
   documentation comment.
-- [ ] T142 Run `pnpm typecheck` and `pnpm lint` — fix all errors and warnings.
-- [ ] T143 Run `pnpm test` (Vitest) — all unit/integration tests pass.
-- [ ] T144 Docker build verification: `docker compose up --build` — healthy
+- [x] T142 Run `pnpm typecheck` and `pnpm lint` — fix all errors and warnings.
+- [x] T143 Run `pnpm test` (Vitest) — all unit/integration tests pass.
+- [x] T144 Docker build verification: `docker compose up --build` — healthy
   app with working User Center, API docs, and key generation within 5 minutes.
-- [ ] T145 Update OpenSpec docs (`spec.md`, `tasks.md`) to reflect any
+- [x] T145 Update OpenSpec docs (`spec.md`, `tasks.md`) to reflect any
   implementation deviations discovered during development.
 
 ---

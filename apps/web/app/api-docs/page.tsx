@@ -1,12 +1,7 @@
 import type { Metadata } from 'next';
-import nextDynamic from 'next/dynamic';
 import { Layout } from '@/components/ui/Layout';
+import { ApiDocsViewer } from '@/components/api-docs/ApiDocsViewer';
 import { getLocale, getDictionary } from '@/i18n/server';
-
-const ApiDocsViewer = nextDynamic(
-  () => import('@/components/api-docs/ApiDocsViewer').then((mod) => mod.ApiDocsViewer),
-  { ssr: false },
-);
 
 export const dynamic = 'force-dynamic';
 

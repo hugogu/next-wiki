@@ -1,6 +1,11 @@
 'use client';
 
-import { ApiReferenceReact } from '@scalar/api-reference-react';
+import nextDynamic from 'next/dynamic';
+
+const ApiReferenceReact = nextDynamic(
+  () => import('@scalar/api-reference-react').then((mod) => mod.ApiReferenceReact),
+  { ssr: false },
+);
 
 export function ApiDocsViewer() {
   return (
