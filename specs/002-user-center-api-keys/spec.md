@@ -12,7 +12,10 @@
 - Q: Scope vs role interaction — does an API key bypass the owner's role? → A: No. Effective permission for a key-authenticated request is the **intersection** of the key's scope and the owner's role permissions. A reader holding a key with the `create` scope still cannot create pages, because the role denies it. Conversely, an editor holding a key with only the `view` scope can only read via that key, even though their role permits editing. This is the most secure interpretation and satisfies constitution P4 (every API route checks permissions).
 - Q: "Share" and "Run" scopes — what endpoints do they protect today? → A: These scopes are **forward-looking reservations** in the scope enum. No existing wiki endpoint maps to share or run yet. The scope values exist so keys can be provisioned with future-proof permissions; enforcement activates when the corresponding features (page sharing, embedded code execution) land. For this slice, a key carrying only `share`/`run` scopes has no effect on existing endpoints.
 - Q: Email change flow — verification email? → A: Immediate. The system validates format and uniqueness but does not send a confirmation email, consistent with 001's single-service / no-email-service constraint (A4). The change takes effect on next sign-in.
+- Q: Email change — require current password re-auth? → A: **No.** Being signed in is sufficient to change the email. The system validates format and uniqueness only; no current-password gate is imposed. This keeps the email-change flow frictionless and is consistent with the "immediate" decision above. The trade-off (a hijacked session can change email then password) is accepted for this personal/small-team wiki scale.
 - Q: OpenAPI docs visibility — public or authenticated? → A: Public by default (consistent with P8 Open Standards — the API contract should be discoverable). An admin may restrict docs to authenticated users via a future setting; for this slice they are open.
+- Q: Theme/language preference storage — server-side or client-side? → A: **Server-side** on the user record. Preferences persist across browsers and devices; the User Center is the canonical source of truth. Client-side `localStorage` remains as a fast-init fallback only (to prevent theme flash on load). Requires two new columns on the users table (`theme_preference`, `locale_preference`).
+- Q: API key storage — hashed (one-time view) or encrypted (revisitable)? → A: **Encrypted at rest (reversible).** Keys are stored encrypted so users can reveal the full key value from the key list at any time, prioritizing ease of use for a personal/team wiki. A non-secret visible prefix (e.g. `nwk_abc123…`) is also stored for quick visual identification without revealing the full secret. This replaces the earlier hash-only / one-time-view approach.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -109,8 +112,9 @@ page list. Then try `DELETE /api/pages/{path}` with the same key and receive a
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in user, **When** they create a new API key with a name
-   and a selected set of scopes, **Then** the raw key value is shown exactly
-   once and the key is saved with the chosen (immutable) scopes.
+   and a selected set of scopes, **Then** the key value is displayed at creation
+   and the key is saved with the chosen (immutable) scopes. The user can later
+   reveal the key value from the key list.
 2. **Given** an API key with the `view` scope owned by an editor, **When** a
    client calls `GET /api/pages` with the key as a Bearer token, **Then** the
    request succeeds and returns the published page list.
@@ -200,9 +204,9 @@ correctly.
   scope is required.
 - A user generates a very large number of keys → a reasonable per-user maximum
   is enforced (prevents abuse); exceeding it shows a clear error.
-- A key value is lost (user did not copy it at creation) → it cannot be
-  recovered; the user must revoke and generate a new one. The UI warns about
-  this at creation time.
+- A user wants to see a previously created key value → they can reveal it from
+  the key list at any time (the key is stored encrypted, not hashed). The reveal
+  action requires an explicit click to prevent casual exposure.
 - A user's account is disabled by an admin while one of their keys is in active
   use → subsequent calls with that key are rejected immediately (disabled users
   cannot authenticate, even via key).
@@ -235,14 +239,17 @@ correctly.
   change MUST be reflected immediately across all surfaces that show the author
   name.
 - **FR-003**: System MUST let the user change their email address, validating
-  format and uniqueness. The change is immediate (no confirmation email). The
-  user can sign in with the new email on the next login.
+  format and uniqueness. The change is immediate (no confirmation email, no
+  current-password re-authentication). The user can sign in with the new email
+  on the next login.
 - **FR-004**: System MUST let the user change their own password by providing
   the current password and a new password. An incorrect current password MUST be
   rejected with a clear error.
 - **FR-005**: System MUST consolidate display preferences (theme: light / dark /
-  auto; language: English / Chinese) inside the User Center. Preferences MUST
-  persist across sessions and apply consistently to every page.
+  auto; language: English / Chinese) inside the User Center. Preferences MUST be
+  stored server-side on the user record so they persist across browsers,
+  devices, and sessions. Client-side storage is used only as a fast-init
+  fallback to prevent theme flash on page load.
 
 #### API Keys
 
@@ -256,11 +263,16 @@ correctly.
 - **FR-008**: Key scopes MUST be immutable after creation. To change the
   permission set, the user generates a new key and revokes the old one. No
   in-place scope editing is exposed.
-- **FR-009**: System MUST display the raw key value exactly once at creation
-  time. The value MUST NOT be recoverable later. The UI MUST warn the user to
-  copy it before leaving the page.
-- **FR-010**: System MUST store keys in a non-reversible form (hashed) so that a
-  database compromise does not reveal usable key secrets.
+- **FR-009**: System MUST store the key secret encrypted (reversible) so that
+  users can reveal the full key value from the key list at any time. The reveal
+  action MUST require an explicit user interaction (e.g., a "show" button) to
+  prevent casual shoulder-surfing. The key list MUST also display a non-secret
+  visible prefix (e.g. `nwk_abc123…`) for quick identification without
+  revealing the full secret.
+- **FR-010**: System MUST encrypt key secrets at rest using a server-managed
+  encryption key. The encryption MUST be reversible so the full key can be
+  revealed on user demand, but a database compromise alone MUST NOT expose
+  usable plaintext keys without the encryption key.
 - **FR-011**: System MUST let the user delete (revoke) a key at any time. A
   revoked key MUST be rejected on all subsequent API requests within the next
   request.
@@ -322,10 +334,11 @@ correctly.
 
 - **API Key**: a personal credential issued to a user for programmatic API
   access. Has a user-given label (name), an immutable set of scopes chosen at
-  creation, a non-reversible secret (shown once), a creation timestamp, and a
-  revocation timestamp (null while active). Belongs to exactly one user. Scopes
-  are drawn from a predefined enum (`view`, `create`, `edit`, `delete`,
-  `share`, `run`).
+  creation, an encrypted secret (revisitable via a reveal action in the key
+  list), a non-secret visible prefix for quick identification, a creation
+  timestamp, and a revocation timestamp (null while active). Belongs to exactly
+  one user. Scopes are drawn from a predefined enum (`view`, `create`, `edit`,
+  `delete`, `share`, `run`).
 - **API Audit Entry**: an immutable record of a single API request made with an
   API key. Captures the key, the owning user, the HTTP method and path, the
   response status code, the request duration, a timestamp, and a short error
@@ -334,8 +347,10 @@ correctly.
   operations.
 - **User Profile (extended)**: the existing user account gains self-managed
   fields already present in the schema (`display_name`, `email`) plus display
-  preferences (theme, language) that today live only in client-side storage and
-  are consolidated into the User Center. No change to the role or status model.
+  preferences (theme, language) stored server-side as new columns
+  (`theme_preference`, `locale_preference`). The User Center is the canonical
+  place to edit these; client-side storage serves only as a fast-init fallback.
+  No change to the role or status model.
 
 ## Success Criteria *(mandatory)*
 
@@ -345,7 +360,7 @@ correctly.
   from the User Center in under 1 minute per operation.
 - **SC-002**: A signed-in user can set or change their theme and language
   preference in the User Center and see the choice persist across logout,
-  re-login, and a different browser (when the preference is server-stored).
+  re-login, and a different browser.
 - **SC-003**: A developer with no prior knowledge of the codebase can discover
   all available API endpoints, their parameters, and their response schemas
   solely from the online API docs, without reading source code.
@@ -379,12 +394,16 @@ context; they can be revised via `/speckit.clarify` before planning.
   activates when the corresponding features (page sharing, embedded code
   execution) land. For this slice a key carrying only `share`/`run` has no effect
   on existing endpoints. See FR-007.
-- **A3 — Email change is immediate (no verification email)**. Consistent with
-  001's single-service / no-email-service constraint (A4). The system validates
-  format and uniqueness but does not send a confirmation. See FR-003.
-- **A4 — API key secrets are hashed at rest**. The raw key value is shown once
-  at creation and never stored in recoverable form. Lookup uses a deterministic
-  hash of the incoming Bearer token. See FR-010.
+- **A3 — Email change is immediate (no verification email, no password
+  re-auth)**. Consistent with 001's single-service / no-email-service
+  constraint (A4) and the user's explicit decision to keep the flow
+  frictionless. The system validates format and uniqueness but does not send a
+  confirmation email and does not require the current password. See FR-003.
+- **A4 — API key secrets are encrypted (reversible) at rest**. The raw key
+  value is stored encrypted using a server-managed key so it can be revealed on
+  user demand from the key list. A non-secret visible prefix is stored alongside
+  for quick identification. A database compromise alone does not expose usable
+  plaintext without the encryption key. See FR-009, FR-010.
 - **A5 — No key expiration for this slice**. Keys are valid until revoked. A
   TTL/expiration feature may be added later without migration (an `expires_at`
   column is trivially added). See FR-014.
