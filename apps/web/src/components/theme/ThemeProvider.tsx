@@ -41,9 +41,21 @@ function applyTheme(mode: ThemeMode) {
   document.documentElement.classList.add(resolvedMode);
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(() => getStoredTheme());
-  const [resolved, setResolved] = useState<'light' | 'dark'>(() => resolve(getStoredTheme()));
+export function ThemeProvider({
+  children,
+  initialMode,
+}: {
+  children: React.ReactNode;
+  initialMode?: ThemeMode;
+}) {
+  const [mode, setModeState] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return initialMode ?? 'auto';
+    const stored = getStoredTheme();
+    return stored ?? initialMode ?? 'auto';
+  });
+  const [resolved, setResolved] = useState<'light' | 'dark'>(() =>
+    resolve(mode),
+  );
 
   useEffect(() => {
     applyTheme(mode);

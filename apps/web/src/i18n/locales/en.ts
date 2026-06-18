@@ -206,6 +206,42 @@ export const en = {
   // Admin
   'admin.nav.users': 'Users',
 
+  // User Center
+  'userCenter.metadataTitle': 'User Center',
+  'userCenter.title': 'User Center',
+  'userCenter.nav.profile': 'Profile',
+  'userCenter.nav.preferences': 'Preferences',
+  'userCenter.nav.apiKeys': 'API Keys',
+  'userCenter.nav.audit': 'Audit Log',
+
+  'userCenter.profile.metadataTitle': 'Profile',
+  'userCenter.profile.heading': 'Profile',
+  'userCenter.profile.displayNameLabel': 'Display name',
+  'userCenter.profile.emailLabel': 'Email',
+  'userCenter.profile.saveButton': 'Save',
+  'userCenter.profile.savingButton': 'Saving...',
+  'userCenter.profile.savedMessage': 'Profile updated.',
+
+  'userCenter.password.heading': 'Change password',
+  'userCenter.password.currentPasswordLabel': 'Current password',
+  'userCenter.password.newPasswordLabel': 'New password',
+  'userCenter.password.confirmPasswordLabel': 'Confirm new password',
+  'userCenter.password.changeButton': 'Change password',
+  'userCenter.password.changingButton': 'Changing...',
+  'userCenter.password.successMessage': 'Password updated.',
+  'userCenter.password.error.passwordsMismatch': 'Passwords do not match',
+
+  'userCenter.preferences.metadataTitle': 'Preferences',
+  'userCenter.preferences.heading': 'Display preferences',
+  'userCenter.preferences.themeLabel': 'Theme',
+  'userCenter.preferences.languageLabel': 'Language',
+  'userCenter.preferences.saveButton': 'Save preferences',
+  'userCenter.preferences.savingButton': 'Saving...',
+  'userCenter.preferences.savedMessage': 'Preferences updated.',
+
+  'userCenter.apiKeys.metadataTitle': 'API Keys',
+  'userCenter.audit.metadataTitle': 'Audit Log',
+
   'admin.users.metadataTitle': 'User management',
   'admin.users.description': 'Manage roles, status, and passwords.',
   'admin.users.table.email': 'Email',

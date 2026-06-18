@@ -2,10 +2,15 @@
 
 import { useTranslation } from '@/i18n/client';
 import { useTheme } from './ThemeProvider';
+import { useApiMutation } from '@/lib/api/client';
+import type { UpdatePreferencesInput, PreferencesView } from '@next-wiki/shared';
 
 export function ThemeToggle() {
   const { t } = useTranslation();
   const { mode, resolved, cycle } = useTheme();
+  const mutation = useApiMutation<UpdatePreferencesInput, PreferencesView>('/api/user/preferences', {
+    method: 'PATCH',
+  });
 
   const modeLabel =
     mode === 'auto'
@@ -17,7 +22,18 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      onClick={cycle}
+      onClick={async () => {
+        const order: Array<'auto' | 'light' | 'dark'> = ['auto', 'light', 'dark'];
+        const index = order.indexOf(mode);
+        const next = order[(index + 1) % order.length];
+        if (!next) return;
+        cycle();
+        try {
+          await mutation.mutateAsync({ theme: next });
+        } catch {
+          // Silent fail: localStorage + client state are already updated.
+        }
+      }}
       aria-label={label}
       title={label}
       className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"

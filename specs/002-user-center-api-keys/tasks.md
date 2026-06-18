@@ -145,65 +145,65 @@ re-login, and a different browser.
 
 ### Implementation
 
-- [ ] T087 [P] [US1] REST route `PATCH /api/user/profile` in
+- [x] T087 [P] [US1] REST route `PATCH /api/user/profile` in
   `apps/web/app/api/user/profile/route.ts` — updates display name. Session-only.
-- [ ] T088 [P] [US1] REST route `PATCH /api/user/email` in
+- [x] T088 [P] [US1] REST route `PATCH /api/user/email` in
   `apps/web/app/api/user/email/route.ts` — changes email (immediate, no re-auth).
   Handles CONFLICT for duplicate email.
-- [ ] T089 [P] [US1] REST route `POST /api/user/password` in
+- [x] T089 [P] [US1] REST route `POST /api/user/password` in
   `apps/web/app/api/user/password/route.ts` — changes password (requires
   currentPassword). Returns 401 for incorrect current password.
-- [ ] T090 [P] [US1] REST route `PATCH /api/user/preferences` in
+- [x] T090 [P] [US1] REST route `PATCH /api/user/preferences` in
   `apps/web/app/api/user/preferences/route.ts` — updates theme + locale
   preferences on the user record.
-- [ ] T091 [US1] User Center layout in `apps/web/app/(user)/user-center/layout.tsx`
+- [x] T091 [US1] User Center layout in `apps/web/app/(user)/user-center/layout.tsx`
   — RSC: calls `getCurrentActor()`, redirects anonymous to `/auth/login`.
   Renders sidebar/tab navigation linking to the four sections. Uses existing
   `<Layout>` wrapper.
-- [ ] T092 [US1] User Center index in `apps/web/app/(user)/user-center/page.tsx`
+- [x] T092 [US1] User Center index in `apps/web/app/(user)/user-center/page.tsx`
   — redirects to `/user-center/profile`.
-- [ ] T093 [US1] Profile page in `apps/web/app/(user)/user-center/profile/page.tsx`
+- [x] T093 [US1] Profile page in `apps/web/app/(user)/user-center/profile/page.tsx`
   — RSC: loads current user. Renders `ProfileForm` (nickname, email) and
   `PasswordChangeForm`. Client components call the REST API on submit.
-- [ ] T094 [P] [US1] `ProfileForm` component in
+- [x] T094 [P] [US1] `ProfileForm` component in
   `apps/web/src/components/user-center/ProfileForm.tsx` — React Hook Form +
   Zod. Fields: displayName, email. On success: `router.refresh()` to reflect
   changes immediately.
-- [ ] T095 [P] [US1] `PasswordChangeForm` component in
+- [x] T095 [P] [US1] `PasswordChangeForm` component in
   `apps/web/src/components/user-center/PasswordChangeForm.tsx` — Fields:
   currentPassword, newPassword, confirmPassword. Shows error for incorrect
   current password. Clears `mustResetPassword` flag on success.
-- [ ] T096 [US1] Preferences page in
+- [x] T096 [US1] Preferences page in
   `apps/web/app/(user)/user-center/preferences/page.tsx` — RSC: loads current
   preferences. Renders `PreferencesForm` (theme selector + language selector).
-- [ ] T097 [P] [US1] `PreferencesForm` component in
+- [x] T097 [P] [US1] `PreferencesForm` component in
   `apps/web/src/components/user-center/PreferencesForm.tsx` — Theme radio
   (light/dark/auto) + language radio (English/Chinese). On change: calls
   `PATCH /api/user/preferences` AND updates client-side `ThemeProvider` /
   `I18nProvider` immediately for instant feedback.
-- [ ] T098 [P] [US1] Modify `apps/web/src/components/layout/Header.tsx` — add
+- [x] T098 [P] [US1] Modify `apps/web/src/components/layout/Header.tsx` — add
   "User Center" link (user icon) visible to all signed-in users. Links to
   `/user-center`.
-- [ ] T099 [US1] Modify `apps/web/app/layout.tsx` — read signed-in user's
+- [x] T099 [US1] Modify `apps/web/app/layout.tsx` — read signed-in user's
   `theme_preference` and `locale_preference` from DB (if signed-in) and pass
   as initial values to `ThemeProvider` and `I18nProvider`. Add inline
   `<script>` for flash prevention (reads localStorage before hydration).
-- [ ] T100 [P] [US1] Modify `apps/web/src/components/theme/ThemeProvider.tsx`
+- [x] T100 [P] [US1] Modify `apps/web/src/components/theme/ThemeProvider.tsx`
   — accept `initialMode` prop from server. If provided, use it as the initial
   state instead of localStorage. Keep localStorage as fast-init fallback.
-- [ ] T101 [P] [US1] Modify `apps/web/src/components/i18n/client.tsx`
+- [x] T101 [P] [US1] Modify `apps/web/src/components/i18n/client.tsx`
   (`I18nProvider`) — accept `initialLocale` prop from server. If provided, use
-  it as initial state.
-- [ ] T102 [P] [US1] Modify `apps/web/src/components/layout/Header.tsx`
+  it as initial state. (Note: already supported; verified.)
+- [x] T102 [P] [US1] Modify `apps/web/src/components/layout/Header.tsx`
   `ThemeToggle` and `LanguageSwitcher` — when signed in, also write to the
   server via `PATCH /api/user/preferences` (fire-and-forget) in addition to
   client state.
-- [ ] T103 [P] [US1] [T] Add i18n keys to `apps/web/src/i18n/locales/en.ts`:
+- [x] T103 [P] [US1] [T] Add i18n keys to `apps/web/src/i18n/locales/en.ts`:
   `userCenter.*` (title, nav.profile, nav.preferences, nav.apiKeys, nav.audit),
   `profile.*` (displayName, email, password, currentPassword, newPassword,
   confirmPassword, changePassword, save, saved), `preferences.*` (theme,
   language, light, dark, auto, english, chinese). Mirror ALL keys in `zh.ts`.
-- [ ] T104 [P] [US1] [T] Unit tests in
+- [x] T104 [P] [US1] [T] Unit tests in
   `apps/web/src/server/services/user-center.test.ts`: `updateProfile` saves
   display name; `changeEmail` rejects duplicate (CONFLICT); `changePassword`
   rejects incorrect current password; `updatePreferences` saves theme + locale;

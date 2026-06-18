@@ -21,6 +21,7 @@ import {
   LogInIcon,
   SaveIcon,
   XIcon,
+  UserIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
 import { getPageHref, getEditHref, getHistoryHref } from '@/lib/path';
@@ -182,6 +183,11 @@ export function Header({
             </div>
 
             <div className="flex items-center gap-sm">
+              {isSignedIn && (
+                <IconButton href="/user-center" label={t('userCenter.title')}>
+                  <UserIcon />
+                </IconButton>
+              )}
               {isSignedIn && (role === 'editor' || role === 'admin') && (
                 <IconButton href="/new" label={t('page.header.newPage')}>
                   <PlusIcon />

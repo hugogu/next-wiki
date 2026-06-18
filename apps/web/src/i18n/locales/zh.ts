@@ -206,6 +206,42 @@ export const zh: Translations = {
   // Admin
   'admin.nav.users': '用户',
 
+  // User Center
+  'userCenter.metadataTitle': '用户中心',
+  'userCenter.title': '用户中心',
+  'userCenter.nav.profile': '个人资料',
+  'userCenter.nav.preferences': '偏好设置',
+  'userCenter.nav.apiKeys': 'API 密钥',
+  'userCenter.nav.audit': '审计日志',
+
+  'userCenter.profile.metadataTitle': '个人资料',
+  'userCenter.profile.heading': '个人资料',
+  'userCenter.profile.displayNameLabel': '显示名称',
+  'userCenter.profile.emailLabel': '邮箱',
+  'userCenter.profile.saveButton': '保存',
+  'userCenter.profile.savingButton': '保存中...',
+  'userCenter.profile.savedMessage': '个人资料已更新。',
+
+  'userCenter.password.heading': '修改密码',
+  'userCenter.password.currentPasswordLabel': '当前密码',
+  'userCenter.password.newPasswordLabel': '新密码',
+  'userCenter.password.confirmPasswordLabel': '确认新密码',
+  'userCenter.password.changeButton': '修改密码',
+  'userCenter.password.changingButton': '修改中...',
+  'userCenter.password.successMessage': '密码已更新。',
+  'userCenter.password.error.passwordsMismatch': '两次输入的密码不一致',
+
+  'userCenter.preferences.metadataTitle': '偏好设置',
+  'userCenter.preferences.heading': '显示偏好',
+  'userCenter.preferences.themeLabel': '主题',
+  'userCenter.preferences.languageLabel': '语言',
+  'userCenter.preferences.saveButton': '保存偏好',
+  'userCenter.preferences.savingButton': '保存中...',
+  'userCenter.preferences.savedMessage': '偏好已更新。',
+
+  'userCenter.apiKeys.metadataTitle': 'API 密钥',
+  'userCenter.audit.metadataTitle': '审计日志',
+
   'admin.users.metadataTitle': '用户管理',
   'admin.users.description': '管理角色、状态和密码。',
   'admin.users.table.email': '邮箱',
