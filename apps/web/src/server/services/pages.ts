@@ -100,6 +100,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
       authorDisplayName: author?.displayName ?? null,
       authorId: page.authorId,
       status: 'published',
+      createdAt: page.createdAt.toISOString(),
     };
   }
 
@@ -128,6 +129,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     authorDisplayName: author?.displayName ?? null,
     authorId: page.authorId,
     status: 'draft',
+    createdAt: page.createdAt.toISOString(),
   };
 }
 

@@ -33,6 +33,7 @@ export const livePageSchema = z.object({
   authorDisplayName: z.string().nullable(),
   authorId: z.string(),
   status: revisionStatusSchema,
+  createdAt: z.string(),
 });
 export type LivePage = z.infer<typeof livePageSchema>;
 

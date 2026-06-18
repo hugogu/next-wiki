@@ -47,19 +47,14 @@ export default async function PageRead({ params }: { params: PageParams }) {
           </div>
         )}
         <article className="flex-1 px-lg py-xl max-w-none">
-          <header className="mb-xl">
-            <h1 className="font-display text-4xl font-semibold text-foreground mb-sm">{page.title}</h1>
-            {page.publishedAt && (
-              <p className="text-sm text-muted">
-                Published {new Date(page.publishedAt).toLocaleDateString()}
-                {page.authorDisplayName && ` by ${page.authorDisplayName}`}
-              </p>
-            )}
-          </header>
           <div
             className="prose max-w-none"
             dangerouslySetInnerHTML={{ __html: page.contentHtml }}
           />
+          <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
+            Created {new Date(page.createdAt).toLocaleString()}
+            {page.authorDisplayName && ` by ${page.authorDisplayName}`}
+          </footer>
         </article>
       </div>
     </Layout>
