@@ -3,21 +3,16 @@
 import { useState, useCallback } from 'react';
 import { CopyIcon, CheckIcon } from '@/components/icons';
 
-export function CodeBlock({ children }: { children: React.ReactNode }) {
+export function CodeBlock({ children, source }: { children: React.ReactNode; source: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
-    const wrapper =
-      document.activeElement?.closest?.('[data-code-block]') ??
-      document.querySelector('[data-code-block]:hover');
-    const code = wrapper?.querySelector('code');
-    const text = code?.textContent ?? '';
-    if (!text) return;
-    void navigator.clipboard.writeText(text).then(() => {
+    if (!source) return;
+    void navigator.clipboard.writeText(source).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }, []);
+  }, [source]);
 
   return (
     <div className="relative group" data-code-block="">
@@ -26,7 +21,7 @@ export function CodeBlock({ children }: { children: React.ReactNode }) {
         onClick={handleCopy}
         aria-label={copied ? 'Copied' : 'Copy code'}
         title={copied ? 'Copied' : 'Copy code'}
-        className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded text-muted bg-surface/80 border border-border hover:text-foreground hover:bg-surface transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded text-muted bg-surface border border-border hover:text-foreground hover:bg-surface-elevated transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         {copied ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
       </button>

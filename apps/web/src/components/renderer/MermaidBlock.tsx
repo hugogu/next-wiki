@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CodeBlock } from './CodeBlock';
 
-export function MermaidBlock({ children }: { children: React.ReactNode }) {
+export function MermaidBlock({ children, source }: { children: React.ReactNode; source: string }) {
   const [mode, setMode] = useState<'diagram' | 'code'>('diagram');
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -38,41 +38,38 @@ export function MermaidBlock({ children }: { children: React.ReactNode }) {
   }, [mode]);
 
   return (
-    <div className="my-md border border-border rounded-md overflow-hidden bg-surface">
-      <div className="flex items-center justify-between px-sm py-xs border-b border-border bg-surface-elevated">
-        <span className="text-xs text-muted font-medium">mermaid</span>
-        <div className="flex items-center gap-xs">
-          <button
-            type="button"
-            onClick={() => setMode('diagram')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              mode === 'diagram'
-                ? 'bg-primary text-primary-text'
-                : 'text-muted hover:text-foreground hover:bg-surface'
-            }`}
-          >
-            Diagram
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('code')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              mode === 'code'
-                ? 'bg-primary text-primary-text'
-                : 'text-muted hover:text-foreground hover:bg-surface'
-            }`}
-          >
-            Code
-          </button>
-        </div>
+    <div className="my-md">
+      <div className="flex items-center justify-end gap-xs mb-xs">
+        <button
+          type="button"
+          onClick={() => setMode('diagram')}
+          className={`px-2 py-1 text-xs rounded transition-colors ${
+            mode === 'diagram'
+              ? 'bg-primary text-primary-text'
+              : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+          }`}
+        >
+          Diagram
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('code')}
+          className={`px-2 py-1 text-xs rounded transition-colors ${
+            mode === 'code'
+              ? 'bg-primary text-primary-text'
+              : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+          }`}
+        >
+          Code
+        </button>
       </div>
 
       {mode === 'diagram' ? (
-        <div ref={containerRef} className="p-md">{children}</div>
+        <div ref={containerRef}>{children}</div>
       ) : (
-        <div className="p-md">
-          <CodeBlock>{children}</CodeBlock>
-        </div>
+        <CodeBlock source={source}>
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `\u003cpre\u003e\u003ccode\u003e${source}\u003c/code\u003e\u003c/pre\u003e` }} />
+        </CodeBlock>
       )}
     </div>
   );

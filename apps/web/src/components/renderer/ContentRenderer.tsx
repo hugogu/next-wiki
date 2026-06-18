@@ -18,10 +18,11 @@ export function ContentRenderer({ html }: { html: string }) {
       const pre = el.querySelector('pre');
       if (!pre) return;
 
+      const source = pre.textContent ?? '';
       const wrapper = document.createElement('div');
-      el.appendChild(wrapper);
+      el.replaceChildren(wrapper);
       createRoot(wrapper).render(
-        <CodeBlock>
+        <CodeBlock source={source}>
           <div dangerouslySetInnerHTML={{ __html: pre.outerHTML }} />
         </CodeBlock>,
       );
@@ -34,10 +35,11 @@ export function ContentRenderer({ html }: { html: string }) {
       const pre = el.querySelector('pre');
       if (!pre) return;
 
+      const source = pre.textContent ?? '';
       const wrapper = document.createElement('div');
-      el.appendChild(wrapper);
+      el.replaceChildren(wrapper);
       createRoot(wrapper).render(
-        <MermaidBlock>
+        <MermaidBlock source={source}>
           <div dangerouslySetInnerHTML={{ __html: pre.outerHTML }} />
         </MermaidBlock>,
       );
