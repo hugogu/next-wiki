@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { and, eq, gt } from 'drizzle-orm';
 import { db } from '@/server/db';
@@ -6,9 +6,16 @@ import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
 import { DomainError } from '@/server/errors';
 import type { Actor, PermCtx } from '@/server/permissions';
+import * as apiKeys from '@/server/services/api-keys';
 
 const SESSION_COOKIE = 'next-wiki-session';
 const SESSION_MAX_AGE_DAYS = 30;
+
+export type ResolvedActor = {
+  actor: Actor | null;
+  apiKeyInfo?: { keyId: string; userId: string };
+  authError?: string;
+};
 
 export async function resolveActorFromSession(sessionId: string): Promise<Actor | null> {
   const now = new Date();
@@ -29,6 +36,49 @@ export async function resolveActorFromSession(sessionId: string): Promise<Actor 
     userId: user.id,
     role: user.role,
   };
+}
+
+export async function resolveActor(): Promise<ResolvedActor> {
+  const headersList = await headers();
+  const auth = headersList.get('authorization');
+
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7).trim();
+    if (!token) {
+      return { actor: null, authError: 'malformed_token' };
+    }
+
+    const resolved = await apiKeys.lookupByToken(token);
+    if (!resolved) {
+      return { actor: null, authError: 'invalid_key' };
+    }
+
+    return {
+      actor: {
+        kind: 'api_key',
+        userId: resolved.userId,
+        role: resolved.role,
+        scopes: resolved.scopes,
+        keyId: resolved.keyId,
+      },
+      apiKeyInfo: { keyId: resolved.keyId, userId: resolved.userId },
+    };
+  }
+
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (!sessionId) {
+    return { actor: { kind: 'anonymous' } };
+  }
+
+  const actor = await resolveActorFromSession(sessionId);
+
+  if (!actor) {
+    return { actor: { kind: 'anonymous' } };
+  }
+
+  return { actor };
 }
 
 export async function register(input: { email: string; password: string }): Promise<{ userId: string }> {
@@ -121,20 +171,8 @@ export async function logout(): Promise<void> {
 }
 
 export async function getCurrentActor(): Promise<Actor> {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-
-  if (!sessionId) {
-    return { kind: 'anonymous' };
-  }
-
-  const actor = await resolveActorFromSession(sessionId);
-
-  if (!actor) {
-    return { kind: 'anonymous' };
-  }
-
-  return actor;
+  const resolved = await resolveActor();
+  return resolved.actor ?? { kind: 'anonymous' };
 }
 
 export async function setMyPassword(ctx: PermCtx, newPassword: string): Promise<void> {

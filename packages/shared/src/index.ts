@@ -3,6 +3,9 @@ import { userRoleSchema, userStatusSchema } from './auth';
 
 export * from './auth';
 export * from './pages';
+export * from './api-keys';
+export * from './user-center';
+export * from './audit';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

@@ -54,15 +54,15 @@ preference columns.
 **Purpose**: Shared infrastructure for auth, encryption, permissions, audit
 wrapper, and shared schemas.
 
-- [ ] T076 [P] Add `API_KEY_ENCRYPTION_KEY` to `apps/web/src/server/config.ts`
+- [x] T076 [P] Add `API_KEY_ENCRYPTION_KEY` to `apps/web/src/server/config.ts`
   env schema: `z.string().min(64).max(64)` (32-byte hex). Dev default:
   `'0'.repeat(64)` (clearly marked dev-only). Production: required, fails fast.
-- [ ] T077 [P] Create `apps/web/src/server/crypto/key-encryption.ts`:
+- [x] T077 [P] Create `apps/web/src/server/crypto/key-encryption.ts`:
   `encryptKey(plaintext: string): string` (AES-256-GCM, random 12-byte nonce,
   returns `base64(nonce || ciphertext || tag)`),
   `decryptKey(encrypted: string): string` (reverse). Uses `crypto.createCipheriv`
   / `createDecipheriv` with the env key. No external dependency.
-- [ ] T078 [P] Add shared Zod schemas to `packages/shared/src/`:
+- [x] T078 [P] Add shared Zod schemas to `packages/shared/src/`:
   - `api-keys.ts`: `apiKeyScopeSchema`, `createApiKeyInputSchema`,
     `apiKeyViewSchema`, `apiKeyCreatedSchema`, `apiKeyRevealSchema`
   - `user-center.ts`: `updateProfileInputSchema`, `changeEmailInputSchema`,
@@ -70,13 +70,13 @@ wrapper, and shared schemas.
   - `audit.ts`: `auditEntrySchema`, `auditListResponseSchema`,
     `auditQueryParamsSchema`
   - Update `index.ts` to re-export all new schemas
-- [ ] T079 [P] Extend `Actor` type in `apps/web/src/server/permissions/index.ts`:
+- [x] T079 [P] Extend `Actor` type in `apps/web/src/server/permissions/index.ts`:
   add `{ kind: 'api_key', userId: string, role: 'admin'|'editor'|'reader',
   scopes: ApiKeyScope[], keyId: string }` to the discriminated union. Extend
   `can()`: for `api_key` actors, (1) check scope-to-action mapping (plan D2),
   deny if scope not present; (2) fall through to normal role + authorship check.
   `manage_users` always denied for `api_key`. Add `buildApiKeyCtx()` helper.
-- [ ] T080 [P] Create `apps/web/src/server/services/api-keys.ts`:
+- [x] T080 [P] Create `apps/web/src/server/services/api-keys.ts`:
   `create(ctx, name, scopes)` — generates key (`nwk_` + base64url(32 bytes)),
   encrypts secret, stores prefix + encrypted secret. The prefix has a unique
   DB index, so `create` must handle the astronomically rare prefix collision
@@ -88,19 +88,19 @@ wrapper, and shared schemas.
   or null. Updates `last_used_at` on successful lookup; note that this is a
   separate write on every key-authenticated request, distinct from the audit
   log write.
-- [ ] T081 [P] Create `apps/web/src/server/services/audit.ts`:
+- [x] T081 [P] Create `apps/web/src/server/services/audit.ts`:
   `writeEntry({ keyId, userId, method, path, statusCode, durationMs,
   authStatus, errorMessage })` — inserts audit row (fire-and-forget).
   `listOwn(ctx, { keyId?, status?, page, pageSize })` — paginated query for
   user's own entries. `listAll(ctx, { userId?, keyId?, status?, method?, path?,
   startTime?, endTime?, page, pageSize })` — admin-only paginated query across
   all users.
-- [ ] T082 Create `apps/web/src/server/services/user-center.ts`:
+- [x] T082 Create `apps/web/src/server/services/user-center.ts`:
   `updateProfile(ctx, displayName)`, `changeEmail(ctx, email)` (validates
   uniqueness, throws CONFLICT), `changePassword(ctx, currentPassword,
   newPassword)` (bcrypt compare + hash), `updatePreferences(ctx, theme?,
   locale?)`, `getPreferences(ctx)` — all session-only (reject `api_key` actor).
-- [ ] T083 Modify `apps/web/src/server/services/auth.ts`:
+- [x] T083 Modify `apps/web/src/server/services/auth.ts`:
   Add `resolveActor()` — checks `headers().get('authorization')` for Bearer
   token first; if present, calls `apiKeys.lookupByToken()`; if resolved, checks
   user status (disabled → reject), returns `{ actor: { kind: 'api_key', ... },
@@ -109,13 +109,13 @@ wrapper, and shared schemas.
   (the caller returns 401; no session fallback). If no Bearer, falls back to
   `getCurrentActor()` (session). `getCurrentActor()` remains for backward
   compat (calls `resolveActor()` and falls back to anonymous).
-- [ ] T084 Modify `apps/web/src/server/api/session.ts`:
+- [x] T084 Modify `apps/web/src/server/api/session.ts`:
   Create `apps/web/src/server/api/api-context-store.ts` with an
   `AsyncLocalStorage<PermCtx & { apiKeyInfo?, authError? }>`. `createApiContext()`
   checks the store first: if a store exists (set by `withApiAudit`), return it;
   otherwise call `resolveActor()` and return the context. This avoids a second
   DB lookup when the audit wrapper has already resolved the actor.
-- [ ] T085 [P] Create `apps/web/src/server/api/audit-wrapper.ts`:
+- [x] T085 [P] Create `apps/web/src/server/api/audit-wrapper.ts`:
   `withApiAudit(handler)` HOF — wraps a route handler. Records start time,
   extracts Bearer header. Resolves the actor via `resolveActor()`; if Bearer
   resolution fails, returns 401 and writes the audit entry immediately (handler
@@ -125,7 +125,7 @@ wrapper, and shared schemas.
   writes an audit entry with key info (resolved or null), method, path, status
   code, duration, auth status, error message. Returns the original response
   unchanged.
-- [ ] T086 [P] Update `docker-compose.yml`: add `API_KEY_ENCRYPTION_KEY`
+- [x] T086 [P] Update `docker-compose.yml`: add `API_KEY_ENCRYPTION_KEY`
   environment variable to the `web` service (dev default or generate one).
 
 **Checkpoint**: Crypto works, auth resolves Bearer tokens, `can()` handles API
