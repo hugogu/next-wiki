@@ -13,5 +13,19 @@ test.describe('api docs', () => {
     await expect(page.locator('.scalar-api-reference').first()).toBeVisible();
     await expect(page.locator('text=Next Wiki API').first()).toBeVisible();
     await expect(page.locator('text=Authentication').first()).toBeVisible();
+
+    const docsSidebar = page.getByRole('navigation', { name: 'Sidebar for Next Wiki API' });
+    const docsContent = page.getByRole('main', {
+      name: 'Open API Documentation for Next Wiki API',
+    });
+    await expect(docsSidebar).toBeVisible();
+    await expect(docsContent).toBeVisible();
+
+    const sidebarBox = await docsSidebar.boundingBox();
+    const contentBox = await docsContent.boundingBox();
+    expect(sidebarBox).not.toBeNull();
+    expect(contentBox).not.toBeNull();
+    expect(sidebarBox!.width).toBeGreaterThan(200);
+    expect(contentBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width - 1);
   });
 });

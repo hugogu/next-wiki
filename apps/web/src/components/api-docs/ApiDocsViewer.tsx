@@ -1,5 +1,6 @@
 'use client';
 
+import '@scalar/api-reference-react/style.css';
 import nextDynamic from 'next/dynamic';
 
 const ApiReferenceReact = nextDynamic(

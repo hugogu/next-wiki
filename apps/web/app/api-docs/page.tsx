@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Layout } from '@/components/ui/Layout';
 import { ApiDocsViewer } from '@/components/api-docs/ApiDocsViewer';
 import { getLocale, getDictionary } from '@/i18n/server';
 
@@ -13,10 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ApiDocsPage() {
   return (
-    <Layout>
-      <div className="api-docs-container h-[calc(100vh-4rem)]">
-        <ApiDocsViewer />
-      </div>
-    </Layout>
+    <div className="api-docs-container h-screen overflow-hidden">
+      <ApiDocsViewer />
+    </div>
   );
 }
