@@ -31,9 +31,9 @@ imported by client code).
 **Purpose**: Database schema increments for API keys, audit entries, and user
 preference columns.
 
-- [ ] T073 [P] Add `apiKeyScopeEnum` to `apps/web/src/server/db/schema/enums.ts`:
+- [x] T073 [P] Add `apiKeyScopeEnum` to `apps/web/src/server/db/schema/enums.ts`:
   `pgEnum('api_key_scope', ['view', 'create', 'edit', 'delete', 'share', 'run'])`
-- [ ] T074 [P] Add `apiKeys` and `apiAuditEntries` table schemas + relations to
+- [x] T074 [P] Add `apiKeys` and `apiAuditEntries` table schemas + relations to
   `apps/web/src/server/db/schema/index.ts` (per data-model.md: `api_keys` with
   `id`, `user_id`, `name`, `scopes` (text array), `key_prefix`, `key_secret_encrypted`,
   `created_at`, `revoked_at`, `last_used_at`; `api_audit_entries` with `id`,
@@ -41,7 +41,7 @@ preference columns.
   `auth_status`, `error_message`, `created_at`). Add `theme_preference` and
   `locale_preference` nullable text columns to existing `users` schema. Add
   indexes per data-model.md.
-- [ ] T075 Generate Drizzle migration: `pnpm db:generate` — produces
+- [x] T075 Generate Drizzle migration: `pnpm db:generate` — produces
   `0002_*.sql` with `ALTER TABLE users ADD COLUMN` + `CREATE TABLE api_keys` +
   `CREATE TABLE api_audit_entries` + indexes. Verify SQL is idempotent.
 
