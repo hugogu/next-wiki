@@ -32,15 +32,15 @@ export function ContentRenderer({ html }: { html: string }) {
       if ((el as HTMLElement).dataset.enhanced === 'true') return;
       (el as HTMLElement).dataset.enhanced = 'true';
 
-      const pre = el.querySelector('pre');
-      if (!pre) return;
+      const mermaidEl = el.querySelector('.mermaid');
+      if (!mermaidEl) return;
 
-      const source = pre.textContent ?? '';
+      const source = mermaidEl.textContent ?? '';
       const wrapper = document.createElement('div');
       el.replaceChildren(wrapper);
       createRoot(wrapper).render(
         <MermaidBlock source={source}>
-          <div dangerouslySetInnerHTML={{ __html: pre.outerHTML }} />
+          <div className="mermaid">{source}</div>
         </MermaidBlock>,
       );
     });
