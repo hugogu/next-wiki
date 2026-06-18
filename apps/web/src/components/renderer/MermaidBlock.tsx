@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CodeBlock } from './CodeBlock';
+import { useTranslation } from '@/i18n/client';
 
 export function MermaidBlock({ children, source }: { children: React.ReactNode; source: string }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'diagram' | 'code'>('diagram');
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +51,7 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
               : 'text-muted hover:text-foreground hover:bg-surface-elevated'
           }`}
         >
-          Diagram
+          {t('renderer.mermaid.diagramButton')}
         </button>
         <button
           type="button"
@@ -60,7 +62,7 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
               : 'text-muted hover:text-foreground hover:bg-surface-elevated'
           }`}
         >
-          Code
+          {t('renderer.mermaid.codeButton')}
         </button>
       </div>
 

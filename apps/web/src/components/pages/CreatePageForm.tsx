@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPageInputSchema, type CreatePageInput } from '@next-wiki/shared';
+import { useTranslation } from '@/i18n/client';
 import { apiPost, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
@@ -13,6 +14,7 @@ import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
 
 export function CreatePageForm() {
+  const { t } = useTranslation();
   const setEditor = useSetEditor();
   const { goBack } = useHistory();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -43,17 +45,17 @@ export function CreatePageForm() {
       } catch (err) {
         const error = err as ApiError;
         if (error.code === 'CONFLICT') {
-          setServerError('A page with this path already exists.');
+          setServerError(t('page.create.error.pathExists'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
-          setServerError('You do not have permission to create pages.');
+          setServerError(t('page.create.error.forbidden'));
         } else {
-          setServerError(error.message || 'Failed to create page.');
+          setServerError(error.message || t('page.create.error.generic'));
         }
       } finally {
         setIsSaving(false);
       }
     },
-    [],
+    [t],
   );
 
   const save = useCallback(() => {
@@ -71,7 +73,7 @@ export function CreatePageForm() {
   useEffect(() => {
     setEditor({
       title: title || '',
-      defaultTitle: 'Create a new page',
+      defaultTitle: t('page.create.defaultTitle'),
       isSaving,
       propertiesOpen,
       toggleProperties,
@@ -87,6 +89,7 @@ export function CreatePageForm() {
     save,
     close,
     setEditor,
+    t,
   ]);
 
   return (

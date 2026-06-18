@@ -1,18 +1,25 @@
 'use client';
 
+import { useTranslation } from '@/i18n/client';
 import { useTheme } from './ThemeProvider';
 
 export function ThemeToggle() {
+  const { t } = useTranslation();
   const { mode, resolved, cycle } = useTheme();
 
-  const label = mode === 'auto' ? `Auto (${resolved})` : mode === 'light' ? 'Light' : 'Dark';
+  const modeLabel =
+    mode === 'auto'
+      ? t('theme.mode.autoWithResolved', { resolved: t(`theme.mode.${resolved}` as const) })
+      : t(`theme.mode.${mode}` as const);
+
+  const label = t('theme.toggleLabel', { mode: modeLabel });
 
   return (
     <button
       type="button"
       onClick={cycle}
-      aria-label={`Theme: ${label}`}
-      title={`Theme: ${label}`}
+      aria-label={label}
+      title={label}
       className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
     >
       {mode === 'light' && (

@@ -3,6 +3,8 @@ import { ApiProvider } from '@/lib/api/provider';
 import { HistoryProvider } from '@/lib/history';
 import { EditorProvider } from '@/components/editor/EditorContext';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
+import { I18nProvider } from '@/i18n/client';
+import { getLocale } from '@/i18n/server';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 
@@ -18,17 +20,25 @@ const sourceSans = Source_Sans_3({
   display: 'swap',
 });
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+
   return (
-    <html lang="en" className={`${crimsonPro.variable} ${sourceSans.variable}`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={`${crimsonPro.variable} ${sourceSans.variable}`}
+      suppressHydrationWarning
+    >
       <body className="antialiased" suppressHydrationWarning>
-        <ThemeProvider>
-          <ApiProvider>
-            <HistoryProvider>
-              <EditorProvider>{children}</EditorProvider>
-            </HistoryProvider>
-          </ApiProvider>
-        </ThemeProvider>
+        <I18nProvider initialLocale={locale}>
+          <ThemeProvider>
+            <ApiProvider>
+              <HistoryProvider>
+                <EditorProvider>{children}</EditorProvider>
+              </HistoryProvider>
+            </ApiProvider>
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

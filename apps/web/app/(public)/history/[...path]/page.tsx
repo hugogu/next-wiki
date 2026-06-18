@@ -7,18 +7,23 @@ import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { PublishButton } from '@/components/pages/PublishButton';
 import { getPagePathFromParams, getRevisionHref } from '@/lib/path';
+import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
-  return { title: `History: ${path}` };
+  return { title: t('page.history.metadataTitle', { path }) };
 }
 
 export default async function HistoryPage({ params }: { params: Params }) {
+  const locale = await getLocale();
+  const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
@@ -43,10 +48,10 @@ export default async function HistoryPage({ params }: { params: Params }) {
   return (
     <Layout pageContext={pageContext}>
       <div className="max-w-3xl mx-auto px-lg py-xl">
-        <h1 className="font-display text-3xl font-semibold mb-md">Version history: {page?.title ?? path}</h1>
+        <h1 className="font-display text-3xl font-semibold mb-md">{t('page.history.heading', { title: page?.title ?? path })}</h1>
         {revisions.length === 0 ? (
-          <EmptyState title="No revisions visible">
-            <p>You do not have permission to view this page&#39;s history.</p>
+          <EmptyState title={t('page.history.empty.title')}>
+            <p>{t('page.history.empty.forbidden')}</p>
           </EmptyState>
         ) : (
           <ul className="space-y-sm">
@@ -54,11 +59,11 @@ export default async function HistoryPage({ params }: { params: Params }) {
               <li key={r.version} className="flex items-center justify-between p-md bg-surface border border-border rounded-lg">
                 <div>
                   <Link href={getRevisionHref(path, r.version)} className="font-medium text-primary hover:underline">
-                    Version {r.version}
+                    {t('page.history.versionLink', { version: r.version })}
                   </Link>
                   <span className="ml-sm text-sm text-muted capitalize">{r.status}</span>
                   <p className="text-sm text-muted">
-                    {new Date(r.createdAt).toLocaleString()} by {r.authorDisplayName ?? 'Unknown'}
+                    {t('page.history.revisionMeta', { date: new Date(r.createdAt).toLocaleDateString(locale), name: r.authorDisplayName ?? t('common.unknownAuthor') })}
                   </p>
                 </div>
                 {r.status === 'draft' && r.canPublish ? (

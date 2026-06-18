@@ -3,17 +3,22 @@ import { redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { SetPasswordForm } from '@/components/auth/SetPasswordForm';
 import { getCurrentActor, mustResetPassword } from '@/server/services/auth';
-
-export const metadata: Metadata = {
-  title: 'Set new password',
-};
+import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getDictionary(locale);
+  return { title: t('auth.setPassword.metadataTitle') };
+}
+
 export default async function SetPasswordPage() {
+  const locale = await getLocale();
+  const t = getDictionary(locale);
+
   const actor = await getCurrentActor();
 
-  // This page is only reachable for signed-in users who need a password reset.
   if (actor.kind !== 'user') {
     redirect('/auth/login');
   }
@@ -26,9 +31,9 @@ export default async function SetPasswordPage() {
   return (
     <Layout skipPasswordGate>
       <div className="max-w-md mx-auto px-lg py-xl">
-        <h1 className="font-display text-2xl font-semibold mb-md">Set a new password</h1>
+        <h1 className="font-display text-2xl font-semibold mb-md">{t('auth.setPassword.heading')}</h1>
         <p className="text-muted mb-md text-sm">
-          Your password was reset by an administrator. Choose a new password to continue.
+          {t('auth.setPassword.description')}
         </p>
         <SetPasswordForm />
       </div>

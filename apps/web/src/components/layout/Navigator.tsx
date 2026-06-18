@@ -4,16 +4,13 @@ import Link from 'next/link';
 import type { PageSummary } from '@next-wiki/shared';
 import { FileTextIcon, FolderIcon, XIcon, UsersIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
+import { useTranslation } from '@/i18n/client';
 
 type AdminNavItem = {
   href: string;
   label: string;
   icon: React.ReactNode;
 };
-
-const ADMIN_ITEMS: AdminNavItem[] = [
-  { href: '/admin/users', label: 'Users', icon: <UsersIcon className="shrink-0" /> },
-];
 
 type TreeNode = {
   name: string;
@@ -124,6 +121,10 @@ export function Navigator({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const ADMIN_ITEMS: AdminNavItem[] = [
+    { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
+  ];
   const tree = buildPageTree(pages);
 
   return (
@@ -148,12 +149,12 @@ export function Navigator({
         style={{ top: 'var(--header-height)' }}
       >
         <div className="flex items-center justify-between p-md border-b border-border lg:hidden">
-          <span className="font-display font-semibold text-lg">{admin ? 'Admin' : 'Pages'}</span>
+          <span className="font-display font-semibold text-lg">{admin ? t('layout.nav.adminTitle') : t('layout.nav.pagesTitle')}</span>
           <button
             type="button"
             onClick={onClose}
             className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
-            aria-label="Close navigator"
+            aria-label={t('layout.nav.closeButton')}
           >
             <XIcon />
           </button>
@@ -176,7 +177,7 @@ export function Navigator({
               ))}
             </ul>
           ) : pages.length === 0 ? (
-            <p className="text-sm text-muted p-md">No published pages yet.</p>
+            <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
           ) : (
             <ul className="space-y-xs">
               {tree.map((node) => (

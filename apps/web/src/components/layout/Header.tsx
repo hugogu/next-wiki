@@ -6,6 +6,8 @@ import type { PageContext } from './types';
 import type { Actor } from '@/server/permissions';
 import { useEditor } from '@/components/editor/EditorContext';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
+import { useTranslation } from '@/i18n/client';
 import {
   MenuIcon,
   PlusIcon,
@@ -67,17 +69,18 @@ function IconButton({
 }
 
 function EditorHeaderActions({ editor }: { editor: NonNullable<ReturnType<typeof useEditor> > }) {
+  const { t } = useTranslation();
   return (
     <>
-      <IconButton onClick={editor.save} label="Save" disabled={editor.isSaving}>
+      <IconButton onClick={editor.save} label={t('editor.header.save')} disabled={editor.isSaving}>
         <SaveIcon />
       </IconButton>
-      <IconButton onClick={editor.close} label="Close">
+      <IconButton onClick={editor.close} label={t('editor.header.close')}>
         <XIcon />
       </IconButton>
       <IconButton
         onClick={editor.toggleProperties}
-        label="Page properties"
+        label={t('editor.header.properties')}
         active={editor.propertiesOpen}
       >
         <SettingsIcon />
@@ -95,6 +98,7 @@ export function Header({
   pageContext?: PageContext;
   onMenuClick: () => void;
 }) {
+  const { t } = useTranslation();
   const editor = useEditor();
   const [publishing, setPublishing] = useState(false);
   const isSignedIn = user.kind === 'user';
@@ -125,12 +129,12 @@ export function Header({
           type="button"
           onClick={onMenuClick}
           className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
-          aria-label="Open navigator"
+          aria-label={t('layout.header.openNav')}
         >
           <MenuIcon />
         </button>
         <Link href="/" className="font-display text-xl font-semibold text-foreground tracking-tight">
-          next-wiki
+          {t('common.brand')}
         </Link>
       </div>
 
@@ -150,31 +154,37 @@ export function Header({
           <>
             <div className="flex items-center gap-sm pr-sm border-r border-border">
               {pageContext && pageContext.canEdit && (
-                <IconButton href={getEditHref(pageContext.path)} label="Edit page">
+                <IconButton href={getEditHref(pageContext.path)} label={t('page.header.edit')}>
                   <EditIcon />
                 </IconButton>
               )}
 
               {pageContext && isSignedIn && (
-                <IconButton href={getHistoryHref(pageContext.path)} label="View history">
+                <IconButton href={getHistoryHref(pageContext.path)} label={t('page.header.history')}>
                   <HistoryIcon />
                 </IconButton>
               )}
 
               {pageContext && pageContext.canPublish && pageContext.status === 'draft' && (
-                <IconButton onClick={handlePublish} label={publishing ? 'Publishing...' : 'Publish'}>
+                <IconButton
+                  onClick={handlePublish}
+                  label={publishing ? t('page.header.publishing') : t('page.header.publish')}
+                >
                   <PublishIcon />
                 </IconButton>
               )}
 
               {pageContext && pageContext.canEdit && (
-                <IconButton href={getPropertiesHref(pageContext.path)} label="Page properties">
+                <IconButton
+                  href={getPropertiesHref(pageContext.path)}
+                  label={t('page.header.properties')}
+                >
                   <SettingsIcon />
                 </IconButton>
               )}
 
               {pageContext && (
-                <IconButton href={getPageHref(pageContext.path)} label="View page" active>
+                <IconButton href={getPageHref(pageContext.path)} label={t('page.header.view')} active>
                   <EyeIcon />
                 </IconButton>
               )}
@@ -182,13 +192,13 @@ export function Header({
 
             <div className="flex items-center gap-sm">
               {isSignedIn && (role === 'editor' || role === 'admin') && (
-                <IconButton href="/new" label="New page">
+                <IconButton href="/new" label={t('page.header.newPage')}>
                   <PlusIcon />
                 </IconButton>
               )}
 
               {role === 'admin' && (
-                <IconButton href="/admin/users" label="Admin">
+                <IconButton href="/admin/users" label={t('page.header.admin')}>
                   <ShieldIcon />
                 </IconButton>
               )}
@@ -208,19 +218,20 @@ export function Header({
           >
             <button
               type="submit"
-              aria-label="Sign out"
-              title="Sign out"
+              aria-label={t('auth.logout.button.submit')}
+              title={t('auth.logout.button.submit')}
               className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
               <LogOutIcon />
             </button>
           </form>
         ) : (
-          <IconButton href="/auth/login" label="Sign in">
+          <IconButton href="/auth/login" label={t('auth.login.button.submit')}>
             <LogInIcon />
           </IconButton>
         )}
         <ThemeToggle />
+        <LanguageSwitcher />
       </div>
     </header>
   );

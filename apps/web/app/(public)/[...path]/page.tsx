@@ -5,6 +5,7 @@ import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { getPagePathFromParams } from '@/lib/path';
+import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,8 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
 }
 
 export default async function PageRead({ params }: { params: PageParams }) {
+  const locale = await getLocale();
+  const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
@@ -29,6 +32,8 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const canEdit = await pageService.canCreate({ actor });
   const isAuthor = actor.kind === 'user' ? page.authorId === actor.userId : false;
   const canPublish = page.status === 'draft' && (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
+
+  const createdAt = new Date(page.createdAt);
 
   const pageContext = {
     path,
@@ -44,14 +49,14 @@ export default async function PageRead({ params }: { params: PageParams }) {
       <div className="min-h-full flex flex-col">
         {page.status === 'draft' && (
           <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-lg py-sm text-sm">
-            This page is a draft and not yet published.
+            {t('page.read.draftBanner')}
           </div>
         )}
         <article className="flex-1 px-lg py-md max-w-none">
           <ContentRenderer html={page.contentHtml} />
           <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
-            Created {new Date(page.createdAt).toLocaleString()}
-            {page.authorDisplayName && ` by ${page.authorDisplayName}`}
+            {t('page.read.createdOn', { date: createdAt.toLocaleDateString(locale) })}
+            {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}
           </footer>
         </article>
       </div>

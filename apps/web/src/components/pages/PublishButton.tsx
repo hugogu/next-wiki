@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslation } from '@/i18n/client';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { getPageHref } from '@/lib/path';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 
 export function PublishButton({ path, version }: { path: string; version: number }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const publish = useApiMutation<{ path: string; version: number }, { versionId: string }>('/api/revisions/publish', {
     onSuccess: () => {
@@ -14,9 +16,9 @@ export function PublishButton({ path, version }: { path: string; version: number
     },
     onError: (err: ApiError) => {
       if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
-        setError('You do not have permission to publish this revision.');
+        setError(t('page.publish.error.forbidden'));
       } else {
-        setError(err.message || 'Failed to publish revision.');
+        setError(err.message || t('page.publish.error.generic'));
       }
     },
   });
@@ -33,7 +35,7 @@ export function PublishButton({ path, version }: { path: string; version: number
           publish.mutate({ path, version });
         }}
       >
-        {publish.isPending ? 'Publishing...' : 'Publish this revision'}
+        {publish.isPending ? t('page.publish.button.submitting') : t('page.publish.button.submit')}
       </Button>
     </div>
   );

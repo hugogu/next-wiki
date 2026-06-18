@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { newDraftBodySchema, type NewDraftBody, updatePagePropertiesSchema, type UpdatePagePropertiesInput } from '@next-wiki/shared';
+import { useTranslation } from '@/i18n/client';
 import { apiPost, apiPatch, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
@@ -13,6 +14,7 @@ import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
 
 export function EditPageForm({ path, initial }: { path: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
+  const { t } = useTranslation();
   const setEditor = useSetEditor();
   const { goBack } = useHistory();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { title
         if (newPath !== path) {
           const parsed = updatePagePropertiesSchema.safeParse({ path: newPath });
           if (!parsed.success) {
-            setServerError('The new path is invalid.');
+            setServerError(t('page.edit.error.invalidPath'));
             setIsSaving(false);
             return;
           }
@@ -54,17 +56,17 @@ export function EditPageForm({ path, initial }: { path: string; initial: { title
       } catch (err) {
         const error = err as ApiError;
         if (error.code === 'CONFLICT') {
-          setServerError('A page with this path already exists.');
+          setServerError(t('page.edit.error.pathExists'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
-          setServerError('You do not have permission to edit this page.');
+          setServerError(t('page.edit.error.forbidden'));
         } else {
-          setServerError(error.message || 'Failed to save changes.');
+          setServerError(error.message || t('page.edit.error.generic'));
         }
       } finally {
         setIsSaving(false);
       }
     },
-    [path, newPath],
+    [path, newPath, t],
   );
 
   const save = useCallback(() => {
@@ -82,7 +84,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { title
   useEffect(() => {
     setEditor({
       title: title || '',
-      defaultTitle: 'Untitled',
+      defaultTitle: t('page.edit.defaultTitle'),
       isSaving,
       propertiesOpen,
       toggleProperties,
@@ -98,6 +100,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { title
     save,
     close,
     setEditor,
+    t,
   ]);
 
   return (
@@ -125,7 +128,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { title
             titleError={errors.title?.message}
             path={newPath}
             onPathChange={setNewPath}
-            pathError={newPath !== path && !updatePagePropertiesSchema.safeParse({ path: newPath }).success ? 'Invalid path' : undefined}
+            pathError={newPath !== path && !updatePagePropertiesSchema.safeParse({ path: newPath }).success ? t('page.edit.validation.invalidPath') : undefined}
           />
         )}
       </div>

@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { updatePagePropertiesSchema, type UpdatePagePropertiesInput } from '@next-wiki/shared';
+import { useTranslation } from '@/i18n/client';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { getApiPagePropertiesUrl, getPageHref } from '@/lib/path';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
 export function PagePropertiesForm({ path }: { path: string }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const update = useApiMutation<UpdatePagePropertiesInput, { pageId: string; newPath: string }>(getApiPagePropertiesUrl(path), {
@@ -24,11 +26,11 @@ export function PagePropertiesForm({ path }: { path: string }) {
     },
     onError: (err: ApiError) => {
       if (err.code === 'CONFLICT') {
-        setServerError('A page with this path already exists.');
+        setServerError(t('page.properties.error.pathExists'));
       } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
-        setServerError('You do not have permission to edit page properties.');
+        setServerError(t('page.properties.error.forbidden'));
       } else {
-        setServerError(err.message || 'Failed to update properties.');
+        setServerError(err.message || t('page.properties.error.generic'));
       }
     },
   });
@@ -52,18 +54,18 @@ export function PagePropertiesForm({ path }: { path: string }) {
     >
       <div>
         <label htmlFor="path" className="block text-sm font-medium mb-xs">
-          URL path
+          {t('page.properties.fields.pathLabel')}
         </label>
         <Input
           id="path"
           {...register('path')}
-          placeholder="path/to/page"
+          placeholder={t('page.properties.fields.pathPlaceholder')}
           aria-label="Path"
           className="text-sm"
         />
         {errors.path && <p className="text-danger text-xs mt-xs">{errors.path.message}</p>}
         <p className="text-xs text-muted mt-xs">
-          Use slashes to create directories, e.g. <code>docs/intro</code>.
+          {t('page.properties.fields.pathHint', { example: 'docs/getting-started' })}
         </p>
       </div>
 
@@ -75,7 +77,7 @@ export function PagePropertiesForm({ path }: { path: string }) {
           disabled={isSubmitting || update.isPending}
           className="inline-flex items-center px-md py-sm rounded-md bg-primary text-primary-text text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-60"
         >
-          {update.isPending ? 'Saving...' : 'Save properties'}
+          {update.isPending ? t('page.properties.button.submitting') : t('page.properties.button.submit')}
         </button>
       </div>
     </form>

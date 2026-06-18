@@ -7,6 +7,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { apiPost } from '@/lib/api/client';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
+import { useTranslation } from '@/i18n/client';
 import {
   HeadingIcon,
   BoldIcon,
@@ -107,6 +108,7 @@ export function SplitMarkdownEditor({
   disabled?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -228,35 +230,35 @@ export function SplitMarkdownEditor({
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className}`}>
       <div className="flex items-center gap-xs px-md py-sm border-b border-border bg-surface-elevated">
-        <ToolbarButton onClick={() => apply('# ', '\n', true)} label="Heading">
+        <ToolbarButton onClick={() => apply('# ', '\n', true)} label={t('editor.toolbar.heading')}>
           <HeadingIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('**', '**')} label="Bold">
+        <ToolbarButton onClick={() => apply('**', '**')} label={t('editor.toolbar.bold')}>
           <BoldIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('*', '*')} label="Italic">
+        <ToolbarButton onClick={() => apply('*', '*')} label={t('editor.toolbar.italic')}>
           <ItalicIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('\u0060', '\u0060')} label="Inline code">
+        <ToolbarButton onClick={() => apply('\u0060', '\u0060')} label={t('editor.toolbar.inlineCode')}>
           <CodeIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('```\n', '\n```')} label="Code block">
+        <ToolbarButton onClick={() => apply('```\n', '\n```')} label={t('editor.toolbar.codeBlock')}>
           <CodeBlockIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('- ', '\n', true)} label="Bullet list">
+        <ToolbarButton onClick={() => apply('- ', '\n', true)} label={t('editor.toolbar.bulletList')}>
           <ListIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('> ', '\n', true)} label="Quote">
+        <ToolbarButton onClick={() => apply('> ', '\n', true)} label={t('editor.toolbar.quote')}>
           <QuoteIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('[', '](url)')} label="Link">
+        <ToolbarButton onClick={() => apply('[', '](url)')} label={t('editor.toolbar.link')}>
           <LinkIcon />
         </ToolbarButton>
         <div className="w-px h-5 bg-border mx-xs" />
-        <ToolbarButton onClick={handleUndo} label="Undo">
+        <ToolbarButton onClick={handleUndo} label={t('editor.toolbar.undo')}>
           <UndoIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={handleRedo} label="Redo">
+        <ToolbarButton onClick={handleRedo} label={t('editor.toolbar.redo')}>
           <RedoIcon />
         </ToolbarButton>
       </div>

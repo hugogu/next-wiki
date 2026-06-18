@@ -6,6 +6,7 @@ import type { UserView } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
 import { Input } from '@/components/ui/Input';
 import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon } from '@/components/icons';
+import { useTranslation } from '@/i18n/client';
 
 function IconButton({
   onClick,
@@ -37,6 +38,7 @@ function IconButton({
 }
 
 export function UserManagementTable({ users }: { users: UserView[] }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState('');
@@ -91,15 +93,15 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
     <div className="space-y-md">
       {resetResult && (
         <div className="p-md bg-surface border border-border rounded-md" role="status">
-          <p className="text-sm font-medium">Temporary password set for {resetResult.email}</p>
+          <p className="text-sm font-medium">{t('admin.users.resetPassword.successMessage', { email: resetResult.email })}</p>
           <code className="block mt-sm p-sm bg-background rounded text-sm break-all">{resetResult.password}</code>
-          <p className="text-xs text-muted mt-sm">Share this password securely. The user must set a new password on next sign-in.</p>
+          <p className="text-xs text-muted mt-sm">{t('admin.users.resetPassword.securityHint')}</p>
           <button
             type="button"
             onClick={() => setResetResult(null)}
             className="mt-sm inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
-            aria-label="Dismiss"
-            title="Dismiss"
+            aria-label={t('common.actions.dismiss')}
+            title={t('common.actions.dismiss')}
           >
             <XIcon />
           </button>
@@ -110,11 +112,11 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
         <table className="w-full text-sm">
           <thead className="bg-surface border-b border-border">
             <tr>
-              <th className="text-left px-md py-sm font-medium">Email</th>
-              <th className="text-left px-md py-sm font-medium">Role</th>
-              <th className="text-left px-md py-sm font-medium">Status</th>
-              <th className="text-left px-md py-sm font-medium">Joined</th>
-              <th className="text-right px-md py-sm font-medium">Actions</th>
+              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.email')}</th>
+              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.role')}</th>
+              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.status')}</th>
+              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.joined')}</th>
+              <th className="text-right px-md py-sm font-medium">{t('admin.users.table.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -123,15 +125,15 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                 <td className="px-md py-sm">{user.email}</td>
                 <td className="px-md py-sm">
                   <select
-                    aria-label={`Change role for ${user.email}`}
+                    aria-label={t('admin.users.role.selectLabel', { email: user.email })}
                     value={user.role}
                     disabled={setRole.isPending}
                     onChange={(e) => handleSetRole(user.id, e.target.value as UserView['role'])}
                     className="rounded-md border border-border bg-surface px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="reader">Reader</option>
-                    <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
+                    <option value="reader">{t('admin.users.role.reader')}</option>
+                    <option value="editor">{t('admin.users.role.editor')}</option>
+                    <option value="admin">{t('admin.users.role.admin')}</option>
                   </select>
                 </td>
                 <td className="px-md py-sm capitalize">{user.status}</td>
@@ -149,16 +151,16 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                         <Input
                           type="text"
                           autoComplete="off"
-                          placeholder="Temporary password"
+                          placeholder={t('admin.users.resetPassword.placeholder')}
                           value={tempPassword}
                           onChange={(e) => setTempPassword(e.target.value)}
                           className="w-48"
                         />
-                        <IconButton label="Set temporary password" variant="primary">
+                        <IconButton label={t('admin.users.resetPassword.confirmButton')} variant="primary">
                           <CheckIcon />
                         </IconButton>
                         <IconButton
-                          label="Cancel"
+                          label={t('common.actions.cancel')}
                           onClick={() => {
                             setResettingUserId(null);
                             setTempPassword('');
@@ -170,13 +172,13 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                     ) : (
                       <>
                         <IconButton
-                          label="Reset password"
+                          label={t('admin.users.resetPassword.button')}
                           onClick={() => setResettingUserId(user.id)}
                         >
                           <KeyIcon />
                         </IconButton>
                         <IconButton
-                          label={user.status === 'active' ? 'Disable user' : 'Enable user'}
+                          label={user.status === 'active' ? t('admin.users.status.disable') : t('admin.users.status.enable')}
                           variant={user.status === 'active' ? 'danger' : 'primary'}
                           disabled={setStatus.isPending}
                           onClick={() =>

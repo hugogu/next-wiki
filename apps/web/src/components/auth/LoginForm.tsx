@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginInputSchema, type LoginInput } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
+import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
 export function LoginForm() {
+  const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
   const login = useApiMutation<LoginInput, { userId: string; mustResetPassword: boolean }>('/api/auth/login', {
     onSuccess: (data) => {
@@ -20,7 +22,7 @@ export function LoginForm() {
       }
     },
     onError: () => {
-      setServerError('Invalid email or password.');
+      setServerError(t('auth.login.error.invalidCredentials'));
     },
   });
 
@@ -43,7 +45,7 @@ export function LoginForm() {
       {serverError && <Alert>{serverError}</Alert>}
       <div>
         <label htmlFor="email" className="block text-sm font-medium mb-sm">
-          Email
+          {t('auth.fields.emailLabel')}
         </label>
         <Input id="email" type="email" {...register('email')} />
         {errors.email && (
@@ -52,7 +54,7 @@ export function LoginForm() {
       </div>
       <div>
         <label htmlFor="password" className="block text-sm font-medium mb-sm">
-          Password
+          {t('auth.fields.passwordLabel')}
         </label>
         <Input id="password" type="password" {...register('password')} />
         {errors.password && (
@@ -60,7 +62,7 @@ export function LoginForm() {
         )}
       </div>
       <Button type="submit" disabled={isSubmitting || login.isPending}>
-        {login.isPending ? 'Signing in...' : 'Sign in'}
+        {login.isPending ? t('auth.login.button.submitting') : t('auth.login.button.submit')}
       </Button>
     </form>
   );

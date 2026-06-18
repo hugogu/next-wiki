@@ -2,8 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { CopyIcon, CheckIcon } from '@/components/icons';
+import { useTranslation } from '@/i18n/client';
 
 export function CodeBlock({ children, source }: { children: React.ReactNode; source: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -19,8 +21,8 @@ export function CodeBlock({ children, source }: { children: React.ReactNode; sou
       <button
         type="button"
         onClick={handleCopy}
-        aria-label={copied ? 'Copied' : 'Copy code'}
-        title={copied ? 'Copied' : 'Copy code'}
+        aria-label={copied ? t('renderer.codeBlock.copied') : t('renderer.codeBlock.copy')}
+        title={copied ? t('renderer.codeBlock.copied') : t('renderer.codeBlock.copy')}
         className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded text-muted bg-surface border border-border hover:text-foreground hover:bg-surface-elevated transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         {copied ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
