@@ -7,9 +7,7 @@ services:
       POSTGRES_PASSWORD: wiki
       POSTGRES_DB: wiki
     volumes:
-      - next-wiki-pgdata:/var/lib/postgresql/data
-      # Bind mount commented out; uncomment to persist data in project directory:
-      # - ./.postgres-data:/var/lib/postgresql/data
+      - ./.postgres-data:/var/lib/postgresql/data
     # DB is reachable inside the compose network only; expose loopback port for local dev/tests.
     ports:
       - "127.0.0.1:15433:5432"
@@ -37,9 +35,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - next-wiki-pgdata-shared:/tmp # ensure shared data not lost during restarts
 
 volumes:
-  next-wiki-pgdata:
   next-wiki-pgdata-shared:
