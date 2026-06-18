@@ -21,11 +21,17 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<td>2</td>');
   });
 
-  it('applies syntax highlighting to fenced code blocks', () => {
+  it('wraps fenced code blocks in a copyable container', () => {
     const { html } = renderMarkdown('```js\nconst x = 1;\n```');
-    expect(html).toContain('language-js');
-    expect(html).toContain('hljs');
+    expect(html).toContain('<div data-code-block="">');
+    expect(html).toContain('<pre');
     expect(html).toContain('hljs-keyword');
+  });
+
+  it('wraps mermaid blocks in a toggleable container', () => {
+    const { html } = renderMarkdown('```mermaid\ngraph TD;\n  A-->B;\n```');
+    expect(html).toContain('<div data-mermaid-block="">');
+    expect(html).toContain('<pre class="mermaid">');
   });
 
   it('renders inline and block LaTeX math', () => {

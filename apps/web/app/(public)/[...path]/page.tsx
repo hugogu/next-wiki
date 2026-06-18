@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
-import { MermaidRenderer } from '@/components/renderer/MermaidRenderer';
+import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { getPagePathFromParams } from '@/lib/path';
@@ -48,12 +48,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
           </div>
         )}
         <article className="flex-1 px-lg py-md max-w-none">
-          <MermaidRenderer>
-            <div
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: page.contentHtml }}
-            />
-          </MermaidRenderer>
+          <ContentRenderer html={page.contentHtml} />
           <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
             Created {new Date(page.createdAt).toLocaleString()}
             {page.authorDisplayName && ` by ${page.authorDisplayName}`}
