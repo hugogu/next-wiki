@@ -108,12 +108,13 @@ contracts. The write-side interface is:
 never HTML. The read-side is handled entirely by the rendering pipeline; editor
 plugins have no render responsibility.
 
-The client-server boundary is strict. The default Markdown editor uses Tiptap
-(ProseMirror-based) on the client. Tiptap's internal ProseMirror AST MUST NEVER
-leave the browser. The editor serializes to raw Markdown text, which is stored
-in the database. On the server, remark/rehype parses that raw Markdown into a
-separate AST for rendering. These are independent AST systems connected only by
-raw source text.
+The client-server boundary is strict. The default Markdown editor uses
+CodeMirror 6 on the client. Any client-side editor state (CodeMirror's
+document/editor state, or another editor's internal AST) MUST NEVER leave the
+browser. The editor serializes to raw Markdown text, which is stored in the
+database. On the server, remark/rehype parses that raw Markdown into a separate
+AST for rendering. These are independent representations connected only by raw
+source text.
 
 Markdown is the default and reference implementation. Additional editors
 (WYSIWYG, AsciiDoc, reStructuredText) are registered plugins. Editor plugins
@@ -134,24 +135,31 @@ Git sync is enabled.
 
 ## API Architecture
 
-next-wiki exposes three API layers, all backed by the same service layer and Zod
+next-wiki exposes two API layers, both backed by the same service layer and Zod
 schemas:
 
 | Layer | Consumers | Auth | Format |
 |-------|-----------|------|--------|
-| tRPC | Next.js frontend | Session (Better Auth) | TypeScript-native |
-| REST + OpenAPI | Bots, integrations, external clients | API token | HTTP + JSON |
+| REST route handlers (+ OpenAPI) | Next.js frontend, bots, integrations, external clients | Session cookie (first-party) or API token (external) | HTTP + JSON |
 | MCP Server | AI agents and coding assistants | API token | Model Context Protocol |
+
+The first-party web app uses the same REST route handlers (Next.js App Router
+`app/api/*`) via `fetch` through TanStack Query; there is no separate tRPC
+layer. A typed client wrapper MAY be generated from the OpenAPI contract, but
+the wire protocol is plain HTTP + JSON shared with external consumers.
 
 Rules:
 
 - Business logic lives in the service layer only. API layers are thin adapters.
 - All API layers share Zod schemas for input validation and output contracts.
-- tRPC is the primary development interface for the first-party web app.
-- REST is derived from tRPC where possible; hand-written REST endpoints require
-  explicit OpenAPI contracts and MUST call the same services.
+- The REST route handlers are the primary interface for the first-party web app
+  and the public contract for external clients; they are the same surface.
+- Public REST endpoints require explicit OpenAPI contracts and MUST call the
+  same services.
 - REST API versioning is URL-based (`/api/v1/`, `/api/v2/`). Breaking public
-  API changes require a new major version prefix.
+  API changes require a new major version prefix. (The current slice ships
+  unversioned internal routes; the `/api/v1/` prefix is introduced when the
+  public REST contract is frozen.)
 - MCP is optional and MAY be enabled independently of public REST, but it uses
   the same token scopes, permission model, and services.
 - API tokens are scoped (`read`, `write`, `admin`, `ai`, `mcp`) and managed via
@@ -292,11 +300,4 @@ rules are non-negotiable; any PR that violates them is an architecture defect.
 
 **Canonical entry points:**
 
-- Each resource MUST resolve to exactly one canonical URL. Alternative paths
-  (trailing slash, case variants, legacy routes) MUST 301 or 308 redirect to
-  the canonical form.
-- The global navigation, breadcrumbs, search results, and AI chat citations
-  MUST all link to the same canonical URL of a resource.
-- A feature MUST NOT introduce a second menu, shortcut, or route that leads to
-  the same resource under a different URL or label. When the same capability is
-  surfaced from multiple contexts, all contexts reuse the canonical entry point.
+- Each resource

@@ -58,7 +58,7 @@ key columns summarized here.
 
 | Field | Type | Constraints | Notes |
 |---|---|---|---|
-| `id` | text (pk) | | Better Auth session id |
+| `id` | text (pk) | | opaque session id (random token, stored in cookie) |
 | `user_id` | uuid | fk → users(id), not null | |
 | `expires_at` | timestamptz | not null | |
 | `created_at` | timestamptz | not null default `now()` | |
@@ -253,7 +253,4 @@ migrations:
 - `spaces` + `pages.space_id` + `pages.path` → multi-space / hierarchy and
   user-defined multi-segment URLs.
 - `pages.locale` + `page_revisions.locale` → content translations (UI i18n already
-  implemented with standalone locale files; content-level translations deferred).
-- `pages.deleted_at` → delete/restore UI.
-- `contentType` enum + pluggable editors → additional editor formats.
-- `content_hash` → render-cache reuse and future Git-sync commit hashing.
+  implemented with standalone loc

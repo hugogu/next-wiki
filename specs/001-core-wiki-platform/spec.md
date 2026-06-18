@@ -198,9 +198,9 @@ another user's password; confirm both changes take effect.
   back, forward, refresh, deep-linking, and "open in new tab" without losing
   state. (The product is delivered through server-rendered pages with real URLs,
   not a single-page application.)
-- **FR-007**: System MUST provide a Markdown editor (Toast UI Editor) for creating
+- **FR-007**: System MUST provide a Markdown editor (CodeMirror 6) for creating
   and editing pages. The editor MUST serialize to raw Markdown source only; no
-  rendered HTML or proprietary AST leaves the browser.
+  rendered HTML or client-side editor state leaves the browser.
 - **FR-008**: System MUST render Markdown content into viewable form at save
   time so that page reads are served from the pre-rendered output.
 - **FR-009**: System MUST create a new, immutable version record for every save,
@@ -341,47 +341,4 @@ revised via `/speckit.clarify` before planning.
 - **A3 — Open self-service registration**. Anyone can register; the first account
   becomes Admin, and subsequent new accounts receive the Reader role automatically.
 - **A4 — Admin-initiated password reset without email**. An admin resets a
-  user's password to a temporary value (relayed out-of-band by the admin) and
-  the user is prompted to set a new password on next sign-in. No email/SMS
-  service is required, keeping the single-service/single-database constraint.
-- **A5 — "No SPA" expressed as a navigation contract, not a tech mandate**. The
-  requirement is realized through server-rendered pages with real, shareable
-  URLs and fully working browser history/navigation. The concrete web stack is
-  governed by the project constitution, which already mandates a server-rendered,
-  URL-first framework that satisfies this contract.
-- **A6 — Editors edit any page**. The Editor role grants create/edit permission
-  across the wiki (not limited to pages they own). Exclusive author-only access
-  applies specifically to unpublished drafts of that author.
-- **A7 — Three roles as baseline permission groups**. Admin / Editor / Reader
-  are modeled as the built-in permission groups. More granular per-page
-  permissions are out of scope for this feature and may be introduced later
-  without changing these role definitions.
-- **A8 — Specific technologies are constitution-governed**. Node-based single
-  service, single PostgreSQL database, and one-command Docker Compose deployment
-  are already locked by the project constitution (v1.3.0) and its Technology
-  Decisions. They are reflected here as requirements (FR-017) but not
-  re-specified at the framework level.
-- **A9 — Spaces/hierarchy are hidden for now** (confirmed). The UI for this
-  slice is flat (one page list under a single default space). The space and
-  hierarchical path are persisted as schema fields only, so adding visible
-  spaces/hierarchy later requires no data migration. See FR-020.
-- **A10 — Multi-language UI implemented** (revised from single locale). The UI
-  ships with full bilingual support (English + Chinese) via standalone locale
-  files in `apps/web/src/i18n/locales/`. Content remains single-locale
-  (English). A `locale` field is still persisted on page content so content
-  translations can be added later without migration. See FR-021, FR-027.
-- **A11 — Partially in scope** (revised from deferred). Page soft-delete is
-  now exposed: an admin or the author can delete a page via the edit view
-  (`DELETE /api/pages/{...path}` sets `deleted_at`). Search and import/export
-  remain deferred. The schema remains soft-delete-ready via `deleted_at`
-  (FR-022) so restore/hard-delete can be added as fast-follows without
-  migration. See FR-030.
-- **A12 — Author-specified, multi-segment, editable path** (confirmed). The
-  author chooses the page's URL `path` at creation; the system validates
-  URL-safety (lowercase letters, numbers, hyphens, slashes; no leading,
-  trailing, or consecutive slashes) and uniqueness within the default
-  space/locale. The `path` may contain `/`-separated segments such as
-  `docs/intro/getting-started`. After creation the `path` may be changed via
-  the Page Properties screen. Redirects from old paths after a path change are
-  deferred; the unique index simply prevents conflicts. See FR-023, FR-024,
-  FR-025.
+  user's password to a tempo

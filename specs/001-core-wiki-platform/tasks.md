@@ -26,7 +26,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T001 Initialize pnpm workspace + Turborepo: `pnpm-workspace.yaml`, `turbo.json`, root `package.json`
 - [x] T002 [P] Scaffold Next.js 16 app in `apps/web/` (`package.json`, `next.config.ts`, `tsconfig.json`, App Router shell)
 - [x] T003 [P] Configure TypeScript strict, ESLint, Prettier, Vitest, Playwright at repo root
-- [x] T004 [P] Install runtime deps: Drizzle, Better Auth, pg-boss, unified/remark/rehype, Toast UI Editor, Mantine, Tailwind, TanStack Query, Zustand, React Hook Form, Zod, REST/OpenAPI tooling
+- [x] T004 [P] Install runtime deps: Drizzle, `bcryptjs` (custom auth), pg-boss, unified/remark/rehype, CodeMirror 6, Tailwind CSS, TanStack Query, Zustand, React Hook Form, Zod, REST/OpenAPI tooling
 - [x] T005 [P] Create `docker-compose.yml` at project root (app + postgres:16 + named volumes) and `docker/Dockerfile` (builds `apps/web`, runs migrations on start)
 - [x] T006 [P] Zod-validated env config in `apps/web/src/server/config.ts` (`DATABASE_URL`, `BETTER_AUTH_SECRET`, etc.)
 
@@ -48,7 +48,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 - [x] T012 [P] Seed script in `apps/web/src/server/seed/index.ts`: built-in default space (`anonymous_read=true`), one sample published page, and a dev admin account (gated to non-production; opt-in via `NEXT_WIKI_SEED=true`)
 - [x] T013 Drizzle migration generation + idempotent run-on-startup hook in `apps/web/src/server/db/migrate.ts` (constitution: DB changes via migration only)
 - [x] T014 [P] Health/readiness route handlers `apps/web/app/healthz/route.ts` and `apps/web/app/readyz/route.ts` (process + DB + post-migration)
-- [x] T015 [P] Unified design system in `apps/web/src/components/ui/`: tokens (CSS custom properties), `Button`, `Input`, `Layout`, `Breadcrumbs`, `EmptyState`, `ErrorState`, `PageList`. Mantine imported ONLY here (constitution P5); all other components use these wrappers
+- [x] T015 [P] Unified design system in `apps/web/src/components/ui/`: tokens (CSS custom properties), `Button`, `Input`, `Layout`, `Breadcrumbs`, `EmptyState`, `ErrorState`, `PageList`. In-house primitives built on Tailwind + tokens; no third-party component library (constitution P5); all other components use these primitives
 - [x] T016 REST API helpers in `apps/web/src/server/api/`: OpenAPI document builder, Zod request/response validation, `getCurrentActor` wrapper, and error-to-HTTP mapping
 - [x] T017 [P] Shared schemas + types in `packages/shared/` (`PageSummary`, `LivePage`, `EditableView`, `RevisionSummary`, `RevisionView`, `UserView`, all Zod schemas — zero runtime deps)
 
@@ -215,61 +215,4 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 - All Phase 1 tasks marked `[P]` can run in parallel.
 - All Phase 2 tasks marked `[P]` (enums, schemas, pipeline, permissions, seed, health, design system, shared types) can run in parallel; T009/T011/T013/T016 are sequential integration points.
-- Once Foundational is complete, US1, US2, US3, US4, and US5 can proceed in parallel by different developers; the new Page Properties route (T057) and navigator tree (T056) are independent UI additions that can land with US1/US3.
-- Within a story, all `[P]` tasks (services, procedures, tests on different files) can run in parallel.
-
----
-
-## Parallel Example: User Story 3
-
-```bash
-# Launch the service + REST handler + editor tasks together (different files):
-Task: "pageService create/newDraft/... in apps/web/src/server/services/pages.ts"
-Task: "REST pages route handlers in apps/web/app/api/pages/**/route.ts"
-Task: "Toast UI MarkdownEditor in apps/web/src/components/editor/MarkdownEditor.tsx"
-```
-
----
-
-## Implementation Strategy
-
-### MVP First (US1 only)
-
-1. Complete Phase 1: Setup
-2. Complete Phase 2: Foundational (CRITICAL — blocks all stories)
-3. Complete Phase 3: US1 (read published pages)
-4. **STOP and VALIDATE**: A visitor can read the seed page at a real URL, browser nav works.
-5. The product already delivers value (readable, shareable wiki).
-
-### Incremental Delivery
-
-1. Setup + Foundational → Foundation ready.
-2. Add US1 → Test independently → MVP demo (read).
-3. Add US2 → Test independently → registration + login.
-4. Add US3 → Test independently → authoring + versions.
-5. Add US4 → Test independently → draft/publish lifecycle.
-6. Add US5 → Test independently → admin user/role management.
-7. Polish → first-run setup, E2E no-SPA suite, a11y, deploy validation.
-
-### Parallel Team Strategy
-
-With multiple developers:
-
-1. Team completes Setup + Foundational together.
-2. Once Foundational is done:
-   - Developer A: US1 (read)
-   - Developer B: US2 (auth)
-   - Developer C: US3 (authoring) + US4 (publish)
-   - Developer D: US5 (admin)
-3. Stories complete and integrate independently; Polish lands last.
-
----
-
-## Notes
-
-- `[P]` tasks = different files, no dependencies on incomplete tasks.
-- `[USx]` label maps a task to its user story for traceability.
-- Every mutation runs in a Drizzle transaction where version numbering / publish swaps must be atomic.
-- Every data-fetch accepts a permission context and goes through `can()` — no permission checks in routes/components.
-- No-SPA contract (P12) is verified by the Playwright navigation suite (T049); regressions toward SPA-like behavior must fail CI.
-- Verify the Docker build (T055) before declaring the feature done.
+- Once Foundational is complete, US1, US2, US3, US4, and US5 can proceed in parallel by different developers; the 

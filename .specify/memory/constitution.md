@@ -1,6 +1,24 @@
 <!--
   Sync Impact Report
   ==================
+  Version change: 1.3.0 -> 1.4.0
+  Bump rationale: MINOR — align fixed Technology Decisions with the
+  implementation actually shipped in 001-core-wiki-platform. No principle,
+  anti-pattern, or mandate invariant changed; only three technology choices
+  were reconciled to current reality:
+    - Editor (client): Toast UI Editor -> CodeMirror 6 (also fixes the prior
+      Toast-UI-vs-Tiptap contradiction between this file and
+      docs/architecture/mandates.md)
+    - Auth: Better Auth -> custom bcrypt + DB-backed sessions
+    - Styling & UI: "Mantine + Tailwind" -> Tailwind + CSS custom properties
+      with in-house components in src/components/ui/ (no Mantine dependency)
+  Companion edits in docs/architecture/{mandates,project-structure,
+  frontend-data-flow}.md drop the tRPC layer (first-party app uses the same
+  REST route handlers via TanStack Query) and the Tiptap/Mantine references.
+  These are technology-decision reconciliations, not invariant changes.
+
+  Prior entry (1.2.0 -> 1.3.0):
+  ==================
   Version change: 1.2.0 -> 1.3.0
   Bump rationale: MINOR — restructure to separate durable governance
   (constitution: principles, anti-patterns, decisions) from detailed
@@ -38,9 +56,9 @@
 
 # next-wiki Project Constitution
 
-**Version**: 1.3.0
+**Version**: 1.4.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-06-14
+**Last Amended**: 2026-06-18
 
 ---
 
@@ -240,7 +258,7 @@ the linked docs) requires a constitution amendment.
 | AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations. | `docs/architecture/mandates.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
 | Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
-| Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; Mantine isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
+| Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; all UI primitives isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
 | Frontend Data Flow | Server state via TanStack Query; UI state via Zustand; never mix; URL state in search params. | `docs/architecture/frontend-data-flow.md` |
 
 ---
@@ -281,14 +299,14 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 | Database | PostgreSQL 16+ | Full-text search, pgvector, pg-boss, JSONB |
 | ORM | Drizzle ORM | SQL-first, pure TS schema, zero generation step, native Zod integration |
 | Job Queue | pg-boss | Runs in PostgreSQL, zero extra services |
-| Auth | Better Auth | Local auth baseline, OAuth/OIDC support, Drizzle adapter, self-host friendly |
+| Auth | Custom bcrypt + DB-backed sessions | Zero-dependency local email/password baseline; `bcryptjs` hashing, server-issued session cookies stored in PostgreSQL; OAuth/OIDC adapters added later behind the same `can()` chokepoint |
 | API (public REST) | REST + OpenAPI | Third-party integrations, scriptable clients, stable public contract |
 | API (AI agents) | MCP Server (optional) | AI-agent integration over permissioned tools |
 | Markdown Parser | unified / remark / rehype | AST-based, pluggable, server-side rendering |
-| Editor (client) | Toast UI Editor (Naver) | Split or WYSIWYG mode, excellent table support, mature API |
+| Editor (client) | CodeMirror 6 | Lightweight split Markdown editor; serializes to raw Markdown only; no heavy WYSIWYG/AST runtime shipped to the client; modular `@codemirror/*` packages |
 | Vector Search | pgvector (PostgreSQL extension) | No extra service, integrates with PostgreSQL |
 | Full-text Search | PostgreSQL tsvector default + Meilisearch optional | Zero-dependency baseline; Meilisearch for CJK and scale |
-| Styling & UI | Mantine + Tailwind CSS + CSS custom properties | Unified design system in `src/components/ui/`; Mantine for controls, Tailwind for content layout, tokens for themes; single source of truth for all resources and cross-page UX consistency |
+| Styling & UI | Tailwind CSS + CSS custom properties + in-house components | Unified design system in `src/components/ui/`; in-house primitives (Button, Input, Alert, …) for controls, Tailwind for content layout, CSS-variable tokens for themes; no third-party component library; single source of truth for all resources and cross-page UX consistency |
 | Containerization | Docker Compose + Kubernetes manifests | Single compose for normal install; K8s for production operators |
 | Testing | Vitest + Playwright | Unit/integration plus E2E coverage |
 | LLM Integration | OpenAI-compatible API plus provider adapters | Provider-agnostic, works with self-hosted or commercial compatible LLMs |
@@ -316,32 +334,4 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 - **MAJOR**: Removal or redefinition of a Core Principle, Anti-Pattern, or the
   one-line invariant of any Architectural Mandate (including in
   `docs/architecture/`).
-- **MINOR**: New principle, mandate, anti-pattern, technology decision, or
-  material restructure of how governance is organized.
-- **PATCH**: Clarifications, wording fixes, typo fixes, non-semantic refinements
-  to this file or to `docs/architecture/`.
-
-Editorial refinement of `docs/architecture/` detail that does not change an
-invariant does not require a constitution version bump; it is reviewed via
-normal PR.
-
-### Authoritative Sources
-
-This constitution is the source of truth for principles, anti-patterns, and
-technology decisions. `docs/architecture/` holds the binding detailed rules for
-each Architectural Mandate and is governed by this constitution. When the two
-appear to conflict, this file prevails; resolve the conflict via an amendment.
-
-### Compliance Review
-
-Every feature PR MUST include a checklist item confirming no Anti-Patterns were
-introduced. Architecture-affecting PRs MUST reference the relevant Core
-Principle or Architectural Mandate they satisfy or amend. Features that touch
-deployment, permissions, AI, import/export, or public APIs MUST include tests or
-manual verification notes for those surfaces.
-
-### Ratifiers
-
-This constitution was ratified by the project founder on 2026-05-30.
-Subsequent amendments are ratified by any two active maintainers, or by the
-founder while the project has fewer than two active maintainers.
+- **MINOR**

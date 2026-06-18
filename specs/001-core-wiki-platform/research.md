@@ -36,15 +36,19 @@ cheap, fast, cache-friendly, and inherently SEO/share-friendly.
 - *Client-side render of Markdown*: rejected outright — contradicts FR-005/FR-006
   and P12 (would require shipping the page payload + a client parser; SPA-like).
 
-## D2 — Auth: Better Auth, database-backed sessions, email/password only
+## D2 — Auth: custom bcrypt + database-backed sessions, email/password only
 
-**Decision**: Better Auth with the Drizzle adapter, local email/password only.
-Sessions are **database-backed** (a `session` row per login), not stateless JWTs.
+**Decision**: Custom auth service (`bcryptjs` password hashing + server-issued
+session cookie) with the existing Drizzle `sessions` table, local email/password
+only. Sessions are **database-backed** (a `session` row per login), not stateless
+JWTs. *(Superseded the original plan to use Better Auth: the custom service is
+zero-dependency and satisfies the same session mandate; Better Auth/OIDC can be
+adopted later behind the same `can()` chokepoint.)*
 
-**Rationale**: Constitution mandates Better Auth and "local email/password is the
-baseline". Database sessions let us invalidate/reflect role changes on the next
-request (D8) and support admin-initiated force-logout implicitly. No email/SMS
-provider — keeps the single-service/single-DB constraint (spec A4).
+**Rationale**: Constitution sets local email/password as the baseline. Database
+sessions let us invalidate/reflect role changes on the next request (D8) and
+support admin-initiated force-logout implicitly. No email/SMS provider — keeps
+the single-service/single-DB constraint (spec A4).
 
 **Alternatives considered**:
 - *Stateless JWT sessions*: cannot reflect mid-session role changes without
@@ -159,12 +163,14 @@ The `must_reset_password` flag also covers first-run if ever needed.
 **Alternatives considered**:
 - *Email reset link*: requires external mail service (rejected, P1/A4).
 
-## D10 — Toast UI Editor boundary (editor AST never leaves the browser)
+## D10 — Editor boundary (editor state never leaves the browser)
 
-**Decision**: The editor is a client component using Toast UI Editor. Its
-internal AST exists only in the browser. The only thing sent to the server on
-save is **serialized raw Markdown**. The server independently parses that raw
-Markdown with remark into its own AST for rendering.
+**Decision**: The editor is a client component using CodeMirror 6 (a split
+Markdown editor). Its internal editor state exists only in the browser. The only
+thing sent to the server on save is **serialized raw Markdown**. The server
+independently parses that raw Markdown with remark into its own AST for
+rendering. *(Superseded the original Toast UI Editor choice; the boundary
+invariant is unchanged.)*
 
 **Rationale**: Constitution Editor Extensibility mandate. Keeps two independent
 AST systems connected only by raw source; editor format is never stored as HTML.
@@ -196,14 +202,10 @@ for fast-follows (search reindex, delete retention, AI ingestion).
 | ID | Topic | Decision |
 |---|---|---|
 | D1 | Markdown rendering | Render at save; store HTML on revision; serve via RSC |
-| D2 | Auth | Better Auth + Drizzle, DB sessions, email/password only |
+| D2 | Auth | Custom bcrypt + Drizzle DB sessions, email/password only |
 | D3 | Permissions | Single `can(actor, action, resource)` chokepoint |
 | D4 | Versioning | Version-level draft/publish; live = latest published revision |
 | D5 | Concurrent edits | Last-write-wins, full history |
 | D6 | Page identity | Author-chosen immutable slug; `path` = slug; URL `/<slug>` |
 | D7 | First-run admin | One-time `/setup` route gated on zero admins |
-| D8 | Role change | Role read from DB per request; no stale elevation |
-| D9 | Password reset | Admin sets temp password + `must_reset_password` flag |
-| D10 | Editor boundary | Toast UI Editor AST stays in browser; serialize to raw Markdown |
-| D11 | No-SPA verification | Playwright asserts native nav contract per route |
-| D12 | Job queue | pg-boss wired; no jobs exercised this slice |
+| D8
