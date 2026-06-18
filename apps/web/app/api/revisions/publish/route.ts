@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as revisionService from '@/server/services/revisions';
 
+/**
+ * Publish a revision.
+ *
+ * @openapi
+ * @summary Publish a revision
+ * @description Publishes the specified draft revision.
+ * @tag Revisions
+ * @auth bearer
+ * @body RevisionInput
+ * @response RevisionView
+ */
 export async function POST(request: Request) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));

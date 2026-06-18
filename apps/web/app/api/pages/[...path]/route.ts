@@ -5,6 +5,16 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 
+/**
+ * Delete a page.
+ *
+ * @openapi
+ * @summary Delete a page
+ * @description Deletes the page at the given path.
+ * @tag Pages
+ * @auth bearer
+ * @response 204
+ */
 export async function DELETE(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;
@@ -24,6 +34,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
   }
 }
 
+/**
+ * Get a published page.
+ *
+ * @openapi
+ * @summary Get a published page
+ * @description Returns the live published page at the given path.
+ * @tag Pages
+ * @response LivePage
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;

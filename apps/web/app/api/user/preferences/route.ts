@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as userCenterService from '@/server/services/user-center';
 
+/**
+ * Update preferences.
+ *
+ * @openapi
+ * @summary Update preferences
+ * @description Updates the signed-in user's theme and/or locale preference.
+ * @tag User
+ * @auth bearer
+ * @body UpdatePreferencesInput
+ * @response PreferencesView
+ */
 export async function PATCH(request: Request) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));

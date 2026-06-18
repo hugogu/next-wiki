@@ -1,0 +1,1586 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Next Wiki API",
+    "version": "1.0.0",
+    "description": "OpenAPI specification for the Next Wiki REST API."
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Current host"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API key"
+      }
+    },
+    "schemas": {
+      "ChangeEmailInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ChangeEmailOutputSchema": {
+        "$ref": "#/components/schemas/changeEmailOutputSchema"
+      },
+      "changeEmailOutputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email"
+        ],
+        "description": "Changed email response"
+      },
+      "ChangePasswordInput": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "CreatePageInput": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "contentSource": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "title",
+          "contentSource"
+        ]
+      },
+      "EditableView": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "contentSource": {
+            "type": "string"
+          },
+          "latestVersion": {
+            "type": "number"
+          },
+          "canPublish": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "status",
+          "title",
+          "contentSource",
+          "latestVersion",
+          "canPublish"
+        ]
+      },
+      "errorResponseSchema": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "description": "API error response"
+      },
+      "formSchema": {
+        "type": "object",
+        "properties": {
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "confirmPassword"
+        ]
+      },
+      "LivePage": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "contentHtml": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "object"
+          },
+          "authorId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "status",
+          "title",
+          "version",
+          "contentHtml",
+          "authorDisplayName",
+          "createdAt",
+          "contentHash",
+          "publishedAt",
+          "authorId"
+        ]
+      },
+      "LoginInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginOutput": {},
+      "MeOutput": {},
+      "NewDraftBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "contentSource": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "contentSource"
+        ]
+      },
+      "OkResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "description": "Simple OK response"
+      },
+      "okResponseSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "description": "Simple OK response"
+      },
+      "pagePathParamSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "description": "Page path parameter"
+      },
+      "PageSummaryList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/pageSummarySchema"
+        },
+        "description": "List of published page summaries"
+      },
+      "pageSummaryListSchema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/pageSummarySchema"
+        },
+        "description": "List of published page summaries"
+      },
+      "PreferencesView": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "light",
+              "dark",
+              "auto"
+            ]
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "en",
+              "zh"
+            ]
+          }
+        },
+        "required": [
+          "theme",
+          "locale"
+        ]
+      },
+      "PreviewInput": {
+        "type": "object",
+        "properties": {
+          "contentSource": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contentSource"
+        ],
+        "description": "Markdown preview input"
+      },
+      "previewInputSchema": {
+        "type": "object",
+        "properties": {
+          "contentSource": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contentSource"
+        ],
+        "description": "Markdown preview input"
+      },
+      "PreviewOutput": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ],
+        "description": "Rendered HTML output"
+      },
+      "previewOutputSchema": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ],
+        "description": "Rendered HTML output"
+      },
+      "ProfileViewSchema": {
+        "$ref": "#/components/schemas/profileViewSchema"
+      },
+      "profileViewSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName"
+        ],
+        "description": "Profile view"
+      },
+      "RegisterInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "RegisterOutput": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "description": "Registration response"
+      },
+      "registerOutputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "description": "Registration response"
+      },
+      "ResetPasswordInput": {},
+      "RevisionInput": {},
+      "revisionPathParamSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "n": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "n"
+        ],
+        "description": "Revision path and version parameters"
+      },
+      "RevisionSummaryList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/revisionSummarySchema"
+        },
+        "description": "List of revision summaries"
+      },
+      "revisionSummaryListSchema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/revisionSummarySchema"
+        },
+        "description": "List of revision summaries"
+      },
+      "RevisionView": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "contentSource": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "contentHtml": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "contentSource",
+          "version",
+          "contentHtml",
+          "authorDisplayName",
+          "createdAt"
+        ]
+      },
+      "SetMyPasswordInput": {},
+      "SetRoleInput": {},
+      "SetStatusInput": {},
+      "SetupInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "UpdatePagePropertiesInput": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "UpdatePreferencesInput": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "light"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "dark"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "auto"
+                ]
+              }
+            ]
+          },
+          "locale": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "en"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "zh"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "UpdateProfileInput": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "displayName"
+        ]
+      },
+      "userIdParamSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "User ID path parameter"
+      },
+      "UserViewList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/userViewSchema"
+        },
+        "description": "List of users"
+      },
+      "userViewListSchema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/userViewSchema"
+        },
+        "description": "List of users"
+      }
+    },
+    "responses": {}
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "post-auth-login",
+        "summary": "Sign in",
+        "description": "Authenticates with email and password and establishes a session.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loginInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loginOutputSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "post-auth-logout",
+        "summary": "Sign out",
+        "description": "Destroys the current session.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "get-auth-me",
+        "summary": "Get current user",
+        "description": "Returns the currently authenticated session user, or null when anonymous.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/meOutputSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "operationId": "post-auth-register",
+        "summary": "Register",
+        "description": "Creates a new user account and establishes a session.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registerInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/set-password": {
+      "post": {
+        "operationId": "post-auth-set-password",
+        "summary": "Set my password",
+        "description": "Allows a signed-in user to set a new password after an admin reset.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/setMyPasswordInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/setup": {
+      "post": {
+        "operationId": "post-auth-setup",
+        "summary": "Setup",
+        "description": "Creates the first admin user when the wiki has no users yet.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/setupInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/edit/{path}": {
+      "get": {
+        "operationId": "get-edit-{path}",
+        "summary": "Get editable page",
+        "description": "Returns the editable view of the page at the given path, including its latest draft.",
+        "tags": [
+          "Edit"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/editableViewSchema"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-edit-{path}",
+        "summary": "Create a new draft",
+        "description": "Creates a new draft revision for the page at the given path.",
+        "tags": [
+          "Edit"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/newDraftBodySchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/revisionViewSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history/{path}": {
+      "get": {
+        "operationId": "get-history-{path}",
+        "summary": "Get page history",
+        "description": "Returns the revision history for the page at the given path.",
+        "tags": [
+          "History"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionSummaryList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "get-openapi.json",
+        "summary": "OpenAPI specification",
+        "description": "Returns the generated OpenAPI 3.1 JSON document describing all public REST endpoints.",
+        "tags": [
+          "Openapi.json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/200 {OpenApiSpec}"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pages": {
+      "get": {
+        "operationId": "get-pages",
+        "summary": "List published pages",
+        "description": "Returns a list of published page summaries.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageSummaryList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-pages",
+        "summary": "Create a page",
+        "description": "Creates a new published page from the provided title, path, and markdown source.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/createPageInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/livePageSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pages/{path}": {
+      "get": {
+        "operationId": "get-pages-{path}",
+        "summary": "Get a published page",
+        "description": "Returns the live published page at the given path.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/livePageSchema"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-pages-{path}",
+        "summary": "Delete a page",
+        "description": "Deletes the page at the given path.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/properties/{path}": {
+      "patch": {
+        "operationId": "patch-properties-{path}",
+        "summary": "Update page properties",
+        "description": "Renames the page by updating its path.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePagePropertiesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/livePageSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/preview": {
+      "post": {
+        "operationId": "post-preview",
+        "summary": "Render markdown preview",
+        "description": "Renders the provided markdown source to HTML without persisting anything.",
+        "tags": [
+          "Preview"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/previewInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/revisions/publish": {
+      "post": {
+        "operationId": "post-revisions-publish",
+        "summary": "Publish a revision",
+        "description": "Publishes the specified draft revision.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/revisionInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/revisionViewSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/revisions/{n}/{path}": {
+      "get": {
+        "operationId": "get-revisions-{n}-{path}",
+        "summary": "Get a revision",
+        "description": "Returns a specific revision of a page by path and version number.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [
+          {
+            "name": "n",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: n"
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/revisionViewSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/email": {
+      "patch": {
+        "operationId": "patch-user-email",
+        "summary": "Change email",
+        "description": "Changes the signed-in user's email address.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/changeEmailInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeEmailOutputSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/password": {
+      "post": {
+        "operationId": "post-user-password",
+        "summary": "Change password",
+        "description": "Changes the signed-in user's password after verifying the current password.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/changePasswordInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/preferences": {
+      "patch": {
+        "operationId": "patch-user-preferences",
+        "summary": "Update preferences",
+        "description": "Updates the signed-in user's theme and/or locale preference.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/updatePreferencesInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/preferencesViewSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/profile": {
+      "patch": {
+        "operationId": "patch-user-profile",
+        "summary": "Update profile",
+        "description": "Updates the signed-in user's display name.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/updateProfileInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileViewSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "get-users",
+        "summary": "List users",
+        "description": "Returns a list of all users. Admin only.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/reset-password": {
+      "post": {
+        "operationId": "post-users-{id}-reset-password",
+        "summary": "Reset user password",
+        "description": "Resets the password of the specified user and forces a reset on next login. Admin only.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/resetPasswordInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/role": {
+      "post": {
+        "operationId": "post-users-{id}-role",
+        "summary": "Set user role",
+        "description": "Changes the role of the specified user. Admin only.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/setRoleInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/status": {
+      "post": {
+        "operationId": "post-users-{id}-status",
+        "summary": "Set user status",
+        "description": "Enables or disables the specified user. Admin only.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/setStatusInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Edit"
+    },
+    {
+      "name": "History"
+    },
+    {
+      "name": "Openapi.json"
+    },
+    {
+      "name": "Pages"
+    },
+    {
+      "name": "Preview"
+    },
+    {
+      "name": "Revisions"
+    },
+    {
+      "name": "User"
+    },
+    {
+      "name": "Users"
+    }
+  ]
+}

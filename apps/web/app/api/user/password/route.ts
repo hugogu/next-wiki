@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as userCenterService from '@/server/services/user-center';
 
+/**
+ * Change password.
+ *
+ * @openapi
+ * @summary Change password
+ * @description Changes the signed-in user's password after verifying the current password.
+ * @tag User
+ * @auth bearer
+ * @body ChangePasswordInput
+ * @response OkResponse
+ */
 export async function POST(request: Request) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));

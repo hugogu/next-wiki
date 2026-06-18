@@ -198,6 +198,10 @@ export const en = {
 
   // Layout
   'layout.header.openNav': 'Open navigator',
+  'layout.header.apiDocs': 'API Docs',
+
+  // API Docs
+  'apiDocs.metadataTitle': 'API Documentation',
   'layout.nav.pagesTitle': 'Pages',
   'layout.nav.adminTitle': 'Admin',
   'layout.nav.closeButton': 'Close navigator',

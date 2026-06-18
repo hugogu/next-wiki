@@ -6,6 +6,16 @@ const previewSchema = z.object({
   contentSource: z.string(),
 });
 
+/**
+ * Render markdown preview.
+ *
+ * @openapi
+ * @summary Render markdown preview
+ * @description Renders the provided markdown source to HTML without persisting anything.
+ * @tag Preview
+ * @body PreviewInput
+ * @response PreviewOutput
+ */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const parsed = previewSchema.safeParse(body);

@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as userService from '@/server/services/users';
 
+/**
+ * Set a user's status.
+ *
+ * @openapi
+ * @summary Set user status
+ * @description Enables or disables the specified user. Admin only.
+ * @tag Users
+ * @auth bearer
+ * @body SetStatusInput
+ * @response OkResponse
+ */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;

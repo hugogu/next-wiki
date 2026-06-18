@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 
+/**
+ * Update page properties.
+ *
+ * @openapi
+ * @summary Update page properties
+ * @description Renames the page by updating its path.
+ * @tag Pages
+ * @auth bearer
+ * @body UpdatePagePropertiesInput
+ * @response LivePage
+ */
 export async function PATCH(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;

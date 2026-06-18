@@ -5,6 +5,15 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 
+/**
+ * Get page history.
+ *
+ * @openapi
+ * @summary Get page history
+ * @description Returns the revision history for the page at the given path.
+ * @tag History
+ * @response RevisionSummaryList
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;

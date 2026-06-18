@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as userCenterService from '@/server/services/user-center';
 
+/**
+ * Change email.
+ *
+ * @openapi
+ * @summary Change email
+ * @description Changes the signed-in user's email address.
+ * @tag User
+ * @auth bearer
+ * @body ChangeEmailInput
+ * @response ChangeEmailOutputSchema
+ */
 export async function PATCH(request: Request) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));

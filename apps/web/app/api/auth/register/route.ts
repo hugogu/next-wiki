@@ -5,6 +5,16 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as authService from '@/server/services/auth';
 
+/**
+ * Register a new account.
+ *
+ * @openapi
+ * @summary Register
+ * @description Creates a new user account and establishes a session.
+ * @tag Auth
+ * @body RegisterInput
+ * @response 201:RegisterOutput
+ */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(registerInputSchema, body);

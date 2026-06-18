@@ -225,30 +225,30 @@ response.
 
 ### Implementation
 
-- [ ] T105 [P] [US2] Install `next-openapi-gen` as a dev dependency in
+- [x] T105 [P] [US2] Install `next-openapi-gen` as a dev dependency in
   `apps/web/package.json`. Configure in `next.config.ts` or a standalone config
   file per the library's docs.
-- [ ] T106 [P] [US2] Create `apps/web/src/server/api/openapi.ts` — integrate
+- [x] T106 [P] [US2] Create `apps/web/src/server/api/openapi.ts` — integrate
   with `next-openapi-gen` to generate an OpenAPI 3.1 document from route
   definitions + Zod schemas. Reuse all shared schemas from `packages/shared`.
   Generate at build time.
-- [ ] T107 [P] [US2] REST route `GET /api/openapi.json` in
+- [x] T107 [P] [US2] REST route `GET /api/openapi.json` in
   `apps/web/app/api/openapi.json/route.ts` — serves the generated OpenAPI spec
   as JSON. Public (no auth).
-- [ ] T108 [US2] API docs page in `apps/web/app/api-docs/page.tsx` — public
+- [x] T108 [US2] API docs page in `apps/web/app/api-docs/page.tsx` — public
   page. Renders an interactive OpenAPI viewer (Scalar or Swagger UI). Loads
   `/api/openapi.json`. Allows inline execution of read endpoints (FR-019).
-- [ ] T109 [P] [US2] `ApiDocsViewer` component in
+- [x] T109 [P] [US2] `ApiDocsViewer` component in
   `apps/web/src/components/api-docs/ApiDocsViewer.tsx` — client component
   rendering the interactive docs. Configures the viewer with the API base URL.
-- [ ] T110 [P] [US2] Add OpenAPI metadata to existing route handlers — annotate
+- [x] T110 [P] [US2] Add OpenAPI metadata to existing route handlers — annotate
   each `/api/**` route with `next-openapi-gen` decorators or metadata exports
   (summary, description, tags, parameters, request/response schemas). There are
   18 existing route files (6 auth + 11 content/admin + 1 preview); the 11
   content/admin route files plus new 002 routes need metadata.
-- [ ] T111 [P] [US2] Add "API Docs" link to header (or footer) visible to all
+- [x] T111 [P] [US2] Add "API Docs" link to header (or footer) visible to all
   visitors including anonymous.
-- [ ] T112 [P] [US2] [T] Add i18n keys for `/api-docs` page title and any
+- [x] T112 [P] [US2] [T] Add i18n keys for `/api-docs` page title and any
   viewer UI strings to `en.ts` + `zh.ts`.
 
 **Checkpoint**: `/api-docs` shows all endpoints with correct schemas. Inline

@@ -5,6 +5,16 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as setupService from '@/server/services/setup';
 
+/**
+ * Initial admin setup.
+ *
+ * @openapi
+ * @summary Setup
+ * @description Creates the first admin user when the wiki has no users yet.
+ * @tag Auth
+ * @body SetupInput
+ * @response OkResponse
+ */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(setupInputSchema, body);

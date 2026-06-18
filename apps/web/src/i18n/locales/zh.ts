@@ -198,6 +198,10 @@ export const zh: Translations = {
 
   // Layout
   'layout.header.openNav': '打开导航',
+  'layout.header.apiDocs': 'API 文档',
+
+  // API Docs
+  'apiDocs.metadataTitle': 'API 文档',
   'layout.nav.pagesTitle': '页面',
   'layout.nav.adminTitle': '管理',
   'layout.nav.closeButton': '关闭导航',

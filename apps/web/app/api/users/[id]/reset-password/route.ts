@@ -6,6 +6,17 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as userService from '@/server/services/users';
 
+/**
+ * Reset a user's password.
+ *
+ * @openapi
+ * @summary Reset user password
+ * @description Resets the password of the specified user and forces a reset on next login. Admin only.
+ * @tag Users
+ * @auth bearer
+ * @body ResetPasswordInput
+ * @response OkResponse
+ */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;

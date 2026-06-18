@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "openapi:generate": "openapi-gen generate"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -51,15 +52,18 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
     "@playwright/test": "^1.49.0",
+    "@scalar/api-reference-react": "^0.9.47",
     "@types/hast": "^3.0.4",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitest/ui": "^4.1.8",
+    "ajv": "^8.20.0",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.2.9",
+    "next-openapi-gen": "^1.4.3",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",

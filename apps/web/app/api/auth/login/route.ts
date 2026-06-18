@@ -5,6 +5,16 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as authService from '@/server/services/auth';
 
+/**
+ * Sign in.
+ *
+ * @openapi
+ * @summary Sign in
+ * @description Authenticates with email and password and establishes a session.
+ * @tag Auth
+ * @body LoginInput
+ * @response LoginOutput
+ */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(loginInputSchema, body);

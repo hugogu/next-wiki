@@ -5,6 +5,15 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 
+/**
+ * Get a specific revision.
+ *
+ * @openapi
+ * @summary Get a revision
+ * @description Returns a specific revision of a page by path and version number.
+ * @tag Revisions
+ * @response RevisionView
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ path: string[]; n: string }> }) {
   const ctx = await createApiContext();
   const raw = await params;

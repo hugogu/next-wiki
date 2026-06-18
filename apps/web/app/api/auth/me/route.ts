@@ -6,6 +6,16 @@ import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
 import { internalError } from '@/server/api/errors';
 
+/**
+ * Get current user.
+ *
+ * @openapi
+ * @summary Get current user
+ * @description Returns the currently authenticated session user, or null when anonymous.
+ * @tag Auth
+ * @auth bearer
+ * @response MeOutput
+ */
 export async function GET() {
   try {
     const actor = await authService.getCurrentActor();

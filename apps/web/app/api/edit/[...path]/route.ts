@@ -6,6 +6,16 @@ import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 
+/**
+ * Get the editable view of a page.
+ *
+ * @openapi
+ * @summary Get editable page
+ * @description Returns the editable view of the page at the given path, including its latest draft.
+ * @tag Edit
+ * @auth bearer
+ * @response EditableView
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;
@@ -28,6 +38,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
   }
 }
 
+/**
+ * Create a new draft for a page.
+ *
+ * @openapi
+ * @summary Create a new draft
+ * @description Creates a new draft revision for the page at the given path.
+ * @tag Edit
+ * @auth bearer
+ * @body NewDraftBody
+ * @response 201:RevisionView
+ */
 export async function POST(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;
