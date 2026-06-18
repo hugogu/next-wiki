@@ -122,6 +122,7 @@ export const ApiKeyViewList = apiKeyViewListSchema;
 export const CreateApiKeyInput = createApiKeyInputSchema;
 export const ApiKeyCreated = apiKeyCreatedSchema;
 export const ApiKeyReveal = apiKeyRevealSchema;
+export const AuditListResponse = auditListResponseSchema;
 
 export const PageSummaryList = pageSummaryListSchema;
 export const RevisionSummaryList = revisionSummaryListSchema;

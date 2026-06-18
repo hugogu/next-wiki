@@ -333,22 +333,22 @@ status, duration, timestamp.
 
 ### Implementation
 
-- [ ] T125 [P] [US4] REST route `GET /api/audit` in
+- [x] T125 [P] [US4] REST route `GET /api/audit` in
   `apps/web/app/api/audit/route.ts` — paginated list of own audit entries.
   Supports `keyId`, `status`, `page`, `pageSize` query params. Session-only.
-- [ ] T126 [US4] Audit page in `apps/web/app/(user)/user-center/audit/page.tsx`
+- [x] T126 [US4] Audit page in `apps/web/app/(user)/user-center/audit/page.tsx`
   — RSC: loads first page of audit entries. Renders `AuditLogTable` with
   filter controls.
-- [ ] T127 [P] [US4] `AuditLogTable` component in
+- [x] T127 [P] [US4] `AuditLogTable` component in
   `apps/web/src/components/user-center/AuditLogTable.tsx` — paginated table:
   method, path, status code (color-coded: green 2xx, yellow 4xx, red 5xx),
   duration, key name, timestamp. Filter by key (dropdown), status (success/error).
   Pagination controls.
-- [ ] T128 [P] [US4] [T] Unit tests in
+- [x] T128 [P] [US4] [T] Unit tests in
   `apps/web/src/server/services/audit.test.ts`: `listOwn` returns only the
   user's entries (no cross-user leak); `listOwn` with `keyId` filter narrows
   correctly; `listOwn` with `status=error` returns only 4xx/5xx.
-- [ ] T129 [P] [US4] [T] Add i18n keys to `en.ts` + `zh.ts`: `audit.*`
+- [x] T129 [P] [US4] [T] Add i18n keys to `en.ts` + `zh.ts`: `audit.*`
   (title, method, path, status, duration, timestamp, keyName, errorMessage,
   filterByKey, filterByStatus, all, success, error, noEntries, page, of, next,
   prev).
@@ -367,27 +367,27 @@ range → confirm each filter narrows results.
 
 ### Implementation
 
-- [ ] T130 [P] [US5] REST route `GET /api/audit/all` in
+- [x] T130 [P] [US5] REST route `GET /api/audit/all` in
   `apps/web/app/api/audit/all/route.ts` — admin-only paginated list. Supports
   `userId`, `keyId`, `status`, `method`, `path`, `startTime`, `endTime`,
   `page`, `pageSize`. Non-admin → 404 (no leak). Session-only.
-- [ ] T131 [US5] Admin audit page in
+- [x] T131 [US5] Admin audit page in
   `apps/web/app/(admin)/admin/api-audit/page.tsx` — RSC: calls
   `audit.listAllSafe(ctx)` (returns null if not admin → `notFound()`). Renders
   `AdminAuditTable` with full filter controls.
-- [ ] T132 [P] [US5] `AdminAuditTable` component in
+- [x] T132 [P] [US5] `AdminAuditTable` component in
   `apps/web/src/components/admin/AdminAuditTable.tsx` — paginated table:
   user email, key name, method, path, status, duration, auth status, error
   message, timestamp. Filters: user, key, status, method, path prefix, time
   range. Color-coded status codes.
-- [ ] T133 [P] [US5] Modify `apps/web/src/components/layout/Navigator.tsx` —
+- [x] T133 [P] [US5] Modify `apps/web/src/components/layout/Navigator.tsx` —
   add `/admin/api-audit` to `ADMIN_ITEMS` array (alongside `/admin/users`).
-- [ ] T134 [P] [US5] [T] Unit tests in
+- [x] T134 [P] [US5] [T] Unit tests in
   `apps/web/src/server/services/audit.test.ts` (extend): `listAll` requires
   admin (non-admin throws FORBIDDEN); `listAll` with `userId` filter narrows;
   `listAll` with time range filter narrows; `listAll` includes entries from
   all users.
-- [ ] T135 [P] [US5] [T] Add i18n keys to `en.ts` + `zh.ts`: `admin.apiAudit.*`
+- [x] T135 [P] [US5] [T] Add i18n keys to `en.ts` + `zh.ts`: `admin.apiAudit.*`
   (title, user, keyName, method, path, status, duration, authStatus, timestamp,
   errorMessage, filterByUser, filterByTimeRange, from, to, allUsers, allKeys).
 

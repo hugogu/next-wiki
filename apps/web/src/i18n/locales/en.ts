@@ -209,6 +209,7 @@ export const en = {
 
   // Admin
   'admin.nav.users': 'Users',
+  'admin.nav.apiAudit': 'API Audit',
 
   // User Center
   'userCenter.metadataTitle': 'User Center',
@@ -245,6 +246,48 @@ export const en = {
 
   'userCenter.apiKeys.metadataTitle': 'API Keys',
   'userCenter.audit.metadataTitle': 'Audit Log',
+
+  // Audit
+  'userCenter.audit.title': 'Audit Log',
+  'userCenter.audit.method': 'Method',
+  'userCenter.audit.path': 'Path',
+  'userCenter.audit.status': 'Status',
+  'userCenter.audit.duration': 'Duration',
+  'userCenter.audit.timestamp': 'Timestamp',
+  'userCenter.audit.keyName': 'Key',
+  'userCenter.audit.errorMessage': 'Error',
+  'userCenter.audit.filterByKey': 'Filter by key',
+  'userCenter.audit.filterByStatus': 'Status',
+  'userCenter.audit.all': 'All',
+  'userCenter.audit.success': 'Success',
+  'userCenter.audit.error': 'Error',
+  'userCenter.audit.noEntries': 'No audit entries yet.',
+  'userCenter.audit.page': 'Page',
+  'userCenter.audit.of': 'of',
+  'userCenter.audit.next': 'Next',
+  'userCenter.audit.prev': 'Previous',
+  'userCenter.audit.allKeys': 'All keys',
+
+  // Admin Audit
+  'admin.apiAudit.metadataTitle': 'API Audit',
+  'admin.apiAudit.title': 'API Audit',
+  'admin.apiAudit.user': 'User',
+  'admin.apiAudit.keyName': 'Key',
+  'admin.apiAudit.method': 'Method',
+  'admin.apiAudit.path': 'Path',
+  'admin.apiAudit.status': 'Status',
+  'admin.apiAudit.duration': 'Duration',
+  'admin.apiAudit.authStatus': 'Auth',
+  'admin.apiAudit.timestamp': 'Timestamp',
+  'admin.apiAudit.errorMessage': 'Error',
+  'admin.apiAudit.filterByUser': 'User ID',
+  'admin.apiAudit.filterByKey': 'Key ID',
+  'admin.apiAudit.filterByTimeRange': 'Time range',
+  'admin.apiAudit.from': 'From',
+  'admin.apiAudit.to': 'To',
+  'admin.apiAudit.allUsers': 'All users',
+  'admin.apiAudit.allKeys': 'All keys',
+  'admin.apiAudit.noEntries': 'No audit entries match the filters.',
 
   'userCenter.apiKeys.title': 'API Keys',
   'userCenter.apiKeys.createButton': 'Create API key',

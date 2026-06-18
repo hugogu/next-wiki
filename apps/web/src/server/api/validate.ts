@@ -1,4 +1,4 @@
-import { z, type ZodSchema, type ZodError } from 'zod';
+import { z, type ZodSchema, type ZodError, type ZodTypeDef } from 'zod';
 
 export function parseJson<T>(schema: ZodSchema<T>, body: unknown): { ok: true; data: T } | { ok: false; error: ZodError } {
   const result = schema.safeParse(body);
@@ -10,6 +10,21 @@ export function parseJson<T>(schema: ZodSchema<T>, body: unknown): { ok: true; d
 
 export function parseParams<T>(schema: ZodSchema<T>, params: unknown): { ok: true; data: T } | { ok: false; error: ZodError } {
   const result = schema.safeParse(params);
+  if (!result.success) {
+    return { ok: false, error: result.error };
+  }
+  return { ok: true, data: result.data };
+}
+
+export function parseQuery<TOutput, TInput = TOutput>(
+  schema: ZodSchema<TOutput, ZodTypeDef, TInput>,
+  searchParams: URLSearchParams,
+): { ok: true; data: TOutput } | { ok: false; error: ZodError } {
+  const raw: Record<string, unknown> = {};
+  searchParams.forEach((value, key) => {
+    raw[key] = value;
+  });
+  const result = schema.safeParse(raw);
   if (!result.success) {
     return { ok: false, error: result.error };
   }

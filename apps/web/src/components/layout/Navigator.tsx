@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { PageSummary } from '@next-wiki/shared';
-import { FileTextIcon, FolderIcon, XIcon, UsersIcon } from '@/components/icons';
+import { FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 
@@ -124,6 +124,7 @@ export function Navigator({
   const { t } = useTranslation();
   const ADMIN_ITEMS: AdminNavItem[] = [
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
+    { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
   const tree = buildPageTree(pages);
 

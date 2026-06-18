@@ -1,0 +1,39 @@
+import { redirect, notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { AuditLogTable } from '@/components/user-center/AuditLogTable';
+import { getCurrentActor } from '@/server/services/auth';
+import * as auditService from '@/server/services/audit';
+import * as apiKeyService from '@/server/services/api-keys';
+import { getLocale, getDictionary } from '@/i18n/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getDictionary(locale);
+  return { title: t('userCenter.audit.metadataTitle') };
+}
+
+export default async function AuditPage() {
+  const actor = await getCurrentActor();
+  if (actor.kind === 'anonymous') {
+    redirect('/auth/login');
+  }
+
+  const ctx = { actor };
+  let initialData;
+  try {
+    initialData = await auditService.listOwn(ctx, { page: 1, pageSize: 20 });
+  } catch {
+    notFound();
+  }
+
+  const keys = await apiKeyService.list(ctx);
+
+  return (
+    <div className="max-w-5xl space-y-md">
+      <h2 className="font-display text-2xl font-semibold">{getDictionary(await getLocale())('userCenter.audit.title')}</h2>
+      <AuditLogTable initialData={initialData} fetchUrl="/api/audit" keys={keys.map((k) => ({ id: k.id, name: k.name }))} />
+    </div>
+  );
+}

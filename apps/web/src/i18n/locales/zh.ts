@@ -209,6 +209,7 @@ export const zh: Translations = {
 
   // Admin
   'admin.nav.users': '用户',
+  'admin.nav.apiAudit': 'API 审计',
 
   // User Center
   'userCenter.metadataTitle': '用户中心',
@@ -245,6 +246,48 @@ export const zh: Translations = {
 
   'userCenter.apiKeys.metadataTitle': 'API 密钥',
   'userCenter.audit.metadataTitle': '审计日志',
+
+  // Audit
+  'userCenter.audit.title': '审计日志',
+  'userCenter.audit.method': '方法',
+  'userCenter.audit.path': '路径',
+  'userCenter.audit.status': '状态',
+  'userCenter.audit.duration': '耗时',
+  'userCenter.audit.timestamp': '时间',
+  'userCenter.audit.keyName': '密钥',
+  'userCenter.audit.errorMessage': '错误',
+  'userCenter.audit.filterByKey': '按密钥筛选',
+  'userCenter.audit.filterByStatus': '状态',
+  'userCenter.audit.all': '全部',
+  'userCenter.audit.success': '成功',
+  'userCenter.audit.error': '错误',
+  'userCenter.audit.noEntries': '暂无审计记录。',
+  'userCenter.audit.page': '页',
+  'userCenter.audit.of': '/',
+  'userCenter.audit.next': '下一页',
+  'userCenter.audit.prev': '上一页',
+  'userCenter.audit.allKeys': '全部密钥',
+
+  // Admin Audit
+  'admin.apiAudit.metadataTitle': 'API 审计',
+  'admin.apiAudit.title': 'API 审计',
+  'admin.apiAudit.user': '用户',
+  'admin.apiAudit.keyName': '密钥',
+  'admin.apiAudit.method': '方法',
+  'admin.apiAudit.path': '路径',
+  'admin.apiAudit.status': '状态',
+  'admin.apiAudit.duration': '耗时',
+  'admin.apiAudit.authStatus': '认证',
+  'admin.apiAudit.timestamp': '时间',
+  'admin.apiAudit.errorMessage': '错误',
+  'admin.apiAudit.filterByUser': '用户 ID',
+  'admin.apiAudit.filterByKey': '密钥 ID',
+  'admin.apiAudit.filterByTimeRange': '时间范围',
+  'admin.apiAudit.from': '开始',
+  'admin.apiAudit.to': '结束',
+  'admin.apiAudit.allUsers': '全部用户',
+  'admin.apiAudit.allKeys': '全部密钥',
+  'admin.apiAudit.noEntries': '没有符合筛选条件的审计记录。',
 
   'userCenter.apiKeys.title': 'API 密钥',
   'userCenter.apiKeys.createButton': '创建 API 密钥',

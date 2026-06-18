@@ -305,6 +305,30 @@
     "responses": {}
   },
   "paths": {
+    "/audit": {
+      "get": {
+        "operationId": "get-audit",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Audit"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/audit/all": {
+      "get": {
+        "operationId": "get-audit-all",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Audit"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "post-auth-login",
@@ -1008,6 +1032,9 @@
     }
   },
   "tags": [
+    {
+      "name": "Audit"
+    },
     {
       "name": "Auth"
     },
