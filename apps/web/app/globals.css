@@ -82,6 +82,11 @@ body {
   line-height: 1.2;
 }
 
+article.prose > h1:first-child,
+article .prose > h1:first-child {
+  margin-top: 0;
+}
+
 .prose h2 {
   font-size: 1.75rem;
 }
@@ -219,6 +224,13 @@ body {
 
 .prose tr:nth-child(even) {
   background-color: var(--color-surface-elevated);
+}
+
+.prose .mermaid {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
 }
 
 /* Scrollbars */

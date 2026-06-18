@@ -47,7 +47,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
             This page is a draft and not yet published.
           </div>
         )}
-        <article className="flex-1 px-lg py-xl max-w-none">
+        <article className="flex-1 px-lg py-md max-w-none">
           <MermaidRenderer>
             <div
               className="prose max-w-none"
