@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
+import { BackLink } from '@/components/ui/BackLink';
 import { PagePropertiesForm } from '@/components/pages/PagePropertiesForm';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
@@ -45,9 +45,7 @@ export default async function PageProperties({ params }: { params: Params }) {
     <Layout pageContext={pageContext}>
       <div className="max-w-2xl mx-auto px-lg py-xl">
         <div className="mb-md">
-          <Link href={getPageHref(path)} className="text-sm text-primary hover:underline">
-            ← Back to page
-          </Link>
+          <BackLink fallbackHref={getPageHref(path)}>← Back</BackLink>
         </div>
         <h1 className="font-display text-3xl font-semibold mb-md">Page properties</h1>
         <p className="text-muted mb-lg">
