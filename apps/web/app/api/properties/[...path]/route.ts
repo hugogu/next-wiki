@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { updatePagePropertiesSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { pathParamSchema, parseParams, getPathFromParams, parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as pageService from '@/server/services/pages';
 
 /**
@@ -17,7 +18,7 @@ import * as pageService from '@/server/services/pages';
  * @body UpdatePagePropertiesInput
  * @response LivePage
  */
-export async function PATCH(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+async function handlePATCH(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;
   const parsedPath = parseParams(pathParamSchema, raw.path);
@@ -41,3 +42,5 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pa
     return internalError();
   }
 }
+
+export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);

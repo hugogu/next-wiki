@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAnonymousCtx, buildUserCtx, can } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx, buildApiKeyCtx, can } from '@/server/permissions';
 
 describe('permissions', () => {
   it('anonymous can read when anonymousRead is true', () => {
@@ -34,5 +34,26 @@ describe('permissions', () => {
     expect(can(buildUserCtx('u1', 'admin'), 'manage_users', { kind: 'users' })).toBe(true);
     expect(can(buildUserCtx('u1', 'editor'), 'manage_users', { kind: 'users' })).toBe(false);
     expect(can(buildUserCtx('u1', 'reader'), 'manage_users', { kind: 'users' })).toBe(false);
+  });
+
+  it('api_key with view scope can read but not create', () => {
+    const ctx = buildApiKeyCtx('u1', 'reader', ['view'], 'k1');
+    expect(can(ctx, 'read', { kind: 'page_list' })).toBe(true);
+    expect(can(ctx, 'create', { kind: 'page_list' })).toBe(false);
+  });
+
+  it('api_key with create scope owned by reader is denied create (scope ∩ role)', () => {
+    const ctx = buildApiKeyCtx('u1', 'reader', ['create'], 'k1');
+    expect(can(ctx, 'create', { kind: 'page_list' })).toBe(false);
+  });
+
+  it('api_key with edit scope owned by editor can edit', () => {
+    const ctx = buildApiKeyCtx('u1', 'editor', ['edit'], 'k1');
+    expect(can(ctx, 'edit', { kind: 'page', pageId: 'p1' })).toBe(true);
+  });
+
+  it('manage_users is always denied for api_key', () => {
+    const ctx = buildApiKeyCtx('u1', 'admin', ['view', 'create', 'edit', 'delete', 'share', 'run'], 'k1');
+    expect(can(ctx, 'manage_users', { kind: 'users' })).toBe(false);
   });
 });

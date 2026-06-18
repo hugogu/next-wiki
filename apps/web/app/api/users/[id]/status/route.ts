@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { setStatusInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { uuidSchema, parseParams, parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userService from '@/server/services/users';
 
 /**
@@ -17,7 +18,7 @@ import * as userService from '@/server/services/users';
  * @body SetStatusInput
  * @response OkResponse
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
   const parsedId = parseParams(uuidSchema, id);
@@ -39,3 +40,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return internalError();
   }
 }
+
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

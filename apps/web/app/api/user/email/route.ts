@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { changeEmailInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userCenterService from '@/server/services/user-center';
 
 /**
@@ -17,7 +18,7 @@ import * as userCenterService from '@/server/services/user-center';
  * @body ChangeEmailInput
  * @response ChangeEmailOutputSchema
  */
-export async function PATCH(request: Request) {
+async function handlePATCH(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(changeEmailInputSchema, body);
@@ -33,3 +34,5 @@ export async function PATCH(request: Request) {
     return internalError();
   }
 }
+
+export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);

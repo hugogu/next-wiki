@@ -20,19 +20,22 @@
       }
     },
     "schemas": {
-      "ChangeEmailInput": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "email"
-        ]
+      "ApiKeyCreated": {
+        "type": "object"
       },
-      "ChangeEmailOutputSchema": {
-        "$ref": "#/components/schemas/changeEmailOutputSchema"
+      "ApiKeyViewList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/apiKeyViewSchema"
+        },
+        "description": "List of API keys"
+      },
+      "apiKeyViewListSchema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/apiKeyViewSchema"
+        },
+        "description": "List of API keys"
       },
       "changeEmailOutputSchema": {
         "type": "object",
@@ -50,74 +53,8 @@
         ],
         "description": "Changed email response"
       },
-      "ChangePasswordInput": {
-        "type": "object",
-        "properties": {
-          "currentPassword": {
-            "type": "string"
-          },
-          "newPassword": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "currentPassword",
-          "newPassword"
-        ]
-      },
-      "CreatePageInput": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "contentSource": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "title",
-          "contentSource"
-        ]
-      },
-      "EditableView": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "published"
-            ]
-          },
-          "title": {
-            "type": "string"
-          },
-          "contentSource": {
-            "type": "string"
-          },
-          "latestVersion": {
-            "type": "number"
-          },
-          "canPublish": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "path",
-          "status",
-          "title",
-          "contentSource",
-          "latestVersion",
-          "canPublish"
-        ]
+      "CreateApiKeyInput": {
+        "type": "object"
       },
       "errorResponseSchema": {
         "type": "object",
@@ -134,72 +71,6 @@
           "code"
         ],
         "description": "API error response"
-      },
-      "formSchema": {
-        "type": "object",
-        "properties": {
-          "confirmPassword": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "confirmPassword"
-        ]
-      },
-      "LivePage": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "published"
-            ]
-          },
-          "title": {
-            "type": "string"
-          },
-          "version": {
-            "type": "number"
-          },
-          "contentHtml": {
-            "type": "string"
-          },
-          "authorDisplayName": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "contentHash": {
-            "type": "string"
-          },
-          "publishedAt": {
-            "type": "object"
-          },
-          "authorId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "status",
-          "title",
-          "version",
-          "contentHtml",
-          "authorDisplayName",
-          "createdAt",
-          "contentHash",
-          "publishedAt",
-          "authorId"
-        ]
       },
       "LoginInput": {
         "type": "object",
@@ -218,21 +89,6 @@
       },
       "LoginOutput": {},
       "MeOutput": {},
-      "NewDraftBody": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "contentSource": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "title",
-          "contentSource"
-        ]
-      },
       "OkResponse": {
         "type": "object",
         "properties": {
@@ -269,49 +125,12 @@
         ],
         "description": "Page path parameter"
       },
-      "PageSummaryList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/pageSummarySchema"
-        },
-        "description": "List of published page summaries"
-      },
       "pageSummaryListSchema": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/pageSummarySchema"
         },
         "description": "List of published page summaries"
-      },
-      "PreferencesView": {
-        "type": "object",
-        "properties": {
-          "theme": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "light",
-              "dark",
-              "auto"
-            ]
-          },
-          "locale": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "en",
-              "zh"
-            ]
-          }
-        },
-        "required": [
-          "theme",
-          "locale"
-        ]
       },
       "PreviewInput": {
         "type": "object",
@@ -360,9 +179,6 @@
           "html"
         ],
         "description": "Rendered HTML output"
-      },
-      "ProfileViewSchema": {
-        "$ref": "#/components/schemas/profileViewSchema"
       },
       "profileViewSchema": {
         "type": "object",
@@ -426,8 +242,6 @@
         ],
         "description": "Registration response"
       },
-      "ResetPasswordInput": {},
-      "RevisionInput": {},
       "revisionPathParamSchema": {
         "type": "object",
         "properties": {
@@ -444,13 +258,6 @@
         ],
         "description": "Revision path and version parameters"
       },
-      "RevisionSummaryList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/revisionSummarySchema"
-        },
-        "description": "List of revision summaries"
-      },
       "revisionSummaryListSchema": {
         "type": "array",
         "items": {
@@ -458,47 +265,7 @@
         },
         "description": "List of revision summaries"
       },
-      "RevisionView": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "published"
-            ]
-          },
-          "contentSource": {
-            "type": "string"
-          },
-          "version": {
-            "type": "number"
-          },
-          "contentHtml": {
-            "type": "string"
-          },
-          "authorDisplayName": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "contentSource",
-          "version",
-          "contentHtml",
-          "authorDisplayName",
-          "createdAt"
-        ]
-      },
       "SetMyPasswordInput": {},
-      "SetRoleInput": {},
-      "SetStatusInput": {},
       "SetupInput": {
         "type": "object",
         "properties": {
@@ -514,80 +281,6 @@
           "password"
         ]
       },
-      "UpdatePagePropertiesInput": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ]
-      },
-      "UpdatePreferencesInput": {
-        "type": "object",
-        "properties": {
-          "theme": {
-            "oneOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "light"
-                ]
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "dark"
-                ]
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "auto"
-                ]
-              }
-            ]
-          },
-          "locale": {
-            "oneOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "en"
-                ]
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "zh"
-                ]
-              }
-            ]
-          }
-        }
-      },
-      "UpdateProfileInput": {
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "displayName"
-        ]
-      },
       "userIdParamSchema": {
         "type": "object",
         "properties": {
@@ -600,13 +293,6 @@
           "id"
         ],
         "description": "User ID path parameter"
-      },
-      "UserViewList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/userViewSchema"
-        },
-        "description": "List of users"
       },
       "userViewListSchema": {
         "type": "array",
@@ -671,7 +357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/okResponseSchema"
                 }
               }
             }
@@ -731,7 +417,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegisterOutput"
+                  "$ref": "#/components/schemas/registerOutputSchema"
                 }
               }
             }
@@ -768,7 +454,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/okResponseSchema"
                 }
               }
             }
@@ -800,7 +486,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/okResponseSchema"
                 }
               }
             }
@@ -811,8 +497,8 @@
     "/edit/{path}": {
       "get": {
         "operationId": "get-edit-{path}",
-        "summary": "Get editable page",
-        "description": "Returns the editable view of the page at the given path, including its latest draft.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Edit"
         ],
@@ -828,28 +514,12 @@
             "description": "Path parameter: path"
           }
         ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/editableViewSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       },
       "post": {
         "operationId": "post-edit-{path}",
-        "summary": "Create a new draft",
-        "description": "Creates a new draft revision for the page at the given path.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Edit"
         ],
@@ -865,39 +535,14 @@
             "description": "Path parameter: path"
           }
         ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/newDraftBodySchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/revisionViewSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/history/{path}": {
       "get": {
         "operationId": "get-history-{path}",
-        "summary": "Get page history",
-        "description": "Returns the revision history for the page at the given path.",
+        "summary": "",
+        "description": "",
         "tags": [
           "History"
         ],
@@ -913,106 +558,48 @@
             "description": "Path parameter: path"
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RevisionSummaryList"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/openapi.json": {
       "get": {
         "operationId": "get-openapi.json",
-        "summary": "OpenAPI specification",
-        "description": "Returns the generated OpenAPI 3.1 JSON document describing all public REST endpoints.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Openapi.json"
         ],
         "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/200 {OpenApiSpec}"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/pages": {
       "get": {
         "operationId": "get-pages",
-        "summary": "List published pages",
-        "description": "Returns a list of published page summaries.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Pages"
         ],
         "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PageSummaryList"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       },
       "post": {
         "operationId": "post-pages",
-        "summary": "Create a page",
-        "description": "Creates a new published page from the provided title, path, and markdown source.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Pages"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/createPageInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/livePageSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/pages/{path}": {
       "get": {
         "operationId": "get-pages-{path}",
-        "summary": "Get a published page",
-        "description": "Returns the live published page at the given path.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Pages"
         ],
@@ -1028,23 +615,12 @@
             "description": "Path parameter: path"
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/livePageSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       },
       "delete": {
         "operationId": "delete-pages-{path}",
-        "summary": "Delete a page",
-        "description": "Deletes the page at the given path.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Pages"
         ],
@@ -1058,64 +634,11 @@
             },
             "example": "example",
             "description": "Path parameter: path"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
           }
         ],
         "responses": {
           "204": {
             "description": "No Content"
-          }
-        }
-      }
-    },
-    "/properties/{path}": {
-      "patch": {
-        "operationId": "patch-properties-{path}",
-        "summary": "Update page properties",
-        "description": "Renames the page by updating its path.",
-        "tags": [
-          "Pages"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePagePropertiesInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/livePageSchema"
-                }
-              }
-            }
           }
         }
       }
@@ -1133,7 +656,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/previewInputSchema"
+                "$ref": "#/components/schemas/PreviewInput"
               }
             }
           }
@@ -1144,56 +667,54 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PreviewOutput"
+                  "$ref": "#/components/schemas/previewOutputSchema"
                 }
               }
             }
           }
         }
+      }
+    },
+    "/properties/{path}": {
+      "patch": {
+        "operationId": "patch-properties-{path}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Properties"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {}
       }
     },
     "/revisions/publish": {
       "post": {
         "operationId": "post-revisions-publish",
-        "summary": "Publish a revision",
-        "description": "Publishes the specified draft revision.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Revisions"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/revisionInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/revisionViewSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/revisions/{n}/{path}": {
       "get": {
         "operationId": "get-revisions-{n}-{path}",
-        "summary": "Get a revision",
-        "description": "Returns a specific revision of a page by path and version number.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Revisions"
         ],
@@ -1219,16 +740,100 @@
             "description": "Path parameter: path"
           }
         ],
+        "responses": {}
+      }
+    },
+    "/api-keys": {
+      "get": {
+        "operationId": "get-api-keys",
+        "summary": "List API keys",
+        "description": "Returns the current user's API keys without secrets.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/revisionViewSchema"
+                  "$ref": "#/components/schemas/apiKeyViewListSchema"
                 }
               }
             }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-api-keys",
+        "summary": "Create an API key",
+        "description": "Creates a new API key with the requested scopes. The full secret is returned only once.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/createApiKeyInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiKeyCreatedSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/{id}": {
+      "delete": {
+        "operationId": "delete-api-keys-{id}",
+        "summary": "Revoke API key",
+        "description": "Revokes one of the user's API keys.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -1236,144 +841,83 @@
     "/user/email": {
       "patch": {
         "operationId": "patch-user-email",
-        "summary": "Change email",
-        "description": "Changes the signed-in user's email address.",
+        "summary": "",
+        "description": "",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/changeEmailInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChangeEmailOutputSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/user/password": {
       "post": {
         "operationId": "post-user-password",
-        "summary": "Change password",
-        "description": "Changes the signed-in user's password after verifying the current password.",
+        "summary": "",
+        "description": "",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/changePasswordInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/user/preferences": {
       "patch": {
         "operationId": "patch-user-preferences",
-        "summary": "Update preferences",
-        "description": "Updates the signed-in user's theme and/or locale preference.",
+        "summary": "",
+        "description": "",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/updatePreferencesInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/preferencesViewSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/user/profile": {
       "patch": {
         "operationId": "patch-user-profile",
-        "summary": "Update profile",
-        "description": "Updates the signed-in user's display name.",
+        "summary": "",
+        "description": "",
         "tags": [
           "User"
         ],
         "parameters": [],
+        "responses": {}
+      }
+    },
+    "/api-keys/{id}/reveal": {
+      "get": {
+        "operationId": "get-api-keys-{id}-reveal",
+        "summary": "Reveal API key secret",
+        "description": "Decrypts and returns the full secret for one of the user's API keys.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
         "security": [
           {
             "BearerAuth": []
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/updateProfileInputSchema"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileViewSchema"
+                  "$ref": "#/components/schemas/apiKeyRevealSchema"
                 }
               }
             }
@@ -1384,36 +928,20 @@
     "/users": {
       "get": {
         "operationId": "get-users",
-        "summary": "List users",
-        "description": "Returns a list of all users. Admin only.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Users"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserViewList"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/users/{id}/reset-password": {
       "post": {
         "operationId": "post-users-{id}-reset-password",
-        "summary": "Reset user password",
-        "description": "Resets the password of the specified user and forces a reset on next login. Admin only.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Users"
         ],
@@ -1429,39 +957,14 @@
             "description": "Path parameter: id"
           }
         ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/resetPasswordInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/users/{id}/role": {
       "post": {
         "operationId": "post-users-{id}-role",
-        "summary": "Set user role",
-        "description": "Changes the role of the specified user. Admin only.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Users"
         ],
@@ -1477,39 +980,14 @@
             "description": "Path parameter: id"
           }
         ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/setRoleInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
     "/users/{id}/status": {
       "post": {
         "operationId": "post-users-{id}-status",
-        "summary": "Set user status",
-        "description": "Enables or disables the specified user. Admin only.",
+        "summary": "",
+        "description": "",
         "tags": [
           "Users"
         ],
@@ -1525,32 +1003,7 @@
             "description": "Path parameter: id"
           }
         ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/setStatusInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     }
   },
@@ -1572,6 +1025,9 @@
     },
     {
       "name": "Preview"
+    },
+    {
+      "name": "Properties"
     },
     {
       "name": "Revisions"

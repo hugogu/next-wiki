@@ -268,51 +268,51 @@ key → subsequent calls return 401.
 
 ### Implementation
 
-- [ ] T113 [P] [US3] REST route `GET /api/api-keys` in
+- [x] T113 [P] [US3] REST route `GET /api/api-keys` in
   `apps/web/app/api/api-keys/route.ts` — lists user's keys (without secrets).
   Session-only.
-- [ ] T114 [P] [US3] REST route `POST /api/api-keys` in
+- [x] T114 [P] [US3] REST route `POST /api/api-keys` in
   `apps/web/app/api/api-keys/route.ts` — creates a new key. Returns full secret
   at creation time. Validates name + scopes + per-user max. Wraps with
   `withApiAudit` (key management routes are NOT audited — only content routes
   are audited).
-- [ ] T115 [P] [US3] REST route `GET /api/api-keys/[id]/reveal` in
+- [x] T115 [P] [US3] REST route `GET /api/api-keys/[id]/reveal` in
   `apps/web/app/api/api-keys/[id]/reveal/route.ts` — reveals full key secret.
   Session-only. Owner check.
-- [ ] T116 [P] [US3] REST route `DELETE /api/api-keys/[id]` in
+- [x] T116 [P] [US3] REST route `DELETE /api/api-keys/[id]` in
   `apps/web/app/api/api-keys/[id]/route.ts` — revokes key. Session-only. Owner
   check.
-- [ ] T117 [US3] API Keys page in
+- [x] T117 [US3] API Keys page in
   `apps/web/app/(user)/user-center/api-keys/page.tsx` — RSC: loads key list.
   Renders `ApiKeyList` with create button, reveal toggle, revoke action.
-- [ ] T118 [P] [US3] `ApiKeyList` component in
+- [x] T118 [P] [US3] `ApiKeyList` component in
   `apps/web/src/components/user-center/ApiKeyList.tsx` — table showing name,
   scopes (as badges), key prefix, created date, last used, status. "Show"
   button per row calls reveal endpoint. "Revoke" button with confirmation.
-- [ ] T119 [P] [US3] `ApiKeyCreateDialog` component in
+- [x] T119 [P] [US3] `ApiKeyCreateDialog` component in
   `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx` — modal form:
   name input + scope checkboxes (view, create, edit, delete, share, run with
   descriptions). On submit: POST, show full key once with copy button, warn
   that the key is stored encrypted and can be revealed later.
-- [ ] T120 [P] [US3] `ApiKeyReveal` component in
+- [x] T120 [P] [US3] `ApiKeyReveal` component in
   `apps/web/src/components/user-center/ApiKeyReveal.tsx` — shows the revealed
   key with a copy button. Auto-hides after 30 seconds (shoulder-surfing
   prevention).
-- [ ] T121 [US3] Apply `withApiAudit` wrapper to all existing `/api/**` route
+- [x] T121 [US3] Apply `withApiAudit` wrapper to all existing `/api/**` route
   handlers except `/api/auth/**` (6 files, session-only) and `/api/preview`
   (1 file, no auth). That is 11 content/admin route files; apply as a one-line
   change per export: `export const GET = withApiAudit(originalHandler)`.
-- [ ] T122 [P] [US3] [T] Unit tests in
+- [x] T122 [P] [US3] [T] Unit tests in
   `apps/web/src/server/services/api-keys.test.ts`: `create` generates key with
   correct prefix + encrypts secret; `lookupByToken` resolves valid key and
   rejects invalid/revoked; `reveal` decrypts correctly; `revoke` sets
   `revoked_at`; per-user max enforced.
-- [ ] T123 [P] [US3] [T] Unit tests in
+- [x] T123 [P] [US3] [T] Unit tests in
   `apps/web/src/server/permissions/index.test.ts` (extend existing): `api_key`
   actor with `view` scope can `read` but not `create`; `api_key` with `create`
   scope owned by reader is denied `create` (scope ∩ role); `manage_users`
   always denied for `api_key`.
-- [ ] T124 [P] [US3] [T] Add i18n keys to `en.ts` + `zh.ts`: `apiKeys.*`
+- [x] T124 [P] [US3] [T] Add i18n keys to `en.ts` + `zh.ts`: `apiKeys.*`
   (title, create, name, scopes, keyPrefix, createdAt, lastUsed, status.active,
   status.revoked, reveal, hide, copy, copied, revoke, revokeConfirm, revokeWarning,
   scope.view, scope.create, scope.edit, scope.delete, scope.share, scope.run,

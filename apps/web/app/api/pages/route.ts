@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { createPageInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as pageService from '@/server/services/pages';
 
 /**
@@ -15,7 +16,7 @@ import * as pageService from '@/server/services/pages';
  * @tag Pages
  * @response PageSummaryList
  */
-export async function GET() {
+async function handleGET() {
   const ctx = await createApiContext();
   try {
     const pages = await pageService.listPublished(ctx);
@@ -37,7 +38,7 @@ export async function GET() {
  * @body CreatePageInput
  * @response 201:LivePage
  */
-export async function POST(request: Request) {
+async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(createPageInputSchema, body);
@@ -53,3 +54,6 @@ export async function POST(request: Request) {
     return internalError();
   }
 }
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

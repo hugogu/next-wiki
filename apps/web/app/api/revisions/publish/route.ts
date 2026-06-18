@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { revisionInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as revisionService from '@/server/services/revisions';
 
 /**
@@ -17,7 +18,7 @@ import * as revisionService from '@/server/services/revisions';
  * @body RevisionInput
  * @response RevisionView
  */
-export async function POST(request: Request) {
+async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(revisionInputSchema, body);
@@ -33,3 +34,5 @@ export async function POST(request: Request) {
     return internalError();
   }
 }
+
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

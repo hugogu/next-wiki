@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
 import { mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userService from '@/server/services/users';
 
 /**
@@ -14,7 +15,7 @@ import * as userService from '@/server/services/users';
  * @auth bearer
  * @response UserViewList
  */
-export async function GET() {
+async function handleGET() {
   const ctx = await createApiContext();
   try {
     const users = await userService.list(ctx);
@@ -24,3 +25,5 @@ export async function GET() {
     return internalError();
   }
 }
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);

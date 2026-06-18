@@ -69,3 +69,7 @@ export async function apiPatch<TInput, TOutput>(path: string, input: TInput): Pr
 export async function apiGet<TOutput>(path: string): Promise<TOutput> {
   return apiFetch<undefined, TOutput>(path, undefined, 'GET');
 }
+
+export async function apiDelete<TOutput>(path: string): Promise<TOutput> {
+  return apiFetch<undefined, TOutput>(path, undefined, 'DELETE');
+}

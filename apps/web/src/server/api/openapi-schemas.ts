@@ -9,6 +9,7 @@ import {
   auditQueryParamsSchema,
   changeEmailInputSchema,
   changePasswordInputSchema,
+  createApiKeyInputSchema,
   createPageInputSchema,
   editableViewSchema,
   livePageSchema,
@@ -43,6 +44,7 @@ export {
   auditQueryParamsSchema,
   changeEmailInputSchema,
   changePasswordInputSchema,
+  createApiKeyInputSchema,
   createPageInputSchema,
   editableViewSchema,
   livePageSchema,
@@ -107,12 +109,19 @@ export const revisionPathParamSchema = z
   .object({ path: z.string(), n: z.string() })
   .describe('Revision path and version parameters');
 
+export const apiKeyViewListSchema = z.array(apiKeyViewSchema).describe('List of API keys');
+
 export const errorResponseSchema = z
   .object({
     error: z.string(),
     code: z.string(),
   })
   .describe('API error response');
+
+export const ApiKeyViewList = apiKeyViewListSchema;
+export const CreateApiKeyInput = createApiKeyInputSchema;
+export const ApiKeyCreated = apiKeyCreatedSchema;
+export const ApiKeyReveal = apiKeyRevealSchema;
 
 export const PageSummaryList = pageSummaryListSchema;
 export const RevisionSummaryList = revisionSummaryListSchema;

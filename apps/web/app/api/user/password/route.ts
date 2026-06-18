@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { changePasswordInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userCenterService from '@/server/services/user-center';
 
 /**
@@ -17,7 +18,7 @@ import * as userCenterService from '@/server/services/user-center';
  * @body ChangePasswordInput
  * @response OkResponse
  */
-export async function POST(request: Request) {
+async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(changePasswordInputSchema, body);
@@ -33,3 +34,5 @@ export async function POST(request: Request) {
     return internalError();
   }
 }
+
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

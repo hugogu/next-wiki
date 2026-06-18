@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { newDraftBodySchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { pathParamSchema, parseParams, getPathFromParams, parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as pageService from '@/server/services/pages';
 
 /**
@@ -16,7 +17,7 @@ import * as pageService from '@/server/services/pages';
  * @auth bearer
  * @response EditableView
  */
-export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+async function handleGET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;
   const parsed = parseParams(pathParamSchema, raw.path);
@@ -49,7 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
  * @body NewDraftBody
  * @response 201:RevisionView
  */
-export async function POST(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+async function handlePOST(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const ctx = await createApiContext();
   const raw = await params;
   const parsedPath = parseParams(pathParamSchema, raw.path);
@@ -73,3 +74,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ pat
     return internalError();
   }
 }
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);
