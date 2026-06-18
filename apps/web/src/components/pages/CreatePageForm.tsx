@@ -87,7 +87,7 @@ export function CreatePageForm() {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden p-md">
+      <div className="flex-1 overflow-hidden">
         <SplitMarkdownEditor
           value={contentSource}
           onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}

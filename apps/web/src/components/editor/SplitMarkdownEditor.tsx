@@ -18,10 +18,12 @@ export function SplitMarkdownEditor({
   value,
   onChange,
   disabled,
+  className = '',
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  className?: string;
 }) {
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -65,13 +67,13 @@ export function SplitMarkdownEditor({
   };
 
   return (
-    <div className="flex flex-col h-full border border-border rounded-lg bg-surface overflow-hidden">
+    <div className={`flex flex-col h-full overflow-hidden ${className}`}>
       <div className="flex items-center gap-xs px-md py-sm border-b border-border bg-surface-elevated">
         <ToolbarButton onClick={() => apply('# ', '\n')} label="H1" />
         <ToolbarButton onClick={() => apply('## ', '\n')} label="H2" />
         <ToolbarButton onClick={() => apply('**', '**')} label="Bold" />
         <ToolbarButton onClick={() => apply('*', '*')} label="Italic" />
-        <ToolbarButton onClick={() => apply('`', '`')} label="Code" />
+        <ToolbarButton onClick={() => apply('\u0060', '\u0060')} label="Code" />
         <ToolbarButton onClick={() => apply('```\n', '\n```')} label="Block" />
         <ToolbarButton onClick={() => apply('- ', '\n')} label="List" />
         <ToolbarButton onClick={() => apply('> ', '\n')} label="Quote" />
@@ -86,7 +88,7 @@ export function SplitMarkdownEditor({
           onScroll={handleScroll}
           disabled={disabled}
           placeholder="Write in Markdown..."
-          className="w-1/2 h-full resize-none border-r border-border bg-surface p-md font-mono text-sm leading-relaxed focus:outline-none focus:ring-inset focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+          className="w-1/2 h-full resize-none border-r border-border bg-background p-md font-mono text-sm leading-relaxed focus:outline-none focus:ring-inset focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
           spellCheck={false}
         />
         <div
