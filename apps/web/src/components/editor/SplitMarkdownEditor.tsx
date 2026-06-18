@@ -6,6 +6,7 @@ import { EditorState, Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { apiPost } from '@/lib/api/client';
+import { MermaidRenderer } from '@/components/renderer/MermaidRenderer';
 import {
   HeadingIcon,
   BoldIcon,
@@ -269,10 +270,12 @@ export function SplitMarkdownEditor({
           ref={previewRef}
           className="w-1/2 h-full overflow-auto p-md bg-background"
         >
-          <div
-            className="prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <MermaidRenderer key={html}>
+            <div
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </MermaidRenderer>
         </div>
       </div>
     </div>

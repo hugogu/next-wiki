@@ -158,6 +158,36 @@ export async function canCreate(ctx: PermCtx): Promise<boolean> {
   return can(ctx, 'create', { kind: 'page_list' });
 }
 
+export async function remove(ctx: PermCtx, path: string): Promise<void> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to delete pages');
+  }
+
+  const space = await getDefaultSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, path),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+
+  const isAuthor = page.authorId === userId;
+  if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, { isAuthor })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to delete this page');
+  }
+
+  await db
+    .update(schema.pages)
+    .set({ deletedAt: new Date() })
+    .where(eq(schema.pages.id, page.id));
+}
+
 export async function create(
   ctx: PermCtx,
   input: { path: string; title: string; contentSource: string },

@@ -21,6 +21,7 @@ export type Action =
   | 'create'
   | 'edit'
   | 'publish'
+  | 'delete'
   | 'manage_users';
 
 export type Resource =
@@ -66,6 +67,12 @@ export function can(
       //   - author-of-draft → allowed (editors become authors by creating a
       //     draft; readers can never author because they lack 'create')
       //   - everyone else → denied
+      if (role === 'admin') return true;
+      return isAuthor;
+    }
+
+    case 'delete': {
+      // Admin can delete any page; authors can delete their own pages.
       if (role === 'admin') return true;
       return isAuthor;
     }

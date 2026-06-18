@@ -113,7 +113,9 @@ export function Header({
     }
   };
 
-  const title = editor ? editor.title.trim() || editor.defaultTitle : null;
+  const title = editor
+    ? editor.title.trim() || editor.defaultTitle
+    : pageContext?.title ?? null;
 
   return (
     <header className="h-header shrink-0 bg-surface border-b border-border flex items-center justify-between px-md lg:px-lg relative">
@@ -132,7 +134,10 @@ export function Header({
       </div>
 
       {title && (
-        <div className="absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate font-display text-base font-medium text-foreground">
+        <div
+          data-testid="page-title"
+          className="absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate font-display text-base font-medium text-foreground"
+        >
           {title}
         </div>
       )}

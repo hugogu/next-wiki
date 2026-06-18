@@ -2,6 +2,7 @@ import { Crimson_Pro, Source_Sans_3 } from 'next/font/google';
 import { ApiProvider } from '@/lib/api/provider';
 import { HistoryProvider } from '@/lib/history';
 import { EditorProvider } from '@/components/editor/EditorContext';
+import 'katex/dist/katex.min.css';
 import './globals.css';
 
 const crimsonPro = Crimson_Pro({

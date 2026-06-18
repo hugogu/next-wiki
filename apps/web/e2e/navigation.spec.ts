@@ -19,19 +19,19 @@ test.describe('navigation contract', () => {
   test('published page supports deep-link, refresh, and back', async ({ page, context }) => {
     // The seeded welcome page is published and reachable without login.
     await page.goto('/welcome');
-    await expect(page.locator('article header h1:has-text("Welcome to next-wiki")')).toBeVisible();
+    await expect(page.getByTestId('page-title')).toHaveText('Welcome to next-wiki');
 
     await page.reload();
-    await expect(page.locator('article header h1:has-text("Welcome to next-wiki")')).toBeVisible();
+    await expect(page.getByTestId('page-title')).toHaveText('Welcome to next-wiki');
 
     await page.goto('/');
     await page.goBack();
-    await expect(page.locator('article header h1:has-text("Welcome to next-wiki")')).toBeVisible();
+    await expect(page.getByTestId('page-title')).toHaveText('Welcome to next-wiki');
 
     // Open in new tab lands on the same state.
     const newPage = await context.newPage();
     await newPage.goto('/welcome');
-    await expect(newPage.locator('article header h1:has-text("Welcome to next-wiki")')).toBeVisible();
+    await expect(newPage.getByTestId('page-title')).toHaveText('Welcome to next-wiki');
     await newPage.close();
   });
 

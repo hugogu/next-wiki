@@ -229,18 +229,55 @@ describe('pageService US3', () => {
     });
   });
 
-  describe('updateProperties', () => {
-    it('updates the page path', async () => {
-      const editor = await createUser('editor-props@example.com', 'editor');
+  describe('remove', () => {
+    it('soft-deletes a page for the author', async () => {
+      const editor = await createUser('editor-delete@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
-      const { pageId } = await pageService.create(ctx, { path: 'old-path', title: 'T', contentSource: 'c' });
+      await pageService.create(ctx, { path: 'delete-me', title: 'T', contentSource: 'c' });
+      await pageService.remove(ctx, 'delete-me');
 
-      const result = await pageService.updateProperties(ctx, 'old-path', { path: 'new/path' });
-      expect(result.newPath).toBe('new/path');
+      const page = await db.query.pages.findFirst({
+        where: eq(schema.pages.path, 'delete-me'),
+      });
+      expect(page?.deletedAt).not.toBeNull();
+      expect(await pageService.getLive(ctx, 'delete-me')).toBeNull();
+    });
 
-      const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
-      expect(page?.path).toBe('new/path');
+    it('allows admin to delete any page', async () => {
+      const editor = await createUser('editor-delete-admin@example.com', 'editor');
+      const admin = await createUser('admin-delete@example.com', 'admin');
+
+      await pageService.create(buildUserCtx(editor.id, 'editor'), {
+        path: 'delete-admin',
+        title: 'T',
+        contentSource: 'c',
+      });
+      await pageService.remove(buildUserCtx(admin.id, 'admin'), 'delete-admin');
+
+      const page = await db.query.pages.findFirst({
+        where: eq(schema.pages.path, 'delete-admin'),
+      });
+      expect(page?.deletedAt).not.toBeNull();
+    });
+
+    it('denies non-author editors and readers', async () => {
+      const author = await createUser('author-delete@example.com', 'editor');
+      const other = await createUser('other-delete@example.com', 'editor');
+      const reader = await createUser('reader-delete@example.com', 'reader');
+
+      await pageService.create(buildUserCtx(author.id, 'editor'), {
+        path: 'deny-delete',
+        title: 'T',
+        contentSource: 'c',
+      });
+
+      await expect(pageService.remove(buildUserCtx(other.id, 'editor'), 'deny-delete')).rejects.toThrow(
+        'permission',
+      );
+      await expect(pageService.remove(buildUserCtx(reader.id, 'reader'), 'deny-delete')).rejects.toThrow(
+        'permission',
+      );
     });
   });
 });

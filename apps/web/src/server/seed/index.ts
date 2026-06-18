@@ -57,6 +57,8 @@ export async function seedDatabase() {
     return;
   }
 
+  // Create the system default welcome page on first install. This page is
+  // shipped with next-wiki and demonstrates the supported Markdown extensions.
   const source = `# Welcome to next-wiki
 
 This is the first published page. Every page is authored in **Markdown** and rendered to HTML when saved so readers see fast, static-like pages.
@@ -72,7 +74,7 @@ This is the first published page. Every page is authored in **Markdown** and ren
 
 ## Markdown support
 
-Pages support standard Markdown plus GitHub-flavored extras such as tables, task lists, and fenced code blocks with syntax highlighting.
+Pages support standard Markdown plus GitHub-flavored extras such as tables, task lists, fenced code blocks with syntax highlighting, LaTeX math, and Mermaid diagrams.
 
 \`\`\`js
 // A small example
@@ -83,13 +85,33 @@ function greet(name) {
 console.log(greet('next-wiki'));
 \`\`\`
 
+### Math
+
+Inline math: $E = mc^2$
+
+Block math:
+
+$$
+\\int_{0}^{\\infty} e^{-x} \\, dx = 1
+$$
+
+### Diagrams
+
+\`\`\`mermaid
+graph TD
+    A[Start] --> B{Is it working?}
+    B -->|Yes| C[Great!]
+    B -->|No| D[Debug]
+    D --> B
+\`\`\`
+
 ## Try it out
 
 - Click **New page** to create a draft.
 - Use the split editor to write Markdown and preview the result side by side.
 - Publish a revision when you are ready to share it.
 
-> **Tip:** Code blocks use language tags like \`js\`, \`ts\`, \`json\`, \`sql\`, or \`yaml\` for highlighting.
+> **Tip:** Code blocks use language tags like \`js\`, \`ts\`, \`json\`, \`sql\`, \`yaml\`, or \`mermaid\`. LaTeX is wrapped in \`$...$\` or \`$$...$$\`.
 `;
 
   const { html, hash } = renderMarkdown(source);

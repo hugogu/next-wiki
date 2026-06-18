@@ -99,6 +99,10 @@ test.describe('publish workflow', () => {
     await expect(readerPage.locator('text=updated draft content')).not.toBeVisible();
 
     await readerContext.close();
+
+    // Clean up the test page so it does not pollute the environment.
+    const deleteResponse = await page.request.delete(`/api/pages/${path}`);
+    expect(deleteResponse.ok()).toBe(true);
   });
 });
 

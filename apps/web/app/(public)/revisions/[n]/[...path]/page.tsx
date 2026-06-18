@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
+import { MermaidRenderer } from '@/components/renderer/MermaidRenderer';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { getPagePathFromParams, getHistoryHref } from '@/lib/path';
@@ -50,7 +51,9 @@ export default async function RevisionPage({ params }: { params: Params }) {
           {revision.authorDisplayName && ` by ${revision.authorDisplayName}`}
         </p>
         <article className="bg-surface border border-border rounded-lg p-lg">
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: revision.contentHtml }} />
+          <MermaidRenderer>
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: revision.contentHtml }} />
+          </MermaidRenderer>
         </article>
       </div>
     </Layout>

@@ -27,4 +27,23 @@ describe('renderMarkdown', () => {
     expect(html).toContain('hljs');
     expect(html).toContain('hljs-keyword');
   });
+
+  it('renders inline and block LaTeX math', () => {
+    const source = `$E = mc^2$
+
+$$
+\\int_0^1 x dx = \\frac12
+$$`;
+    const { html } = renderMarkdown(source);
+    expect(html).toContain('katex');
+    expect(html).toContain('E = mc^2');
+    expect(html).toContain('katex-display');
+  });
+
+  it('converts mermaid fenced code blocks into mermaid containers', () => {
+    const { html } = renderMarkdown('```mermaid\ngraph TD;\n  A-->B;\n```');
+    expect(html).toContain('<pre class="mermaid">');
+    expect(html).toContain('graph TD;');
+    expect(html).not.toContain('language-mermaid');
+  });
 });
