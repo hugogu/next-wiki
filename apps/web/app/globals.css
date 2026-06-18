@@ -100,8 +100,9 @@ article .prose > h1:first-child {
 }
 
 .prose pre {
-  background-color: #1c1917;
-  color: #f5f5f4;
+  background-color: var(--color-surface-elevated);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   overflow-x: auto;
@@ -122,47 +123,47 @@ article .prose > h1:first-child {
   padding: 0;
 }
 
-/* Syntax highlighting (dark block theme) */
+/* Syntax highlighting (light block theme) */
 .prose .hljs {
-  color: #e5e7eb;
+  color: var(--color-foreground);
   background: transparent;
 }
 
 .prose .hljs-keyword,
 .prose .hljs-selector-tag,
 .prose .hljs-addition {
-  color: #f472b6;
+  color: #991b1b;
 }
 
 .prose .hljs-string,
 .prose .hljs-regexp,
 .prose .hljs-attr,
 .prose .hljs-attribute {
-  color: #a7f3d0;
+  color: #166534;
 }
 
 .prose .hljs-number,
 .prose .hljs-literal,
 .prose .hljs-bullet {
-  color: #93c5fd;
+  color: #92400e;
 }
 
 .prose .hljs-function,
 .prose .hljs-title,
 .prose .hljs-section {
-  color: #fde047;
+  color: #1e3a8a;
 }
 
 .prose .hljs-params,
 .prose .hljs-variable,
 .prose .hljs-template-variable {
-  color: #e5e7eb;
+  color: var(--color-foreground);
 }
 
 .prose .hljs-comment,
 .prose .hljs-quote,
 .prose .hljs-deletion {
-  color: #9ca3af;
+  color: #78716c;
   font-style: italic;
 }
 
@@ -170,12 +171,12 @@ article .prose > h1:first-child {
 .prose .hljs-built_in,
 .prose .hljs-tag,
 .prose .hljs-name {
-  color: #fdba74;
+  color: #7c2d12;
 }
 
 .prose .hljs-operator,
 .prose .hljs-punctuation {
-  color: #d1d5db;
+  color: #57534e;
 }
 
 .prose ul,
@@ -232,8 +233,6 @@ article .prose > h1:first-child {
   border-radius: var(--radius-md);
   padding: var(--space-md);
 }
-
-/* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
