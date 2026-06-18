@@ -47,17 +47,17 @@ export function ContentRenderer({ html }: { html: string }) {
       if ((el as HTMLElement).dataset.enhanced === 'true') return;
       (el as HTMLElement).dataset.enhanced = 'true';
 
-      const mermaidEl = el.querySelector('.mermaid');
-      if (!mermaidEl) return;
+      const pre = el.querySelector('pre');
+      if (!pre) return;
 
-      const source = mermaidEl.textContent ?? '';
+      const source = pre.textContent ?? '';
       const wrapper = document.createElement('div');
       el.replaceChildren(wrapper);
       createRoot(wrapper).render(
         <I18nProvider initialLocale={locale}>
           <ThemeProvider>
             <MermaidBlock source={source}>
-              <div className="mermaid">{source}</div>
+              <div dangerouslySetInnerHTML={{ __html: pre.outerHTML }} />
             </MermaidBlock>
           </ThemeProvider>
         </I18nProvider>,
