@@ -23,7 +23,7 @@ import {
   XIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
-import { getPageHref, getEditHref, getHistoryHref, getPropertiesHref } from '@/lib/path';
+import { getPageHref, getEditHref, getHistoryHref } from '@/lib/path';
 
 function IconButton({
   href,
@@ -171,15 +171,6 @@ export function Header({
                   label={publishing ? t('page.header.publishing') : t('page.header.publish')}
                 >
                   <PublishIcon />
-                </IconButton>
-              )}
-
-              {pageContext && pageContext.canEdit && (
-                <IconButton
-                  href={getPropertiesHref(pageContext.path)}
-                  label={t('page.header.properties')}
-                >
-                  <SettingsIcon />
                 </IconButton>
               )}
 

@@ -116,6 +116,7 @@ export const en = {
   // Page history
   'page.history.metadataTitle': 'History: {{path}}',
   'page.history.heading': 'Version history: {{title}}',
+  'page.history.backToPage': '← {{title}}',
   'page.history.empty.title': 'No revisions visible',
   'page.history.empty.forbidden': "You do not have permission to view this page's history.",
   'page.history.versionLink': 'Version {{version}}',

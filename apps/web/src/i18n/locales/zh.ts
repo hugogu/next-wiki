@@ -116,6 +116,7 @@ export const zh: Translations = {
   // Page history
   'page.history.metadataTitle': '历史: {{path}}',
   'page.history.heading': '版本历史: {{title}}',
+  'page.history.backToPage': '← {{title}}',
   'page.history.empty.title': '没有可查看的版本',
   'page.history.empty.forbidden': '你没有权限查看此页面的历史。',
   'page.history.versionLink': '版本 {{version}}',

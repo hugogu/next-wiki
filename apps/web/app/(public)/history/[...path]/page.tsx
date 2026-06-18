@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { PublishButton } from '@/components/pages/PublishButton';
-import { getPagePathFromParams, getRevisionHref } from '@/lib/path';
+import { getPagePathFromParams, getPageHref, getRevisionHref } from '@/lib/path';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +48,9 @@ export default async function HistoryPage({ params }: { params: Params }) {
   return (
     <Layout pageContext={pageContext}>
       <div className="max-w-3xl mx-auto px-lg py-xl">
+        <Link href={getPageHref(path)} className="text-sm text-primary hover:underline mb-md inline-block">
+          {t('page.history.backToPage', { title: page?.title ?? path })}
+        </Link>
         <h1 className="font-display text-3xl font-semibold mb-md">{t('page.history.heading', { title: page?.title ?? path })}</h1>
         {revisions.length === 0 ? (
           <EmptyState title={t('page.history.empty.title')}>
