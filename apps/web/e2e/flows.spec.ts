@@ -20,7 +20,7 @@ async function registerReader(page: Page, email: string) {
 }
 
 function fillEditor(page: Page, content: string) {
-  return page.locator('textarea[placeholder="Write in Markdown..."]').fill(content);
+  return page.locator('.cm-content').fill(content);
 }
 
 async function openProperties(page: Page) {
@@ -123,7 +123,7 @@ test.describe('admin role change', () => {
 
     await targetPage.goto('/new');
     await expect(targetPage.getByRole('button', { name: 'Save' })).toBeVisible();
-    await expect(targetPage.locator('textarea[placeholder="Write in Markdown..."]')).toBeVisible();
+    await expect(targetPage.locator('.cm-content')).toBeVisible();
 
     await targetContext.close();
   });

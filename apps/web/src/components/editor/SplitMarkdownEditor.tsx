@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { EditorView, keymap } from '@codemirror/view';
+import { EditorState, Compartment } from '@codemirror/state';
+import { markdown } from '@codemirror/lang-markdown';
+import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { apiPost } from '@/lib/api/client';
 import {
   HeadingIcon,
@@ -11,17 +15,84 @@ import {
   ListIcon,
   QuoteIcon,
   LinkIcon,
+  UndoIcon,
+  RedoIcon,
 } from '@/components/icons';
 
-function insertText(textarea: HTMLTextAreaElement, before: string, after: string = '') {
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const value = textarea.value;
-  const selected = value.slice(start, end);
-  const replacement = `${before}${selected}${after}`;
-  const newValue = value.slice(0, start) + replacement + value.slice(end);
-  const newCursor = start + before.length + selected.length;
-  return { newValue, newCursor };
+const editableCompartment = new Compartment();
+const themeCompartment = new Compartment();
+
+function codeMirrorTheme() {
+  return EditorView.theme(
+    {
+      '&': {
+        backgroundColor: 'transparent',
+        height: '100%',
+        fontSize: '0.875rem',
+        lineHeight: '1.625',
+      },
+      '.cm-content': {
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        padding: '1rem',
+        caretColor: 'var(--color-foreground)',
+      },
+      '.cm-gutters': {
+        display: 'none',
+      },
+      '.cm-activeLine': {
+        backgroundColor: 'transparent',
+      },
+      '.cm-selectionBackground': {
+        backgroundColor: 'var(--color-ring)',
+      },
+      '.cm-cursor': {
+        borderLeftColor: 'var(--color-foreground)',
+      },
+      '&.cm-focused .cm-cursor': {
+        borderLeftColor: 'var(--color-foreground)',
+      },
+      '&.cm-focused .cm-selectionBackground': {
+        backgroundColor: 'var(--color-ring)',
+      },
+      '.cm-line': {
+        padding: '0',
+      },
+    },
+    { dark: false },
+  );
+}
+
+function insertAround(view: EditorView, before: string, after: string = '') {
+  const { state } = view;
+  const selection = state.selection.main;
+  const selected = state.sliceDoc(selection.from, selection.to);
+  const insert = `${before}${selected}${after}`;
+  view.dispatch({
+    changes: { from: selection.from, to: selection.to, insert },
+    selection: {
+      anchor: selection.from + before.length + selected.length,
+      head: selection.from + before.length + selected.length,
+    },
+  });
+  view.focus();
+}
+
+function insertBlock(view: EditorView, prefix: string, suffix: string = '') {
+  const { state } = view;
+  const selection = state.selection.main;
+  const lineFrom = state.doc.lineAt(selection.from).from;
+  const lineTo = state.doc.lineAt(selection.to).to;
+  const selected = state.sliceDoc(lineFrom, lineTo);
+  const insert = selected
+    .split('\n')
+    .map((line) => `${prefix}${line}`)
+    .join('\n');
+  const replacement = `${insert}${suffix}`;
+  view.dispatch({
+    changes: { from: lineFrom, to: lineTo, insert: replacement },
+    selection: { anchor: lineFrom + replacement.length, head: lineFrom + replacement.length },
+  });
+  view.focus();
 }
 
 export function SplitMarkdownEditor({
@@ -35,10 +106,26 @@ export function SplitMarkdownEditor({
   disabled?: boolean;
   className?: string;
 }) {
-  const sourceRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+  const disabledRef = useRef(disabled);
   const previewRef = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState('');
   const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    disabledRef.current = disabled;
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: editableCompartment.reconfigure(EditorView.editable.of(!disabled)),
+    });
+  }, [disabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,8 +141,49 @@ export function SplitMarkdownEditor({
     };
   }, [value]);
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: value,
+        extensions: [
+          history(),
+          markdown({ codeLanguages: [] }),
+          keymap.of([...defaultKeymap, ...historyKeymap]),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              onChangeRef.current(update.state.doc.toString());
+            }
+          }),
+          editableCompartment.of(EditorView.editable.of(!disabledRef.current)),
+          themeCompartment.of(codeMirrorTheme()),
+        ],
+      }),
+      parent: containerRef.current,
+    });
+
+    viewRef.current = view;
+
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current === value) return;
+    view.dispatch({
+      changes: { from: 0, to: current.length, insert: value },
+    });
+  }, [value]);
+
   const handleScroll = useCallback(() => {
-    const source = sourceRef.current;
+    const source = viewRef.current?.scrollDOM;
     const preview = previewRef.current;
     if (!source || !preview || syncing) return;
 
@@ -65,21 +193,41 @@ export function SplitMarkdownEditor({
     setTimeout(() => setSyncing(false), 50);
   }, [syncing]);
 
-  const apply = (before: string, after: string = '') => {
-    const textarea = sourceRef.current;
-    if (!textarea) return;
-    const { newValue, newCursor } = insertText(textarea, before, after);
-    onChange(newValue);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursor, newCursor);
-    }, 0);
-  };
+  useEffect(() => {
+    const scrollDOM = viewRef.current?.scrollDOM;
+    if (!scrollDOM) return;
+    scrollDOM.addEventListener('scroll', handleScroll);
+    return () => scrollDOM.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  const apply = useCallback((before: string, after: string = '', block = false) => {
+    const view = viewRef.current;
+    if (!view) return;
+    if (block) {
+      insertBlock(view, before, after);
+    } else {
+      insertAround(view, before, after);
+    }
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    undo(view);
+    view.focus();
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    redo(view);
+    view.focus();
+  }, []);
 
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className}`}>
       <div className="flex items-center gap-xs px-md py-sm border-b border-border bg-surface-elevated">
-        <ToolbarButton onClick={() => apply('# ', '\n')} label="Heading">
+        <ToolbarButton onClick={() => apply('# ', '\n', true)} label="Heading">
           <HeadingIcon />
         </ToolbarButton>
         <ToolbarButton onClick={() => apply('**', '**')} label="Bold">
@@ -94,27 +242,28 @@ export function SplitMarkdownEditor({
         <ToolbarButton onClick={() => apply('```\n', '\n```')} label="Code block">
           <CodeBlockIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('- ', '\n')} label="Bullet list">
+        <ToolbarButton onClick={() => apply('- ', '\n', true)} label="Bullet list">
           <ListIcon />
         </ToolbarButton>
-        <ToolbarButton onClick={() => apply('> ', '\n')} label="Quote">
+        <ToolbarButton onClick={() => apply('> ', '\n', true)} label="Quote">
           <QuoteIcon />
         </ToolbarButton>
         <ToolbarButton onClick={() => apply('[', '](url)')} label="Link">
           <LinkIcon />
         </ToolbarButton>
+        <div className="w-px h-5 bg-border mx-xs" />
+        <ToolbarButton onClick={handleUndo} label="Undo">
+          <UndoIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={handleRedo} label="Redo">
+          <RedoIcon />
+        </ToolbarButton>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <textarea
-          ref={sourceRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
-          disabled={disabled}
-          placeholder="Write in Markdown..."
-          className="w-1/2 h-full resize-none border-r border-border bg-background p-md font-mono text-sm leading-relaxed focus:outline-none focus:ring-inset focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
-          spellCheck={false}
+        <div
+          ref={containerRef}
+          className="w-1/2 h-full resize-none border-r border-border bg-background font-mono text-sm leading-relaxed disabled:opacity-60 [&_.cm-editor]:h-full [&_.cm-editor]:bg-background"
         />
         <div
           ref={previewRef}

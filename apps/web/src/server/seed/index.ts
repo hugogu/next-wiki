@@ -59,14 +59,37 @@ export async function seedDatabase() {
 
   const source = `# Welcome to next-wiki
 
-This is the first published page. Every page is authored in **Markdown** and
-rendered to HTML when saved so readers see fast, static-like pages.
+This is the first published page. Every page is authored in **Markdown** and rendered to HTML when saved so readers see fast, static-like pages.
 
-## Features
+## What you can do
 
-- RESTful URLs with working browser history
-- Version-level drafts
-- Three built-in roles: admin, editor, reader
+| Feature | Editor | Reader | Admin |
+| --- |:---:|:---:|:---:|
+| Read published pages | ✓ | ✓ | ✓ |
+| Draft and edit pages | ✓ | — | ✓ |
+| Publish revisions | ✓ | — | ✓ |
+| Manage users | — | — | ✓ |
+
+## Markdown support
+
+Pages support standard Markdown plus GitHub-flavored extras such as tables, task lists, and fenced code blocks with syntax highlighting.
+
+\`\`\`js
+// A small example
+function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet('next-wiki'));
+\`\`\`
+
+## Try it out
+
+- Click **New page** to create a draft.
+- Use the split editor to write Markdown and preview the result side by side.
+- Publish a revision when you are ready to share it.
+
+> **Tip:** Code blocks use language tags like \`js\`, \`ts\`, \`json\`, \`sql\`, or \`yaml\` for highlighting.
 `;
 
   const { html, hash } = renderMarkdown(source);
