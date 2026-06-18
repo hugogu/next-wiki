@@ -1,6 +1,7 @@
 import { Crimson_Pro, Source_Sans_3 } from 'next/font/google';
 import { ApiProvider } from '@/lib/api/provider';
 import { HistoryProvider } from '@/lib/history';
+import { EditorProvider } from '@/components/editor/EditorContext';
 import './globals.css';
 
 const crimsonPro = Crimson_Pro({
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${crimsonPro.variable} ${sourceSans.variable}`}>
       <body className="antialiased">
         <ApiProvider>
-          <HistoryProvider>{children}</HistoryProvider>
+          <HistoryProvider>
+            <EditorProvider>{children}</EditorProvider>
+          </HistoryProvider>
         </ApiProvider>
       </body>
     </html>

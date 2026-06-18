@@ -2,6 +2,16 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { apiPost } from '@/lib/api/client';
+import {
+  HeadingIcon,
+  BoldIcon,
+  ItalicIcon,
+  CodeIcon,
+  CodeBlockIcon,
+  ListIcon,
+  QuoteIcon,
+  LinkIcon,
+} from '@/components/icons';
 
 function insertText(textarea: HTMLTextAreaElement, before: string, after: string = '') {
   const start = textarea.selectionStart;
@@ -69,15 +79,30 @@ export function SplitMarkdownEditor({
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className}`}>
       <div className="flex items-center gap-xs px-md py-sm border-b border-border bg-surface-elevated">
-        <ToolbarButton onClick={() => apply('# ', '\n')} label="H1" />
-        <ToolbarButton onClick={() => apply('## ', '\n')} label="H2" />
-        <ToolbarButton onClick={() => apply('**', '**')} label="Bold" />
-        <ToolbarButton onClick={() => apply('*', '*')} label="Italic" />
-        <ToolbarButton onClick={() => apply('\u0060', '\u0060')} label="Code" />
-        <ToolbarButton onClick={() => apply('```\n', '\n```')} label="Block" />
-        <ToolbarButton onClick={() => apply('- ', '\n')} label="List" />
-        <ToolbarButton onClick={() => apply('> ', '\n')} label="Quote" />
-        <ToolbarButton onClick={() => apply('[', '](url)')} label="Link" />
+        <ToolbarButton onClick={() => apply('# ', '\n')} label="Heading">
+          <HeadingIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('**', '**')} label="Bold">
+          <BoldIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('*', '*')} label="Italic">
+          <ItalicIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('\u0060', '\u0060')} label="Inline code">
+          <CodeIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('```\n', '\n```')} label="Code block">
+          <CodeBlockIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('- ', '\n')} label="Bullet list">
+          <ListIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('> ', '\n')} label="Quote">
+          <QuoteIcon />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => apply('[', '](url)')} label="Link">
+          <LinkIcon />
+        </ToolbarButton>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -105,14 +130,16 @@ export function SplitMarkdownEditor({
   );
 }
 
-function ToolbarButton({ onClick, label }: { onClick: () => void; label: string }) {
+function ToolbarButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="px-sm py-xs text-xs font-medium text-muted hover:text-foreground hover:bg-surface rounded transition-colors"
+      aria-label={label}
+      title={label}
+      className="inline-flex items-center justify-center w-8 h-8 rounded text-muted hover:text-foreground hover:bg-surface transition-colors"
     >
-      {label}
+      {children}
     </button>
   );
 }

@@ -22,9 +22,6 @@ export default async function NewPage() {
   return (
     <Layout>
       <div className="h-full flex flex-col">
-        <div className="shrink-0 px-lg pt-xl pb-md">
-          <h1 className="font-display text-3xl font-semibold">Create a new page</h1>
-        </div>
         <CreatePageForm />
       </div>
     </Layout>

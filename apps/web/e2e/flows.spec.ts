@@ -23,6 +23,24 @@ function fillEditor(page: Page, content: string) {
   return page.locator('textarea[placeholder="Write in Markdown..."]').fill(content);
 }
 
+async function openProperties(page: Page) {
+  await page.getByRole('button', { name: 'Page properties' }).click();
+}
+
+async function fillProperties(page: Page, path: string, title: string) {
+  await openProperties(page);
+  await page.getByLabel('Path').fill(path);
+  await page.getByLabel('Title').fill(title);
+}
+
+async function savePage(page: Page) {
+  await page.getByRole('button', { name: 'Save' }).click();
+}
+
+async function publishPage(page: Page) {
+  await page.getByRole('button', { name: 'Publish' }).click();
+}
+
 test.describe('access control flows', () => {
   test('reader is denied editor/admin URLs without leaking resource existence', async ({ page }) => {
     await registerReader(page, `reader-denied-${Date.now()}@example.com`);
@@ -54,10 +72,9 @@ test.describe('publish workflow', () => {
 
     await login(page, editorEmail, 'Password123!');
     await page.goto('/new');
-    await page.getByLabel('Path').fill(path);
-    await page.getByLabel('Title').fill('Publish Flow Test');
+    await fillProperties(page, path, 'Publish Flow Test');
     await fillEditor(page, 'draft content');
-    await page.getByRole('button', { name: /save draft/i }).click();
+    await savePage(page);
     await page.waitForURL(`/${path}`);
 
     const readerContext = await browser.newContext();
@@ -66,16 +83,15 @@ test.describe('publish workflow', () => {
     await readerPage.goto(`/${path}`);
     await expect(readerPage.locator('h1:has-text("404")')).toBeVisible();
 
-    await page.goto(`/edit/${path}`);
-    await page.getByRole('button', { name: /publish/i }).click();
-    await page.waitForURL(`/${path}`);
+    await publishPage(page);
+    await expect(page.locator('text=This page is a draft')).not.toBeVisible();
 
     await readerPage.reload();
     await expect(readerPage.locator('text=draft content')).toBeVisible();
 
     await page.goto(`/edit/${path}`);
     await fillEditor(page, 'updated draft content');
-    await page.getByRole('button', { name: /save new draft/i }).click();
+    await savePage(page);
     await page.waitForURL(`/history/${path}`);
 
     await readerPage.goto(`/${path}`);
@@ -106,7 +122,8 @@ test.describe('admin role change', () => {
     await page.waitForTimeout(2000);
 
     await targetPage.goto('/new');
-    await expect(targetPage.locator('h1:has-text("Create a new page")')).toBeVisible();
+    await expect(targetPage.getByRole('button', { name: 'Save' })).toBeVisible();
+    await expect(targetPage.locator('textarea[placeholder="Write in Markdown..."]')).toBeVisible();
 
     await targetContext.close();
   });

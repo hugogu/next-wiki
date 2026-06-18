@@ -1,99 +1,122 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPageInputSchema, type CreatePageInput } from '@next-wiki/shared';
-import { useApiMutation, type ApiError } from '@/lib/api/client';
+import { apiPost, type ApiError } from '@/lib/api/client';
+import { useHistory } from '@/lib/history';
+import { useSetEditor } from '@/components/editor/EditorContext';
 import { getPageHref } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
-import { Input } from '@/components/ui/Input';
+import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
 
 export function CreatePageForm() {
-  const router = useRouter();
+  const setEditor = useSetEditor();
+  const { goBack } = useHistory();
   const [serverError, setServerError] = useState<string | null>(null);
-  const create = useApiMutation<CreatePageInput, { pageId: string; versionId: string }>('/api/pages', {
-    onSuccess: (_data, vars) => {
-      router.push(getPageHref(vars.path));
-      window.location.href = getPageHref(vars.path);
-    },
-    onError: (err: ApiError) => {
-      if (err.code === 'CONFLICT') {
-        setServerError('A page with this path already exists.');
-      } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
-        setServerError('You do not have permission to create pages.');
-      } else {
-        setServerError(err.message || 'Failed to create page.');
-      }
-    },
-  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
 
   const {
-    register,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<CreatePageInput>({
     resolver: zodResolver(createPageInputSchema),
     defaultValues: { path: '', title: '', contentSource: '' },
   });
 
+  const title = watch('title');
+  const path = watch('path');
   const contentSource = watch('contentSource');
+
+  const onSubmit = useCallback(
+    async (data: CreatePageInput) => {
+      setServerError(null);
+      setIsSaving(true);
+      try {
+        await apiPost<CreatePageInput, { pageId: string; versionId: string }>('/api/pages', data);
+        window.location.href = getPageHref(data.path);
+      } catch (err) {
+        const error = err as ApiError;
+        if (error.code === 'CONFLICT') {
+          setServerError('A page with this path already exists.');
+        } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
+          setServerError('You do not have permission to create pages.');
+        } else {
+          setServerError(error.message || 'Failed to create page.');
+        }
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [],
+  );
+
+  const save = useCallback(() => {
+    handleSubmit(onSubmit)();
+  }, [handleSubmit, onSubmit]);
+
+  const close = useCallback(() => {
+    goBack('/');
+  }, [goBack]);
+
+  const toggleProperties = useCallback(() => {
+    setPropertiesOpen((open) => !open);
+  }, []);
+
+  useEffect(() => {
+    setEditor({
+      title: title || '',
+      defaultTitle: 'Create a new page',
+      isSaving,
+      propertiesOpen,
+      toggleProperties,
+      save,
+      close,
+    });
+    return () => setEditor(null);
+  }, [
+    title,
+    isSaving,
+    propertiesOpen,
+    toggleProperties,
+    save,
+    close,
+    setEditor,
+  ]);
 
   return (
     <form
-      onSubmit={handleSubmit((data) => {
-        setServerError(null);
-        create.mutate(data);
-      })}
-      className="h-full flex flex-col"
+      onSubmit={handleSubmit(onSubmit)}
+      className="h-full flex flex-col relative"
     >
-      <div className="shrink-0 flex items-center gap-md px-lg py-md border-b border-border bg-surface">
-        <div className="flex-1 flex items-center gap-md">
-          <div className="w-56">
-            <Input
-              {...register('path')}
-              placeholder="path/to/page"
-              aria-label="Path"
-              className="text-sm"
-            />
-            {errors.path && <p className="text-danger text-xs mt-xs">{errors.path.message}</p>}
-          </div>
-          <div className="flex-1">
-            <Input
-              {...register('title')}
-              placeholder="Page title"
-              aria-label="Title"
-              className="text-sm"
-            />
-            {errors.title && <p className="text-danger text-xs mt-xs">{errors.title.message}</p>}
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={isSubmitting || create.isPending}
-          className="inline-flex items-center px-md py-sm rounded-md bg-primary text-primary-text text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-60"
-        >
-          {create.isPending ? 'Saving...' : 'Save draft'}
-        </button>
-      </div>
-
       {serverError && (
         <div className="shrink-0 px-lg py-sm">
           <Alert>{serverError}</Alert>
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         <SplitMarkdownEditor
           value={contentSource}
           onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
-          disabled={create.isPending}
+          disabled={isSaving}
         />
-        {errors.contentSource && <p className="text-danger text-sm mt-xs">{errors.contentSource.message}</p>}
+
+        {propertiesOpen && (
+          <PagePropertiesPanel
+            title={title}
+            onTitleChange={(v) => setValue('title', v, { shouldValidate: true })}
+            titleError={errors.title?.message}
+            path={path}
+            onPathChange={(v) => setValue('path', v, { shouldValidate: true })}
+            pathError={errors.path?.message}
+          />
+        )}
       </div>
     </form>
   );

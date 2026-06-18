@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { PageContext } from './types';
 import type { Actor } from '@/server/permissions';
+import { useEditor } from '@/components/editor/EditorContext';
 import {
   MenuIcon,
   PlusIcon,
@@ -15,6 +16,8 @@ import {
   UsersIcon,
   LogOutIcon,
   LogInIcon,
+  SaveIcon,
+  XIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
 import { getPageHref, getEditHref, getHistoryHref, getPropertiesHref } from '@/lib/path';
@@ -25,15 +28,17 @@ function IconButton({
   label,
   children,
   active = false,
+  disabled = false,
 }: {
   href?: string;
   onClick?: () => void;
   label: string;
   children: React.ReactNode;
   active?: boolean;
+  disabled?: boolean;
 }) {
   const baseClass =
-    'inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50';
+    'inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-40 disabled:cursor-not-allowed';
   const stateClass = active
     ? 'bg-primary text-primary-text'
     : 'text-muted hover:text-foreground hover:bg-surface-elevated';
@@ -50,12 +55,33 @@ function IconButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
       className={`${baseClass} ${stateClass}`}
     >
       {children}
     </button>
+  );
+}
+
+function EditorHeaderActions({ editor }: { editor: NonNullable<ReturnType<typeof useEditor> > }) {
+  return (
+    <>
+      <IconButton onClick={editor.save} label="Save" disabled={editor.isSaving}>
+        <SaveIcon />
+      </IconButton>
+      <IconButton onClick={editor.close} label="Close">
+        <XIcon />
+      </IconButton>
+      <IconButton
+        onClick={editor.toggleProperties}
+        label="Page properties"
+        active={editor.propertiesOpen}
+      >
+        <SettingsIcon />
+      </IconButton>
+    </>
   );
 }
 
@@ -68,6 +94,7 @@ export function Header({
   pageContext?: PageContext;
   onMenuClick: () => void;
 }) {
+  const editor = useEditor();
   const [publishing, setPublishing] = useState(false);
   const isSignedIn = user.kind === 'user';
   const role = isSignedIn ? user.role : null;
@@ -86,8 +113,10 @@ export function Header({
     }
   };
 
+  const title = editor ? editor.title.trim() || editor.defaultTitle : null;
+
   return (
-    <header className="h-header shrink-0 bg-surface border-b border-border flex items-center justify-between px-md lg:px-lg">
+    <header className="h-header shrink-0 bg-surface border-b border-border flex items-center justify-between px-md lg:px-lg relative">
       <div className="flex items-center gap-md">
         <button
           type="button"
@@ -102,47 +131,59 @@ export function Header({
         </Link>
       </div>
 
+      {title && (
+        <div className="absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate font-display text-base font-medium text-foreground">
+          {title}
+        </div>
+      )}
+
       <div className="flex items-center gap-sm">
-        {isSignedIn && (role === 'editor' || role === 'admin') && (
-          <IconButton href="/new" label="New page">
-            <PlusIcon />
-          </IconButton>
-        )}
+        {editor ? (
+          <EditorHeaderActions editor={editor} />
+        ) : (
+          <>
+            {isSignedIn && (role === 'editor' || role === 'admin') && (
+              <IconButton href="/new" label="New page">
+                <PlusIcon />
+              </IconButton>
+            )}
 
-        {pageContext && pageContext.canEdit && (
-          <IconButton href={getEditHref(pageContext.path)} label="Edit page">
-            <EditIcon />
-          </IconButton>
-        )}
+            {pageContext && pageContext.canEdit && (
+              <IconButton href={getEditHref(pageContext.path)} label="Edit page">
+                <EditIcon />
+              </IconButton>
+            )}
 
-        {pageContext && isSignedIn && (
-          <IconButton href={getHistoryHref(pageContext.path)} label="View history">
-            <HistoryIcon />
-          </IconButton>
-        )}
+            {pageContext && isSignedIn && (
+              <IconButton href={getHistoryHref(pageContext.path)} label="View history">
+                <HistoryIcon />
+              </IconButton>
+            )}
 
-        {pageContext && pageContext.canPublish && pageContext.status === 'draft' && (
-          <IconButton onClick={handlePublish} label={publishing ? 'Publishing...' : 'Publish'}>
-            <PublishIcon />
-          </IconButton>
-        )}
+            {pageContext && pageContext.canPublish && pageContext.status === 'draft' && (
+              <IconButton onClick={handlePublish} label={publishing ? 'Publishing...' : 'Publish'}>
+                <PublishIcon />
+              </IconButton>
+            )}
 
-        {pageContext && pageContext.canEdit && (
-          <IconButton href={getPropertiesHref(pageContext.path)} label="Page properties">
-            <SettingsIcon />
-          </IconButton>
-        )}
+            {pageContext && pageContext.canEdit && (
+              <IconButton href={getPropertiesHref(pageContext.path)} label="Page properties">
+                <SettingsIcon />
+              </IconButton>
+            )}
 
-        {role === 'admin' && (
-          <IconButton href="/admin/users" label="Admin">
-            <UsersIcon />
-          </IconButton>
-        )}
+            {role === 'admin' && (
+              <IconButton href="/admin/users" label="Admin">
+                <UsersIcon />
+              </IconButton>
+            )}
 
-        {pageContext && (
-          <IconButton href={getPageHref(pageContext.path)} label="View page" active>
-            <EyeIcon />
-          </IconButton>
+            {pageContext && (
+              <IconButton href={getPageHref(pageContext.path)} label="View page" active>
+                <EyeIcon />
+              </IconButton>
+            )}
+          </>
         )}
 
         {isSignedIn ? (
