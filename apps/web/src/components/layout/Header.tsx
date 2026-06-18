@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { PageContext } from './types';
 import type { Actor } from '@/server/permissions';
 import { useEditor } from '@/components/editor/EditorContext';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import {
   MenuIcon,
   PlusIcon,
@@ -219,6 +220,7 @@ export function Header({
             <LogInIcon />
           </IconButton>
         )}
+        <ThemeToggle />
       </div>
     </header>
   );
