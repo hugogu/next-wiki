@@ -15,6 +15,13 @@
       "when": 1781449753130,
       "tag": "0001_superb_matthew_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781773171819,
+      "tag": "0002_nappy_guardsmen",
+      "breakpoints": true
     }
   ]
 }

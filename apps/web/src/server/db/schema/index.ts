@@ -11,6 +11,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { isNull } from 'drizzle-orm';
 import {
+  apiKeyScopeEnum,
   contentTypeEnum,
   revisionStatusEnum,
   userRoleEnum,
@@ -26,17 +27,25 @@ export const spaces = pgTable('spaces', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  role: userRoleEnum('role').notNull().default('reader'),
-  status: userStatusEnum('status').notNull().default('active'),
-  mustResetPassword: boolean('must_reset_password').notNull().default(false),
-  displayName: text('display_name'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull().unique(),
+    passwordHash: text('password_hash').notNull(),
+    role: userRoleEnum('role').notNull().default('reader'),
+    status: userStatusEnum('status').notNull().default('active'),
+    mustResetPassword: boolean('must_reset_password').notNull().default(false),
+    displayName: text('display_name'),
+    themePreference: text('theme_preference'),
+    localePreference: text('locale_preference'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    emailIdx: index().on(t.email),
+  }),
+);
 
 export const sessions = pgTable(
   'sessions',
@@ -114,3 +123,55 @@ export const pageRevisions = pgTable(
     hashIdx: index().on(t.contentHash),
   }),
 );
+
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    name: text('name').notNull(),
+    scopes: apiKeyScopeEnum('scopes').array().notNull(),
+    keyPrefix: text('key_prefix').notNull().unique(),
+    keySecretEncrypted: text('key_secret_encrypted').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (t) => ({
+    userRevokedIdx: index().on(t.userId, t.revokedAt),
+    userIdx: index().on(t.userId),
+  }),
+);
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  user: one(users, { fields: [apiKeys.userId], references: [users.id] }),
+}));
+
+export const apiAuditEntries = pgTable(
+  'api_audit_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    keyId: uuid('key_id').references(() => apiKeys.id),
+    userId: uuid('user_id').references(() => users.id),
+    method: text('method').notNull(),
+    path: text('path').notNull(),
+    statusCode: integer('status_code').notNull(),
+    durationMs: integer('duration_ms').notNull(),
+    authStatus: text('auth_status').notNull(),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userCreatedIdx: index().on(t.userId, t.createdAt),
+    createdAtIdx: index().on(t.createdAt),
+    keyCreatedIdx: index().on(t.keyId, t.createdAt),
+    statusCodeIdx: index().on(t.statusCode),
+  }),
+);
+
+export const apiAuditEntriesRelations = relations(apiAuditEntries, ({ one }) => ({
+  key: one(apiKeys, { fields: [apiAuditEntries.keyId], references: [apiKeys.id] }),
+  user: one(users, { fields: [apiAuditEntries.userId], references: [users.id] }),
+}));
