@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { PageSummary } from '@next-wiki/shared';
-import { FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon } from '@/components/icons';
+import { FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, SlidersIcon, KeyIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 
@@ -111,12 +111,14 @@ function TreeItem({
 export function Navigator({
   pages,
   admin,
+  userCenter,
   currentPath,
   isOpen,
   onClose,
 }: {
   pages: PageSummary[];
   admin?: boolean;
+  userCenter?: boolean;
   currentPath?: string;
   isOpen: boolean;
   onClose: () => void;
@@ -125,6 +127,12 @@ export function Navigator({
   const ADMIN_ITEMS: AdminNavItem[] = [
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
     { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
+  ];
+  const USER_CENTER_ITEMS: AdminNavItem[] = [
+    { href: '/user-center/profile', label: t('userCenter.nav.profile'), icon: <UserIcon className="shrink-0" /> },
+    { href: '/user-center/preferences', label: t('userCenter.nav.preferences'), icon: <SlidersIcon className="shrink-0" /> },
+    { href: '/user-center/api-keys', label: t('userCenter.nav.apiKeys'), icon: <KeyIcon className="shrink-0" /> },
+    { href: '/user-center/audit', label: t('userCenter.nav.audit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
   const tree = buildPageTree(pages);
 
@@ -150,7 +158,7 @@ export function Navigator({
         style={{ top: 'var(--header-height)' }}
       >
         <div className="flex items-center justify-between p-md border-b border-border lg:hidden">
-          <span className="font-display font-semibold text-lg">{admin ? t('layout.nav.adminTitle') : t('layout.nav.pagesTitle')}</span>
+          <span className="font-display font-semibold text-lg">{admin ? t('layout.nav.adminTitle') : userCenter ? t('userCenter.title') : t('layout.nav.pagesTitle')}</span>
           <button
             type="button"
             onClick={onClose}
@@ -162,7 +170,29 @@ export function Navigator({
         </div>
 
         <nav className="flex-1 overflow-y-auto p-sm">
-          {admin ? (
+          {userCenter ? (
+            <ul className="space-y-xs">
+              {USER_CENTER_ITEMS.map((item) => {
+                const active = currentPath === item.href;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-sm px-md py-sm rounded-md text-sm transition-colors ${
+                        active
+                          ? 'bg-primary text-primary-text'
+                          : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+                      }`}
+                    >
+                      {item.icon}
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : admin ? (
             <ul className="space-y-xs">
               {ADMIN_ITEMS.map((item) => (
                 <li key={item.href}>
