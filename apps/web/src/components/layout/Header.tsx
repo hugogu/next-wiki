@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import type { PageContext } from './types';
 import type { Actor } from '@/server/permissions';
 import { useEditor } from '@/components/editor/EditorContext';
-import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
+import { UserDropdown } from './UserDropdown';
 import { useTranslation } from '@/i18n/client';
 import {
   MenuIcon,
@@ -17,11 +17,8 @@ import {
   EyeIcon,
   SettingsIcon,
   ShieldIcon,
-  LogOutIcon,
-  LogInIcon,
   SaveIcon,
   XIcon,
-  UserIcon,
   CodeIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
@@ -120,9 +117,13 @@ export function Header({
     }
   };
 
+  const pathname = usePathname();
+  const isOnUserCenter = pathname.startsWith('/user-center');
   const title = editor
     ? editor.title.trim() || editor.defaultTitle
-    : pageContext?.title ?? null;
+    : isOnUserCenter
+      ? t('userCenter.title')
+      : pageContext?.title ?? null;
 
   return (
     <header className="h-header shrink-0 bg-surface border-b border-border flex items-center justify-between px-md lg:px-lg relative">
@@ -184,21 +185,9 @@ export function Header({
             </div>
 
             <div className="flex items-center gap-sm">
-        {isSignedIn && (
-          <>
-            <IconButton href="/api-docs" label={t('layout.header.apiDocs')}>
-              <CodeIcon />
-            </IconButton>
-            <IconButton href="/user-center" label={t('userCenter.title')}>
-              <UserIcon />
-            </IconButton>
-          </>
-        )}
-        {!isSignedIn && (
-          <IconButton href="/api-docs" label={t('layout.header.apiDocs')}>
-            <CodeIcon />
-          </IconButton>
-        )}
+        <IconButton href="/api-docs" label={t('layout.header.apiDocs')}>
+          <CodeIcon />
+        </IconButton>
         {isSignedIn && (role === 'editor' || role === 'admin') && (
                 <IconButton href="/new" label={t('page.header.newPage')}>
                   <PlusIcon />
@@ -214,32 +203,7 @@ export function Header({
           </>
         )}
 
-        {isSignedIn ? (
-          <form
-            action="/api/auth/logout"
-            method="POST"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              await apiPost('/api/auth/logout', {});
-              window.location.href = '/';
-            }}
-          >
-            <button
-              type="submit"
-              aria-label={t('auth.logout.button.submit')}
-              title={t('auth.logout.button.submit')}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <LogOutIcon />
-            </button>
-          </form>
-        ) : (
-          <IconButton href="/auth/login" label={t('auth.login.button.submit')}>
-            <LogInIcon />
-          </IconButton>
-        )}
-        <ThemeToggle />
-        <LanguageSwitcher />
+        <UserDropdown user={user} />
       </div>
     </header>
   );
