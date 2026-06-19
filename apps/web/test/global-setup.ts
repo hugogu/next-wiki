@@ -40,4 +40,18 @@ export default async function setup() {
   } finally {
     await migrationClient.end({ timeout: 5 });
   }
+
+  // Teardown: leave the test database empty once the whole run completes, so a
+  // finished suite never leaves residue behind. Per-suite `beforeAll` cleanup
+  // still guarantees isolation between files during the run.
+  return async () => {
+    const client = postgres(TEST_DATABASE_URL, { max: 1 });
+    try {
+      await client.unsafe(
+        'TRUNCATE TABLE api_audit_entries, api_keys, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE',
+      );
+    } finally {
+      await client.end({ timeout: 5 });
+    }
+  };
 }
