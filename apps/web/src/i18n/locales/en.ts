@@ -18,6 +18,8 @@ export const en = {
   'theme.mode.auto': 'Auto',
   'theme.mode.autoWithResolved': 'Auto ({{resolved}})',
   'theme.toggleLabel': 'Theme: {{mode}}',
+  'theme.label': 'Theme',
+  'language.label': 'Language',
 
   // Auth
   'auth.fields.emailLabel': 'Email',

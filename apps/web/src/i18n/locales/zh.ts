@@ -20,6 +20,8 @@ export const zh: Translations = {
   'theme.mode.auto': '自动',
   'theme.mode.autoWithResolved': '自动 ({{resolved}})',
   'theme.toggleLabel': '主题: {{mode}}',
+  'theme.label': '主题',
+  'language.label': '语言',
 
   // Auth
   'auth.fields.emailLabel': '邮箱',
