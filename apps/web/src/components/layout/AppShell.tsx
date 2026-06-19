@@ -5,7 +5,7 @@ import { Header } from './Header';
 import { Navigator } from './Navigator';
 import type { AppShellProps } from './types';
 
-export function AppShell({ user, pages, pageContext, admin = false, children }: AppShellProps) {
+export function AppShell({ user, pages, pageContext, admin = false, userCenter = false, children }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
 
   return (
@@ -15,6 +15,7 @@ export function AppShell({ user, pages, pageContext, admin = false, children }: 
         <Navigator
           pages={pages}
           admin={admin}
+          userCenter={userCenter}
           currentPath={pageContext?.path}
           isOpen={navOpen}
           onClose={() => setNavOpen(false)}

@@ -10,11 +10,13 @@ export async function Layout({
   children,
   pageContext,
   admin = false,
+  userCenter = false,
   skipPasswordGate = false,
 }: {
   children: ReactNode;
   pageContext?: PageContext;
   admin?: boolean;
+  userCenter?: boolean;
   skipPasswordGate?: boolean;
 }) {
   const actor = await authService.getCurrentActor();
@@ -29,7 +31,7 @@ export async function Layout({
   const pages = await pageService.listPublished(buildAnonymousCtx());
 
   return (
-    <AppShell user={actor} pages={pages} pageContext={pageContext} admin={admin}>
+    <AppShell user={actor} pages={pages} pageContext={pageContext} admin={admin} userCenter={userCenter}>
       {children}
     </AppShell>
   );

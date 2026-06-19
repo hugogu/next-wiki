@@ -15,5 +15,6 @@ export type AppShellProps = {
   pages: PageSummary[];
   pageContext?: PageContext;
   admin?: boolean;
+  userCenter?: boolean;
   children: React.ReactNode;
 };
