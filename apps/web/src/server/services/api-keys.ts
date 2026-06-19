@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
-import { can, type PermCtx } from '@/server/permissions';
+import type { PermCtx } from '@/server/permissions';
 import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal } from '@next-wiki/shared';
 
 const KEY_PREFIX = 'nwk_';
@@ -28,10 +28,10 @@ export async function create(
   name: string,
   scopes: ApiKeyScope[],
 ): Promise<ApiKeyCreated> {
-  if (!can(ctx, 'read', { kind: 'page_list' })) {
-    throw new DomainError('UNAUTHORIZED', 'Sign in to create API keys');
-  }
-  if (ctx.actor.kind === 'anonymous') {
+  // Account management (minting keys) is session-only. An API-key actor must not
+  // be able to mint new keys — that would let a narrowly-scoped key escalate by
+  // issuing a broader one for the same owner.
+  if (ctx.actor.kind !== 'user') {
     throw new DomainError('UNAUTHORIZED', 'Sign in to create API keys');
   }
 

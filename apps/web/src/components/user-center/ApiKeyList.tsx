@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/client';
 import type { ApiKeyView, ApiKeyCreated, ApiKeyScope } from '@next-wiki/shared';
 import { apiGet, apiDelete } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PlusIcon, TrashIcon, EyeIcon } from '@/components/icons';
 import { ApiKeyCreateDialog } from './ApiKeyCreateDialog';
 import { ApiKeyReveal } from './ApiKeyReveal';
@@ -23,6 +24,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
   const [revealSecret, setRevealSecret] = useState<string | null>(null);
   const [revealTitle, setRevealTitle] = useState('');
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<ApiKeyView | null>(null);
 
   const refresh = async () => {
     const list = await apiGet<ApiKeyView[]>('/api/api-keys');
@@ -40,16 +42,16 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
     setRevealSecret(result.keySecret);
   };
 
-  const handleRevoke = async (id: string) => {
-    if (!confirm(`${t('userCenter.apiKeys.revokeConfirm')}\n${t('userCenter.apiKeys.revokeWarning')}`)) {
-      return;
-    }
+  const confirmRevoke = async () => {
+    if (!revokeTarget) return;
+    const id = revokeTarget.id;
     setRevokingId(id);
     try {
       await apiDelete(`/api/api-keys/${id}`);
       await refresh();
     } finally {
       setRevokingId(null);
+      setRevokeTarget(null);
     }
   };
 
@@ -77,8 +79,8 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
                 <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.keyPrefix')}</th>
                 <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.createdAt')}</th>
                 <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.lastUsed')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.status.active')}</th>
-                <th className="px-md py-sm font-medium">{t('common.actions.cancel')}</th>
+                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.statusHeader')}</th>
+                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.actionsHeader')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -125,7 +127,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
                             <Button
                               type="button"
                               variant="danger"
-                              onClick={() => handleRevoke(key.id)}
+                              onClick={() => setRevokeTarget(key)}
                               disabled={revokingId === key.id}
                               title={t('userCenter.apiKeys.revoke')}
                               aria-label={t('userCenter.apiKeys.revoke')}
@@ -164,6 +166,18 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
             setRevealSecret(null);
             setRevealTitle('');
           }}
+        />
+      )}
+
+      {revokeTarget && (
+        <ConfirmDialog
+          title={t('userCenter.apiKeys.revoke')}
+          message={`${t('userCenter.apiKeys.revokeConfirm')} ${t('userCenter.apiKeys.revokeWarning')}`}
+          confirmLabel={t('userCenter.apiKeys.revoke')}
+          confirmVariant="danger"
+          pending={revokingId === revokeTarget.id}
+          onConfirm={confirmRevoke}
+          onCancel={() => setRevokeTarget(null)}
         />
       )}
     </div>

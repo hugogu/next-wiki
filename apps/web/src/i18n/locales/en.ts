@@ -5,6 +5,7 @@ export const en = {
   'common.error.internalServerError': 'Internal server error',
   'common.actions.back': '← Back',
   'common.actions.cancel': 'Cancel',
+  'common.actions.confirm': 'Confirm',
   'common.actions.dismiss': 'Dismiss',
 
   // Languages
@@ -299,6 +300,8 @@ export const en = {
   'userCenter.apiKeys.keyPrefix': 'Prefix',
   'userCenter.apiKeys.createdAt': 'Created',
   'userCenter.apiKeys.lastUsed': 'Last used',
+  'userCenter.apiKeys.statusHeader': 'Status',
+  'userCenter.apiKeys.actionsHeader': 'Actions',
   'userCenter.apiKeys.status.active': 'Active',
   'userCenter.apiKeys.status.revoked': 'Revoked',
   'userCenter.apiKeys.reveal': 'Reveal',

@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, gte, lte, isNull, or } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lt, lte, or, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
@@ -30,10 +30,15 @@ export async function writeEntry(input: AuditEntryInput): Promise<void> {
 }
 
 function mapStatusFilter(status: 'success' | 'error' | undefined) {
-  if (status === 'success') return gte(schema.apiAuditEntries.statusCode, 200);
+  // Success is a 2xx/3xx response; everything else (4xx/5xx, and any <200) is an
+  // error. This only narrows the view — failed requests are always recorded.
+  if (status === 'success') return and(
+    gte(schema.apiAuditEntries.statusCode, 200),
+    lt(schema.apiAuditEntries.statusCode, 400),
+  );
   if (status === 'error') return or(
-    sql`${schema.apiAuditEntries.statusCode} >= 400`,
-    sql`${schema.apiAuditEntries.statusCode} < 200`,
+    gte(schema.apiAuditEntries.statusCode, 400),
+    lt(schema.apiAuditEntries.statusCode, 200),
   );
   return undefined;
 }
@@ -113,7 +118,7 @@ export async function listAll(
   }
 
   const offset = (params.page - 1) * params.pageSize;
-  const conditions: (ReturnType<typeof eq> | ReturnType<typeof and> | ReturnType<typeof gte> | ReturnType<typeof lte> | ReturnType<typeof isNull> | undefined)[] = [];
+  const conditions: SQL[] = [];
 
   if (params.userId) conditions.push(eq(schema.apiAuditEntries.userId, params.userId));
   if (params.keyId) conditions.push(eq(schema.apiAuditEntries.keyId, params.keyId));

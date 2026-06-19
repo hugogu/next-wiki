@@ -7,6 +7,7 @@ export const zh: Translations = {
   'common.error.internalServerError': '服务器内部错误',
   'common.actions.back': '← 返回',
   'common.actions.cancel': '取消',
+  'common.actions.confirm': '确认',
   'common.actions.dismiss': '关闭',
 
   // Languages
@@ -299,6 +300,8 @@ export const zh: Translations = {
   'userCenter.apiKeys.keyPrefix': '前缀',
   'userCenter.apiKeys.createdAt': '创建时间',
   'userCenter.apiKeys.lastUsed': '最后使用',
+  'userCenter.apiKeys.statusHeader': '状态',
+  'userCenter.apiKeys.actionsHeader': '操作',
   'userCenter.apiKeys.status.active': '有效',
   'userCenter.apiKeys.status.revoked': '已撤销',
   'userCenter.apiKeys.reveal': '显示',

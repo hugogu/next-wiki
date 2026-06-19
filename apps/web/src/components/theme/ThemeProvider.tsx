@@ -23,10 +23,9 @@ function resolve(mode: ThemeMode): 'light' | 'dark' {
   return 'light';
 }
 
-function getStoredTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'auto';
-  const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-  return stored ?? 'auto';
+function getStoredTheme(): ThemeMode | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
 }
 
 function setStoredTheme(mode: ThemeMode) {

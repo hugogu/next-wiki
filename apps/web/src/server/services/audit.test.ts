@@ -142,6 +142,30 @@ describe('audit service', () => {
       expect(result.entries).toHaveLength(2);
       expect(result.entries.every((e) => e.statusCode >= 400)).toBe(true);
     });
+
+    it('status=success returns only 2xx/3xx (excludes 4xx/5xx)', async () => {
+      const user = await createTestUser('audit-status-success@example.com');
+      for (const statusCode of [200, 302, 404, 500]) {
+        await auditService.writeEntry({
+          keyId: null,
+          userId: user.id,
+          method: 'GET',
+          path: `/api/s${statusCode}`,
+          statusCode,
+          durationMs: 5,
+          authStatus: 'authenticated',
+          errorMessage: null,
+        });
+      }
+
+      const result = await auditService.listOwn(buildUserCtx(user.id, user.role), {
+        page: 1,
+        pageSize: 20,
+        status: 'success',
+      });
+      expect(result.entries).toHaveLength(2);
+      expect(result.entries.every((e) => e.statusCode >= 200 && e.statusCode < 400)).toBe(true);
+    });
   });
 
   describe('listAll', () => {

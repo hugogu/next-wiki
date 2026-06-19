@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
 import * as apiKeyService from '@/server/services/api-keys';
 import { DomainError } from '@/server/errors';
-import { buildUserCtx, buildAnonymousCtx } from '@/server/permissions';
+import { buildUserCtx, buildAnonymousCtx, buildApiKeyCtx } from '@/server/permissions';
 
 async function createTestUser(email: string) {
   const { userId } = await authService.register({ email, password: 'Password123!' });
@@ -51,6 +51,13 @@ describe('api-keys service', () => {
       await expect(
         apiKeyService.create(buildAnonymousCtx(), 'x', ['view']),
       ).rejects.toThrow(DomainError);
+    });
+
+    it('rejects an API-key actor (no key minting via key, prevents scope escalation)', async () => {
+      const user = await createTestUser('apikey-mint@example.com');
+      const ctx = buildApiKeyCtx(user.id, user.role, ['view'], 'some-key-id');
+
+      await expect(apiKeyService.create(ctx, 'escalated', ['delete'])).rejects.toThrow(DomainError);
     });
 
     it('enforces per-user max key limit', async () => {

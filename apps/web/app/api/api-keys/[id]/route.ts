@@ -10,9 +10,8 @@ import * as apiKeyService from '@/server/services/api-keys';
  *
  * @openapi
  * @summary Revoke API key
- * @description Revokes one of the user's API keys.
+ * @description Revokes one of the user's API keys. Session-only; not callable with a Bearer key.
  * @tag User
- * @auth bearer
  * @response 204
  */
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

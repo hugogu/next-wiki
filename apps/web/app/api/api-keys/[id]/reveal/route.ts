@@ -10,9 +10,8 @@ import * as apiKeyService from '@/server/services/api-keys';
  *
  * @openapi
  * @summary Reveal API key secret
- * @description Decrypts and returns the full secret for one of the user's API keys.
+ * @description Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.
  * @tag User
- * @auth bearer
  * @response ApiKeyReveal
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -3,10 +3,27 @@ import { headers } from 'next/headers';
 import { resolveActor } from '@/server/services/auth';
 import { apiContextStore } from './api-context-store';
 import * as audit from '@/server/services/audit';
-import { apiError } from './errors';
+import { apiError, internalError } from './errors';
 import type { AuthStatus } from '@next-wiki/shared';
 
 export type RouteHandler = (request: NextRequest, context: { params: Promise<Record<string, string | string[]>> }) => Promise<Response> | Response;
+
+/**
+ * Extract a human-readable error message for the audit trail. Error responses
+ * are JSON `{ code, message }` (see api/errors.ts); `statusText` is empty for
+ * `NextResponse.json`, so we read the body rather than rely on it.
+ */
+async function extractErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = await response.clone().json();
+    if (body && typeof body === 'object' && typeof body.message === 'string') {
+      return body.message;
+    }
+  } catch {
+    // Non-JSON body; fall back to the status line.
+  }
+  return response.statusText || 'Request failed';
+}
 
 function formatAuthError(authError: string): string {
   switch (authError) {
@@ -68,13 +85,14 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
       let response: Response;
       try {
         response = await handler(request, context);
-      } catch {
-        response = apiError('BAD_REQUEST', 'Internal server error', 500);
+      } catch (error) {
+        console.error('Unhandled API handler error:', error);
+        response = internalError();
       }
 
       const duration = Date.now() - start;
       const status = response.status;
-      const errorMessage = status >= 400 ? response.statusText || 'Request failed' : null;
+      const errorMessage = status >= 400 ? await extractErrorMessage(response) : null;
 
       try {
         await audit.writeEntry({

@@ -11,9 +11,8 @@ import * as apiKeyService from '@/server/services/api-keys';
  *
  * @openapi
  * @summary List API keys
- * @description Returns the current user's API keys without secrets.
+ * @description Returns the current user's API keys without secrets. Session-only; not callable with a Bearer key.
  * @tag User
- * @auth bearer
  * @response ApiKeyViewList
  */
 export async function GET() {
@@ -32,9 +31,8 @@ export async function GET() {
  *
  * @openapi
  * @summary Create an API key
- * @description Creates a new API key with the requested scopes. The full secret is returned only once.
+ * @description Creates a new API key with the requested scopes. Session-only; not callable with a Bearer key. The full secret is returned only once.
  * @tag User
- * @auth bearer
  * @body CreateApiKeyInput
  * @response 201:ApiKeyCreated
  */

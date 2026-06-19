@@ -771,16 +771,11 @@
       "get": {
         "operationId": "get-api-keys",
         "summary": "List API keys",
-        "description": "Returns the current user's API keys without secrets.",
+        "description": "Returns the current user's API keys without secrets. Session-only; not callable with a Bearer key.",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful response",
@@ -797,16 +792,11 @@
       "post": {
         "operationId": "post-api-keys",
         "summary": "Create an API key",
-        "description": "Creates a new API key with the requested scopes. The full secret is returned only once.",
+        "description": "Creates a new API key with the requested scopes. Session-only; not callable with a Bearer key. The full secret is returned only once.",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -834,7 +824,7 @@
       "delete": {
         "operationId": "delete-api-keys-{id}",
         "summary": "Revoke API key",
-        "description": "Revokes one of the user's API keys.",
+        "description": "Revokes one of the user's API keys. Session-only; not callable with a Bearer key.",
         "tags": [
           "User"
         ],
@@ -848,11 +838,6 @@
             },
             "example": 123,
             "description": "Path parameter: id"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
           }
         ],
         "responses": {
@@ -914,7 +899,7 @@
       "get": {
         "operationId": "get-api-keys-{id}-reveal",
         "summary": "Reveal API key secret",
-        "description": "Decrypts and returns the full secret for one of the user's API keys.",
+        "description": "Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.",
         "tags": [
           "User"
         ],
@@ -928,11 +913,6 @@
             },
             "example": 123,
             "description": "Path parameter: id"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
           }
         ],
         "responses": {
