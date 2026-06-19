@@ -44,6 +44,14 @@ export interface ContentStore {
    (Edge Cases).
 4. **No permission logic inside the store**: permission checks happen in services/
    routes via `can()`; the store only moves bytes.
+5. **External-first service transaction**: for Local/S3, callers generate the key,
+   complete the `put*`, and only then commit the corresponding DB row. If the DB
+   commit fails, callers invoke best-effort delete; bounded orphan cleanup handles
+   failed compensation. DatabaseStore performs bytes + metadata in one DB
+   transaction.
+6. **Namespace confinement**: a store may enumerate, write, and delete only keys
+   under its configured managed namespace. Cleanup never scans or mutates outside
+   the Local base directory or S3 prefix.
 
 ## Backend specifics
 
@@ -93,6 +101,7 @@ dynamic discovery (P9).
 
 A shared conformance test suite (Vitest) runs the same scenarios against every
 implementation: round-trip markdown, round-trip image, overwrite idempotency,
-missing-key error, enumeration completeness, health check. DatabaseStore and
-LocalStore run in CI unconditionally; S3Store runs against a MinIO container in
-the integration profile.
+missing-key error, enumeration completeness, atomic write visibility, cleanup
+enumeration, and health check. DatabaseStore and LocalStore run in CI
+unconditionally; S3Store runs against a MinIO container in the integration
+profile.

@@ -13,9 +13,9 @@
   **导出功能。** Git is a one-way **export/publish target** (e.g. for publishing
   to GitHub Pages), NOT an authoritative read/write backend. The selectable
   authoritative backends are Database (default), Local filesystem, and S3. Git is
-  enabled *in addition* to the active authoritative backend; on each save the
-  system publishes standard Markdown + frontmatter + image files to the Git repo
-  and never reads content back from it. See FR-007, FR-009.
+  enabled *in addition* to the active authoritative backend; on each **publish**
+  (drafts excluded) the system exports standard Markdown + frontmatter + image
+  files to the Git repo and never reads content back from it. See FR-007, FR-009.
 - Q: 切换存储后端、迁移进行中时，写入（保存/发布）如何处理？ → A: **短暂只读窗口。**
   During a migration, reads continue to succeed; writes/publishes are temporarily
   blocked (a brief read-only window) until verification passes and cutover
@@ -199,9 +199,10 @@ receive a 403.
 - **Backend unreachable when saving**: the save fails atomically with a clear
   error; no revision is recorded that points at content the backend never
   accepted.
-- **Switching to a backend that already contains data** (e.g. a Git repo or S3
-  bucket with prior content): the system must detect non-empty targets and
-  require explicit admin confirmation, never silently overwrite.
+- **Switching to a backend that already contains data** (e.g. an S3 bucket or
+  local directory with prior content — Git is never a migration target, see
+  FR-007/FR-009): the system must detect non-empty targets and require explicit
+  admin confirmation, never silently overwrite.
 - **Migration interrupted by process restart**: the migration job is resumable
   or safely restartable; a partial migration never becomes the active backend.
 - **Two admins trigger migration concurrently**: only one migration may run at a
@@ -219,7 +220,12 @@ receive a 403.
 - **Secret rotation**: an admin updates S3 keys or a Git token; existing
   references keep working and the new credential takes effect without data loss.
 - **Per-page permission on images**: an image's accessibility is tied to its
-  owning page's read permission, not to a public asset URL guessable by anyone.
+  referencing pages' read permissions, not to a public asset URL guessable by
+  anyone. A caller may fetch a referenced image only if they can read at least
+  one live page that references it.
+- **Abandoned upload**: an uploaded image that is never referenced by a saved
+  revision remains readable only by its uploader during a configurable grace
+  period (default 24 hours), then becomes eligible for bounded orphan cleanup.
 
 ## Requirements *(mandatory)*
 
@@ -235,14 +241,19 @@ receive a 403.
   read view.
 - **FR-003**: The system MUST validate image uploads against a configurable
   maximum file size and an allowed set of image types, rejecting violations with
-  a clear, localized message and inserting no broken reference.
+  a clear, localized message and inserting no broken reference. Validation MUST
+  inspect the file bytes rather than trusting the declared MIME type. This slice
+  supports PNG, JPEG, GIF, and WebP; SVG is excluded because safely serving
+  user-controlled active content requires sanitization and origin isolation.
 - **FR-004**: Image references stored inside Markdown MUST be backend-agnostic
   stable identifiers (resolved by the application at render time), NOT raw
   backend-specific paths, so that switching backends does not require rewriting
   page content.
 - **FR-005**: Serving an image MUST enforce the same read permission as its
-  owning page; an image MUST NOT be retrievable by a user who cannot read the
-  page that references it.
+  referencing pages. A referenced image MUST be retrievable only when the caller
+  can read at least one live page that references it. Before the first saved
+  reference exists, only the uploader may read it, and that temporary access MUST
+  expire after a configurable grace period.
 
 #### Content Storage Abstraction (剥离 ContentStore)
 
@@ -262,14 +273,31 @@ receive a 403.
   MUST be an explicit, optional choice and MUST NOT become a baseline
   requirement.
 - **FR-009**: The Git target MUST operate **one-way as an export/publish
-  function**: the active authoritative backend (Database/Local/S3) remains the
-  source of truth, and on each successful save the system publishes standard
-  Markdown + frontmatter + image files to the configured Git repository (commit
-  and push to a configured remote/branch). The system MUST NOT read content back
-  from Git and MUST NOT attempt to reconcile external commits pushed to the repo
-  by humans. This supports downstream workflows such as publishing to GitHub
-  Pages. Git export is optional and independent of which authoritative backend is
-  active.
+  function** for **published** content (drafts are never exported): the active
+  authoritative backend (Database/Local/S3) remains the source of truth, and on
+  each successful **publish** the system exports standard Markdown + frontmatter +
+  referenced image files to the configured Git repository (commit and push to a
+  configured remote/branch). The system MUST NOT read content back from Git and
+  MUST NOT reconcile external commits. Specifically:
+  - **a. Initial/backfill export**: when Git export is first enabled (or
+    re-enabled), the system MUST export the current published state of all pages,
+    not only pages published afterward.
+  - **b. Deletion & rename**: a successful page deletion MUST trigger removal of
+    the page's file from the repo; renaming/moving a page (path change) MUST
+    trigger removal of the old path's file and writing of the new one in the same
+    export.
+  - **c. Stale assets**: image files in the repo that are no longer referenced by
+    any published page MUST be pruned during export so the repo does not
+    accumulate orphans.
+  - **d. Concurrency**: exports to a given repository MUST be serialized
+    (single-flight per remote) so commits do not race; overlapping triggers
+    coalesce into the next run.
+  - **e. Ownership of the branch**: the export branch is system-owned. If the
+    remote has diverged (non-fast-forward due to external commits), the system
+    MUST reconcile by overwriting the system-owned branch (force-with-lease) and
+    MUST surface a warning; it never merges or reads external changes.
+  - This supports downstream workflows such as publishing to GitHub Pages. Git
+    export is optional and independent of which authoritative backend is active.
 - **FR-010**: Page revision metadata, rendered HTML, content fingerprints, and
   permissions MUST continue to live in the database regardless of the active
   backend; only the raw Markdown source and image bytes move to the selected
@@ -281,6 +309,21 @@ receive a 403.
   errors as actionable failures (save fails atomically; read degrades gracefully
   for images per Edge Cases) and MUST never silently corrupt or partially write a
   revision.
+- **FR-012a**: Because a revision spans a database row and (for Local/S3) an
+  external byte write that cannot share one transaction, the system MUST define a
+  deterministic write protocol that preserves the FR-012 atomicity guarantee:
+  - **a. Ordering**: the external byte write (content-addressed by the generated
+    revision/asset id) MUST complete and be confirmed BEFORE the database row is
+    committed. If the external write fails, NO database row is created and the
+    user sees an atomic failure.
+  - **b. Rollback/compensation**: if the database commit fails after a successful
+    external write, the system MUST best-effort delete the just-written object;
+    any object that cannot be removed is left as a harmless, unreferenced orphan
+    (no database row points to it).
+  - **c. Orphan recovery**: a bounded cleanup MUST be able to reclaim external
+    objects whose keys have no corresponding database row (markdown keys without a
+    revision; image keys without a live `content_assets` row). Writes MUST be
+    idempotent so a retried save never duplicates or corrupts content.
 
 #### Admin Configuration
 
@@ -294,6 +337,11 @@ receive a 403.
 - **FR-015**: Before a backend can be activated, the system MUST validate its
   configuration and provide a connection/health test that reports success or a
   specific failure reason.
+- **FR-015a**: Local and S3 backends MUST operate only inside their configured
+  managed namespace (Local base directory; S3 prefix). Migration, orphan cleanup,
+  and retained-backend cleanup MUST NOT read, overwrite, or delete data outside
+  that namespace. Credential-bearing URLs MUST be rejected; secrets belong only
+  in encrypted secret fields.
 - **FR-016**: Access to content storage configuration and migration MUST be
   restricted to administrators and MUST flow through the existing permission
   chokepoint (`can()`); non-admins MUST be denied without confirming the page
@@ -310,6 +358,12 @@ receive a 403.
   the active/authoritative backend; on any failure or abort the original backend
   MUST remain active with no data loss, and the admin MUST see a clear reason and
   be able to retry.
+- **FR-018a**: An admin MUST be able to abort an in-progress migration. Abort is
+  cooperative: the request records an abort intent, the worker honors it at
+  defined checkpoints (including during the verify phase and immediately before
+  cutover), and cutover MUST be conditional so that an abort arriving during
+  verification can never result in the target being activated. An aborted
+  migration leaves the original backend active with all data retained.
 - **FR-019**: During a migration, reads of existing content MUST continue to
   succeed. Writes (page saves/publishes and image uploads) MUST be temporarily
   blocked during the migration window — a brief read-only window — until target
@@ -318,10 +372,12 @@ receive a 403.
   the migration finishes (or is aborted, returning to the original backend).
 - **FR-020**: The system MUST prevent concurrent migrations (only one at a time)
   and MUST require explicit admin confirmation before overwriting or writing into
-  a target backend that already contains data.
+  a target backend's managed namespace when it already contains data.
 - **FR-021**: The previous backend's data MUST be retained after a successful
   migration until the admin explicitly cleans it up (no automatic destructive
-  delete of the source).
+  delete of the source). Cleanup MUST be a separately confirmed asynchronous
+  operation, MUST refuse to clean the currently active backend or a backend used
+  by an active migration, and MUST report progress and outcome.
 - **FR-022**: A migration interrupted by a process restart MUST be safely
   resumable or restartable and MUST never leave a partially migrated target as
   the active backend.

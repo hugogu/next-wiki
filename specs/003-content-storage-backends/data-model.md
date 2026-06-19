@@ -91,13 +91,28 @@ One row per uploaded image. Bytes live in the active backend (DB backend →
 |---|---|---|
 | `id` | uuid PK | `defaultRandom()` — used in `/api/assets/{id}` |
 | `kind` | `content_asset_kind` | not null, default `'image'` |
-| `content_hash` | text | not null — sha256 of bytes (dedup + verify) |
+| `content_hash` | text | not null — sha256 of bytes (integrity + verify) |
 | `content_type` | text | not null — mime, e.g. `image/png` |
 | `size_bytes` | integer | not null |
+| `created_by` | uuid FK → `users.id` | nullable, `on delete set null` — original uploader |
 | `created_at` | timestamptz | not null, default now |
 | `deleted_at` | timestamptz | nullable — soft delete (orphan cleanup) |
 
-Indexes: unique `(content_hash)` (dedup); index on `deleted_at`.
+Indexes: index on `content_hash` (integrity/migration verification); index on
+`deleted_at`; index on `created_by`.
+
+**Upload ownership & expiration.** `created_by` records the original uploader so the
+serving route can let the uploader read an asset that is not yet referenced by any
+saved revision (D3 read rule), without leaking it to others. An asset that is
+never referenced (`content_asset_refs` empty) is an **abandoned upload**; it
+expires after a configurable TTL (default 24h from `created_at`) and is reclaimed
+by the orphan cleanup (bytes deleted from the store, row soft-deleted). Once an
+asset gains at least one ref it is permanent (subject only to reference-aware
+orphan cleanup, R10). User deletion sets `created_by` to null and never deletes
+the asset or its revision references. This slice does **not** deduplicate uploads
+across users: two uploads with identical bytes receive distinct asset IDs, which
+avoids granting access through another user's private-page reference. The hash is
+retained for integrity and migration verification.
 
 ### `content_asset_refs`
 
@@ -137,6 +152,7 @@ Tracks a backend switch (one active at a time).
 | `copied_items` | integer | not null, default 0 |
 | `verified_items` | integer | not null, default 0 |
 | `error_message` | text | nullable |
+| `abort_requested` | boolean | not null, default `false` — cooperative cancel flag |
 | `created_by` | uuid FK → `users.id` | not null |
 | `created_at` | timestamptz | not null, default now |
 | `started_at` | timestamptz | nullable |
@@ -148,6 +164,17 @@ expressible per-value; instead use a partial unique index on a constant expressi
 guarded in the service, plus an index on `status`. The single-flight guard is
 enforced in `migration.ts` inside a transaction (`SELECT ... FOR UPDATE`) as the
 authoritative check.
+
+**Cooperative abort.** The abort endpoint only sets `abort_requested = true`; it
+never mutates `status` directly. The worker reads `abort_requested` at defined
+checkpoints — before each copied item, before the verify phase, and immediately
+before cutover — and, if set, transitions to `aborted` and stops. Cutover is a
+**conditional transaction**:
+`UPDATE storage_backends SET is_active=... ; UPDATE content_migrations SET
+status='completed' WHERE id=$1 AND status='verifying' AND abort_requested=false`.
+If the guarded `UPDATE` affects zero rows (an abort landed during verification),
+the worker rolls back, leaves the original backend active, and records `aborted`.
+This closes the abort-vs-cutover race (review P1 #3, FR-018).
 
 State machine: `pending → copying → verifying → completed`; any step → `failed`;
 admin abort → `aborted`. Only `completed` flips `storage_backends.is_active`.
@@ -188,11 +215,17 @@ page_revisions 1───* content_asset_refs *───1 content_assets 1──
 ## Validation rules (Zod, `packages/shared/src/content-storage.ts`)
 
 - **Image upload**: `content_type` ∈ allowlist (`image/png`, `image/jpeg`,
-  `image/gif`, `image/webp`, `image/svg+xml`); `size_bytes` ≤ configurable max
-  (default e.g. 10 MB). Violations → 400 with localized message (FR-003).
+  `image/gif`, `image/webp`); `size_bytes` ≤ configurable max (default e.g.
+  10 MB). The declared mime MUST match the bytes (magic-number sniff) to prevent
+  type confusion. **SVG is excluded** from the allowlist for this slice — an SVG
+  served same-origin can execute active content on direct navigation; safe SVG
+  support requires sanitization + origin isolation and is deferred (see
+  research R12 / plan D3). Violations → 400 with localized message (FR-003).
 - **Backend config**: per-type schema (above); required fields enforced; secret
   fields write-only (never serialized back). Activation requires a passing
-  `healthCheck()` (FR-015).
+  `healthCheck()` (FR-015). URL fields reject embedded credentials. Local/S3
+  operations are confined to the configured base directory/prefix and cleanup
+  cannot escape that managed namespace (FR-015a).
 - **Migration start**: `target_backend_id` must reference a configured,
   health-checked primary backend distinct from the active one; single-flight; if
   target non-empty, `confirmOverwrite=true` required (FR-020).

@@ -18,8 +18,9 @@ Upload an image. Auth: signed-in editor/admin, or API key with `edit`/`create`
 scope ∩ role. Body: `multipart/form-data` with a single `file` field.
 
 - **Validates**: mime allowlist + size (FR-003).
-- **Behavior**: computes sha256, dedups by `content_hash`, writes bytes to the
-  active store, returns the asset.
+- **Behavior**: validates PNG/JPEG/GIF/WebP from file bytes (SVG excluded),
+  computes sha256 for integrity, writes bytes using the external-first atomic
+  protocol, and returns a distinct asset. Cross-user uploads are not deduplicated.
 - **200**: `{ id: string, url: "/api/assets/{id}", contentType, sizeBytes }`
 - **400** `INVALID_IMAGE`: bad type/size (localized message).
 - **401/403**: unauthenticated / insufficient permission.
@@ -27,14 +28,17 @@ scope ∩ role. Body: `multipart/form-data` with a single `file` field.
 
 ### `GET /api/assets/{id}`
 
-Serve image bytes. Auth: `read` permission on a page that references the asset
-(FR-005); the uploader may read an as-yet-unreferenced asset they just created.
+Serve image bytes. Auth: `read` permission on at least one live page that
+references the asset (FR-005); the uploader may read an as-yet-unreferenced asset
+they created until the abandoned-upload TTL expires.
 
 - **200**: image bytes with `Content-Type` from the asset; cacheable per the
   app's existing static-asset policy (private; honors page permission).
 - **404**: asset missing, soft-deleted, or caller lacks read (no existence leak).
-- **502** (rendered as placeholder by the client): active backend unreachable
-  (Edge Cases) — logged.
+- If metadata exists and permission succeeds but backend bytes are unavailable,
+  return **200** with the built-in unavailable-image placeholder bytes,
+  `Content-Type: image/png`, `Cache-Control: no-store`, and
+  `X-Content-Error: backend-unavailable`; log the backend error.
 
 ---
 
@@ -59,10 +63,10 @@ Create or update a backend's configuration (non-secret `config` + optional
 - **200**: `BackendView` (with `hasSecret`).
 - **400** `INVALID_CONFIG`: failed per-type validation.
 
-### `POST /api/storage/test`
+### `POST /api/storage/backend-checks`
 
-Validate config and run `healthCheck()` for a backend (FR-015). Does not change
-state.
+Create an ephemeral connection-check result by validating config and running
+`healthCheck()` for a backend (FR-015). Does not change backend state.
 
 - Body: `{ type, config, secret? }` or `{ backendId }`.
 - **200**: `{ ok: boolean, detail?: string }`.
@@ -97,12 +101,34 @@ List recent migrations (paginated). **200**: `{ items: MigrationView[] }`.
 ### `GET /api/storage/migrations/{id}`
 
 Poll progress for the admin UI. **200**: `MigrationView`
-(`{ id, status, totalItems, copiedItems, verifiedItems, errorMessage, startedAt, finishedAt }`).
+(`{ id, status, abortRequested, totalItems, copiedItems, verifiedItems,
+errorMessage, startedAt, finishedAt }`).
 
-### `POST /api/storage/migrations/{id}/abort`
+### `DELETE /api/storage/migrations/{id}`
 
-Abort a running migration; the original backend stays active, all data retained
-(FR-018). **200**: `MigrationView` (`status: "aborted"`).
+Request cooperative abort of a pending/running migration. This sets
+`abortRequested=true`; the worker transitions to `aborted` at its next checkpoint
+and a guarded cutover prevents activation after the request (FR-018a).
+
+- **202**: `MigrationView` with `abortRequested: true`.
+- **409** `MIGRATION_NOT_ABORTABLE`: migration already completed/failed/aborted.
+
+### `POST /api/storage/cleanup-jobs`
+
+Start separately confirmed cleanup of retained data in an inactive backend.
+Body: `{ backendId, confirm: true }`.
+
+- **202**: `{ jobId, backendId, status: "pending" }`.
+- **409** `BACKEND_IN_USE`: backend is active or participates in an active
+  migration.
+- **400** `CONFIRMATION_REQUIRED`.
+
+### `GET /api/storage/cleanup-jobs/{jobId}`
+
+Poll retained-backend cleanup progress.
+
+- **200**: `{ jobId, backendId, status, totalItems, deletedItems, errorMessage,
+  startedAt, finishedAt }`.
 
 ---
 
@@ -121,7 +147,7 @@ checked via `manage_preferences` (self). Behavior otherwise unchanged from 002.
 ## Mutation routes affected by the read-only window
 
 These existing routes add a `STORAGE_MIGRATING` (423) guard while a migration is
-active (FR-019): `POST /api/pages`, `PUT /api/edit/{...path}` (new draft),
+active (FR-019): `POST /api/pages`, `POST /api/edit/{...path}` (new draft),
 `POST /api/revisions/publish`, `POST /api/assets`. Reads are never blocked.
 
 ---

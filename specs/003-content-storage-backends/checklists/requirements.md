@@ -39,4 +39,11 @@
 - Terms like S3 and Git appear because they are domain concepts named explicitly
   in the user's request, not incidental implementation choices; the storage
   abstraction itself (FR-006) is described technology-agnostically.
-- All checklist items pass. Spec is ready for `/speckit.plan`.
+- Review corrections are incorporated across the spec and design artifacts:
+  external-write atomicity and orphan recovery; uploader ownership without
+  cascade deletion or cross-user deduplication; cooperative migration abort with
+  guarded cutover; byte-validated raster uploads with SVG deferred; complete,
+  serialized Git export semantics; lifecycle-injected pg-boss; explicit retained
+  backend cleanup; and the project-mandated Docker verification command.
+- All checklist items pass. The requirements and design artifacts are ready for
+  `/speckit.tasks`.

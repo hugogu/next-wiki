@@ -9,7 +9,7 @@ optional backends.
 ## Default (Database) — nothing to do
 
 ```bash
-docker compose up
+docker compose up -d --build
 ```
 
 - Active backend = **Database**. PostgreSQL is the only stateful service (P1).
@@ -86,5 +86,5 @@ Create keys with the new scopes (User Center → API Keys):
   permissions, migration state machine).
 - `pnpm --filter web test:e2e` — Playwright: image upload/render, admin storage
   switch with read-only window, scope enforcement.
-- `docker compose up --build` — confirm default DB-only deployment still boots and
-  serves images.
+- `docker compose up -d --build` — required project-level verification; confirm
+  the default DB-only deployment boots and serves images.

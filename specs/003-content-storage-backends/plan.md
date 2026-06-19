@@ -116,10 +116,13 @@ implementation keeps using `content_source`, so existing data needs no backfill.
 - **Markdown** is addressed by `revisionId` (no new row needed; the revision IS
   the record). Its fingerprint is the existing `page_revisions.content_hash`.
 - **Images** get a `content_assets` row (`id`, `kind='image'`, `content_hash`,
-  `content_type`, `size_bytes`, `created_at`, `deleted_at`). Bytes live in the
-  active store. `content_asset_refs(asset_id, revision_id)` records which
+  `content_type`, `size_bytes`, `created_by`, `created_at`, `deleted_at`). Bytes
+  live in the active store. `content_asset_refs(asset_id, revision_id)` records which
   revisions reference each image (populated on save by scanning saved Markdown for
   `/api/assets/{id}`).
+- Uploads are not deduplicated across users. `created_by` is nullable with
+  `ON DELETE SET NULL`; it grants temporary read access only while the asset has
+  no saved reference and is within the abandoned-upload TTL (default 24h).
 - Markdown stores image references as **app-relative URLs**
   `![alt](/api/assets/{assetId})` — never backend paths (FR-004).
 
@@ -127,14 +130,27 @@ implementation keeps using `content_source`, so existing data needs no backfill.
 
 - `POST /api/assets` (multipart) — auth required (editor/admin via role, or a key
   with `edit`/`create` scope ∩ role). Validates size (configurable max) and mime
-  (allowlist), computes `content_hash`, dedups by hash, writes bytes to the active
-  store, inserts/returns `{ id, url }`. Rejection → localized error, no reference
-  (FR-003).
+  (PNG/JPEG/GIF/WebP allowlist, verified from file bytes; SVG excluded), computes
+  `content_hash`, writes bytes to the active store, inserts/returns `{ id, url }`.
+  Rejection → localized error, no reference (FR-003).
 - `GET /api/assets/{id}` — resolves the asset's referencing page(s); if none yet
-  (freshly uploaded, not saved), the uploader may read it; otherwise requires
-  `read` on a referencing page via `can()`. Streams bytes from the active store
-  with the stored content type. Unreadable → 404 (no existence leak). Missing
-  bytes (backend down) → handled by the renderer as a placeholder (Edge Cases).
+  (freshly uploaded, not saved), the uploader may read it until the upload TTL
+  expires; otherwise requires `read` on at least one live referencing page via
+  `can()`. Streams bytes from the active store with the stored content type.
+  Unreadable → 404 (no existence leak). Missing bytes (backend down) return the
+  built-in unavailable-image placeholder with `Cache-Control: no-store`, and the
+  backend error is logged.
+
+### D3a — Cross-store atomic write protocol
+
+For Local/S3, a revision or asset spans an external object and a DB metadata row.
+The service generates the UUID first, writes and confirms the external object,
+then commits the DB row. A failed external write creates no DB row. If the DB
+commit fails, the service best-effort deletes the object; an unsuccessful
+compensation leaves only an unreferenced object. A bounded cleanup job enumerates
+store keys and removes keys with no corresponding live DB row after a safety
+grace period. DatabaseStore performs its byte and metadata writes in one DB
+transaction. All puts are idempotent by key.
 
 ### D4 — Storage backend configuration (admin)
 
@@ -145,8 +161,13 @@ implementation keeps using `content_source`, so existing data needs no backfill.
   (`is_active` = enabled).
 - Secrets (S3 keys, Git token) encrypted with the existing `encryptKey`; never
   returned to the client (API returns a `hasSecret` boolean). Non-secret config
-  is returned for display/edit.
-- `POST /api/storage/test` validates config + runs `healthCheck()` before
+  is returned for display/edit. Config validation rejects credentials embedded in
+  endpoint/remote URLs.
+- Local and S3 stores are confined to their configured managed namespace
+  (`basePath` or `prefix`). Migration and cleanup enumerate and mutate only the
+  `markdown/` and `assets/` trees within that namespace.
+- `POST /api/storage/backend-checks` creates a connection-check result by
+  validating config + running `healthCheck()` before
   activation (FR-015). All storage routes require `manage_storage` (admin).
 - Admin UI at `/admin/storage`: shows active backend, per-backend config forms,
   test button, Git export toggle, and a "switch backend" action that launches a
@@ -155,10 +176,15 @@ implementation keeps using `content_source`, so existing data needs no backfill.
 ### D5 — Git one-way export (pg-boss job)
 
 - A `git_export` backend row holds remote URL, branch, and an encrypted token.
-- On successful `publish`, enqueue a `git-export` pg-boss job carrying the page
-  path + version. The handler clones/opens a working dir (cached on the volume),
-  writes `{path}.md` (Markdown + frontmatter) and referenced images under an
-  `assets/` folder, commits, and pushes via `isomorphic-git` over HTTPS.
+- On successful `publish`, page deletion, or page path change, enqueue/coalesce a
+  `git-export` pg-boss job. Enabling or re-enabling export enqueues a full
+  backfill. The handler materializes the complete current published corpus in a
+  working tree: it writes/updates Markdown + frontmatter and referenced images,
+  removes deleted/renamed pages and stale assets, commits, and pushes via
+  `isomorphic-git` over HTTPS.
+- Jobs are serialized per configured remote/branch. The branch is explicitly
+  system-owned; remote divergence is handled with force-with-lease plus an admin
+  warning, never merge/import.
 - Failures are recorded on the job and retried with backoff; they **never** fail
   the publish (FR-009 edge case). DB stays source of truth; external commits are
   ignored.
@@ -168,12 +194,16 @@ implementation keeps using `content_source`, so existing data needs no backfill.
 Implements R5. A `content_migrations` row tracks
 `source_backend_id`, `target_backend_id`, `status`
 (`pending|copying|verifying|completed|failed|aborted`), `total_items`,
-`copied_items`, `verified_items`, `error_message`, timestamps, `created_by`.
+`copied_items`, `verified_items`, `error_message`, `abort_requested`, timestamps,
+`created_by`.
 
 - `POST /api/storage/migrations` (admin, `manage_storage`): validates target
-  config, single-flight guard, non-empty-target confirmation, then enqueues the
-  job and returns the migration id immediately (P6).
-- The job: set read-only flag → copy all markdown (per revision) + images
+  config, single-flight guard, non-empty-target confirmation, creates the pending
+  migration (which immediately acts as the global write lock), then enqueues the
+  job and returns the migration id immediately (P6). Lock creation and the
+  single-flight check occur in one DB transaction, so no write can slip between
+  migration acceptance and worker startup.
+- The job: copy all markdown (per revision) + images
   (per asset) to target → verify every item by fingerprint + count → on success
   flip `is_active` in one transaction and clear the flag → on failure keep
   original active, retain all data, record reason, clear flag.
@@ -181,16 +211,23 @@ Implements R5. A `content_migrations` row tracks
   `revisions.publish`, and `POST /api/assets` check the flag and throw a localized
   `STORAGE_MIGRATING` domain error (HTTP 423). Reads are unaffected (FR-019).
 - `GET /api/storage/migrations/{id}` returns progress for the admin UI (polled).
+- Abort sets `abort_requested`; the worker checks it before each item, before
+  verification, and immediately before a conditional cutover transaction. A
+  concurrent abort therefore cannot activate the target.
 - Boot recovery re-queues an interrupted migration; idempotent content-addressed
   writes make re-runs safe (FR-022).
+- Previous-backend cleanup is a separately confirmed pg-boss job. It refuses the
+  active backend and any backend participating in an active migration, then
+  reports item progress and final status.
 
 ### D7 — pg-boss bootstrap (first job infra)
 
-- New `src/server/jobs/` module: `boss.ts` (singleton pg-boss instance bound to
-  `DATABASE_URL`), `register.ts` (explicit registration of `content-migration`
-  and `git-export` handlers — P9), and the handlers. Started once from the server
-  bootstrap (an `instrumentation.ts` register hook or the existing start path),
-  guarded so tests can run without a live worker.
+- New `src/server/jobs/` module: `create-boss.ts` (factory bound to
+  `DATABASE_URL`), `register.ts` (explicit registration of `content-migration`,
+  `storage-cleanup`, `orphan-cleanup`, and `git-export` handlers — P9), and the
+  handlers. A framework-managed server bootstrap creates the instance once and
+  injects it into registration/handlers; application modules do not access a
+  global singleton. Tests construct isolated instances or injected fakes.
 - pg-boss creates its own schema in PostgreSQL on first run (idempotent) — no new
   service, consistent with P1.
 
@@ -246,10 +283,13 @@ apps/web/
 │       │   └── [id]/route.ts             # NEW: GET serve image (permissioned)
 │       └── storage/
 │           ├── route.ts                  # NEW: GET/PUT backend config
-│           ├── test/route.ts             # NEW: POST health/connection test
+│           ├── backend-checks/route.ts   # NEW: POST health/connection check
+│           ├── cleanup-jobs/
+│           │   ├── route.ts              # NEW: POST confirmed backend cleanup
+│           │   └── [id]/route.ts         # NEW: GET cleanup status
 │           └── migrations/
 │               ├── route.ts              # NEW: POST start, GET list
-│               └── [id]/route.ts         # NEW: GET status, POST abort
+│               └── [id]/route.ts         # NEW: GET status, DELETE requests abort
 ├── src/
 │   ├── server/
 │   │   ├── content-store/                # NEW
@@ -259,12 +299,14 @@ apps/web/
 │   │   │   ├── local-store.ts            # filesystem
 │   │   │   └── s3-store.ts               # @aws-sdk/client-s3
 │   │   ├── jobs/                         # NEW (first pg-boss infra)
-│   │   │   ├── boss.ts                   # pg-boss singleton
+│   │   │   ├── create-boss.ts            # pg-boss factory; lifecycle-injected
 │   │   │   ├── register.ts               # explicit handler registration
 │   │   │   ├── content-migration.ts      # migration job handler (D6)
+│   │   │   ├── storage-cleanup.ts        # confirmed old-backend cleanup
+│   │   │   ├── orphan-cleanup.ts         # abandoned/unreferenced object cleanup
 │   │   │   └── git-export.ts             # git export job handler (D5)
 │   │   ├── services/
-│   │   │   ├── content-assets.ts         # NEW: image asset CRUD + refs + dedup
+│   │   │   ├── content-assets.ts         # NEW: image asset CRUD + refs + lifecycle
 │   │   │   ├── storage-config.ts         # NEW: backend config + secrets
 │   │   │   ├── migration.ts              # NEW: start/guard/status/state machine
 │   │   │   ├── pages.ts                  # MODIFIED: read/write markdown via store

@@ -127,9 +127,12 @@ in a `content_migrations` row: `pending → copying → verifying → completed`
 1. **Guard**: reject if another migration is `pending/copying/verifying`
    (single-flight, FR-020). If the target already contains data, require an
    explicit `confirmOverwrite` flag (FR-020).
-2. **Read-only window**: set a global write-lock flag (the active migration row's
-   existence) — page saves, publishes, and image uploads return a localized
-   "storage migrating, read-only" error; reads are unaffected (FR-019).
+2. **Read-only window**: the pending migration row is created in the same
+   transaction as the single-flight check and immediately acts as the global
+   write lock — page saves, publishes, and image uploads return a localized
+   "storage migrating, read-only" error; reads are unaffected (FR-019). The lock
+   therefore starts before the worker is scheduled, leaving no acceptance/startup
+   race.
 3. **Copy**: enumerate all markdown assets (every revision) and image assets
    (`content_assets`) from the source backend; write each to the target. Progress
    counters (`total_items`, `copied_items`) update incrementally — no single long
@@ -137,12 +140,18 @@ in a `content_migrations` row: `pending → copying → verifying → completed`
 4. **Verify**: re-read each item from the target and compare its fingerprint to
    the DB-stored `content_hash` (markdown) / `content_assets.content_hash`
    (images), plus a count check (FR-018).
-5. **Cutover**: only on 100% verification, flip `storage_backends.is_active` to
-   the target in a single transaction and clear the write-lock. On any failure,
-   leave the original active, retain everything, record `error_message`, and
-   release the lock (FR-018, FR-021).
-6. **Source retention**: the previous backend's bytes are never auto-deleted;
-   an explicit admin "clean up old backend" action handles that later (FR-021).
+5. **Abort/cutover**: abort records `abort_requested`; the worker checks it before
+   every item, before verification, and immediately before cutover. Only on 100%
+   verification does a conditional transaction confirm
+   `status='verifying' AND abort_requested=false`, flip
+   `storage_backends.is_active`, and mark the migration completed. A failed guard
+   rolls back and records `aborted`. On any other failure, leave the original
+   active, retain everything, record `error_message`, and release the lock
+   (FR-018, FR-018a, FR-021).
+6. **Source retention**: the previous backend's bytes are never auto-deleted.
+   A separately confirmed pg-boss cleanup job may delete them later, but refuses
+   the active backend or a backend participating in an active migration
+   (FR-021).
 
 **Resumability**: on boot, a migration left in `copying`/`verifying` by a crash is
 re-queued; copy/verify are idempotent (content-addressed writes), so re-running is
@@ -159,10 +168,14 @@ design at this scale.
 
 **Decision**: Git is **not** a selectable primary backend. It is an optional,
 independently-enabled export target (`storage_backends` row with
-`purpose = 'git_export'`). On every successful publish, a pg-boss `git-export` job
-writes the page's standard Markdown (with frontmatter) and its referenced images
-into a working clone, commits, and pushes to the configured remote/branch. The
-system never reads back from Git and never reconciles external commits.
+`purpose = 'git_export'`). Every successful publish, page deletion, or page path
+change enqueues/coalesces a pg-boss `git-export` trigger. Enabling/re-enabling
+export triggers a full backfill. A serialized worker materializes the complete
+current published state: standard Markdown + frontmatter, referenced images,
+removal of deleted/renamed paths, and pruning of stale assets. The configured
+branch is system-owned. Non-fast-forward divergence is overwritten with
+force-with-lease and surfaced as an admin warning; the system never merges or
+imports external changes.
 
 **Library**: use **`isomorphic-git`** with the Node `fs` and an HTTP client — pure
 JS, no native build, works in the Alpine Docker image, supports clone/commit/push
@@ -254,8 +267,41 @@ cleanup (manual admin action or a future scheduled job) reclaims true orphans.
 Deleting a page (soft delete) never deletes shared images still referenced
 elsewhere (Edge Cases).
 
+`content_assets.created_by` records the original uploader with `ON DELETE SET
+NULL`. It grants temporary read access only while the upload has no saved
+reference and is within a configurable TTL (default 24h). Cross-user hash
+deduplication is intentionally not performed because reusing an ID already tied
+to a private page creates ambiguous preview authorization.
+
 **Rationale**: Reference-aware lifecycle prevents the classic "deleted image that
 another page still uses" data loss, and aligns with version-everything.
+
+---
+
+## R11 — Cross-store save atomicity
+
+**Decision**: For Local/S3, generate the revision or asset UUID, write and confirm
+the external object first, then commit the DB metadata row. External failure
+creates no row. DB failure triggers best-effort object deletion; failed
+compensation leaves an unreferenced object that a bounded, grace-period cleanup
+can safely remove by comparing store keys with DB rows. DatabaseStore keeps bytes
+and metadata in one DB transaction. Puts are idempotent by key.
+
+**Rationale**: PostgreSQL and object storage cannot share a transaction. This
+ordering guarantees that no committed revision points to missing bytes; the only
+possible partial result is an unreachable orphan.
+
+---
+
+## R12 — Image type safety
+
+**Decision**: Accept PNG, JPEG, GIF, and WebP after magic-number validation. SVG
+is excluded in this slice. Backend-failure placeholders are application-owned
+static image bytes, not user uploads.
+
+**Rationale**: A user-controlled SVG served from the application origin may carry
+active content when directly navigated to. Supporting SVG safely requires a
+separate sanitization and origin-isolation design.
 
 ---
 
