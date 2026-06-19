@@ -211,6 +211,7 @@ export const zh: Translations = {
   'layout.nav.empty': '暂无已发布页面。',
 
   // Admin
+  'admin.title': '管理',
   'admin.nav.users': '用户',
   'admin.nav.apiAudit': 'API 审计',
 
@@ -221,6 +222,7 @@ export const zh: Translations = {
   'userCenter.nav.preferences': '偏好设置',
   'userCenter.nav.apiKeys': 'API 密钥',
   'userCenter.nav.audit': '审计日志',
+  'userCenter.nav.settings': '用户设置',
 
   'userCenter.profile.metadataTitle': '个人资料',
   'userCenter.profile.heading': '个人资料',

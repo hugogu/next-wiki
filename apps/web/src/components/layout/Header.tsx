@@ -119,11 +119,14 @@ export function Header({
 
   const pathname = usePathname();
   const isOnUserCenter = pathname.startsWith('/user-center');
+  const isOnAdmin = pathname.startsWith('/admin');
   const title = editor
     ? editor.title.trim() || editor.defaultTitle
     : isOnUserCenter
       ? t('userCenter.title')
-      : pageContext?.title ?? null;
+      : isOnAdmin
+        ? t('admin.title')
+        : pageContext?.title ?? null;
 
   return (
     <header className="h-header shrink-0 bg-surface border-b border-border flex items-center justify-between px-md lg:px-lg relative">
@@ -182,18 +185,17 @@ export function Header({
                   <EyeIcon />
                 </IconButton>
               )}
+              {isSignedIn && (role === 'editor' || role === 'admin') && (
+                <IconButton href="/new" label={t('page.header.newPage')}>
+                  <PlusIcon />
+                </IconButton>
+              )}
             </div>
 
             <div className="flex items-center gap-sm">
         <IconButton href="/api-docs" label={t('layout.header.apiDocs')}>
           <CodeIcon />
         </IconButton>
-        {isSignedIn && (role === 'editor' || role === 'admin') && (
-                <IconButton href="/new" label={t('page.header.newPage')}>
-                  <PlusIcon />
-                </IconButton>
-              )}
-
               {role === 'admin' && (
                 <IconButton href="/admin/users" label={t('page.header.admin')}>
                   <ShieldIcon />

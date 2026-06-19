@@ -211,6 +211,7 @@ export const en = {
   'layout.nav.empty': 'No published pages yet.',
 
   // Admin
+  'admin.title': 'Administration',
   'admin.nav.users': 'Users',
   'admin.nav.apiAudit': 'API Audit',
 
@@ -221,6 +222,7 @@ export const en = {
   'userCenter.nav.preferences': 'Preferences',
   'userCenter.nav.apiKeys': 'API Keys',
   'userCenter.nav.audit': 'Audit Log',
+  'userCenter.nav.settings': 'User Settings',
 
   'userCenter.profile.metadataTitle': 'Profile',
   'userCenter.profile.heading': 'Profile',

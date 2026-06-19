@@ -8,7 +8,7 @@ import { useTranslation } from '@/i18n/client';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
 import { apiPost } from '@/lib/api/client';
-import { UserIcon, LogOutIcon, LogInIcon, KeyIcon, SlidersIcon, ClipboardListIcon } from '@/components/icons';
+import { UserIcon, LogOutIcon, LogInIcon } from '@/components/icons';
 
 export function UserDropdown({ user }: { user: Actor }) {
   const { t } = useTranslation();
@@ -50,17 +50,8 @@ export function UserDropdown({ user }: { user: Actor }) {
         <div className="absolute right-0 top-full mt-1 w-56 bg-surface border border-border rounded-lg shadow-lg py-xs z-50">
           {isSignedIn ? (
             <>
-              <DropdownLink href="/user-center/profile" icon={<UserIcon className="w-4 h-4" />} active={pathname === '/user-center/profile'} onClick={() => setOpen(false)}>
-                {t('userCenter.nav.profile')}
-              </DropdownLink>
-              <DropdownLink href="/user-center/preferences" icon={<SlidersIcon className="w-4 h-4" />} active={pathname === '/user-center/preferences'} onClick={() => setOpen(false)}>
-                {t('userCenter.nav.preferences')}
-              </DropdownLink>
-              <DropdownLink href="/user-center/api-keys" icon={<KeyIcon className="w-4 h-4" />} active={pathname === '/user-center/api-keys'} onClick={() => setOpen(false)}>
-                {t('userCenter.nav.apiKeys')}
-              </DropdownLink>
-              <DropdownLink href="/user-center/audit" icon={<ClipboardListIcon className="w-4 h-4" />} active={pathname === '/user-center/audit'} onClick={() => setOpen(false)}>
-                {t('userCenter.nav.audit')}
+              <DropdownLink href="/user-center/profile" icon={<UserIcon className="w-4 h-4" />} active={pathname.startsWith('/user-center')} onClick={() => setOpen(false)}>
+                {t('userCenter.nav.settings')}
               </DropdownLink>
 
               <div className="my-xs border-t border-border" />
