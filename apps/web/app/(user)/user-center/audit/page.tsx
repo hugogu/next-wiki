@@ -31,8 +31,7 @@ export default async function AuditPage() {
   const keys = await apiKeyService.list(ctx);
 
   return (
-    <div className="max-w-5xl space-y-md">
-      <h2 className="font-display text-2xl font-semibold">{getDictionary(await getLocale())('userCenter.audit.title')}</h2>
+    <div className="w-full min-w-0">
       <AuditLogTable initialData={initialData} fetchUrl="/api/audit" keys={keys.map((k) => ({ id: k.id, name: k.name }))} />
     </div>
   );

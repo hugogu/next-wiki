@@ -15,9 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminUsersPage() {
-  const locale = await getLocale();
-  const t = getDictionary(locale);
-
   const actor = await getCurrentActor();
 
   const users = await userService.listSafe({ actor });
@@ -27,11 +24,7 @@ export default async function AdminUsersPage() {
 
   return (
     <Layout admin>
-      <div className="max-w-5xl mx-auto px-lg py-xl">
-        <div className="mb-lg">
-          <h1 className="font-display text-3xl font-semibold">{t('admin.users.metadataTitle')}</h1>
-          <p className="text-muted">{t('admin.users.description')}</p>
-        </div>
+      <div className="px-lg py-md">
         <UserManagementTable users={users} />
       </div>
     </Layout>

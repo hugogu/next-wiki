@@ -53,10 +53,17 @@ export function ApiKeyCreateDialog({ onClose, onCreated }: ApiKeyCreateDialogPro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-lg shadow-lg">
-        <div className="flex items-center justify-between mb-md">
+      <div className="w-full max-w-2xl rounded-lg border border-border bg-surface p-lg shadow-lg">
+        <div className="mb-md flex items-center justify-between gap-md">
           <h3 className="font-display text-xl font-semibold">{t('userCenter.apiKeys.createTitle')}</h3>
-          <Button type="button" variant="ghost" onClick={onClose} aria-label={t('common.actions.dismiss')}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            className="h-9 w-9 px-0"
+            aria-label={t('common.actions.dismiss')}
+            title={t('common.actions.dismiss')}
+          >
             <XIcon />
           </Button>
         </div>
@@ -80,7 +87,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated }: ApiKeyCreateDialogPro
           <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.scopesLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.scopesHint')}</p>
-            <div className="grid grid-cols-2 gap-sm">
+            <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
               {SCOPE_ORDER.map((scope) => (
                 <label key={scope} className="flex items-start gap-sm rounded-md border border-border p-sm cursor-pointer hover:bg-surface-elevated">
                   <input

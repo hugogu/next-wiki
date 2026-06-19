@@ -5,6 +5,14 @@ import { useTranslation } from '@/i18n/client';
 import type { ApiKeyView, ApiKeyCreated, ApiKeyScope } from '@next-wiki/shared';
 import { apiGet, apiDelete } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PlusIcon, TrashIcon, EyeIcon } from '@/components/icons';
 import { ApiKeyCreateDialog } from './ApiKeyCreateDialog';
@@ -20,7 +28,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
   const { t, locale } = useTranslation();
   const [keys, setKeys] = useState(initialKeys);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
   const [revealSecret, setRevealSecret] = useState<string | null>(null);
   const [revealTitle, setRevealTitle] = useState('');
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -33,7 +41,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
   };
 
   const handleCreated = (key: ApiKeyCreated) => {
-    setCreatedSecret(key.keySecret);
+    setCreatedKey(key);
     refresh();
   };
 
@@ -78,26 +86,25 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
       {keys.length === 0 ? (
         <p className="text-muted">{t('userCenter.apiKeys.noKeys')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-elevated text-left">
+        <DataTable>
+            <DataTableHead>
               <tr>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.nameLabel')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.scopesLabel')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.keyPrefix')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.createdAt')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.lastUsed')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.statusHeader')}</th>
-                <th className="px-md py-sm font-medium">{t('userCenter.apiKeys.actionsHeader')}</th>
+                <DataTableHeader>{t('userCenter.apiKeys.nameLabel')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.scopesLabel')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.keyPrefix')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.createdAt')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.lastUsed')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.statusHeader')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.actionsHeader')}</DataTableHeader>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+            </DataTableHead>
+            <DataTableBody>
               {keys.map((key) => {
                 const revoked = !!key.revokedAt;
                 return (
-                  <tr key={key.id} className={revoked ? 'opacity-60' : ''}>
-                    <td className="px-md py-sm font-medium">{key.name}</td>
-                    <td className="px-md py-sm">
+                  <DataTableRow key={key.id} className={revoked ? 'opacity-60' : ''}>
+                    <DataTableCell className="font-medium">{key.name}</DataTableCell>
+                    <DataTableCell>
                       <div className="flex flex-wrap gap-xs">
                         {SCOPE_ORDER.filter((s) => key.scopes.includes(s)).map((scope) => (
                           <span
@@ -108,18 +115,18 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
                           </span>
                         ))}
                       </div>
-                    </td>
-                    <td className="px-md py-sm font-mono text-xs">{key.keyPrefix}</td>
-                    <td className="px-md py-sm text-muted">{formatDate(key.createdAt)}</td>
-                    <td className="px-md py-sm text-muted">{formatDate(key.lastUsedAt)}</td>
-                    <td className="px-md py-sm">
+                    </DataTableCell>
+                    <DataTableCell className="font-mono text-xs">{key.keyPrefix}</DataTableCell>
+                    <DataTableCell className="text-muted">{formatDate(key.createdAt)}</DataTableCell>
+                    <DataTableCell className="text-muted">{formatDate(key.lastUsedAt)}</DataTableCell>
+                    <DataTableCell>
                       {revoked ? (
                         <span className="text-danger">{t('userCenter.apiKeys.status.revoked')}</span>
                       ) : (
                         <span className="text-success">{t('userCenter.apiKeys.status.active')}</span>
                       )}
-                    </td>
-                    <td className="px-md py-sm">
+                    </DataTableCell>
+                    <DataTableCell>
                       <div className="flex items-center gap-sm">
                         {!revoked && (
                           <>
@@ -145,30 +152,32 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
                           </>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </DataTableBody>
+        </DataTable>
       )}
 
       {createOpen && (
         <ApiKeyCreateDialog onClose={() => setCreateOpen(false)} onCreated={handleCreated} />
       )}
 
-      {createdSecret && (
+      {createdKey && (
         <ApiKeyReveal
-          title={t('userCenter.apiKeys.createTitle')}
-          secret={createdSecret}
-          onClose={() => setCreatedSecret(null)}
+          title={t('userCenter.apiKeys.createdTitle')}
+          name={createdKey.name}
+          secret={createdKey.keySecret}
+          created
+          onClose={() => setCreatedKey(null)}
         />
       )}
 
       {revealSecret && (
         <ApiKeyReveal
-          title={revealTitle}
+          title={t('userCenter.apiKeys.revealTitle')}
+          name={revealTitle}
           secret={revealSecret}
           onClose={() => {
             setRevealSecret(null);

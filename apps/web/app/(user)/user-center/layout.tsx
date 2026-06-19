@@ -24,7 +24,7 @@ export default async function UserCenterLayout({
 
   return (
     <Layout userCenter>
-      <div className="max-w-4xl mx-auto px-lg py-xl">
+      <div className="px-lg py-md">
         <div className="min-w-0">{children}</div>
       </div>
     </Layout>

@@ -30,8 +30,8 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
 async function revokeApiKey(page: Page, name: string) {
   await page.goto('/user-center/api-keys');
   const row = page.locator('tr', { hasText: name });
-  page.on('dialog', (dialog) => dialog.accept());
   await row.getByRole('button', { name: 'Revoke' }).click();
+  await page.getByRole('button', { name: 'Revoke' }).last().click();
   await expect(row.getByText('Revoked')).toBeVisible();
 }
 
@@ -75,7 +75,7 @@ test.describe('api keys', () => {
 
     // Filter by error status.
     await page.getByLabel('Status', { exact: true }).selectOption('Error');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Search' }).click();
     await expect(page.locator('tr', { hasText: 'POST' }).filter({ hasText: '/api/pages' }).first()).toBeVisible();
   });
 });

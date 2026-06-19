@@ -69,18 +69,18 @@ test.describe('admin audit', () => {
     // Navigate to admin audit page as admin.
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/api-audit');
-    await expect(page.locator('h1:has-text("API Audit")')).toBeVisible();
+    await expect(page.getByTestId('page-title')).toHaveText('API Audit');
     await expect(page.locator('text=' + userEmail).first()).toBeVisible();
 
     // Filter by user id.
     await page.locator('input[placeholder="All users"]').fill(userId);
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Search' }).click();
     await expect(page.locator('text=' + userEmail).first()).toBeVisible();
 
     // Filter by error status should show the failed POST but hide the successful GET.
     await page.locator('input[placeholder="All users"]').clear();
-    await page.getByRole('combobox').selectOption('Error');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByLabel('Status', { exact: true }).selectOption('Error');
+    await page.getByRole('button', { name: 'Search' }).click();
     await expect(page.locator('text=' + userEmail).first()).toBeVisible();
     await expect(page.locator('text=GET /api/pages').first()).not.toBeVisible();
 

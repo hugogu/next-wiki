@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { PageSummary } from '@next-wiki/shared';
-import { FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, SlidersIcon, KeyIcon } from '@/components/icons';
+import { FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 
@@ -124,13 +125,14 @@ export function Navigator({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const pathname = usePathname();
   const ADMIN_ITEMS: AdminNavItem[] = [
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
     { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
   const USER_CENTER_ITEMS: AdminNavItem[] = [
     { href: '/user-center/profile', label: t('userCenter.nav.profile'), icon: <UserIcon className="shrink-0" /> },
-    { href: '/user-center/preferences', label: t('userCenter.nav.preferences'), icon: <SlidersIcon className="shrink-0" /> },
+    { href: '/user-center/password', label: t('userCenter.nav.password'), icon: <LockIcon className="shrink-0" /> },
     { href: '/user-center/api-keys', label: t('userCenter.nav.apiKeys'), icon: <KeyIcon className="shrink-0" /> },
     { href: '/user-center/audit', label: t('userCenter.nav.audit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
@@ -173,7 +175,7 @@ export function Navigator({
           {userCenter ? (
             <ul className="space-y-xs">
               {USER_CENTER_ITEMS.map((item) => {
-                const active = currentPath === item.href;
+                const active = pathname === item.href;
                 return (
                   <li key={item.href}>
                     <Link
@@ -194,18 +196,25 @@ export function Navigator({
             </ul>
           ) : admin ? (
             <ul className="space-y-xs">
-              {ADMIN_ITEMS.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onClose}
-                    className="flex items-center gap-sm px-md py-sm rounded-md text-sm text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
-                  >
-                    {item.icon}
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                </li>
-              ))}
+              {ADMIN_ITEMS.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-sm px-md py-sm rounded-md text-sm transition-colors ${
+                        active
+                          ? 'bg-primary text-primary-text'
+                          : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+                      }`}
+                    >
+                      {item.icon}
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           ) : pages.length === 0 ? (
             <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>

@@ -15,9 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminApiAuditPage() {
-  const locale = await getLocale();
-  const t = getDictionary(locale);
-
   const actor = await getCurrentActor();
   const initialData = await auditService.listAllSafe({ actor });
   if (!initialData) {
@@ -26,10 +23,7 @@ export default async function AdminApiAuditPage() {
 
   return (
     <Layout admin>
-      <div className="max-w-6xl mx-auto px-lg py-xl">
-        <div className="mb-lg">
-          <h1 className="font-display text-3xl font-semibold">{t('admin.apiAudit.title')}</h1>
-        </div>
+      <div className="px-lg py-md">
         <AdminAuditTable initialData={initialData} />
       </div>
     </Layout>

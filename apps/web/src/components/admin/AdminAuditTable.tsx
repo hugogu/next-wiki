@@ -5,7 +5,18 @@ import { useTranslation } from '@/i18n/client';
 import type { AuditEntry, AuditListResponse } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { Select } from '@/components/ui/Select';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
+import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
+
+const METHOD_OPTIONS = ['', 'GET', 'POST', 'PATCH', 'PUT', 'DELETE'];
 
 const STATUS_COLORS: Record<number, string> = {
   2: 'text-success',
@@ -25,7 +36,6 @@ interface AdminAuditTableProps {
 export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
   const { t, locale } = useTranslation();
   const userIdId = useId();
-  const keyIdId = useId();
   const statusId = useId();
   const methodId = useId();
   const pathId = useId();
@@ -36,7 +46,6 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
   const [page, setPage] = useState(initialData.page);
   const [filters, setFilters] = useState({
     userId: '',
-    keyId: '',
     status: '',
     method: '',
     path: '',
@@ -50,7 +59,6 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
       params.set('page', String(targetPage));
       params.set('pageSize', String(data.pageSize));
       if (filters.userId) params.set('userId', filters.userId);
-      if (filters.keyId) params.set('keyId', filters.keyId);
       if (filters.status) params.set('status', filters.status);
       if (filters.method) params.set('method', filters.method);
       if (filters.path) params.set('path', filters.path);
@@ -85,9 +93,9 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
 
   return (
     <div className="space-y-md">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+      <div className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.15fr)_9rem_8rem_minmax(0,1.25fr)_11rem_11rem_auto]">
         <div>
-          <label htmlFor={userIdId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.filterByUser')}</label>
+          <label htmlFor={userIdId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.filterByUser')}</label>
           <input
             id={userIdId}
             type="text"
@@ -98,41 +106,33 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label htmlFor={keyIdId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.filterByKey')}</label>
-          <input
-            id={keyIdId}
-            type="text"
-            value={filters.keyId}
-            onChange={(e) => updateFilter('keyId', e.target.value)}
-            placeholder={t('admin.apiAudit.allKeys')}
-            className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm"
-          />
+          <label htmlFor={statusId} className="mb-xs block text-sm font-medium">{t('userCenter.audit.filterByStatus')}</label>
+          <Select
+              id={statusId}
+              value={filters.status}
+              onChange={(e) => updateFilter('status', e.target.value)}
+            >
+              <option value="">{t('userCenter.audit.all')}</option>
+              <option value="success">{t('userCenter.audit.success')}</option>
+              <option value="error">{t('userCenter.audit.error')}</option>
+          </Select>
         </div>
         <div>
-          <label htmlFor={statusId} className="block text-sm font-medium mb-xs">{t('userCenter.audit.filterByStatus')}</label>
-          <select
-            id={statusId}
-            value={filters.status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm"
-          >
-            <option value="">{t('userCenter.audit.all')}</option>
-            <option value="success">{t('userCenter.audit.success')}</option>
-            <option value="error">{t('userCenter.audit.error')}</option>
-          </select>
+          <label htmlFor={methodId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.method')}</label>
+          <Select
+              id={methodId}
+              value={filters.method}
+              onChange={(e) => updateFilter('method', e.target.value)}
+            >
+              {METHOD_OPTIONS.map((method) => (
+                <option key={method || 'all'} value={method}>
+                  {method || t('userCenter.audit.all')}
+                </option>
+              ))}
+          </Select>
         </div>
         <div>
-          <label htmlFor={methodId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.method')}</label>
-          <input
-            id={methodId}
-            type="text"
-            value={filters.method}
-            onChange={(e) => updateFilter('method', e.target.value)}
-            className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label htmlFor={pathId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.path')}</label>
+          <label htmlFor={pathId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.path')}</label>
           <input
             id={pathId}
             type="text"
@@ -142,7 +142,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label htmlFor={startTimeId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.from')}</label>
+          <label htmlFor={startTimeId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.from')}</label>
           <input
             id={startTimeId}
             type="datetime-local"
@@ -152,7 +152,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div>
-          <label htmlFor={endTimeId} className="block text-sm font-medium mb-xs">{t('admin.apiAudit.to')}</label>
+          <label htmlFor={endTimeId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.to')}</label>
           <input
             id={endTimeId}
             type="datetime-local"
@@ -162,8 +162,15 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           />
         </div>
         <div className="flex items-end">
-          <Button type="button" onClick={handleApply} disabled={loading}>
-            {t('userCenter.profile.saveButton')}
+          <Button
+            type="button"
+            onClick={handleApply}
+            disabled={loading}
+            size="icon"
+            aria-label={t('common.actions.search')}
+            title={t('common.actions.search')}
+          >
+            <SearchIcon className="h-6 w-6" />
           </Button>
         </div>
       </div>
@@ -172,36 +179,34 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
         <p className="text-muted">{t('admin.apiAudit.noEntries')}</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-surface-elevated text-left">
+          <DataTable>
+            <DataTableHead>
                 <tr>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.user')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.keyName')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.method')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.path')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.status')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.duration')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.authStatus')}</th>
-                  <th className="px-md py-sm font-medium">{t('admin.apiAudit.timestamp')}</th>
+                  <DataTableHeader>{t('admin.apiAudit.user')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.keyName')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.method')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.path')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.status')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.duration')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.authStatus')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.timestamp')}</DataTableHeader>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+            </DataTableHead>
+            <DataTableBody>
                 {data.entries.map((entry: AuditEntry) => (
-                  <tr key={entry.id}>
-                    <td className="px-md py-sm">{entry.userEmail ?? entry.userId ?? '—'}</td>
-                    <td className="px-md py-sm">{entry.keyName ?? '—'}</td>
-                    <td className="px-md py-sm font-mono">{entry.method}</td>
-                    <td className="px-md py-sm font-mono text-xs truncate max-w-xs">{entry.path}</td>
-                    <td className={`px-md py-sm font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</td>
-                    <td className="px-md py-sm">{entry.durationMs}ms</td>
-                    <td className="px-md py-sm">{entry.authStatus}</td>
-                    <td className="px-md py-sm text-muted">{new Date(entry.createdAt).toLocaleString(locale)}</td>
-                  </tr>
+                  <DataTableRow key={entry.id}>
+                    <DataTableCell>{entry.userEmail ?? entry.userId ?? '—'}</DataTableCell>
+                    <DataTableCell>{entry.keyName ?? '—'}</DataTableCell>
+                    <DataTableCell className="font-mono">{entry.method}</DataTableCell>
+                    <DataTableCell className="max-w-xs truncate font-mono text-xs">{entry.path}</DataTableCell>
+                    <DataTableCell className={`font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</DataTableCell>
+                    <DataTableCell>{entry.durationMs}ms</DataTableCell>
+                    <DataTableCell>{entry.authStatus}</DataTableCell>
+                    <DataTableCell className="text-muted">{new Date(entry.createdAt).toLocaleString(locale)}</DataTableCell>
+                  </DataTableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+            </DataTableBody>
+          </DataTable>
 
           <div className="flex items-center justify-between">
             <Button

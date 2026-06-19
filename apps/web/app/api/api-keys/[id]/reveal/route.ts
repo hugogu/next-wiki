@@ -3,6 +3,7 @@ import { createApiContext } from '@/server/api/session';
 import { uuidSchema, parseParams, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as apiKeyService from '@/server/services/api-keys';
 
 /**
@@ -14,7 +15,7 @@ import * as apiKeyService from '@/server/services/api-keys';
  * @tag User
  * @response ApiKeyReveal
  */
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handleGET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
   const parsed = parseParams(uuidSchema, id);
@@ -30,3 +31,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return internalError();
   }
 }
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);

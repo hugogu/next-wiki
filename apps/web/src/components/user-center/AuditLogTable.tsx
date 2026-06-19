@@ -5,7 +5,16 @@ import { useTranslation } from '@/i18n/client';
 import type { AuditEntry, AuditListResponse } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { Select } from '@/components/ui/Select';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
+import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
 
 const STATUS_COLORS: Record<number, string> = {
   2: 'text-success',
@@ -64,38 +73,45 @@ export function AuditLogTable({ initialData, fetchUrl, keys }: AuditLogTableProp
 
   return (
     <div className="space-y-md">
-      <div className="flex flex-wrap items-end gap-md">
+      <div className="flex flex-wrap items-end gap-sm">
         <div>
-          <label htmlFor="audit-key" className="block text-sm font-medium mb-xs">{t('userCenter.audit.filterByKey')}</label>
-          <select
-            id="audit-key"
-            value={keyId}
-            onChange={(e) => setKeyId(e.target.value)}
-            className="w-48 rounded-md border border-border bg-surface px-md py-sm text-sm"
-          >
-            <option value="">{t('userCenter.audit.allKeys')}</option>
-            {keys?.map((key) => (
-              <option key={key.id} value={key.id}>{key.name}</option>
-            ))}
-          </select>
+          <label htmlFor="audit-key" className="mb-xs block text-sm font-medium">{t('userCenter.audit.filterByKey')}</label>
+          <Select
+              id="audit-key"
+              value={keyId}
+              onChange={(e) => setKeyId(e.target.value)}
+              containerClassName="w-48"
+            >
+              <option value="">{t('userCenter.audit.allKeys')}</option>
+              {keys?.map((key) => (
+                <option key={key.id} value={key.id}>{key.name}</option>
+              ))}
+          </Select>
         </div>
 
         <div>
-          <label htmlFor="audit-status" className="block text-sm font-medium mb-xs">{t('userCenter.audit.filterByStatus')}</label>
-          <select
-            id="audit-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-40 rounded-md border border-border bg-surface px-md py-sm text-sm"
-          >
-            <option value="">{t('userCenter.audit.all')}</option>
-            <option value="success">{t('userCenter.audit.success')}</option>
-            <option value="error">{t('userCenter.audit.error')}</option>
-          </select>
+          <label htmlFor="audit-status" className="mb-xs block text-sm font-medium">{t('userCenter.audit.filterByStatus')}</label>
+          <Select
+              id="audit-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              containerClassName="w-40"
+            >
+              <option value="">{t('userCenter.audit.all')}</option>
+              <option value="success">{t('userCenter.audit.success')}</option>
+              <option value="error">{t('userCenter.audit.error')}</option>
+          </Select>
         </div>
 
-        <Button type="button" onClick={handleApply} disabled={loading}>
-          {t('userCenter.profile.saveButton')}
+        <Button
+          type="button"
+          onClick={handleApply}
+          disabled={loading}
+          size="icon"
+          aria-label={t('common.actions.search')}
+          title={t('common.actions.search')}
+        >
+          <SearchIcon className="h-6 w-6" />
         </Button>
       </div>
 
@@ -103,32 +119,30 @@ export function AuditLogTable({ initialData, fetchUrl, keys }: AuditLogTableProp
         <p className="text-muted">{t('userCenter.audit.noEntries')}</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-surface-elevated text-left">
+          <DataTable>
+            <DataTableHead>
                 <tr>
-                  <th className="px-md py-sm font-medium">{t('userCenter.audit.method')}</th>
-                  <th className="px-md py-sm font-medium">{t('userCenter.audit.path')}</th>
-                  <th className="px-md py-sm font-medium">{t('userCenter.audit.status')}</th>
-                  <th className="px-md py-sm font-medium">{t('userCenter.audit.duration')}</th>
-                  <th className="px-md py-sm font-medium">{t('userCenter.audit.keyName')}</th>
-                  <th className="px-md py-sm font-medium">{t('userCenter.audit.timestamp')}</th>
+                  <DataTableHeader>{t('userCenter.audit.method')}</DataTableHeader>
+                  <DataTableHeader>{t('userCenter.audit.path')}</DataTableHeader>
+                  <DataTableHeader>{t('userCenter.audit.status')}</DataTableHeader>
+                  <DataTableHeader>{t('userCenter.audit.duration')}</DataTableHeader>
+                  <DataTableHeader>{t('userCenter.audit.keyName')}</DataTableHeader>
+                  <DataTableHeader>{t('userCenter.audit.timestamp')}</DataTableHeader>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+            </DataTableHead>
+            <DataTableBody>
                 {data.entries.map((entry: AuditEntry) => (
-                  <tr key={entry.id}>
-                    <td className="px-md py-sm font-mono">{entry.method}</td>
-                    <td className="px-md py-sm font-mono text-xs truncate max-w-xs">{entry.path}</td>
-                    <td className={`px-md py-sm font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</td>
-                    <td className="px-md py-sm">{entry.durationMs}ms</td>
-                    <td className="px-md py-sm">{entry.keyName ?? '—'}</td>
-                    <td className="px-md py-sm text-muted">{new Date(entry.createdAt).toLocaleString(locale)}</td>
-                  </tr>
+                  <DataTableRow key={entry.id}>
+                    <DataTableCell className="font-mono">{entry.method}</DataTableCell>
+                    <DataTableCell className="max-w-xs truncate font-mono text-xs">{entry.path}</DataTableCell>
+                    <DataTableCell className={`font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</DataTableCell>
+                    <DataTableCell>{entry.durationMs}ms</DataTableCell>
+                    <DataTableCell>{entry.keyName ?? '—'}</DataTableCell>
+                    <DataTableCell className="text-muted">{new Date(entry.createdAt).toLocaleString(locale)}</DataTableCell>
+                  </DataTableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+            </DataTableBody>
+          </DataTable>
 
           <div className="flex items-center justify-between">
             <Button

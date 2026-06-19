@@ -18,11 +18,12 @@ async function login(page: Page, email: string, password: string) {
 
 async function openUserCenter(page: Page) {
   await page.goto('/user-center/profile');
-  await expect(page.locator('h1:has-text("User Center")')).toBeVisible();
+  await expect(page.getByTestId('page-title')).toHaveText('Profile');
 }
 
 async function logout(page: Page) {
   await page.goto('/');
+  await page.getByRole('button', { name: /user center/i }).click();
   await page.getByRole('button', { name: /sign out/i }).click();
   await page.waitForURL('/');
   await page.waitForLoadState('networkidle');
@@ -56,7 +57,7 @@ test.describe('user center profile and preferences', () => {
 
     // Change password.
     await openUserCenter(page);
-    await page.getByRole('link', { name: 'Profile' }).click();
+    await page.getByRole('link', { name: 'Password' }).click();
     await page.getByLabel('Current password', { exact: true }).fill(initialPassword);
     await page.getByLabel('New password', { exact: true }).fill(newPassword);
     await page.getByLabel('Confirm new password', { exact: true }).fill(newPassword);
@@ -67,11 +68,10 @@ test.describe('user center profile and preferences', () => {
 
     // Set preferences (dark theme, Chinese locale).
     await openUserCenter(page);
-    await page.getByRole('link', { name: 'Preferences' }).click();
-    await page.getByRole('radio', { name: 'Dark' }).check();
-    await page.getByRole('radio', { name: '中文' }).check();
-    await page.getByRole('button', { name: 'Save preferences' }).click();
-    await expect(page.getByText(/Preferences updated|偏好已更新/)).toBeVisible({ timeout: 10_000 });
+    await page.getByText('Dark', { exact: true }).click();
+    await page.getByText('中文', { exact: true }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText(/Profile updated|个人资料已更新/)).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('html')).toHaveClass(/dark/);
 
     // Verify preferences persist across refresh.
@@ -84,7 +84,7 @@ test.describe('user center profile and preferences', () => {
     const newPage = await newContext.newPage();
     await login(newPage, newEmail, newPassword);
     await newPage.waitForLoadState('networkidle');
-    await newPage.goto('/user-center/preferences');
+    await newPage.goto('/user-center/profile');
     await expect(newPage.locator('html')).toHaveClass(/dark/);
     await expect(newPage.getByRole('heading', { name: '显示偏好' })).toBeVisible();
     await newContext.close();

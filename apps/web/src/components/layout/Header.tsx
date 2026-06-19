@@ -20,8 +20,10 @@ import {
   SaveIcon,
   XIcon,
   CodeIcon,
+  ChevronLeftIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
+import { useHistory } from '@/lib/history';
 import { getPageHref, getEditHref, getHistoryHref } from '@/lib/path';
 
 function IconButton({
@@ -99,6 +101,7 @@ export function Header({
 }) {
   const { t } = useTranslation();
   const editor = useEditor();
+  const { goBack } = useHistory();
   const [publishing, setPublishing] = useState(false);
   const isSignedIn = user.kind === 'user';
   const role = isSignedIn ? user.role : null;
@@ -120,13 +123,23 @@ export function Header({
   const pathname = usePathname();
   const isOnUserCenter = pathname.startsWith('/user-center');
   const isOnAdmin = pathname.startsWith('/admin');
+  const routeTitle =
+    pathname === '/user-center/profile'
+      ? t('userCenter.nav.profile')
+      : pathname === '/user-center/password'
+        ? t('userCenter.nav.password')
+        : pathname === '/user-center/api-keys'
+          ? t('userCenter.nav.apiKeys')
+          : pathname === '/user-center/audit'
+            ? t('userCenter.nav.audit')
+            : pathname === '/admin/users'
+              ? t('admin.nav.users')
+              : pathname === '/admin/api-audit'
+                ? t('admin.nav.apiAudit')
+                : null;
   const title = editor
     ? editor.title.trim() || editor.defaultTitle
-    : isOnUserCenter
-      ? t('userCenter.title')
-      : isOnAdmin
-        ? t('admin.title')
-        : pageContext?.title ?? null;
+    : routeTitle ?? pageContext?.title ?? (isOnUserCenter ? t('userCenter.title') : isOnAdmin ? t('admin.title') : null);
 
   return (
     <header className="h-header shrink-0 bg-surface border-b border-border flex items-center justify-between px-md lg:px-lg relative">
@@ -147,7 +160,7 @@ export function Header({
       {title && (
         <div
           data-testid="page-title"
-          className="absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate font-display text-base font-medium text-foreground"
+          className="absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate font-display text-lg font-semibold text-foreground sm:text-xl"
         >
           {title}
         </div>
@@ -185,7 +198,11 @@ export function Header({
                   <EyeIcon />
                 </IconButton>
               )}
-              {isSignedIn && (role === 'editor' || role === 'admin') && (
+              {(isOnUserCenter || isOnAdmin) ? (
+                <IconButton onClick={() => goBack('/')} label={t('common.actions.back')}>
+                  <ChevronLeftIcon />
+                </IconButton>
+              ) : isSignedIn && (role === 'editor' || role === 'admin') && (
                 <IconButton href="/new" label={t('page.header.newPage')}>
                   <PlusIcon />
                 </IconButton>
@@ -197,7 +214,7 @@ export function Header({
           <CodeIcon />
         </IconButton>
               {role === 'admin' && (
-                <IconButton href="/admin/users" label={t('page.header.admin')}>
+                <IconButton href="/admin/users" label={t('page.header.admin')} active={isOnAdmin}>
                   <ShieldIcon />
                 </IconButton>
               )}

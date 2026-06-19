@@ -21,7 +21,7 @@ export default async function ApiKeysPage() {
 
   const keys = await apiKeyService.list({ actor });
   return (
-    <div className="max-w-3xl">
+    <div className="w-full min-w-0">
       <ApiKeyList initialKeys={keys} />
     </div>
   );

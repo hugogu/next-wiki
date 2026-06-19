@@ -6,7 +6,7 @@ import * as schema from '@/server/db/schema';
 import { getCurrentActor } from '@/server/services/auth';
 import { getLocale, getDictionary } from '@/i18n/server';
 import { ProfileForm } from '@/components/user-center/ProfileForm';
-import { PasswordChangeForm } from '@/components/user-center/PasswordChangeForm';
+import * as userCenterService from '@/server/services/user-center';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,18 +31,16 @@ export default async function ProfilePage() {
     notFound();
   }
 
-  return (
-    <div className="space-y-xl">
-      <section className="bg-surface border border-border rounded-lg p-lg">
-        <ProfileForm
-          initialEmail={user.email}
-          initialDisplayName={user.displayName ?? ''}
-        />
-      </section>
+  const preferences = await userCenterService.getPreferences({ actor });
 
-      <section className="bg-surface border border-border rounded-lg p-lg">
-        <PasswordChangeForm />
-      </section>
-    </div>
+  return (
+    <section className="bg-surface border border-border rounded-lg p-lg">
+      <ProfileForm
+        initialEmail={user.email}
+        initialDisplayName={user.displayName ?? ''}
+        initialTheme={preferences?.theme ?? null}
+        initialLocale={preferences?.locale ?? null}
+      />
+    </section>
   );
 }

@@ -3,6 +3,7 @@ import { createApiContext } from '@/server/api/session';
 import { uuidSchema, parseParams, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as apiKeyService from '@/server/services/api-keys';
 
 /**
@@ -14,7 +15,7 @@ import * as apiKeyService from '@/server/services/api-keys';
  * @tag User
  * @response 204
  */
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
   const parsed = parseParams(uuidSchema, id);
@@ -30,3 +31,5 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return internalError();
   }
 }
+
+export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

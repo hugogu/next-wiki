@@ -7,6 +7,7 @@ export const en = {
   'common.actions.cancel': 'Cancel',
   'common.actions.confirm': 'Confirm',
   'common.actions.dismiss': 'Dismiss',
+  'common.actions.search': 'Search',
 
   // Languages
   'language.en': 'English',
@@ -219,7 +220,7 @@ export const en = {
   'userCenter.metadataTitle': 'User Center',
   'userCenter.title': 'User Center',
   'userCenter.nav.profile': 'Profile',
-  'userCenter.nav.preferences': 'Preferences',
+  'userCenter.nav.password': 'Password',
   'userCenter.nav.apiKeys': 'API Keys',
   'userCenter.nav.audit': 'Audit Log',
   'userCenter.nav.settings': 'User Settings',
@@ -233,6 +234,7 @@ export const en = {
   'userCenter.profile.savedMessage': 'Profile updated.',
 
   'userCenter.password.heading': 'Change password',
+  'userCenter.password.metadataTitle': 'Password',
   'userCenter.password.currentPasswordLabel': 'Current password',
   'userCenter.password.newPasswordLabel': 'New password',
   'userCenter.password.confirmPasswordLabel': 'Confirm new password',
@@ -241,13 +243,9 @@ export const en = {
   'userCenter.password.successMessage': 'Password updated.',
   'userCenter.password.error.passwordsMismatch': 'Passwords do not match',
 
-  'userCenter.preferences.metadataTitle': 'Preferences',
   'userCenter.preferences.heading': 'Display preferences',
   'userCenter.preferences.themeLabel': 'Theme',
   'userCenter.preferences.languageLabel': 'Language',
-  'userCenter.preferences.saveButton': 'Save preferences',
-  'userCenter.preferences.savingButton': 'Saving...',
-  'userCenter.preferences.savedMessage': 'Preferences updated.',
 
   'userCenter.apiKeys.metadataTitle': 'API Keys',
   'userCenter.audit.metadataTitle': 'Audit Log',
@@ -285,18 +283,17 @@ export const en = {
   'admin.apiAudit.authStatus': 'Auth',
   'admin.apiAudit.timestamp': 'Timestamp',
   'admin.apiAudit.errorMessage': 'Error',
-  'admin.apiAudit.filterByUser': 'User ID',
-  'admin.apiAudit.filterByKey': 'Key ID',
+  'admin.apiAudit.filterByUser': 'User',
   'admin.apiAudit.filterByTimeRange': 'Time range',
   'admin.apiAudit.from': 'From',
   'admin.apiAudit.to': 'To',
   'admin.apiAudit.allUsers': 'All users',
-  'admin.apiAudit.allKeys': 'All keys',
   'admin.apiAudit.noEntries': 'No audit entries match the filters.',
 
   'userCenter.apiKeys.title': 'API Keys',
   'userCenter.apiKeys.createButton': 'Create API key',
   'userCenter.apiKeys.createTitle': 'Create new API key',
+  'userCenter.apiKeys.createdTitle': 'API key created',
   'userCenter.apiKeys.nameLabel': 'Name',
   'userCenter.apiKeys.namePlaceholder': 'e.g. CI bot',
   'userCenter.apiKeys.scopesLabel': 'Scopes',
@@ -371,4 +368,3 @@ export const en = {
   'errors.forbidden.message': 'You do not have permission to view this page.',
   'errors.forbidden.backHome': 'Back to wiki home',
 };
-

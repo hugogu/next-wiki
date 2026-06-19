@@ -48,17 +48,16 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
     const start = Date.now();
     const headersList = await headers();
     const auth = headersList.get('authorization');
+    const hasBearerToken = auth?.startsWith('Bearer ') ?? false;
+    const method = request.method;
+    const path = new URL(request.url).pathname;
+    const resolved = await resolveActor();
 
-    // No Bearer header: not an API call to audit; run handler normally.
-    if (!auth?.startsWith('Bearer ')) {
+    if (!hasBearerToken && resolved.actor?.kind !== 'user') {
       return handler(request, context);
     }
 
-    const resolved = await resolveActor();
-    const method = request.method;
-    const path = new URL(request.url).pathname;
-
-    if (!resolved.actor || resolved.authError) {
+    if (hasBearerToken && (!resolved.actor || resolved.authError)) {
       const status = 401;
       const duration = Date.now() - start;
       const authStatus = (resolved.authError as AuthStatus) ?? 'invalid_key';
@@ -80,7 +79,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
     }
 
     const apiContext = {
-      actor: resolved.actor,
+      actor: resolved.actor ?? { kind: 'anonymous' as const },
       apiKeyInfo: resolved.apiKeyInfo,
     };
 
@@ -100,7 +99,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
       try {
         await audit.writeEntry({
           keyId: resolved.apiKeyInfo?.keyId ?? null,
-          userId: resolved.apiKeyInfo?.userId ?? null,
+          userId: resolved.apiKeyInfo?.userId ?? (resolved.actor?.kind === 'user' ? resolved.actor.userId : null),
           method,
           path,
           statusCode: status,

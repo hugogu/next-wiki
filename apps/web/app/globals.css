@@ -92,6 +92,27 @@ body {
   font-family: var(--font-body);
 }
 
+input[type='date'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='time'] {
+  accent-color: var(--color-primary);
+}
+
+html.light input[type='date'],
+html.light input[type='datetime-local'],
+html.light input[type='month'],
+html.light input[type='time'] {
+  color-scheme: light;
+}
+
+html.dark input[type='date'],
+html.dark input[type='datetime-local'],
+html.dark input[type='month'],
+html.dark input[type='time'] {
+  color-scheme: dark;
+}
+
 .font-display {
   font-family: var(--font-display);
 }

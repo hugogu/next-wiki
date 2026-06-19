@@ -4,6 +4,7 @@ import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, mapDomainError, internalError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as apiKeyService from '@/server/services/api-keys';
 
 /**
@@ -15,7 +16,7 @@ import * as apiKeyService from '@/server/services/api-keys';
  * @tag User
  * @response ApiKeyViewList
  */
-export async function GET() {
+async function handleGET() {
   const ctx = await createApiContext();
   try {
     const keys = await apiKeyService.list(ctx);
@@ -36,7 +37,7 @@ export async function GET() {
  * @body CreateApiKeyInput
  * @response 201:ApiKeyCreated
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
   const parsed = parseJson(createApiKeyInputSchema, body);
@@ -52,3 +53,6 @@ export async function POST(request: Request) {
     return internalError();
   }
 }
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

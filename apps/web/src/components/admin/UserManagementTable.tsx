@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import type { UserView } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
 import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
@@ -108,37 +117,37 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
         </div>
       )}
 
-      <div className="overflow-x-auto border border-border rounded-lg">
-        <table className="w-full text-sm">
-          <thead className="bg-surface border-b border-border">
-            <tr>
-              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.email')}</th>
-              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.role')}</th>
-              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.status')}</th>
-              <th className="text-left px-md py-sm font-medium">{t('admin.users.table.joined')}</th>
-              <th className="text-right px-md py-sm font-medium">{t('admin.users.table.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+      <DataTable>
+        <DataTableHead>
+          <tr>
+            <DataTableHeader>{t('admin.users.table.email')}</DataTableHeader>
+            <DataTableHeader>{t('admin.users.table.role')}</DataTableHeader>
+            <DataTableHeader>{t('admin.users.table.status')}</DataTableHeader>
+            <DataTableHeader>{t('admin.users.table.joined')}</DataTableHeader>
+            <DataTableHeader align="right">{t('admin.users.table.actions')}</DataTableHeader>
+          </tr>
+        </DataTableHead>
+        <DataTableBody>
             {users.map((user) => (
-              <tr key={user.id}>
-                <td className="px-md py-sm">{user.email}</td>
-                <td className="px-md py-sm">
-                  <select
+              <DataTableRow key={user.id}>
+                <DataTableCell>{user.email}</DataTableCell>
+                <DataTableCell>
+                  <Select
                     aria-label={t('admin.users.role.selectLabel', { email: user.email })}
                     value={user.role}
                     disabled={setRole.isPending}
                     onChange={(e) => handleSetRole(user.id, e.target.value as UserView['role'])}
-                    className="rounded-md border border-border bg-surface px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    containerClassName="w-32"
+                    className="py-xs"
                   >
                     <option value="reader">{t('admin.users.role.reader')}</option>
                     <option value="editor">{t('admin.users.role.editor')}</option>
                     <option value="admin">{t('admin.users.role.admin')}</option>
-                  </select>
-                </td>
-                <td className="px-md py-sm capitalize">{user.status}</td>
-                <td className="px-md py-sm text-muted">{new Date(user.createdAt).toLocaleDateString()}</td>
-                <td className="px-md py-sm">
+                  </Select>
+                </DataTableCell>
+                <DataTableCell className="capitalize">{user.status}</DataTableCell>
+                <DataTableCell className="text-muted">{new Date(user.createdAt).toLocaleDateString()}</DataTableCell>
+                <DataTableCell>
                   <div className="flex items-center justify-end gap-sm">
                     {resettingUserId === user.id ? (
                       <form
@@ -193,12 +202,11 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                       </>
                     )}
                   </div>
-                </td>
-              </tr>
+                </DataTableCell>
+              </DataTableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </DataTableBody>
+      </DataTable>
     </div>
   );
 }
