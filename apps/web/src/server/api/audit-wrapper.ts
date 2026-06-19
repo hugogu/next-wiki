@@ -6,6 +6,9 @@ import * as audit from '@/server/services/audit';
 import { apiError, internalError } from './errors';
 import type { AuthStatus } from '@next-wiki/shared';
 
+// Generic shape for any wrapped route. Concrete handlers have a narrower
+// `params` type (e.g. `{ id: string }`); call sites cast to this on export, so
+// the wrapper stays reusable while route bodies keep their precise typing.
 export type RouteHandler = (request: NextRequest, context: { params: Promise<Record<string, string | string[]>> }) => Promise<Response> | Response;
 
 /**
@@ -20,9 +23,9 @@ async function extractErrorMessage(response: Response): Promise<string> {
       return body.message;
     }
   } catch {
-    // Non-JSON body; fall back to the status line.
+    // Non-JSON body; fall back to the status line, then the status code.
   }
-  return response.statusText || 'Request failed';
+  return response.statusText || `HTTP ${response.status}`;
 }
 
 function formatAuthError(authError: string): string {

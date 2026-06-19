@@ -133,14 +133,25 @@ describe('audit service', () => {
         authStatus: 'authenticated',
         errorMessage: null,
       });
+      // A sub-200 status is also an error (the <200 branch of the filter).
+      await auditService.writeEntry({
+        keyId: null,
+        userId: user.id,
+        method: 'GET',
+        path: '/api/early',
+        statusCode: 102,
+        durationMs: 5,
+        authStatus: 'authenticated',
+        errorMessage: null,
+      });
 
       const result = await auditService.listOwn(buildUserCtx(user.id, user.role), {
         page: 1,
         pageSize: 20,
         status: 'error',
       });
-      expect(result.entries).toHaveLength(2);
-      expect(result.entries.every((e) => e.statusCode >= 400)).toBe(true);
+      expect(result.entries).toHaveLength(3);
+      expect(result.entries.every((e) => e.statusCode >= 400 || e.statusCode < 200)).toBe(true);
     });
 
     it('status=success returns only 2xx/3xx (excludes 4xx/5xx)', async () => {

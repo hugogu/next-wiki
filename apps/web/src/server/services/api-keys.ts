@@ -23,19 +23,24 @@ function extractPrefix(token: string): string {
   return token.slice(0, KEY_PREFIX_LENGTH);
 }
 
+/**
+ * Account-management operations (list/create/reveal/revoke) are session-only.
+ * An API-key actor must never read, mint, reveal, or revoke keys — that would
+ * let a key escalate (mint a broader sibling) or exfiltrate other keys.
+ */
+function requireUserId(ctx: PermCtx): string {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to manage your API keys');
+  }
+  return ctx.actor.userId;
+}
+
 export async function create(
   ctx: PermCtx,
   name: string,
   scopes: ApiKeyScope[],
 ): Promise<ApiKeyCreated> {
-  // Account management (minting keys) is session-only. An API-key actor must not
-  // be able to mint new keys — that would let a narrowly-scoped key escalate by
-  // issuing a broader one for the same owner.
-  if (ctx.actor.kind !== 'user') {
-    throw new DomainError('UNAUTHORIZED', 'Sign in to create API keys');
-  }
-
-  const userId = ctx.actor.userId;
+  const userId = requireUserId(ctx);
 
   const activeCount = await db.$count(
     schema.apiKeys,
@@ -45,6 +50,10 @@ export async function create(
     throw new DomainError('CONFLICT', `You can have at most ${MAX_KEYS_PER_USER} active API keys`);
   }
 
+  // The pre-insert lookup just avoids the common case; the real guarantee is the
+  // UNIQUE constraint on api_keys.key_prefix, so a concurrent duplicate can never
+  // land (it fails the insert instead). 48 bits of prefix entropy makes a
+  // collision astronomically unlikely in the first place.
   let key: string | null = null;
   let prefix: string | null = null;
   let encrypted: string | null = null;
@@ -100,12 +109,10 @@ export async function create(
 }
 
 export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
-  if (ctx.actor.kind !== 'user') {
-    throw new DomainError('UNAUTHORIZED', 'Sign in to view API keys');
-  }
+  const userId = requireUserId(ctx);
 
   const rows = await db.query.apiKeys.findMany({
-    where: eq(schema.apiKeys.userId, ctx.actor.userId),
+    where: eq(schema.apiKeys.userId, userId),
     orderBy: sql`${schema.apiKeys.createdAt} desc`,
   });
 
@@ -121,12 +128,10 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
 }
 
 export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal> {
-  if (ctx.actor.kind !== 'user') {
-    throw new DomainError('UNAUTHORIZED', 'Sign in to reveal API keys');
-  }
+  const userId = requireUserId(ctx);
 
   const row = await db.query.apiKeys.findFirst({
-    where: and(eq(schema.apiKeys.id, keyId), eq(schema.apiKeys.userId, ctx.actor.userId)),
+    where: and(eq(schema.apiKeys.id, keyId), eq(schema.apiKeys.userId, userId)),
   });
 
   if (!row) {
@@ -140,14 +145,12 @@ export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal>
 }
 
 export async function revoke(ctx: PermCtx, keyId: string): Promise<void> {
-  if (ctx.actor.kind !== 'user') {
-    throw new DomainError('UNAUTHORIZED', 'Sign in to revoke API keys');
-  }
+  const userId = requireUserId(ctx);
 
   const [updated] = await db
     .update(schema.apiKeys)
     .set({ revokedAt: new Date() })
-    .where(and(eq(schema.apiKeys.id, keyId), eq(schema.apiKeys.userId, ctx.actor.userId)))
+    .where(and(eq(schema.apiKeys.id, keyId), eq(schema.apiKeys.userId, userId)))
     .returning();
 
   if (!updated) {

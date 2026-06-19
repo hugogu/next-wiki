@@ -84,7 +84,7 @@ export async function listOwn(
   const userId = ctx.actor.userId;
   const offset = (params.page - 1) * params.pageSize;
 
-  const conditions = [eq(schema.apiAuditEntries.userId, userId)];
+  const conditions: SQL[] = [eq(schema.apiAuditEntries.userId, userId)];
   if (params.keyId) conditions.push(eq(schema.apiAuditEntries.keyId, params.keyId));
   const statusFilter = mapStatusFilter(params.status);
 

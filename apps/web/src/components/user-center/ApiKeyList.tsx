@@ -25,6 +25,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
   const [revealTitle, setRevealTitle] = useState('');
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyView | null>(null);
+  const [revokeError, setRevokeError] = useState('');
 
   const refresh = async () => {
     const list = await apiGet<ApiKeyView[]>('/api/api-keys');
@@ -45,13 +46,20 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
   const confirmRevoke = async () => {
     if (!revokeTarget) return;
     const id = revokeTarget.id;
+    setRevokeError('');
     setRevokingId(id);
     try {
       await apiDelete(`/api/api-keys/${id}`);
       await refresh();
+      setRevokeTarget(null);
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : t('userCenter.apiKeys.revokeFailed');
+      setRevokeError(message);
     } finally {
       setRevokingId(null);
-      setRevokeTarget(null);
     }
   };
 
@@ -171,13 +179,17 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
 
       {revokeTarget && (
         <ConfirmDialog
-          title={t('userCenter.apiKeys.revoke')}
+          title={t('userCenter.apiKeys.revokeTitle')}
           message={`${t('userCenter.apiKeys.revokeConfirm')} ${t('userCenter.apiKeys.revokeWarning')}`}
           confirmLabel={t('userCenter.apiKeys.revoke')}
           confirmVariant="danger"
           pending={revokingId === revokeTarget.id}
+          error={revokeError}
           onConfirm={confirmRevoke}
-          onCancel={() => setRevokeTarget(null)}
+          onCancel={() => {
+            setRevokeTarget(null);
+            setRevokeError('');
+          }}
         />
       )}
     </div>
