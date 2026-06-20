@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type {
   GitAuthMode,
+  GitBackendConfig,
   GitExportRunResult,
   GitExportUpsert,
   GitSshKeyResult,
@@ -12,6 +13,7 @@ import type {
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { apiGet, useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
@@ -22,6 +24,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-xs block text-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+function StateRow({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-md rounded-md border border-border px-sm py-sm">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-xs text-xs text-muted">{description}</p>
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -78,7 +100,10 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
   const hasHttpsSecret = live?.hasSecret === true && config?.authMode === 'https_token';
   const pending = save.isPending || generateKey.isPending || run.isPending;
 
-  const body = (nextEnabled: boolean): GitExportUpsert => ({
+  const body = (
+    nextEnabled: boolean,
+    override?: Partial<GitBackendConfig>,
+  ): GitExportUpsert => ({
     enabled: nextEnabled,
     config: {
       remoteUrl,
@@ -91,6 +116,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
       autoSyncOnPublish,
       scheduledSyncEnabled,
       scheduledSyncIntervalMinutes,
+      ...override,
     },
     secret: authMode === 'https_token' ? secret || undefined : undefined,
   });
@@ -100,10 +126,10 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
     router.refresh();
   };
 
-  const persist = (nextEnabled: boolean) => {
+  const persist = (nextEnabled: boolean, override?: Partial<GitBackendConfig>) => {
     setError(null);
     setMessage(null);
-    save.mutate(body(nextEnabled), {
+    save.mutate(body(nextEnabled, override), {
       onSuccess: () => {
         setSecret('');
         setConfirmEnable(false);
@@ -116,6 +142,14 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
       },
       onError: (e: ApiError) => setError(e.message),
     });
+  };
+
+  // Mirror the enable/preferred toggles: persist immediately when the backend is
+  // already configured; otherwise just stage the value for the next Save.
+  const onToggleAutoSync = () => {
+    const next = !autoSyncOnPublish;
+    setAutoSyncOnPublish(next);
+    if (enabled) persist(true, { autoSyncOnPublish: next });
   };
 
   const onGenerateKey = () => {
@@ -147,7 +181,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
 
   return (
     <div className="grid gap-md">
-      {/* Status group: header, current state, and last sync. */}
+      {/* Status group: state plus the enable and auto-sync toggles. */}
       <section className="rounded-lg border border-border bg-surface-elevated p-md">
         <div className="flex flex-wrap items-start justify-between gap-sm">
           <div>
@@ -163,17 +197,33 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
           </span>
         </div>
 
-        <div className="mt-md flex items-center justify-between gap-md rounded-md border border-border px-sm py-sm">
-          <div>
-            <p className="text-sm font-medium">{t('admin.storage.git.enabled')}</p>
-            <p className="mt-xs text-xs text-muted">{t('admin.storage.git.enabledDescription')}</p>
-          </div>
-          <Switch
-            checked={enabled}
-            disabled={pending}
-            aria-label={t('admin.storage.git.enabled')}
-            onClick={() => (enabled ? persist(false) : setConfirmEnable(true))}
-          />
+        <div className="mt-md space-y-sm">
+          <StateRow
+            label={t('admin.storage.git.enabled')}
+            description={t('admin.storage.git.enabledDescription')}
+          >
+            <Switch
+              checked={enabled}
+              disabled={pending}
+              aria-label={t('admin.storage.git.enabled')}
+              onClick={() => (enabled ? persist(false) : setConfirmEnable(true))}
+            />
+          </StateRow>
+
+          <StateRow
+            label={t('admin.storage.git.autoSync')}
+            description={t('admin.storage.git.autoSyncDescription')}
+          >
+            <Switch
+              checked={autoSyncOnPublish}
+              disabled={pending}
+              aria-label={t('admin.storage.git.autoSync')}
+              onClick={onToggleAutoSync}
+            />
+          </StateRow>
+          {!autoSyncOnPublish && (
+            <p className="text-xs text-warning">{t('admin.storage.git.autoSyncWarning')}</p>
+          )}
         </div>
 
         {live?.lastSyncAt && (
@@ -186,7 +236,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
         {live?.lastError && <p className="mt-sm text-sm text-danger">{live.lastError}</p>}
       </section>
 
-      {/* Configuration group: remote, credentials, and sync triggers. */}
+      {/* Configuration group: remote, credentials, and scheduled sync. */}
       <section className="rounded-lg border border-border bg-surface-elevated p-md">
         <h3 className="font-display text-base font-semibold">
           {t('admin.storage.git.configHeading')}
@@ -209,8 +259,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
             </Field>
           </div>
           <Field label={t('admin.storage.git.authMode')}>
-            <select
-              className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            <Select
               value={authMode}
               onChange={(event) => {
                 setAuthMode(event.target.value as GitAuthMode);
@@ -219,7 +268,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
             >
               <option value="https_token">{t('admin.storage.git.authHttps')}</option>
               <option value="ssh">{t('admin.storage.git.authSsh')}</option>
-            </select>
+            </Select>
           </Field>
 
           {authMode === 'https_token' ? (
@@ -275,38 +324,17 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
             </div>
           )}
 
-          {/* Auto-sync on publish. */}
-          <div className="flex items-center justify-between gap-md rounded-md border border-border px-sm py-sm">
-            <div>
-              <p className="text-sm font-medium">{t('admin.storage.git.autoSync')}</p>
-              <p className="mt-xs text-xs text-muted">
-                {t('admin.storage.git.autoSyncDescription')}
-              </p>
-            </div>
-            <Switch
-              checked={autoSyncOnPublish}
-              aria-label={t('admin.storage.git.autoSync')}
-              onClick={() => setAutoSyncOnPublish((value) => !value)}
-            />
-          </div>
-          {!autoSyncOnPublish && (
-            <p className="-mt-xs text-xs text-warning">{t('admin.storage.git.autoSyncWarning')}</p>
-          )}
-
-          {/* Scheduled sync. */}
-          <div className="flex items-center justify-between gap-md rounded-md border border-border px-sm py-sm">
-            <div>
-              <p className="text-sm font-medium">{t('admin.storage.git.scheduledSync')}</p>
-              <p className="mt-xs text-xs text-muted">
-                {t('admin.storage.git.scheduledSyncDescription')}
-              </p>
-            </div>
+          {/* Scheduled sync (safety-net trigger). */}
+          <StateRow
+            label={t('admin.storage.git.scheduledSync')}
+            description={t('admin.storage.git.scheduledSyncDescription')}
+          >
             <Switch
               checked={scheduledSyncEnabled}
               aria-label={t('admin.storage.git.scheduledSync')}
               onClick={() => setScheduledSyncEnabled((value) => !value)}
             />
-          </div>
+          </StateRow>
           {scheduledSyncEnabled && (
             <Field label={t('admin.storage.git.scheduledSyncInterval')}>
               <Input
