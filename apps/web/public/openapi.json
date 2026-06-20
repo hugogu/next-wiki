@@ -1058,6 +1058,29 @@
         "responses": {}
       }
     },
+    "/storage/backends/{id}/sync": {
+      "get": {
+        "operationId": "get-storage-backends-{id}-sync",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/user/email": {
       "patch": {
         "operationId": "patch-user-email",

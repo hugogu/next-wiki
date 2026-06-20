@@ -33,6 +33,22 @@ function isNotFound(error: unknown): boolean {
   return e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
 }
 
+function describeS3Error(error: unknown): string {
+  const value = error as {
+    name?: string;
+    message?: string;
+    Code?: string;
+    $metadata?: { httpStatusCode?: number; requestId?: string };
+  };
+  const parts = [
+    value.$metadata?.httpStatusCode ? `HTTP ${value.$metadata.httpStatusCode}` : undefined,
+    value.Code ?? (value.name && value.name !== 'UnknownError' ? value.name : undefined),
+    value.message && value.message !== 'UnknownError' ? value.message : undefined,
+    value.$metadata?.requestId ? `request ${value.$metadata.requestId}` : undefined,
+  ].filter(Boolean);
+  return parts.join(' · ') || 'S3 returned an unknown error';
+}
+
 /**
  * S3-compatible object store (works with AWS S3 and MinIO via an endpoint
  * override). Markdown at `{prefix}/markdown/{revisionId}.md`; image bytes at
@@ -186,8 +202,11 @@ export class S3Store implements ContentStore {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
       return { ok: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { ok: false, detail: `bucket not reachable: ${message}` };
+      const detail = describeS3Error(error);
+      return {
+        ok: false,
+        detail: `bucket not reachable: ${detail}. Check endpoint, region, bucket, access key, secret, and bucket permissions.`,
+      };
     }
   }
 }

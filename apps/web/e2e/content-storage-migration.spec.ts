@@ -25,21 +25,22 @@ test.describe('content storage replicas', () => {
     // Configure a Local backend pointing at a writable directory.
     await page.getByRole('tab', { name: /Local filesystem/ }).click();
     const local = page.locator('section', { hasText: 'Local filesystem' });
-    await local.getByLabel('Base directory').fill('/tmp/next-wiki-migration-content');
+    await expect(local.getByLabel('Base directory')).toHaveValue('/tmp/next-wiki-e2e-content');
     await local.getByRole('button', { name: 'Save' }).click();
     await expect(local.getByText('Configuration saved.')).toBeVisible();
 
     await page.getByRole('tab', { name: /Local filesystem/ }).click();
     const enabled = page.getByRole('switch', { name: 'Replica enabled' });
-    if (!(await enabled.isChecked())) await enabled.click();
-    await expect(page.getByRole('tabpanel').getByText('Enabled')).toBeVisible({
-      timeout: 30_000,
-    });
-    const prefer = page.getByRole('button', { name: 'Prefer for reads' });
-    if (await prefer.isVisible()) await prefer.click();
-    await expect(page.getByRole('button', { name: 'Preferred for reads' })).toBeVisible({
-      timeout: 30_000,
-    });
+    if (!(await enabled.isChecked())) {
+      await enabled.click();
+      await page.getByRole('button', { name: 'Sync existing data' }).click();
+      await expect(page).toHaveURL(/\/admin\/storage\/backends\/.*\/sync\?tab=local/);
+      await expect(page.getByText(/Enabled|Backfilling/)).toBeVisible({ timeout: 30_000 });
+      await page.getByRole('link', { name: 'Back to Content Storage' }).click();
+    }
+    const preferred = page.getByRole('switch', { name: 'Preferred read source' });
+    if (!(await preferred.isChecked())) await preferred.click();
+    await expect(preferred).toBeChecked();
 
     // Normal reads stay available throughout replica synchronization.
     await page.goto('/welcome');

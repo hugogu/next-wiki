@@ -28,6 +28,7 @@ dist/
 build/
 coverage/
 .next/
+.next-e2e/
 out/
 .turbo/
 *.tsbuildinfo

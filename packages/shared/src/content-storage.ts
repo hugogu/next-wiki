@@ -141,6 +141,9 @@ export type StorageBackendUpsert = z.infer<typeof storageBackendUpsertSchema>;
 export const storageBackendDisableSchema = z.object({
   retainData: z.boolean(),
 });
+export const storageBackendEnableSchema = z.object({
+  syncExisting: z.boolean(),
+});
 export const storageReadBackendSchema = z.object({
   backendId: z.string().uuid().nullable(),
 });
@@ -163,6 +166,17 @@ export const backendCheckResultSchema = z.object({
   detail: z.string().optional(),
 });
 export type BackendCheckResult = z.infer<typeof backendCheckResultSchema>;
+
+export const replicaSyncStatusSchema = z.object({
+  backendId: z.string().uuid(),
+  backendType: contentStoreTypeSchema,
+  state: storageReplicaStateSchema,
+  totalItems: z.number().int().nonnegative(),
+  completedItems: z.number().int().nonnegative(),
+  failedItems: z.number().int().nonnegative(),
+  lastError: z.string().nullable(),
+});
+export type ReplicaSyncStatus = z.infer<typeof replicaSyncStatusSchema>;
 
 // ---- Migration view --------------------------------------------------------
 
@@ -213,6 +227,22 @@ export type CleanupJobView = z.infer<typeof cleanupJobViewSchema>;
 
 // ---- Storage overview (GET /api/storage) -----------------------------------
 
+export const storageDeploymentInfoSchema = z.object({
+  database: z.object({
+    engine: z.literal('PostgreSQL'),
+    host: z.string(),
+    port: z.string(),
+    database: z.string(),
+    username: z.string(),
+    ssl: z.boolean(),
+  }),
+  local: z.object({
+    containerPath: z.string(),
+    hostPath: z.string().nullable(),
+  }),
+});
+export type StorageDeploymentInfo = z.infer<typeof storageDeploymentInfoSchema>;
+
 export const storageOverviewSchema = z.object({
   active: storageBackendViewSchema,
   authoritative: storageBackendViewSchema,
@@ -220,5 +250,6 @@ export const storageOverviewSchema = z.object({
   backends: z.array(storageBackendViewSchema),
   gitExport: storageBackendViewSchema.nullable(),
   migration: migrationViewSchema.nullable(),
+  deployment: storageDeploymentInfoSchema,
 });
 export type StorageOverview = z.infer<typeof storageOverviewSchema>;

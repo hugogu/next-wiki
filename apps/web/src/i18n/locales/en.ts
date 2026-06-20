@@ -228,7 +228,25 @@ export const en = {
   'admin.storage.database.description':
     'All Markdown and image bytes are committed here first. This backend is always enabled and its configuration is read-only.',
   'admin.storage.database.role': 'Storage role',
+  'admin.storage.database.engine': 'Database engine',
+  'admin.storage.database.host': 'Host and port',
+  'admin.storage.database.name': 'Database name',
+  'admin.storage.database.username': 'Username',
+  'admin.storage.database.ssl': 'TLS/SSL',
+  'admin.storage.database.sslEnabled': 'Enabled',
+  'admin.storage.database.sslDisabled': 'Not configured',
   'admin.storage.replica.heading': 'Replica',
+  'admin.storage.replica.description':
+    'Enabled replicas receive asynchronous writes from the authoritative Database.',
+  'admin.storage.replica.enabledLabel': 'Enabled',
+  'admin.storage.replica.enabledDescription':
+    'Receive new content writes and become available as a read source.',
+  'admin.storage.replica.databaseAlwaysEnabled':
+    'Database is authoritative and cannot be disabled.',
+  'admin.storage.replica.preferredLabel': 'Preferred read source',
+  'admin.storage.replica.preferredDescription':
+    'Try this source first and fall back to Database when unavailable.',
+  'admin.storage.replica.preferredToggle': 'Preferred read source',
   'admin.storage.replica.enabledToggle': 'Replica enabled',
   'admin.storage.replica.databaseToggle': 'Database enabled',
   'admin.storage.replica.authoritative': 'Authoritative',
@@ -241,6 +259,11 @@ export const en = {
     'The replica will stop receiving writes and will no longer serve reads. Choose whether to retain its existing data.',
   'admin.storage.replica.disableKeep': 'Disable and keep data',
   'admin.storage.replica.disableDelete': 'Disable and delete data',
+  'admin.storage.replica.enableTitle': 'Enable this storage source?',
+  'admin.storage.replica.enableMessage':
+    'Choose whether existing Database content should be synchronized before this source is used.',
+  'admin.storage.replica.enableWithoutSync': 'Enable without syncing',
+  'admin.storage.replica.enableAndSync': 'Sync existing data',
   'admin.storage.replica.state.disabled': 'Disabled',
   'admin.storage.replica.state.backfilling': 'Backfilling',
   'admin.storage.replica.state.enabled': 'Enabled',
@@ -257,6 +280,9 @@ export const en = {
   'admin.storage.type.git': 'Git export',
   'admin.storage.form.local.title': 'Local filesystem',
   'admin.storage.form.local.basePath': 'Base directory',
+  'admin.storage.form.local.containerPath': 'Container path',
+  'admin.storage.form.local.hostPath': 'Host bind mount',
+  'admin.storage.form.local.hostPathUnknown': 'Not exposed by the runtime',
   'admin.storage.form.s3.title': 'S3-compatible storage',
   'admin.storage.form.s3.endpoint': 'Endpoint (optional)',
   'admin.storage.form.s3.region': 'Region',
@@ -308,6 +334,12 @@ export const en = {
   'admin.storage.migration.status.completed': 'Completed',
   'admin.storage.migration.status.failed': 'Failed',
   'admin.storage.migration.status.aborted': 'Aborted',
+
+  'admin.storage.sync.metadataTitle': 'Storage synchronization',
+  'admin.storage.sync.heading': 'Synchronizing existing content',
+  'admin.storage.sync.progress': '{{done}} / {{total}} items ({{percent}}%)',
+  'admin.storage.sync.failed': '{{count}} items could not be synchronized and will be retried.',
+  'admin.storage.sync.back': 'Back to Content Storage',
 
   // User Center
   'userCenter.metadataTitle': 'User Center',

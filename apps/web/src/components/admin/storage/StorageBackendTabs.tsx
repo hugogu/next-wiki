@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import type { StorageBackendType, StorageBackendView } from '@next-wiki/shared';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type {
+  StorageBackendType,
+  StorageBackendView,
+  StorageDeploymentInfo,
+} from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
+import { Switch } from '@/components/ui/Switch';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
@@ -18,106 +23,221 @@ const TYPE_LABEL: Record<TabType, TranslationKey> = {
   s3: 'admin.storage.type.s3',
 };
 
-function ReplicaControls({ backend }: { backend: StorageBackendView }) {
+function parseTab(value: string | null): TabType {
+  return TABS.includes(value as TabType) ? (value as TabType) : 'database';
+}
+
+function ControlRow({
+  label,
+  description,
+  checked,
+  disabled,
+  ariaLabel,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  ariaLabel: string;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-md border-t border-border py-sm first:border-t-0">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-xs text-xs text-muted">{description}</p>
+      </div>
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onClick={onChange}
+      />
+    </div>
+  );
+}
+
+function BackendStatusCard({
+  type,
+  backend,
+  preferred,
+}: {
+  type: TabType;
+  backend?: StorageBackendView;
+  preferred: boolean;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
+  const [confirmEnable, setConfirmEnable] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const enable = useApiMutation<Record<string, never>, StorageBackendView>(
-    `/api/storage/backends/${backend.id}/enable`,
+  const enable = useApiMutation<{ syncExisting: boolean }, StorageBackendView>(
+    `/api/storage/backends/${backend?.id ?? 'unconfigured'}/enable`,
   );
   const disable = useApiMutation<{ retainData: boolean }, StorageBackendView>(
-    `/api/storage/backends/${backend.id}/disable`,
+    `/api/storage/backends/${backend?.id ?? 'unconfigured'}/disable`,
   );
   const prefer = useApiMutation<{ backendId: string | null }, StorageBackendView | null>(
     '/api/storage/read-backend',
     { method: 'PUT' },
   );
 
-  const run = (
-    mutation: typeof enable | typeof disable | typeof prefer,
-    body: Record<string, unknown>,
-    done?: () => void,
-  ) => {
-    setError(null);
-    mutation.mutate(body as never, {
-      onSuccess: () => {
-        done?.();
-        router.refresh();
-      },
-      onError: (e: ApiError) => setError(e.message),
-    });
-  };
-
-  const enabled = backend.replicaState !== 'disabled' && backend.replicaState !== 'deleting';
+  const enabled =
+    type === 'database' ||
+    (backend !== undefined &&
+      backend.replicaState !== 'disabled' &&
+      backend.replicaState !== 'deleting');
   const pending = enable.isPending || disable.isPending || prefer.isPending;
+  const state =
+    type === 'database'
+      ? 'enabled'
+      : backend?.replicaState ?? 'disabled';
 
   useEffect(() => {
-    if (backend.replicaState !== 'backfilling' && backend.replicaState !== 'deleting') return;
+    if (backend?.replicaState !== 'backfilling' && backend?.replicaState !== 'deleting') return;
     const timer = window.setInterval(() => router.refresh(), 2_000);
     return () => window.clearInterval(timer);
-  }, [backend.replicaState, router]);
+  }, [backend?.replicaState, router]);
+
+  const runDisable = (retainData: boolean) => {
+    if (!backend) return;
+    setError(null);
+    disable.mutate(
+      { retainData },
+      {
+        onSuccess: () => {
+          setConfirmDisable(false);
+          router.refresh();
+        },
+        onError: (e: ApiError) => setError(e.message),
+      },
+    );
+  };
+
+  const runEnable = (syncExisting: boolean) => {
+    if (!backend) return;
+    setError(null);
+    enable.mutate(
+      { syncExisting },
+      {
+        onSuccess: () => {
+          setConfirmEnable(false);
+          if (syncExisting) {
+            router.push(`/admin/storage/backends/${backend.id}/sync?tab=${type}`);
+          } else {
+            router.refresh();
+          }
+        },
+        onError: (e: ApiError) => setError(e.message),
+      },
+    );
+  };
+
+  const setPreferred = () => {
+    setError(null);
+    prefer.mutate(
+      { backendId: type === 'database' || preferred ? null : backend?.id ?? null },
+      {
+        onSuccess: () => router.refresh(),
+        onError: (e: ApiError) => setError(e.message),
+      },
+    );
+  };
 
   return (
-    <section className="mt-md rounded-lg border border-border bg-surface p-md">
-      <div className="flex flex-wrap items-center justify-between gap-sm">
+    <section className="rounded-lg border border-border bg-surface-elevated p-md">
+      <div className="flex flex-wrap items-start justify-between gap-sm">
         <div>
-          <h3 className="font-display font-semibold">{t('admin.storage.replica.heading')}</h3>
+          <div className="flex flex-wrap items-center gap-sm">
+            <h2 className="font-display text-lg font-semibold">{t(TYPE_LABEL[type])}</h2>
+            <span
+              className={`rounded-full px-sm py-xs text-xs font-medium ${
+                enabled ? 'bg-success/10 text-success' : 'bg-surface text-muted'
+              }`}
+            >
+              {t(`admin.storage.replica.state.${state}` as TranslationKey)}
+            </span>
+          </div>
           <p className="mt-xs text-sm text-muted">
-            {t(`admin.storage.replica.state.${backend.replicaState}` as TranslationKey)}
+            {type === 'database'
+              ? t('admin.storage.database.description')
+              : t('admin.storage.replica.description')}
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-label={t('admin.storage.replica.enabledToggle')}
-          aria-checked={enabled}
-          disabled={pending}
-          onClick={() =>
-            enabled
-              ? setConfirmDisable(true)
-              : run(enable, {})
-          }
-          className={`relative h-7 w-12 rounded-full transition-colors ${
-            enabled ? 'bg-primary' : 'bg-border'
-          } disabled:opacity-50`}
-        >
-          <span
-            className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${
-              enabled ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
       </div>
 
-      {enabled && (
-        <div className="mt-md flex flex-wrap items-center gap-sm">
-          <Button
-            variant={backend.isReadPreferred ? 'primary' : 'ghost'}
-            disabled={pending || backend.replicaState === 'backfilling'}
-            onClick={() =>
-              run(prefer, { backendId: backend.isReadPreferred ? null : backend.id })
-            }
-          >
-            {backend.isReadPreferred
-              ? t('admin.storage.replica.preferred')
-              : t('admin.storage.replica.makePreferred')}
-          </Button>
-          {backend.lastSyncAt && (
-            <span className="text-xs text-muted">
-              {t('admin.storage.replica.lastSync', {
-                time: new Date(backend.lastSyncAt).toLocaleString(),
-              })}
-            </span>
+      <div className="mt-md rounded-md border border-border px-sm">
+        <ControlRow
+          label={t('admin.storage.replica.enabledLabel')}
+          description={
+            type === 'database'
+              ? t('admin.storage.replica.databaseAlwaysEnabled')
+              : t('admin.storage.replica.enabledDescription')
+          }
+          checked={enabled}
+          disabled={type === 'database' || pending || !backend}
+          ariaLabel={t(
+            type === 'database'
+              ? 'admin.storage.replica.databaseToggle'
+              : 'admin.storage.replica.enabledToggle',
           )}
+          onChange={() => (enabled ? setConfirmDisable(true) : setConfirmEnable(true))}
+        />
+        <ControlRow
+          label={t('admin.storage.replica.preferredLabel')}
+          description={t('admin.storage.replica.preferredDescription')}
+          checked={preferred}
+          disabled={pending || !enabled || state === 'backfilling'}
+          ariaLabel={t('admin.storage.replica.preferredToggle')}
+          onChange={setPreferred}
+        />
+      </div>
+
+      {backend?.lastSyncAt && (
+        <p className="mt-sm text-xs text-muted">
+          {t('admin.storage.replica.lastSync', {
+            time: new Date(backend.lastSyncAt).toLocaleString(),
+          })}
+        </p>
+      )}
+      {backend?.lastError && <p className="mt-sm text-sm text-danger">{backend.lastError}</p>}
+      {error && <p className="mt-sm text-sm text-danger">{error}</p>}
+
+      {confirmEnable && backend && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md"
+        >
+          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-lg shadow-lg">
+            <h3 className="font-display text-xl font-semibold">
+              {t('admin.storage.replica.enableTitle')}
+            </h3>
+            <p className="mt-sm text-sm text-muted">
+              {t('admin.storage.replica.enableMessage')}
+            </p>
+            <div className="mt-lg flex flex-wrap justify-end gap-sm">
+              <Button variant="ghost" onClick={() => setConfirmEnable(false)}>
+                {t('common.actions.cancel')}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={pending}
+                onClick={() => runEnable(false)}
+              >
+                {t('admin.storage.replica.enableWithoutSync')}
+              </Button>
+              <Button disabled={pending} onClick={() => runEnable(true)}>
+                {t('admin.storage.replica.enableAndSync')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {backend.lastError && <p className="mt-sm text-sm text-danger">{backend.lastError}</p>}
-      {error && <p className="mt-sm text-sm text-danger">{error}</p>}
-
-      {confirmDisable && (
+      {confirmDisable && backend && (
         <div
           role="dialog"
           aria-modal="true"
@@ -135,17 +255,13 @@ function ReplicaControls({ backend }: { backend: StorageBackendView }) {
                 {t('common.actions.cancel')}
               </Button>
               <Button
-                variant="ghost"
+                variant="secondary"
                 disabled={pending}
-                onClick={() => run(disable, { retainData: true }, () => setConfirmDisable(false))}
+                onClick={() => runDisable(true)}
               >
                 {t('admin.storage.replica.disableKeep')}
               </Button>
-              <Button
-                variant="danger"
-                disabled={pending}
-                onClick={() => run(disable, { retainData: false }, () => setConfirmDisable(false))}
-              >
+              <Button variant="danger" disabled={pending} onClick={() => runDisable(false)}>
                 {t('admin.storage.replica.disableDelete')}
               </Button>
             </div>
@@ -156,10 +272,34 @@ function ReplicaControls({ backend }: { backend: StorageBackendView }) {
   );
 }
 
-export function StorageBackendTabs({ backends }: { backends: StorageBackendView[] }) {
+export function StorageBackendTabs({
+  backends,
+  deployment,
+}: {
+  backends: StorageBackendView[];
+  deployment: StorageDeploymentInfo;
+}) {
   const { t } = useTranslation();
-  const [selected, setSelected] = useState<TabType>('database');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selected = parseTab(searchParams.get('tab'));
   const backend = backends.find((item) => item.type === selected);
+  const preferredExternal = backends.find((item) => item.isReadPreferred);
+  const preferred = selected === 'database' ? !preferredExternal : backend?.isReadPreferred ?? false;
+
+  const selectTab = (type: TabType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', type);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  useEffect(() => {
+    if (searchParams.get('tab')) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', 'database');
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [pathname, router, searchParams]);
 
   return (
     <div className="grid gap-md md:grid-cols-[14rem_minmax(0,1fr)]">
@@ -172,7 +312,7 @@ export function StorageBackendTabs({ backends }: { backends: StorageBackendView[
               type="button"
               role="tab"
               aria-selected={selected === type}
-              onClick={() => setSelected(type)}
+              onClick={() => selectTab(type)}
               className={`flex w-full items-center justify-between rounded-md px-md py-sm text-left ${
                 selected === type ? 'bg-primary text-primary-text' : 'hover:bg-surface-elevated'
               }`}
@@ -180,7 +320,7 @@ export function StorageBackendTabs({ backends }: { backends: StorageBackendView[
               <span>{t(TYPE_LABEL[type])}</span>
               <span className="text-xs">
                 {type === 'database'
-                  ? t('admin.storage.replica.authoritative')
+                  ? t('admin.storage.replica.state.enabled')
                   : item
                     ? t(`admin.storage.replica.state.${item.replicaState}` as TranslationKey)
                     : t('admin.storage.replica.unconfigured')}
@@ -190,45 +330,49 @@ export function StorageBackendTabs({ backends }: { backends: StorageBackendView[
         })}
       </div>
 
-      <div role="tabpanel">
+      <div role="tabpanel" className="space-y-md">
+        <BackendStatusCard type={selected} backend={backend} preferred={preferred} />
+
         {selected === 'database' ? (
           <section className="rounded-lg border border-border bg-surface-elevated p-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-display text-lg font-semibold">
-                  {t('admin.storage.type.database')}
-                </h2>
-                <p className="mt-xs text-sm text-muted">
-                  {t('admin.storage.database.description')}
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-label={t('admin.storage.replica.databaseToggle')}
-                aria-checked="true"
-                disabled
-                className="relative h-7 w-12 rounded-full bg-primary opacity-70"
-              >
-                <span className="absolute top-1 translate-x-6 h-5 w-5 rounded-full bg-white" />
-              </button>
-            </div>
-            <dl className="mt-md grid gap-sm text-sm sm:grid-cols-2">
+            <dl className="grid gap-sm text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-muted">{t('admin.storage.database.role')}</dt>
                 <dd>{t('admin.storage.replica.authoritative')}</dd>
               </div>
               <div>
-                <dt className="text-muted">{t('admin.storage.active.statusLabel')}</dt>
-                <dd>{t('admin.storage.replica.state.enabled')}</dd>
+                <dt className="text-muted">{t('admin.storage.database.engine')}</dt>
+                <dd>{deployment.database.engine}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">{t('admin.storage.database.host')}</dt>
+                <dd>{deployment.database.host}:{deployment.database.port}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">{t('admin.storage.database.name')}</dt>
+                <dd>{deployment.database.database}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">{t('admin.storage.database.username')}</dt>
+                <dd>{deployment.database.username}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">{t('admin.storage.database.ssl')}</dt>
+                <dd>
+                  {deployment.database.ssl
+                    ? t('admin.storage.database.sslEnabled')
+                    : t('admin.storage.database.sslDisabled')}
+                </dd>
               </div>
             </dl>
           </section>
         ) : (
-          <>
-            <StorageBackendForm type={selected} initial={backend} />
-            {backend && <ReplicaControls backend={backend} />}
-          </>
+          <StorageBackendForm
+            key={selected}
+            type={selected}
+            initial={backend}
+            localDeployment={selected === 'local' ? deployment.local : undefined}
+          />
         )}
       </div>
     </div>

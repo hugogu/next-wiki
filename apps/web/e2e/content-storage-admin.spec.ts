@@ -27,10 +27,11 @@ test.describe('admin content storage', () => {
     await expect(page.getByRole('tab', { name: /Database/ })).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Database enabled' })).toBeChecked();
     await page.getByRole('tab', { name: /Local filesystem/ }).click();
+    await expect(page).toHaveURL(/tab=local/);
 
     // Configure and test the Local backend with a writable temp directory.
     const local = page.locator('section', { hasText: 'Local filesystem' });
-    await local.getByLabel('Base directory').fill('/tmp/next-wiki-e2e-content');
+    await expect(local.getByLabel('Base directory')).toHaveValue('/tmp/next-wiki-e2e-content');
     await local.getByRole('button', { name: 'Test connection' }).click();
     await expect(local.getByText('Connection succeeded.')).toBeVisible({ timeout: 15_000 });
 
@@ -42,6 +43,7 @@ test.describe('admin content storage', () => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/storage');
     await page.getByRole('tab', { name: /S3-compatible/ }).click();
+    await expect(page).toHaveURL(/tab=s3/);
 
     const s3 = page.locator('section', { hasText: 'S3-compatible storage' });
     await s3.getByLabel('Region').fill('us-east-1');
@@ -53,10 +55,19 @@ test.describe('admin content storage', () => {
 
     // After reload the secret input is empty and shows the "configured" hint.
     await page.reload();
-    await page.getByRole('tab', { name: /S3-compatible/ }).click();
+    await expect(page.getByRole('tab', { name: /S3-compatible/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     const secret = page.getByLabel('Secret access key');
     await expect(secret).toHaveValue('');
     await expect(secret).toHaveAttribute('placeholder', /configured/i);
+    await page.getByRole('button', { name: 'Test connection' }).click();
+    await expect(page.getByText(/Connection failed|Connection succeeded/)).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole('tab', { name: /Local filesystem/ }).click();
+    await expect(page.getByText(/Connection failed/)).toHaveCount(0);
   });
 
   test('non-admins do not see the storage admin page', async ({ page }) => {

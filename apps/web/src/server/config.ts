@@ -15,7 +15,10 @@ const envSchema = z.object({
   CONTENT_UPLOAD_TTL_HOURS: z.coerce.number().int().positive().default(24),
   // Optional base directory for the Local content backend (only used when the
   // active backend is `local`). Mounted as a Docker volume.
-  CONTENT_LOCAL_BASE_PATH: z.string().optional(),
+  CONTENT_LOCAL_BASE_PATH: z.string().min(1).default('/data/content'),
+  // Host-side bind mount shown to administrators for deployment diagnostics.
+  // This is informational inside the container; Docker Compose owns the mount.
+  CONTENT_LOCAL_HOST_PATH: z.string().optional(),
 });
 
 // Local convenience defaults for dev/test only. In production a missing value

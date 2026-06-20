@@ -32,13 +32,15 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       NEXT_WIKI_SEED: 'true'
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      CONTENT_LOCAL_BASE_PATH: ${CONTENT_LOCAL_BASE_PATH:-/data/content}
+      CONTENT_LOCAL_HOST_PATH: ${CONTENT_LOCAL_HOST_PATH:-./.content-data}
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:
       # Optional Local content backend (003). Only used when an admin selects the
       # Local backend with base directory /data/content; harmless otherwise. The
       # default deployment keeps content in PostgreSQL.
-      - ./.content-data:/data/content
+      - ${CONTENT_LOCAL_HOST_PATH:-./.content-data}:${CONTENT_LOCAL_BASE_PATH:-/data/content}
     depends_on:
       db:
         condition: service_healthy

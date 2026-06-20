@@ -44,7 +44,9 @@ import {
   cleanupJobViewSchema,
   cleanupStartSchema,
   storageBackendDisableSchema,
+  storageBackendEnableSchema,
   storageReadBackendSchema,
+  replicaSyncStatusSchema,
 } from '@next-wiki/shared';
 
 export {
@@ -143,7 +145,9 @@ export const MigrationStartInput = migrationStartSchema;
 export const CleanupJobView = cleanupJobViewSchema;
 export const CleanupStartInput = cleanupStartSchema;
 export const StorageBackendDisable = storageBackendDisableSchema;
+export const StorageBackendEnable = storageBackendEnableSchema;
 export const StorageReadBackend = storageReadBackendSchema;
+export const ReplicaSyncStatus = replicaSyncStatusSchema;
 
 export const ApiKeyViewList = apiKeyViewListSchema;
 export const CreateApiKeyInput = createApiKeyInputSchema;

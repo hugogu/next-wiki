@@ -157,6 +157,26 @@ describe('connection checks', () => {
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
+
+  it('reuses the encrypted saved S3 secret when checking edited saved config', async () => {
+    const backend = await storageConfig.upsertBackend(adminCtx, {
+      type: 's3',
+      config: { region: 'us-east-1', bucket: 'saved', accessKeyId: 'AK' },
+      secret: 'saved-secret',
+    });
+    await expect(
+      storageConfig.checkBackend(adminCtx, {
+        backendId: backend.id,
+        type: 's3',
+        config: {
+          endpoint: 'http://127.0.0.1:1',
+          region: 'us-east-1',
+          bucket: 'edited',
+          accessKeyId: 'AK',
+        },
+      }),
+    ).resolves.toMatchObject({ ok: false });
+  });
 });
 
 describe('replica lifecycle', () => {
@@ -167,15 +187,32 @@ describe('replica lifecycle', () => {
         type: 'local',
         config: { basePath: temp.dir },
       });
-      const enabled = await storageConfig.enableBackend(adminCtx, configured.id);
+      const enabled = await storageConfig.enableBackend(adminCtx, configured.id, true);
       expect(['backfilling', 'enabled']).toContain(enabled.replicaState);
 
       const preferred = await storageConfig.setPreferredReadBackend(adminCtx, configured.id);
       expect(preferred?.isReadPreferred).toBe(true);
+      expect(await storageConfig.setPreferredReadBackend(adminCtx, null)).toBeNull();
 
       const disabled = await storageConfig.disableBackend(adminCtx, configured.id);
       expect(disabled.replicaState).toBe('disabled');
       expect(disabled.isReadPreferred).toBe(false);
+    } finally {
+      await temp.cleanup();
+    }
+  });
+
+  it('can enable a replica without backfilling existing content', async () => {
+    const temp = await withTempDir();
+    try {
+      const configured = await storageConfig.upsertBackend(adminCtx, {
+        type: 'local',
+        config: { basePath: temp.dir },
+      });
+      const enabled = await storageConfig.enableBackend(adminCtx, configured.id, false);
+      expect(enabled.replicaState).toBe('enabled');
+      const sync = await storageConfig.getReplicaSyncStatus(adminCtx, configured.id);
+      expect(sync.totalItems).toBe(0);
     } finally {
       await temp.cleanup();
     }

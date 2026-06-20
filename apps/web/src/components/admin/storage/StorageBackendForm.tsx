@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
   BackendCheckResult,
+  BackendCheckInput,
   StorageBackendType,
   StorageBackendView,
 } from '@next-wiki/shared';
@@ -26,15 +27,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export function StorageBackendForm({
   type,
   initial,
+  localDeployment,
 }: {
   type: ConfigurableType;
   initial?: StorageBackendView;
+  localDeployment?: { containerPath: string; hostPath: string | null };
 }) {
   const { t } = useTranslation();
   const router = useRouter();
 
   const cfg = (initial?.config ?? {}) as Record<string, string | undefined>;
-  const [basePath, setBasePath] = useState(cfg.basePath ?? '');
+  const [basePath, setBasePath] = useState(
+    localDeployment?.containerPath ?? cfg.basePath ?? '',
+  );
   const [endpoint, setEndpoint] = useState(cfg.endpoint ?? '');
   const [region, setRegion] = useState(cfg.region ?? '');
   const [bucket, setBucket] = useState(cfg.bucket ?? '');
@@ -58,8 +63,14 @@ export function StorageBackendForm({
         };
 
   const buildBody = () => ({ type, config: buildConfig(), secret: secret || undefined });
+  const buildCheckBody = (): BackendCheckInput => ({
+    backendId: initial?.id,
+    type,
+    config: buildConfig(),
+    secret: secret || undefined,
+  });
 
-  const check = useApiMutation<ReturnType<typeof buildBody>, BackendCheckResult>(
+  const check = useApiMutation<BackendCheckInput, BackendCheckResult>(
     '/api/storage/backend-checks',
     { method: 'POST' },
   );
@@ -70,7 +81,7 @@ export function StorageBackendForm({
   const onTest = () => {
     setError(null);
     setTestResult(null);
-    check.mutate(buildBody(), {
+    check.mutate(buildCheckBody(), {
       onSuccess: (res) => setTestResult(res),
       onError: (e: ApiError) => setError(e.message),
     });
@@ -97,9 +108,27 @@ export function StorageBackendForm({
 
       <div className="mt-sm space-y-sm">
         {type === 'local' ? (
-          <Field label={t('admin.storage.form.local.basePath')}>
-            <Input value={basePath} onChange={(e) => setBasePath(e.target.value)} placeholder="/data/content" />
-          </Field>
+          <>
+            <Field label={t('admin.storage.form.local.basePath')}>
+              <Input
+                value={basePath}
+                onChange={(e) => setBasePath(e.target.value)}
+                placeholder="/data/content"
+                readOnly={Boolean(localDeployment)}
+              />
+            </Field>
+            {localDeployment && (
+              <div className="rounded-md border border-border bg-surface p-sm text-xs text-muted">
+                <p>
+                  {t('admin.storage.form.local.containerPath')}: {localDeployment.containerPath}
+                </p>
+                <p className="mt-xs">
+                  {t('admin.storage.form.local.hostPath')}:{' '}
+                  {localDeployment.hostPath ?? t('admin.storage.form.local.hostPathUnknown')}
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <Field label={t('admin.storage.form.s3.endpoint')}>
@@ -134,7 +163,7 @@ export function StorageBackendForm({
       </div>
 
       <div className="mt-md flex items-center gap-sm">
-        <Button variant="ghost" onClick={onTest} disabled={check.isPending}>
+        <Button variant="secondary" onClick={onTest} disabled={check.isPending}>
           {check.isPending ? t('admin.storage.actions.testing') : t('admin.storage.actions.test')}
         </Button>
         <Button onClick={onSave} disabled={save.isPending}>

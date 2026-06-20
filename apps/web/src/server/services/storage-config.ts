@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import {
   localBackendConfigSchema,
   s3BackendConfigSchema,
@@ -8,6 +8,7 @@ import {
   type StorageBackendView,
   type StorageOverview,
   type MigrationView,
+  type ReplicaSyncStatus,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -16,6 +17,7 @@ import { DomainError } from '@/server/errors';
 import { encryptKey } from '@/server/crypto/key-encryption';
 import { buildStore, getStoreFor, type StoreSpec } from '@/server/content-store/registry';
 import { addBackendBackfillTasks, kickReplication } from './storage-replication';
+import { env } from '@/server/config';
 
 type StorageBackendRow = typeof schema.storageBackends.$inferSelect;
 
@@ -69,6 +71,25 @@ function toMigrationView(row: typeof schema.contentMigrations.$inferSelect): Mig
   };
 }
 
+function deploymentInfo(): StorageOverview['deployment'] {
+  const url = new URL(env.DATABASE_URL);
+  const sslMode = url.searchParams.get('sslmode');
+  return {
+    database: {
+      engine: 'PostgreSQL',
+      host: url.hostname,
+      port: url.port || '5432',
+      database: url.pathname.replace(/^\//, ''),
+      username: decodeURIComponent(url.username),
+      ssl: sslMode !== null && !['disable', 'false'].includes(sslMode),
+    },
+    local: {
+      containerPath: env.CONTENT_LOCAL_BASE_PATH,
+      hostPath: env.CONTENT_LOCAL_HOST_PATH ?? null,
+    },
+  };
+}
+
 /** Storage overview for the admin page. Returns null when the caller is not an admin. */
 export async function getOverview(ctx: PermCtx): Promise<StorageOverview | null> {
   if (!isStorageAdmin(ctx)) return null;
@@ -97,6 +118,7 @@ export async function getOverview(ctx: PermCtx): Promise<StorageOverview | null>
     backends: primaries.map(toView),
     gitExport: gitExport ? toView(gitExport) : null,
     migration: migration ? toMigrationView(migration) : null,
+    deployment: deploymentInfo(),
   };
 }
 
@@ -110,6 +132,17 @@ export async function upsertBackend(
   input: StorageBackendUpsert,
 ): Promise<StorageBackendView> {
   assertCanManageStorage(ctx);
+
+  if (
+    input.type === 'local' &&
+    env.NODE_ENV === 'production' &&
+    input.config.basePath !== env.CONTENT_LOCAL_BASE_PATH
+  ) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      `Local storage must use the configured Docker mount path ${env.CONTENT_LOCAL_BASE_PATH}`,
+    );
+  }
 
   const secretEncrypted =
     input.type === 's3' && input.secret ? encryptKey(input.secret) : undefined;
@@ -180,7 +213,11 @@ export async function checkBackend(
       where: eq(schema.storageBackends.id, input.backendId),
     });
     if (!row) throw new DomainError('NOT_FOUND', 'Backend not found');
-    store = getStoreFor(row);
+    store = getStoreFor({
+      ...row,
+      config: input.config ?? row.config,
+      secretEncrypted: input.secret ? encryptKey(input.secret) : row.secretEncrypted,
+    });
   } else {
     store = buildStore(buildAdHocStore(input));
   }
@@ -195,6 +232,7 @@ export async function checkBackend(
 export async function enableBackend(
   ctx: PermCtx,
   backendId: string,
+  syncExisting: boolean,
 ): Promise<StorageBackendView> {
   assertCanManageStorage(ctx);
   const backend = await db.query.storageBackends.findFirst({
@@ -209,21 +247,24 @@ export async function enableBackend(
   }
 
   const updated = await db.transaction(async (tx) => {
+    const now = new Date();
     const [row] = await tx
       .update(schema.storageBackends)
       .set({
         isActive: false,
-        replicaState: 'backfilling',
-        syncStartedAt: new Date(),
-        syncCompletedAt: null,
+        replicaState: syncExisting ? 'backfilling' : 'enabled',
+        syncStartedAt: syncExisting ? now : null,
+        syncCompletedAt: syncExisting ? null : now,
         lastError: null,
-        updatedAt: new Date(),
+        updatedAt: now,
       })
       .where(eq(schema.storageBackends.id, backendId))
       .returning();
     await tx
       .delete(schema.storageReplicationTasks)
       .where(eq(schema.storageReplicationTasks.backendId, backendId));
+    if (!syncExisting) return row!;
+
     await addBackendBackfillTasks(tx, backendId);
     const pending = await tx
       .select({ id: schema.storageReplicationTasks.id })
@@ -249,8 +290,41 @@ export async function enableBackend(
     }
     return row!;
   });
-  await kickReplication();
+  if (syncExisting) await kickReplication();
   return toView(updated);
+}
+
+export async function getReplicaSyncStatus(
+  ctx: PermCtx,
+  backendId: string,
+): Promise<ReplicaSyncStatus> {
+  assertCanManageStorage(ctx);
+  const backend = await db.query.storageBackends.findFirst({
+    where: eq(schema.storageBackends.id, backendId),
+  });
+  if (!backend || backend.type === 'database' || backend.type === 'git') {
+    throw new DomainError('NOT_FOUND', 'Replica backend not found');
+  }
+
+  const rows = await db
+    .select({
+      status: schema.storageReplicationTasks.status,
+      value: count(),
+    })
+    .from(schema.storageReplicationTasks)
+    .where(eq(schema.storageReplicationTasks.backendId, backendId))
+    .groupBy(schema.storageReplicationTasks.status);
+  const counts = new Map(rows.map((row) => [row.status, Number(row.value)]));
+
+  return {
+    backendId,
+    backendType: backend.type,
+    state: backend.replicaState,
+    totalItems: rows.reduce((sum, row) => sum + Number(row.value), 0),
+    completedItems: counts.get('completed') ?? 0,
+    failedItems: counts.get('failed') ?? 0,
+    lastError: backend.lastError,
+  };
 }
 
 export async function disableBackend(
