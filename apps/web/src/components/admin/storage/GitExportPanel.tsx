@@ -27,7 +27,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function StateRow({
+// Mirrors the ControlRow in StorageBackendTabs: rows stack inside one bordered
+// container, separated by a top divider (suppressed on the first row).
+function ControlRow({
   label,
   description,
   children,
@@ -37,7 +39,7 @@ function StateRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-md rounded-md border border-border px-sm py-sm">
+    <div className="flex items-center justify-between gap-md border-t border-border py-sm first:border-t-0">
       <div>
         <p className="text-sm font-medium">{label}</p>
         <p className="mt-xs text-xs text-muted">{description}</p>
@@ -197,8 +199,8 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
           </span>
         </div>
 
-        <div className="mt-md space-y-sm">
-          <StateRow
+        <div className="mt-md rounded-md border border-border px-sm">
+          <ControlRow
             label={t('admin.storage.git.enabled')}
             description={t('admin.storage.git.enabledDescription')}
           >
@@ -208,9 +210,9 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
               aria-label={t('admin.storage.git.enabled')}
               onClick={() => (enabled ? persist(false) : setConfirmEnable(true))}
             />
-          </StateRow>
+          </ControlRow>
 
-          <StateRow
+          <ControlRow
             label={t('admin.storage.git.autoSync')}
             description={t('admin.storage.git.autoSyncDescription')}
           >
@@ -220,11 +222,11 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
               aria-label={t('admin.storage.git.autoSync')}
               onClick={onToggleAutoSync}
             />
-          </StateRow>
-          {!autoSyncOnPublish && (
-            <p className="text-xs text-warning">{t('admin.storage.git.autoSyncWarning')}</p>
-          )}
+          </ControlRow>
         </div>
+        {!autoSyncOnPublish && (
+          <p className="mt-sm text-xs text-warning">{t('admin.storage.git.autoSyncWarning')}</p>
+        )}
 
         {live?.lastSyncAt && (
           <p className="mt-sm text-xs text-muted">
@@ -325,16 +327,18 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
           )}
 
           {/* Scheduled sync (safety-net trigger). */}
-          <StateRow
-            label={t('admin.storage.git.scheduledSync')}
-            description={t('admin.storage.git.scheduledSyncDescription')}
-          >
-            <Switch
-              checked={scheduledSyncEnabled}
-              aria-label={t('admin.storage.git.scheduledSync')}
-              onClick={() => setScheduledSyncEnabled((value) => !value)}
-            />
-          </StateRow>
+          <div className="rounded-md border border-border px-sm">
+            <ControlRow
+              label={t('admin.storage.git.scheduledSync')}
+              description={t('admin.storage.git.scheduledSyncDescription')}
+            >
+              <Switch
+                checked={scheduledSyncEnabled}
+                aria-label={t('admin.storage.git.scheduledSync')}
+                onClick={() => setScheduledSyncEnabled((value) => !value)}
+              />
+            </ControlRow>
+          </div>
           {scheduledSyncEnabled && (
             <Field label={t('admin.storage.git.scheduledSyncInterval')}>
               <Input

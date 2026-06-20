@@ -153,22 +153,20 @@ function BackendStatusCard({
     <section className="rounded-lg border border-border bg-surface-elevated p-md">
       <div className="flex flex-wrap items-start justify-between gap-sm">
         <div>
-          <div className="flex flex-wrap items-center gap-sm">
-            <h2 className="font-display text-lg font-semibold">{t(TYPE_LABEL[type])}</h2>
-            <span
-              className={`rounded-full px-sm py-xs text-xs font-medium ${
-                enabled ? 'bg-success/10 text-success' : 'bg-surface text-muted'
-              }`}
-            >
-              {t(`admin.storage.replica.state.${state}` as TranslationKey)}
-            </span>
-          </div>
+          <h2 className="font-display text-lg font-semibold">{t(TYPE_LABEL[type])}</h2>
           <p className="mt-xs text-sm text-muted">
             {type === 'database'
               ? t('admin.storage.database.description')
               : t('admin.storage.replica.description')}
           </p>
         </div>
+        <span
+          className={`rounded-full px-sm py-xs text-xs font-medium ${
+            enabled ? 'bg-success/10 text-success' : 'bg-surface text-muted'
+          }`}
+        >
+          {t(`admin.storage.replica.state.${state}` as TranslationKey)}
+        </span>
       </div>
 
       <div className="mt-md rounded-md border border-border px-sm">
