@@ -46,6 +46,13 @@ $$`;
     expect(html).toContain('katex-display');
   });
 
+  it('marks images for lazy, asynchronous loading', () => {
+    const { html } = renderMarkdown('![alt](/api/assets/abc)');
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain('decoding="async"');
+    expect(html).toContain('src="/api/assets/abc"');
+  });
+
   it('converts mermaid fenced code blocks into mermaid containers', () => {
     const { html } = renderMarkdown('```mermaid\ngraph TD;\n  A-->B;\n```');
     expect(html).toContain('<pre class="mermaid">');

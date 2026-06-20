@@ -26,6 +26,18 @@ function isElement(node: unknown): node is Element {
   return typeof node === 'object' && node !== null && (node as Element).type === 'element';
 }
 
+/**
+ * Mark images for lazy, non-blocking loading so a page (or the editor preview,
+ * which re-renders on every keystroke) does not eagerly fetch every referenced
+ * image at once — important when the read backend is remote (e.g. S3).
+ */
+function setImageLoading(tree: Root) {
+  visit(tree, 'element', (node) => {
+    if (!isElement(node) || node.tagName !== 'img') return;
+    node.properties = { ...node.properties, loading: 'lazy', decoding: 'async' };
+  });
+}
+
 function wrapCodeBlocks(tree: Root) {
   const matches: Element[] = [];
   visit(tree, 'element', (node) => {
@@ -85,6 +97,7 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(remarkGfm)
     .use(remarkRehype)
     .use(rehypeSanitize, sanitizeSchema)
+    .use(() => setImageLoading)
     .use(rehypeKatex)
     .use(() => wrapCodeBlocks)
     .use(rehypeHighlight)
