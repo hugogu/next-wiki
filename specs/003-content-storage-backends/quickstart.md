@@ -90,6 +90,45 @@ Create keys with the new scopes (User Center → API Keys):
 - `preferences` (偏好管理): read/change your own display preferences (theme,
   language).
 
+## Operations
+
+### Backup & restore
+
+- **Database backend (default)**: all content lives in PostgreSQL
+  (`content_blobs`, `content_assets`, `page_revisions.content_source`, plus the
+  `storage_backends` config with *encrypted* secrets). A standard `pg_dump` of the
+  app database is a complete content backup; restore with `pg_restore`.
+- **Encryption key**: storage/Git secrets are encrypted with
+  `API_KEY_ENCRYPTION_KEY`. Back this key up separately and keep it stable across
+  restores — a database restore with a different key cannot decrypt existing
+  backend secrets (re-enter them in the admin UI if the key is lost).
+- **Local / S3 backends**: back up the mounted base directory or the bucket
+  alongside the database. Because the Database replica stays authoritative, a lost
+  external backend can be rebuilt by re-running a migration from Database.
+
+### Migration recovery
+
+- Migrations are **single-flight**: only one runs at a time, tracked in
+  `content_migrations`. Reads stay available throughout; writes return **HTTP 423**
+  until cutover.
+- **Crash/restart mid-migration**: the in-process job recovery handler re-enqueues
+  an interrupted migration on startup and resumes idempotently (already-copied
+  objects are skipped, counts re-verified). No manual step is required.
+- **Failure**: the original backend stays active with no data loss. Retry from the
+  migration detail page (`/admin/storage/migrations/{id}`) or start a new one.
+- **Abort**: aborting is cooperative and race-safe — cutover never happens before
+  full copy+verify, so an abort leaves the original backend active.
+
+### Cleanup operations
+
+- After a successful migration the **previous backend's data is retained** so you
+  can verify the new one first. Clean it up explicitly from
+  **Admin → Content Storage** (retained-backend cleanup); it refuses to delete the
+  *active* or any *in-use* backend and is namespace-confined.
+- **Orphan cleanup** runs as a bounded background job, removing abandoned uploads
+  (past their TTL) and compensated-write leftovers while preserving any object
+  still referenced by a revision.
+
 ## Verification checklist
 
 - `pnpm --filter web test` — unit + integration (ContentStore conformance,
