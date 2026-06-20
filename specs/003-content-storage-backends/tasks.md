@@ -25,8 +25,11 @@ implemented and validated as an independent increment.
 
 ## Implementation status & scope notes
 
+**Status: COMPLETE ✅** — verified working and closed on 2026-06-20.
+
 **Delivered: Foundation + US1 (MVP) + US2 backend config + Git export + US3
-migration + US4 scopes + Phase 7 polish/verification + Phase 8 replicas.**
+migration + US4 scopes + Phase 7 polish/verification + Phase 8 replicas +
+Phase 9 sync/serving refinements.**
 
 - **MVP (Phase 1/2/3, US1)** — Database-backed in-editor images.
 - **US2 core (Phase 4)** — Local + S3 ContentStore backends, storage-config
@@ -45,6 +48,13 @@ migration + US4 scopes + Phase 7 polish/verification + Phase 8 replicas.**
   storage/navigation/api-docs/api-keys e2e, lint, typecheck, build, and the
   running `docker compose` deployment (`/healthz`+`/readyz` 200).
 - **Phase 8 (T101–T110)** — authoritative Database with concurrent replicas.
+- **Phase 9 (sync/serving refinements)** — renamed Git export → Git sync with
+  status polling; configurable sync triggers (auto-sync-on-publish toggle +
+  scheduled sync via a one-minute cron, default branch `main`); unified admin
+  panel layout (ControlRow grouping, top-right status badges, shared Select);
+  lazy/async image loading and browser-cacheable S3 image redirects; and edit
+  pages now read the markdown source from the authoritative Database so a remote
+  read replica no longer stalls navigation.
 
 The following task remains **deferred** by design:
 
