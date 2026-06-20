@@ -10,6 +10,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { runGitExport } from './git-export';
+import { tickScheduledGitExport } from '@/server/services/git-export';
 
 type JobBatch = { data: unknown }[];
 
@@ -44,10 +45,18 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     await runStorageReplication();
   });
   await boss.work(QUEUES.gitExport, async (jobs: JobBatch) => {
-    const backendId = (jobs.at(-1)?.data as { backendId: string } | undefined)?.backendId;
-    if (backendId) await runGitExport(backendId);
+    const items = jobs.map((job) => job.data as { backendId?: string; scheduled?: boolean });
+    // A full-snapshot export reconciles everything, so a real trigger in the
+    // batch supersedes the scheduled tick; only pure-scheduled batches tick.
+    const backendId = items.filter((item) => item?.backendId).at(-1)?.backendId;
+    if (backendId) {
+      await runGitExport(backendId);
+    } else if (items.some((item) => item?.scheduled)) {
+      await tickScheduledGitExport();
+    }
   });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
+  await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
 
   const pendingReplication = await db
     .select({ id: schema.storageReplicationTasks.id })

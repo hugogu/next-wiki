@@ -5,7 +5,26 @@ import { parseJson, formatZodError } from '@/server/api/validate';
 import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
-import { configureGitExport } from '@/server/services/git-export';
+import { configureGitExport, getGitExport } from '@/server/services/git-export';
+
+/**
+ * @openapi
+ * @summary Get Git sync status
+ * @description Returns the current Git sync backend view (masked secrets) for status polling. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @response StorageBackendView
+ */
+async function handleGET() {
+  try {
+    return NextResponse.json(await getGitExport(await createApiContext()));
+  } catch (error) {
+    if (error instanceof DomainError) return mapDomainError(error);
+    return internalError();
+  }
+}
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);
 
 /**
  * @openapi

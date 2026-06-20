@@ -50,7 +50,7 @@ export type GitExportSnapshot = {
  */
 export async function materializeGitExport(
   root: string,
-  config: GitBackendConfig,
+  config: Pick<GitBackendConfig, 'assetsDir'>,
 ): Promise<GitExportSnapshot> {
   const rows = await db
     .select({

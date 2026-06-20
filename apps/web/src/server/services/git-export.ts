@@ -48,6 +48,13 @@ async function findGitExport(): Promise<StorageBackendRow | undefined> {
   });
 }
 
+/** Masked view of the Git sync backend for the admin UI, or null when unconfigured. */
+export async function getGitExport(ctx: PermCtx): Promise<StorageBackendView | null> {
+  assertCanManageStorage(ctx);
+  const existing = await findGitExport();
+  return existing ? toView(existing) : null;
+}
+
 export async function configureGitExport(
   ctx: PermCtx,
   input: GitExportUpsert,
@@ -149,7 +156,7 @@ export async function generateGitSshKey(ctx: PermCtx): Promise<GitSshKeyResult> 
       : {};
     const config = {
       remoteUrl: previousConfig.remoteUrl ?? 'git@github.com:owner/repository.git',
-      branch: previousConfig.branch ?? 'next-wiki',
+      branch: previousConfig.branch ?? 'main',
       assetsDir: previousConfig.assetsDir ?? 'assets',
       username: previousConfig.username,
       authMode: 'ssh' as const,
@@ -190,9 +197,20 @@ export async function generateGitSshKey(ctx: PermCtx): Promise<GitSshKeyResult> 
   }
 }
 
-export async function enqueueGitExport(): Promise<boolean> {
+/**
+ * Queue a full-snapshot reconciliation. `reason: 'publish'` honours the
+ * per-config `autoSyncOnPublish` toggle so content edits do not push to Git
+ * when the operator opted out; manual, enable, and scheduled triggers always run.
+ */
+export async function enqueueGitExport(
+  reason: 'manual' | 'publish' = 'manual',
+): Promise<boolean> {
   const backend = await findGitExport();
   if (!backend?.isActive) return false;
+  if (reason === 'publish') {
+    const config = gitBackendConfigSchema.safeParse(backend.config);
+    if (config.success && config.data.autoSyncOnPublish === false) return false;
+  }
   return (
     (await enqueue(
       QUEUES.gitExport,
@@ -215,5 +233,23 @@ export async function runGitExportNow(ctx: PermCtx): Promise<{ queued: boolean }
   if (!backend?.isActive) {
     throw new DomainError('BAD_REQUEST', 'Git export is not enabled');
   }
-  return { queued: await enqueueGitExport() };
+  return { queued: await enqueueGitExport('manual') };
+}
+
+/**
+ * Invoked on a fixed one-minute cron. Enqueues a reconciliation only when the
+ * operator enabled scheduled sync and at least the configured interval has
+ * elapsed since the last successful sync.
+ */
+export async function tickScheduledGitExport(now: Date = new Date()): Promise<boolean> {
+  const backend = await findGitExport();
+  if (!backend?.isActive) return false;
+  const config = gitBackendConfigSchema.safeParse(backend.config);
+  if (!config.success || !config.data.scheduledSyncEnabled) return false;
+  if (backend.replicaState === 'backfilling') return false;
+
+  const intervalMs = config.data.scheduledSyncIntervalMinutes * 60_000;
+  const last = backend.lastSyncAt?.getTime() ?? 0;
+  if (now.getTime() - last < intervalMs) return false;
+  return enqueueGitExport('manual');
 }

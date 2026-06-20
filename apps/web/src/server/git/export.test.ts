@@ -82,12 +82,7 @@ describe('Git export materialization', () => {
   it('writes standard Markdown frontmatter and referenced image files', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'next-wiki-export-test-'));
     try {
-      const result = await materializeGitExport(directory, {
-        remoteUrl: 'git@example.com:group/wiki.git',
-        branch: 'next-wiki',
-        assetsDir: 'assets',
-        authMode: 'ssh',
-      });
+      const result = await materializeGitExport(directory, { assetsDir: 'assets' });
       expect(result).toEqual({ pages: 1, assets: 1 });
 
       const markdown = await readFile(join(directory, 'docs/guide.md'), 'utf8');
@@ -146,12 +141,7 @@ describe('Git export materialization', () => {
     try {
       // A fresh checkout plus this snapshot is how the job prunes removed
       // content: deleted pages and the assets only they referenced never appear.
-      const result = await materializeGitExport(directory, {
-        remoteUrl: 'git@example.com:group/wiki.git',
-        branch: 'next-wiki',
-        assetsDir: 'assets',
-        authMode: 'ssh',
-      });
+      const result = await materializeGitExport(directory, { assetsDir: 'assets' });
       expect(result).toEqual({ pages: 1, assets: 1 });
       await expect(readFile(join(directory, 'docs/obsolete.md'), 'utf8')).rejects.toThrow();
       await expect(readFile(join(directory, 'assets', `${extra.asset}.png`))).rejects.toThrow();

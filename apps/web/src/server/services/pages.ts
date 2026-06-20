@@ -207,7 +207,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
     .update(schema.pages)
     .set({ deletedAt: new Date() })
     .where(eq(schema.pages.id, page.id));
-  await enqueueGitExport();
+  await enqueueGitExport('publish');
 }
 
 export async function create(
@@ -415,7 +415,7 @@ export async function updateProperties(
 
     return { pageId: page.id, newPath: input.path };
   });
-  if (input.path !== currentPath) await enqueueGitExport();
+  if (input.path !== currentPath) await enqueueGitExport('publish');
   return result;
 }
 

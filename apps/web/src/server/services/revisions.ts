@@ -68,6 +68,6 @@ export async function publish(
 
     return { versionId: revision.id };
   });
-  await enqueueGitExport();
+  await enqueueGitExport('publish');
   return result;
 }

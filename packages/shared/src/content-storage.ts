@@ -114,6 +114,10 @@ export const gitBackendConfigSchema = z.object({
   authMode: gitAuthModeSchema,
   publicKey: z.string().optional(),
   fingerprint: z.string().optional(),
+  // Sync triggers. Defaults keep older stored configs backward-compatible.
+  autoSyncOnPublish: z.boolean().default(true),
+  scheduledSyncEnabled: z.boolean().default(false),
+  scheduledSyncIntervalMinutes: z.number().int().min(5).max(1440).default(60),
 });
 export type GitBackendConfig = z.infer<typeof gitBackendConfigSchema>;
 
@@ -122,7 +126,9 @@ export const gitExportUpsertSchema = z.object({
   config: gitBackendConfigSchema,
   secret: z.string().min(1).optional(),
 });
-export type GitExportUpsert = z.infer<typeof gitExportUpsertSchema>;
+// Input type: the defaulted sync-trigger fields are optional on the request and
+// resolved to their defaults when the config is re-parsed server-side.
+export type GitExportUpsert = z.input<typeof gitExportUpsertSchema>;
 
 export const gitSshKeyResultSchema = z.object({
   publicKey: z.string(),
