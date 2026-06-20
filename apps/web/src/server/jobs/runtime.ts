@@ -12,18 +12,24 @@ export const QUEUES = {
  * once; route handlers enqueue through it. When unset (tests, build, or a
  * worker that failed to start) enqueue is a safe no-op so request handling never
  * depends on the worker being up.
+ *
+ * The instance is held on `globalThis` because Next.js bundles instrumentation
+ * and route handlers separately — a plain module-level variable would not be
+ * shared between them, leaving routes unable to enqueue.
  */
-let boss: PgBoss | null = null;
+const BOSS_KEY = Symbol.for('next-wiki.pgboss');
+type BossGlobal = typeof globalThis & { [BOSS_KEY]?: PgBoss | null };
 
 export function setBoss(instance: PgBoss | null): void {
-  boss = instance;
+  (globalThis as BossGlobal)[BOSS_KEY] = instance;
 }
 
 export function getBoss(): PgBoss | null {
-  return boss;
+  return (globalThis as BossGlobal)[BOSS_KEY] ?? null;
 }
 
 export async function enqueue(queue: string, data: Record<string, unknown>): Promise<string | null> {
+  const boss = getBoss();
   if (!boss) return null;
   return boss.send(queue, data);
 }
