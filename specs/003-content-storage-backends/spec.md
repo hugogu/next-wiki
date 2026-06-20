@@ -1,5 +1,40 @@
 # Feature Specification: Pluggable Content Storage & In-Editor Images
 
+## 2026-06-20 Storage Replica Amendment
+
+This amendment supersedes every requirement below that describes Database,
+Local, and S3 as mutually exclusive authoritative backends or requires a
+cutover between them.
+
+- Database is the permanent authoritative source for all revision Markdown,
+  asset metadata, and asset bytes. It is always enabled and cannot be disabled.
+- Local, S3, and future content stores are independently enabled replicas. More
+  than one replica may be enabled at the same time.
+- A successful content mutation commits the authoritative Database data and a
+  durable replication intent atomically. Replica delivery is asynchronous,
+  idempotent, retryable, and eventually consistent; replica unavailability must
+  not block editors.
+- Enabling a replica starts an idempotent Database-to-replica backfill while new
+  mutations continue to produce replication work. The replica becomes healthy
+  only after backfill and queued changes catch up.
+- Disabling a replica removes it from read routing and future replication.
+  Administrators choose whether its existing data is retained or deleted by an
+  asynchronous cleanup job.
+- Administrators may choose one enabled replica as the preferred read backend.
+  Reads try that replica first, validate the returned content against Database
+  metadata, and fall back to Database on missing, corrupt, or unavailable data.
+  A fallback schedules repair of the replica.
+- After normal permission checks, an S3-backed asset read may redirect to a
+  short-lived presigned URL when the preferred S3 replica is known to contain
+  the current object. Otherwise the application serves the Database copy.
+- The Content Storage UI presents an extensible left-side tab list inside Page
+  Content. Each backend tab contains its configuration, status, enable toggle,
+  synchronization health, and preferred-read control. Database configuration is
+  visible but read-only and its enable toggle is locked on.
+- Existing backend-switch migration records remain historical operational data,
+  but new administration flows use replica backfill, repair, and cleanup jobs;
+  content writes are not globally paused for replica synchronization.
+
 **Feature Branch**: `003-content-storage-backends`
 **Created**: 2026-06-19
 **Status**: Draft

@@ -1,5 +1,25 @@
 # REST API Contract: Content Storage & Images
 
+## 2026-06-20 Replica API Amendment
+
+The switch/migration administration contract below is superseded by:
+
+- `GET /api/storage` returns Database plus every configured replica, lifecycle
+  state, preferred-read selection, synchronization progress, lag, and errors.
+- `PUT /api/storage` continues to create/update backend configuration.
+- `POST /api/storage/backends/{id}/enable` starts or resumes backfill and returns
+  a job-aware backend view.
+- `POST /api/storage/backends/{id}/disable` accepts
+  `{ retainData: boolean }`; it removes the backend from routing immediately and
+  optionally starts asynchronous cleanup.
+- `PUT /api/storage/read-backend` accepts `{ backendId: string | null }`.
+  `null` selects Database reads.
+- Existing migration endpoints remain readable for historical records but are
+  not used to enable replicas.
+- `GET /api/assets/{id}` may return a temporary redirect to an authorized,
+  short-lived S3 presigned URL. It falls back to Database bytes whenever the S3
+  replica is not confirmed current.
+
 **Feature**: 003-content-storage-backends
 **Date**: 2026-06-19
 

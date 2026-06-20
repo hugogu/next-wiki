@@ -15,7 +15,13 @@ const DEFAULT_SPACE_SLUG = 'default';
 export async function seedDefaultStorageBackend() {
   await db
     .insert(schema.storageBackends)
-    .values({ type: 'database', purpose: 'primary', isActive: true, config: {} })
+    .values({
+      type: 'database',
+      purpose: 'primary',
+      isActive: true,
+      replicaState: 'enabled',
+      config: {},
+    })
     .onConflictDoNothing({
       target: [schema.storageBackends.type, schema.storageBackends.purpose],
     });

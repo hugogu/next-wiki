@@ -46,3 +46,24 @@ export const cleanupStatusEnum = pgEnum('cleanup_status', [
   'completed',
   'failed',
 ]);
+
+export const storageReplicaStateEnum = pgEnum('storage_replica_state', [
+  'disabled',
+  'backfilling',
+  'enabled',
+  'degraded',
+  'deleting',
+]);
+
+export const storageReplicationStatusEnum = pgEnum('storage_replication_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+]);
+
+export const storageObjectKindEnum = pgEnum('storage_object_kind', ['markdown', 'image']);
+export const storageReplicationOperationEnum = pgEnum('storage_replication_operation', [
+  'upsert',
+  'delete',
+]);

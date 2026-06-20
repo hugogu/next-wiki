@@ -73,3 +73,21 @@ export async function getActiveStore(): Promise<ContentStore> {
   if (!active) return new DatabaseStore();
   return getStoreFor(active);
 }
+
+/** Preferred replica for reads; Database is the permanent fallback/default. */
+export async function getPreferredReadStore(): Promise<ContentStore> {
+  const preferred = await db.query.storageBackends.findFirst({
+    where: and(
+      eq(schema.storageBackends.purpose, 'primary'),
+      eq(schema.storageBackends.isReadPreferred, true),
+    ),
+  });
+  if (!preferred || !['enabled', 'degraded'].includes(preferred.replicaState)) {
+    return new DatabaseStore();
+  }
+  try {
+    return getStoreFor(preferred);
+  } catch {
+    return new DatabaseStore();
+  }
+}

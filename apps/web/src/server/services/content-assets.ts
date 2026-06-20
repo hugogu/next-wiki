@@ -4,7 +4,8 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { env } from '@/server/config';
-import { getActiveStore } from '@/server/content-store/registry';
+import { getPreferredReadStore } from '@/server/content-store/registry';
+import { DatabaseStore } from '@/server/content-store/database-store';
 import { writeImageAsset, isUploadExpired } from '@/server/content-store/atomic-write';
 import { validateImage } from '@/server/content-store/image-validation';
 import { extractAssetIds } from '@/server/content-store/asset-references';
@@ -44,10 +45,9 @@ export async function uploadImage(ctx: PermCtx, bytes: Buffer): Promise<UploadRe
     throw new DomainError('INVALID_IMAGE', message);
   }
 
-  const store = await getActiveStore();
   let id: string;
   try {
-    ({ id } = await writeImageAsset(store, {
+    ({ id } = await writeImageAsset(new DatabaseStore(), {
       bytes,
       contentType: result.contentType,
       contentHash: result.contentHash,
@@ -90,9 +90,15 @@ export async function getServableImage(ctx: PermCtx, assetId: string): Promise<S
   if (!(await canReadAsset(ctx, asset))) return { kind: 'not_found' };
 
   try {
-    const store = await getActiveStore();
-    const { bytes, contentType } = await store.getImage(assetId);
-    return { kind: 'ok', bytes, contentType };
+    const store = await getPreferredReadStore();
+    try {
+      const { bytes, contentType } = await store.getImage(assetId);
+      return { kind: 'ok', bytes, contentType };
+    } catch (error) {
+      if (store.type === 'database' || !(error instanceof ContentStoreError)) throw error;
+      const { bytes, contentType } = await new DatabaseStore().getImage(assetId);
+      return { kind: 'ok', bytes, contentType };
+    }
   } catch (error) {
     if (error instanceof ContentStoreError) return { kind: 'unavailable' };
     throw error;

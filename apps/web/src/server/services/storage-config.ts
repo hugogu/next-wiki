@@ -41,6 +41,12 @@ function toView(row: StorageBackendRow): StorageBackendView {
     type: row.type,
     purpose: row.purpose,
     isActive: row.isActive,
+    replicaState: row.type === 'database' ? 'enabled' : row.replicaState,
+    isReadPreferred: row.isReadPreferred,
+    syncStartedAt: row.syncStartedAt?.toISOString() ?? null,
+    syncCompletedAt: row.syncCompletedAt?.toISOString() ?? null,
+    lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+    lastError: row.lastError,
     config: (row.config ?? {}) as Record<string, unknown>,
     hasSecret: row.secretEncrypted !== null,
     createdAt: row.createdAt.toISOString(),
@@ -68,11 +74,12 @@ export async function getOverview(ctx: PermCtx): Promise<StorageOverview | null>
 
   const all = await db.select().from(schema.storageBackends);
   const primaries = all.filter((b) => b.purpose === 'primary');
-  const active = primaries.find((b) => b.isActive);
-  if (!active) {
+  const authoritative = primaries.find((b) => b.type === 'database');
+  if (!authoritative) {
     // Should not happen once seeded; surface a clear error rather than guessing.
-    throw new DomainError('NOT_FOUND', 'No active storage backend is configured');
+    throw new DomainError('NOT_FOUND', 'No authoritative Database backend is configured');
   }
+  const preferredReadBackend = primaries.find((b) => b.isReadPreferred) ?? null;
   const gitExport = all.find((b) => b.purpose === 'git_export') ?? null;
 
   const [migration] = await db
@@ -83,7 +90,9 @@ export async function getOverview(ctx: PermCtx): Promise<StorageOverview | null>
     .limit(1);
 
   return {
-    active: toView(active),
+    active: toView(preferredReadBackend ?? authoritative),
+    authoritative: toView(authoritative),
+    preferredReadBackend: preferredReadBackend ? toView(preferredReadBackend) : null,
     backends: primaries.map(toView),
     gitExport: gitExport ? toView(gitExport) : null,
     migration: migration ? toMigrationView(migration) : null,

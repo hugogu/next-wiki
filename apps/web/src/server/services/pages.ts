@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
-import { getActiveStore } from '@/server/content-store/registry';
+import { getPreferredReadStore } from '@/server/content-store/registry';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
@@ -33,25 +33,13 @@ function leafSlugFromPath(path: string): string {
  * external backend (Local/S3) is written external-first (before the DB row is
  * committed) and leaves `content_source` null (plan D1/D9, R11).
  */
-async function persistRevisionMarkdown(
-  source: string,
-): Promise<{ revisionId: string; contentSourceForRow: string | null }> {
-  const revisionId = randomUUID();
-  const store = await getActiveStore();
-  if (store.type === 'database') {
-    return { revisionId, contentSourceForRow: source };
-  }
-  await store.putMarkdown(revisionId, source);
-  return { revisionId, contentSourceForRow: null };
-}
-
-/** Resolve a revision's raw Markdown from the DB column or the active store. */
+/** Resolve legacy externally stored Markdown; new revisions are always authoritative in DB. */
 async function readRevisionMarkdown(revision: {
   id: string;
   contentSource: string | null;
 }): Promise<string> {
   if (revision.contentSource !== null) return revision.contentSource;
-  return (await getActiveStore()).getMarkdown(revision.id);
+  return (await getPreferredReadStore()).getMarkdown(revision.id);
 }
 
 export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
@@ -241,7 +229,7 @@ export async function create(
   }
 
   await assertNotMigrating();
-  const { revisionId, contentSourceForRow } = await persistRevisionMarkdown(input.contentSource);
+  const revisionId = randomUUID();
 
   return await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
@@ -273,7 +261,7 @@ export async function create(
         pageId: page.id,
         versionNumber: 1,
         contentType: 'text/markdown',
-        contentSource: contentSourceForRow,
+        contentSource: input.contentSource,
         contentHtml: html,
         contentHash: hash,
         authorId: userId,
@@ -308,7 +296,7 @@ export async function newDraft(
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   await assertNotMigrating();
-  const { revisionId, contentSourceForRow } = await persistRevisionMarkdown(input.contentSource);
+  const revisionId = randomUUID();
 
   return await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
@@ -340,7 +328,7 @@ export async function newDraft(
         pageId: page.id,
         versionNumber: nextVersion,
         contentType: 'text/markdown',
-        contentSource: contentSourceForRow,
+        contentSource: input.contentSource,
         contentHtml: html,
         contentHash: hash,
         authorId: userId,

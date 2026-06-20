@@ -12,6 +12,15 @@ export type ContentStoreType = z.infer<typeof contentStoreTypeSchema>;
 export const storageBackendPurposeSchema = z.enum(['primary', 'git_export']);
 export type StorageBackendPurpose = z.infer<typeof storageBackendPurposeSchema>;
 
+export const storageReplicaStateSchema = z.enum([
+  'disabled',
+  'backfilling',
+  'enabled',
+  'degraded',
+  'deleting',
+]);
+export type StorageReplicaState = z.infer<typeof storageReplicaStateSchema>;
+
 export const contentAssetKindSchema = z.enum(['image']);
 export type ContentAssetKind = z.infer<typeof contentAssetKindSchema>;
 
@@ -92,6 +101,12 @@ export const storageBackendViewSchema = z.object({
   type: storageBackendTypeSchema,
   purpose: storageBackendPurposeSchema,
   isActive: z.boolean(),
+  replicaState: storageReplicaStateSchema,
+  isReadPreferred: z.boolean(),
+  syncStartedAt: z.string().nullable(),
+  syncCompletedAt: z.string().nullable(),
+  lastSyncAt: z.string().nullable(),
+  lastError: z.string().nullable(),
   config: z.record(z.unknown()),
   hasSecret: z.boolean(),
   createdAt: z.string(),
@@ -122,6 +137,17 @@ export const storageBackendUpsertSchema = z.discriminatedUnion('type', [
   }),
 ]);
 export type StorageBackendUpsert = z.infer<typeof storageBackendUpsertSchema>;
+
+export const storageBackendEnableSchema = z.object({
+  backendId: z.string().uuid(),
+});
+export const storageBackendDisableSchema = z.object({
+  backendId: z.string().uuid(),
+  retainData: z.boolean(),
+});
+export const storageReadBackendSchema = z.object({
+  backendId: z.string().uuid().nullable(),
+});
 
 /** Body for an ephemeral connection check: either a saved backend or ad-hoc config. */
 export const backendCheckSchema = z
@@ -193,6 +219,8 @@ export type CleanupJobView = z.infer<typeof cleanupJobViewSchema>;
 
 export const storageOverviewSchema = z.object({
   active: storageBackendViewSchema,
+  authoritative: storageBackendViewSchema,
+  preferredReadBackend: storageBackendViewSchema.nullable(),
   backends: z.array(storageBackendViewSchema),
   gitExport: storageBackendViewSchema.nullable(),
   migration: migrationViewSchema.nullable(),

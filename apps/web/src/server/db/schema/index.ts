@@ -20,6 +20,10 @@ import {
   migrationStatusEnum,
   revisionStatusEnum,
   storageBackendPurposeEnum,
+  storageObjectKindEnum,
+  storageReplicaStateEnum,
+  storageReplicationOperationEnum,
+  storageReplicationStatusEnum,
   storageBackendTypeEnum,
   userRoleEnum,
   userStatusEnum,
@@ -201,18 +205,54 @@ export const storageBackends = pgTable(
     type: storageBackendTypeEnum('type').notNull(),
     purpose: storageBackendPurposeEnum('purpose').notNull().default('primary'),
     isActive: boolean('is_active').notNull().default(false),
+    replicaState: storageReplicaStateEnum('replica_state').notNull().default('disabled'),
+    isReadPreferred: boolean('is_read_preferred').notNull().default(false),
+    syncStartedAt: timestamp('sync_started_at', { withTimezone: true }),
+    syncCompletedAt: timestamp('sync_completed_at', { withTimezone: true }),
+    lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+    lastError: text('last_error'),
     config: jsonb('config').notNull().default({}),
     secretEncrypted: text('secret_encrypted'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    // At most one active primary backend.
-    activePrimaryUnique: uniqueIndex('storage_backends_active_primary')
-      .on(t.purpose)
-      .where(sql`${t.isActive} = true and ${t.purpose} = 'primary'`),
+    readPreferredUnique: uniqueIndex('storage_backends_read_preferred')
+      .on(t.isReadPreferred)
+      .where(sql`${t.isReadPreferred} = true`),
     // Each backend is configured at most once.
     typePurposeUnique: uniqueIndex('storage_backends_type_purpose').on(t.type, t.purpose),
+  }),
+);
+
+export const storageReplicationTasks = pgTable(
+  'storage_replication_tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    backendId: uuid('backend_id')
+      .notNull()
+      .references(() => storageBackends.id, { onDelete: 'cascade' }),
+    objectKind: storageObjectKindEnum('object_kind').notNull(),
+    objectId: uuid('object_id').notNull(),
+    operation: storageReplicationOperationEnum('operation').notNull().default('upsert'),
+    expectedHash: text('expected_hash'),
+    status: storageReplicationStatusEnum('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    deliveryUnique: uniqueIndex('storage_replication_tasks_delivery').on(
+      t.backendId,
+      t.objectKind,
+      t.objectId,
+      t.operation,
+    ),
+    pendingIdx: index().on(t.status, t.availableAt),
+    backendIdx: index().on(t.backendId, t.status),
   }),
 );
 

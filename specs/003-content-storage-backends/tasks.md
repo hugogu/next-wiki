@@ -1,5 +1,18 @@
 # Tasks: Pluggable Content Storage & In-Editor Images
 
+## Phase 8: Authoritative Database with Concurrent Replicas
+
+- [ ] T101 Add replica lifecycle, preferred-read, and replication-task schema plus additive migration in `apps/web/src/server/db/schema/` and `apps/web/src/server/db/migrations/`
+- [ ] T102 Update shared storage API schemas for replica states, enable/disable, read preference, and synchronization status in `packages/shared/src/content-storage.ts`
+- [ ] T103 Make revision Markdown and image bytes commit to Database on every write and create replication tasks transactionally in `apps/web/src/server/services/pages.ts` and `apps/web/src/server/content-store/atomic-write.ts`
+- [ ] T104 Implement replica delivery, backfill, retry, repair, and recovery jobs in `apps/web/src/server/jobs/`
+- [ ] T105 Implement preferred-replica reads with hash validation and Database fallback in `apps/web/src/server/content-store/registry.ts`, `apps/web/src/server/services/pages.ts`, and `apps/web/src/server/services/content-assets.ts`
+- [ ] T106 Replace backend switch APIs with enable, disable, and read-preference APIs in `apps/web/app/api/storage/`
+- [ ] T107 Replace the storage summary/switch UI with extensible left-side backend tabs and per-tab toggles in `apps/web/app/(admin)/admin/storage/page.tsx` and `apps/web/src/components/admin/storage/`
+- [ ] T108 Add permission-checked S3 presigned redirects with Database fallback in `apps/web/app/api/assets/[id]/route.ts`
+- [ ] T109 Add schema, service, job, API, fallback, and UI tests in `apps/web/src/server/**/*.test.ts` and `apps/web/e2e/`
+- [ ] T110 Regenerate `apps/web/public/openapi.json` with next-open-api and verify using `docker compose up -d --build`
+
 **Input**: Design documents from `/specs/003-content-storage-backends/`
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 

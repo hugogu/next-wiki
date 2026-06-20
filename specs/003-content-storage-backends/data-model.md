@@ -1,5 +1,27 @@
 # Data Model: Pluggable Content Storage & In-Editor Images
 
+## 2026-06-20 Replica Model Revision
+
+The following model supersedes the single-active-primary constraint:
+
+- `storage_backends` gains lifecycle state
+  (`disabled|backfilling|enabled|degraded|deleting`), `is_read_preferred`,
+  synchronization timestamps, and last-error fields. Database is seeded as
+  enabled and cannot be disabled. At most one enabled non-Database backend is
+  read-preferred.
+- The partial unique index enforcing one active primary is removed. The legacy
+  `is_active` column remains temporarily for migration compatibility only.
+- `page_revisions.content_source` is authoritative and non-null for all newly
+  created revisions.
+- `content_blobs` contains every live asset, regardless of enabled replicas.
+- `storage_replication_tasks` is the transactional outbox/delivery table. Each
+  row identifies a backend, object kind, object id, operation, expected hash,
+  status, attempt count, retry time, and last error. A uniqueness key makes
+  current-object delivery idempotent and coalesces superseded work.
+- Backfill creates the same delivery records used by live writes. Therefore a
+  backfill and concurrent edits cannot create a synchronization gap.
+- Fallback reads enqueue an upsert repair task for the failed preferred replica.
+
 **Feature**: 003-content-storage-backends
 **Date**: 2026-06-19
 **Phase**: 1 (Design)

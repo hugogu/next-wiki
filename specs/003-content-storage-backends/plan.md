@@ -1,5 +1,25 @@
 # Implementation Plan: Pluggable Content Storage & In-Editor Images
 
+## 2026-06-20 Architecture Revision
+
+DatabaseStore is no longer one selectable ContentStore implementation. It is the
+authoritative store used by every write. LocalStore and S3Store are replica
+adapters driven by a transactional replication outbox. Runtime reads use a
+preferred-replica router with hash validation, Database fallback, and repair
+enqueueing. The legacy copy/verify/cutover worker is retained only for historical
+records and compatibility; it is not used by the revised administration UI.
+
+The revised implementation order is:
+
+1. Make Database content columns/blobs authoritative for every write.
+2. Add replica lifecycle/read-preference state and durable per-backend delivery
+   records.
+3. Add backfill, replication, retry, repair, and retained-data cleanup workers.
+4. Route reads through the preferred replica with Database fallback.
+5. Replace switch/migration controls with backend tabs and enable toggles.
+6. Redirect eligible S3 asset reads to short-lived presigned URLs after normal
+   authorization.
+
 **Branch**: `003-content-storage-backends` | **Date**: 2026-06-19 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/003-content-storage-backends/spec.md`
 
