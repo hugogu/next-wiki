@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
 import { StorageBackendSummary } from '@/components/admin/storage/StorageBackendSummary';
 import { StorageBackendForm } from '@/components/admin/storage/StorageBackendForm';
+import { StorageBackendActions } from '@/components/admin/storage/StorageBackendActions';
 import { getCurrentActor } from '@/server/services/auth';
 import * as storageConfig from '@/server/services/storage-config';
 import { getLocale, getDictionary } from '@/i18n/server';
@@ -37,10 +39,21 @@ export default async function AdminStoragePage() {
 
         <StorageBackendSummary overview={overview} />
 
+        {overview.migration && (
+          <Link
+            href={`/admin/storage/migrations/${overview.migration.id}`}
+            className="block rounded-lg border border-primary/40 bg-primary/5 px-md py-sm text-sm text-primary hover:underline"
+          >
+            {t('admin.storage.migration.bannerLink')}
+          </Link>
+        )}
+
         <div className="grid gap-md md:grid-cols-2">
           <StorageBackendForm type="local" initial={local} />
           <StorageBackendForm type="s3" initial={s3} />
         </div>
+
+        <StorageBackendActions backends={overview.backends} />
       </div>
     </Layout>
   );

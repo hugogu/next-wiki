@@ -251,7 +251,35 @@ export const zh: Translations = {
   'admin.storage.result.ok': '连接成功。',
   'admin.storage.result.failed': '连接失败:{{detail}}',
   'admin.storage.saved': '配置已保存。',
-  'admin.storage.note.activation': '保存仅存储配置。切换当前后端会执行安全迁移(即将推出)。',
+  'admin.storage.note.activation': '保存仅存储配置。切换当前后端会执行安全迁移。',
+
+  'admin.storage.actions.heading': '切换当前后端',
+  'admin.storage.actions.switch': '切换到此后端',
+  'admin.storage.actions.cleanup': '清理数据',
+
+  'admin.storage.switch.title': '切换到 {{target}}?',
+  'admin.storage.switch.message': '这会将全部内容复制并校验到 {{target}},然后启用它。迁移期间内容为只读。',
+  'admin.storage.switch.confirm': '开始迁移',
+  'admin.storage.switch.overwriteWarning': '{{target}} 后端已包含数据,可能被覆盖。是否继续?',
+  'admin.storage.switch.confirmOverwrite': '覆盖并迁移',
+
+  'admin.storage.cleanup.title': '删除保留的数据?',
+  'admin.storage.cleanup.message': '将永久删除未启用的 {{target}} 后端中保留的全部内容。此操作不可撤销。',
+  'admin.storage.cleanup.confirm': '删除数据',
+
+  'admin.storage.migration.metadataTitle': '存储迁移',
+  'admin.storage.migration.heading': '迁移',
+  'admin.storage.migration.bannerLink': '存储迁移正在进行——查看状态。',
+  'admin.storage.migration.backToStorage': '返回内容存储',
+  'admin.storage.migration.progress': '{{done}} / {{total}} 项({{percent}}%)',
+  'admin.storage.migration.aborting': '正在中止……',
+  'admin.storage.migration.abort': '中止迁移',
+  'admin.storage.migration.status.pending': '等待中',
+  'admin.storage.migration.status.copying': '复制中',
+  'admin.storage.migration.status.verifying': '校验中',
+  'admin.storage.migration.status.completed': '已完成',
+  'admin.storage.migration.status.failed': '失败',
+  'admin.storage.migration.status.aborted': '已中止',
 
   // User Center
   'userCenter.metadataTitle': '用户中心',

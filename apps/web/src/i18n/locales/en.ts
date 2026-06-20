@@ -253,7 +253,38 @@ export const en = {
   'admin.storage.result.failed': 'Connection failed: {{detail}}',
   'admin.storage.saved': 'Configuration saved.',
   'admin.storage.note.activation':
-    'Saving stores the configuration. Switching the active backend runs a safe migration (coming soon).',
+    'Saving stores the configuration. Switching the active backend runs a safe migration.',
+
+  'admin.storage.actions.heading': 'Switch active backend',
+  'admin.storage.actions.switch': 'Switch to this',
+  'admin.storage.actions.cleanup': 'Clean up data',
+
+  'admin.storage.switch.title': 'Switch to {{target}}?',
+  'admin.storage.switch.message':
+    'This copies and verifies all content to {{target}}, then activates it. Content is read-only during the migration.',
+  'admin.storage.switch.confirm': 'Start migration',
+  'admin.storage.switch.overwriteWarning':
+    'The {{target}} backend already contains data, which may be overwritten. Continue?',
+  'admin.storage.switch.confirmOverwrite': 'Overwrite and migrate',
+
+  'admin.storage.cleanup.title': 'Delete retained data?',
+  'admin.storage.cleanup.message':
+    'Permanently delete all retained content from the inactive {{target}} backend. This cannot be undone.',
+  'admin.storage.cleanup.confirm': 'Delete data',
+
+  'admin.storage.migration.metadataTitle': 'Storage migration',
+  'admin.storage.migration.heading': 'Migration',
+  'admin.storage.migration.bannerLink': 'A storage migration is in progress — view status.',
+  'admin.storage.migration.backToStorage': 'Back to Content Storage',
+  'admin.storage.migration.progress': '{{done}} / {{total}} items ({{percent}}%)',
+  'admin.storage.migration.aborting': 'aborting…',
+  'admin.storage.migration.abort': 'Abort migration',
+  'admin.storage.migration.status.pending': 'Pending',
+  'admin.storage.migration.status.copying': 'Copying',
+  'admin.storage.migration.status.verifying': 'Verifying',
+  'admin.storage.migration.status.completed': 'Completed',
+  'admin.storage.migration.status.failed': 'Failed',
+  'admin.storage.migration.status.aborted': 'Aborted',
 
   // User Center
   'userCenter.metadataTitle': 'User Center',
