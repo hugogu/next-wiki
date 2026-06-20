@@ -8,19 +8,31 @@ Auto-generated from all feature plans. Last updated: 2026-06-19
 
 ## Project Structure
 
+pnpm workspaces + Turborepo monorepo:
+
 ```text
-backend/
-frontend/
-tests/
+apps/web/                # Next.js 16 app (App Router)
+  app/                   # routes (RSC) + REST route handlers under app/api/
+  src/server/            # server-only: db (Drizzle schema/migrations), services,
+                         #   permissions (can() chokepoint), pipeline, api, crypto
+  src/components/         # UI; primitives isolated in src/components/ui/
+  src/i18n/               # custom i18n (locales/en.ts canonical + zh.ts)
+packages/shared/          # zero-dep shared Zod schemas/types (@next-wiki/shared)
+packages/editor/          # editor package
+specs/                    # Spec Kit feature specs/plans/tasks
 ```
 
 ## Commands
 
-npm test && npm run lint
+pnpm install; pnpm dev | build | lint | typecheck | test (Turborepo).
+Per-app: `pnpm --filter @next-wiki/web test` (Vitest), `... test:e2e` (Playwright).
+DB: `pnpm db:generate` / `pnpm db:migrate` (Drizzle). Full verify:
+`docker compose up -d --build`.
 
 ## Code Style
 
-TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor).: Follow standard conventions
+TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor). Follow existing
+conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
