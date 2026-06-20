@@ -29,6 +29,13 @@
       "when": 1781788008166,
       "tag": "0003_flippant_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781918031003,
+      "tag": "0004_brave_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

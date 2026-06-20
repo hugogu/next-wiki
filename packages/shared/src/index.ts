@@ -6,6 +6,7 @@ export * from './pages';
 export * from './api-keys';
 export * from './user-center';
 export * from './audit';
+export * from './content-storage';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

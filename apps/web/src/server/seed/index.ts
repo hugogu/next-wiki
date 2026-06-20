@@ -7,7 +7,23 @@ import { env } from '@/server/config';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
+/**
+ * Ensure exactly one active Database primary backend exists. This is core
+ * infrastructure (not sample data), so it is seeded on every boot regardless of
+ * the demo-seed guard, and is idempotent via the unique (type, purpose) index.
+ */
+export async function seedDefaultStorageBackend() {
+  await db
+    .insert(schema.storageBackends)
+    .values({ type: 'database', purpose: 'primary', isActive: true, config: {} })
+    .onConflictDoNothing({
+      target: [schema.storageBackends.type, schema.storageBackends.purpose],
+    });
+}
+
 export async function seedDatabase() {
+  await seedDefaultStorageBackend();
+
   if (env.NODE_ENV === 'production' && env.NEXT_WIKI_SEED !== 'true') {
     return;
   }

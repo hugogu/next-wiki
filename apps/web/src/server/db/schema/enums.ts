@@ -12,3 +12,28 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'share',
   'run',
 ]);
+
+// ---- Content storage (003) -------------------------------------------------
+
+export const storageBackendTypeEnum = pgEnum('storage_backend_type', [
+  'database',
+  'local',
+  's3',
+  'git',
+]);
+
+export const storageBackendPurposeEnum = pgEnum('storage_backend_purpose', [
+  'primary',
+  'git_export',
+]);
+
+export const contentAssetKindEnum = pgEnum('content_asset_kind', ['image']);
+
+export const migrationStatusEnum = pgEnum('migration_status', [
+  'pending',
+  'copying',
+  'verifying',
+  'completed',
+  'failed',
+  'aborted',
+]);

@@ -1,8 +1,10 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
+  customType,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -12,11 +14,22 @@ import {
 import { isNull } from 'drizzle-orm';
 import {
   apiKeyScopeEnum,
+  contentAssetKindEnum,
   contentTypeEnum,
+  migrationStatusEnum,
   revisionStatusEnum,
+  storageBackendPurposeEnum,
+  storageBackendTypeEnum,
   userRoleEnum,
   userStatusEnum,
 } from './enums';
+
+/** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+});
 
 export const spaces = pgTable('spaces', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -107,7 +120,9 @@ export const pageRevisions = pgTable(
     versionNumber: integer('version_number').notNull(),
     locale: text('locale').notNull().default('en'),
     contentType: contentTypeEnum('content_type').notNull().default('text/markdown'),
-    contentSource: text('content_source').notNull(),
+    // Nullable since 003: the Database backend keeps markdown here, while
+    // Local/S3 backends store it externally keyed by revision id.
+    contentSource: text('content_source'),
     contentHtml: text('content_html').notNull(),
     contentHash: text('content_hash').notNull(),
     authorId: uuid('author_id')
@@ -174,4 +189,109 @@ export const apiAuditEntries = pgTable(
 export const apiAuditEntriesRelations = relations(apiAuditEntries, ({ one }) => ({
   key: one(apiKeys, { fields: [apiAuditEntries.keyId], references: [apiKeys.id] }),
   user: one(users, { fields: [apiAuditEntries.userId], references: [users.id] }),
+}));
+
+// ---- Content storage (003) -------------------------------------------------
+
+export const storageBackends = pgTable(
+  'storage_backends',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: storageBackendTypeEnum('type').notNull(),
+    purpose: storageBackendPurposeEnum('purpose').notNull().default('primary'),
+    isActive: boolean('is_active').notNull().default(false),
+    config: jsonb('config').notNull().default({}),
+    secretEncrypted: text('secret_encrypted'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // At most one active primary backend.
+    activePrimaryUnique: uniqueIndex('storage_backends_active_primary')
+      .on(t.purpose)
+      .where(sql`${t.isActive} = true and ${t.purpose} = 'primary'`),
+    // Each backend is configured at most once.
+    typePurposeUnique: uniqueIndex('storage_backends_type_purpose').on(t.type, t.purpose),
+  }),
+);
+
+export const contentAssets = pgTable(
+  'content_assets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: contentAssetKindEnum('kind').notNull().default('image'),
+    contentHash: text('content_hash').notNull(),
+    contentType: text('content_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    hashIdx: index().on(t.contentHash),
+    deletedIdx: index().on(t.deletedAt),
+    createdByIdx: index().on(t.createdBy),
+  }),
+);
+
+export const contentAssetRefs = pgTable(
+  'content_asset_refs',
+  {
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => contentAssets.id, { onDelete: 'cascade' }),
+    revisionId: uuid('revision_id')
+      .notNull()
+      .references(() => pageRevisions.id, { onDelete: 'cascade' }),
+  },
+  (t) => ({
+    pk: uniqueIndex('content_asset_refs_pk').on(t.assetId, t.revisionId),
+    revisionIdx: index().on(t.revisionId),
+  }),
+);
+
+export const contentBlobs = pgTable('content_blobs', {
+  assetId: uuid('asset_id')
+    .primaryKey()
+    .references(() => contentAssets.id, { onDelete: 'cascade' }),
+  bytes: bytea('bytes').notNull(),
+});
+
+export const contentMigrations = pgTable(
+  'content_migrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceBackendId: uuid('source_backend_id')
+      .notNull()
+      .references(() => storageBackends.id),
+    targetBackendId: uuid('target_backend_id')
+      .notNull()
+      .references(() => storageBackends.id),
+    status: migrationStatusEnum('status').notNull().default('pending'),
+    totalItems: integer('total_items').notNull().default(0),
+    copiedItems: integer('copied_items').notNull().default(0),
+    verifiedItems: integer('verified_items').notNull().default(0),
+    errorMessage: text('error_message'),
+    abortRequested: boolean('abort_requested').notNull().default(false),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => ({
+    statusIdx: index().on(t.status),
+  }),
+);
+
+export const contentAssetRefsRelations = relations(contentAssetRefs, ({ one }) => ({
+  asset: one(contentAssets, {
+    fields: [contentAssetRefs.assetId],
+    references: [contentAssets.id],
+  }),
+  revision: one(pageRevisions, {
+    fields: [contentAssetRefs.revisionId],
+    references: [pageRevisions.id],
+  }),
 }));

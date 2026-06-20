@@ -12,7 +12,11 @@ export type DomainErrorCode =
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
-  | 'CONFLICT';
+  | 'CONFLICT'
+  // Content storage (003).
+  | 'INVALID_IMAGE' // 400: rejected upload (bad type/size)
+  | 'STORAGE_MIGRATING' // 423: write blocked by an in-progress backend migration
+  | 'STORAGE_UNAVAILABLE'; // 503: the active backend could not be reached
 
 export class DomainError extends Error {
   constructor(

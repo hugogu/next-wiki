@@ -25,6 +25,12 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 404);
     case 'CONFLICT':
       return apiError(code, message, 409);
+    case 'INVALID_IMAGE':
+      return apiError(code, message, 400);
+    case 'STORAGE_MIGRATING':
+      return apiError(code, message, 423);
+    case 'STORAGE_UNAVAILABLE':
+      return apiError(code, message, 503);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }
