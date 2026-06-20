@@ -102,14 +102,20 @@ export class S3Store implements ContentStore {
     return { bytes, contentType };
   }
 
+  async deleteMarkdown(revisionId: string): Promise<void> {
+    await this.deleteKey(this.markdownKey(revisionId), `markdown/${revisionId}`);
+  }
+
   async deleteImage(assetId: string): Promise<void> {
+    await this.deleteKey(this.imageKey(assetId), `assets/${assetId}`);
+  }
+
+  private async deleteKey(key: string, label: string): Promise<void> {
     try {
-      await this.client.send(
-        new DeleteObjectCommand({ Bucket: this.bucket, Key: this.imageKey(assetId) }),
-      );
+      await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
     } catch (error) {
       if (isNotFound(error)) return;
-      throw new BackendUnavailableError(this.type, `delete failed: assets/${assetId}`, error);
+      throw new BackendUnavailableError(this.type, `delete failed: ${label}`, error);
     }
   }
 

@@ -14,6 +14,7 @@ import {
 import { isNull } from 'drizzle-orm';
 import {
   apiKeyScopeEnum,
+  cleanupStatusEnum,
   contentAssetKindEnum,
   contentTypeEnum,
   migrationStatusEnum,
@@ -281,6 +282,30 @@ export const contentMigrations = pgTable(
     finishedAt: timestamp('finished_at', { withTimezone: true }),
   },
   (t) => ({
+    statusIdx: index().on(t.status),
+  }),
+);
+
+export const storageCleanupJobs = pgTable(
+  'storage_cleanup_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    backendId: uuid('backend_id')
+      .notNull()
+      .references(() => storageBackends.id),
+    status: cleanupStatusEnum('status').notNull().default('pending'),
+    totalItems: integer('total_items').notNull().default(0),
+    deletedItems: integer('deleted_items').notNull().default(0),
+    errorMessage: text('error_message'),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => ({
+    backendIdx: index().on(t.backendId),
     statusIdx: index().on(t.status),
   }),
 );

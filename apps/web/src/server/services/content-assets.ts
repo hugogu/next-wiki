@@ -9,6 +9,7 @@ import { writeImageAsset, isUploadExpired } from '@/server/content-store/atomic-
 import { validateImage } from '@/server/content-store/image-validation';
 import { extractAssetIds } from '@/server/content-store/asset-references';
 import { ContentStoreError } from '@/server/content-store/types';
+import { assertNotMigrating } from '@/server/services/migration';
 import type { AssetUploadResult } from '@next-wiki/shared';
 
 // roleAllows('edit') ignores the page id, so a sentinel resource is enough to
@@ -20,20 +21,6 @@ function canUpload(ctx: PermCtx): boolean {
     can(ctx, 'create', { kind: 'page_list' }) ||
     can(ctx, 'edit', { kind: 'page', pageId: SENTINEL_PAGE_ID })
   );
-}
-
-/** True while a backend migration holds the global write lock (FR-019). */
-export async function isMigrationActive(): Promise<boolean> {
-  const active = await db.query.contentMigrations.findFirst({
-    where: inArray(schema.contentMigrations.status, ['pending', 'copying', 'verifying']),
-  });
-  return Boolean(active);
-}
-
-export async function assertNotMigrating(): Promise<void> {
-  if (await isMigrationActive()) {
-    throw new DomainError('STORAGE_MIGRATING', 'Content storage is migrating; writes are paused');
-  }
 }
 
 export type UploadResult = AssetUploadResult;

@@ -98,6 +98,10 @@ export class LocalStore implements ContentStore {
     return { bytes, contentType };
   }
 
+  async deleteMarkdown(revisionId: string): Promise<void> {
+    await rm(this.markdownPath(revisionId), { force: true });
+  }
+
   async deleteImage(assetId: string): Promise<void> {
     await rm(this.imagePath(assetId), { force: true });
   }

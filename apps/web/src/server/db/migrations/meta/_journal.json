@@ -36,6 +36,13 @@
       "when": 1781918031003,
       "tag": "0004_brave_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781933318158,
+      "tag": "0005_panoramic_matthew_murdock",
+      "breakpoints": true
     }
   ]
 }

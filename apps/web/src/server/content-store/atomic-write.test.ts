@@ -21,6 +21,7 @@ class FakeExternalStore implements ContentStore {
   async getMarkdown(): Promise<string> {
     return '';
   }
+  async deleteMarkdown(): Promise<void> {}
   async putImage(assetId: string, bytes: Buffer): Promise<void> {
     this.putCount += 1;
     this.images.set(assetId, bytes);

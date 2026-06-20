@@ -23,11 +23,11 @@ type StorageBackendRow = typeof schema.storageBackends.$inferSelect;
  * session actors may manage storage. Non-admins are treated as if the surface
  * does not exist (hidden denial); callers map a thrown FORBIDDEN/`null` to 404.
  */
-function isStorageAdmin(ctx: PermCtx): boolean {
+export function isStorageAdmin(ctx: PermCtx): boolean {
   return ctx.actor.kind === 'user' && ctx.actor.role === 'admin';
 }
 
-function assertCanManageStorage(ctx: PermCtx): void {
+export function assertCanManageStorage(ctx: PermCtx): void {
   if (!isStorageAdmin(ctx)) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to manage storage');
   }

@@ -3,6 +3,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { assertNotMigrating } from '@/server/services/migration';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -18,6 +19,8 @@ export async function publish(
   if (!userId) {
     throw new DomainError('UNAUTHORIZED', 'Sign in to publish revisions');
   }
+
+  await assertNotMigrating();
 
   return await db.transaction(async (tx) => {
     const space = await tx.query.spaces.findFirst({

@@ -1,6 +1,21 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { sql } from 'drizzle-orm';
+import { db } from '@/server/db';
+
+/**
+ * Truncate every content/storage table in one FK-safe statement. Storage suites
+ * call this in beforeAll/afterAll so they are isolated from each other
+ * regardless of file execution order.
+ */
+export async function truncateStorageTables(): Promise<void> {
+  await db.execute(
+    sql.raw(
+      'TRUNCATE TABLE storage_cleanup_jobs, content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE',
+    ),
+  );
+}
 
 /**
  * Reusable fixtures for the content-storage suites: valid raster image bytes for

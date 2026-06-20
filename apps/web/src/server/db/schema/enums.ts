@@ -37,3 +37,10 @@ export const migrationStatusEnum = pgEnum('migration_status', [
   'failed',
   'aborted',
 ]);
+
+export const cleanupStatusEnum = pgEnum('cleanup_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+]);

@@ -17,4 +17,24 @@ export async function register() {
 
   await runMigrations();
   await seedDatabase();
+
+  // Start the in-process pg-boss worker for migration and cleanup jobs. A
+  // worker failure is logged but never blocks serving reads (jobs simply do not
+  // run until the next boot).
+  try {
+    const { createBoss } = await import('./src/server/jobs/create-boss');
+    const { registerJobs } = await import('./src/server/jobs/register');
+    const { setBoss } = await import('./src/server/jobs/runtime');
+    const { logger } = await import('./src/server/logger');
+
+    const boss = createBoss();
+    boss.on('error', (error: unknown) => logger.error('pg-boss error', { error: String(error) }));
+    await boss.start();
+    await registerJobs(boss);
+    setBoss(boss);
+    logger.info('pg-boss worker started');
+  } catch (error) {
+    const { logger } = await import('./src/server/logger');
+    logger.error('failed to start pg-boss worker', { error: String(error) });
+  }
 }

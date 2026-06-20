@@ -48,7 +48,7 @@ export default async function setup() {
     const client = postgres(TEST_DATABASE_URL, { max: 1 });
     try {
       await client.unsafe(
-        'TRUNCATE TABLE content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, api_audit_entries, api_keys, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE',
+        'TRUNCATE TABLE storage_cleanup_jobs, content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, api_audit_entries, api_keys, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE',
       );
     } finally {
       await client.end({ timeout: 5 });

@@ -15,6 +15,7 @@ export interface ContentStore {
   // Markdown is addressed by revisionId; fingerprint lives in DB (content_hash).
   putMarkdown(revisionId: string, source: string): Promise<void>;
   getMarkdown(revisionId: string): Promise<string>;
+  deleteMarkdown(revisionId: string): Promise<void>;
 
   // Images are addressed by assetId (UUID); fingerprint in content_assets.content_hash.
   putImage(assetId: string, bytes: Buffer, contentType: string): Promise<void>;

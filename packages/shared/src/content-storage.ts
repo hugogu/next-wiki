@@ -157,6 +157,38 @@ export const migrationViewSchema = z.object({
 });
 export type MigrationView = z.infer<typeof migrationViewSchema>;
 
+// ---- Migration & cleanup requests ------------------------------------------
+
+export const migrationStartSchema = z.object({
+  targetBackendId: z.string().uuid(),
+  confirmOverwrite: z.boolean().optional(),
+});
+export type MigrationStartInput = z.infer<typeof migrationStartSchema>;
+
+export const migrationListSchema = z.object({ items: z.array(migrationViewSchema) });
+export type MigrationList = z.infer<typeof migrationListSchema>;
+
+export const cleanupStatusSchema = z.enum(['pending', 'running', 'completed', 'failed']);
+export type CleanupStatus = z.infer<typeof cleanupStatusSchema>;
+
+export const cleanupStartSchema = z.object({
+  backendId: z.string().uuid(),
+  confirm: z.literal(true),
+});
+export type CleanupStartInput = z.infer<typeof cleanupStartSchema>;
+
+export const cleanupJobViewSchema = z.object({
+  jobId: z.string(),
+  backendId: z.string(),
+  status: cleanupStatusSchema,
+  totalItems: z.number().int().nonnegative(),
+  deletedItems: z.number().int().nonnegative(),
+  errorMessage: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+});
+export type CleanupJobView = z.infer<typeof cleanupJobViewSchema>;
+
 // ---- Storage overview (GET /api/storage) -----------------------------------
 
 export const storageOverviewSchema = z.object({

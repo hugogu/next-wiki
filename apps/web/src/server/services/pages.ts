@@ -7,6 +7,7 @@ import { renderMarkdown } from '@/server/pipeline';
 import { getActiveStore } from '@/server/content-store/registry';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
+import { assertNotMigrating } from '@/server/services/migration';
 import { pathSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 
@@ -239,6 +240,7 @@ export async function create(
     throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
   }
 
+  await assertNotMigrating();
   const { revisionId, contentSourceForRow } = await persistRevisionMarkdown(input.contentSource);
 
   return await db.transaction(async (tx) => {
@@ -305,6 +307,7 @@ export async function newDraft(
   const space = await getDefaultSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
+  await assertNotMigrating();
   const { revisionId, contentSourceForRow } = await persistRevisionMarkdown(input.contentSource);
 
   return await db.transaction(async (tx) => {

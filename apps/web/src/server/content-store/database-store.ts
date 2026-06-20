@@ -69,6 +69,15 @@ export class DatabaseStore implements ContentStore {
     return { bytes: row.bytes, contentType: row.contentType };
   }
 
+  async deleteMarkdown(revisionId: string): Promise<void> {
+    // Reclaim the inline markdown bytes (used by retained-backend cleanup after
+    // a migration away from Database). The revision row and fingerprint remain.
+    await this.exec
+      .update(schema.pageRevisions)
+      .set({ contentSource: null })
+      .where(eq(schema.pageRevisions.id, revisionId));
+  }
+
   async deleteImage(assetId: string): Promise<void> {
     await this.exec.delete(schema.contentBlobs).where(eq(schema.contentBlobs.assetId, assetId));
   }
