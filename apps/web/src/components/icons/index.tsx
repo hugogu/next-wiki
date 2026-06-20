@@ -272,6 +272,16 @@ export function LinkIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function DatabaseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5v14a9 3 0 0 0 18 0V5" />
+      <path d="M3 12a9 3 0 0 0 18 0" />
+    </Icon>
+  );
+}
+
 export function ImageIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

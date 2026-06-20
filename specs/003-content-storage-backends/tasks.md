@@ -10,28 +10,34 @@ verification. Test tasks appear before implementation tasks in each story.
 **Organization**: Tasks are grouped by user story so each story can be
 implemented and validated as an independent increment.
 
-## MVP scope note (Foundation + US1)
+## Implementation status & scope notes
 
-The MVP increment implements Phase 1, Phase 2, and Phase 3 (US1 — Database-backed
-in-editor images). The following tasks are intentionally **deferred** because
-they only serve later stories and add no US1 value (keeping the default
-deployment PostgreSQL-only with zero new runtime dependencies):
+**Delivered: Foundation + US1 (MVP) + US2 backend configuration.**
 
-- **T001 / T003 / T020 / T021** — pg-boss, S3/Git dependencies, the MinIO compose
-  profile, and the in-process job worker. US1 has no async jobs; these land with
-  US2 (backend config / Git export) and US3 (migration / cleanup).
-- **T017 / T018** — full markdown read/write *indirection* through the active
-  ContentStore. The Database backend writes markdown inline in the revision
-  transaction (identical behavior); the `ContentStore` markdown methods exist and
-  are conformance-tested, and will be wired into the page/revision read paths when
-  the first external backend arrives in US2.
+- **MVP (Phase 1/2/3, US1)** — Database-backed in-editor images.
+- **US2 core (Phase 4)** — Local + S3 ContentStore backends, the storage-config
+  service, admin API (`GET/PUT /api/storage`, `POST /api/storage/backend-checks`),
+  the `/admin/storage` admin UI, markdown read/write indirection through the
+  active store (T017/T018), and the MinIO compose profile (T003).
+
+The following tasks remain **deferred** to a later increment:
+
+- **Git export (T041, T049–T052) + pg-boss (T001 remainder, T020, T021)** — Git
+  one-way export is the only async piece of US2 and shares the pg-boss job
+  infrastructure with US3 migration/cleanup. It is split into its own increment
+  (US2b). Only `@aws-sdk/client-s3` was added in T001; `pg-boss` and
+  `isomorphic-git` land with that increment.
+- **US2 storage permission scope** — storage routes are gated to **admin session
+  actors** for now (the role half of scope ∩ role). The `manage_storage` action
+  and API-key `storage` scope land with US4 (T084–T091).
 - **T025** — route-handler unit tests. This project tests at the service layer
-  plus Playwright e2e (no existing route-level unit tests); US1 route behavior is
-  covered by the content-assets service tests and `e2e/content-images.spec.ts`.
+  plus Playwright e2e (no existing route-level unit tests); route behavior is
+  covered by service tests and the `e2e/*.spec.ts` files.
 
 The reusable ContentStore conformance suite (T006) lives in
 `content-store.conformance.ts` (a plain module, not `*.test.ts`) so it can be
-imported by each backend's test file without executing twice.
+imported by each backend's test file without executing twice. S3 conformance
+(T039) runs only when MinIO env (`S3_TEST_*`) is provided.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -49,7 +55,7 @@ the storage subsystem without changing user-visible behavior.
 
 - [ ] T001 Add `pg-boss`, `@aws-sdk/client-s3`, and `isomorphic-git` dependencies in `apps/web/package.json` and `pnpm-lock.yaml`
 - [X] T002 [P] Add asset-size, abandoned-upload TTL, and optional local-store defaults in `apps/web/src/server/config.ts`
-- [ ] T003 [P] Add a MinIO integration profile and optional Local content volume without changing the default PostgreSQL-only deployment in `docker-compose.yml`
+- [X] T003 [P] Add a MinIO integration profile and optional Local content volume without changing the default PostgreSQL-only deployment in `docker-compose.yml`
 - [X] T004 [P] Create reusable storage test fixtures and temporary-directory helpers in `apps/web/test/content-storage-fixtures.ts`
 - [X] T005 Create shared backend, asset, migration, cleanup, and Git-export Zod schemas in `packages/shared/src/content-storage.ts` and export them from `packages/shared/src/index.ts`
 
@@ -78,8 +84,8 @@ job lifecycle, and read/write indirection required by every story.
 - [X] T014 Implement the Database ContentStore with transactional Markdown/image persistence in `apps/web/src/server/content-store/database-store.ts`
 - [X] T015 Implement the explicit backend registry and injected store factories in `apps/web/src/server/content-store/registry.ts`
 - [X] T016 Implement external-first write, compensation, and grace-period orphan helpers in `apps/web/src/server/content-store/atomic-write.ts`
-- [ ] T017 Refactor page create, draft, history, and live-read paths to use the active ContentStore while preserving rendered HTML and fingerprints in `apps/web/src/server/services/pages.ts`
-- [ ] T018 Refactor revision reads and publish paths to resolve raw Markdown through the active ContentStore in `apps/web/src/server/services/revisions.ts`
+- [X] T017 Refactor page create, draft, history, and live-read paths to use the active ContentStore while preserving rendered HTML and fingerprints in `apps/web/src/server/services/pages.ts`
+- [X] T018 Refactor revision reads and publish paths to resolve raw Markdown through the active ContentStore in `apps/web/src/server/services/revisions.ts`
 - [X] T019 Add `STORAGE_MIGRATING`, backend-unavailable, and storage-validation domain/API mappings including HTTP 423 in `apps/web/src/server/errors.ts` and `apps/web/src/server/api/errors.ts`
 - [ ] T020 [P] Implement the lifecycle-injected pg-boss factory in `apps/web/src/server/jobs/create-boss.ts`
 - [ ] T021 Implement explicit job registration and framework-managed startup without a global singleton in `apps/web/src/server/jobs/register.ts` and `apps/web/instrumentation.ts`
@@ -140,29 +146,29 @@ denial behavior.
 
 ### Tests for User Story 2
 
-- [ ] T038 [P] [US2] Run ContentStore conformance tests against LocalStore including traversal and namespace escape rejection in `apps/web/src/server/content-store/local-store.test.ts`
-- [ ] T039 [P] [US2] Run ContentStore conformance tests against MinIO-backed S3Store including prefix confinement in `apps/web/src/server/content-store/s3-store.test.ts`
-- [ ] T040 [P] [US2] Add storage configuration tests for encryption, secret masking/rotation, URL credential rejection, health checks, and admin-only access in `apps/web/src/server/services/storage-config.test.ts`
+- [X] T038 [P] [US2] Run ContentStore conformance tests against LocalStore including traversal and namespace escape rejection in `apps/web/src/server/content-store/local-store.test.ts`
+- [X] T039 [P] [US2] Run ContentStore conformance tests against MinIO-backed S3Store including prefix confinement in `apps/web/src/server/content-store/s3-store.test.ts`
+- [X] T040 [P] [US2] Add storage configuration tests for encryption, secret masking/rotation, URL credential rejection, health checks, and admin-only access in `apps/web/src/server/services/storage-config.test.ts`
 - [ ] T041 [P] [US2] Add Git export tests for initial backfill, publish/delete/rename reconciliation, stale-asset pruning, per-remote serialization, retry, and force-with-lease warnings in `apps/web/src/server/jobs/git-export.test.ts`
-- [ ] T042 [P] [US2] Add Playwright coverage for `/admin/storage`, Local/S3 forms, connection checks, secret masking, Git enablement, deep links, and non-admin denial in `apps/web/e2e/content-storage-admin.spec.ts`
+- [X] T042 [P] [US2] Add Playwright coverage for `/admin/storage`, Local/S3 forms, connection checks, secret masking, Git enablement, deep links, and non-admin denial in `apps/web/e2e/content-storage-admin.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T043 [P] [US2] Implement atomic file writes, managed-directory confinement, enumeration, deletion, and health probes in `apps/web/src/server/content-store/local-store.ts`
-- [ ] T044 [P] [US2] Implement S3 object operations, prefix confinement, pagination, deletion, and health probes in `apps/web/src/server/content-store/s3-store.ts`
-- [ ] T045 [US2] Register LocalStore and S3Store factories in `apps/web/src/server/content-store/registry.ts`
-- [ ] T046 [US2] Implement backend configuration CRUD, encryption/decryption, masked views, URL validation, and health checks in `apps/web/src/server/services/storage-config.ts`
-- [ ] T047 [US2] Implement admin-only storage configuration GET/PUT endpoints with OpenAPI metadata and API auditing in `apps/web/app/api/storage/route.ts`
-- [ ] T048 [US2] Implement ephemeral backend connection checks with OpenAPI metadata and API auditing in `apps/web/app/api/storage/backend-checks/route.ts`
+- [X] T043 [P] [US2] Implement atomic file writes, managed-directory confinement, enumeration, deletion, and health probes in `apps/web/src/server/content-store/local-store.ts`
+- [X] T044 [P] [US2] Implement S3 object operations, prefix confinement, pagination, deletion, and health probes in `apps/web/src/server/content-store/s3-store.ts`
+- [X] T045 [US2] Register LocalStore and S3Store factories in `apps/web/src/server/content-store/registry.ts`
+- [X] T046 [US2] Implement backend configuration CRUD, encryption/decryption, masked views, URL validation, and health checks in `apps/web/src/server/services/storage-config.ts`
+- [X] T047 [US2] Implement admin-only storage configuration GET/PUT endpoints with OpenAPI metadata and API auditing in `apps/web/app/api/storage/route.ts`
+- [X] T048 [US2] Implement ephemeral backend connection checks with OpenAPI metadata and API auditing in `apps/web/app/api/storage/backend-checks/route.ts`
 - [ ] T049 [US2] Implement Git-export configuration enable/disable, encrypted token rotation, and backfill enqueueing in `apps/web/app/api/storage/git-export/route.ts`
 - [ ] T050 [P] [US2] Implement standard Markdown/frontmatter and asset-tree materialization for the system-owned branch in `apps/web/src/server/git/export.ts`
 - [ ] T051 [US2] Implement serialized/coalesced Git export jobs, retries, stale-file pruning, and force-with-lease warning persistence in `apps/web/src/server/jobs/git-export.ts`
 - [ ] T052 [US2] Register Git export handling and enqueue export after publish, delete, and path changes in `apps/web/src/server/jobs/register.ts`, `apps/web/src/server/services/revisions.ts`, and `apps/web/src/server/services/pages.ts`
-- [ ] T053 [P] [US2] Build backend-specific forms, masked secret controls, health-check feedback, and Git export controls in `apps/web/src/components/admin/storage/StorageBackendForm.tsx`
-- [ ] T054 [P] [US2] Build the backend summary and active-backend presentation in `apps/web/src/components/admin/storage/StorageBackendSummary.tsx`
-- [ ] T055 [US2] Implement the canonical server-aware admin storage page and breadcrumbs in `apps/web/app/(admin)/admin/storage/page.tsx`
-- [ ] T056 [US2] Add Content Storage to the existing admin navigation in `apps/web/src/components/layout/Navigator.tsx`
-- [ ] T057 [P] [US2] Add matching English and Chinese backend, health-check, secret, Git export, and admin-navigation strings in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T053 [P] [US2] Build backend-specific forms, masked secret controls, health-check feedback, and Git export controls in `apps/web/src/components/admin/storage/StorageBackendForm.tsx`
+- [X] T054 [P] [US2] Build the backend summary and active-backend presentation in `apps/web/src/components/admin/storage/StorageBackendSummary.tsx`
+- [X] T055 [US2] Implement the canonical server-aware admin storage page and breadcrumbs in `apps/web/app/(admin)/admin/storage/page.tsx`
+- [X] T056 [US2] Add Content Storage to the existing admin navigation in `apps/web/src/components/layout/Navigator.tsx`
+- [X] T057 [P] [US2] Add matching English and Chinese backend, health-check, secret, Git export, and admin-navigation strings in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: US2 can configure and validate all supported storage methods; the
 active authoritative backend remains Database until US3 performs a migration.
