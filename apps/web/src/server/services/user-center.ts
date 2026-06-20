@@ -3,7 +3,7 @@ import { eq, ne, and } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
-import type { PermCtx } from '@/server/permissions';
+import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import type {
   UpdateProfileInput,
   ChangeEmailInput,
@@ -17,6 +17,22 @@ function requireUser(ctx: PermCtx): { userId: string } {
     throw new DomainError('UNAUTHORIZED', 'Sign in to manage your account');
   }
   return { userId: ctx.actor.userId };
+}
+
+/**
+ * Resolve the acting user for preference operations. Unlike other account
+ * actions, preferences may be driven by an API key carrying the `preferences`
+ * scope (manage_preferences, self only — FR-023/FR-024).
+ */
+function requirePreferenceActor(ctx: PermCtx): { userId: string } {
+  const userId = getActorUserId(ctx);
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to manage your preferences');
+  }
+  if (!can(ctx, 'manage_preferences', { kind: 'preferences' })) {
+    throw new DomainError('FORBIDDEN', 'This API key cannot manage preferences');
+  }
+  return { userId };
 }
 
 export async function updateProfile(
@@ -106,7 +122,7 @@ export async function updatePreferences(
   ctx: PermCtx,
   input: UpdatePreferencesInput,
 ): Promise<PreferencesView> {
-  const { userId } = requireUser(ctx);
+  const { userId } = requirePreferenceActor(ctx);
 
   const updates: Partial<typeof schema.users.$inferInsert> = { updatedAt: new Date() };
   if (input.theme !== undefined) updates.themePreference = input.theme;
@@ -129,10 +145,11 @@ export async function updatePreferences(
 }
 
 export async function getPreferences(ctx: PermCtx): Promise<PreferencesView | null> {
-  if (ctx.actor.kind !== 'user') return null;
+  const userId = getActorUserId(ctx);
+  if (!userId || !can(ctx, 'manage_preferences', { kind: 'preferences' })) return null;
 
   const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, ctx.actor.userId),
+    where: eq(schema.users.id, userId),
     columns: { themePreference: true, localePreference: true },
   });
 

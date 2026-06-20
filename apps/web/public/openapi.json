@@ -20,16 +20,6 @@
       }
     },
     "schemas": {
-      "ApiKeyCreated": {
-        "type": "object"
-      },
-      "ApiKeyViewList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/apiKeyViewSchema"
-        },
-        "description": "List of API keys"
-      },
       "apiKeyViewListSchema": {
         "type": "array",
         "items": {
@@ -52,9 +42,6 @@
           "email"
         ],
         "description": "Changed email response"
-      },
-      "CreateApiKeyInput": {
-        "type": "object"
       },
       "errorResponseSchema": {
         "type": "object",
@@ -305,6 +292,113 @@
     "responses": {}
   },
   "paths": {
+    "/api-keys": {
+      "get": {
+        "operationId": "get-api-keys",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-api-keys",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/api-keys/{id}": {
+      "delete": {
+        "operationId": "delete-api-keys-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api-keys/{id}/reveal": {
+      "get": {
+        "operationId": "get-api-keys-{id}-reveal",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/assets": {
+      "post": {
+        "operationId": "post-assets",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/assets/{id}": {
+      "get": {
+        "operationId": "get-assets-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/audit": {
       "get": {
         "operationId": "get-audit",
@@ -381,7 +475,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -441,7 +535,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/registerOutputSchema"
+                  "$ref": "#/components/schemas/RegisterOutput"
                 }
               }
             }
@@ -478,7 +572,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -510,7 +604,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -680,7 +774,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PreviewInput"
+                "$ref": "#/components/schemas/previewInputSchema"
               }
             }
           }
@@ -691,7 +785,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/previewOutputSchema"
+                  "$ref": "#/components/schemas/PreviewOutput"
                 }
               }
             }
@@ -767,66 +861,125 @@
         "responses": {}
       }
     },
-    "/api-keys": {
+    "/storage": {
       "get": {
-        "operationId": "get-api-keys",
-        "summary": "List API keys",
-        "description": "Returns the current user's API keys without secrets. Session-only; not callable with a Bearer key.",
+        "operationId": "get-storage",
+        "summary": "",
+        "description": "",
         "tags": [
-          "User"
+          "Storage"
         ],
         "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/apiKeyViewListSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       },
-      "post": {
-        "operationId": "post-api-keys",
-        "summary": "Create an API key",
-        "description": "Creates a new API key with the requested scopes. Session-only; not callable with a Bearer key. The full secret is returned only once.",
+      "put": {
+        "operationId": "put-storage",
+        "summary": "",
+        "description": "",
         "tags": [
-          "User"
+          "Storage"
         ],
         "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/createApiKeyInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/apiKeyCreatedSchema"
-                }
-              }
-            }
-          }
-        }
+        "responses": {}
       }
     },
-    "/api-keys/{id}": {
-      "delete": {
-        "operationId": "delete-api-keys-{id}",
-        "summary": "Revoke API key",
-        "description": "Revokes one of the user's API keys. Session-only; not callable with a Bearer key.",
+    "/storage/backend-checks": {
+      "post": {
+        "operationId": "post-storage-backend-checks",
+        "summary": "",
+        "description": "",
         "tags": [
-          "User"
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/storage/cleanup-jobs": {
+      "post": {
+        "operationId": "post-storage-cleanup-jobs",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/storage/migrations": {
+      "get": {
+        "operationId": "get-storage-migrations",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-storage-migrations",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/storage/cleanup-jobs/{id}": {
+      "get": {
+        "operationId": "get-storage-cleanup-jobs-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/storage/migrations/{id}": {
+      "get": {
+        "operationId": "get-storage-migrations-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      },
+      "delete": {
+        "operationId": "delete-storage-migrations-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
         ],
         "parameters": [
           {
@@ -893,40 +1046,6 @@
         ],
         "parameters": [],
         "responses": {}
-      }
-    },
-    "/api-keys/{id}/reveal": {
-      "get": {
-        "operationId": "get-api-keys-{id}-reveal",
-        "summary": "Reveal API key secret",
-        "description": "Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.",
-        "tags": [
-          "User"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/apiKeyRevealSchema"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/users": {
@@ -1013,6 +1132,12 @@
   },
   "tags": [
     {
+      "name": "Api-keys"
+    },
+    {
+      "name": "Assets"
+    },
+    {
       "name": "Audit"
     },
     {
@@ -1038,6 +1163,9 @@
     },
     {
       "name": "Revisions"
+    },
+    {
+      "name": "Storage"
     },
     {
       "name": "User"

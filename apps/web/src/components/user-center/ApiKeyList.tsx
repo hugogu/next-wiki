@@ -18,7 +18,7 @@ import { PlusIcon, TrashIcon, EyeIcon } from '@/components/icons';
 import { ApiKeyCreateDialog } from './ApiKeyCreateDialog';
 import { ApiKeyReveal } from './ApiKeyReveal';
 
-const SCOPE_ORDER: ApiKeyScope[] = ['view', 'create', 'edit', 'delete', 'share', 'run'];
+const SCOPE_ORDER: ApiKeyScope[] = ['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences'];
 
 interface ApiKeyListProps {
   initialKeys: ApiKeyView[];

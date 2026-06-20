@@ -11,7 +11,7 @@ import {
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { type PermCtx } from '@/server/permissions';
+import { can, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { encryptKey } from '@/server/crypto/key-encryption';
 import { buildStore, getStoreFor, type StoreSpec } from '@/server/content-store/registry';
@@ -24,7 +24,9 @@ type StorageBackendRow = typeof schema.storageBackends.$inferSelect;
  * does not exist (hidden denial); callers map a thrown FORBIDDEN/`null` to 404.
  */
 export function isStorageAdmin(ctx: PermCtx): boolean {
-  return ctx.actor.kind === 'user' && ctx.actor.role === 'admin';
+  // Admin session actor, or an admin-owned API key carrying the `storage` scope
+  // (scope ∩ role enforced in can(), FR-024).
+  return can(ctx, 'manage_storage', { kind: 'storage' });
 }
 
 export function assertCanManageStorage(ctx: PermCtx): void {

@@ -2,7 +2,7 @@ import { and, eq, inArray, or } from 'drizzle-orm';
 import type { CleanupJobView } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { type PermCtx } from '@/server/permissions';
+import { getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { assertCanManageStorage } from '@/server/services/storage-config';
 
@@ -30,7 +30,7 @@ export async function startCleanup(
   input: { backendId: string; confirm: true },
 ): Promise<CleanupJobView> {
   assertCanManageStorage(ctx);
-  const userId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  const userId = getActorUserId(ctx);
   if (!userId) throw new DomainError('UNAUTHORIZED', 'Sign in to start cleanup');
 
   const backend = await db.query.storageBackends.findFirst({

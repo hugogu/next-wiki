@@ -1,6 +1,15 @@
 import { z } from 'zod';
 
-export const apiKeyScopeSchema = z.enum(['view', 'create', 'edit', 'delete', 'share', 'run']);
+export const apiKeyScopeSchema = z.enum([
+  'view',
+  'create',
+  'edit',
+  'delete',
+  'share',
+  'run',
+  'storage',
+  'preferences',
+]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
 export const createApiKeyInputSchema = z.object({

@@ -53,6 +53,17 @@ describe('api-keys service', () => {
       ).rejects.toThrow(DomainError);
     });
 
+    it('creates a key carrying the new storage and preferences scopes', async () => {
+      const user = await createTestUser('apikey-scopes@example.com');
+      const ctx = buildUserCtx(user.id, user.role);
+
+      const created = await apiKeyService.create(ctx, 'scoped-bot', ['storage', 'preferences']);
+      expect(created.scopes).toEqual(['storage', 'preferences']);
+
+      const row = await db.query.apiKeys.findFirst({ where: eq(schema.apiKeys.id, created.id) });
+      expect(row!.scopes).toEqual(['storage', 'preferences']);
+    });
+
     it('rejects an API-key actor (no key minting via key, prevents scope escalation)', async () => {
       const user = await createTestUser('apikey-mint@example.com');
       const ctx = buildApiKeyCtx(user.id, user.role, ['view'], 'some-key-id');

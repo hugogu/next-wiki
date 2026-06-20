@@ -32,6 +32,17 @@ import {
   updatePreferencesInputSchema,
   updateProfileInputSchema,
   userViewSchema,
+  assetUploadResultSchema,
+  storageOverviewSchema,
+  storageBackendViewSchema,
+  storageBackendUpsertSchema,
+  backendCheckSchema,
+  backendCheckResultSchema,
+  migrationViewSchema,
+  migrationListSchema,
+  migrationStartSchema,
+  cleanupJobViewSchema,
+  cleanupStartSchema,
 } from '@next-wiki/shared';
 
 export {
@@ -117,6 +128,18 @@ export const errorResponseSchema = z
     code: z.string(),
   })
   .describe('API error response');
+
+export const AssetUploadResult = assetUploadResultSchema;
+export const StorageOverview = storageOverviewSchema;
+export const StorageBackendView = storageBackendViewSchema;
+export const StorageBackendUpsert = storageBackendUpsertSchema;
+export const BackendCheckInput = backendCheckSchema;
+export const BackendCheckResult = backendCheckResultSchema;
+export const MigrationView = migrationViewSchema;
+export const MigrationList = migrationListSchema;
+export const MigrationStartInput = migrationStartSchema;
+export const CleanupJobView = cleanupJobViewSchema;
+export const CleanupStartInput = cleanupStartSchema;
 
 export const ApiKeyViewList = apiKeyViewListSchema;
 export const CreateApiKeyInput = createApiKeyInputSchema;

@@ -12,27 +12,29 @@ implemented and validated as an independent increment.
 
 ## Implementation status & scope notes
 
-**Delivered: Foundation + US1 (MVP) + US2 backend configuration.**
+**Delivered: Foundation + US1 (MVP) + US2 backend config + US3 migration + US4 scopes.**
 
 - **MVP (Phase 1/2/3, US1)** — Database-backed in-editor images.
-- **US2 core (Phase 4)** — Local + S3 ContentStore backends, the storage-config
-  service, admin API (`GET/PUT /api/storage`, `POST /api/storage/backend-checks`),
-  the `/admin/storage` admin UI, markdown read/write indirection through the
-  active store (T017/T018), and the MinIO compose profile (T003).
+- **US2 core (Phase 4)** — Local + S3 ContentStore backends, storage-config
+  service, admin API + `/admin/storage` UI, markdown indirection, MinIO profile.
+- **US3 (Phase 5)** — pg-boss worker (T020/T021), safe copy→verify→cutover
+  migration with write-lock/abort/recovery, retained-backend + orphan cleanup,
+  and the migration/cleanup admin UI. Verified live: cutover, 423 write-lock,
+  read availability, and crash recovery.
+- **US4 (Phase 6)** — `storage`/`preferences` API-key scopes, the
+  `manage_storage`/`manage_preferences` actions through `can()` (scope ∩ role),
+  scoped preference self-service, admin-gated storage routes, and key-create UI.
 
 The following tasks remain **deferred** to a later increment:
 
-- **Git export (T041, T049–T052) + pg-boss (T001 remainder, T020, T021)** — Git
-  one-way export is the only async piece of US2 and shares the pg-boss job
-  infrastructure with US3 migration/cleanup. It is split into its own increment
-  (US2b). Only `@aws-sdk/client-s3` was added in T001; `pg-boss` and
-  `isomorphic-git` land with that increment.
-- **US2 storage permission scope** — storage routes are gated to **admin session
-  actors** for now (the role half of scope ∩ role). The `manage_storage` action
-  and API-key `storage` scope land with US4 (T084–T091).
+- **Git export (T041, T049–T052)** — Git one-way export (US2b). `isomorphic-git`
+  is the only outstanding dependency from T001 (`pg-boss` and
+  `@aws-sdk/client-s3` are now installed).
 - **T025** — route-handler unit tests. This project tests at the service layer
   plus Playwright e2e (no existing route-level unit tests); route behavior is
   covered by service tests and the `e2e/*.spec.ts` files.
+- **Phase 7 polish** — quickstart docs (T093) and the final security/i18n
+  review passes (T099/T100) beyond what the suites already enforce.
 
 The reusable ContentStore conformance suite (T006) lives in
 `content-store.conformance.ts` (a plain module, not `*.test.ts`) so it can be
@@ -87,8 +89,8 @@ job lifecycle, and read/write indirection required by every story.
 - [X] T017 Refactor page create, draft, history, and live-read paths to use the active ContentStore while preserving rendered HTML and fingerprints in `apps/web/src/server/services/pages.ts`
 - [X] T018 Refactor revision reads and publish paths to resolve raw Markdown through the active ContentStore in `apps/web/src/server/services/revisions.ts`
 - [X] T019 Add `STORAGE_MIGRATING`, backend-unavailable, and storage-validation domain/API mappings including HTTP 423 in `apps/web/src/server/errors.ts` and `apps/web/src/server/api/errors.ts`
-- [ ] T020 [P] Implement the lifecycle-injected pg-boss factory in `apps/web/src/server/jobs/create-boss.ts`
-- [ ] T021 Implement explicit job registration and framework-managed startup without a global singleton in `apps/web/src/server/jobs/register.ts` and `apps/web/instrumentation.ts`
+- [X] T020 [P] Implement the lifecycle-injected pg-boss factory in `apps/web/src/server/jobs/create-boss.ts`
+- [X] T021 Implement explicit job registration and framework-managed startup without a global singleton in `apps/web/src/server/jobs/register.ts` and `apps/web/instrumentation.ts`
 
 **Checkpoint**: Database-backed content works through ContentStore, migrations can
 be applied safely, and job handlers can be registered explicitly.
@@ -189,31 +191,31 @@ backend.
 
 ### Tests for User Story 3
 
-- [ ] T058 [P] [US3] Add migration-service tests for target validation, non-empty confirmation, single-flight locking, immediate read-only state, and enqueue failure recovery in `apps/web/src/server/services/migration.test.ts`
-- [ ] T059 [P] [US3] Add migration-job tests for copy/verify counters, fingerprint mismatch, failure retention, restart idempotency, cooperative abort checkpoints, and guarded cutover in `apps/web/src/server/jobs/content-migration.test.ts`
-- [ ] T060 [P] [US3] Add write-lock regression tests for page create, draft, publish, and asset upload while preserving reads in `apps/web/src/server/services/storage-read-only.test.ts`
-- [ ] T061 [P] [US3] Add cleanup-job tests for confirmation, active/in-use backend refusal, namespace confinement, progress, and partial deletion failure in `apps/web/src/server/jobs/storage-cleanup.test.ts`
-- [ ] T062 [P] [US3] Add orphan-cleanup tests for abandoned uploads, compensated-write leftovers, grace periods, and referenced revision preservation in `apps/web/src/server/jobs/orphan-cleanup.test.ts`
-- [ ] T063 [P] [US3] Add Playwright coverage for switch confirmation, migration progress/deep links, read availability, 423 write feedback, abort, failure/retry, and retained-backend cleanup in `apps/web/e2e/content-storage-migration.spec.ts`
+- [X] T058 [P] [US3] Add migration-service tests for target validation, non-empty confirmation, single-flight locking, immediate read-only state, and enqueue failure recovery in `apps/web/src/server/services/migration.test.ts`
+- [X] T059 [P] [US3] Add migration-job tests for copy/verify counters, fingerprint mismatch, failure retention, restart idempotency, cooperative abort checkpoints, and guarded cutover in `apps/web/src/server/jobs/content-migration.test.ts`
+- [X] T060 [P] [US3] Add write-lock regression tests for page create, draft, publish, and asset upload while preserving reads in `apps/web/src/server/services/storage-read-only.test.ts`
+- [X] T061 [P] [US3] Add cleanup-job tests for confirmation, active/in-use backend refusal, namespace confinement, progress, and partial deletion failure in `apps/web/src/server/jobs/storage-cleanup.test.ts`
+- [X] T062 [P] [US3] Add orphan-cleanup tests for abandoned uploads, compensated-write leftovers, grace periods, and referenced revision preservation in `apps/web/src/server/jobs/orphan-cleanup.test.ts`
+- [X] T063 [P] [US3] Add Playwright coverage for switch confirmation, migration progress/deep links, read availability, 423 write feedback, abort, failure/retry, and retained-backend cleanup in `apps/web/e2e/content-storage-migration.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T064 [US3] Implement migration creation, transactional single-flight/write lock, target checks, progress views, abort intent, and recovery queries in `apps/web/src/server/services/migration.ts`
-- [ ] T065 [US3] Implement idempotent copy, fingerprint/count verification, cooperative abort checkpoints, guarded cutover, and failure retention in `apps/web/src/server/jobs/content-migration.ts`
-- [ ] T066 [US3] Implement migration start/list endpoints with confirmation errors, OpenAPI metadata, and API auditing in `apps/web/app/api/storage/migrations/route.ts`
-- [ ] T067 [US3] Implement migration status GET and cooperative abort DELETE endpoints with OpenAPI metadata and API auditing in `apps/web/app/api/storage/migrations/[id]/route.ts`
-- [ ] T068 [US3] Apply the migration write guard to page create/draft paths in `apps/web/src/server/services/pages.ts`
-- [ ] T069 [US3] Apply the migration write guard to revision publish paths in `apps/web/src/server/services/revisions.ts`
-- [ ] T070 [US3] Apply the migration write guard to image uploads in `apps/web/src/server/services/content-assets.ts`
-- [ ] T071 [P] [US3] Implement inactive-backend cleanup with progress and safety checks in `apps/web/src/server/jobs/storage-cleanup.ts`
-- [ ] T072 [P] [US3] Implement bounded abandoned-upload and unreferenced-object cleanup in `apps/web/src/server/jobs/orphan-cleanup.ts`
-- [ ] T073 [US3] Implement cleanup start/status endpoints with confirmation, OpenAPI metadata, and API auditing in `apps/web/app/api/storage/cleanup-jobs/route.ts` and `apps/web/app/api/storage/cleanup-jobs/[id]/route.ts`
-- [ ] T074 [US3] Register migration, cleanup, orphan cleanup, and interrupted-job recovery handlers in `apps/web/src/server/jobs/register.ts`
-- [ ] T075 [P] [US3] Build backend switch confirmation and non-empty-target warning UI in `apps/web/src/components/admin/storage/BackendSwitchDialog.tsx`
-- [ ] T076 [P] [US3] Build migration progress, abort, retry, and cleanup controls in `apps/web/src/components/admin/storage/MigrationStatus.tsx`
-- [ ] T077 [US3] Implement the bookmarkable migration detail page and connect status polling in `apps/web/app/(admin)/admin/storage/migrations/[id]/page.tsx`
-- [ ] T078 [US3] Integrate switch, current migration, retained backend, and cleanup state into `apps/web/app/(admin)/admin/storage/page.tsx`
-- [ ] T079 [P] [US3] Add matching English and Chinese migration, read-only, abort, retry, and cleanup strings in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T064 [US3] Implement migration creation, transactional single-flight/write lock, target checks, progress views, abort intent, and recovery queries in `apps/web/src/server/services/migration.ts`
+- [X] T065 [US3] Implement idempotent copy, fingerprint/count verification, cooperative abort checkpoints, guarded cutover, and failure retention in `apps/web/src/server/jobs/content-migration.ts`
+- [X] T066 [US3] Implement migration start/list endpoints with confirmation errors, OpenAPI metadata, and API auditing in `apps/web/app/api/storage/migrations/route.ts`
+- [X] T067 [US3] Implement migration status GET and cooperative abort DELETE endpoints with OpenAPI metadata and API auditing in `apps/web/app/api/storage/migrations/[id]/route.ts`
+- [X] T068 [US3] Apply the migration write guard to page create/draft paths in `apps/web/src/server/services/pages.ts`
+- [X] T069 [US3] Apply the migration write guard to revision publish paths in `apps/web/src/server/services/revisions.ts`
+- [X] T070 [US3] Apply the migration write guard to image uploads in `apps/web/src/server/services/content-assets.ts`
+- [X] T071 [P] [US3] Implement inactive-backend cleanup with progress and safety checks in `apps/web/src/server/jobs/storage-cleanup.ts`
+- [X] T072 [P] [US3] Implement bounded abandoned-upload and unreferenced-object cleanup in `apps/web/src/server/jobs/orphan-cleanup.ts`
+- [X] T073 [US3] Implement cleanup start/status endpoints with confirmation, OpenAPI metadata, and API auditing in `apps/web/app/api/storage/cleanup-jobs/route.ts` and `apps/web/app/api/storage/cleanup-jobs/[id]/route.ts`
+- [X] T074 [US3] Register migration, cleanup, orphan cleanup, and interrupted-job recovery handlers in `apps/web/src/server/jobs/register.ts`
+- [X] T075 [P] [US3] Build backend switch confirmation and non-empty-target warning UI in `apps/web/src/components/admin/storage/BackendSwitchDialog.tsx`
+- [X] T076 [P] [US3] Build migration progress, abort, retry, and cleanup controls in `apps/web/src/components/admin/storage/MigrationStatus.tsx`
+- [X] T077 [US3] Implement the bookmarkable migration detail page and connect status polling in `apps/web/app/(admin)/admin/storage/migrations/[id]/page.tsx`
+- [X] T078 [US3] Integrate switch, current migration, retained backend, and cleanup state into `apps/web/app/(admin)/admin/storage/page.tsx`
+- [X] T079 [P] [US3] Add matching English and Chinese migration, read-only, abort, retry, and cleanup strings in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: US3 safely switches among Database, Local, and S3 with no read
 downtime and no cutover before complete verification.
@@ -232,21 +234,21 @@ all calls appear in audit logs.
 
 ### Tests for User Story 4
 
-- [ ] T080 [P] [US4] Add permission-matrix tests for `manage_storage` and self-only `manage_preferences` across session and API-key actors in `apps/web/src/server/permissions/permissions.test.ts`
-- [ ] T081 [P] [US4] Add API-key service tests for creating, listing, revealing, and validating keys carrying the new immutable scopes in `apps/web/src/server/services/api-keys.test.ts`
-- [ ] T082 [P] [US4] Add preference-service tests for scoped API-key self-updates and missing-scope denial in `apps/web/src/server/services/user-center.test.ts`
-- [ ] T083 [P] [US4] Add Playwright/API coverage for scope selection, storage role intersection, preference updates, 403 responses, and audit entries in `apps/web/e2e/content-storage-scopes.spec.ts`
+- [X] T080 [P] [US4] Add permission-matrix tests for `manage_storage` and self-only `manage_preferences` across session and API-key actors in `apps/web/src/server/permissions/permissions.test.ts`
+- [X] T081 [P] [US4] Add API-key service tests for creating, listing, revealing, and validating keys carrying the new immutable scopes in `apps/web/src/server/services/api-keys.test.ts`
+- [X] T082 [P] [US4] Add preference-service tests for scoped API-key self-updates and missing-scope denial in `apps/web/src/server/services/user-center.test.ts`
+- [X] T083 [P] [US4] Add Playwright/API coverage for scope selection, storage role intersection, preference updates, 403 responses, and audit entries in `apps/web/e2e/content-storage-scopes.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T084 [P] [US4] Add `storage` and `preferences` to shared API-key schemas and labels in `packages/shared/src/api-keys.ts`
-- [ ] T085 [US4] Append the new PostgreSQL enum values through an additive Drizzle migration in `apps/web/src/server/db/schema/enums.ts` and `apps/web/src/server/db/migrations/`
-- [ ] T086 [US4] Add storage/preferences resources, actions, scope mappings, and role rules to the permission chokepoint in `apps/web/src/server/permissions/index.ts`
-- [ ] T087 [US4] Enforce `manage_preferences` while allowing API-key self-service in `apps/web/src/server/services/user-center.ts` and `apps/web/app/api/user/preferences/route.ts`
-- [ ] T088 [US4] Apply `manage_storage` and `withApiAudit` consistently across every route under `apps/web/app/api/storage/`
-- [ ] T089 [P] [US4] Add the two scopes to API-key creation and list ordering in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx` and `apps/web/src/components/user-center/ApiKeyList.tsx`
-- [ ] T090 [P] [US4] Add English and Chinese scope names/descriptions in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
-- [ ] T091 [US4] Register storage schemas and scope security metadata for OpenAPI generation in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/openapi-gen.config.ts`
+- [X] T084 [P] [US4] Add `storage` and `preferences` to shared API-key schemas and labels in `packages/shared/src/api-keys.ts`
+- [X] T085 [US4] Append the new PostgreSQL enum values through an additive Drizzle migration in `apps/web/src/server/db/schema/enums.ts` and `apps/web/src/server/db/migrations/`
+- [X] T086 [US4] Add storage/preferences resources, actions, scope mappings, and role rules to the permission chokepoint in `apps/web/src/server/permissions/index.ts`
+- [X] T087 [US4] Enforce `manage_preferences` while allowing API-key self-service in `apps/web/src/server/services/user-center.ts` and `apps/web/app/api/user/preferences/route.ts`
+- [X] T088 [US4] Apply `manage_storage` and `withApiAudit` consistently across every route under `apps/web/app/api/storage/`
+- [X] T089 [P] [US4] Add the two scopes to API-key creation and list ordering in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx` and `apps/web/src/components/user-center/ApiKeyList.tsx`
+- [X] T090 [P] [US4] Add English and Chinese scope names/descriptions in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T091 [US4] Register storage schemas and scope security metadata for OpenAPI generation in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/openapi-gen.config.ts`
 
 **Checkpoint**: US4 provides bounded, auditable automation access without granting
 permissions beyond the key owner's role.
@@ -260,7 +262,7 @@ security boundaries, and bilingual UX.
 
 - [ ] T092 [P] Add structured logging fields for backend type, migration/job IDs, asset IDs, progress, and sanitized failures in `apps/web/src/server/logger.ts`
 - [ ] T093 [P] Document Local volume, MinIO profile, Git branch ownership, backup/restore, migration recovery, and cleanup operations in `specs/003-content-storage-backends/quickstart.md`
-- [ ] T094 Generate and review the OpenAPI document after all route changes by running `pnpm --filter @next-wiki/web openapi:generate` and updating `apps/web/public/openapi.json`
+- [X] T094 Generate and review the OpenAPI document after all route changes by running `pnpm --filter @next-wiki/web openapi:generate` and updating `apps/web/public/openapi.json`
 - [ ] T095 Run `pnpm --filter @next-wiki/web test` and fix all ContentStore, service, permission, job, and route failures in `apps/web/src/`
 - [ ] T096 Run `pnpm --filter @next-wiki/web test:e2e` and fix all image, admin storage, migration, scope, navigation, and API documentation failures in `apps/web/e2e/`
 - [ ] T097 Run `pnpm lint`, `pnpm typecheck`, and `pnpm build`, fixing violations in `apps/web/` and `packages/shared/`

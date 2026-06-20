@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { MigrationView } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { type PermCtx } from '@/server/permissions';
+import { getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { getStoreFor } from '@/server/content-store/registry';
 import { type ContentStore } from '@/server/content-store/types';
@@ -69,7 +69,7 @@ export async function startMigration(
   input: { targetBackendId: string; confirmOverwrite?: boolean },
 ): Promise<{ id: string }> {
   assertCanManageStorage(ctx);
-  const userId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  const userId = getActorUserId(ctx);
   if (!userId) throw new DomainError('UNAUTHORIZED', 'Sign in to start a migration');
 
   const target = await db.query.storageBackends.findFirst({
@@ -163,11 +163,15 @@ export async function requestAbort(ctx: PermCtx, id: string): Promise<MigrationV
   return toMigrationView(updated!);
 }
 
-/** Ids of migrations interrupted by a crash, for boot recovery (FR-022). */
+/**
+ * Ids of migrations that should be (re-)queued on boot: those interrupted by a
+ * crash (`copying`/`verifying`) and any `pending` ones whose enqueue may have
+ * been missed. Re-running is idempotent (content-addressed writes, FR-022).
+ */
 export async function findInterruptedMigrationIds(): Promise<string[]> {
   const rows = await db
     .select({ id: schema.contentMigrations.id })
     .from(schema.contentMigrations)
-    .where(inArray(schema.contentMigrations.status, ['copying', 'verifying']));
+    .where(inArray(schema.contentMigrations.status, ['pending', 'copying', 'verifying']));
   return rows.map((r) => r.id);
 }

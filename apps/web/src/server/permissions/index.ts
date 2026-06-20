@@ -30,13 +30,17 @@ export type Action =
   | 'edit'
   | 'publish'
   | 'delete'
-  | 'manage_users';
+  | 'manage_users'
+  | 'manage_storage'
+  | 'manage_preferences';
 
 export type Resource =
   | { kind: 'page_list' }
   | { kind: 'page'; pageId: string }
   | { kind: 'revision'; pageId: string; version: number }
-  | { kind: 'users' };
+  | { kind: 'users' }
+  | { kind: 'storage' }
+  | { kind: 'preferences' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -45,6 +49,8 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   delete: ['delete'],
   share: [],
   run: [],
+  storage: ['manage_storage'],
+  preferences: ['manage_preferences'],
 };
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {
@@ -72,6 +78,12 @@ function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anony
       return isAuthor;
     case 'manage_users':
       return role === 'admin';
+    case 'manage_storage':
+      return role === 'admin';
+    case 'manage_preferences':
+      // Any authenticated user may manage their own preferences (self only —
+      // the resource is always the actor's own preferences).
+      return role !== 'anonymous';
     default:
       return false;
   }

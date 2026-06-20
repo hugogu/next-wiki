@@ -126,5 +126,23 @@ describe('user-center service', () => {
         userCenterService.updatePreferences(buildAnonymousCtx(), { theme: 'dark' }),
       ).rejects.toThrow(DomainError);
     });
+
+    it('allows an API key with the preferences scope to update its owner self', async () => {
+      const user = await createTestUser({ email: 'prefs-key@example.com' });
+      const ctx = buildApiKeyCtx(user.id, user.role, ['preferences'], 'key-id');
+
+      const result = await userCenterService.updatePreferences(ctx, { theme: 'light' });
+      expect(result.theme).toBe('light');
+      const row = await db.query.users.findFirst({ where: eq(schema.users.id, user.id) });
+      expect(row?.themePreference).toBe('light');
+    });
+
+    it('denies an API key without the preferences scope', async () => {
+      const user = await createTestUser({ email: 'prefs-noscope@example.com' });
+      const ctx = buildApiKeyCtx(user.id, user.role, ['view'], 'key-id');
+      await expect(
+        userCenterService.updatePreferences(ctx, { theme: 'dark' }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
   });
 });
