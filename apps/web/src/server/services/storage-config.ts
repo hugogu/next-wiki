@@ -15,6 +15,7 @@ import { can, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { encryptKey } from '@/server/crypto/key-encryption';
 import { buildStore, getStoreFor, type StoreSpec } from '@/server/content-store/registry';
+import { addBackendBackfillTasks, kickReplication } from './storage-replication';
 
 type StorageBackendRow = typeof schema.storageBackends.$inferSelect;
 
@@ -189,4 +190,134 @@ export async function checkBackend(
   } catch (error) {
     return { ok: false, detail: error instanceof Error ? error.message : String(error) };
   }
+}
+
+export async function enableBackend(
+  ctx: PermCtx,
+  backendId: string,
+): Promise<StorageBackendView> {
+  assertCanManageStorage(ctx);
+  const backend = await db.query.storageBackends.findFirst({
+    where: eq(schema.storageBackends.id, backendId),
+  });
+  if (!backend) throw new DomainError('NOT_FOUND', 'Backend not found');
+  if (backend.type === 'database') return toView(backend);
+
+  const health = await getStoreFor(backend).healthCheck();
+  if (!health.ok) {
+    throw new DomainError('BAD_REQUEST', health.detail ?? 'Backend health check failed');
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(schema.storageBackends)
+      .set({
+        isActive: false,
+        replicaState: 'backfilling',
+        syncStartedAt: new Date(),
+        syncCompletedAt: null,
+        lastError: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.storageBackends.id, backendId))
+      .returning();
+    await tx
+      .delete(schema.storageReplicationTasks)
+      .where(eq(schema.storageReplicationTasks.backendId, backendId));
+    await addBackendBackfillTasks(tx, backendId);
+    const pending = await tx
+      .select({ id: schema.storageReplicationTasks.id })
+      .from(schema.storageReplicationTasks)
+      .where(
+        and(
+          eq(schema.storageReplicationTasks.backendId, backendId),
+          inArray(schema.storageReplicationTasks.status, ['pending', 'running', 'failed']),
+        ),
+      )
+      .limit(1);
+    if (pending.length === 0) {
+      const [enabled] = await tx
+        .update(schema.storageBackends)
+        .set({
+          replicaState: 'enabled',
+          syncCompletedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.storageBackends.id, backendId))
+        .returning();
+      return enabled!;
+    }
+    return row!;
+  });
+  await kickReplication();
+  return toView(updated);
+}
+
+export async function disableBackend(
+  ctx: PermCtx,
+  backendId: string,
+  deleteData = false,
+): Promise<StorageBackendView> {
+  assertCanManageStorage(ctx);
+  const backend = await db.query.storageBackends.findFirst({
+    where: eq(schema.storageBackends.id, backendId),
+  });
+  if (!backend) throw new DomainError('NOT_FOUND', 'Backend not found');
+  if (backend.type === 'database') {
+    throw new DomainError('BAD_REQUEST', 'The authoritative Database backend cannot be disabled');
+  }
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(schema.storageBackends)
+      .set({
+        isActive: false,
+        isReadPreferred: false,
+        replicaState: deleteData ? 'deleting' : 'disabled',
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.storageBackends.id, backendId))
+      .returning();
+    await tx
+      .update(schema.storageReplicationTasks)
+      .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.storageReplicationTasks.backendId, backendId),
+          inArray(schema.storageReplicationTasks.status, ['pending', 'running', 'failed']),
+        ),
+      );
+    return row!;
+  });
+  return toView(updated);
+}
+
+export async function setPreferredReadBackend(
+  ctx: PermCtx,
+  backendId: string | null,
+): Promise<StorageBackendView | null> {
+  assertCanManageStorage(ctx);
+  return db.transaction(async (tx) => {
+    await tx
+      .update(schema.storageBackends)
+      .set({ isReadPreferred: false, updatedAt: new Date() })
+      .where(eq(schema.storageBackends.isReadPreferred, true));
+    if (backendId === null) return null;
+
+    const backend = await tx.query.storageBackends.findFirst({
+      where: eq(schema.storageBackends.id, backendId),
+    });
+    if (
+      !backend ||
+      backend.type === 'database' ||
+      !['enabled', 'degraded'].includes(backend.replicaState)
+    ) {
+      throw new DomainError('BAD_REQUEST', 'Preferred read backend must be an enabled replica');
+    }
+    const [updated] = await tx
+      .update(schema.storageBackends)
+      .set({ isReadPreferred: true, updatedAt: new Date() })
+      .where(eq(schema.storageBackends.id, backendId))
+      .returning();
+    return toView(updated!);
+  });
 }

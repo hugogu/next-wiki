@@ -224,7 +224,28 @@ export const en = {
   'admin.storage.metadataTitle': 'Content storage',
   'admin.storage.title': 'Content Storage',
   'admin.storage.description':
-    'Choose where page content and images are stored. The Database backend is the zero-configuration default.',
+    'Database is the source of truth. Enable one or more replicas for resilient and lower-cost reads.',
+  'admin.storage.database.description':
+    'All Markdown and image bytes are committed here first. This backend is always enabled and its configuration is read-only.',
+  'admin.storage.database.role': 'Storage role',
+  'admin.storage.replica.heading': 'Replica',
+  'admin.storage.replica.enabledToggle': 'Replica enabled',
+  'admin.storage.replica.databaseToggle': 'Database enabled',
+  'admin.storage.replica.authoritative': 'Authoritative',
+  'admin.storage.replica.unconfigured': 'Not configured',
+  'admin.storage.replica.preferred': 'Preferred for reads',
+  'admin.storage.replica.makePreferred': 'Prefer for reads',
+  'admin.storage.replica.lastSync': 'Last synchronized: {{time}}',
+  'admin.storage.replica.disableTitle': 'Disable this replica?',
+  'admin.storage.replica.disableMessage':
+    'The replica will stop receiving writes and will no longer serve reads. Choose whether to retain its existing data.',
+  'admin.storage.replica.disableKeep': 'Disable and keep data',
+  'admin.storage.replica.disableDelete': 'Disable and delete data',
+  'admin.storage.replica.state.disabled': 'Disabled',
+  'admin.storage.replica.state.backfilling': 'Backfilling',
+  'admin.storage.replica.state.enabled': 'Enabled',
+  'admin.storage.replica.state.degraded': 'Degraded',
+  'admin.storage.replica.state.deleting': 'Deleting',
   'admin.storage.active.heading': 'Active backend',
   'admin.storage.active.typeLabel': 'Type',
   'admin.storage.active.statusLabel': 'Status',
@@ -254,6 +275,8 @@ export const en = {
   'admin.storage.saved': 'Configuration saved.',
   'admin.storage.note.activation':
     'Saving stores the configuration. Switching the active backend runs a safe migration.',
+  'admin.storage.note.replication':
+    'Save and test the configuration before enabling it. Enabling starts an asynchronous Database backfill.',
 
   'admin.storage.actions.heading': 'Switch active backend',
   'admin.storage.actions.switch': 'Switch to this',

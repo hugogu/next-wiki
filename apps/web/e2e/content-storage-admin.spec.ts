@@ -20,12 +20,13 @@ async function registerReader(page: Page, email: string) {
 }
 
 test.describe('admin content storage', () => {
-  test('admin sees the active Database backend, tests and saves a Local backend', async ({ page }) => {
+  test('admin sees the authoritative Database tab, tests and saves a Local replica', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/storage');
 
-    await expect(page.getByRole('heading', { name: 'Active backend' })).toBeVisible();
-    await expect(page.getByText('Database', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Database/ })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Database enabled' })).toBeChecked();
+    await page.getByRole('tab', { name: /Local filesystem/ }).click();
 
     // Configure and test the Local backend with a writable temp directory.
     const local = page.locator('section', { hasText: 'Local filesystem' });
@@ -40,6 +41,7 @@ test.describe('admin content storage', () => {
   test('S3 secret field never round-trips the stored secret', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/storage');
+    await page.getByRole('tab', { name: /S3-compatible/ }).click();
 
     const s3 = page.locator('section', { hasText: 'S3-compatible storage' });
     await s3.getByLabel('Region').fill('us-east-1');
@@ -51,7 +53,8 @@ test.describe('admin content storage', () => {
 
     // After reload the secret input is empty and shows the "configured" hint.
     await page.reload();
-    const secret = s3.getByLabel('Secret access key');
+    await page.getByRole('tab', { name: /S3-compatible/ }).click();
+    const secret = page.getByLabel('Secret access key');
     await expect(secret).toHaveValue('');
     await expect(secret).toHaveAttribute('placeholder', /configured/i);
   });

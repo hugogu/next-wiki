@@ -34,7 +34,6 @@ export async function runStorageCleanup(jobId: string): Promise<void> {
       .update(schema.storageCleanupJobs)
       .set({ status: 'running', startedAt: job.startedAt ?? new Date() })
       .where(eq(schema.storageCleanupJobs.id, jobId));
-
     const mdKeys = await collect(store.listMarkdownKeys());
     const imgKeys = await collect(store.listImageKeys());
     await db
@@ -68,6 +67,17 @@ export async function runStorageCleanup(jobId: string): Promise<void> {
       .update(schema.storageCleanupJobs)
       .set({ status: 'completed', finishedAt: new Date() })
       .where(eq(schema.storageCleanupJobs.id, jobId));
+    await db
+      .update(schema.storageBackends)
+      .set({
+        replicaState: 'disabled',
+        syncStartedAt: null,
+        syncCompletedAt: null,
+        lastSyncAt: null,
+        lastError: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.storageBackends.id, backend.id));
   } catch (error) {
     await fail(jobId, error instanceof Error ? error.message : String(error));
   }
@@ -79,4 +89,17 @@ async function fail(jobId: string, message: string): Promise<void> {
     .update(schema.storageCleanupJobs)
     .set({ status: 'failed', errorMessage: message, finishedAt: new Date() })
     .where(eq(schema.storageCleanupJobs.id, jobId));
+  const job = await db.query.storageCleanupJobs.findFirst({
+    where: eq(schema.storageCleanupJobs.id, jobId),
+  });
+  if (job) {
+    const backend = await db.query.storageBackends.findFirst({
+      where: eq(schema.storageBackends.id, job.backendId),
+    });
+    if (backend?.replicaState !== 'deleting') return;
+    await db
+      .update(schema.storageBackends)
+      .set({ replicaState: 'degraded', lastError: message, updatedAt: new Date() })
+      .where(eq(schema.storageBackends.id, job.backendId));
+  }
 }

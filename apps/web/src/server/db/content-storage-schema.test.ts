@@ -53,13 +53,19 @@ describe('storage_backends', () => {
     expect(rows[0]!.isActive).toBe(true);
   });
 
-  it('allows at most one active primary backend', async () => {
+  it('allows multiple enabled replicas while Database remains authoritative', async () => {
     await seedDefaultStorageBackend();
-    await expect(
-      db
-        .insert(schema.storageBackends)
-        .values({ type: 'local', purpose: 'primary', isActive: true, config: { basePath: '/data' } }),
-    ).rejects.toBeTruthy();
+    await db.insert(schema.storageBackends).values({
+      type: 'local',
+      purpose: 'primary',
+      replicaState: 'enabled',
+      config: { basePath: '/data' },
+    });
+    const rows = await db
+      .select()
+      .from(schema.storageBackends)
+      .where(eq(schema.storageBackends.replicaState, 'enabled'));
+    expect(rows.map((row) => row.type).sort()).toEqual(['database', 'local']);
   });
 
   it('permits a configured-but-inactive secondary primary', async () => {
@@ -93,7 +99,7 @@ describe('storage_backends', () => {
 });
 
 describe('page_revisions.content_source', () => {
-  it('is nullable so external backends can store markdown out of the database', async () => {
+  it('remains nullable only for compatibility with legacy external-only revisions', async () => {
     const space = await db.query.spaces.findFirst();
     const [page] = await db
       .insert(schema.pages)

@@ -158,3 +158,33 @@ describe('connection checks', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 });
+
+describe('replica lifecycle', () => {
+  it('backfills an enabled Local replica and can select it for reads', async () => {
+    const temp = await withTempDir();
+    try {
+      const configured = await storageConfig.upsertBackend(adminCtx, {
+        type: 'local',
+        config: { basePath: temp.dir },
+      });
+      const enabled = await storageConfig.enableBackend(adminCtx, configured.id);
+      expect(['backfilling', 'enabled']).toContain(enabled.replicaState);
+
+      const preferred = await storageConfig.setPreferredReadBackend(adminCtx, configured.id);
+      expect(preferred?.isReadPreferred).toBe(true);
+
+      const disabled = await storageConfig.disableBackend(adminCtx, configured.id);
+      expect(disabled.replicaState).toBe('disabled');
+      expect(disabled.isReadPreferred).toBe(false);
+    } finally {
+      await temp.cleanup();
+    }
+  });
+
+  it('never permits disabling the authoritative Database backend', async () => {
+    const overview = await storageConfig.getOverview(adminCtx);
+    await expect(
+      storageConfig.disableBackend(adminCtx, overview!.authoritative.id),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+});

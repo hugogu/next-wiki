@@ -5,6 +5,7 @@ export const QUEUES = {
   migration: 'content-migration',
   storageCleanup: 'storage-cleanup',
   orphanCleanup: 'orphan-cleanup',
+  replication: 'storage-replication',
 } as const;
 
 /**

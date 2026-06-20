@@ -28,6 +28,9 @@ ALTER TABLE "storage_backends" ADD COLUMN "last_error" text;--> statement-breakp
 UPDATE "storage_backends"
 SET "replica_state" = 'enabled'
 WHERE "type" = 'database' AND "purpose" = 'primary';--> statement-breakpoint
+UPDATE "storage_backends"
+SET "is_active" = ("type" = 'database')
+WHERE "purpose" = 'primary';--> statement-breakpoint
 ALTER TABLE "storage_replication_tasks" ADD CONSTRAINT "storage_replication_tasks_backend_id_storage_backends_id_fk" FOREIGN KEY ("backend_id") REFERENCES "public"."storage_backends"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "storage_replication_tasks_delivery" ON "storage_replication_tasks" USING btree ("backend_id","object_kind","object_id","operation");--> statement-breakpoint
 CREATE INDEX "storage_replication_tasks_status_available_at_index" ON "storage_replication_tasks" USING btree ("status","available_at");--> statement-breakpoint

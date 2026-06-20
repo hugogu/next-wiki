@@ -929,6 +929,18 @@
         "responses": {}
       }
     },
+    "/storage/read-backend": {
+      "put": {
+        "operationId": "put-storage-read-backend",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/storage/cleanup-jobs/{id}": {
       "get": {
         "operationId": "get-storage-cleanup-jobs-{id}",
@@ -998,6 +1010,52 @@
             "description": "No Content"
           }
         }
+      }
+    },
+    "/storage/backends/{id}/disable": {
+      "post": {
+        "operationId": "post-storage-backends-{id}-disable",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/storage/backends/{id}/enable": {
+      "post": {
+        "operationId": "post-storage-backends-{id}-enable",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
       }
     },
     "/user/email": {

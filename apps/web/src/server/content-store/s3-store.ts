@@ -7,6 +7,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getStoredContentType } from './asset-content-type';
 import {
   ASSETS_PREFIX,
@@ -70,6 +71,14 @@ export class S3Store implements ContentStore {
 
   private imageKey(assetId: string): string {
     return this.key(ASSETS_PREFIX, assetId);
+  }
+
+  async presignImage(assetId: string, expiresIn = 60): Promise<string> {
+    return getSignedUrl(
+      this.client,
+      new GetObjectCommand({ Bucket: this.bucket, Key: this.imageKey(assetId) }),
+      { expiresIn },
+    );
   }
 
   async putMarkdown(revisionId: string, source: string): Promise<void> {

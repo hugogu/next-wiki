@@ -160,7 +160,7 @@ export function StorageBackendForm({
         </p>
       )}
 
-      <p className="mt-sm text-xs text-muted">{t('admin.storage.note.activation')}</p>
+      <p className="mt-sm text-xs text-muted">{t('admin.storage.note.replication')}</p>
     </section>
   );
 }

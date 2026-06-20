@@ -8,11 +8,14 @@ import * as schema from '@/server/db/schema';
 import { buildUserCtx, type PermCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import { withTempDir } from '../../../test/content-storage-fixtures';
+import { seedDefaultStorageBackend } from '@/server/seed';
+import { runStorageReplication } from '@/server/jobs/storage-replication';
 
 let editorCtx: PermCtx;
 let temp: { dir: string; cleanup: () => Promise<void> };
 
 async function cleanup() {
+  await db.delete(schema.storageReplicationTasks);
   await db.delete(schema.contentAssetRefs);
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
@@ -33,11 +36,13 @@ beforeAll(async () => {
   editorCtx = buildUserCtx(editor!.id, 'editor');
 
   temp = await withTempDir();
-  // Make Local the active authoritative backend.
+  await seedDefaultStorageBackend();
+  // Enable Local as a replica and prefer it for reads.
   await db.insert(schema.storageBackends).values({
     type: 'local',
     purpose: 'primary',
-    isActive: true,
+    replicaState: 'enabled',
+    isReadPreferred: true,
     config: { basePath: temp.dir },
   });
 });
@@ -48,8 +53,8 @@ afterAll(async () => {
   await closeDb();
 });
 
-describe('markdown indirection through the active store', () => {
-  it('stores new-page markdown externally and reads it back', async () => {
+describe('authoritative Markdown with replica reads', () => {
+  it('stores new-page markdown in Database and replicates it to Local', async () => {
     const source = `# External ${randomUUID()}\n\nstored on disk`;
     const { versionId } = await pageService.create(editorCtx, {
       path: `ext/${randomUUID()}`,
@@ -57,13 +62,13 @@ describe('markdown indirection through the active store', () => {
       contentSource: source,
     });
 
-    // content_source stays null for external backends.
+    // Database remains authoritative regardless of the preferred read replica.
     const revision = await db.query.pageRevisions.findFirst({
       where: eq(schema.pageRevisions.id, versionId),
     });
-    expect(revision!.contentSource).toBeNull();
+    expect(revision!.contentSource).toBe(source);
 
-    // The markdown bytes live on disk under the managed namespace.
+    await runStorageReplication();
     const onDisk = await readFile(path.join(temp.dir, 'markdown', `${versionId}.md`), 'utf8');
     expect(onDisk).toBe(source);
   });

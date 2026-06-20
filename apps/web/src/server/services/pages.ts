@@ -4,12 +4,13 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
-import { getPreferredReadStore } from '@/server/content-store/registry';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { pathSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
+import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
+import { readMarkdownWithFallback } from '@/server/content-store/read-router';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -37,9 +38,9 @@ function leafSlugFromPath(path: string): string {
 async function readRevisionMarkdown(revision: {
   id: string;
   contentSource: string | null;
+  contentHash: string;
 }): Promise<string> {
-  if (revision.contentSource !== null) return revision.contentSource;
-  return (await getPreferredReadStore()).getMarkdown(revision.id);
+  return readMarkdownWithFallback(revision);
 }
 
 export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
@@ -231,7 +232,7 @@ export async function create(
   await assertNotMigrating();
   const revisionId = randomUUID();
 
-  return await db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
       where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, input.path)),
     });
@@ -272,6 +273,7 @@ export async function create(
     if (!revision) throw new Error('Failed to create revision');
 
     await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
+    await addReplicationTasks(tx, 'markdown', revision.id, hash);
 
     await tx
       .update(schema.pages)
@@ -280,6 +282,8 @@ export async function create(
 
     return { pageId: page.id, versionId: revision.id };
   });
+  await kickReplication();
+  return created;
 }
 
 export async function newDraft(
@@ -298,7 +302,7 @@ export async function newDraft(
   await assertNotMigrating();
   const revisionId = randomUUID();
 
-  return await db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
@@ -339,6 +343,7 @@ export async function newDraft(
     if (!revision) throw new Error('Failed to create revision');
 
     await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
+    await addReplicationTasks(tx, 'markdown', revision.id, hash);
 
     await tx
       .update(schema.pages)
@@ -351,6 +356,8 @@ export async function newDraft(
 
     return { versionId: revision.id, versionNumber: revision.versionNumber };
   });
+  await kickReplication();
+  return created;
 }
 
 export async function updateProperties(

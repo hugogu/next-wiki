@@ -138,11 +138,7 @@ export const storageBackendUpsertSchema = z.discriminatedUnion('type', [
 ]);
 export type StorageBackendUpsert = z.infer<typeof storageBackendUpsertSchema>;
 
-export const storageBackendEnableSchema = z.object({
-  backendId: z.string().uuid(),
-});
 export const storageBackendDisableSchema = z.object({
-  backendId: z.string().uuid(),
   retainData: z.boolean(),
 });
 export const storageReadBackendSchema = z.object({

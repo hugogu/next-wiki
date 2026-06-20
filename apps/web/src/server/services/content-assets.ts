@@ -4,7 +4,6 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { env } from '@/server/config';
-import { getPreferredReadStore } from '@/server/content-store/registry';
 import { DatabaseStore } from '@/server/content-store/database-store';
 import { writeImageAsset, isUploadExpired } from '@/server/content-store/atomic-write';
 import { validateImage } from '@/server/content-store/image-validation';
@@ -12,6 +11,9 @@ import { extractAssetIds } from '@/server/content-store/asset-references';
 import { ContentStoreError } from '@/server/content-store/types';
 import { assertNotMigrating } from '@/server/services/migration';
 import type { AssetUploadResult } from '@next-wiki/shared';
+import { readImageWithFallback } from '@/server/content-store/read-router';
+import { getPreferredReadBackend, getStoreFor } from '@/server/content-store/registry';
+import { S3Store } from '@/server/content-store/s3-store';
 
 // roleAllows('edit') ignores the page id, so a sentinel resource is enough to
 // resolve "may this actor author content?" (editor/admin role, edit/create scope).
@@ -71,6 +73,7 @@ export async function uploadImage(ctx: PermCtx, bytes: Buffer): Promise<UploadRe
 
 export type ServableImage =
   | { kind: 'ok'; bytes: Buffer; contentType: string }
+  | { kind: 'redirect'; url: string }
   | { kind: 'not_found' }
   | { kind: 'unavailable' };
 
@@ -90,15 +93,25 @@ export async function getServableImage(ctx: PermCtx, assetId: string): Promise<S
   if (!(await canReadAsset(ctx, asset))) return { kind: 'not_found' };
 
   try {
-    const store = await getPreferredReadStore();
-    try {
-      const { bytes, contentType } = await store.getImage(assetId);
-      return { kind: 'ok', bytes, contentType };
-    } catch (error) {
-      if (store.type === 'database' || !(error instanceof ContentStoreError)) throw error;
-      const { bytes, contentType } = await new DatabaseStore().getImage(assetId);
-      return { kind: 'ok', bytes, contentType };
+    const preferred = await getPreferredReadBackend();
+    if (preferred?.type === 's3') {
+      const replicated = await db.query.storageReplicationTasks.findFirst({
+        where: and(
+          eq(schema.storageReplicationTasks.backendId, preferred.id),
+          eq(schema.storageReplicationTasks.objectKind, 'image'),
+          eq(schema.storageReplicationTasks.objectId, asset.id),
+          eq(schema.storageReplicationTasks.operation, 'upsert'),
+          eq(schema.storageReplicationTasks.status, 'completed'),
+          eq(schema.storageReplicationTasks.expectedHash, asset.contentHash),
+        ),
+      });
+      const store = getStoreFor(preferred);
+      if (replicated && store instanceof S3Store) {
+        return { kind: 'redirect', url: await store.presignImage(asset.id) };
+      }
     }
+    const { bytes, contentType } = await readImageWithFallback(asset);
+    return { kind: 'ok', bytes, contentType };
   } catch (error) {
     if (error instanceof ContentStoreError) return { kind: 'unavailable' };
     throw error;

@@ -4,6 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DatabaseStore } from './database-store';
 import type { ContentStore } from './types';
+import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 
 export type NewImageAsset = {
   bytes: Buffer;
@@ -28,7 +29,7 @@ export async function writeImageAsset(
   asset: NewImageAsset,
 ): Promise<{ id: string }> {
   if (store instanceof DatabaseStore) {
-    return db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(schema.contentAssets)
         .values({
@@ -41,8 +42,11 @@ export async function writeImageAsset(
         .returning({ id: schema.contentAssets.id });
       if (!row) throw new Error('Failed to insert content asset');
       await new DatabaseStore(tx).putImage(row.id, asset.bytes);
+      await addReplicationTasks(tx, 'image', row.id, asset.contentHash);
       return { id: row.id };
     });
+    await kickReplication();
+    return created;
   }
 
   // External-first protocol.

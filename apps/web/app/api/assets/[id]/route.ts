@@ -45,6 +45,13 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
       });
     }
 
+    if (result.kind === 'redirect') {
+      return NextResponse.redirect(result.url, {
+        status: 307,
+        headers: { 'Cache-Control': 'private, no-store' },
+      });
+    }
+
     return new NextResponse(new Uint8Array(result.bytes), {
       status: 200,
       headers: {

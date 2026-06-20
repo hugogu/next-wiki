@@ -12,33 +12,36 @@ async function login(page: Page, email: string, password: string) {
 }
 
 /**
- * End-to-end backend switch + migration. Requires the full stack with the
- * in-process pg-boss worker running (docker compose up), so the migration
- * actually progresses to completion.
+ * End-to-end replica enable/backfill. Requires the full stack with the
+ * in-process pg-boss worker running.
  */
-test.describe('content storage migration', () => {
-  test('configures Local, switches with confirmation, and reaches the migration page', async ({
+test.describe('content storage replicas', () => {
+  test('configures Local, enables backfill, and selects preferred reads', async ({
     page,
   }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/storage');
 
     // Configure a Local backend pointing at a writable directory.
+    await page.getByRole('tab', { name: /Local filesystem/ }).click();
     const local = page.locator('section', { hasText: 'Local filesystem' });
     await local.getByLabel('Base directory').fill('/tmp/next-wiki-migration-content');
     await local.getByRole('button', { name: 'Save' }).click();
     await expect(local.getByText('Configuration saved.')).toBeVisible();
 
-    // Start the switch and confirm.
-    await page.getByRole('button', { name: 'Switch to this' }).first().click();
-    await page.getByRole('button', { name: /Start migration|Overwrite and migrate/ }).click();
+    await page.getByRole('tab', { name: /Local filesystem/ }).click();
+    const enabled = page.getByRole('switch', { name: 'Replica enabled' });
+    if (!(await enabled.isChecked())) await enabled.click();
+    await expect(page.getByRole('tabpanel').getByText('Enabled')).toBeVisible({
+      timeout: 30_000,
+    });
+    const prefer = page.getByRole('button', { name: 'Prefer for reads' });
+    if (await prefer.isVisible()) await prefer.click();
+    await expect(page.getByRole('button', { name: 'Preferred for reads' })).toBeVisible({
+      timeout: 30_000,
+    });
 
-    // We land on the bookmarkable migration detail page and see a status.
-    await expect(page).toHaveURL(/\/admin\/storage\/migrations\//);
-    await expect(page.getByRole('heading', { name: 'Migration' })).toBeVisible();
-
-    // The migration reaches a terminal state; reads stay available throughout.
-    await expect(page.getByText(/Completed|Verifying|Copying/)).toBeVisible({ timeout: 30_000 });
+    // Normal reads stay available throughout replica synchronization.
     await page.goto('/welcome');
     await expect(page.locator('h1')).toBeVisible();
   });
