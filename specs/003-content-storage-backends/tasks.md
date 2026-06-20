@@ -10,6 +10,29 @@ verification. Test tasks appear before implementation tasks in each story.
 **Organization**: Tasks are grouped by user story so each story can be
 implemented and validated as an independent increment.
 
+## MVP scope note (Foundation + US1)
+
+The MVP increment implements Phase 1, Phase 2, and Phase 3 (US1 — Database-backed
+in-editor images). The following tasks are intentionally **deferred** because
+they only serve later stories and add no US1 value (keeping the default
+deployment PostgreSQL-only with zero new runtime dependencies):
+
+- **T001 / T003 / T020 / T021** — pg-boss, S3/Git dependencies, the MinIO compose
+  profile, and the in-process job worker. US1 has no async jobs; these land with
+  US2 (backend config / Git export) and US3 (migration / cleanup).
+- **T017 / T018** — full markdown read/write *indirection* through the active
+  ContentStore. The Database backend writes markdown inline in the revision
+  transaction (identical behavior); the `ContentStore` markdown methods exist and
+  are conformance-tested, and will be wired into the page/revision read paths when
+  the first external backend arrives in US2.
+- **T025** — route-handler unit tests. This project tests at the service layer
+  plus Playwright e2e (no existing route-level unit tests); US1 route behavior is
+  covered by the content-assets service tests and `e2e/content-images.spec.ts`.
+
+The reusable ContentStore conformance suite (T006) lives in
+`content-store.conformance.ts` (a plain module, not `*.test.ts`) so it can be
+imported by each backend's test file without executing twice.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel because it changes different files and does not
@@ -25,10 +48,10 @@ implemented and validated as an independent increment.
 the storage subsystem without changing user-visible behavior.
 
 - [ ] T001 Add `pg-boss`, `@aws-sdk/client-s3`, and `isomorphic-git` dependencies in `apps/web/package.json` and `pnpm-lock.yaml`
-- [ ] T002 [P] Add asset-size, abandoned-upload TTL, and optional local-store defaults in `apps/web/src/server/config.ts`
+- [X] T002 [P] Add asset-size, abandoned-upload TTL, and optional local-store defaults in `apps/web/src/server/config.ts`
 - [ ] T003 [P] Add a MinIO integration profile and optional Local content volume without changing the default PostgreSQL-only deployment in `docker-compose.yml`
-- [ ] T004 [P] Create reusable storage test fixtures and temporary-directory helpers in `apps/web/test/content-storage-fixtures.ts`
-- [ ] T005 Create shared backend, asset, migration, cleanup, and Git-export Zod schemas in `packages/shared/src/content-storage.ts` and export them from `packages/shared/src/index.ts`
+- [X] T004 [P] Create reusable storage test fixtures and temporary-directory helpers in `apps/web/test/content-storage-fixtures.ts`
+- [X] T005 Create shared backend, asset, migration, cleanup, and Git-export Zod schemas in `packages/shared/src/content-storage.ts` and export them from `packages/shared/src/index.ts`
 
 ---
 
@@ -41,23 +64,23 @@ job lifecycle, and read/write indirection required by every story.
 
 ### Tests for the Foundation
 
-- [ ] T006 [P] Create the reusable ContentStore conformance suite for round trips, idempotency, missing keys, enumeration, atomic visibility, namespace confinement, and health checks in `apps/web/src/server/content-store/content-store.contract.test.ts`
-- [ ] T007 [P] Add integration tests for the storage schema, default active Database backend, nullable revision source, and single-active-migration constraint in `apps/web/src/server/db/content-storage-schema.test.ts`
-- [ ] T008 [P] Add unit tests for external-first writes, compensation, and orphan detection in `apps/web/src/server/content-store/atomic-write.test.ts`
+- [X] T006 [P] Create the reusable ContentStore conformance suite for round trips, idempotency, missing keys, enumeration, atomic visibility, namespace confinement, and health checks in `apps/web/src/server/content-store/content-store.contract.test.ts`
+- [X] T007 [P] Add integration tests for the storage schema, default active Database backend, nullable revision source, and single-active-migration constraint in `apps/web/src/server/db/content-storage-schema.test.ts`
+- [X] T008 [P] Add unit tests for external-first writes, compensation, and orphan detection in `apps/web/src/server/content-store/atomic-write.test.ts`
 
 ### Foundation Implementation
 
-- [ ] T009 Add storage backend, backend purpose, content asset kind, and migration status enums in `apps/web/src/server/db/schema/enums.ts`
-- [ ] T010 Define `storage_backends`, `content_assets`, `content_asset_refs`, `content_blobs`, and `content_migrations`, make `page_revisions.content_source` nullable, and add required indexes/constraints in `apps/web/src/server/db/schema/index.ts`
-- [ ] T011 Generate and review the additive Drizzle migration and metadata snapshot in `apps/web/src/server/db/migrations/` and `apps/web/src/server/db/migrations/meta/`
-- [ ] T012 Seed exactly one active Database primary backend idempotently in `apps/web/src/server/seed/index.ts`
-- [ ] T013 [P] Define ContentStore types, typed backend errors, key helpers, and namespace rules in `apps/web/src/server/content-store/types.ts`
-- [ ] T014 Implement the Database ContentStore with transactional Markdown/image persistence in `apps/web/src/server/content-store/database-store.ts`
-- [ ] T015 Implement the explicit backend registry and injected store factories in `apps/web/src/server/content-store/registry.ts`
-- [ ] T016 Implement external-first write, compensation, and grace-period orphan helpers in `apps/web/src/server/content-store/atomic-write.ts`
+- [X] T009 Add storage backend, backend purpose, content asset kind, and migration status enums in `apps/web/src/server/db/schema/enums.ts`
+- [X] T010 Define `storage_backends`, `content_assets`, `content_asset_refs`, `content_blobs`, and `content_migrations`, make `page_revisions.content_source` nullable, and add required indexes/constraints in `apps/web/src/server/db/schema/index.ts`
+- [X] T011 Generate and review the additive Drizzle migration and metadata snapshot in `apps/web/src/server/db/migrations/` and `apps/web/src/server/db/migrations/meta/`
+- [X] T012 Seed exactly one active Database primary backend idempotently in `apps/web/src/server/seed/index.ts`
+- [X] T013 [P] Define ContentStore types, typed backend errors, key helpers, and namespace rules in `apps/web/src/server/content-store/types.ts`
+- [X] T014 Implement the Database ContentStore with transactional Markdown/image persistence in `apps/web/src/server/content-store/database-store.ts`
+- [X] T015 Implement the explicit backend registry and injected store factories in `apps/web/src/server/content-store/registry.ts`
+- [X] T016 Implement external-first write, compensation, and grace-period orphan helpers in `apps/web/src/server/content-store/atomic-write.ts`
 - [ ] T017 Refactor page create, draft, history, and live-read paths to use the active ContentStore while preserving rendered HTML and fingerprints in `apps/web/src/server/services/pages.ts`
 - [ ] T018 Refactor revision reads and publish paths to resolve raw Markdown through the active ContentStore in `apps/web/src/server/services/revisions.ts`
-- [ ] T019 Add `STORAGE_MIGRATING`, backend-unavailable, and storage-validation domain/API mappings including HTTP 423 in `apps/web/src/server/errors.ts` and `apps/web/src/server/api/errors.ts`
+- [X] T019 Add `STORAGE_MIGRATING`, backend-unavailable, and storage-validation domain/API mappings including HTTP 423 in `apps/web/src/server/errors.ts` and `apps/web/src/server/api/errors.ts`
 - [ ] T020 [P] Implement the lifecycle-injected pg-boss factory in `apps/web/src/server/jobs/create-boss.ts`
 - [ ] T021 Implement explicit job registration and framework-managed startup without a global singleton in `apps/web/src/server/jobs/register.ts` and `apps/web/instrumentation.ts`
 
@@ -79,25 +102,25 @@ unauthorized caller receives 404.
 
 ### Tests for User Story 1
 
-- [ ] T022 [P] [US1] Add byte-sniffing tests for PNG/JPEG/GIF/WebP acceptance, SVG/type-confusion rejection, and size limits in `apps/web/src/server/services/content-assets.test.ts`
-- [ ] T023 [P] [US1] Add asset ownership, abandoned-upload expiry, reference tracking, shared-reference, and permission tests in `apps/web/src/server/services/content-assets-permissions.test.ts`
-- [ ] T024 [P] [US1] Run the ContentStore conformance suite against DatabaseStore in `apps/web/src/server/content-store/database-store.test.ts`
+- [X] T022 [P] [US1] Add byte-sniffing tests for PNG/JPEG/GIF/WebP acceptance, SVG/type-confusion rejection, and size limits in `apps/web/src/server/services/content-assets.test.ts`
+- [X] T023 [P] [US1] Add asset ownership, abandoned-upload expiry, reference tracking, shared-reference, and permission tests in `apps/web/src/server/services/content-assets-permissions.test.ts`
+- [X] T024 [P] [US1] Run the ContentStore conformance suite against DatabaseStore in `apps/web/src/server/content-store/database-store.test.ts`
 - [ ] T025 [P] [US1] Add route tests for upload responses, permission-hidden 404s, 423 migration lock, and unavailable-image placeholders in `apps/web/app/api/assets/assets.route.test.ts`
-- [ ] T026 [P] [US1] Add Playwright coverage for toolbar upload, clipboard paste, drag/drop, validation errors, preview rendering, publish persistence, and denied image access in `apps/web/e2e/content-images.spec.ts`
+- [X] T026 [P] [US1] Add Playwright coverage for toolbar upload, clipboard paste, drag/drop, validation errors, preview rendering, publish persistence, and denied image access in `apps/web/e2e/content-images.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T027 [P] [US1] Implement magic-number image validation, hashing, and raster allowlist enforcement in `apps/web/src/server/content-store/image-validation.ts`
-- [ ] T028 [P] [US1] Implement Markdown asset-reference extraction for application-relative asset URLs in `apps/web/src/server/content-store/asset-references.ts`
-- [ ] T029 [US1] Implement upload lifecycle, temporary uploader access, reference synchronization, and soft orphan handling in `apps/web/src/server/services/content-assets.ts`
-- [ ] T030 [US1] Update page revision creation to synchronize `content_asset_refs` in the same DB transaction as revision metadata in `apps/web/src/server/services/pages.ts`
-- [ ] T031 [US1] Implement multipart image upload with Editor/Admin and API-key scope intersection checks in `apps/web/app/api/assets/route.ts`
-- [ ] T032 [US1] Implement permission-checked image streaming and no-store fallback placeholder responses in `apps/web/app/api/assets/[id]/route.ts`
-- [ ] T033 [P] [US1] Add the application-owned unavailable-image raster asset in `apps/web/public/images/content-unavailable.png`
-- [ ] T034 [P] [US1] Add a client multipart upload helper with typed API errors in `apps/web/src/lib/api/assets.ts`
-- [ ] T035 [US1] Add image toolbar, file picker, paste/drop handlers, upload progress, cursor insertion, and failure handling in `apps/web/src/components/editor/SplitMarkdownEditor.tsx`
-- [ ] T036 [P] [US1] Add English image upload, validation, migration-lock, and unavailable-content strings in `apps/web/src/i18n/locales/en.ts`
-- [ ] T037 [P] [US1] Add matching Chinese image upload, validation, migration-lock, and unavailable-content strings in `apps/web/src/i18n/locales/zh.ts`
+- [X] T027 [P] [US1] Implement magic-number image validation, hashing, and raster allowlist enforcement in `apps/web/src/server/content-store/image-validation.ts`
+- [X] T028 [P] [US1] Implement Markdown asset-reference extraction for application-relative asset URLs in `apps/web/src/server/content-store/asset-references.ts`
+- [X] T029 [US1] Implement upload lifecycle, temporary uploader access, reference synchronization, and soft orphan handling in `apps/web/src/server/services/content-assets.ts`
+- [X] T030 [US1] Update page revision creation to synchronize `content_asset_refs` in the same DB transaction as revision metadata in `apps/web/src/server/services/pages.ts`
+- [X] T031 [US1] Implement multipart image upload with Editor/Admin and API-key scope intersection checks in `apps/web/app/api/assets/route.ts`
+- [X] T032 [US1] Implement permission-checked image streaming and no-store fallback placeholder responses in `apps/web/app/api/assets/[id]/route.ts`
+- [X] T033 [P] [US1] Add the application-owned unavailable-image raster asset in `apps/web/public/images/content-unavailable.png`
+- [X] T034 [P] [US1] Add a client multipart upload helper with typed API errors in `apps/web/src/lib/api/assets.ts`
+- [X] T035 [US1] Add image toolbar, file picker, paste/drop handlers, upload progress, cursor insertion, and failure handling in `apps/web/src/components/editor/SplitMarkdownEditor.tsx`
+- [X] T036 [P] [US1] Add English image upload, validation, migration-lock, and unavailable-content strings in `apps/web/src/i18n/locales/en.ts`
+- [X] T037 [P] [US1] Add matching Chinese image upload, validation, migration-lock, and unavailable-content strings in `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: US1 works entirely with the default Database backend and is
 deployable as the MVP without configuring Local, S3, or Git.

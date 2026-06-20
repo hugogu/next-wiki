@@ -6,6 +6,8 @@ import { EditorState, Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { apiPost } from '@/lib/api/client';
+import { uploadImage } from '@/lib/api/assets';
+import type { ApiError } from '@/lib/api/client';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { useTranslation } from '@/i18n/client';
 import {
@@ -17,6 +19,7 @@ import {
   ListIcon,
   QuoteIcon,
   LinkIcon,
+  ImageIcon,
   UndoIcon,
   RedoIcon,
 } from '@/components/icons';
@@ -97,6 +100,16 @@ function insertBlock(view: EditorView, prefix: string, suffix: string = '') {
   view.focus();
 }
 
+function insertImageReference(view: EditorView, url: string, alt: string) {
+  const selection = view.state.selection.main;
+  const insert = `![${alt}](${url})`;
+  view.dispatch({
+    changes: { from: selection.from, to: selection.to, insert },
+    selection: { anchor: selection.from + insert.length, head: selection.from + insert.length },
+  });
+  view.focus();
+}
+
 export function SplitMarkdownEditor({
   value,
   onChange,
@@ -114,12 +127,42 @@ export function SplitMarkdownEditor({
   const onChangeRef = useRef(onChange);
   const disabledRef = useRef(disabled);
   const previewRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [html, setHtml] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      const images = files.filter((f) => f.type.startsWith('image/'));
+      if (images.length === 0 || disabledRef.current) return;
+      setUploadError(null);
+      setUploading(true);
+      try {
+        for (const file of images) {
+          const result = await uploadImage(file);
+          const view = viewRef.current;
+          if (view) insertImageReference(view, result.url, file.name.replace(/\.[^.]+$/, ''));
+        }
+      } catch (error) {
+        const apiError = error as ApiError;
+        setUploadError(apiError?.message ?? t('editor.image.uploadFailed'));
+      } finally {
+        setUploading(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  const uploadFilesRef = useRef(uploadFiles);
+  useEffect(() => {
+    uploadFilesRef.current = uploadFiles;
+  }, [uploadFiles]);
 
   useEffect(() => {
     disabledRef.current = disabled;
@@ -168,7 +211,38 @@ export function SplitMarkdownEditor({
 
     viewRef.current = view;
 
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file && file.type.startsWith('image/')) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        event.preventDefault();
+        void uploadFilesRef.current(files);
+      }
+    };
+
+    const handleDrop = (event: DragEvent) => {
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
+        f.type.startsWith('image/'),
+      );
+      if (files.length > 0) {
+        event.preventDefault();
+        void uploadFilesRef.current(files);
+      }
+    };
+
+    view.dom.addEventListener('paste', handlePaste);
+    view.dom.addEventListener('drop', handleDrop);
+
     return () => {
+      view.dom.removeEventListener('paste', handlePaste);
+      view.dom.removeEventListener('drop', handleDrop);
       view.destroy();
       viewRef.current = null;
     };
@@ -254,6 +328,25 @@ export function SplitMarkdownEditor({
         <ToolbarButton onClick={() => apply('[', '](url)')} label={t('editor.toolbar.link')}>
           <LinkIcon />
         </ToolbarButton>
+        <ToolbarButton
+          onClick={() => fileInputRef.current?.click()}
+          label={t('editor.toolbar.image')}
+          disabled={uploading || disabled}
+        >
+          <ImageIcon />
+        </ToolbarButton>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = '';
+            void uploadFiles(files);
+          }}
+        />
         <div className="w-px h-5 bg-border mx-xs" />
         <ToolbarButton onClick={handleUndo} label={t('editor.toolbar.undo')}>
           <UndoIcon />
@@ -261,7 +354,21 @@ export function SplitMarkdownEditor({
         <ToolbarButton onClick={handleRedo} label={t('editor.toolbar.redo')}>
           <RedoIcon />
         </ToolbarButton>
+        {uploading && (
+          <span className="ml-xs text-xs text-muted" role="status">
+            {t('editor.image.uploading')}
+          </span>
+        )}
       </div>
+
+      {uploadError && (
+        <div
+          className="px-md py-sm text-sm text-danger bg-danger-subtle border-b border-border"
+          role="alert"
+        >
+          {uploadError}
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         <div
@@ -279,14 +386,25 @@ export function SplitMarkdownEditor({
   );
 }
 
-function ToolbarButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
+function ToolbarButton({
+  onClick,
+  label,
+  children,
+  disabled = false,
+}: {
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
-      className="inline-flex items-center justify-center w-8 h-8 rounded text-muted hover:text-foreground hover:bg-surface transition-colors"
+      className="inline-flex items-center justify-center w-8 h-8 rounded text-muted hover:text-foreground hover:bg-surface transition-colors disabled:opacity-50 disabled:pointer-events-none"
     >
       {children}
     </button>

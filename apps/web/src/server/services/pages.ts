@@ -4,6 +4,7 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
+import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { pathSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 
@@ -248,6 +249,8 @@ export async function create(
 
     if (!revision) throw new Error('Failed to create revision');
 
+    await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
+
     await tx
       .update(schema.pages)
       .set({ latestVersionId: revision.id })
@@ -308,6 +311,8 @@ export async function newDraft(
       .returning();
 
     if (!revision) throw new Error('Failed to create revision');
+
+    await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
 
     await tx
       .update(schema.pages)
@@ -416,7 +421,9 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
   return {
     path: page.path,
     title: page.title,
-    contentSource: revision.contentSource,
+    // DB backend always populates content_source; the external-backend markdown
+    // read indirection (via getActiveStore().getMarkdown) lands with US2.
+    contentSource: revision.contentSource ?? '',
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,
@@ -522,7 +529,9 @@ export async function getRevision(
     version: revision.versionNumber,
     status: revision.status,
     contentHtml: revision.contentHtml,
-    contentSource: revision.contentSource,
+    // DB backend always populates content_source; the external-backend markdown
+    // read indirection (via getActiveStore().getMarkdown) lands with US2.
+    contentSource: revision.contentSource ?? '',
     authorDisplayName: author?.displayName ?? null,
     createdAt: revision.createdAt.toISOString(),
   };

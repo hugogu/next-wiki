@@ -183,6 +183,10 @@ export const en = {
   'editor.toolbar.link': 'Link',
   'editor.toolbar.undo': 'Undo',
   'editor.toolbar.redo': 'Redo',
+  'editor.toolbar.image': 'Insert image',
+
+  'editor.image.uploading': 'Uploading image…',
+  'editor.image.uploadFailed': 'Image upload failed',
 
   'editor.properties.title': 'Page properties',
   'editor.properties.fields.titleLabel': 'Title',

@@ -183,6 +183,10 @@ export const zh: Translations = {
   'editor.toolbar.link': '链接',
   'editor.toolbar.undo': '撤销',
   'editor.toolbar.redo': '重做',
+  'editor.toolbar.image': '插入图片',
+
+  'editor.image.uploading': '正在上传图片……',
+  'editor.image.uploadFailed': '图片上传失败',
 
   'editor.properties.title': '页面属性',
   'editor.properties.fields.titleLabel': '标题',
