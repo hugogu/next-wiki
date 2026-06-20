@@ -13,14 +13,17 @@ import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 import { StorageBackendForm } from './StorageBackendForm';
+import { GitExportPanel } from './GitExportPanel';
 
-type TabType = Extract<StorageBackendType, 'database' | 'local' | 's3'>;
+type TabType = Extract<StorageBackendType, 'database' | 'local' | 's3' | 'git'>;
+type PrimaryTabType = Exclude<TabType, 'git'>;
 
-const TABS: TabType[] = ['database', 'local', 's3'];
+const TABS: TabType[] = ['database', 'local', 's3', 'git'];
 const TYPE_LABEL: Record<TabType, TranslationKey> = {
   database: 'admin.storage.type.database',
   local: 'admin.storage.type.local',
   s3: 'admin.storage.type.s3',
+  git: 'admin.storage.type.git',
 };
 
 function parseTab(value: string | null): TabType {
@@ -63,7 +66,7 @@ function BackendStatusCard({
   backend,
   preferred,
 }: {
-  type: TabType;
+  type: PrimaryTabType;
   backend?: StorageBackendView;
   preferred: boolean;
 }) {
@@ -274,9 +277,11 @@ function BackendStatusCard({
 
 export function StorageBackendTabs({
   backends,
+  gitExport,
   deployment,
 }: {
   backends: StorageBackendView[];
+  gitExport: StorageBackendView | null;
   deployment: StorageDeploymentInfo;
 }) {
   const { t } = useTranslation();
@@ -284,9 +289,15 @@ export function StorageBackendTabs({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selected = parseTab(searchParams.get('tab'));
-  const backend = backends.find((item) => item.type === selected);
+  const backend =
+    selected === 'git' ? gitExport ?? undefined : backends.find((item) => item.type === selected);
   const preferredExternal = backends.find((item) => item.isReadPreferred);
-  const preferred = selected === 'database' ? !preferredExternal : backend?.isReadPreferred ?? false;
+  const preferred =
+    selected === 'database'
+      ? !preferredExternal
+      : selected === 'git'
+        ? false
+        : backend?.isReadPreferred ?? false;
 
   const selectTab = (type: TabType) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -305,7 +316,8 @@ export function StorageBackendTabs({
     <div className="grid gap-md md:grid-cols-[14rem_minmax(0,1fr)]">
       <div role="tablist" aria-orientation="vertical" className="space-y-xs">
         {TABS.map((type) => {
-          const item = backends.find((candidate) => candidate.type === type);
+          const item =
+            type === 'git' ? gitExport : backends.find((candidate) => candidate.type === type);
           return (
             <button
               key={type}
@@ -322,7 +334,9 @@ export function StorageBackendTabs({
                 {type === 'database'
                   ? t('admin.storage.replica.state.enabled')
                   : item
-                    ? t(`admin.storage.replica.state.${item.replicaState}` as TranslationKey)
+                    ? t(
+                        `admin.storage.replica.state.${item.replicaState}` as TranslationKey,
+                      )
                     : t('admin.storage.replica.unconfigured')}
               </span>
             </button>
@@ -331,48 +345,54 @@ export function StorageBackendTabs({
       </div>
 
       <div role="tabpanel" className="space-y-md">
-        <BackendStatusCard type={selected} backend={backend} preferred={preferred} />
-
-        {selected === 'database' ? (
-          <section className="rounded-lg border border-border bg-surface-elevated p-md">
-            <dl className="grid gap-sm text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted">{t('admin.storage.database.role')}</dt>
-                <dd>{t('admin.storage.replica.authoritative')}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('admin.storage.database.engine')}</dt>
-                <dd>{deployment.database.engine}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('admin.storage.database.host')}</dt>
-                <dd>{deployment.database.host}:{deployment.database.port}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('admin.storage.database.name')}</dt>
-                <dd>{deployment.database.database}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('admin.storage.database.username')}</dt>
-                <dd>{deployment.database.username}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">{t('admin.storage.database.ssl')}</dt>
-                <dd>
-                  {deployment.database.ssl
-                    ? t('admin.storage.database.sslEnabled')
-                    : t('admin.storage.database.sslDisabled')}
-                </dd>
-              </div>
-            </dl>
-          </section>
+        {selected === 'git' ? (
+          <GitExportPanel initial={gitExport} />
         ) : (
-          <StorageBackendForm
-            key={selected}
-            type={selected}
-            initial={backend}
-            localDeployment={selected === 'local' ? deployment.local : undefined}
-          />
+          <>
+            <BackendStatusCard type={selected} backend={backend} preferred={preferred} />
+
+            {selected === 'database' ? (
+              <section className="rounded-lg border border-border bg-surface-elevated p-md">
+                <dl className="grid gap-sm text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-muted">{t('admin.storage.database.role')}</dt>
+                    <dd>{t('admin.storage.replica.authoritative')}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">{t('admin.storage.database.engine')}</dt>
+                    <dd>{deployment.database.engine}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">{t('admin.storage.database.host')}</dt>
+                    <dd>{deployment.database.host}:{deployment.database.port}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">{t('admin.storage.database.name')}</dt>
+                    <dd>{deployment.database.database}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">{t('admin.storage.database.username')}</dt>
+                    <dd>{deployment.database.username}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">{t('admin.storage.database.ssl')}</dt>
+                    <dd>
+                      {deployment.database.ssl
+                        ? t('admin.storage.database.sslEnabled')
+                        : t('admin.storage.database.sslDisabled')}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            ) : (
+              <StorageBackendForm
+                key={selected}
+                type={selected}
+                initial={backend}
+                localDeployment={selected === 'local' ? deployment.local : undefined}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

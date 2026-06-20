@@ -6,9 +6,10 @@ import { runOrphanCleanup } from './orphan-cleanup';
 import { findInterruptedMigrationIds } from '@/server/services/migration';
 import { logger } from '@/server/logger';
 import { runStorageReplication } from './storage-replication';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { runGitExport } from './git-export';
 
 type JobBatch = { data: unknown }[];
 
@@ -42,6 +43,10 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.replication, async () => {
     await runStorageReplication();
   });
+  await boss.work(QUEUES.gitExport, async (jobs: JobBatch) => {
+    const backendId = (jobs.at(-1)?.data as { backendId: string } | undefined)?.backendId;
+    if (backendId) await runGitExport(backendId);
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
 
   const pendingReplication = await db
@@ -50,6 +55,16 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     .where(inArray(schema.storageReplicationTasks.status, ['pending', 'failed']))
     .limit(1);
   if (pendingReplication.length > 0) await boss.send(QUEUES.replication, {});
+
+  const enabledGitExport = await db.query.storageBackends.findFirst({
+    where: and(
+      eq(schema.storageBackends.purpose, 'git_export'),
+      inArray(schema.storageBackends.replicaState, ['backfilling', 'degraded']),
+    ),
+  });
+  if (enabledGitExport?.isActive) {
+    await boss.send(QUEUES.gitExport, { backendId: enabledGitExport.id });
+  }
 
   for (const migrationId of await findInterruptedMigrationIds()) {
     await boss.send(QUEUES.migration, { migrationId });

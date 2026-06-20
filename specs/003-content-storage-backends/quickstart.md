@@ -19,7 +19,7 @@ docker compose up -d --build
 ## Local development
 
 ```bash
-pnpm install            # pulls pg-boss; @aws-sdk/client-s3 + isomorphic-git are optional-but-bundled
+pnpm install            # pulls pg-boss and the S3 SDK
 pnpm --filter web db:migrate
 pnpm --filter web dev
 ```
@@ -65,11 +65,21 @@ encrypted). Works with AWS S3 or any S3-compatible store.
 
 ## Enable Git one-way export (optional)
 
-1. **Admin → Content Storage → Git export**: set remote URL, branch, and a token
-   (stored encrypted), then enable.
-2. On each publish, a background job pushes standard Markdown + assets to the
-   repo (e.g. to feed GitHub Pages). Export failures are retried and never block
-   editing; content is never read back from Git.
+1. Open **Admin → Content Storage → Git export** or navigate directly to
+   `/admin/storage?tab=git`.
+2. Choose one authentication mode:
+   - **HTTPS token**: enter the remote URL, username (optional), and access token.
+   - **SSH**: click **Generate SSH key**, then add the displayed public key as a
+     write-enabled Deploy Key in GitHub, GitLab, or the target Git server. The
+     private key remains encrypted in the database and is never shown.
+3. Set the system-owned export branch and enable Git export. Enabling queues an
+   initial full export of all published pages and referenced images.
+4. Publish, delete, and path-change operations enqueue another full snapshot
+   reconciliation. Drafts are excluded, stale files are pruned, failures never
+   block editing, and content is never read back from Git.
+
+The Docker runtime installs `git` and `openssh-client`; no additional sidecar is
+required.
 
 ## API key scopes
 

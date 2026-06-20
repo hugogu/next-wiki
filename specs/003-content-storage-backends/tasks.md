@@ -175,10 +175,10 @@ denial behavior.
 - [X] T046 [US2] Implement backend configuration CRUD, encryption/decryption, masked views, URL validation, and health checks in `apps/web/src/server/services/storage-config.ts`
 - [X] T047 [US2] Implement admin-only storage configuration GET/PUT endpoints with OpenAPI metadata and API auditing in `apps/web/app/api/storage/route.ts`
 - [X] T048 [US2] Implement ephemeral backend connection checks with OpenAPI metadata and API auditing in `apps/web/app/api/storage/backend-checks/route.ts`
-- [ ] T049 [US2] Implement Git-export configuration enable/disable, encrypted token rotation, and backfill enqueueing in `apps/web/app/api/storage/git-export/route.ts`
-- [ ] T050 [P] [US2] Implement standard Markdown/frontmatter and asset-tree materialization for the system-owned branch in `apps/web/src/server/git/export.ts`
-- [ ] T051 [US2] Implement serialized/coalesced Git export jobs, retries, stale-file pruning, and force-with-lease warning persistence in `apps/web/src/server/jobs/git-export.ts`
-- [ ] T052 [US2] Register Git export handling and enqueue export after publish, delete, and path changes in `apps/web/src/server/jobs/register.ts`, `apps/web/src/server/services/revisions.ts`, and `apps/web/src/server/services/pages.ts`
+- [X] T049 [US2] Implement Git-export configuration enable/disable, encrypted token rotation, and backfill enqueueing in `apps/web/app/api/storage/git-export/route.ts`
+- [X] T050 [P] [US2] Implement standard Markdown/frontmatter and asset-tree materialization for the system-owned branch in `apps/web/src/server/git/export.ts`
+- [X] T051 [US2] Implement serialized/coalesced Git export jobs, retries, stale-file pruning, and force-with-lease warning persistence in `apps/web/src/server/jobs/git-export.ts`
+- [X] T052 [US2] Register Git export handling and enqueue export after publish, delete, and path changes in `apps/web/src/server/jobs/register.ts`, `apps/web/src/server/services/revisions.ts`, and `apps/web/src/server/services/pages.ts`
 - [X] T053 [P] [US2] Build backend-specific forms, masked secret controls, health-check feedback, and Git export controls in `apps/web/src/components/admin/storage/StorageBackendForm.tsx`
 - [X] T054 [P] [US2] Build the backend summary and active-backend presentation in `apps/web/src/components/admin/storage/StorageBackendSummary.tsx`
 - [X] T055 [US2] Implement the canonical server-aware admin storage page and breadcrumbs in `apps/web/app/(admin)/admin/storage/page.tsx`

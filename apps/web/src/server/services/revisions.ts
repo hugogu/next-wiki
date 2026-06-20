@@ -4,6 +4,7 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { assertNotMigrating } from '@/server/services/migration';
+import { enqueueGitExport } from '@/server/services/git-export';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -22,7 +23,7 @@ export async function publish(
 
   await assertNotMigrating();
 
-  return await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const space = await tx.query.spaces.findFirst({
       where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
     });
@@ -67,4 +68,6 @@ export async function publish(
 
     return { versionId: revision.id };
   });
+  await enqueueGitExport();
+  return result;
 }

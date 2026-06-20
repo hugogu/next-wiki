@@ -31,7 +31,11 @@ export default async function AdminStoragePage() {
           <p className="mt-xs text-sm text-muted">{t('admin.storage.description')}</p>
         </div>
 
-        <StorageBackendTabs backends={overview.backends} deployment={overview.deployment} />
+        <StorageBackendTabs
+          backends={overview.backends}
+          gitExport={overview.gitExport}
+          deployment={overview.deployment}
+        />
       </div>
     </Layout>
   );

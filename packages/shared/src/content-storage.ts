@@ -86,13 +86,54 @@ export const s3BackendConfigSchema = z.object({
 });
 export type S3BackendConfig = z.infer<typeof s3BackendConfigSchema>;
 
+const gitRemoteUrlSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) =>
+      (/^https:\/\/\S+$/i.test(value) && noCredentialsInUrl(value)) ||
+      /^ssh:\/\/\S+$/i.test(value) ||
+      /^[\w.-]+@[\w.-]+:[^\s]+$/.test(value),
+    'Use an HTTPS or SSH Git remote without embedded credentials',
+  );
+
+export const gitAuthModeSchema = z.enum(['https_token', 'ssh']);
+export type GitAuthMode = z.infer<typeof gitAuthModeSchema>;
+
 export const gitBackendConfigSchema = z.object({
-  remoteUrl: z.string().url().refine(noCredentialsInUrl, credentialsMessage),
-  branch: z.string().min(1),
-  assetsDir: z.string().optional(),
+  remoteUrl: gitRemoteUrlSchema,
+  branch: z
+    .string()
+    .min(1)
+    .regex(/^(?!-)(?!.*\.\.)(?!.*[~^:?*[\]\\\s]).+$/, 'Invalid Git branch name'),
+  assetsDir: z
+    .string()
+    .min(1)
+    .regex(/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$)).+$/, 'Assets directory must be relative'),
   username: z.string().optional(),
+  authMode: gitAuthModeSchema,
+  publicKey: z.string().optional(),
+  fingerprint: z.string().optional(),
 });
 export type GitBackendConfig = z.infer<typeof gitBackendConfigSchema>;
+
+export const gitExportUpsertSchema = z.object({
+  enabled: z.boolean(),
+  config: gitBackendConfigSchema,
+  secret: z.string().min(1).optional(),
+});
+export type GitExportUpsert = z.infer<typeof gitExportUpsertSchema>;
+
+export const gitSshKeyResultSchema = z.object({
+  publicKey: z.string(),
+  fingerprint: z.string(),
+});
+export type GitSshKeyResult = z.infer<typeof gitSshKeyResultSchema>;
+
+export const gitExportRunResultSchema = z.object({
+  queued: z.boolean(),
+});
+export type GitExportRunResult = z.infer<typeof gitExportRunResultSchema>;
 
 // ---- Backend view (returned to admin UI; never includes secrets) -----------
 

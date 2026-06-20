@@ -907,6 +907,18 @@
         "responses": {}
       }
     },
+    "/storage/git-export": {
+      "put": {
+        "operationId": "put-storage-git-export",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/storage/migrations": {
       "get": {
         "operationId": "get-storage-migrations",
@@ -961,6 +973,30 @@
             "description": "Path parameter: id"
           }
         ],
+        "responses": {}
+      }
+    },
+    "/storage/git-export/run": {
+      "post": {
+        "operationId": "post-storage-git-export-run",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/storage/git-export/ssh-key": {
+      "post": {
+        "operationId": "post-storage-git-export-ssh-key",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
         "responses": {}
       }
     },

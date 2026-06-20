@@ -7,6 +7,7 @@ import { buildUserCtx, buildAnonymousCtx, type PermCtx } from '@/server/permissi
 import { decryptKey } from '@/server/crypto/key-encryption';
 import { seedDefaultStorageBackend } from '@/server/seed';
 import * as storageConfig from '@/server/services/storage-config';
+import * as gitExport from '@/server/services/git-export';
 import { withTempDir } from '../../../test/content-storage-fixtures';
 
 let adminCtx: PermCtx;
@@ -15,6 +16,7 @@ let editorCtx: PermCtx;
 async function cleanup() {
   await db.delete(schema.contentMigrations);
   await db.delete(schema.storageBackends);
+  await db.delete(schema.sessions);
   await db.delete(schema.users);
 }
 
@@ -130,8 +132,73 @@ describe('config validation rejects URL-embedded credentials', () => {
       gitBackendConfigSchema.safeParse({
         remoteUrl: 'https://user:token@github.com/o/r.git',
         branch: 'main',
+        assetsDir: 'assets',
+        authMode: 'https_token',
       }).success,
     ).toBe(false);
+  });
+
+  it('accepts SCP-style SSH remotes and rejects unsafe branch or asset paths', () => {
+    expect(
+      gitBackendConfigSchema.safeParse({
+        remoteUrl: 'git@gitlab.example.com:group/wiki.git',
+        branch: 'next-wiki',
+        assetsDir: 'assets/images',
+        authMode: 'ssh',
+      }).success,
+    ).toBe(true);
+    expect(
+      gitBackendConfigSchema.safeParse({
+        remoteUrl: 'git@gitlab.example.com:group/wiki.git',
+        branch: '--upload-pack=bad',
+        assetsDir: '../outside',
+        authMode: 'ssh',
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('Git export SSH credentials', () => {
+  it('requires and encrypts an HTTPS token when export is enabled', async () => {
+    const input = {
+      enabled: true,
+      config: {
+        remoteUrl: 'https://github.com/example/wiki.git',
+        branch: 'next-wiki',
+        assetsDir: 'assets',
+        authMode: 'https_token' as const,
+      },
+    };
+    await expect(gitExport.configureGitExport(adminCtx, input)).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    const view = await gitExport.configureGitExport(adminCtx, {
+      ...input,
+      secret: 'github-token',
+    });
+    expect(view.isActive).toBe(true);
+    expect(view.hasSecret).toBe(true);
+    expect(JSON.stringify(view)).not.toContain('github-token');
+
+    const row = await db.query.storageBackends.findFirst({
+      where: eq(schema.storageBackends.id, view.id),
+    });
+    expect(decryptKey(row!.secretEncrypted!)).toBe('github-token');
+  });
+
+  it('generates an Ed25519 key and stores only the encrypted private key', async () => {
+    const result = await gitExport.generateGitSshKey(adminCtx);
+    expect(result.publicKey).toMatch(/^ssh-ed25519 /);
+    expect(result.fingerprint).toMatch(/^SHA256:/);
+
+    const row = await db.query.storageBackends.findFirst({
+      where: eq(schema.storageBackends.purpose, 'git_export'),
+    });
+    expect(row?.secretEncrypted).toBeTruthy();
+    expect(row?.secretEncrypted).not.toContain('PRIVATE KEY');
+    expect(decryptKey(row!.secretEncrypted!)).toContain('PRIVATE KEY');
+    expect((row?.config as { publicKey: string }).publicKey).toBe(result.publicKey);
   });
 });
 

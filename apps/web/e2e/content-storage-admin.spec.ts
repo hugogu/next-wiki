@@ -70,6 +70,20 @@ test.describe('admin content storage', () => {
     await expect(page.getByText(/Connection failed/)).toHaveCount(0);
   });
 
+  test('Git export tab supports URL routing and server SSH key generation', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/storage?tab=git');
+
+    await expect(page.getByRole('tab', { name: /Git export/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.getByLabel('Authentication').selectOption('ssh');
+    await page.getByRole('button', { name: 'Generate SSH key' }).click();
+    await expect(page.getByLabel('Server SSH public key')).toHaveValue(/^ssh-ed25519 /);
+    await expect(page.getByText(/write-enabled deploy key/)).toBeVisible();
+  });
+
   test('non-admins do not see the storage admin page', async ({ page }) => {
     await registerReader(page, `storage-reader-${Date.now()}@example.com`);
     await page.goto('/admin/storage');

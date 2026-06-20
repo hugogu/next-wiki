@@ -20,6 +20,7 @@ RUN pnpm --filter @next-wiki/web exec drizzle-kit generate
 RUN pnpm --filter @next-wiki/web build
 
 FROM ${NODE_IMAGE} AS runner
+RUN apk add --no-cache git openssh-client
 RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./

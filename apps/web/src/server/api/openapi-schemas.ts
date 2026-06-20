@@ -47,6 +47,9 @@ import {
   storageBackendEnableSchema,
   storageReadBackendSchema,
   replicaSyncStatusSchema,
+  gitExportUpsertSchema,
+  gitSshKeyResultSchema,
+  gitExportRunResultSchema,
 } from '@next-wiki/shared';
 
 export {
@@ -148,6 +151,9 @@ export const StorageBackendDisable = storageBackendDisableSchema;
 export const StorageBackendEnable = storageBackendEnableSchema;
 export const StorageReadBackend = storageReadBackendSchema;
 export const ReplicaSyncStatus = replicaSyncStatusSchema;
+export const GitExportUpsert = gitExportUpsertSchema;
+export const GitSshKeyResult = gitSshKeyResultSchema;
+export const GitExportRunResult = gitExportRunResultSchema;
 
 export const ApiKeyViewList = apiKeyViewListSchema;
 export const CreateApiKeyInput = createApiKeyInputSchema;

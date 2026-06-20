@@ -1,4 +1,4 @@
-import type { PgBoss } from 'pg-boss';
+import type { PgBoss, SendOptions } from 'pg-boss';
 
 /** Queue names for the storage subsystem's background jobs (explicit — P9). */
 export const QUEUES = {
@@ -6,6 +6,7 @@ export const QUEUES = {
   storageCleanup: 'storage-cleanup',
   orphanCleanup: 'orphan-cleanup',
   replication: 'storage-replication',
+  gitExport: 'git-export',
 } as const;
 
 /**
@@ -29,8 +30,12 @@ export function getBoss(): PgBoss | null {
   return (globalThis as BossGlobal)[BOSS_KEY] ?? null;
 }
 
-export async function enqueue(queue: string, data: Record<string, unknown>): Promise<string | null> {
+export async function enqueue(
+  queue: string,
+  data: Record<string, unknown>,
+  options?: SendOptions,
+): Promise<string | null> {
   const boss = getBoss();
   if (!boss) return null;
-  return boss.send(queue, data);
+  return boss.send(queue, data, options);
 }

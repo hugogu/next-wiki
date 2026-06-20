@@ -11,6 +11,7 @@ import { pathSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
+import { enqueueGitExport } from '@/server/services/git-export';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -206,6 +207,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
     .update(schema.pages)
     .set({ deletedAt: new Date() })
     .where(eq(schema.pages.id, page.id));
+  await enqueueGitExport();
 }
 
 export async function create(
@@ -378,7 +380,7 @@ export async function updateProperties(
     throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
   }
 
-  return await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
@@ -413,6 +415,8 @@ export async function updateProperties(
 
     return { pageId: page.id, newPath: input.path };
   });
+  if (input.path !== currentPath) await enqueueGitExport();
+  return result;
 }
 
 export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableView | null> {
