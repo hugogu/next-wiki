@@ -10,7 +10,10 @@ import { assertNotMigrating } from '@/server/services/migration';
 import { pathSchema } from '@next-wiki/shared';
 import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
-import { readMarkdownWithFallback } from '@/server/content-store/read-router';
+import {
+  readMarkdownFromDatabase,
+  readMarkdownWithFallback,
+} from '@/server/content-store/read-router';
 import { enqueueGitExport } from '@/server/services/git-export';
 
 const DEFAULT_SPACE_SLUG = 'default';
@@ -458,7 +461,9 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
   return {
     path: page.path,
     title: page.title,
-    contentSource: await readRevisionMarkdown(revision),
+    // Editing reads the authoritative source directly: blocking the page load
+    // on a remote replica (e.g. S3) is not worth it for the small markdown body.
+    contentSource: await readMarkdownFromDatabase(revision),
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,

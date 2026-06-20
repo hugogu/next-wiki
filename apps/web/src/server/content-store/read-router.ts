@@ -26,6 +26,20 @@ export async function readMarkdownWithFallback(revision: {
   return new DatabaseStore().getMarkdown(revision.id);
 }
 
+/**
+ * Read markdown straight from the authoritative database, bypassing the
+ * preferred read backend. Used for editing: the source is small and always
+ * present in the database, so it is not worth blocking the page on a remote
+ * replica (e.g. S3) read.
+ */
+export async function readMarkdownFromDatabase(revision: {
+  id: string;
+  contentSource: string | null;
+}): Promise<string> {
+  if (revision.contentSource !== null) return revision.contentSource;
+  return new DatabaseStore().getMarkdown(revision.id);
+}
+
 export async function readImageWithFallback(asset: {
   id: string;
   contentHash: string;
