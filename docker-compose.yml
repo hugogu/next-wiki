@@ -34,6 +34,33 @@ services:
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
     ports:
       - "${WEB_PORT:-3000}:3000"
+    volumes:
+      # Optional Local content backend (003). Only used when an admin selects the
+      # Local backend with base directory /data/content; harmless otherwise. The
+      # default deployment keeps content in PostgreSQL.
+      - ./.content-data:/data/content
     depends_on:
       db:
         condition: service_healthy
+
+  # Optional S3-compatible object storage for the S3 content backend (003).
+  # Enable with: docker compose --profile storage-s3 up
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2024-10-13T13-34-11Z}
+    container_name: next-wiki-minio
+    profiles: ["storage-s3"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - ./.minio-data:/data
+    ports:
+      # API and console exposed on loopback only for local development/tests.
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

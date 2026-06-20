@@ -51,3 +51,6 @@ AGENTS.md
 
 # Runtime files
 .postgres-data/
+.content-data/
+.minio-data/
+.playwright-mcp/

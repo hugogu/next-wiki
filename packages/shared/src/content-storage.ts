@@ -99,6 +99,49 @@ export const storageBackendViewSchema = z.object({
 });
 export type StorageBackendView = z.infer<typeof storageBackendViewSchema>;
 
+// ---- Backend configuration write (admin) -----------------------------------
+//
+// Per-type discriminated union so the route returns INVALID_CONFIG (400) on a
+// shape mismatch. `secret` is write-only (S3 secret access key); it is never
+// echoed back. Purpose is `primary` for authoritative backends in this slice
+// (Git export is configured via its own endpoint).
+
+export const storageBackendUpsertSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('database'),
+    config: databaseBackendConfigSchema,
+  }),
+  z.object({
+    type: z.literal('local'),
+    config: localBackendConfigSchema,
+  }),
+  z.object({
+    type: z.literal('s3'),
+    config: s3BackendConfigSchema,
+    secret: z.string().min(1).optional(),
+  }),
+]);
+export type StorageBackendUpsert = z.infer<typeof storageBackendUpsertSchema>;
+
+/** Body for an ephemeral connection check: either a saved backend or ad-hoc config. */
+export const backendCheckSchema = z
+  .object({
+    backendId: z.string().uuid().optional(),
+    type: contentStoreTypeSchema.optional(),
+    config: z.record(z.unknown()).optional(),
+    secret: z.string().optional(),
+  })
+  .refine((d) => Boolean(d.backendId) || Boolean(d.type && d.config), {
+    message: 'Provide either backendId or type with config',
+  });
+export type BackendCheckInput = z.infer<typeof backendCheckSchema>;
+
+export const backendCheckResultSchema = z.object({
+  ok: z.boolean(),
+  detail: z.string().optional(),
+});
+export type BackendCheckResult = z.infer<typeof backendCheckResultSchema>;
+
 // ---- Migration view --------------------------------------------------------
 
 export const migrationViewSchema = z.object({
@@ -113,3 +156,13 @@ export const migrationViewSchema = z.object({
   finishedAt: z.string().nullable(),
 });
 export type MigrationView = z.infer<typeof migrationViewSchema>;
+
+// ---- Storage overview (GET /api/storage) -----------------------------------
+
+export const storageOverviewSchema = z.object({
+  active: storageBackendViewSchema,
+  backends: z.array(storageBackendViewSchema),
+  gitExport: storageBackendViewSchema.nullable(),
+  migration: migrationViewSchema.nullable(),
+});
+export type StorageOverview = z.infer<typeof storageOverviewSchema>;

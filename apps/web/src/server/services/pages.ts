@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { eq, and, isNull, desc, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
+import { getActiveStore } from '@/server/content-store/registry';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { pathSchema } from '@next-wiki/shared';
@@ -22,6 +24,33 @@ function getUserId(ctx: PermCtx): string | null {
 
 function leafSlugFromPath(path: string): string {
   return path.split('/').pop() ?? path;
+}
+
+/**
+ * Pre-generate a revision id and route the raw Markdown to the active content
+ * store. The Database backend keeps markdown inline in `content_source`; an
+ * external backend (Local/S3) is written external-first (before the DB row is
+ * committed) and leaves `content_source` null (plan D1/D9, R11).
+ */
+async function persistRevisionMarkdown(
+  source: string,
+): Promise<{ revisionId: string; contentSourceForRow: string | null }> {
+  const revisionId = randomUUID();
+  const store = await getActiveStore();
+  if (store.type === 'database') {
+    return { revisionId, contentSourceForRow: source };
+  }
+  await store.putMarkdown(revisionId, source);
+  return { revisionId, contentSourceForRow: null };
+}
+
+/** Resolve a revision's raw Markdown from the DB column or the active store. */
+async function readRevisionMarkdown(revision: {
+  id: string;
+  contentSource: string | null;
+}): Promise<string> {
+  if (revision.contentSource !== null) return revision.contentSource;
+  return (await getActiveStore()).getMarkdown(revision.id);
 }
 
 export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
@@ -210,6 +239,8 @@ export async function create(
     throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
   }
 
+  const { revisionId, contentSourceForRow } = await persistRevisionMarkdown(input.contentSource);
+
   return await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
       where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, input.path)),
@@ -236,10 +267,11 @@ export async function create(
     const [revision] = await tx
       .insert(schema.pageRevisions)
       .values({
+        id: revisionId,
         pageId: page.id,
         versionNumber: 1,
         contentType: 'text/markdown',
-        contentSource: input.contentSource,
+        contentSource: contentSourceForRow,
         contentHtml: html,
         contentHash: hash,
         authorId: userId,
@@ -273,6 +305,8 @@ export async function newDraft(
   const space = await getDefaultSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
+  const { revisionId, contentSourceForRow } = await persistRevisionMarkdown(input.contentSource);
+
   return await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
       where: and(
@@ -299,10 +333,11 @@ export async function newDraft(
     const [revision] = await tx
       .insert(schema.pageRevisions)
       .values({
+        id: revisionId,
         pageId: page.id,
         versionNumber: nextVersion,
         contentType: 'text/markdown',
-        contentSource: input.contentSource,
+        contentSource: contentSourceForRow,
         contentHtml: html,
         contentHash: hash,
         authorId: userId,
@@ -421,9 +456,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
   return {
     path: page.path,
     title: page.title,
-    // DB backend always populates content_source; the external-backend markdown
-    // read indirection (via getActiveStore().getMarkdown) lands with US2.
-    contentSource: revision.contentSource ?? '',
+    contentSource: await readRevisionMarkdown(revision),
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,
@@ -529,9 +562,7 @@ export async function getRevision(
     version: revision.versionNumber,
     status: revision.status,
     contentHtml: revision.contentHtml,
-    // DB backend always populates content_source; the external-backend markdown
-    // read indirection (via getActiveStore().getMarkdown) lands with US2.
-    contentSource: revision.contentSource ?? '',
+    contentSource: await readRevisionMarkdown(revision),
     authorDisplayName: author?.displayName ?? null,
     createdAt: revision.createdAt.toISOString(),
   };

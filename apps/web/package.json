@@ -18,6 +18,7 @@
     "openapi:generate": "openapi-gen generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1073.0",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/state": "^6.6.0",
