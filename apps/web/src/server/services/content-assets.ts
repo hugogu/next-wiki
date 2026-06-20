@@ -107,7 +107,9 @@ export async function getServableImage(ctx: PermCtx, assetId: string): Promise<S
       });
       const store = getStoreFor(preferred);
       if (replicated && store instanceof S3Store) {
-        return { kind: 'redirect', url: await store.presignImage(asset.id) };
+        // Presign for longer than the route's redirect cache window so the
+        // browser can reuse the cached redirect (and thus the same S3 URL).
+        return { kind: 'redirect', url: await store.presignImage(asset.id, 300) };
       }
     }
     const { bytes, contentType } = await readImageWithFallback(asset);

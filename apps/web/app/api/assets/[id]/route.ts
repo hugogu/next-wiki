@@ -48,7 +48,10 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
     if (result.kind === 'redirect') {
       return NextResponse.redirect(result.url, {
         status: 307,
-        headers: { 'Cache-Control': 'private, no-store' },
+        // Cache the redirect itself briefly (well under the presigned URL's
+        // lifetime) so repeated loads — page revisits and editor re-renders —
+        // reuse the same S3 URL instead of re-fetching on every request.
+        headers: { 'Cache-Control': 'private, max-age=120' },
       });
     }
 
