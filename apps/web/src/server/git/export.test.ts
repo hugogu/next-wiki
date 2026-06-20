@@ -101,4 +101,67 @@ describe('Git export materialization', () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+
+  it('excludes soft-deleted pages and assets they alone referenced', async () => {
+    const extra = { page: randomUUID(), revision: randomUUID(), asset: randomUUID() };
+    await db.insert(schema.contentAssets).values({
+      id: extra.asset,
+      contentHash: 'deleted-asset-hash',
+      contentType: 'image/png',
+      sizeBytes: 2,
+      createdBy: ids.user,
+    });
+    await db.insert(schema.contentBlobs).values({
+      assetId: extra.asset,
+      bytes: Buffer.from([9, 9]),
+    });
+    await db.insert(schema.pages).values({
+      id: extra.page,
+      spaceId: ids.space,
+      slug: 'obsolete',
+      path: 'docs/obsolete',
+      title: 'Obsolete',
+      authorId: ids.user,
+      currentPublishedVersionId: extra.revision,
+      latestVersionId: extra.revision,
+      deletedAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    await db.insert(schema.pageRevisions).values({
+      id: extra.revision,
+      pageId: extra.page,
+      versionNumber: 1,
+      contentSource: `# Obsolete\n\n![image](/api/assets/${extra.asset})`,
+      contentHtml: '<h1>Obsolete</h1>',
+      contentHash: 'obsolete-hash',
+      authorId: ids.user,
+      status: 'published',
+      publishedAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    await db.insert(schema.contentAssetRefs).values({
+      revisionId: extra.revision,
+      assetId: extra.asset,
+    });
+
+    const directory = await mkdtemp(join(tmpdir(), 'next-wiki-export-test-'));
+    try {
+      // A fresh checkout plus this snapshot is how the job prunes removed
+      // content: deleted pages and the assets only they referenced never appear.
+      const result = await materializeGitExport(directory, {
+        remoteUrl: 'git@example.com:group/wiki.git',
+        branch: 'next-wiki',
+        assetsDir: 'assets',
+        authMode: 'ssh',
+      });
+      expect(result).toEqual({ pages: 1, assets: 1 });
+      await expect(readFile(join(directory, 'docs/obsolete.md'), 'utf8')).rejects.toThrow();
+      await expect(readFile(join(directory, 'assets', `${extra.asset}.png`))).rejects.toThrow();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+      await db.delete(schema.contentAssetRefs).where(eq(schema.contentAssetRefs.revisionId, extra.revision));
+      await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, extra.revision));
+      await db.delete(schema.pages).where(eq(schema.pages.id, extra.page));
+      await db.delete(schema.contentBlobs).where(eq(schema.contentBlobs.assetId, extra.asset));
+      await db.delete(schema.contentAssets).where(eq(schema.contentAssets.id, extra.asset));
+    }
+  });
 });

@@ -29,28 +29,28 @@ test.describe('storage & preferences API-key scopes', () => {
 
   test('an admin key with the storage scope can read storage config; without it is denied', async ({
     page,
-    request,
   }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    // Mint a key with the storage scope through the API directly.
-    const withStorage = await request.post('/api/api-keys', {
+    // Key creation is session-only, so use page.request to carry the login
+    // cookie; the Bearer calls below authenticate with the minted key instead.
+    const withStorage = await page.request.post('/api/api-keys', {
       data: { name: `e2e-storage-${Date.now()}`, scopes: ['storage'] },
     });
     expect(withStorage.ok()).toBeTruthy();
     const storageKey = (await withStorage.json()).keySecret as string;
 
-    const okRes = await request.get('/api/storage', {
+    const okRes = await page.request.get('/api/storage', {
       headers: { Authorization: `Bearer ${storageKey}` },
     });
     expect(okRes.status()).toBe(200);
 
     // A key without the storage scope is treated as if the surface does not exist.
-    const withoutStorage = await request.post('/api/api-keys', {
+    const withoutStorage = await page.request.post('/api/api-keys', {
       data: { name: `e2e-nostorage-${Date.now()}`, scopes: ['view'] },
     });
     const viewKey = (await withoutStorage.json()).keySecret as string;
-    const deniedRes = await request.get('/api/storage', {
+    const deniedRes = await page.request.get('/api/storage', {
       headers: { Authorization: `Bearer ${viewKey}` },
     });
     expect(deniedRes.status()).toBe(404);

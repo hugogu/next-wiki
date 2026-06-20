@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "DATABASE_URL=postgresql://localhost:5432/next_wiki next build",
+    "build": "DATABASE_URL=postgresql://localhost:5432/next_wiki API_KEY_ENCRYPTION_KEY=${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000} next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
