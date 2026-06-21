@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type {
+  AiProviderHealth,
   AiProviderType,
   AiProviderVendor,
   AiProviderView,
@@ -51,6 +52,39 @@ export function ProviderForm({
   const [embeddingDimensions, setEmbeddingDimensions] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const health = await apiPost<unknown, AiProviderHealth>('/api/ai/providers/test', {
+        mode: 'draft',
+        type,
+        vendor,
+        baseUrl,
+        credentials: { apiKey },
+      });
+      setTestResult(
+        health.ok
+          ? { ok: true, text: t('admin.ai.providers.testOk', { latency: health.latencyMs }) }
+          : {
+              ok: false,
+              text: t('admin.ai.providers.testFailed', {
+                detail: health.errorMessage ?? health.errorCode ?? '',
+              }),
+            },
+      );
+    } catch (value) {
+      setTestResult({
+        ok: false,
+        text: t('admin.ai.providers.testFailed', { detail: (value as ApiError).message ?? '' }),
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   // Until the admin types their own label, default it to the model id (for
   // vendors entered manually) or the vendor name, so they rarely have to.
@@ -151,13 +185,26 @@ export function ProviderForm({
         <span className="text-sm font-medium">{t('admin.ai.providers.apiKey')}</span>
         <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} required />
       </label>
-      <div className="flex justify-end gap-sm pt-sm">
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          {t('common.actions.cancel')}
+      {testResult && (
+        <p className={`text-sm ${testResult.ok ? 'text-success' : 'text-danger'}`}>{testResult.text}</p>
+      )}
+      <div className="flex items-center justify-between gap-sm pt-sm">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={testing || !baseUrl || !apiKey}
+          onClick={runTest}
+        >
+          {testing ? t('admin.ai.providers.testing') : t('admin.ai.providers.test')}
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving ? t('admin.ai.saving') : t('admin.ai.providers.create')}
-        </Button>
+        <div className="flex gap-sm">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            {t('common.actions.cancel')}
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? t('admin.ai.saving') : t('admin.ai.providers.create')}
+          </Button>
+        </div>
       </div>
     </form>
   );
