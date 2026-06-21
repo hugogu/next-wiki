@@ -20,6 +20,10 @@ type ImageInput = {
   aspectRatio?: string;
 };
 
+// Image models cap their prompt length (MiniMax 1500, DALL·E ~4000 chars), so
+// keep the whole prompt comfortably under the smallest known limit.
+const IMAGE_PROMPT_MAX_CHARS = 1_400;
+
 async function readBoundedResponse(response: Response): Promise<Buffer> {
   if (!response.ok || !response.body) throw new DomainError('PROVIDER_UNAVAILABLE', 'Generated image could not be downloaded');
   const reader = response.body.getReader();
@@ -76,10 +80,11 @@ export async function runImageGenerationAction(actionId: string): Promise<void> 
   await assertAiFeature(ctx, 'image');
   const { page, revision } = await assertEditableRevision(ctx, input.pageId, input.revisionId);
   const source = input.source.kind === 'page' ? revision.contentSource ?? '' : input.source.text;
-  const prompt =
+  const prompt = (
     `Create one relevant Wiki illustration for the page "${page.title}". ` +
     'Do not include logos, watermarks, UI chrome, or large blocks of text. ' +
-    `Use this Wiki content as the sole subject context:\n\n${source.slice(0, 100_000)}`;
+    `Use this Wiki content as the sole subject context:\n\n${source}`
+  ).slice(0, IMAGE_PROMPT_MAX_CHARS);
   const output = await createAiProviderAdapter(await providerRuntime(action.providerId)).generateImage({
     actionId,
     modelExternalId: model.externalId,
