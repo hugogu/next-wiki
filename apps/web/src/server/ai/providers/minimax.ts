@@ -88,14 +88,38 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
       body: JSON.stringify({
         model: input.modelExternalId,
         prompt: input.prompt,
-        aspect_ratio: input.aspectRatio,
+        ...(input.aspectRatio ? { aspect_ratio: input.aspectRatio } : {}),
         response_format: 'base64',
+        n: 1,
       }),
     });
-    const payload = await readBoundedJson<{ data?: { image_base64?: unknown } }>(response);
-    const image = Array.isArray(payload.data?.image_base64) ? payload.data.image_base64[0] : undefined;
-    if (typeof image === 'string') {
-      return { kind: 'data_url', dataUrl: `data:image/jpeg;base64,${image}` };
+    // MiniMax answers with HTTP 200 even on failure; the real outcome is in
+    // base_resp.status_code (0 = success), so surface its message instead of a
+    // generic "no image" error.
+    const payload = await readBoundedJson<{
+      data?: { image_base64?: unknown; image_urls?: unknown };
+      base_resp?: { status_code?: number; status_msg?: string };
+    }>(response);
+    const status = payload.base_resp?.status_code;
+    if (status !== undefined && status !== 0) {
+      throw new AiProviderError(
+        MINIMAX_AUTH_STATUS.has(status)
+          ? 'PROVIDER_UNAVAILABLE'
+          : status === 1002
+            ? 'RATE_LIMITED'
+            : status === 1026
+              ? 'CONTENT_REJECTED'
+              : 'INVALID_RESPONSE',
+        `MiniMax image generation failed (${status}): ${payload.base_resp?.status_msg ?? 'unknown error'}`,
+      );
+    }
+    const base64 = Array.isArray(payload.data?.image_base64) ? payload.data.image_base64[0] : undefined;
+    if (typeof base64 === 'string' && base64) {
+      return { kind: 'data_url', dataUrl: `data:image/jpeg;base64,${base64}` };
+    }
+    const url = Array.isArray(payload.data?.image_urls) ? payload.data.image_urls[0] : undefined;
+    if (typeof url === 'string' && url) {
+      return { kind: 'url', url };
     }
     throw new AiProviderError('INVALID_RESPONSE', 'MiniMax did not return an image');
   }
