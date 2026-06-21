@@ -1,7 +1,9 @@
 import type { Actor } from '@/server/permissions';
-import type { PageSummary } from '@next-wiki/shared';
+import type { AiEntitlementView, PageSummary } from '@next-wiki/shared';
 
 export type PageContext = {
+  pageId?: string;
+  revisionId?: string;
   path: string;
   title: string;
   status: 'draft' | 'published';
@@ -16,5 +18,6 @@ export type AppShellProps = {
   pageContext?: PageContext;
   admin?: boolean;
   userCenter?: boolean;
+  aiEntitlements?: AiEntitlementView | null;
   children: React.ReactNode;
 };

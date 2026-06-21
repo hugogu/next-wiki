@@ -13,7 +13,7 @@ import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
 
-export function EditPageForm({ path, initial }: { path: string; initial: { title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
+export function EditPageForm({ path, initial }: { path: string; initial: { pageId: string; revisionId: string; title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
   const { t } = useTranslation();
   const setEditor = useSetEditor();
   const { goBack } = useHistory();
@@ -116,6 +116,8 @@ export function EditPageForm({ path, initial }: { path: string; initial: { title
 
       <div className="flex-1 overflow-hidden relative">
         <SplitMarkdownEditor
+          pageId={initial.pageId}
+          revisionId={initial.revisionId}
           value={contentSource}
           onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
           disabled={isSaving}

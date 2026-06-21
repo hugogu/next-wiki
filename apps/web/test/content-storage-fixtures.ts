@@ -12,7 +12,7 @@ import { db } from '@/server/db';
 export async function truncateStorageTables(): Promise<void> {
   await db.execute(
     sql.raw(
-      'TRUNCATE TABLE storage_cleanup_jobs, content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE',
+      'TRUNCATE TABLE ai_generated_artifacts, ai_action_events, ai_action_inputs, ai_actions, ai_knowledge_chunks, ai_page_index_states, ai_index_generations, user_ai_entitlements, ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings, storage_cleanup_jobs, content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE',
     ),
   );
 }

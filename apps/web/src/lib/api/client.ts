@@ -66,6 +66,10 @@ export async function apiPatch<TInput, TOutput>(path: string, input: TInput): Pr
   return apiFetch<TInput, TOutput>(path, input, 'PATCH');
 }
 
+export async function apiPut<TInput, TOutput>(path: string, input: TInput): Promise<TOutput> {
+  return apiFetch<TInput, TOutput>(path, input, 'PUT');
+}
+
 export async function apiGet<TOutput>(path: string): Promise<TOutput> {
   return apiFetch<undefined, TOutput>(path, undefined, 'GET');
 }

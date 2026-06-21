@@ -30,6 +30,8 @@ export default async function EditPage({ params }: { params: Params }) {
   }
 
   const pageContext = {
+    pageId: view.pageId,
+    revisionId: view.revisionId,
     path,
     title: view.title,
     status: view.status,
@@ -41,7 +43,7 @@ export default async function EditPage({ params }: { params: Params }) {
   return (
     <Layout pageContext={pageContext}>
       <div className="h-full flex flex-col">
-        <EditPageForm path={path} initial={{ title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
+        <EditPageForm path={path} initial={{ pageId: view.pageId, revisionId: view.revisionId, title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, latestVersion: view.latestVersion }} />
       </div>
     </Layout>
   );

@@ -23,6 +23,14 @@ import {
   UndoIcon,
   RedoIcon,
 } from '@/components/icons';
+import { useAiAvailability } from '@/components/ai/AiAvailabilityContext';
+import {
+  AiTextOptimizationDialog,
+  applyExactSelection,
+  hashEditorSelection,
+  type EditorSelectionSnapshot,
+} from './AiTextOptimizationDialog';
+import { AiImageGenerationDialog } from './AiImageGenerationDialog';
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
@@ -111,17 +119,22 @@ function insertImageReference(view: EditorView, url: string, alt: string) {
 }
 
 export function SplitMarkdownEditor({
+  pageId,
+  revisionId,
   value,
   onChange,
   disabled,
   className = '',
 }: {
+  pageId?: string;
+  revisionId?: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   className?: string;
 }) {
   const { t } = useTranslation();
+  const ai = useAiAvailability();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -132,6 +145,17 @@ export function SplitMarkdownEditor({
   const [syncing, setSyncing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [optimizationSelection, setOptimizationSelection] = useState<EditorSelectionSnapshot | null>(null);
+  const [imageSelection, setImageSelection] = useState<EditorSelectionSnapshot | null | undefined>(undefined);
+
+  const snapshotSelection = useCallback(async (): Promise<EditorSelectionSnapshot | null> => {
+    const view = viewRef.current;
+    if (!view) return null;
+    const { from, to } = view.state.selection.main;
+    if (from === to) return null;
+    const text = view.state.sliceDoc(from, to);
+    return { text, from, to, hash: await hashEditorSelection(text) };
+  }, []);
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
@@ -335,6 +359,24 @@ export function SplitMarkdownEditor({
         >
           <ImageIcon />
         </ToolbarButton>
+        {pageId && revisionId && ai?.textOptimizationEnabled && (
+          <ToolbarButton
+            onClick={() => { void snapshotSelection().then((selection) => { if (selection) setOptimizationSelection(selection); }); }}
+            label={t('ai.optimize.toolbar')}
+            disabled={disabled}
+          >
+            <span aria-hidden="true">AI</span>
+          </ToolbarButton>
+        )}
+        {pageId && revisionId && ai?.imageGenerationEnabled && (
+          <ToolbarButton
+            onClick={() => { void snapshotSelection().then((selection) => setImageSelection(selection)); }}
+            label={t('ai.image.toolbar')}
+            disabled={disabled}
+          >
+            <span aria-hidden="true">✦</span>
+          </ToolbarButton>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -382,6 +424,37 @@ export function SplitMarkdownEditor({
           <ContentRenderer html={html} />
         </div>
       </div>
+      {pageId && revisionId && optimizationSelection && (
+        <AiTextOptimizationDialog
+          pageId={pageId}
+          revisionId={revisionId}
+          selection={optimizationSelection}
+          onClose={() => setOptimizationSelection(null)}
+          onAccept={(replacement, original) => {
+            const view = viewRef.current;
+            if (!view) return false;
+            if (applyExactSelection(view.state.doc.toString(), original, replacement) === null) return false;
+            view.dispatch({
+              changes: { from: original.from, to: original.to, insert: replacement },
+              selection: { anchor: original.from + replacement.length },
+            });
+            view.focus();
+            return true;
+          }}
+        />
+      )}
+      {pageId && revisionId && imageSelection !== undefined && (
+        <AiImageGenerationDialog
+          pageId={pageId}
+          revisionId={revisionId}
+          selection={imageSelection}
+          onClose={() => setImageSelection(undefined)}
+          onInsert={(url) => {
+            const view = viewRef.current;
+            if (view) insertImageReference(view, url, 'AI generated illustration');
+          }}
+        />
+      )}
     </div>
   );
 }

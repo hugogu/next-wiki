@@ -36,6 +36,8 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const createdAt = new Date(page.createdAt);
 
   const pageContext = {
+    pageId: page.pageId,
+    revisionId: page.revisionId,
     path,
     title: page.title,
     status: page.status,

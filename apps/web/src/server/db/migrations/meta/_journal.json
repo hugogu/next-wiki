@@ -64,6 +64,13 @@
       "when": 1781943686523,
       "tag": "0008_restore_legacy_active_replica",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781966703599,
+      "tag": "0009_system_ai_support",
+      "breakpoints": true
     }
   ]
 }

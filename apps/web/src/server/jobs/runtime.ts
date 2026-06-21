@@ -7,6 +7,8 @@ export const QUEUES = {
   orphanCleanup: 'orphan-cleanup',
   replication: 'storage-replication',
   gitExport: 'git-export',
+  aiAction: 'ai-action',
+  aiCleanup: 'ai-cleanup',
 } as const;
 
 /**

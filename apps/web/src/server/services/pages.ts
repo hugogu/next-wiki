@@ -15,6 +15,7 @@ import {
   readMarkdownWithFallback,
 } from '@/server/content-store/read-router';
 import { enqueueGitExport } from '@/server/services/git-export';
+import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -115,6 +116,8 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     });
 
     return {
+      pageId: page.id,
+      revisionId: revision.id,
       path: page.path,
       title: page.title,
       contentHtml: revision.contentHtml,
@@ -144,6 +147,8 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
   });
 
   return {
+    pageId: page.id,
+    revisionId: draft.id,
     path: page.path,
     title: page.title,
     contentHtml: draft.contentHtml,
@@ -211,6 +216,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
     .set({ deletedAt: new Date() })
     .where(eq(schema.pages.id, page.id));
   await enqueueGitExport('publish');
+  await reconcilePageAcrossIndexes(page.id, ctx);
 }
 
 export async function create(
@@ -419,6 +425,7 @@ export async function updateProperties(
     return { pageId: page.id, newPath: input.path };
   });
   if (input.path !== currentPath) await enqueueGitExport('publish');
+  await reconcilePageAcrossIndexes(result.pageId, ctx);
   return result;
 }
 
@@ -459,6 +466,8 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
   );
 
   return {
+    pageId: page.id,
+    revisionId: revision.id,
     path: page.path,
     title: page.title,
     // Editing reads the authoritative source directly: blocking the page load

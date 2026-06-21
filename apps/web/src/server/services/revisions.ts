@@ -5,6 +5,7 @@ import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { assertNotMigrating } from '@/server/services/migration';
 import { enqueueGitExport } from '@/server/services/git-export';
+import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -66,8 +67,9 @@ export async function publish(
       })
       .where(eq(schema.pages.id, page.id));
 
-    return { versionId: revision.id };
+    return { versionId: revision.id, pageId: page.id };
   });
   await enqueueGitExport('publish');
-  return result;
+  await reconcilePageAcrossIndexes(result.pageId, ctx);
+  return { versionId: result.versionId };
 }

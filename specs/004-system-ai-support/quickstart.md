@@ -53,6 +53,15 @@ docker compose exec db psql -U wiki -d wiki -c \
 
 Expected: one `vector` extension row.
 
+If a local `.env` already sets `POSTGRES_IMAGE`, that value overrides the
+Compose default. Update or remove stale overrides that still reference plain
+`postgres:16-*`, then recreate the database container:
+
+```bash
+docker compose pull db
+docker compose up -d --force-recreate db web
+```
+
 ## Configure a provider
 
 1. Sign in as Admin.
@@ -137,6 +146,9 @@ Any route/schema change must regenerate documentation through next-openapi-gen:
 pnpm --filter @next-wiki/web openapi:generate
 ```
 
+The generator requires Node.js 20.9 or newer. This feature was generated with
+Node.js 24; Node.js 18 fails while loading modern JSON import attributes.
+
 Verify:
 
 ```bash
@@ -176,6 +188,23 @@ Required coverage:
 - no prompt/response/image content in permanent audit rows or logs;
 - generated artifact expiry and idempotent promotion;
 - OpenAPI generation and docs rendering.
+
+## Implementation verification record
+
+The following checks completed successfully on June 20, 2026:
+
+```bash
+pnpm --filter @next-wiki/shared typecheck
+pnpm --filter @next-wiki/web typecheck
+pnpm --filter @next-wiki/web lint
+docker compose up -d --build
+```
+
+The production Docker build compiled all AI Admin, search, Q&A, optimization,
+image, artifact, action, and entitlement routes. Before running integration or
+E2E tests, verify that any local `POSTGRES_IMAGE` override resolves to
+`pgvector/pgvector:0.8.3-pg16`; the vector migration intentionally fails on a
+plain PostgreSQL image.
 
 ## Failure drills
 

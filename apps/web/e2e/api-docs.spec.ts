@@ -7,6 +7,20 @@ test.describe('api docs', () => {
     const body = await response.json();
     expect(body.openapi).toMatch(/^3\./);
     expect(body.paths['/pages']).toBeDefined();
+    for (const path of [
+      '/ai/settings',
+      '/ai/providers',
+      '/ai/entitlements/{userId}',
+      '/ai/indexes',
+      '/ai/actions/{id}/events',
+      '/ai/searches',
+      '/ai/questions',
+      '/ai/optimizations',
+      '/ai/images',
+      '/ai/generated-artifacts/{id}/asset',
+    ]) {
+      expect(body.paths[path], `OpenAPI path ${path}`).toBeDefined();
+    }
 
     await page.goto('/api-docs', { waitUntil: 'networkidle' });
     expect(page.url()).toContain('/api-docs');

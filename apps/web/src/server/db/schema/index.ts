@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
+  bigserial,
   customType,
   index,
   integer,
@@ -27,12 +28,40 @@ import {
   storageBackendTypeEnum,
   userRoleEnum,
   userStatusEnum,
+  aiProviderKindEnum,
+  aiProviderStatusEnum,
+  aiModelAvailabilityEnum,
+  aiCapabilityEnum,
+  aiCapabilitySourceEnum,
+  aiPurposeEnum,
+  aiIndexStatusEnum,
+  aiPageIndexStatusEnum,
+  aiActionFeatureEnum,
+  aiActionStatusEnum,
+  aiQuestionModeEnum,
+  aiEventTypeEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
     return 'bytea';
+  },
+});
+
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return 'vector';
+  },
+  toDriver(value) {
+    return `[${value.join(',')}]`;
+  },
+  fromDriver(value) {
+    return value
+      .slice(1, -1)
+      .split(',')
+      .filter(Boolean)
+      .map(Number);
   },
 });
 
@@ -360,3 +389,280 @@ export const contentAssetRefsRelations = relations(contentAssetRefs, ({ one }) =
     references: [pageRevisions.id],
   }),
 }));
+
+// ---- System AI (004) ------------------------------------------------------
+
+export const aiSettings = pgTable('ai_settings', {
+  id: text('id').primaryKey().default('default'),
+  enabled: boolean('enabled').notNull().default(false),
+  eventRetentionHours: integer('event_retention_hours').notNull().default(24),
+  artifactRetentionHours: integer('artifact_retention_hours').notNull().default(24),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const aiProviders = pgTable(
+  'ai_providers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    kind: aiProviderKindEnum('kind').notNull(),
+    baseUrl: text('base_url').notNull(),
+    config: jsonb('config').notNull().default({}),
+    credentialsEncrypted: text('credentials_encrypted').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    status: aiProviderStatusEnum('status').notNull().default('unverified'),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    lastErrorCode: text('last_error_code'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    nameUnique: uniqueIndex('ai_providers_name_unique').on(t.name),
+    enabledIdx: index('ai_providers_enabled_idx').on(t.enabled),
+  }),
+);
+
+export const aiModels = pgTable(
+  'ai_models',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    providerId: uuid('provider_id')
+      .notNull()
+      .references(() => aiProviders.id, { onDelete: 'cascade' }),
+    externalId: text('external_id').notNull(),
+    canonicalId: text('canonical_id'),
+    displayName: text('display_name').notNull(),
+    availability: aiModelAvailabilityEnum('availability').notNull().default('unknown'),
+    contextWindow: integer('context_window'),
+    maxOutputTokens: integer('max_output_tokens'),
+    embeddingDimensions: integer('embedding_dimensions'),
+    inputModalities: text('input_modalities').array().notNull().default([]),
+    outputModalities: text('output_modalities').array().notNull().default([]),
+    rawMetadata: jsonb('raw_metadata').notNull().default({}),
+    manuallyAdded: boolean('manually_added').notNull().default(false),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    providerExternalUnique: uniqueIndex('ai_models_provider_external_unique').on(
+      t.providerId,
+      t.externalId,
+    ),
+    providerIdx: index('ai_models_provider_idx').on(t.providerId),
+    availabilityIdx: index('ai_models_availability_idx').on(t.availability),
+  }),
+);
+
+export const aiModelCapabilities = pgTable(
+  'ai_model_capabilities',
+  {
+    modelId: uuid('model_id')
+      .notNull()
+      .references(() => aiModels.id, { onDelete: 'cascade' }),
+    capability: aiCapabilityEnum('capability').notNull(),
+    supported: boolean('supported').notNull(),
+    source: aiCapabilitySourceEnum('source').notNull(),
+    details: jsonb('details').notNull().default({}),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: uniqueIndex('ai_model_capabilities_pk').on(t.modelId, t.capability, t.source),
+  }),
+);
+
+export const aiPurposeAssignments = pgTable('ai_purpose_assignments', {
+  purpose: aiPurposeEnum('purpose').primaryKey(),
+  modelId: uuid('model_id')
+    .notNull()
+    .references(() => aiModels.id),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const userAiEntitlements = pgTable('user_ai_entitlements', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  questionAnsweringEnabled: boolean('question_answering_enabled').notNull().default(false),
+  textOptimizationEnabled: boolean('text_optimization_enabled').notNull().default(false),
+  imageGenerationEnabled: boolean('image_generation_enabled').notNull().default(false),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const aiIndexGenerations = pgTable(
+  'ai_index_generations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    modelId: uuid('model_id')
+      .notNull()
+      .references(() => aiModels.id),
+    embeddingDimensions: integer('embedding_dimensions').notNull(),
+    chunkerVersion: text('chunker_version').notNull(),
+    status: aiIndexStatusEnum('status').notNull().default('building'),
+    isActive: boolean('is_active').notNull().default(false),
+    totalPages: integer('total_pages').notNull().default(0),
+    completedPages: integer('completed_pages').notNull().default(0),
+    failedPages: integer('failed_pages').notNull().default(0),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    activeUnique: uniqueIndex('ai_index_generations_active_unique')
+      .on(t.isActive)
+      .where(sql`${t.isActive} = true`),
+    statusIdx: index('ai_index_generations_status_idx').on(t.status),
+  }),
+);
+
+export const aiPageIndexStates = pgTable(
+  'ai_page_index_states',
+  {
+    generationId: uuid('generation_id')
+      .notNull()
+      .references(() => aiIndexGenerations.id, { onDelete: 'cascade' }),
+    pageId: uuid('page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    targetRevisionId: uuid('target_revision_id').references(() => pageRevisions.id),
+    targetContentHash: text('target_content_hash'),
+    status: aiPageIndexStatusEnum('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    lastErrorCode: text('last_error_code'),
+    lastErrorMessage: text('last_error_message'),
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    pk: uniqueIndex('ai_page_index_states_pk').on(t.generationId, t.pageId),
+    pendingIdx: index('ai_page_index_states_pending_idx').on(t.status, t.availableAt),
+  }),
+);
+
+export const aiKnowledgeChunks = pgTable(
+  'ai_knowledge_chunks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    generationId: uuid('generation_id')
+      .notNull()
+      .references(() => aiIndexGenerations.id, { onDelete: 'cascade' }),
+    pageId: uuid('page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    revisionId: uuid('revision_id')
+      .notNull()
+      .references(() => pageRevisions.id, { onDelete: 'cascade' }),
+    chunkIndex: integer('chunk_index').notNull(),
+    headingPath: text('heading_path').array().notNull().default([]),
+    contentText: text('content_text').notNull(),
+    contentHash: text('content_hash').notNull(),
+    byteCount: integer('byte_count').notNull(),
+    embedding: vector('embedding').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    revisionChunkUnique: uniqueIndex('ai_knowledge_chunks_revision_unique').on(
+      t.generationId,
+      t.revisionId,
+      t.chunkIndex,
+    ),
+    generationPageIdx: index('ai_knowledge_chunks_generation_page_idx').on(
+      t.generationId,
+      t.pageId,
+    ),
+    generationRevisionIdx: index('ai_knowledge_chunks_generation_revision_idx').on(
+      t.generationId,
+      t.revisionId,
+    ),
+  }),
+);
+
+export const aiActions = pgTable(
+  'ai_actions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    feature: aiActionFeatureEnum('feature').notNull(),
+    status: aiActionStatusEnum('status').notNull().default('queued'),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    providerId: uuid('provider_id').references(() => aiProviders.id),
+    modelId: uuid('model_id').references(() => aiModels.id),
+    indexGenerationId: uuid('index_generation_id').references(() => aiIndexGenerations.id),
+    pageId: uuid('page_id').references(() => pages.id, { onDelete: 'set null' }),
+    questionMode: aiQuestionModeEnum('question_mode'),
+    requestMetadata: jsonb('request_metadata').notNull().default({}),
+    resultMetadata: jsonb('result_metadata').notNull().default({}),
+    usageMetadata: jsonb('usage_metadata').notNull().default({}),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    cancelRequested: boolean('cancel_requested').notNull().default(false),
+    queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    actorQueuedIdx: index('ai_actions_actor_queued_idx').on(t.actorUserId, t.queuedAt),
+    statusQueuedIdx: index('ai_actions_status_queued_idx').on(t.status, t.queuedAt),
+    providerQueuedIdx: index('ai_actions_provider_queued_idx').on(t.providerId, t.queuedAt),
+  }),
+);
+
+export const aiActionInputs = pgTable('ai_action_inputs', {
+  actionId: uuid('action_id')
+    .primaryKey()
+    .references(() => aiActions.id, { onDelete: 'cascade' }),
+  payloadEncrypted: text('payload_encrypted').notNull(),
+  payloadHash: text('payload_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+export const aiActionEvents = pgTable(
+  'ai_action_events',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    actionId: uuid('action_id')
+      .notNull()
+      .references(() => aiActions.id, { onDelete: 'cascade' }),
+    type: aiEventTypeEnum('type').notNull(),
+    payload: jsonb('payload').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    actionCursorIdx: index('ai_action_events_action_cursor_idx').on(t.actionId, t.id),
+  }),
+);
+
+export const aiGeneratedArtifacts = pgTable(
+  'ai_generated_artifacts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actionId: uuid('action_id')
+      .notNull()
+      .references(() => aiActions.id, { onDelete: 'cascade' }),
+    contentType: text('content_type').notNull(),
+    contentHash: text('content_hash').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    bytes: bytea('bytes').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    promotedAssetId: uuid('promoted_asset_id').references(() => contentAssets.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    promotedAt: timestamp('promoted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    actionUnique: uniqueIndex('ai_generated_artifacts_action_unique').on(t.actionId),
+    expiresIdx: index('ai_generated_artifacts_expires_idx').on(t.expiresAt),
+  }),
+);

@@ -32,7 +32,12 @@ export type Action =
   | 'delete'
   | 'manage_users'
   | 'manage_storage'
-  | 'manage_preferences';
+  | 'manage_preferences'
+  | 'manage_ai'
+  | 'use_ai_search'
+  | 'use_ai_qa'
+  | 'use_ai_text_optimization'
+  | 'use_ai_image_generation';
 
 export type Resource =
   | { kind: 'page_list' }
@@ -40,7 +45,11 @@ export type Resource =
   | { kind: 'revision'; pageId: string; version: number }
   | { kind: 'users' }
   | { kind: 'storage' }
-  | { kind: 'preferences' };
+  | { kind: 'preferences' }
+  | { kind: 'ai_settings' }
+  | { kind: 'ai_action'; actionId: string }
+  | { kind: 'ai_index'; generationId?: string }
+  | { kind: 'ai_page'; pageId?: string };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -84,6 +93,14 @@ function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anony
       // Any authenticated user may manage their own preferences (self only —
       // the resource is always the actor's own preferences).
       return role !== 'anonymous';
+    case 'manage_ai':
+      return role === 'admin';
+    case 'use_ai_search':
+    case 'use_ai_qa':
+      return role !== 'anonymous';
+    case 'use_ai_text_optimization':
+    case 'use_ai_image_generation':
+      return role === 'editor' || role === 'admin';
     default:
       return false;
   }
@@ -107,7 +124,16 @@ export function can(
 
   if (actor.kind === 'api_key') {
     // manage_users is never allowed via API key (no scope maps to it).
-    if (action === 'manage_users') return false;
+    if (
+      action === 'manage_users' ||
+      action === 'manage_ai' ||
+      action === 'use_ai_search' ||
+      action === 'use_ai_qa' ||
+      action === 'use_ai_text_optimization' ||
+      action === 'use_ai_image_generation'
+    ) {
+      return false;
+    }
     if (!actionAllowedByScope(actor, action)) return false;
     return roleAllows(action, actor.role, { isAuthor, anonymousRead });
   }

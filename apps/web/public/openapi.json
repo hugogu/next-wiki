@@ -20,6 +20,123 @@
       }
     },
     "schemas": {
+      "AiActionView": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "feature": {
+            "type": "string",
+            "enum": [
+              "provider_test",
+              "model_sync",
+              "index_rebuild",
+              "semantic_search",
+              "wiki_question",
+              "text_optimization",
+              "image_generation"
+            ]
+          },
+          "actorUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "providerId": {
+            "type": "object"
+          },
+          "providerName": {
+            "type": "object"
+          },
+          "modelId": {
+            "type": "object"
+          },
+          "modelName": {
+            "type": "object"
+          },
+          "indexGenerationId": {
+            "type": "object"
+          },
+          "pageId": {
+            "type": "object"
+          },
+          "questionMode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "full",
+              "retrieval"
+            ]
+          },
+          "requestMetadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          },
+          "resultMetadata": {
+            "type": "object"
+          },
+          "usageMetadata": {
+            "type": "object"
+          },
+          "errorCode": {
+            "type": "object"
+          },
+          "errorMessage": {
+            "type": "object"
+          },
+          "queuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "object"
+          },
+          "finishedAt": {
+            "type": "object"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "feature",
+          "actorUserId",
+          "providerId",
+          "providerName",
+          "modelId",
+          "modelName",
+          "indexGenerationId",
+          "pageId",
+          "questionMode",
+          "requestMetadata",
+          "resultMetadata",
+          "usageMetadata",
+          "errorCode",
+          "errorMessage",
+          "queuedAt",
+          "startedAt",
+          "finishedAt",
+          "expiresAt"
+        ]
+      },
       "apiKeyViewListSchema": {
         "type": "array",
         "items": {
@@ -58,6 +175,10 @@
           "code"
         ],
         "description": "API error response"
+      },
+      "idSchema": {
+        "type": "string",
+        "format": "uuid"
       },
       "LoginInput": {
         "type": "object",
@@ -292,6 +413,2110 @@
     "responses": {}
   },
   "paths": {
+    "/ai/actions": {
+      "get": {
+        "operationId": "get-ai-actions",
+        "summary": "List AI action audit @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "feature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/images": {
+      "post": {
+        "operationId": "post-ai-images",
+        "summary": "Generate a private Wiki illustration preview @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/optimizations": {
+      "post": {
+        "operationId": "post-ai-optimizations",
+        "summary": "Optimize selected Wiki Markdown @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/questions": {
+      "post": {
+        "operationId": "post-ai-questions",
+        "summary": "Ask a grounded Wiki question @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/searches": {
+      "post": {
+        "operationId": "post-ai-searches",
+        "summary": "Start semantic Wiki search @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/actions/{id}": {
+      "get": {
+        "operationId": "get-ai-actions-{id}",
+        "summary": "Get AI action @tag AI @auth bearer @response AiActionView",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "bearer @response AiActionView": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiActionView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-actions-{id}",
+        "summary": "Cancel AI action @tag AI @auth bearer @response 202:AiActionView",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "bearer @response 202:AiActionView": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiActionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/entitlements/me": {
+      "get": {
+        "operationId": "get-ai-entitlements-me",
+        "summary": "Get my effective AI entitlement @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/generated-artifacts/{id}": {
+      "get": {
+        "operationId": "get-ai-generated-artifacts-{id}",
+        "summary": "Preview a private generated image @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      },
+      "delete": {
+        "operationId": "delete-ai-generated-artifacts-{id}",
+        "summary": "Discard a private generated image @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/actions/{id}/events": {
+      "get": {
+        "operationId": "get-ai-actions-{id}-events",
+        "summary": "Stream AI action events @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/ai/generated-artifacts/{id}/asset": {
+      "post": {
+        "operationId": "post-ai-generated-artifacts-{id}-asset",
+        "summary": "Promote a generated image into a Wiki asset @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/indexes": {
+      "get": {
+        "operationId": "get-ai-indexes",
+        "summary": "List AI indexes @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-ai-indexes",
+        "summary": "Start AI index rebuild @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "queued"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "feature": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "provider_test"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "model_sync"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "index_rebuild"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "semantic_search"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "wiki_question"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "text_optimization"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "image_generation"
+                              ]
+                            }
+                          ]
+                        },
+                        "eventsUrl": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "id",
+                        "feature",
+                        "eventsUrl"
+                      ]
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "failed"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "building"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "ready"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "superseded"
+                              ]
+                            }
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "modelId": {
+                          "type": "string"
+                        },
+                        "modelName": {
+                          "type": "string"
+                        },
+                        "errorCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "startedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "finishedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "embeddingDimensions": {
+                          "type": "number"
+                        },
+                        "chunkerVersion": {
+                          "type": "string"
+                        },
+                        "totalPages": {
+                          "type": "number"
+                        },
+                        "completedPages": {
+                          "type": "number"
+                        },
+                        "failedPages": {
+                          "type": "number"
+                        },
+                        "readyAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "id",
+                        "modelId",
+                        "modelName",
+                        "errorCode",
+                        "errorMessage",
+                        "startedAt",
+                        "finishedAt",
+                        "createdAt",
+                        "isActive",
+                        "embeddingDimensions",
+                        "chunkerVersion",
+                        "totalPages",
+                        "completedPages",
+                        "failedPages",
+                        "readyAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "generation"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/models": {
+      "get": {
+        "operationId": "get-ai-models",
+        "summary": "List AI models @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/providers": {
+      "get": {
+        "operationId": "get-ai-providers",
+        "summary": "List AI providers @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-ai-providers",
+        "summary": "Create AI provider @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "disabled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unverified"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "healthy"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unavailable"
+                          ]
+                        }
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "config": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object"
+                      }
+                    },
+                    "kind": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "openai_compatible"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "openrouter"
+                          ]
+                        }
+                      ]
+                    },
+                    "baseUrl": {
+                      "type": "string"
+                    },
+                    "lastCheckedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastErrorCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "hasCredentials": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "name",
+                    "createdAt",
+                    "updatedAt",
+                    "enabled",
+                    "config",
+                    "kind",
+                    "baseUrl",
+                    "lastCheckedAt",
+                    "lastErrorCode",
+                    "hasCredentials"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/settings": {
+      "get": {
+        "operationId": "get-ai-settings",
+        "summary": "Get AI settings @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-ai-settings",
+        "summary": "Update AI settings @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/assignments/{purpose}": {
+      "put": {
+        "operationId": "put-ai-assignments-{purpose}",
+        "summary": "Assign AI purpose model @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "purpose",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: purpose"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/entitlements/{userId}": {
+      "get": {
+        "operationId": "get-ai-entitlements-{userId}",
+        "summary": "Get user AI entitlement @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: userId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-ai-entitlements-{userId}",
+        "summary": "Update user AI entitlement @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: userId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/indexes/{id}": {
+      "get": {
+        "operationId": "get-ai-indexes-{id}",
+        "summary": "Get AI index @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/models/{id}": {
+      "patch": {
+        "operationId": "patch-ai-models-{id}",
+        "summary": "Update AI model @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/providers/{id}": {
+      "get": {
+        "operationId": "get-ai-providers-{id}",
+        "summary": "Get AI provider @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-ai-providers-{id}",
+        "summary": "Update AI provider @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-providers-{id}",
+        "summary": "Delete AI provider @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/indexes/{id}/page-retries": {
+      "post": {
+        "operationId": "post-ai-indexes-{id}-page-retries",
+        "summary": "Retry AI index pages @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/indexes/{id}/pages": {
+      "get": {
+        "operationId": "get-ai-indexes-{id}-pages",
+        "summary": "List AI index page states @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/providers/{id}/model-syncs": {
+      "post": {
+        "operationId": "post-ai-providers-{id}-model-syncs",
+        "summary": "Synchronize AI models @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/providers/{id}/models": {
+      "post": {
+        "operationId": "post-ai-providers-{id}-models",
+        "summary": "Create manual AI model @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "providerId": {
+                      "type": "string"
+                    },
+                    "providerName": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "externalId": {
+                      "type": "string"
+                    },
+                    "canonicalId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "availability": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unavailable"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "available"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unknown"
+                          ]
+                        }
+                      ]
+                    },
+                    "contextWindow": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "maxOutputTokens": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "embeddingDimensions": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "inputModalities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "outputModalities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "manuallyAdded": {
+                      "type": "boolean"
+                    },
+                    "lastSeenAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "capability": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "image_generation"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "text_generation"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "embedding"
+                                ]
+                              }
+                            ]
+                          },
+                          "supported": {
+                            "oneOf": [
+                              {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              },
+                              {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            ]
+                          },
+                          "source": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "provider"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "catalog"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "manual"
+                                ]
+                              }
+                            ]
+                          },
+                          "details": {
+                            "oneOf": [
+                              {
+                                "type": "object"
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "capability",
+                          "supported",
+                          "source"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "providerId",
+                    "providerName",
+                    "displayName",
+                    "externalId",
+                    "canonicalId",
+                    "availability",
+                    "contextWindow",
+                    "maxOutputTokens",
+                    "embeddingDimensions",
+                    "inputModalities",
+                    "outputModalities",
+                    "manuallyAdded",
+                    "lastSeenAt",
+                    "capabilities"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/providers/{id}/tests": {
+      "post": {
+        "operationId": "post-ai-providers-{id}-tests",
+        "summary": "Test AI provider @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/models/{id}/capabilities/{capability}": {
+      "put": {
+        "operationId": "put-ai-models-{id}-capabilities-{capability}",
+        "summary": "Override AI model capability @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          },
+          {
+            "name": "capability",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: capability"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-models-{id}-capabilities-{capability}",
+        "summary": "Remove AI model capability override @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          },
+          {
+            "name": "capability",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: capability"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api-keys": {
       "get": {
         "operationId": "get-api-keys",
@@ -908,6 +3133,16 @@
       }
     },
     "/storage/git-export": {
+      "get": {
+        "operationId": "get-storage-git-export",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      },
       "put": {
         "operationId": "put-storage-git-export",
         "summary": "",
@@ -1248,6 +3483,12 @@
     }
   },
   "tags": [
+    {
+      "name": "AI"
+    },
+    {
+      "name": "AI Admin"
+    },
     {
       "name": "Api-keys"
     },

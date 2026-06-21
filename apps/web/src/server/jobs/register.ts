@@ -11,6 +11,15 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { runGitExport } from './git-export';
 import { tickScheduledGitExport } from '@/server/services/git-export';
+import { registerAiActionHandler, runAiAction } from './ai-actions';
+import { runAiCleanup } from './ai-cleanup';
+import { findRecoverableActionIds } from '@/server/services/ai-actions';
+import { runModelSyncAction, runProviderTestAction } from './ai-admin';
+import { runIndexRebuildAction } from './ai-index';
+import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
+import { runWikiQuestionAction } from './ai-question';
+import { runTextOptimizationAction } from './ai-optimization';
+import { runImageGenerationAction } from './ai-image-generation';
 
 type JobBatch = { data: unknown }[];
 
@@ -21,6 +30,13 @@ type JobBatch = { data: unknown }[];
  * make the re-run safe (FR-022).
  */
 export async function registerJobs(boss: PgBoss): Promise<void> {
+  registerAiActionHandler('provider_test', runProviderTestAction);
+  registerAiActionHandler('model_sync', runModelSyncAction);
+  registerAiActionHandler('index_rebuild', runIndexRebuildAction);
+  registerAiActionHandler('semantic_search', runSemanticSearchAction);
+  registerAiActionHandler('wiki_question', runWikiQuestionAction);
+  registerAiActionHandler('text_optimization', runTextOptimizationAction);
+  registerAiActionHandler('image_generation', runImageGenerationAction);
   for (const queue of Object.values(QUEUES)) {
     await boss.createQueue(queue);
   }
@@ -55,8 +71,17 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
       await tickScheduledGitExport();
     }
   });
+  await boss.work(QUEUES.aiAction, async (jobs: JobBatch) => {
+    for (const job of jobs) {
+      await runAiAction((job.data as { actionId: string }).actionId);
+    }
+  });
+  await boss.work(QUEUES.aiCleanup, async () => {
+    await runAiCleanup();
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
+  await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});
 
   const pendingReplication = await db
     .select({ id: schema.storageReplicationTasks.id })
@@ -78,5 +103,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   for (const migrationId of await findInterruptedMigrationIds()) {
     await boss.send(QUEUES.migration, { migrationId });
     logger.info('re-enqueued interrupted migration', { migrationId });
+  }
+  for (const actionId of await findRecoverableActionIds()) {
+    await boss.send(QUEUES.aiAction, { actionId });
+    logger.info('re-enqueued interrupted AI action', { actionId });
   }
 }

@@ -1,6 +1,6 @@
 services:
   db:
-    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:0.8.3-pg16}
     container_name: next-wiki-db
     environment:
       POSTGRES_USER: wiki

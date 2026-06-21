@@ -19,6 +19,15 @@ const envSchema = z.object({
   // Host-side bind mount shown to administrators for deployment diagnostics.
   // This is informational inside the container; Docker Compose owns the mount.
   CONTENT_LOCAL_HOST_PATH: z.string().optional(),
+  AI_PROVIDER_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
+  AI_PROVIDER_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  AI_EVENT_RETENTION_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  AI_ARTIFACT_RETENTION_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  AI_MAX_GENERATED_IMAGE_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
 });
 
 // Local convenience defaults for dev/test only. In production a missing value

@@ -67,3 +67,77 @@ export const storageReplicationOperationEnum = pgEnum('storage_replication_opera
   'upsert',
   'delete',
 ]);
+
+// ---- System AI (004) ------------------------------------------------------
+
+export const aiProviderKindEnum = pgEnum('ai_provider_kind', [
+  'openai_compatible',
+  'openrouter',
+]);
+export const aiProviderStatusEnum = pgEnum('ai_provider_status', [
+  'unverified',
+  'healthy',
+  'unavailable',
+  'disabled',
+]);
+export const aiModelAvailabilityEnum = pgEnum('ai_model_availability', [
+  'available',
+  'unavailable',
+  'unknown',
+]);
+export const aiCapabilityEnum = pgEnum('ai_capability', [
+  'text_generation',
+  'embedding',
+  'image_generation',
+]);
+export const aiCapabilitySourceEnum = pgEnum('ai_capability_source', [
+  'provider',
+  'catalog',
+  'manual',
+]);
+export const aiPurposeEnum = pgEnum('ai_purpose', [
+  'wiki_text',
+  'wiki_embedding',
+  'wiki_image',
+]);
+export const aiIndexStatusEnum = pgEnum('ai_index_status', [
+  'building',
+  'ready',
+  'failed',
+  'superseded',
+]);
+export const aiPageIndexStatusEnum = pgEnum('ai_page_index_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'removed',
+]);
+export const aiActionFeatureEnum = pgEnum('ai_action_feature', [
+  'provider_test',
+  'model_sync',
+  'index_rebuild',
+  'semantic_search',
+  'wiki_question',
+  'text_optimization',
+  'image_generation',
+]);
+export const aiActionStatusEnum = pgEnum('ai_action_status', [
+  'queued',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+  'expired',
+]);
+export const aiQuestionModeEnum = pgEnum('ai_question_mode', ['full', 'retrieval']);
+export const aiEventTypeEnum = pgEnum('ai_event_type', [
+  'status',
+  'text_delta',
+  'search_results',
+  'citations',
+  'optimization',
+  'image_ready',
+  'completed',
+  'error',
+]);

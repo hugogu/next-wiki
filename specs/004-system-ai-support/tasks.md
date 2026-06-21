@@ -44,28 +44,28 @@ complete.
 
 ### Foundational tests
 
-- [ ] T007 [P] Add migration/schema tests for the vector extension, AI tables, defaults, foreign keys, singleton indexes, and retention fields in `apps/web/src/server/db/ai-schema.test.ts`
-- [ ] T008 [P] Add permission tests covering Admin-only AI management, signed-in AI use, API-key denial, and Editor/Admin page-mutation gates in `apps/web/src/server/permissions/ai-permissions.test.ts`
-- [ ] T009 [P] Add action lifecycle tests for encrypted TTL inputs, action-id-only queue payloads, ordered events, cancellation, ownership, and sanitized audit metadata in `apps/web/src/server/services/ai-actions.test.ts`
-- [ ] T010 [P] Add SSE reconnect tests for `Last-Event-ID`, heartbeat, terminal close, expiry, and unauthorized 404 behavior in `apps/web/src/server/ai/events/action-events.test.ts`
-- [ ] T011 [P] Add worker recovery tests for queued/running action re-enqueue, global-disable fail-closed behavior, and retryable provider failures in `apps/web/src/server/jobs/ai-actions.test.ts`
+- [x] T007 [P] Add migration/schema tests for the vector extension, AI tables, defaults, foreign keys, singleton indexes, and retention fields in `apps/web/src/server/db/ai-schema.test.ts`
+- [x] T008 [P] Add permission tests covering Admin-only AI management, signed-in AI use, API-key denial, and Editor/Admin page-mutation gates in `apps/web/src/server/permissions/ai-permissions.test.ts`
+- [x] T009 [P] Add action lifecycle tests for encrypted TTL inputs, action-id-only queue payloads, ordered events, cancellation, ownership, and sanitized audit metadata in `apps/web/src/server/services/ai-actions.test.ts`
+- [x] T010 [P] Add SSE reconnect tests for `Last-Event-ID`, heartbeat, terminal close, expiry, and unauthorized 404 behavior in `apps/web/src/server/ai/events/action-events.test.ts`
+- [x] T011 [P] Add worker recovery tests for queued/running action re-enqueue, global-disable fail-closed behavior, and retryable provider failures in `apps/web/src/server/jobs/ai-actions.test.ts`
 
 ### Foundational implementation
 
-- [ ] T012 Add all AI PostgreSQL enums to `apps/web/src/server/db/schema/enums.ts`
-- [ ] T013 Add `ai_settings`, providers, models, capabilities, assignments, entitlements, index generations, page states, vector chunks, actions, encrypted inputs, events, and generated artifacts to `apps/web/src/server/db/schema/index.ts`
-- [ ] T014 Create the pgvector extension and AI schema migration in `apps/web/src/server/db/migrations/0009_system_ai_support.sql` and register its snapshot/journal entries in `apps/web/src/server/db/migrations/meta/`
-- [ ] T015 Extend test database truncation/setup for all AI tables and the vector extension in `apps/web/test/global-setup.ts`, `apps/web/test/setup.ts`, and `apps/web/test/prepare-e2e-db.mjs`
-- [ ] T016 Extend `Action`, `Resource`, scope handling, and `can()` rules for `manage_ai`, AI search/Q&A, text optimization, and image generation in `apps/web/src/server/permissions/index.ts`
-- [ ] T017 Implement encryption/decryption helpers for JSON AI credentials and TTL action inputs using existing AES-GCM key material in `apps/web/src/server/crypto/ai-encryption.ts`
-- [ ] T018 Implement AI provider/action/error types and redaction-safe normalized errors in `apps/web/src/server/ai/types.ts`
-- [ ] T019 Implement the explicit provider factory registry with no dynamic discovery in `apps/web/src/server/ai/registry.ts`
-- [ ] T020 Implement AI action creation, encrypted input access, model/provider snapshotting, status transitions, event append/read, cancellation, expiry, and ownership checks in `apps/web/src/server/services/ai-actions.ts`
-- [ ] T021 Implement SSE serialization, cursor handling, heartbeat polling, payload bounds, and terminal stream closure in `apps/web/src/server/ai/events/action-events.ts`
-- [ ] T022 Add generic AI queue names and action-id-only enqueue helpers in `apps/web/src/server/jobs/runtime.ts`
-- [ ] T023 Implement generic AI action worker dispatch, actor/global-state revalidation, cancellation, retry mapping, and boot recovery in `apps/web/src/server/jobs/ai-actions.ts`
-- [ ] T024 Register AI queues, handlers, scheduled input/event/artifact cleanup, and interrupted-action recovery explicitly in `apps/web/src/server/jobs/register.ts`
-- [ ] T025 Implement action detail, cancellation, SSE events, and Admin audit route handlers with OpenAPI annotations in `apps/web/app/api/ai/actions/[id]/route.ts`, `apps/web/app/api/ai/actions/[id]/events/route.ts`, and `apps/web/app/api/ai/actions/route.ts`
+- [x] T012 Add all AI PostgreSQL enums to `apps/web/src/server/db/schema/enums.ts`
+- [x] T013 Add `ai_settings`, providers, models, capabilities, assignments, entitlements, index generations, page states, vector chunks, actions, encrypted inputs, events, and generated artifacts to `apps/web/src/server/db/schema/index.ts`
+- [x] T014 Create the pgvector extension and AI schema migration in `apps/web/src/server/db/migrations/0009_system_ai_support.sql` and register its snapshot/journal entries in `apps/web/src/server/db/migrations/meta/`
+- [x] T015 Extend test database truncation/setup for all AI tables and the vector extension in `apps/web/test/global-setup.ts`, `apps/web/test/setup.ts`, and `apps/web/test/prepare-e2e-db.mjs`
+- [x] T016 Extend `Action`, `Resource`, scope handling, and `can()` rules for `manage_ai`, AI search/Q&A, text optimization, and image generation in `apps/web/src/server/permissions/index.ts`
+- [x] T017 Implement encryption/decryption helpers for JSON AI credentials and TTL action inputs using existing AES-GCM key material in `apps/web/src/server/crypto/ai-encryption.ts`
+- [x] T018 Implement AI provider/action/error types and redaction-safe normalized errors in `apps/web/src/server/ai/types.ts`
+- [x] T019 Implement the explicit provider factory registry with no dynamic discovery in `apps/web/src/server/ai/registry.ts`
+- [x] T020 Implement AI action creation, encrypted input access, model/provider snapshotting, status transitions, event append/read, cancellation, expiry, and ownership checks in `apps/web/src/server/services/ai-actions.ts`
+- [x] T021 Implement SSE serialization, cursor handling, heartbeat polling, payload bounds, and terminal stream closure in `apps/web/src/server/ai/events/action-events.ts`
+- [x] T022 Add generic AI queue names and action-id-only enqueue helpers in `apps/web/src/server/jobs/runtime.ts`
+- [x] T023 Implement generic AI action worker dispatch, actor/global-state revalidation, cancellation, retry mapping, and boot recovery in `apps/web/src/server/jobs/ai-actions.ts`
+- [x] T024 Register AI queues, handlers, scheduled input/event/artifact cleanup, and interrupted-action recovery explicitly in `apps/web/src/server/jobs/register.ts`
+- [x] T025 Implement action detail, cancellation, SSE events, and Admin audit route handlers with OpenAPI annotations in `apps/web/app/api/ai/actions/[id]/route.ts`, `apps/web/app/api/ai/actions/[id]/events/route.ts`, and `apps/web/app/api/ai/actions/route.ts`
 
 **Checkpoint**: AI work can be queued, resumed, streamed, cancelled, audited,
 and cleaned without placing prompt content in pg-boss or permanent audit fields.
@@ -84,27 +84,27 @@ incompatible models and non-admin access are rejected.
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Add provider adapter conformance tests for credential redaction, connection errors, model metadata, SSE parsing, embeddings, images, cancellation, and normalized errors in `apps/web/src/server/ai/providers/provider-conformance.test.ts`
-- [ ] T027 [P] [US1] Add Admin service tests for provider CRUD, encrypted secrets, model sync reconciliation, capability precedence, and purpose validation in `apps/web/src/server/services/ai-admin.test.ts`
-- [ ] T028 [P] [US1] Add REST route tests for settings, providers, model sync, model overrides, and assignments in `apps/web/app/api/ai/ai-admin-routes.test.ts`
+- [x] T026 [P] [US1] Add provider adapter conformance tests for credential redaction, connection errors, model metadata, SSE parsing, embeddings, images, cancellation, and normalized errors in `apps/web/src/server/ai/providers/provider-conformance.test.ts`
+- [x] T027 [P] [US1] Add Admin service tests for provider CRUD, encrypted secrets, model sync reconciliation, capability precedence, and purpose validation in `apps/web/src/server/services/ai-admin.test.ts`
+- [x] T028 [P] [US1] Add REST route tests for settings, providers, model sync, model overrides, and assignments in `apps/web/app/api/ai/ai-admin-routes.test.ts`
 - [ ] T029 [P] [US1] Add Playwright coverage for configuring two providers, syncing models, overriding capability, assigning purposes, and non-admin denial in `apps/web/e2e/ai-admin.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T030 [P] [US1] Implement the generic OpenAI-compatible adapter for connection tests, model identity listing, chat SSE, embeddings, and image generation in `apps/web/src/server/ai/providers/openai-compatible.ts`
-- [ ] T031 [P] [US1] Implement the OpenRouter adapter for enriched model metadata, output-modality capability mapping, chat streaming, embeddings, and image-output modalities in `apps/web/src/server/ai/providers/openrouter.ts`
-- [ ] T032 [US1] Register `openai_compatible` and `openrouter` factories and their capability normalizers in `apps/web/src/server/ai/registry.ts`
-- [ ] T033 [US1] Implement global AI settings, provider CRUD, connection test action creation, model sync reconciliation, manual model maintenance, capability overrides, and purpose assignment validation in `apps/web/src/server/services/ai-admin.ts`
-- [ ] T034 [US1] Implement provider-test and model-sync action handlers with credential decryption, global-disable checks, and sanitized errors in `apps/web/src/server/jobs/ai-admin.ts`
-- [ ] T035 [US1] Register provider-test and model-sync feature dispatch in `apps/web/src/server/jobs/ai-actions.ts`
-- [ ] T036 [P] [US1] Implement global settings and purpose assignment REST resources with OpenAPI annotations in `apps/web/app/api/ai/settings/route.ts` and `apps/web/app/api/ai/assignments/[purpose]/route.ts`
-- [ ] T037 [P] [US1] Implement provider collection/detail/test/model-sync REST resources with OpenAPI annotations in `apps/web/app/api/ai/providers/route.ts`, `apps/web/app/api/ai/providers/[id]/route.ts`, `apps/web/app/api/ai/providers/[id]/tests/route.ts`, and `apps/web/app/api/ai/providers/[id]/model-syncs/route.ts`
-- [ ] T038 [P] [US1] Implement model listing/manual creation/update/capability override REST resources with OpenAPI annotations in `apps/web/app/api/ai/models/route.ts`, `apps/web/app/api/ai/providers/[providerId]/models/route.ts`, `apps/web/app/api/ai/models/[id]/route.ts`, and `apps/web/app/api/ai/models/[id]/capabilities/[capability]/route.ts`
-- [ ] T039 [P] [US1] Build provider list/detail forms with secret-preserving updates, test/sync action status, and shared UI primitives in `apps/web/src/components/admin/ai/ProviderList.tsx`, `apps/web/src/components/admin/ai/ProviderForm.tsx`, and `apps/web/src/components/admin/ai/ProviderDetail.tsx`
-- [ ] T040 [P] [US1] Build model catalog filtering, capability provenance/override controls, and purpose selectors in `apps/web/src/components/admin/ai/ModelCatalog.tsx` and `apps/web/src/components/admin/ai/PurposeAssignments.tsx`
-- [ ] T041 [US1] Create canonical Admin AI overview/provider/model pages and breadcrumbs in `apps/web/app/(admin)/admin/ai/page.tsx`, `apps/web/app/(admin)/admin/ai/providers/page.tsx`, `apps/web/app/(admin)/admin/ai/providers/[id]/page.tsx`, and `apps/web/app/(admin)/admin/ai/models/page.tsx`
-- [ ] T042 [US1] Add AI Admin navigation and route titles without creating duplicate entry points in `apps/web/src/components/layout/Navigator.tsx` and `apps/web/src/components/layout/Header.tsx`
-- [ ] T043 [US1] Add English and Chinese provider, model, capability, assignment, action-state, and error translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [x] T030 [P] [US1] Implement the generic OpenAI-compatible adapter for connection tests, model identity listing, chat SSE, embeddings, and image generation in `apps/web/src/server/ai/providers/openai-compatible.ts`
+- [x] T031 [P] [US1] Implement the OpenRouter adapter for enriched model metadata, output-modality capability mapping, chat streaming, embeddings, and image-output modalities in `apps/web/src/server/ai/providers/openrouter.ts`
+- [x] T032 [US1] Register `openai_compatible` and `openrouter` factories and their capability normalizers in `apps/web/src/server/ai/registry.ts`
+- [x] T033 [US1] Implement global AI settings, provider CRUD, connection test action creation, model sync reconciliation, manual model maintenance, capability overrides, and purpose assignment validation in `apps/web/src/server/services/ai-admin.ts`
+- [x] T034 [US1] Implement provider-test and model-sync action handlers with credential decryption, global-disable checks, and sanitized errors in `apps/web/src/server/jobs/ai-admin.ts`
+- [x] T035 [US1] Register provider-test and model-sync feature dispatch in `apps/web/src/server/jobs/ai-actions.ts`
+- [x] T036 [P] [US1] Implement global settings and purpose assignment REST resources with OpenAPI annotations in `apps/web/app/api/ai/settings/route.ts` and `apps/web/app/api/ai/assignments/[purpose]/route.ts`
+- [x] T037 [P] [US1] Implement provider collection/detail/test/model-sync REST resources with OpenAPI annotations in `apps/web/app/api/ai/providers/route.ts`, `apps/web/app/api/ai/providers/[id]/route.ts`, `apps/web/app/api/ai/providers/[id]/tests/route.ts`, and `apps/web/app/api/ai/providers/[id]/model-syncs/route.ts`
+- [x] T038 [P] [US1] Implement model listing/manual creation/update/capability override REST resources with OpenAPI annotations in `apps/web/app/api/ai/models/route.ts`, `apps/web/app/api/ai/providers/[providerId]/models/route.ts`, `apps/web/app/api/ai/models/[id]/route.ts`, and `apps/web/app/api/ai/models/[id]/capabilities/[capability]/route.ts`
+- [x] T039 [P] [US1] Build provider list/detail forms with secret-preserving updates, test/sync action status, and shared UI primitives in `apps/web/src/components/admin/ai/ProviderList.tsx`, `apps/web/src/components/admin/ai/ProviderForm.tsx`, and `apps/web/src/components/admin/ai/ProviderDetail.tsx`
+- [x] T040 [P] [US1] Build model catalog filtering, capability provenance/override controls, and purpose selectors in `apps/web/src/components/admin/ai/ModelCatalog.tsx` and `apps/web/src/components/admin/ai/PurposeAssignments.tsx`
+- [x] T041 [US1] Create canonical Admin AI overview/provider/model pages and breadcrumbs in `apps/web/app/(admin)/admin/ai/page.tsx`, `apps/web/app/(admin)/admin/ai/providers/page.tsx`, `apps/web/app/(admin)/admin/ai/providers/[id]/page.tsx`, and `apps/web/app/(admin)/admin/ai/models/page.tsx`
+- [x] T042 [US1] Add AI Admin navigation and route titles without creating duplicate entry points in `apps/web/src/components/layout/Navigator.tsx` and `apps/web/src/components/layout/Header.tsx`
+- [x] T043 [US1] Add English and Chinese provider, model, capability, assignment, action-state, and error translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Provider/model administration works independently and supplies
 validated purpose assignments for later stories.
@@ -122,19 +122,19 @@ pages, and global disable prevents outbound requests.
 
 ### Tests for User Story 2
 
-- [ ] T044 [P] [US2] Add entitlement service tests for absent-row defaults, Admin updates, disabled users, global disable, and role/page intersection in `apps/web/src/server/services/ai-entitlements.test.ts`
-- [ ] T045 [P] [US2] Add REST tests for Admin entitlement reads/updates, self effective state, session-only enforcement, and non-admin denial in `apps/web/app/api/ai/ai-entitlement-routes.test.ts`
+- [x] T044 [P] [US2] Add entitlement service tests for absent-row defaults, Admin updates, disabled users, global disable, and role/page intersection in `apps/web/src/server/services/ai-entitlements.test.ts`
+- [x] T045 [P] [US2] Add REST tests for Admin entitlement reads/updates, self effective state, session-only enforcement, and non-admin denial in `apps/web/app/api/ai/ai-entitlement-routes.test.ts`
 - [ ] T046 [P] [US2] Add Playwright coverage for per-user switches, newly registered defaults, immediate revocation, and Reader mutation denial in `apps/web/e2e/ai-entitlements.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T047 [US2] Implement effective entitlement lookup, Admin update, active-user checks, global availability reasons, and feature authorization helpers in `apps/web/src/server/services/ai-entitlements.ts`
-- [ ] T048 [US2] Initialize fail-closed entitlement behavior for new and existing users without granting AI access in `apps/web/src/server/services/auth.ts` and `apps/web/src/server/seed/index.ts`
-- [ ] T049 [P] [US2] Implement Admin user entitlement and current-user effective entitlement routes with OpenAPI annotations in `apps/web/app/api/ai/entitlements/[userId]/route.ts` and `apps/web/app/api/ai/entitlements/me/route.ts`
-- [ ] T050 [P] [US2] Build the three-switch Admin user AI access form with availability explanations in `apps/web/src/components/admin/ai/UserAiEntitlementsForm.tsx`
-- [ ] T051 [US2] Create the canonical `/admin/users/{id}/ai` page and link it from user management in `apps/web/app/(admin)/admin/users/[id]/ai/page.tsx` and `apps/web/src/components/admin/UserManagementTable.tsx`
-- [ ] T052 [US2] Expose effective AI availability to the application shell and hide unavailable AI entry points in `apps/web/src/components/layout/AppShell.tsx` and `apps/web/src/components/layout/types.ts`
-- [ ] T053 [US2] Add English and Chinese entitlement labels, provider-disclosure notices, disabled reasons, and authorization errors in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [x] T047 [US2] Implement effective entitlement lookup, Admin update, active-user checks, global availability reasons, and feature authorization helpers in `apps/web/src/server/services/ai-entitlements.ts`
+- [x] T048 [US2] Initialize fail-closed entitlement behavior for new and existing users without granting AI access in `apps/web/src/server/services/auth.ts` and `apps/web/src/server/seed/index.ts`
+- [x] T049 [P] [US2] Implement Admin user entitlement and current-user effective entitlement routes with OpenAPI annotations in `apps/web/app/api/ai/entitlements/[userId]/route.ts` and `apps/web/app/api/ai/entitlements/me/route.ts`
+- [x] T050 [P] [US2] Build the three-switch Admin user AI access form with availability explanations in `apps/web/src/components/admin/ai/UserAiEntitlementsForm.tsx`
+- [x] T051 [US2] Create the canonical `/admin/users/{id}/ai` page and link it from user management in `apps/web/app/(admin)/admin/users/[id]/ai/page.tsx` and `apps/web/src/components/admin/UserManagementTable.tsx`
+- [x] T052 [US2] Expose effective AI availability to the application shell and hide unavailable AI entry points in `apps/web/src/components/layout/AppShell.tsx` and `apps/web/src/components/layout/types.ts`
+- [x] T053 [US2] Add English and Chinese entitlement labels, provider-disclosure notices, disabled reasons, and authorization errors in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: AI capabilities are explicitly governed per user and cannot
 elevate Reader or page permissions.
@@ -152,27 +152,27 @@ first, and confirm republish/delete/permission/model changes reconcile safely.
 
 ### Tests for User Story 3
 
-- [ ] T054 [P] [US3] Add deterministic Markdown chunker tests for headings, CJK text, code, links, image alt text, overlap, limits, and stable hashes in `apps/web/src/server/ai/chunking/markdown-chunker.test.ts`
-- [ ] T055 [P] [US3] Add index lifecycle tests for build/catch-up/activation/failure, stale-job suppression, delete/restore, mixed dimensions, retry, and boot recovery in `apps/web/src/server/services/ai-index.test.ts`
-- [ ] T056 [P] [US3] Add retrieval tests for exact cosine ranking, page grouping, permission filtering, unpublished/deleted exclusion, and bounded excerpts in `apps/web/src/server/services/ai-retrieval.test.ts`
-- [ ] T057 [P] [US3] Add index/search REST tests for Admin status/retry and signed-in semantic search action creation in `apps/web/app/api/ai/ai-index-search-routes.test.ts`
+- [x] T054 [P] [US3] Add deterministic Markdown chunker tests for headings, CJK text, code, links, image alt text, overlap, limits, and stable hashes in `apps/web/src/server/ai/chunking/markdown-chunker.test.ts`
+- [x] T055 [P] [US3] Add index lifecycle tests for build/catch-up/activation/failure, stale-job suppression, delete/restore, mixed dimensions, retry, and boot recovery in `apps/web/src/server/services/ai-index.test.ts`
+- [x] T056 [P] [US3] Add retrieval tests for exact cosine ranking, page grouping, permission filtering, unpublished/deleted exclusion, and bounded excerpts in `apps/web/src/server/services/ai-retrieval.test.ts`
+- [x] T057 [P] [US3] Add index/search REST tests for Admin status/retry and signed-in semantic search action creation in `apps/web/app/api/ai/ai-index-search-routes.test.ts`
 - [ ] T058 [P] [US3] Add Playwright coverage for index progress, semantic result ranking, permission leakage prevention, and embedding-model rebuild activation in `apps/web/e2e/ai-search.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T059 [P] [US3] Implement deterministic Markdown normalization, heading-aware chunking, overlap, byte limits, and chunk hashes in `apps/web/src/server/ai/chunking/markdown-chunker.ts`
-- [ ] T060 [P] [US3] Implement exact pgvector cosine query helpers scoped to one generation in `apps/web/src/server/ai/retrieval/vector-search.ts`
-- [ ] T061 [US3] Implement generation creation, page target reconciliation, progress aggregation, catch-up verification, atomic activation, superseding, and retries in `apps/web/src/server/services/ai-index.ts`
-- [ ] T062 [US3] Implement embedding batch validation, idempotent chunk replacement, stale target rejection, and page removal handlers in `apps/web/src/server/jobs/ai-index.ts`
-- [ ] T063 [US3] Register index rebuild/reconciliation dispatch and startup recovery in `apps/web/src/server/jobs/ai-actions.ts` and `apps/web/src/server/jobs/register.ts`
-- [ ] T064 [US3] Enqueue index reconciliation after publish, unpublish, soft-delete, restore, and relevant path/title changes in `apps/web/src/server/services/revisions.ts` and `apps/web/src/server/services/pages.ts`
-- [ ] T065 [US3] Implement permission-scoped semantic retrieval, result grouping, canonical links, excerpts, and active-generation query embedding in `apps/web/src/server/services/ai-retrieval.ts`
-- [ ] T066 [P] [US3] Implement index collection/detail/page-state/retry REST resources with OpenAPI annotations in `apps/web/app/api/ai/indexes/route.ts`, `apps/web/app/api/ai/indexes/[id]/route.ts`, `apps/web/app/api/ai/indexes/[id]/pages/route.ts`, and `apps/web/app/api/ai/indexes/[id]/page-retries/route.ts`
-- [ ] T067 [P] [US3] Implement the session-only semantic search action endpoint with OpenAPI annotations in `apps/web/app/api/ai/searches/route.ts`
-- [ ] T068 [P] [US3] Build index generation status, failed-page filtering, retry controls, and active-generation display in `apps/web/src/components/admin/ai/IndexList.tsx` and `apps/web/src/components/admin/ai/IndexDetail.tsx`
-- [ ] T069 [P] [US3] Build semantic search form/results with URL-backed query, mode, pagination, loading, and error states in `apps/web/src/components/search/SemanticSearch.tsx`
-- [ ] T070 [US3] Create canonical index administration and semantic search pages in `apps/web/app/(admin)/admin/ai/indexes/page.tsx`, `apps/web/app/(admin)/admin/ai/indexes/[id]/page.tsx`, and `apps/web/app/(public)/search/page.tsx`
-- [ ] T071 [US3] Add English and Chinese indexing, semantic-search, result, retry, empty-corpus, and degraded-state translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [x] T059 [P] [US3] Implement deterministic Markdown normalization, heading-aware chunking, overlap, byte limits, and chunk hashes in `apps/web/src/server/ai/chunking/markdown-chunker.ts`
+- [x] T060 [P] [US3] Implement exact pgvector cosine query helpers scoped to one generation in `apps/web/src/server/ai/retrieval/vector-search.ts`
+- [x] T061 [US3] Implement generation creation, page target reconciliation, progress aggregation, catch-up verification, atomic activation, superseding, and retries in `apps/web/src/server/services/ai-index.ts`
+- [x] T062 [US3] Implement embedding batch validation, idempotent chunk replacement, stale target rejection, and page removal handlers in `apps/web/src/server/jobs/ai-index.ts`
+- [x] T063 [US3] Register index rebuild/reconciliation dispatch and startup recovery in `apps/web/src/server/jobs/ai-actions.ts` and `apps/web/src/server/jobs/register.ts`
+- [x] T064 [US3] Enqueue index reconciliation after publish, unpublish, soft-delete, restore, and relevant path/title changes in `apps/web/src/server/services/revisions.ts` and `apps/web/src/server/services/pages.ts`
+- [x] T065 [US3] Implement permission-scoped semantic retrieval, result grouping, canonical links, excerpts, and active-generation query embedding in `apps/web/src/server/services/ai-retrieval.ts`
+- [x] T066 [P] [US3] Implement index collection/detail/page-state/retry REST resources with OpenAPI annotations in `apps/web/app/api/ai/indexes/route.ts`, `apps/web/app/api/ai/indexes/[id]/route.ts`, `apps/web/app/api/ai/indexes/[id]/pages/route.ts`, and `apps/web/app/api/ai/indexes/[id]/page-retries/route.ts`
+- [x] T067 [P] [US3] Implement the session-only semantic search action endpoint with OpenAPI annotations in `apps/web/app/api/ai/searches/route.ts`
+- [x] T068 [P] [US3] Build index generation status, failed-page filtering, retry controls, and active-generation display in `apps/web/src/components/admin/ai/IndexList.tsx` and `apps/web/src/components/admin/ai/IndexDetail.tsx`
+- [x] T069 [P] [US3] Build semantic search form/results with URL-backed query, mode, pagination, loading, and error states in `apps/web/src/components/search/SemanticSearch.tsx`
+- [x] T070 [US3] Create canonical index administration and semantic search pages in `apps/web/app/(admin)/admin/ai/indexes/page.tsx`, `apps/web/app/(admin)/admin/ai/indexes/[id]/page.tsx`, and `apps/web/app/(public)/search/page.tsx`
+- [x] T071 [US3] Add English and Chinese indexing, semantic-search, result, retry, empty-corpus, and degraded-state translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Semantic search and index administration function without Q&A,
 text optimization, or image generation.
@@ -190,23 +190,23 @@ reconnect, and zero disclosure from an inaccessible page.
 
 ### Tests for User Story 4
 
-- [ ] T072 [P] [US4] Add prompt/citation normalization tests for grounded source ids, unknown citation removal, and insufficient evidence in `apps/web/src/server/ai/prompts/wiki-question.test.ts`
-- [ ] T073 [P] [US4] Add full-context corpus/capacity tests for readable-page ordering, conservative budget, unknown capacity, and no silent truncation in `apps/web/src/server/services/ai-question.test.ts`
-- [ ] T074 [P] [US4] Add Q&A worker tests for full/retrieval modes, provider streaming, entitlement revocation, permission recheck, citations, retry, and sanitized failures in `apps/web/src/server/jobs/ai-question.test.ts`
+- [x] T072 [P] [US4] Add prompt/citation normalization tests for grounded source ids, unknown citation removal, and insufficient evidence in `apps/web/src/server/ai/prompts/wiki-question.test.ts`
+- [x] T073 [P] [US4] Add full-context corpus/capacity tests for readable-page ordering, conservative budget, unknown capacity, and no silent truncation in `apps/web/src/server/services/ai-question.test.ts`
+- [x] T074 [P] [US4] Add Q&A worker tests for full/retrieval modes, provider streaming, entitlement revocation, permission recheck, citations, retry, and sanitized failures in `apps/web/src/server/jobs/ai-question.test.ts`
 - [ ] T075 [P] [US4] Add Playwright coverage for the persistent side pane, URL-backed mode, current-page context, streamed answers, citations, reconnect, and protected-page non-disclosure in `apps/web/e2e/ai-chat.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T076 [P] [US4] Implement grounded question prompt construction, source identifiers, citation parsing, and insufficient-evidence output in `apps/web/src/server/ai/prompts/wiki-question.ts`
-- [ ] T077 [P] [US4] Implement readable full-context corpus loading, deterministic ordering, conservative context budgeting, and capacity errors in `apps/web/src/server/ai/retrieval/full-context.ts`
-- [ ] T078 [US4] Implement question action creation for full/retrieval modes, current-page context validation, provider disclosure metadata, and entitlement checks in `apps/web/src/server/services/ai-question.ts`
-- [ ] T079 [US4] Implement Wiki question worker streaming, retrieval integration, final permission/citation recheck, usage capture, cancellation, and terminal events in `apps/web/src/server/jobs/ai-question.ts`
-- [ ] T080 [US4] Register `wiki_question` dispatch in `apps/web/src/server/jobs/ai-actions.ts`
-- [ ] T081 [US4] Implement the Wiki question action endpoint with OpenAPI annotations in `apps/web/app/api/ai/questions/route.ts`
-- [ ] T082 [P] [US4] Implement the Zustand session chat store and action/SSE reconnect hooks in `apps/web/src/components/chat/chat-store.ts`, `apps/web/src/hooks/use-ai-action.ts`, and `apps/web/src/hooks/use-ai-chat.ts`
-- [ ] T083 [P] [US4] Build the collapsible side pane, mode selector, provider notice, streamed transcript, retry, and citation list in `apps/web/src/components/chat/AiChatPane.tsx`
-- [ ] T084 [US4] Mount the chat pane in reader, editor, and Admin layouts and synchronize `ai`/`aiMode` URL parameters in `apps/web/src/components/layout/AppShell.tsx` and `apps/web/src/components/common/PublicLayout.tsx`
-- [ ] T085 [US4] Add English and Chinese chat, mode, provider disclosure, citation, insufficient-evidence, capacity, retry, and streaming translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [x] T076 [P] [US4] Implement grounded question prompt construction, source identifiers, citation parsing, and insufficient-evidence output in `apps/web/src/server/ai/prompts/wiki-question.ts`
+- [x] T077 [P] [US4] Implement readable full-context corpus loading, deterministic ordering, conservative context budgeting, and capacity errors in `apps/web/src/server/ai/retrieval/full-context.ts`
+- [x] T078 [US4] Implement question action creation for full/retrieval modes, current-page context validation, provider disclosure metadata, and entitlement checks in `apps/web/src/server/services/ai-question.ts`
+- [x] T079 [US4] Implement Wiki question worker streaming, retrieval integration, final permission/citation recheck, usage capture, cancellation, and terminal events in `apps/web/src/server/jobs/ai-question.ts`
+- [x] T080 [US4] Register `wiki_question` dispatch in `apps/web/src/server/jobs/ai-actions.ts`
+- [x] T081 [US4] Implement the Wiki question action endpoint with OpenAPI annotations in `apps/web/app/api/ai/questions/route.ts`
+- [x] T082 [P] [US4] Implement the Zustand session chat store and action/SSE reconnect hooks in `apps/web/src/components/chat/chat-store.ts`, `apps/web/src/hooks/use-ai-action.ts`, and `apps/web/src/hooks/use-ai-chat.ts`
+- [x] T083 [P] [US4] Build the collapsible side pane, mode selector, provider notice, streamed transcript, retry, and citation list in `apps/web/src/components/chat/AiChatPane.tsx`
+- [x] T084 [US4] Mount the chat pane in reader, editor, and Admin layouts and synchronize `ai`/`aiMode` URL parameters in `apps/web/src/components/layout/AppShell.tsx` and `apps/web/src/components/common/PublicLayout.tsx`
+- [x] T085 [US4] Add English and Chinese chat, mode, provider disclosure, citation, insufficient-evidence, capacity, retry, and streaming translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Authorized users can ask grounded Wiki questions in both modes
 without any page mutation capability.
@@ -224,18 +224,18 @@ or publish before the normal editor workflow.
 
 ### Tests for User Story 5
 
-- [ ] T086 [P] [US5] Add optimization service/worker tests for entitlement, Editor/Admin permission, input limits, replacement-only output, cancellation, and no page writes in `apps/web/src/server/services/ai-optimization.test.ts`
-- [ ] T087 [P] [US5] Add CodeMirror selection-hash and exact-range application tests in `apps/web/src/components/editor/AiTextOptimizationDialog.test.tsx`
+- [x] T086 [P] [US5] Add optimization service/worker tests for entitlement, Editor/Admin permission, input limits, replacement-only output, cancellation, and no page writes in `apps/web/src/server/services/ai-optimization.test.ts`
+- [x] T087 [P] [US5] Add CodeMirror selection-hash and exact-range application tests in `apps/web/src/components/editor/AiTextOptimizationDialog.test.tsx`
 - [ ] T088 [P] [US5] Add Playwright coverage for request/preview/accept/reject, stale selection refusal, Reader denial, and revision creation only after normal Save in `apps/web/e2e/ai-editor-optimization.spec.ts`
 
 ### Implementation for User Story 5
 
-- [ ] T089 [US5] Implement optimization action validation, encrypted selection input, page edit checks, text-model assignment snapshot, and input capacity bounds in `apps/web/src/server/services/ai-optimization.ts`
-- [ ] T090 [US5] Implement optimization prompt execution and final replacement event without page persistence in `apps/web/src/server/jobs/ai-optimization.ts`
-- [ ] T091 [US5] Register `text_optimization` dispatch in `apps/web/src/server/jobs/ai-actions.ts`
-- [ ] T092 [US5] Implement the text optimization action endpoint with OpenAPI annotations in `apps/web/app/api/ai/optimizations/route.ts`
-- [ ] T093 [US5] Build the optimization dialog, original/suggestion comparison, selection hash guard, exact CodeMirror transaction, and reject flow in `apps/web/src/components/editor/AiTextOptimizationDialog.tsx` and `apps/web/src/components/editor/SplitMarkdownEditor.tsx`
-- [ ] T094 [US5] Add English and Chinese optimization toolbar, instructions, preview, stale-selection, limit, entitlement, and provider error translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [x] T089 [US5] Implement optimization action validation, encrypted selection input, page edit checks, text-model assignment snapshot, and input capacity bounds in `apps/web/src/server/services/ai-optimization.ts`
+- [x] T090 [US5] Implement optimization prompt execution and final replacement event without page persistence in `apps/web/src/server/jobs/ai-optimization.ts`
+- [x] T091 [US5] Register `text_optimization` dispatch in `apps/web/src/server/jobs/ai-actions.ts`
+- [x] T092 [US5] Implement the text optimization action endpoint with OpenAPI annotations in `apps/web/app/api/ai/optimizations/route.ts`
+- [x] T093 [US5] Build the optimization dialog, original/suggestion comparison, selection hash guard, exact CodeMirror transaction, and reject flow in `apps/web/src/components/editor/AiTextOptimizationDialog.tsx` and `apps/web/src/components/editor/SplitMarkdownEditor.tsx`
+- [x] T094 [US5] Add English and Chinese optimization toolbar, instructions, preview, stale-selection, limit, entitlement, and provider error translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Text optimization changes only the local draft selection and
 relies on the existing Save/Publish versioning path.
@@ -253,20 +253,20 @@ permissions/publication while failures leave the draft unchanged.
 
 ### Tests for User Story 6
 
-- [ ] T095 [P] [US6] Add image generation service/worker tests for assigned model use, source scoping, URL/data/bytes responses, validation, limits, expiry, and sanitized failures in `apps/web/src/server/services/ai-image-generation.test.ts`
-- [ ] T096 [P] [US6] Add artifact service tests for owner/Admin preview, unauthorized 404, discard, expiry, idempotent promotion, entitlement revocation, and existing asset replication in `apps/web/src/server/services/ai-artifacts.test.ts`
+- [x] T095 [P] [US6] Add image generation service/worker tests for assigned model use, source scoping, URL/data/bytes responses, validation, limits, expiry, and sanitized failures in `apps/web/src/server/services/ai-image-generation.test.ts`
+- [x] T096 [P] [US6] Add artifact service tests for owner/Admin preview, unauthorized 404, discard, expiry, idempotent promotion, entitlement revocation, and existing asset replication in `apps/web/src/server/services/ai-artifacts.test.ts`
 - [ ] T097 [P] [US6] Add Playwright coverage for page/selection generation, preview, discard, promotion, Markdown insertion, Reader denial, and publish visibility in `apps/web/e2e/ai-editor-image.spec.ts`
 
 ### Implementation for User Story 6
 
-- [ ] T098 [US6] Implement image action validation, page/selection source loading, edit/entitlement checks, and image-model snapshotting in `apps/web/src/server/services/ai-image-generation.ts`
-- [ ] T099 [US6] Implement image provider execution, bounded remote fetch/data decoding, existing image validation, hashing, and temporary artifact persistence in `apps/web/src/server/jobs/ai-image-generation.ts`
-- [ ] T100 [US6] Register `image_generation` dispatch and expired-artifact cleanup in `apps/web/src/server/jobs/ai-actions.ts` and `apps/web/src/server/jobs/ai-cleanup.ts`
-- [ ] T101 [US6] Implement artifact owner lookup, private preview serving, discard, and idempotent promotion through the existing asset write path in `apps/web/src/server/services/ai-artifacts.ts`
-- [ ] T102 [P] [US6] Implement image generation and artifact preview/discard/promotion routes with OpenAPI annotations in `apps/web/app/api/ai/images/route.ts`, `apps/web/app/api/ai/generated-artifacts/[id]/route.ts`, and `apps/web/app/api/ai/generated-artifacts/[id]/asset/route.ts`
-- [ ] T103 [P] [US6] Build image source/aspect controls, streamed status, private preview, confirm/discard actions, and error states in `apps/web/src/components/editor/AiImageGenerationDialog.tsx`
-- [ ] T104 [US6] Integrate generated-image promotion and cursor insertion into the CodeMirror image workflow in `apps/web/src/components/editor/SplitMarkdownEditor.tsx`
-- [ ] T105 [US6] Add English and Chinese image generation, source, preview, confirmation, expiry, validation, and unavailable-model translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [x] T098 [US6] Implement image action validation, page/selection source loading, edit/entitlement checks, and image-model snapshotting in `apps/web/src/server/services/ai-image-generation.ts`
+- [x] T099 [US6] Implement image provider execution, bounded remote fetch/data decoding, existing image validation, hashing, and temporary artifact persistence in `apps/web/src/server/jobs/ai-image-generation.ts`
+- [x] T100 [US6] Register `image_generation` dispatch and expired-artifact cleanup in `apps/web/src/server/jobs/ai-actions.ts` and `apps/web/src/server/jobs/ai-cleanup.ts`
+- [x] T101 [US6] Implement artifact owner lookup, private preview serving, discard, and idempotent promotion through the existing asset write path in `apps/web/src/server/services/ai-artifacts.ts`
+- [x] T102 [P] [US6] Implement image generation and artifact preview/discard/promotion routes with OpenAPI annotations in `apps/web/app/api/ai/images/route.ts`, `apps/web/app/api/ai/generated-artifacts/[id]/route.ts`, and `apps/web/app/api/ai/generated-artifacts/[id]/asset/route.ts`
+- [x] T103 [P] [US6] Build image source/aspect controls, streamed status, private preview, confirm/discard actions, and error states in `apps/web/src/components/editor/AiImageGenerationDialog.tsx`
+- [x] T104 [US6] Integrate generated-image promotion and cursor insertion into the CodeMirror image workflow in `apps/web/src/components/editor/SplitMarkdownEditor.tsx`
+- [x] T105 [US6] Add English and Chinese image generation, source, preview, confirmation, expiry, validation, and unavailable-model translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Generated images become normal page assets only after explicit
 confirmation and remain governed by existing edit, asset, and publish rules.
@@ -278,14 +278,14 @@ confirmation and remain governed by existing edit, asset, and publish rules.
 **Purpose**: Complete observability, documentation, security hardening,
 performance validation, and full deployment verification.
 
-- [ ] T106 [P] Build the Admin AI action audit table with user/provider/model/feature/status/time filters and no content-bearing fields in `apps/web/src/components/admin/ai/AiActionAuditTable.tsx`
-- [ ] T107 Create the canonical AI action audit page and breadcrumb/title integration in `apps/web/app/(admin)/admin/ai/actions/page.tsx` and `apps/web/src/components/layout/Header.tsx`
-- [ ] T108 [P] Add structured redaction tests proving credentials, questions, selected text, responses, image data, and provider bodies never enter logs or permanent audit fields in `apps/web/src/server/ai/ai-privacy.test.ts`
-- [ ] T109 Harden provider HTTP clients with connect/request timeouts, cancellation, redirect/response-size limits, header redaction, and retry-after parsing in `apps/web/src/server/ai/providers/http-client.ts`
-- [ ] T110 Implement scheduled cleanup of expired action inputs/events, generated artifacts, and superseded index generations in `apps/web/src/server/jobs/ai-cleanup.ts`
-- [ ] T111 [P] Add benchmark fixtures for semantic top-five relevance, exact-search latency, indexing throughput, and full-context capacity estimates in `apps/web/src/server/ai/ai-benchmarks.test.ts`
-- [ ] T112 Regenerate the REST contract with next-openapi-gen and commit AI paths/schemas in `apps/web/public/openapi.json`
-- [ ] T113 [P] Extend API documentation E2E coverage for AI Admin, search, action SSE, optimization, image, and entitlement resources in `apps/web/e2e/api-docs.spec.ts`
+- [x] T106 [P] Build the Admin AI action audit table with user/provider/model/feature/status/time filters and no content-bearing fields in `apps/web/src/components/admin/ai/AiActionAuditTable.tsx`
+- [x] T107 Create the canonical AI action audit page and breadcrumb/title integration in `apps/web/app/(admin)/admin/ai/actions/page.tsx` and `apps/web/src/components/layout/Header.tsx`
+- [x] T108 [P] Add structured redaction tests proving credentials, questions, selected text, responses, image data, and provider bodies never enter logs or permanent audit fields in `apps/web/src/server/ai/ai-privacy.test.ts`
+- [x] T109 Harden provider HTTP clients with connect/request timeouts, cancellation, redirect/response-size limits, header redaction, and retry-after parsing in `apps/web/src/server/ai/providers/http-client.ts`
+- [x] T110 Implement scheduled cleanup of expired action inputs/events, generated artifacts, and superseded index generations in `apps/web/src/server/jobs/ai-cleanup.ts`
+- [x] T111 [P] Add benchmark fixtures for semantic top-five relevance, exact-search latency, indexing throughput, and full-context capacity estimates in `apps/web/src/server/ai/ai-benchmarks.test.ts`
+- [x] T112 Regenerate the REST contract with next-openapi-gen and commit AI paths/schemas in `apps/web/public/openapi.json`
+- [x] T113 [P] Extend API documentation E2E coverage for AI Admin, search, action SSE, optimization, image, and entitlement resources in `apps/web/e2e/api-docs.spec.ts`
 - [ ] T114 Run shared/web typecheck, lint, Vitest, and Playwright suites and resolve all failures in `packages/shared/src/ai.ts`, `apps/web/src/server/ai/`, `apps/web/app/api/ai/`, and `apps/web/e2e/`
 - [ ] T115 Run `docker compose up -d --build`, verify pgvector extension/health/readiness/worker startup, and record any required corrections in `docker-compose.yml`, `apps/web/instrumentation.ts`, and `specs/004-system-ai-support/quickstart.md`
 - [ ] T116 Validate every scenario and failure drill in `specs/004-system-ai-support/quickstart.md` and update that file with final executable commands and observed expected results

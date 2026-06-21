@@ -7,6 +7,7 @@ export * from './api-keys';
 export * from './user-center';
 export * from './audit';
 export * from './content-storage';
+export * from './ai';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 
@@ -28,6 +29,8 @@ export const pageSummarySchema = z.object({
 export type PageSummary = z.infer<typeof pageSummarySchema>;
 
 export const livePageSchema = z.object({
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
   path: z.string(),
   title: z.string(),
   contentHtml: z.string(),
@@ -42,6 +45,8 @@ export const livePageSchema = z.object({
 export type LivePage = z.infer<typeof livePageSchema>;
 
 export const editableViewSchema = z.object({
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
   path: z.string(),
   title: z.string(),
   contentSource: z.string(),

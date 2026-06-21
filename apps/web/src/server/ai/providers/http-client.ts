@@ -1,0 +1,114 @@
+import { env } from '@/server/config';
+import { AiProviderError, sanitizeProviderMessage, type ProviderRuntimeConfig } from '../types';
+
+function combineSignals(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
+export function providerHeaders(config: ProviderRuntimeConfig): Headers {
+  const headers = new Headers({ 'content-type': 'application/json' });
+  if (config.credentials.apiKey) headers.set('authorization', `Bearer ${config.credentials.apiKey}`);
+  for (const [name, value] of Object.entries(config.credentials.headers ?? {})) {
+    if (!['host', 'content-length'].includes(name.toLowerCase())) headers.set(name, value);
+  }
+  return headers;
+}
+
+export async function providerFetch(
+  config: ProviderRuntimeConfig,
+  path: string,
+  init: RequestInit = {},
+  timeoutMs = env.AI_PROVIDER_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const url = new URL(path.replace(/^\//, ''), `${config.baseUrl.replace(/\/+$/, '')}/`);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: init.headers ?? providerHeaders(config),
+      redirect: 'error',
+      signal: combineSignals(init.signal ?? undefined, timeoutMs),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new AiProviderError(
+        error.name === 'AbortError' ? 'CANCELLED' : 'TIMEOUT',
+        error.name === 'AbortError' ? 'AI request was cancelled' : 'AI provider request timed out',
+        error.name !== 'AbortError',
+      );
+    }
+    throw new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider is unavailable', true);
+  }
+  const contentLength = Number(response.headers.get('content-length') ?? 0);
+  if (contentLength > 16 * 1024 * 1024) {
+    await response.body?.cancel();
+    throw new AiProviderError('INPUT_TOO_LARGE', 'Provider response is too large');
+  }
+  if (response.ok) return response;
+
+  const retryAfter = response.headers.get('retry-after');
+  const text = sanitizeProviderMessage(
+    new TextDecoder().decode(await readBoundedBytes(response, 64 * 1024).catch(() => new Uint8Array())),
+  );
+  if (response.status === 401 || response.status === 403) {
+    throw new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider rejected the credentials');
+  }
+  if (response.status === 404) throw new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found');
+  if (response.status === 413) throw new AiProviderError('INPUT_TOO_LARGE', 'AI provider rejected the input size');
+  if (response.status === 429) {
+    throw new AiProviderError(
+      'RATE_LIMITED',
+      'AI provider rate limit exceeded',
+      true,
+      parseRetryAfter(retryAfter),
+    );
+  }
+  if (response.status >= 500) {
+    throw new AiProviderError('PROVIDER_UNAVAILABLE', text || 'AI provider is unavailable', true);
+  }
+  throw new AiProviderError('INVALID_RESPONSE', text || `AI provider returned ${response.status}`);
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+}
+
+export async function readBoundedBytes(response: Response, maximumBytes: number): Promise<Uint8Array> {
+  const contentLength = Number(response.headers.get('content-length') ?? 0);
+  if (contentLength > maximumBytes) throw new AiProviderError('INPUT_TOO_LARGE', 'Provider response is too large');
+  const reader = response.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > maximumBytes) {
+      await reader.cancel();
+      throw new AiProviderError('INPUT_TOO_LARGE', 'Provider response is too large');
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
+}
+
+export async function readBoundedJson<T>(response: Response, maximumBytes = 16 * 1024 * 1024): Promise<T> {
+  const bytes = await readBoundedBytes(response, maximumBytes);
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  } catch {
+    throw new AiProviderError('INVALID_RESPONSE', 'Provider returned malformed JSON');
+  }
+}

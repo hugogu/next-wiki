@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { UserView } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
 import { Input } from '@/components/ui/Input';
@@ -14,7 +15,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
-import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon } from '@/components/icons';
+import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon, SettingsIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
 function IconButton({
@@ -180,6 +181,14 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                       </form>
                     ) : (
                       <>
+                        <Link
+                          href={`/admin/users/${user.id}/ai`}
+                          aria-label={t('admin.ai.entitlement.manage')}
+                          title={t('admin.ai.entitlement.manage')}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground"
+                        >
+                          <SettingsIcon />
+                        </Link>
                         <IconButton
                           label={t('admin.users.resetPassword.button')}
                           onClick={() => setResettingUserId(user.id)}

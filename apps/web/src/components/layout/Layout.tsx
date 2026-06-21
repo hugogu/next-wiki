@@ -5,6 +5,7 @@ import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
+import { getMyEntitlements } from '@/server/services/ai-entitlements';
 
 export async function Layout({
   children,
@@ -29,9 +30,13 @@ export async function Layout({
   }
 
   const pages = await pageService.listPublished(buildAnonymousCtx());
+  const aiEntitlements =
+    actor.kind === 'user'
+      ? await getMyEntitlements({ actor }).catch(() => null)
+      : null;
 
   return (
-    <AppShell user={actor} pages={pages} pageContext={pageContext} admin={admin} userCenter={userCenter}>
+    <AppShell user={actor} pages={pages} pageContext={pageContext} admin={admin} userCenter={userCenter} aiEntitlements={aiEntitlements}>
       {children}
     </AppShell>
   );
