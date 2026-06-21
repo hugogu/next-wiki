@@ -21,8 +21,13 @@ import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
 import { createAction, getAiSettings, recordTerminalAction } from './ai-actions';
 import { createAiProviderAdapter, createModelDiscoveryAdapter } from '@/server/ai/registry';
-import { detectCapabilities } from '@/server/ai/model-detector';
-import type { DiscoveredModel, ProviderHealth, ProviderRuntimeConfig } from '@/server/ai/types';
+import { detectCapabilities, listEmbeddingModels } from '@/server/ai/model-detector';
+import {
+  normalizeProviderError,
+  type DiscoveredModel,
+  type ProviderHealth,
+  type ProviderRuntimeConfig,
+} from '@/server/ai/types';
 
 type ProviderRow = typeof schema.aiProviders.$inferSelect;
 
@@ -295,6 +300,10 @@ export async function listModels(ctx: PermCtx, providerId?: string): Promise<AiM
     contextWindow: model.contextWindow,
     maxOutputTokens: model.maxOutputTokens,
     embeddingDimensions: model.embeddingDimensions,
+    embeddingMultilingualSupport:
+      typeof (model.rawMetadata as Record<string, unknown>).multilingualSupport === 'boolean'
+        ? (model.rawMetadata as Record<string, unknown>).multilingualSupport as boolean
+        : null,
     inputModalities: model.inputModalities,
     outputModalities: model.outputModalities,
     manuallyAdded: model.manuallyAdded,
@@ -508,17 +517,18 @@ async function reconcileDiscoveredModel(
   vendor: AiProviderVendor,
   model: DiscoveredModel,
   detector: { apiKey: string } | null,
+  trustedCapabilityMatch = false,
 ): Promise<boolean> {
   // Without a configured detector, image/embedding providers have no reliable
   // way to distinguish capability-matching models from the chat-centric /models
   // payload. Skip discovery for non-chat providers to avoid catalog pollution;
   // rely on manual model addition instead.
-  if (!detector && providerType !== 'chat') return false;
+  if (!trustedCapabilityMatch && !detector && providerType !== 'chat') return false;
 
   let enriched = model;
   let capabilities = model.capabilities;
 
-  if (detector) {
+  if (!trustedCapabilityMatch && detector) {
     const detected = await detectCapabilities(model.externalId, vendor, detector.apiKey).catch(() => null);
     if (detected) {
       // Filter out models whose output modality does not match the provider type.
@@ -653,17 +663,67 @@ export async function testProviderConnection(
 
 export async function syncProviderModels(providerId: string) {
   const runtime = await providerRuntime(providerId);
-  const discovery = createModelDiscoveryAdapter(runtime);
-  if (!discovery) return { count: 0, skipped: 0 };
   const settings = await getAiSettings();
   const detector = settings.modelDetectorApiKeyEncrypted
     ? { apiKey: (decryptAiJson(settings.modelDetectorApiKeyEncrypted) as { apiKey: string }).apiKey }
     : null;
-  const models = await discovery.listModels();
+  let models: DiscoveredModel[];
+  let trustedCapabilityMatch = false;
+
+  if (runtime.type === 'image') {
+    const builtinModels = getAiProviderVendor(runtime.vendor).builtinModels?.image ?? [];
+    models = builtinModels.map((model) => ({
+      externalId: model.id,
+      displayName: model.name,
+      availability: 'available',
+      inputModalities: ['text'],
+      outputModalities: ['image'],
+      capabilities: [
+        { capability: 'image_generation', supported: true, source: 'provider' },
+      ],
+      rawMetadata: { source: 'builtin_vendor_catalog', vendor: runtime.vendor },
+    }));
+    trustedCapabilityMatch = true;
+  } else if (runtime.type === 'embedding') {
+    const apiKey = runtime.vendor === 'openrouter'
+      ? runtime.credentials.apiKey
+      : detector?.apiKey;
+    if (!apiKey) return { count: 0, skipped: 0 };
+    models = (await listEmbeddingModels(runtime.vendor, apiKey)).map((model) => ({
+      externalId: model.externalId,
+      canonicalId: model.canonicalId,
+      displayName: model.displayName,
+      availability: 'available',
+      contextWindow: model.contextWindow,
+      embeddingDimensions: model.embeddingDimensions,
+      inputModalities: model.inputModalities,
+      outputModalities: model.outputModalities,
+      capabilities: [
+        { capability: 'embedding', supported: true, source: 'provider' },
+      ],
+      rawMetadata: {
+        ...model.rawMetadata,
+        multilingualSupport: model.multilingualSupport,
+      },
+    }));
+    trustedCapabilityMatch = true;
+  } else {
+    const discovery = createModelDiscoveryAdapter(runtime);
+    if (!discovery) return { count: 0, skipped: 0 };
+    models = await discovery.listModels();
+  }
+
   const kept: string[] = [];
   let skipped = 0;
   for (const model of models) {
-    const keep = await reconcileDiscoveredModel(providerId, runtime.type, runtime.vendor, model, detector);
+    const keep = await reconcileDiscoveredModel(
+      providerId,
+      runtime.type,
+      runtime.vendor,
+      model,
+      detector,
+      trustedCapabilityMatch,
+    );
     if (keep) kept.push(model.externalId);
     else skipped++;
   }
@@ -684,4 +744,36 @@ export async function syncProviderModels(providerId: string) {
       .where(and(eq(schema.aiModels.providerId, providerId), inArray(schema.aiModels.externalId, kept)));
   }
   return { count: kept.length, skipped };
+}
+
+export async function syncProviderModelsNow(ctx: PermCtx, providerId: string) {
+  assertCanManageAi(ctx);
+  const provider = await db.query.aiProviders.findFirst({
+    where: eq(schema.aiProviders.id, providerId),
+  });
+  if (!provider) throw new DomainError('NOT_FOUND', 'AI provider not found');
+  if (!provider.enabled) throw new DomainError('PROVIDER_DISABLED', 'AI provider is disabled');
+  try {
+    const result = await syncProviderModels(providerId);
+    await recordTerminalAction(ctx, {
+      feature: 'model_sync',
+      status: 'completed',
+      providerId,
+      requestMetadata: { providerId, mode: 'synchronous' },
+      resultMetadata: result,
+    });
+    return result;
+  } catch (error) {
+    const normalized = normalizeProviderError(error);
+    await recordTerminalAction(ctx, {
+      feature: 'model_sync',
+      status: 'failed',
+      providerId,
+      requestMetadata: { providerId, mode: 'synchronous' },
+      errorCode: normalized.code,
+      errorMessage: normalized.message,
+      errorDetail: normalized.detail ? JSON.stringify(normalized.detail, null, 2) : null,
+    });
+    throw error;
+  }
 }

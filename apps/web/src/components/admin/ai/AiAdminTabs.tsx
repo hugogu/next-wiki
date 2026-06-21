@@ -21,9 +21,10 @@ import { PurposeAssignments } from './PurposeAssignments';
 import { ModelCatalog } from './ModelCatalog';
 import { IndexList } from './IndexList';
 import { AiActionAuditTable } from './AiActionAuditTable';
+import { ModelDetectorPanel } from './ModelDetectorPanel';
 
-type AiAdminTab = 'chat' | 'embedding' | 'image' | 'models' | 'indexes' | 'actions';
-const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'models', 'indexes', 'actions'];
+type AiAdminTab = 'chat' | 'embedding' | 'image' | 'detector' | 'models' | 'indexes' | 'actions';
+const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'detector', 'models', 'indexes', 'actions'];
 
 const purposeByCapability = {
   chat: 'wiki_text',
@@ -42,6 +43,7 @@ export function AiAdminTabs({
   indexes,
   actions,
   actionsTotal,
+  hasModelDetectorApiKey,
 }: {
   providers: AiProviderView[];
   models: AiModelView[];
@@ -49,6 +51,7 @@ export function AiAdminTabs({
   indexes: AiIndexView[];
   actions: AiActionView[];
   actionsTotal: number;
+  hasModelDetectorApiKey: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -87,6 +90,11 @@ export function AiAdminTabs({
       id: 'image' as const,
       label: t('admin.ai.tabs.image'),
       status: String(providers.filter((provider) => provider.type === 'image').length),
+    },
+    {
+      id: 'detector' as const,
+      label: t('admin.ai.tabs.detector'),
+      status: hasModelDetectorApiKey ? t('admin.ai.modelDetector.configuredShort') : undefined,
     },
     { id: 'models' as const, label: t('admin.ai.tabs.models') },
     {
@@ -134,6 +142,9 @@ export function AiAdminTabs({
               }
             />
           </section>
+        )}
+        {selected === 'detector' && (
+          <ModelDetectorPanel hasModelDetectorApiKey={hasModelDetectorApiKey} />
         )}
         {selected === 'models' && <PurposeAssignments models={models} assignments={assignments} />}
         {selected === 'indexes' && <IndexList indexes={indexes} />}

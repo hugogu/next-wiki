@@ -65,8 +65,10 @@ Reuses existing `PUT /api/ai/assignments/:purpose` endpoints — no new API.
 
 Migration `0015` adds `openrouter_api_key_encrypted` to `ai_settings` (singleton,
 encrypted with the same `API_KEY_ENCRYPTION_KEY` used for provider credentials).
-Admin UI field in `AiSettingsPanel`. Optional — if unset, sync falls back to the
-adapter's `mapModel` for chat providers and manual-only for image/embedding.
+The key is configured in an independent **Model detector** tab. It is optional:
+chat sync can still use the provider model API, image sync uses a vendor-bound
+catalog or manual entries, and non-OpenRouter embedding vendors need the
+detector key for OpenRouter-backed discovery.
 
 ### 4b. Vendor namespace mapping + new ModelDetector service
 
@@ -86,6 +88,8 @@ New optional `openrouterNamespace` field on `AiProviderVendorDefinition`:
 New service `src/server/ai/model-detector.ts`:
 - Fetches `/api/v1/models` from OpenRouter with the configured key, cached with a
   TTL (1 hour) to avoid repeated calls.
+- Fetches `/api/v1/embeddings/models` separately for embedding discovery and
+  caches that result independently.
 - `detectCapabilities(externalId, vendor)` → matches by `{namespace}/{externalId}`
   → returns `{ vision, thinking, audio, contextWindow, maxOutputTokens,
   canonicalId }` derived from `architecture.input_modalities`,
@@ -93,21 +97,26 @@ New service `src/server/ai/model-detector.ts`:
   `top_provider`.
 - Not found / no namespace → returns null (caller falls back).
 
-### 4c. Fixed sync logic
+### 4c. Capability-specific synchronous sync
 
-`syncProviderModels` becomes capability-aware and replaces the blind
-primary-capability stamping in `reconcileDiscoveredModel`:
+The capability page runs model synchronization synchronously. The endpoint
+returns `{ count, skipped }`, records a completed or failed terminal action, and
+the UI refreshes immediately. It does not enqueue a background action.
 
 ```
-For each model from the provider's /models:
-  If OpenRouter detector is configured:
-    look up model → get output_modalities
-    if provider type is 'image'  and output excludes 'image'  → SKIP
-    if provider type is 'embedding' and output excludes 'embed' → SKIP
-    otherwise: reconcile with enriched capabilities (vision, thinking)
-  Else (no detector key):
-    if provider type !== 'chat' → SKIP (manual-only, no catalog pollution)
-    otherwise: use adapter's mapModel (current behavior, no stamping)
+Chat:
+  list with the provider model API
+  enrich chat capabilities through OpenRouter when configured
+
+Embedding:
+  list with OpenRouter /api/v1/embeddings/models
+  filter by vendor namespace, or keep full IDs for OpenRouter providers
+  trust the embedding-only endpoint instead of generic /models
+
+Image:
+  never use generic /models discovery
+  reconcile vendor-bound built-in models where documented
+  preserve manually added models
 ```
 
 This fully removes the old primary-capability stamping at `ai-admin.ts:511-525`.
@@ -120,15 +129,26 @@ and (for embedding) `embeddingDimensions`. POSTs to the existing
 `POST /api/ai/providers/[id]/models` endpoint (already implemented, just not
 wired to the post-creation UI).
 
-This is how `glm-image`, `cogview-4-250304`, and embedding models not in
-`/models` get added.
+Manual creation remains available for every capability. It is the fallback for
+custom image model IDs and prompts, embedding models not listed by OpenRouter,
+and vector dimensions that cannot be detected.
 
 **OpenRouter data quality (verified 2026-06-21):**
 - 11 z.ai models hosted (`z-ai/` namespace), with accurate modality metadata.
 - `z-ai/glm-4.6v` → `input_modalities: ['image','text','video']` → vision ✓
 - `z-ai/glm-5.2` → `supported_parameters: [..., 'reasoning', ...]` → thinking ✓
-- 0 embedding models on OpenRouter (embedding stays manual).
-- No `glm-image`/`cogview-4` on OpenRouter (image generation stays manual).
+- The dedicated embeddings endpoint returns embedding-only models and is
+  suitable for synchronization.
+- It does not expose a standard embedding-dimension field. Dimensions remain
+  nullable and manually editable.
+- Multilingual support is marked supported only when the model description
+  explicitly says so; otherwise the UI shows unknown.
+- `glm-image`/`cogview-4` are not discovered from OpenRouter; they come from the
+  z.ai vendor-bound catalog.
+
+**Vendor-bound image catalogs:**
+- MiniMax: `image-01`
+- z.ai: `glm-image`, `cogview-4-250304`
 
 ## Files touched (summary)
 
@@ -137,7 +157,7 @@ This is how `glm-image`, `cogview-4-250304`, and embedding models not in
 | 1 | — | `IndexList`, `IndexDetail`, delete page route, i18n | — |
 | 2 | `ai-admin.ts` (deleteModel, strengthen deleteProvider), `models/[id]/route.ts` (DELETE) | `ProviderDetail`, `ModelCatalog`, i18n | — |
 | 3 | — | `PurposeAssignments`, i18n | — |
-| 4 | `model-detector.ts` (new), `ai-admin.ts` (sync rewrite), `AiSettingsPanel` | `ModelCatalog` (Add model), i18n | `0015` |
+| 4 | `model-detector.ts` (new), `ai-admin.ts` (sync rewrite), synchronous sync route | `ModelDetectorPanel`, `ModelCatalog` (Add model and capability-specific columns), i18n | `0015` |
 
 ## Commits
 

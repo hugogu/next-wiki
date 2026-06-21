@@ -12,6 +12,7 @@ import {
   deleteProvider,
   listModels,
   setCapabilityOverride,
+  syncProviderModelsNow,
   testProviderConnection,
   updateProvider,
 } from './ai-admin';
@@ -110,5 +111,27 @@ describe('AI administration service', () => {
     });
     await assignPurpose(ctx, 'wiki_text', assigned.id);
     await expect(deleteModel(ctx, assigned.id)).rejects.toMatchObject({ code: 'MODEL_IN_USE' });
+  });
+
+  it('synchronously adds vendor-bound image models', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const provider = await createProvider(ctx, {
+      name: 'Z.AI Image',
+      type: 'image',
+      vendor: 'zai',
+      baseUrl: 'https://api.z.ai/api/paas/v4',
+      credentials: { apiKey: 'key' },
+    });
+
+    await expect(syncProviderModelsNow(ctx, provider.id)).resolves.toEqual({
+      count: 2,
+      skipped: 0,
+    });
+    await expect(listModels(ctx, provider.id)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ externalId: 'glm-image', providerType: 'image' }),
+        expect.objectContaining({ externalId: 'cogview-4-250304', providerType: 'image' }),
+      ]),
+    );
   });
 });

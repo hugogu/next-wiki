@@ -50,6 +50,7 @@ export function ModelCatalog({
   const [displayName, setDisplayName] = useState('');
   const [embeddingDimensions, setEmbeddingDimensions] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const catalogType = providers[0]?.type ?? models[0]?.providerType ?? 'chat';
   const providerOptions = useMemo(
     () => [...new Map(models.map((model) => [model.providerId, model.providerName])).entries()],
     [models],
@@ -91,7 +92,9 @@ export function ModelCatalog({
       <div className="flex items-start justify-between gap-md">
         <div>
           <h2 className="font-display text-lg font-semibold">{t('admin.ai.models.catalogTitle')}</h2>
-          <p className="mt-xs text-sm text-muted">{t('admin.ai.models.catalogDescription')}</p>
+          <p className="mt-xs text-sm text-muted">
+            {t(`admin.ai.models.catalogDescription.${catalogType}`)}
+          </p>
         </div>
         <Button
           variant="secondary"
@@ -116,8 +119,18 @@ export function ModelCatalog({
             <DataTableHeader>{t('admin.ai.models.model')}</DataTableHeader>
             <DataTableHeader>{t('admin.ai.models.provider')}</DataTableHeader>
             <DataTableHeader>{t('admin.ai.models.type')}</DataTableHeader>
-            <DataTableHeader>{t('admin.ai.models.context')}</DataTableHeader>
-            <DataTableHeader>{t('admin.ai.models.chatCapabilities')}</DataTableHeader>
+            {catalogType !== 'image' && (
+              <DataTableHeader>{t('admin.ai.models.context')}</DataTableHeader>
+            )}
+            {catalogType === 'chat' && (
+              <DataTableHeader>{t('admin.ai.models.chatCapabilities')}</DataTableHeader>
+            )}
+            {catalogType === 'embedding' && (
+              <>
+                <DataTableHeader>{t('admin.ai.models.embeddingDimensions')}</DataTableHeader>
+                <DataTableHeader>{t('admin.ai.models.multilingualSupport')}</DataTableHeader>
+              </>
+            )}
             <DataTableHeader>{t('admin.ai.providers.status')}</DataTableHeader>
             <DataTableHeader align="right">{t('admin.ai.actions.table.actions')}</DataTableHeader>
           </DataTableRow>
@@ -142,9 +155,11 @@ export function ModelCatalog({
                     {t(`admin.ai.modelType.${type}` as TranslationKey)}
                   </StatusBadge>
                 </DataTableCell>
-                <DataTableCell>{model.contextWindow?.toLocaleString() ?? '—'}</DataTableCell>
-                <DataTableCell>
-                  {type === 'chat' ? (
+                {catalogType !== 'image' && (
+                  <DataTableCell>{model.contextWindow?.toLocaleString() ?? '—'}</DataTableCell>
+                )}
+                {catalogType === 'chat' && (
+                  <DataTableCell>
                     <div className="flex flex-wrap gap-md">
                       {CHAT_CAPABILITIES.map((capability) => {
                         const current = model.capabilities.find((item) => item.capability === capability);
@@ -161,8 +176,22 @@ export function ModelCatalog({
                         );
                       })}
                     </div>
-                  ) : <span className="text-xs text-muted">—</span>}
-                </DataTableCell>
+                  </DataTableCell>
+                )}
+                {catalogType === 'embedding' && (
+                  <>
+                    <DataTableCell>
+                      {model.embeddingDimensions?.toLocaleString() ?? '—'}
+                    </DataTableCell>
+                    <DataTableCell>
+                      {model.embeddingMultilingualSupport === null
+                        ? t('admin.ai.models.supportUnknown')
+                        : model.embeddingMultilingualSupport
+                          ? t('admin.ai.models.supported')
+                          : t('admin.ai.models.unsupported')}
+                    </DataTableCell>
+                  </>
+                )}
                 <DataTableCell>
                   <StatusBadge tone={model.availability === 'available' ? 'success' : model.availability === 'unavailable' ? 'danger' : 'neutral'}>
                     {t(`admin.ai.modelAvailability.${model.availability}` as TranslationKey)}
@@ -186,7 +215,7 @@ export function ModelCatalog({
           })}
           {filtered.length === 0 && (
             <DataTableRow>
-              <DataTableCell colSpan={7} className="py-xl text-center text-muted">
+              <DataTableCell colSpan={catalogType === 'image' ? 5 : catalogType === 'embedding' ? 8 : 7} className="py-xl text-center text-muted">
                 {t('admin.ai.models.empty')}
               </DataTableCell>
             </DataTableRow>

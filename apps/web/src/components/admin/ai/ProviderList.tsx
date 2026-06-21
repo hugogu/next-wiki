@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
-  AiActionAccepted,
+  AiModelSyncResult,
   AiModelView,
   AiProviderHealth,
   AiProviderType,
@@ -83,8 +83,14 @@ export function ProviderList({
     setBusy(`${provider.id}:sync`);
     setFeedback(null);
     try {
-      await apiPost<Record<string, never>, AiActionAccepted>(`/api/ai/providers/${provider.id}/model-syncs`, {});
-      setFeedback({ ok: true, text: `${provider.name}: ${t('admin.ai.action.queued')}` });
+      const result = await apiPost<Record<string, never>, AiModelSyncResult>(
+        `/api/ai/providers/${provider.id}/model-syncs`,
+        {},
+      );
+      setFeedback({
+        ok: true,
+        text: `${provider.name}: ${t('admin.ai.providers.syncComplete', result)}`,
+      });
       router.refresh();
     } catch (value) {
       setFeedback({ ok: false, text: (value as ApiError).message ?? t('admin.ai.error.generic') });

@@ -34,10 +34,7 @@ export default async function AdminAiPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.ai.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.ai.description')}</p>
         </div>
-        <AiSettingsPanel
-          enabled={settings.enabled}
-          hasModelDetectorApiKey={settings.hasModelDetectorApiKey}
-        />
+        <AiSettingsPanel enabled={settings.enabled} />
         <AiAdminTabs
           providers={providers}
           models={models}
@@ -45,6 +42,7 @@ export default async function AdminAiPage() {
           indexes={indexes}
           actions={actions.items}
           actionsTotal={actions.total}
+          hasModelDetectorApiKey={settings.hasModelDetectorApiKey}
         />
       </div>
     </Layout>

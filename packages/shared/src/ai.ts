@@ -29,6 +29,16 @@ export type AiProviderVendorDefinition = {
   protocols: Partial<Record<AiProviderType, AiProviderKind>>;
   baseUrls: Partial<Record<AiProviderType, string>>;
   modelDiscovery: AiModelDiscoveryProtocol;
+  builtinModels?: Partial<
+    Record<
+      AiProviderType,
+      Array<{
+        id: string;
+        name: string;
+        embeddingDimensions?: number;
+      }>
+    >
+  >;
   /** OpenRouter model-listing namespace for capability detection. Omitted when the vendor is not hosted on OpenRouter. */
   openrouterNamespace?: string;
 };
@@ -90,6 +100,9 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
     protocols: { image: 'minimax' },
     baseUrls: { image: 'https://api.minimaxi.com/v1' },
     modelDiscovery: 'none',
+    builtinModels: {
+      image: [{ id: 'image-01', name: 'Image-01' }],
+    },
     openrouterNamespace: 'minimax',
   },
   {
@@ -106,6 +119,12 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
       image: 'https://api.z.ai/api/paas/v4',
     },
     modelDiscovery: 'openai',
+    builtinModels: {
+      image: [
+        { id: 'glm-image', name: 'GLM-Image' },
+        { id: 'cogview-4-250304', name: 'CogView 4' },
+      ],
+    },
     openrouterNamespace: 'z-ai',
   },
   {
@@ -292,6 +311,7 @@ export const aiModelViewSchema = z.object({
   contextWindow: z.number().nullable(),
   maxOutputTokens: z.number().nullable(),
   embeddingDimensions: z.number().nullable(),
+  embeddingMultilingualSupport: z.boolean().nullable(),
   inputModalities: z.array(z.string()),
   outputModalities: z.array(z.string()),
   manuallyAdded: z.boolean(),
@@ -299,6 +319,11 @@ export const aiModelViewSchema = z.object({
   lastSeenAt: z.string().nullable(),
 });
 export type AiModelView = z.infer<typeof aiModelViewSchema>;
+export const aiModelSyncResultSchema = z.object({
+  count: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+export type AiModelSyncResult = z.infer<typeof aiModelSyncResultSchema>;
 
 export const aiEntitlementUpdateSchema = z.object({
   questionAnsweringEnabled: z.boolean(),

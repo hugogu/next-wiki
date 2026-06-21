@@ -19,6 +19,7 @@
 - [x] Task 5: Unify capability mapping save
 - [x] Task 6: Convert index detail to modal with failure details
 - [x] Task 7: Regenerate OpenAPI + final verification
+- [x] Task 8: Refine capability-specific model synchronization
 
 ---
 
@@ -454,6 +455,38 @@ docker compose exec -T db psql -U wiki -d wiki -c "ALTER TABLE ai_settings ADD C
 # Rebuild web
 docker compose up -d --build web
 # Playwright: verify index detail modal, delete buttons, unified save, add-model modal, OpenRouter key field
+```
+
+---
+
+### Task 8: Refine capability-specific model synchronization
+
+Follow-up requirements replace the remaining generic model-sync behavior:
+
+- Run model synchronization synchronously and return `{ count, skipped }`.
+  Record a terminal audit action, refresh the capability page, and do not enqueue
+  a background job.
+- Move the OpenRouter detector key into an independent left-side **Model
+  detector** tab.
+- Synchronize embedding models through OpenRouter
+  `GET /api/v1/embeddings/models`. Show embedding dimensions and multilingual
+  support. Keep dimensions manually editable because the endpoint does not
+  expose a standard dimension field.
+- Do not use generic `/models` discovery for image capabilities. Use
+  vendor-bound built-in catalogs where documented (MiniMax `image-01`; z.ai
+  `glm-image` and `cogview-4-250304`) and retain manual model creation.
+- Remove chat-only columns from image catalogs. Replace chat capabilities in
+  embedding catalogs with dimensions and multilingual support.
+- Regenerate OpenAPI with a synchronous `200` `AiModelSyncResult` response.
+
+**Verification:**
+
+```bash
+docker compose up -d --build
+pnpm typecheck
+pnpm lint
+TEST_DATABASE_URL=postgresql://wiki:wiki@127.0.0.1:15433/wiki_test pnpm test
+curl -sf http://127.0.0.1:3000/readyz
 ```
 
 ---

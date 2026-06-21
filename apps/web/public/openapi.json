@@ -141,6 +141,7 @@
           "expiresAt"
         ]
       },
+      "AiModelSyncResult": {},
       "apiKeyViewListSchema": {
         "type": "array",
         "items": {
@@ -2132,7 +2133,7 @@
     "/ai/providers/{id}/model-syncs": {
       "post": {
         "operationId": "post-ai-providers-{id}-model-syncs",
-        "summary": "Synchronize AI models @tag AI Admin @auth bearer",
+        "summary": "Synchronize AI models",
         "description": "",
         "tags": [
           "AI Admin"
@@ -2155,78 +2156,12 @@
           }
         ],
         "responses": {
-          "202": {
+          "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "queued"
-                      ]
-                    },
-                    "id": {
-                      "type": "string"
-                    },
-                    "feature": {
-                      "oneOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "provider_test"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "model_sync"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "index_rebuild"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "semantic_search"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "wiki_question"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "text_optimization"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "image_generation"
-                          ]
-                        }
-                      ]
-                    },
-                    "eventsUrl": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "id",
-                    "feature",
-                    "eventsUrl"
-                  ]
+                  "$ref": "#/components/schemas/AiModelSyncResult"
                 }
               }
             }
@@ -2371,6 +2306,22 @@
                         }
                       ]
                     },
+                    "embeddingMultilingualSupport": {
+                      "oneOf": [
+                        {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        },
+                        {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      ]
+                    },
                     "capabilities": {
                       "type": "array",
                       "items": {
@@ -2492,6 +2443,7 @@
                     "manuallyAdded",
                     "lastSeenAt",
                     "providerType",
+                    "embeddingMultilingualSupport",
                     "capabilities"
                   ]
                 }

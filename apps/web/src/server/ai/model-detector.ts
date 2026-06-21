@@ -10,14 +10,37 @@ export type DetectedCapabilities = {
 
 type OpenRouterModel = {
   id: string;
+  name?: string;
+  description?: string;
   canonical_slug?: string;
   context_length?: number;
+  embedding_dimensions?: number;
   architecture?: { input_modalities?: string[]; output_modalities?: string[] };
   top_provider?: { context_length?: number; max_completion_tokens?: number };
   supported_parameters?: string[];
 };
 
+export type DetectedEmbeddingModel = {
+  externalId: string;
+  canonicalId?: string;
+  displayName: string;
+  contextWindow?: number;
+  embeddingDimensions?: number;
+  multilingualSupport: boolean | null;
+  inputModalities: string[];
+  outputModalities: string[];
+  rawMetadata: Record<string, unknown>;
+};
+
+function detectMultilingualSupport(description?: string): boolean | null {
+  if (!description) return null;
+  return /\bmultilingual\b|\bmultiple languages\b|\bcross-lingual\b|\b\d+\+ languages\b/i.test(description)
+    ? true
+    : null;
+}
+
 let cache: { at: number; models: Map<string, OpenRouterModel> } | null = null;
+let embeddingCache: { at: number; models: OpenRouterModel[] } | null = null;
 const TTL_MS = 60 * 60 * 1000;
 
 async function loadModels(apiKey: string): Promise<Map<string, OpenRouterModel>> {
@@ -31,6 +54,19 @@ async function loadModels(apiKey: string): Promise<Map<string, OpenRouterModel>>
   const models = new Map<string, OpenRouterModel>();
   for (const model of payload.data ?? []) models.set(model.id, model);
   cache = { at: Date.now(), models };
+  return models;
+}
+
+async function loadEmbeddingModels(apiKey: string): Promise<OpenRouterModel[]> {
+  if (embeddingCache && Date.now() - embeddingCache.at < TTL_MS) return embeddingCache.models;
+  const response = await fetch('https://openrouter.ai/api/v1/embeddings/models', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`OpenRouter responded ${response.status}`);
+  const payload = (await response.json()) as { data?: OpenRouterModel[] };
+  const models = payload.data ?? [];
+  embeddingCache = { at: Date.now(), models };
   return models;
 }
 
@@ -62,6 +98,34 @@ export async function detectCapabilities(
   };
 }
 
+export async function listEmbeddingModels(
+  vendor: AiProviderVendor,
+  apiKey: string,
+): Promise<DetectedEmbeddingModel[]> {
+  const namespace = getAiProviderVendor(vendor).openrouterNamespace;
+  if (vendor !== 'openrouter' && !namespace) return [];
+  const models = await loadEmbeddingModels(apiKey);
+  const prefix = namespace ? `${namespace}/` : '';
+  return models.flatMap((model) => {
+    if (vendor !== 'openrouter' && !model.id.startsWith(prefix)) return [];
+    const architecture = model.architecture ?? {};
+    const outputModalities = architecture.output_modalities ?? [];
+    if (!outputModalities.includes('embeddings')) return [];
+    return [{
+      externalId: vendor === 'openrouter' ? model.id : model.id.slice(prefix.length),
+      canonicalId: model.canonical_slug,
+      displayName: model.name ?? model.id,
+      contextWindow: model.top_provider?.context_length ?? model.context_length,
+      embeddingDimensions: model.embedding_dimensions,
+      multilingualSupport: detectMultilingualSupport(model.description),
+      inputModalities: architecture.input_modalities ?? [],
+      outputModalities,
+      rawMetadata: model as unknown as Record<string, unknown>,
+    }];
+  });
+}
+
 export function clearDetectorCache(): void {
   cache = null;
+  embeddingCache = null;
 }

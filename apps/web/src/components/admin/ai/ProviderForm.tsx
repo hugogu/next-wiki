@@ -89,7 +89,10 @@ export function ProviderForm({
 
   // Until the admin types their own label, default it to the model id (for
   // vendors entered manually) or the vendor name, so they rarely have to.
-  const manualModel = getAiProviderVendor(vendor).modelDiscovery === 'none';
+  const vendorDefinition = getAiProviderVendor(vendor);
+  const manualModel =
+    vendorDefinition.modelDiscovery === 'none'
+    && (vendorDefinition.builtinModels?.[type]?.length ?? 0) === 0;
   const suggestedName = manualModel && manualModelId.trim() ? manualModelId.trim() : t(VENDOR_LABELS[vendor]);
   const effectiveName = nameEdited ? name : suggestedName;
 
@@ -110,7 +113,7 @@ export function ProviderForm({
             credentials: { apiKey },
             enabled: true,
           });
-          if (getAiProviderVendor(vendor).modelDiscovery === 'none' && manualModelId) {
+          if (manualModel && manualModelId) {
             await apiPost(`/api/ai/providers/${provider.id}/models`, {
               externalId: manualModelId,
               displayName: manualModelId,
@@ -157,7 +160,7 @@ export function ProviderForm({
         <span className="text-sm font-medium">{t('admin.ai.providers.baseUrl')}</span>
         <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} required />
       </label>
-      {getAiProviderVendor(vendor).modelDiscovery === 'none' && (
+      {manualModel && (
         <>
           <label className="block space-y-xs">
             <span className="text-sm font-medium">{t('admin.ai.providers.initialModel')}</span>
