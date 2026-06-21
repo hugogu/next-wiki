@@ -40,7 +40,13 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
       await response.body?.cancel();
       return { ok: true, latencyMs: Date.now() - started, providerRequestId: response.headers.get('x-request-id') ?? undefined };
     } catch (error) {
-      return { ok: false, latencyMs: Date.now() - started, errorCode: error instanceof AiProviderError ? error.code : 'PROVIDER_UNAVAILABLE', errorMessage: error instanceof Error ? error.message : 'Provider unavailable' };
+      return {
+        ok: false,
+        latencyMs: Date.now() - started,
+        errorCode: error instanceof AiProviderError ? error.code : 'PROVIDER_UNAVAILABLE',
+        errorMessage: error instanceof Error ? error.message : 'Provider unavailable',
+        detail: error instanceof AiProviderError ? error.detail : undefined,
+      };
     }
   }
 

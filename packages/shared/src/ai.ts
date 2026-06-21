@@ -212,6 +212,7 @@ export const aiProviderHealthSchema = z.object({
   providerRequestId: z.string().optional(),
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
+  detail: z.record(z.string(), z.unknown()).optional(),
 });
 export type AiProviderHealth = z.infer<typeof aiProviderHealthSchema>;
 

@@ -28,6 +28,8 @@ export type ProviderHealth = {
   providerRequestId?: string;
   errorCode?: string;
   errorMessage?: string;
+  // Sanitized request/response context for the admin run-record viewer.
+  detail?: Record<string, unknown>;
 };
 
 export type DiscoveredModel = {
@@ -123,6 +125,8 @@ export class AiProviderError extends Error {
     message: string,
     public readonly retryable = false,
     public readonly retryAfterMs?: number,
+    // Sanitized request/response context, surfaced in the admin run-record viewer.
+    public readonly detail?: Record<string, unknown>,
   ) {
     super(sanitizeProviderMessage(message));
     this.name = 'AiProviderError';

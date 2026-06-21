@@ -195,9 +195,28 @@ export function AiActionAuditTable({
         >
           <div className="space-y-sm">
             {viewing.errorMessage && <p className="text-sm text-danger">{viewing.errorMessage}</p>}
-            <pre className="max-h-96 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
-              {viewing.errorDetail ?? t('admin.ai.actions.noDetail')}
-            </pre>
+            {Object.keys(viewing.requestMetadata).length > 0 && (
+              <section className="space-y-xs">
+                <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.request')}</h3>
+                <pre className="max-h-48 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
+                  {JSON.stringify(viewing.requestMetadata, null, 2)}
+                </pre>
+              </section>
+            )}
+            {Object.keys(viewing.resultMetadata).length > 0 && (
+              <section className="space-y-xs">
+                <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.response')}</h3>
+                <pre className="max-h-48 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
+                  {JSON.stringify(viewing.resultMetadata, null, 2)}
+                </pre>
+              </section>
+            )}
+            <section className="space-y-xs">
+              <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.stack')}</h3>
+              <pre className="max-h-96 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
+                {viewing.errorDetail ?? t('admin.ai.actions.noDetail')}
+              </pre>
+            </section>
           </div>
         </ModalDialog>
       )}

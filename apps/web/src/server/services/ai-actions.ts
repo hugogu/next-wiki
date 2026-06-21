@@ -99,6 +99,45 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
   };
 }
 
+/**
+ * Persist an already-finished action without enqueuing a worker job. Used for
+ * synchronous operations (e.g. the connection test) so they still appear in the
+ * run-record audit with their request/response and error detail.
+ */
+export async function recordTerminalAction(
+  ctx: PermCtx,
+  input: {
+    feature: AiActionFeature;
+    status: Extract<AiActionStatus, 'completed' | 'failed'>;
+    providerId?: string | null;
+    modelId?: string | null;
+    requestMetadata?: Record<string, unknown>;
+    resultMetadata?: Record<string, unknown>;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    errorDetail?: string | null;
+  },
+): Promise<void> {
+  const settings = await getAiSettings();
+  const now = new Date();
+  await db.insert(schema.aiActions).values({
+    feature: input.feature,
+    status: input.status,
+    actorUserId: getActorUserId(ctx) ?? null,
+    providerId: input.providerId ?? null,
+    modelId: input.modelId ?? null,
+    requestMetadata: input.requestMetadata ?? {},
+    resultMetadata: input.resultMetadata ?? {},
+    errorCode: input.errorCode ?? null,
+    errorMessage: input.errorMessage?.slice(0, 500) ?? null,
+    errorDetail: input.errorDetail?.slice(0, 8_000) ?? null,
+    queuedAt: now,
+    startedAt: now,
+    finishedAt: now,
+    expiresAt: expiry(settings.eventRetentionHours),
+  });
+}
+
 export async function readActionInput<T>(actionId: string): Promise<T | null> {
   const row = await db.query.aiActionInputs.findFirst({
     where: and(

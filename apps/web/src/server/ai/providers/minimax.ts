@@ -47,6 +47,7 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
           latencyMs: Date.now() - started,
           errorCode: 'PROVIDER_UNAVAILABLE',
           errorMessage: payload.base_resp?.status_msg ?? 'MiniMax rejected the credentials',
+          detail: { request: { method: 'POST', url: `${this.config.baseUrl}/image_generation` }, response: { status: 200, base_resp: payload.base_resp } },
         };
       }
       return {
@@ -60,6 +61,7 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
         latencyMs: Date.now() - started,
         errorCode: error instanceof AiProviderError ? error.code : 'PROVIDER_UNAVAILABLE',
         errorMessage: error instanceof Error ? error.message : 'Provider unavailable',
+        detail: error instanceof AiProviderError ? error.detail : undefined,
       };
     }
   }

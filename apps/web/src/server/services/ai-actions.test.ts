@@ -10,6 +10,7 @@ import {
   getActionEvents,
   listActions,
   readActionInput,
+  recordTerminalAction,
   requestActionCancellation,
 } from './ai-actions';
 
@@ -56,5 +57,27 @@ describe('AI actions', () => {
 
   it('rejects audit listing for callers without manage_ai permission', async () => {
     await expect(listActions(buildUserCtx(userId, 'editor'), {})).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('records a terminal action with request/response and error detail', async () => {
+    const ctx = buildUserCtx(userId, 'admin');
+    await recordTerminalAction(ctx, {
+      feature: 'provider_test',
+      status: 'failed',
+      requestMetadata: { mode: 'draft', vendor: 'minimax' },
+      resultMetadata: { ok: false, latencyMs: 5 },
+      errorCode: 'PROVIDER_UNAVAILABLE',
+      errorMessage: 'rejected',
+      errorDetail: 'stack-trace-here',
+    });
+    const { items } = await listActions(ctx, { feature: 'provider_test' });
+    expect(items[0]).toMatchObject({
+      feature: 'provider_test',
+      status: 'failed',
+      errorCode: 'PROVIDER_UNAVAILABLE',
+      errorDetail: 'stack-trace-here',
+    });
+    expect(items[0]?.requestMetadata).toMatchObject({ mode: 'draft', vendor: 'minimax' });
+    expect(items[0]?.resultMetadata).toMatchObject({ ok: false, latencyMs: 5 });
   });
 });

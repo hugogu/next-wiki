@@ -18,7 +18,7 @@ import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
-import { createAction, getAiSettings } from './ai-actions';
+import { createAction, getAiSettings, recordTerminalAction } from './ai-actions';
 import { createAiProviderAdapter, createModelDiscoveryAdapter } from '@/server/ai/registry';
 import type { DiscoveredModel, ProviderHealth, ProviderRuntimeConfig } from '@/server/ai/types';
 
@@ -564,19 +564,43 @@ export async function testProviderConnection(
   input: AiProviderTest,
 ): Promise<ProviderHealth> {
   assertCanManageAi(ctx);
-  if (input.mode === 'existing') return testProvider(input.providerId);
-  const kind = resolveProviderProtocol(input.type, input.vendor, input.kind);
-  const runtime: ProviderRuntimeConfig = {
-    providerId: 'draft',
-    name: 'draft',
-    type: input.type,
-    vendor: input.vendor,
-    kind,
-    baseUrl: validateBaseUrl(input.baseUrl),
-    config: {},
-    credentials: input.credentials,
-  };
-  return (createModelDiscoveryAdapter(runtime) ?? createAiProviderAdapter(runtime)).testConnection();
+  let health: ProviderHealth;
+  let providerId: string | null = null;
+  let requestMetadata: Record<string, unknown>;
+  if (input.mode === 'existing') {
+    providerId = input.providerId;
+    requestMetadata = { mode: 'existing', providerId: input.providerId };
+    health = await testProvider(input.providerId);
+  } else {
+    const kind = resolveProviderProtocol(input.type, input.vendor, input.kind);
+    const runtime: ProviderRuntimeConfig = {
+      providerId: 'draft',
+      name: 'draft',
+      type: input.type,
+      vendor: input.vendor,
+      kind,
+      baseUrl: validateBaseUrl(input.baseUrl),
+      config: {},
+      credentials: input.credentials,
+    };
+    requestMetadata = { mode: 'draft', type: input.type, vendor: input.vendor, baseUrl: runtime.baseUrl };
+    health = await (createModelDiscoveryAdapter(runtime) ?? createAiProviderAdapter(runtime)).testConnection();
+  }
+  await recordTerminalAction(ctx, {
+    feature: 'provider_test',
+    status: health.ok ? 'completed' : 'failed',
+    providerId,
+    requestMetadata,
+    resultMetadata: {
+      ok: health.ok,
+      latencyMs: health.latencyMs,
+      ...(health.providerRequestId ? { providerRequestId: health.providerRequestId } : {}),
+    },
+    errorCode: health.errorCode ?? null,
+    errorMessage: health.errorMessage ?? null,
+    errorDetail: health.detail ? JSON.stringify(health.detail, null, 2) : null,
+  });
+  return health;
 }
 
 export async function syncProviderModels(providerId: string) {

@@ -58,23 +58,25 @@ export async function providerFetch(
   const text = sanitizeProviderMessage(
     new TextDecoder().decode(await readBoundedBytes(response, 64 * 1024).catch(() => new Uint8Array())),
   );
+  // Request/response context for the admin run-record viewer. The URL never
+  // carries the API key (it travels in the Authorization header) and the body
+  // is already sanitized, so this is safe to persist.
+  const detail = {
+    request: { method: init.method ?? 'GET', url: url.toString() },
+    response: { status: response.status, body: text },
+  };
   if (response.status === 401 || response.status === 403) {
-    throw new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider rejected the credentials');
+    throw new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider rejected the credentials', false, undefined, detail);
   }
-  if (response.status === 404) throw new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found');
-  if (response.status === 413) throw new AiProviderError('INPUT_TOO_LARGE', 'AI provider rejected the input size');
+  if (response.status === 404) throw new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found', false, undefined, detail);
+  if (response.status === 413) throw new AiProviderError('INPUT_TOO_LARGE', 'AI provider rejected the input size', false, undefined, detail);
   if (response.status === 429) {
-    throw new AiProviderError(
-      'RATE_LIMITED',
-      'AI provider rate limit exceeded',
-      true,
-      parseRetryAfter(retryAfter),
-    );
+    throw new AiProviderError('RATE_LIMITED', 'AI provider rate limit exceeded', true, parseRetryAfter(retryAfter), detail);
   }
   if (response.status >= 500) {
-    throw new AiProviderError('PROVIDER_UNAVAILABLE', text || 'AI provider is unavailable', true);
+    throw new AiProviderError('PROVIDER_UNAVAILABLE', text || 'AI provider is unavailable', true, undefined, detail);
   }
-  throw new AiProviderError('INVALID_RESPONSE', text || `AI provider returned ${response.status}`);
+  throw new AiProviderError('INVALID_RESPONSE', text || `AI provider returned ${response.status}`, false, undefined, detail);
 }
 
 function parseRetryAfter(value: string | null): number | undefined {
