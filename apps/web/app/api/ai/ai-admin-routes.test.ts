@@ -36,6 +36,8 @@ describe('AI Admin REST routes', () => {
       method: 'POST',
       body: JSON.stringify({
         name: 'Provider',
+        type: 'chat',
+        vendor: 'custom',
         kind: 'openai_compatible',
         baseUrl: 'https://example.com/v1',
         config: {},

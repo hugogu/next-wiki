@@ -22,11 +22,11 @@ import { ModelCatalog } from './ModelCatalog';
 import { IndexList } from './IndexList';
 import { AiActionAuditTable } from './AiActionAuditTable';
 
-type AiAdminTab = 'providers' | 'models' | 'indexes' | 'actions';
-const TABS: AiAdminTab[] = ['providers', 'models', 'indexes', 'actions'];
+type AiAdminTab = 'chat' | 'embedding' | 'image' | 'models' | 'indexes' | 'actions';
+const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'models', 'indexes', 'actions'];
 
 function parseTab(value: string | null): AiAdminTab {
-  return TABS.includes(value as AiAdminTab) ? (value as AiAdminTab) : 'providers';
+  return TABS.includes(value as AiAdminTab) ? (value as AiAdminTab) : 'chat';
 }
 
 export function AiAdminTabs({
@@ -49,6 +49,8 @@ export function AiAdminTabs({
   const selected = parseTab(searchParams.get('tab'));
   const [addProviderOpen, setAddProviderOpen] = useState(false);
   const [providerType, setProviderType] = useState<AiProviderType>('chat');
+  const selectedCapability: AiProviderType | null =
+    selected === 'chat' || selected === 'embedding' || selected === 'image' ? selected : null;
   const selectTab = (tab: AiAdminTab) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
@@ -58,13 +60,27 @@ export function AiAdminTabs({
   useEffect(() => {
     if (searchParams.get('tab')) return;
     const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', 'providers');
+    params.set('tab', 'chat');
     router.replace(`${pathname}?${params.toString()}`);
   }, [pathname, router, searchParams]);
 
   const tabs = [
-    { id: 'providers' as const, label: t('admin.ai.tabs.providers'), status: String(providers.length) },
-    { id: 'models' as const, label: t('admin.ai.tabs.models'), status: String(models.length) },
+    {
+      id: 'chat' as const,
+      label: t('admin.ai.tabs.chat'),
+      status: String(providers.filter((provider) => provider.type === 'chat').length),
+    },
+    {
+      id: 'embedding' as const,
+      label: t('admin.ai.tabs.embedding'),
+      status: String(providers.filter((provider) => provider.type === 'embedding').length),
+    },
+    {
+      id: 'image' as const,
+      label: t('admin.ai.tabs.image'),
+      status: String(providers.filter((provider) => provider.type === 'image').length),
+    },
+    { id: 'models' as const, label: t('admin.ai.tabs.models') },
     {
       id: 'indexes' as const,
       label: t('admin.ai.tabs.indexes'),
@@ -76,45 +92,38 @@ export function AiAdminTabs({
   return (
     <>
       <SettingsTabs tabs={tabs} selected={selected} onSelect={selectTab}>
-        {selected === 'providers' && (
+        {selectedCapability && (
           <section className="space-y-md">
-            <div>
-              <h2 className="font-display text-lg font-semibold">{t('admin.ai.providers.title')}</h2>
-              <p className="mt-xs text-sm text-muted">{t('admin.ai.providers.description')}</p>
+            <div className="flex items-start justify-between gap-md">
+              <div>
+                <h2 className="font-display text-lg font-semibold">
+                  {t(`admin.ai.providerType.${selectedCapability}`)}
+                </h2>
+                <p className="mt-xs text-sm text-muted">
+                  {t(`admin.ai.providerType.${selectedCapability}Description`)}
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setProviderType(selectedCapability);
+                  setAddProviderOpen(true);
+                }}
+              >
+                <PlusIcon className="mr-xs h-4 w-4" />
+                {t('admin.ai.providers.addCapability')}
+              </Button>
             </div>
-            {(['chat', 'embedding', 'image'] as const).map((type) => (
-              <section key={type} className="space-y-sm">
-                <div className="flex items-start justify-between gap-md">
-                  <div>
-                    <h3 className="font-display text-base font-semibold">
-                      {t(`admin.ai.providerType.${type}`)}
-                    </h3>
-                    <p className="mt-xs text-xs text-muted">
-                      {t(`admin.ai.providerType.${type}Description`)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setProviderType(type);
-                      setAddProviderOpen(true);
-                    }}
-                  >
-                    <PlusIcon className="mr-xs h-4 w-4" />
-                    {t('admin.ai.providers.add')}
-                  </Button>
-                </div>
-                <ProviderList type={type} providers={providers} models={models} />
-              </section>
-            ))}
+            <ProviderList
+              type={selectedCapability}
+              providers={providers}
+              models={models}
+            />
+            {selected === 'chat' && (
+              <ModelCatalog models={models.filter((model) => model.providerType === 'chat')} />
+            )}
           </section>
         )}
-        {selected === 'models' && (
-          <>
-            <PurposeAssignments models={models} assignments={assignments} />
-            <ModelCatalog models={models} />
-          </>
-        )}
+        {selected === 'models' && <PurposeAssignments models={models} assignments={assignments} />}
         {selected === 'indexes' && <IndexList indexes={indexes} />}
         {selected === 'actions' && <AiActionAuditTable actions={actions} />}
       </SettingsTabs>

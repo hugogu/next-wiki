@@ -78,11 +78,14 @@ export const aiProviderKindEnum = pgEnum('ai_provider_kind', [
   'minimax',
 ]);
 export const aiProviderTypeEnum = pgEnum('ai_provider_type', ['chat', 'embedding', 'image']);
-export const aiModelDiscoveryEnum = pgEnum('ai_model_discovery', [
+export const aiProviderVendorEnum = pgEnum('ai_provider_vendor', [
   'openai',
   'openrouter',
   'anthropic',
-  'none',
+  'kimi',
+  'voyage',
+  'minimax',
+  'custom',
 ]);
 export const aiProviderStatusEnum = pgEnum('ai_provider_status', [
   'unverified',

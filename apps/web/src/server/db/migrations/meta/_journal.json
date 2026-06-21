@@ -85,6 +85,13 @@
       "when": 1782004264935,
       "tag": "0011_ai_provider_protocols",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782005696546,
+      "tag": "0012_ai_vendor_catalog",
+      "breakpoints": true
     }
   ]
 }

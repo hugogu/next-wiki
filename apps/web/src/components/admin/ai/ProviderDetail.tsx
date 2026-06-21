@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { AiActionAccepted, AiProviderView } from '@next-wiki/shared';
+import type { AiActionAccepted, AiProviderVendor, AiProviderView } from '@next-wiki/shared';
 import { apiPost, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -9,12 +9,14 @@ import { useTranslation } from '@/i18n/client';
 import { Input } from '@/components/ui/Input';
 import type { TranslationKey } from '@/i18n/types';
 
-const protocolLabels = {
-  openai_compatible: 'admin.ai.providerProtocol.openaiCompatible',
-  openrouter: 'admin.ai.providerProtocol.openrouter',
-  anthropic: 'admin.ai.providerProtocol.anthropic',
-  voyage: 'admin.ai.providerProtocol.voyage',
-  minimax: 'admin.ai.providerProtocol.minimax',
+const vendorLabels: Record<AiProviderVendor, TranslationKey> = {
+  openai: 'admin.ai.vendor.openai',
+  openrouter: 'admin.ai.vendor.openrouter',
+  anthropic: 'admin.ai.vendor.anthropic',
+  kimi: 'admin.ai.vendor.kimi',
+  voyage: 'admin.ai.vendor.voyage',
+  minimax: 'admin.ai.vendor.minimax',
+  custom: 'admin.ai.vendor.custom',
 } as const;
 
 export function ProviderDetail({ provider }: { provider: AiProviderView }) {
@@ -41,9 +43,8 @@ export function ProviderDetail({ provider }: { provider: AiProviderView }) {
       {message && <Alert>{message}</Alert>}
       <dl className="grid gap-sm rounded-lg border border-border bg-surface p-md sm:grid-cols-2">
         <div><dt className="text-xs text-muted">{t('admin.ai.providers.kind')}</dt><dd>{t(`admin.ai.providerType.${provider.type}` as TranslationKey)}</dd></div>
-        <div><dt className="text-xs text-muted">{t('admin.ai.providers.protocol')}</dt><dd>{t(protocolLabels[provider.kind])}</dd></div>
+        <div><dt className="text-xs text-muted">{t('admin.ai.providers.vendor')}</dt><dd>{t(vendorLabels[provider.vendor])}</dd></div>
         <div><dt className="text-xs text-muted">{t('admin.ai.providers.status')}</dt><dd>{t(`admin.ai.providerStatus.${provider.status}` as TranslationKey)}</dd></div>
-        <div><dt className="text-xs text-muted">{t('admin.ai.providers.modelDiscovery')}</dt><dd>{t(`admin.ai.modelDiscovery.${provider.modelDiscovery}` as TranslationKey)}</dd></div>
         <div className="sm:col-span-2"><dt className="text-xs text-muted">{t('admin.ai.providers.baseUrl')}</dt><dd className="break-all">{provider.baseUrl}</dd></div>
       </dl>
       <form

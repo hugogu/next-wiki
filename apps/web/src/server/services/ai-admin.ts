@@ -1,15 +1,16 @@
 import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
-import type {
-  AiCapability,
-  AiModelCreate,
-  AiModelView,
-  AiProviderCreate,
-  AiProviderKind,
-  AiProviderType,
-  AiProviderUpdate,
-  AiProviderView,
-  AiPurpose,
-  AiSettingsUpdate,
+import {
+  getAiProviderVendor,
+  type AiCapability,
+  type AiModelCreate,
+  type AiModelView,
+  type AiProviderCreate,
+  type AiProviderKind,
+  type AiProviderType,
+  type AiProviderUpdate,
+  type AiProviderView,
+  type AiPurpose,
+  type AiSettingsUpdate,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -42,15 +43,19 @@ function validateBaseUrl(value: string): string {
   return url.toString().replace(/\/$/, '');
 }
 
-function validateProviderProtocol(type: AiProviderType, kind: AiProviderKind): void {
-  const supported: Record<AiProviderType, AiProviderKind[]> = {
-    chat: ['openai_compatible', 'openrouter', 'anthropic'],
-    embedding: ['openai_compatible', 'openrouter', 'voyage'],
-    image: ['openai_compatible', 'openrouter', 'minimax'],
-  };
-  if (!supported[type].includes(kind)) {
-    throw new DomainError('BAD_REQUEST', 'Provider protocol does not support this provider type');
+function resolveProviderProtocol(
+  type: AiProviderType,
+  vendor: AiProviderCreate['vendor'],
+  requested?: AiProviderKind,
+): AiProviderKind {
+  const definition = getAiProviderVendor(vendor);
+  if (!definition.capabilities.includes(type)) {
+    throw new DomainError('BAD_REQUEST', 'Vendor does not support this AI capability');
   }
+  const protocol = definition.protocols[type];
+  if (!protocol) throw new DomainError('BAD_REQUEST', 'Vendor protocol is not configured');
+  if (vendor === 'custom' && requested) return requested;
+  return protocol;
 }
 
 function providerView(row: ProviderRow): AiProviderView {
@@ -58,8 +63,8 @@ function providerView(row: ProviderRow): AiProviderView {
     id: row.id,
     name: row.name,
     type: row.type,
+    vendor: row.vendor,
     kind: row.kind,
-    modelDiscovery: row.modelDiscovery,
     baseUrl: row.baseUrl,
     config: row.config as Record<string, unknown>,
     hasCredentials: Boolean(row.credentialsEncrypted),
@@ -123,9 +128,8 @@ export async function getProvider(ctx: PermCtx, id: string): Promise<AiProviderV
 
 export async function createProvider(
   ctx: PermCtx,
-  input: Omit<AiProviderCreate, 'config' | 'enabled' | 'type' | 'modelDiscovery'> & {
+  input: Omit<AiProviderCreate, 'config' | 'enabled' | 'type'> & {
     type?: AiProviderCreate['type'];
-    modelDiscovery?: AiProviderCreate['modelDiscovery'];
     config?: Record<string, unknown>;
     enabled?: boolean;
   },
@@ -133,15 +137,15 @@ export async function createProvider(
   assertCanManageAi(ctx);
   const userId = actorId(ctx);
   const type = input.type ?? 'chat';
-  validateProviderProtocol(type, input.kind);
+  const kind = resolveProviderProtocol(type, input.vendor, input.kind);
   try {
     const [row] = await db
       .insert(schema.aiProviders)
       .values({
         name: input.name,
         type,
-        kind: input.kind,
-        modelDiscovery: input.modelDiscovery ?? 'openai',
+        vendor: input.vendor,
+        kind,
         baseUrl: validateBaseUrl(input.baseUrl),
         config: input.config ?? {},
         credentialsEncrypted: encryptAiJson(input.credentials),
@@ -168,14 +172,18 @@ export async function updateProvider(
   assertCanManageAi(ctx);
   const current = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, id) });
   if (!current) throw new DomainError('NOT_FOUND', 'AI provider not found');
-  validateProviderProtocol(input.type ?? current.type, input.kind ?? current.kind);
+  const type = input.type ?? current.type;
+  const vendor = input.vendor ?? current.vendor;
+  const kind = resolveProviderProtocol(type, vendor, input.kind);
   const [row] = await db
     .update(schema.aiProviders)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.type !== undefined ? { type: input.type } : {}),
-      ...(input.kind !== undefined ? { kind: input.kind } : {}),
-      ...(input.modelDiscovery !== undefined ? { modelDiscovery: input.modelDiscovery } : {}),
+      ...(input.vendor !== undefined ? { vendor: input.vendor } : {}),
+      ...(input.type !== undefined || input.vendor !== undefined || input.kind !== undefined
+        ? { kind }
+        : {}),
       ...(input.baseUrl !== undefined ? { baseUrl: validateBaseUrl(input.baseUrl) } : {}),
       ...(input.config !== undefined ? { config: input.config } : {}),
       ...(input.credentials !== undefined
@@ -453,8 +461,8 @@ export async function providerRuntime(providerId: string): Promise<ProviderRunti
     providerId: provider.id,
     name: provider.name,
     type: provider.type,
+    vendor: provider.vendor,
     kind: provider.kind,
-    modelDiscovery: provider.modelDiscovery,
     baseUrl: provider.baseUrl,
     config: provider.config as Record<string, unknown>,
     credentials: decryptAiJson(provider.credentialsEncrypted),

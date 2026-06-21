@@ -1,9 +1,9 @@
 import type {
   AiApiErrorCode,
   AiCapability,
-  AiModelDiscovery,
   AiProviderKind,
   AiProviderType,
+  AiProviderVendor,
 } from '@next-wiki/shared';
 
 export type ProviderCredentials = {
@@ -15,8 +15,8 @@ export type ProviderRuntimeConfig = {
   providerId: string;
   name: string;
   type: AiProviderType;
+  vendor: AiProviderVendor;
   kind: AiProviderKind;
-  modelDiscovery: AiModelDiscovery;
   baseUrl: string;
   config: Record<string, unknown>;
   credentials: ProviderCredentials;

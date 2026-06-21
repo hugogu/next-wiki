@@ -1466,12 +1466,6 @@
                         {
                           "type": "string",
                           "enum": [
-                            "openai_compatible"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
                             "openrouter"
                           ]
                         },
@@ -1492,11 +1486,29 @@
                           "enum": [
                             "minimax"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "openai_compatible"
+                          ]
                         }
                       ]
                     },
-                    "modelDiscovery": {
+                    "vendor": {
                       "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "custom"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "openai"
+                          ]
+                        },
                         {
                           "type": "string",
                           "enum": [
@@ -1512,13 +1524,19 @@
                         {
                           "type": "string",
                           "enum": [
-                            "openai"
+                            "kimi"
                           ]
                         },
                         {
                           "type": "string",
                           "enum": [
-                            "none"
+                            "voyage"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "minimax"
                           ]
                         }
                       ]
@@ -1552,7 +1570,7 @@
                     "enabled",
                     "config",
                     "kind",
-                    "modelDiscovery",
+                    "vendor",
                     "baseUrl",
                     "lastCheckedAt",
                     "lastErrorCode",

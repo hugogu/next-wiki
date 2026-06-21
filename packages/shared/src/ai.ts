@@ -10,8 +10,99 @@ export const aiProviderKindSchema = z.enum([
   'minimax',
 ]);
 export type AiProviderKind = z.infer<typeof aiProviderKindSchema>;
-export const aiModelDiscoverySchema = z.enum(['openai', 'openrouter', 'anthropic', 'none']);
-export type AiModelDiscovery = z.infer<typeof aiModelDiscoverySchema>;
+export const aiProviderVendorSchema = z.enum([
+  'openai',
+  'openrouter',
+  'anthropic',
+  'kimi',
+  'voyage',
+  'minimax',
+  'custom',
+]);
+export type AiProviderVendor = z.infer<typeof aiProviderVendorSchema>;
+export type AiModelDiscoveryProtocol = 'openai' | 'openrouter' | 'anthropic' | 'none';
+
+export type AiProviderVendorDefinition = {
+  vendor: AiProviderVendor;
+  capabilities: AiProviderType[];
+  protocols: Partial<Record<AiProviderType, AiProviderKind>>;
+  baseUrls: Partial<Record<AiProviderType, string>>;
+  modelDiscovery: AiModelDiscoveryProtocol;
+};
+
+export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
+  {
+    vendor: 'openai',
+    capabilities: ['chat', 'embedding', 'image'],
+    protocols: {
+      chat: 'openai_compatible',
+      embedding: 'openai_compatible',
+      image: 'openai_compatible',
+    },
+    baseUrls: {
+      chat: 'https://api.openai.com/v1',
+      embedding: 'https://api.openai.com/v1',
+      image: 'https://api.openai.com/v1',
+    },
+    modelDiscovery: 'openai',
+  },
+  {
+    vendor: 'openrouter',
+    capabilities: ['chat', 'embedding', 'image'],
+    protocols: { chat: 'openrouter', embedding: 'openrouter', image: 'openrouter' },
+    baseUrls: {
+      chat: 'https://openrouter.ai/api/v1',
+      embedding: 'https://openrouter.ai/api/v1',
+      image: 'https://openrouter.ai/api/v1',
+    },
+    modelDiscovery: 'openrouter',
+  },
+  {
+    vendor: 'anthropic',
+    capabilities: ['chat'],
+    protocols: { chat: 'anthropic' },
+    baseUrls: { chat: 'https://api.anthropic.com/v1' },
+    modelDiscovery: 'anthropic',
+  },
+  {
+    vendor: 'kimi',
+    capabilities: ['chat'],
+    protocols: { chat: 'openai_compatible' },
+    baseUrls: { chat: 'https://api.moonshot.cn/v1' },
+    modelDiscovery: 'openai',
+  },
+  {
+    vendor: 'voyage',
+    capabilities: ['embedding'],
+    protocols: { embedding: 'voyage' },
+    baseUrls: { embedding: 'https://api.voyageai.com/v1' },
+    modelDiscovery: 'none',
+  },
+  {
+    vendor: 'minimax',
+    capabilities: ['image'],
+    protocols: { image: 'minimax' },
+    baseUrls: { image: 'https://api.minimaxi.com/v1' },
+    modelDiscovery: 'none',
+  },
+  {
+    vendor: 'custom',
+    capabilities: ['chat', 'embedding', 'image'],
+    protocols: {
+      chat: 'openai_compatible',
+      embedding: 'openai_compatible',
+      image: 'openai_compatible',
+    },
+    baseUrls: {},
+    modelDiscovery: 'openai',
+  },
+];
+
+export function getAiProviderVendor(
+  vendor: AiProviderVendor,
+): AiProviderVendorDefinition {
+  return AI_PROVIDER_VENDORS.find((item) => item.vendor === vendor)!;
+}
 export const aiProviderStatusSchema = z.enum(['unverified', 'healthy', 'unavailable', 'disabled']);
 export const aiModelAvailabilitySchema = z.enum(['available', 'unavailable', 'unknown']);
 export const aiCapabilitySchema = z.enum([
@@ -73,23 +164,19 @@ export const aiProviderCredentialsSchema = z
 export const aiProviderCreateSchema = z.object({
   name: z.string().trim().min(1).max(100),
   type: aiProviderTypeSchema.default('chat'),
-  kind: aiProviderKindSchema,
-  modelDiscovery: aiModelDiscoverySchema.default('openai'),
+  vendor: aiProviderVendorSchema,
+  kind: aiProviderKindSchema.optional(),
   baseUrl: z.string().url().max(2_048),
   config: jsonObjectSchema,
   credentials: aiProviderCredentialsSchema,
   enabled: z.boolean().default(true),
 }).superRefine((value, context) => {
-  const supported: Record<AiProviderType, AiProviderKind[]> = {
-    chat: ['openai_compatible', 'openrouter', 'anthropic'],
-    embedding: ['openai_compatible', 'openrouter', 'voyage'],
-    image: ['openai_compatible', 'openrouter', 'minimax'],
-  };
-  if (!supported[value.type].includes(value.kind)) {
+  const definition = getAiProviderVendor(value.vendor);
+  if (!definition.capabilities.includes(value.type)) {
     context.addIssue({
       code: 'custom',
-      path: ['kind'],
-      message: `Protocol ${value.kind} does not support ${value.type} providers`,
+      path: ['vendor'],
+      message: `${value.vendor} does not support ${value.type}`,
     });
   }
 });
@@ -97,8 +184,8 @@ export type AiProviderCreate = z.infer<typeof aiProviderCreateSchema>;
 export const aiProviderUpdateSchema = z.object({
   name: z.string().trim().min(1).max(100),
   type: aiProviderTypeSchema,
+  vendor: aiProviderVendorSchema,
   kind: aiProviderKindSchema,
-  modelDiscovery: aiModelDiscoverySchema,
   baseUrl: z.string().url().max(2_048),
   config: jsonObjectSchema,
   enabled: z.boolean(),
@@ -111,8 +198,8 @@ export const aiProviderViewSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   type: aiProviderTypeSchema,
+  vendor: aiProviderVendorSchema,
   kind: aiProviderKindSchema,
-  modelDiscovery: aiModelDiscoverySchema,
   baseUrl: z.string(),
   config: jsonObjectSchema,
   hasCredentials: z.boolean(),

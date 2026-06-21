@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import type {
-  AiModelDiscovery,
-  AiProviderKind,
   AiProviderType,
+  AiProviderVendor,
   AiProviderView,
 } from '@next-wiki/shared';
+import { AI_PROVIDER_VENDORS, getAiProviderVendor } from '@next-wiki/shared';
 import { apiPost, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,26 +15,14 @@ import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
-const PROTOCOLS: Record<AiProviderType, AiProviderKind[]> = {
-  chat: ['openai_compatible', 'openrouter', 'anthropic'],
-  embedding: ['openai_compatible', 'openrouter', 'voyage'],
-  image: ['openai_compatible', 'openrouter', 'minimax'],
-};
-
-const DEFAULTS: Record<AiProviderKind, { baseUrl: string; discovery: AiModelDiscovery }> = {
-  openai_compatible: { baseUrl: 'https://api.openai.com/v1', discovery: 'openai' },
-  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', discovery: 'openrouter' },
-  anthropic: { baseUrl: 'https://api.anthropic.com/v1', discovery: 'anthropic' },
-  voyage: { baseUrl: 'https://api.voyageai.com/v1', discovery: 'none' },
-  minimax: { baseUrl: 'https://api.minimaxi.com/v1', discovery: 'none' },
-};
-
-const PROTOCOL_LABELS: Record<AiProviderKind, TranslationKey> = {
-  openai_compatible: 'admin.ai.providerProtocol.openaiCompatible',
-  openrouter: 'admin.ai.providerProtocol.openrouter',
-  anthropic: 'admin.ai.providerProtocol.anthropic',
-  voyage: 'admin.ai.providerProtocol.voyage',
-  minimax: 'admin.ai.providerProtocol.minimax',
+const VENDOR_LABELS: Record<AiProviderVendor, TranslationKey> = {
+  openai: 'admin.ai.vendor.openai',
+  openrouter: 'admin.ai.vendor.openrouter',
+  anthropic: 'admin.ai.vendor.anthropic',
+  kimi: 'admin.ai.vendor.kimi',
+  voyage: 'admin.ai.vendor.voyage',
+  minimax: 'admin.ai.vendor.minimax',
+  custom: 'admin.ai.vendor.custom',
 };
 
 export function ProviderForm({
@@ -47,13 +35,15 @@ export function ProviderForm({
   onCreated: (provider: AiProviderView) => void;
 }) {
   const { t } = useTranslation();
-  const protocols = useMemo(() => PROTOCOLS[type], [type]);
-  const initialProtocol = protocols[0]!;
+  const vendors = useMemo(
+    () => AI_PROVIDER_VENDORS.filter((item) => item.capabilities.includes(type)),
+    [type],
+  );
+  const initialVendor = vendors[0]!.vendor;
   const [name, setName] = useState('');
-  const [kind, setKind] = useState<AiProviderKind>(initialProtocol);
-  const [baseUrl, setBaseUrl] = useState(DEFAULTS[initialProtocol].baseUrl);
-  const [modelDiscovery, setModelDiscovery] = useState<AiModelDiscovery>(
-    DEFAULTS[initialProtocol].discovery,
+  const [vendor, setVendor] = useState<AiProviderVendor>(initialVendor);
+  const [baseUrl, setBaseUrl] = useState(
+    getAiProviderVendor(initialVendor).baseUrls[type] ?? '',
   );
   const [apiKey, setApiKey] = useState('');
   const [manualModelId, setManualModelId] = useState('');
@@ -72,14 +62,13 @@ export function ProviderForm({
           const provider = await apiPost<unknown, AiProviderView>('/api/ai/providers', {
             name,
             type,
-            kind,
-            modelDiscovery,
+            vendor,
             baseUrl,
             config: {},
             credentials: { apiKey },
             enabled: true,
           });
-          if (modelDiscovery === 'none' && manualModelId) {
+          if (getAiProviderVendor(vendor).modelDiscovery === 'none' && manualModelId) {
             await apiPost(`/api/ai/providers/${provider.id}/models`, {
               externalId: manualModelId,
               displayName: manualModelId,
@@ -101,18 +90,17 @@ export function ProviderForm({
         <Input value={name} onChange={(event) => setName(event.target.value)} required />
       </label>
       <label className="block space-y-xs">
-        <span className="text-sm font-medium">{t('admin.ai.providers.protocol')}</span>
+        <span className="text-sm font-medium">{t('admin.ai.providers.vendor')}</span>
         <Select
-          value={kind}
+          value={vendor}
           onChange={(event) => {
-            const next = event.target.value as AiProviderKind;
-            setKind(next);
-            setBaseUrl(DEFAULTS[next].baseUrl);
-            setModelDiscovery(DEFAULTS[next].discovery);
+            const next = event.target.value as AiProviderVendor;
+            setVendor(next);
+            setBaseUrl(getAiProviderVendor(next).baseUrls[type] ?? '');
           }}
         >
-          {protocols.map((protocol) => (
-            <option key={protocol} value={protocol}>{t(PROTOCOL_LABELS[protocol])}</option>
+          {vendors.map((item) => (
+            <option key={item.vendor} value={item.vendor}>{t(VENDOR_LABELS[item.vendor])}</option>
           ))}
         </Select>
       </label>
@@ -120,19 +108,7 @@ export function ProviderForm({
         <span className="text-sm font-medium">{t('admin.ai.providers.baseUrl')}</span>
         <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} required />
       </label>
-      <label className="block space-y-xs">
-        <span className="text-sm font-medium">{t('admin.ai.providers.modelDiscovery')}</span>
-        <Select
-          value={modelDiscovery}
-          onChange={(event) => setModelDiscovery(event.target.value as AiModelDiscovery)}
-        >
-          <option value="openai">{t('admin.ai.modelDiscovery.openai')}</option>
-          <option value="openrouter">{t('admin.ai.modelDiscovery.openrouter')}</option>
-          <option value="anthropic">{t('admin.ai.modelDiscovery.anthropic')}</option>
-          <option value="none">{t('admin.ai.modelDiscovery.none')}</option>
-        </Select>
-      </label>
-      {modelDiscovery === 'none' && (
+      {getAiProviderVendor(vendor).modelDiscovery === 'none' && (
         <>
           <label className="block space-y-xs">
             <span className="text-sm font-medium">{t('admin.ai.providers.initialModel')}</span>
@@ -140,7 +116,7 @@ export function ProviderForm({
               value={manualModelId}
               onChange={(event) => setManualModelId(event.target.value)}
               required
-              placeholder={type === 'image' && kind === 'minimax' ? 'image-01' : undefined}
+              placeholder={type === 'image' && vendor === 'minimax' ? 'image-01' : undefined}
             />
           </label>
           {type === 'embedding' && (

@@ -26,6 +26,7 @@ describe('AI administration service', () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const provider = await createProvider(ctx, {
       name: 'Fixture',
+      vendor: 'custom',
       kind: 'openai_compatible',
       baseUrl: 'https://example.com/v1',
       credentials: { apiKey: 'private-key' },
@@ -43,6 +44,7 @@ describe('AI administration service', () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const provider = await createProvider(ctx, {
       name: 'Models',
+      vendor: 'custom',
       kind: 'openai_compatible',
       baseUrl: 'https://example.com/v1',
       credentials: { apiKey: 'key' },

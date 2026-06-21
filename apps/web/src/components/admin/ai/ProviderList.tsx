@@ -1,10 +1,9 @@
 'use client';
 
 import type {
-  AiModelDiscovery,
   AiModelView,
-  AiProviderKind,
   AiProviderType,
+  AiProviderVendor,
   AiProviderView,
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
@@ -20,19 +19,14 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
-const PROTOCOL_LABELS: Record<AiProviderKind, TranslationKey> = {
-  openai_compatible: 'admin.ai.providerProtocol.openaiCompatible',
-  openrouter: 'admin.ai.providerProtocol.openrouter',
-  anthropic: 'admin.ai.providerProtocol.anthropic',
-  voyage: 'admin.ai.providerProtocol.voyage',
-  minimax: 'admin.ai.providerProtocol.minimax',
-};
-
-const DISCOVERY_LABELS: Record<AiModelDiscovery, TranslationKey> = {
-  openai: 'admin.ai.modelDiscovery.openai',
-  openrouter: 'admin.ai.modelDiscovery.openrouter',
-  anthropic: 'admin.ai.modelDiscovery.anthropic',
-  none: 'admin.ai.modelDiscovery.none',
+const VENDOR_LABELS: Record<AiProviderVendor, TranslationKey> = {
+  openai: 'admin.ai.vendor.openai',
+  openrouter: 'admin.ai.vendor.openrouter',
+  anthropic: 'admin.ai.vendor.anthropic',
+  kimi: 'admin.ai.vendor.kimi',
+  voyage: 'admin.ai.vendor.voyage',
+  minimax: 'admin.ai.vendor.minimax',
+  custom: 'admin.ai.vendor.custom',
 };
 
 export function ProviderList({
@@ -51,8 +45,7 @@ export function ProviderList({
       <DataTableHead>
         <DataTableRow>
           <DataTableHeader>{t('admin.ai.providers.name')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.providers.protocol')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.providers.modelDiscovery')}</DataTableHeader>
+          <DataTableHeader>{t('admin.ai.providers.vendor')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.providers.models')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.providers.status')}</DataTableHeader>
           <DataTableHeader align="right">{t('admin.ai.actions.table.actions')}</DataTableHeader>
@@ -65,8 +58,7 @@ export function ProviderList({
               <p className="font-medium">{provider.name}</p>
               <p className="mt-xs max-w-xs truncate text-xs text-muted">{provider.baseUrl}</p>
             </DataTableCell>
-            <DataTableCell>{t(PROTOCOL_LABELS[provider.kind])}</DataTableCell>
-            <DataTableCell>{t(DISCOVERY_LABELS[provider.modelDiscovery])}</DataTableCell>
+            <DataTableCell>{t(VENDOR_LABELS[provider.vendor])}</DataTableCell>
             <DataTableCell>{models.filter((model) => model.providerId === provider.id).length}</DataTableCell>
             <DataTableCell>
               <StatusBadge
@@ -84,7 +76,7 @@ export function ProviderList({
         ))}
         {items.length === 0 && (
           <DataTableRow>
-            <DataTableCell colSpan={6} className="py-xl text-center text-muted">
+            <DataTableCell colSpan={5} className="py-xl text-center text-muted">
               {t(`admin.ai.providers.empty.${type}` as TranslationKey)}
             </DataTableCell>
           </DataTableRow>

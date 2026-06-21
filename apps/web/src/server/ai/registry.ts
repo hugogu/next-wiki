@@ -1,4 +1,4 @@
-import type { AiProviderKind } from '@next-wiki/shared';
+import { getAiProviderVendor, type AiProviderKind } from '@next-wiki/shared';
 import { OpenAiCompatibleAdapter } from './providers/openai-compatible';
 import { OpenRouterAdapter } from './providers/openrouter';
 import { AnthropicAdapter } from './providers/anthropic';
@@ -19,8 +19,9 @@ export function createAiProviderAdapter(config: ProviderRuntimeConfig): AiProvid
 }
 
 export function createModelDiscoveryAdapter(config: ProviderRuntimeConfig): AiProviderAdapter | null {
-  if (config.modelDiscovery === 'none') return null;
-  if (config.modelDiscovery === 'openrouter') return new OpenRouterAdapter(config);
-  if (config.modelDiscovery === 'anthropic') return new AnthropicAdapter(config);
+  const discovery = getAiProviderVendor(config.vendor).modelDiscovery;
+  if (discovery === 'none') return null;
+  if (discovery === 'openrouter') return new OpenRouterAdapter(config);
+  if (discovery === 'anthropic') return new AnthropicAdapter(config);
   return new OpenAiCompatibleAdapter(config);
 }
