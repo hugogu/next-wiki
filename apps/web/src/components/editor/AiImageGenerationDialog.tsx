@@ -5,6 +5,8 @@ import type { EditorSelectionSnapshot } from './AiTextOptimizationDialog';
 import { useAiAction } from '@/hooks/use-ai-action';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { XIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
 export function AiImageGenerationDialog({
@@ -38,7 +40,19 @@ export function AiImageGenerationDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md">
       <div role="dialog" aria-modal="true" className="w-full max-w-2xl space-y-md rounded-lg border border-border bg-surface p-lg shadow-lg">
-        <h2 className="font-display text-xl font-semibold">{t('ai.image.title')}</h2>
+        <div className="flex items-start justify-between gap-md">
+          <h2 className="font-display text-xl font-semibold">{t('ai.image.title')}</h2>
+          <Tooltip label={t('common.actions.cancel')}>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t('common.actions.cancel')}
+              onClick={() => void discard()}
+            >
+              <XIcon className="h-4 w-4" />
+            </Button>
+          </Tooltip>
+        </div>
         <div className="grid gap-sm md:grid-cols-2">
           <Select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as 'page' | 'selection')}>
             <option value="page">{t('ai.image.source.page')}</option>
@@ -53,7 +67,7 @@ export function AiImageGenerationDialog({
         {artifact && <img src={artifact.previewUrl} alt={t('ai.image.preview')} className="max-h-[28rem] w-full rounded object-contain bg-background" />}
         {(error || action.error) && <p className="text-sm text-danger">{error ?? action.error?.message}</p>}
         <div className="flex justify-end gap-sm">
-          <Button variant="ghost" onClick={() => void discard()}>{t('ai.image.discard')}</Button>
+          <Button variant="ghost" onClick={() => void discard()}>{t('common.actions.cancel')}</Button>
           {!artifact && (
             <Button
               disabled={action.running}
