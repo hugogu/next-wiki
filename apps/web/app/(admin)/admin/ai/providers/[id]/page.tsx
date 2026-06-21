@@ -1,17 +1,9 @@
-import { notFound } from 'next/navigation';
-import { Layout } from '@/components/ui/Layout';
-import { ProviderDetail } from '@/components/admin/ai/ProviderDetail';
-import { getCurrentActor } from '@/server/services/auth';
-import { getProvider } from '@/server/services/ai-admin';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AiProviderPage({ params }: { params: Promise<{ id: string }> }) {
-  let provider;
-  try {
-    provider = await getProvider({ actor: await getCurrentActor() }, (await params).id);
-  } catch {
-    notFound();
-  }
-  return <Layout admin><div className="space-y-md px-lg py-md"><h1 className="font-display text-xl font-semibold">{provider.name}</h1><ProviderDetail provider={provider} /></div></Layout>;
+// Provider details are now edited from a modal on the capability list, so this
+// legacy deep link just returns to the AI admin console.
+export default async function AiProviderPage() {
+  redirect('/admin/ai?tab=chat');
 }
