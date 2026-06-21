@@ -13,7 +13,7 @@ import {
   type TextGenerationInput,
 } from '../types';
 import { OpenAiCompatibleAdapter } from './openai-compatible';
-import { providerFetch, readBoundedJson } from './http-client';
+import { describeAuth, providerFetch, readBoundedJson } from './http-client';
 
 // MiniMax authentication failures, returned inside base_resp on an HTTP 200.
 const MINIMAX_AUTH_STATUS = new Set([1004, 2049]);
@@ -36,7 +36,7 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
       const response = await providerFetch(
         this.config,
         'image_generation',
-        { method: 'POST', body: JSON.stringify({ model: '', prompt: '' }) },
+        { method: 'POST', body: JSON.stringify({ model: 'image-01', prompt: '' }) },
         env.AI_PROVIDER_CONNECT_TIMEOUT_MS,
       );
       const payload = await readBoundedJson<{ base_resp?: { status_code?: number; status_msg?: string } }>(response);
@@ -47,7 +47,10 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
           latencyMs: Date.now() - started,
           errorCode: 'PROVIDER_UNAVAILABLE',
           errorMessage: payload.base_resp?.status_msg ?? 'MiniMax rejected the credentials',
-          detail: { request: { method: 'POST', url: `${this.config.baseUrl}/image_generation` }, response: { status: 200, base_resp: payload.base_resp } },
+          detail: {
+            request: { method: 'POST', url: `${this.config.baseUrl}/image_generation`, auth: describeAuth(this.config) },
+            response: { status: 200, base_resp: payload.base_resp },
+          },
         };
       }
       return {

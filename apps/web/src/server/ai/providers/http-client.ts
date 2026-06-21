@@ -6,6 +6,20 @@ function combineSignals(signal: AbortSignal | undefined, timeoutMs: number): Abo
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
+/**
+ * A secret-free summary of how the request authenticates, for the admin
+ * run-record viewer: it reveals whether an auth header was actually sent and
+ * how long the key is, without ever exposing the key itself.
+ */
+export function describeAuth(config: ProviderRuntimeConfig): Record<string, unknown> {
+  const scheme = config.kind === 'anthropic' ? 'x-api-key' : 'Bearer';
+  return {
+    scheme: config.credentials.apiKey ? scheme : 'none',
+    apiKeyChars: config.credentials.apiKey?.length ?? 0,
+    customHeaders: Object.keys(config.credentials.headers ?? {}),
+  };
+}
+
 export function providerHeaders(config: ProviderRuntimeConfig): Headers {
   const headers = new Headers({ 'content-type': 'application/json' });
   if (config.credentials.apiKey) {
@@ -62,7 +76,7 @@ export async function providerFetch(
   // carries the API key (it travels in the Authorization header) and the body
   // is already sanitized, so this is safe to persist.
   const detail = {
-    request: { method: init.method ?? 'GET', url: url.toString() },
+    request: { method: init.method ?? 'GET', url: url.toString(), auth: describeAuth(config) },
     response: { status: response.status, body: text },
   };
   if (response.status === 401 || response.status === 403) {
