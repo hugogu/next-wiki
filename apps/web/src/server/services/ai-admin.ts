@@ -9,6 +9,7 @@ import {
   type AiProviderTest,
   type AiProviderType,
   type AiProviderUpdate,
+  type AiProviderVendor,
   type AiProviderView,
   type AiPurpose,
   type AiSettingsUpdate,
@@ -20,6 +21,7 @@ import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
 import { createAction, getAiSettings, recordTerminalAction } from './ai-actions';
 import { createAiProviderAdapter, createModelDiscoveryAdapter } from '@/server/ai/registry';
+import { detectCapabilities } from '@/server/ai/model-detector';
 import type { DiscoveredModel, ProviderHealth, ProviderRuntimeConfig } from '@/server/ai/types';
 
 type ProviderRow = typeof schema.aiProviders.$inferSelect;
@@ -479,56 +481,71 @@ export async function providerRuntime(providerId: string): Promise<ProviderRunti
 async function reconcileDiscoveredModel(
   providerId: string,
   providerType: ProviderRow['type'],
+  vendor: AiProviderVendor,
   model: DiscoveredModel,
-): Promise<void> {
+  detector: { apiKey: string } | null,
+): Promise<boolean> {
+  // Without a configured detector, image/embedding providers have no reliable
+  // way to distinguish capability-matching models from the chat-centric /models
+  // payload. Skip discovery for non-chat providers to avoid catalog pollution;
+  // rely on manual model addition instead.
+  if (!detector && providerType !== 'chat') return false;
+
+  let enriched = model;
+  let capabilities = model.capabilities;
+
+  if (detector) {
+    const detected = await detectCapabilities(model.externalId, vendor, detector.apiKey).catch(() => null);
+    if (detected) {
+      // Filter out models whose output modality does not match the provider type.
+      // OpenRouter reports output_modalities as text/image/embed; a chat model
+      // surfaced on an image provider must not be reconciled as an image model.
+      if (providerType === 'image' && !detected.outputModalities.includes('image')) return false;
+      if (providerType === 'embedding' && !detected.outputModalities.some((m) => m === 'embed' || m === 'embedding')) return false;
+      enriched = {
+        ...model,
+        canonicalId: detected.canonicalId ?? model.canonicalId,
+        contextWindow: detected.contextWindow ?? model.contextWindow,
+        maxOutputTokens: detected.maxOutputTokens ?? model.maxOutputTokens,
+      };
+      capabilities = detected.capabilities;
+    }
+    // If detection returns null (model not on OpenRouter), keep catalog capabilities as-is.
+  }
+
   const [stored] = await db
     .insert(schema.aiModels)
     .values({
       providerId,
-      externalId: model.externalId,
-      canonicalId: model.canonicalId ?? null,
-      displayName: model.displayName,
-      availability: model.availability,
-      contextWindow: model.contextWindow ?? null,
-      maxOutputTokens: model.maxOutputTokens ?? null,
-      embeddingDimensions: model.embeddingDimensions ?? null,
-      inputModalities: model.inputModalities,
-      outputModalities: model.outputModalities,
-      rawMetadata: model.rawMetadata,
+      externalId: enriched.externalId,
+      canonicalId: enriched.canonicalId ?? null,
+      displayName: enriched.displayName,
+      availability: enriched.availability,
+      contextWindow: enriched.contextWindow ?? null,
+      maxOutputTokens: enriched.maxOutputTokens ?? null,
+      embeddingDimensions: enriched.embeddingDimensions ?? null,
+      inputModalities: enriched.inputModalities,
+      outputModalities: enriched.outputModalities,
+      rawMetadata: enriched.rawMetadata,
       lastSeenAt: new Date(),
     })
     .onConflictDoUpdate({
       target: [schema.aiModels.providerId, schema.aiModels.externalId],
       set: {
-        canonicalId: model.canonicalId ?? null,
-        displayName: model.displayName,
-        availability: model.availability,
-        contextWindow: model.contextWindow ?? null,
-        maxOutputTokens: model.maxOutputTokens ?? null,
-        embeddingDimensions: model.embeddingDimensions ?? null,
-        inputModalities: model.inputModalities,
-        outputModalities: model.outputModalities,
-        rawMetadata: model.rawMetadata,
+        canonicalId: enriched.canonicalId ?? null,
+        displayName: enriched.displayName,
+        availability: enriched.availability,
+        contextWindow: enriched.contextWindow ?? null,
+        maxOutputTokens: enriched.maxOutputTokens ?? null,
+        embeddingDimensions: enriched.embeddingDimensions ?? null,
+        inputModalities: enriched.inputModalities,
+        outputModalities: enriched.outputModalities,
+        rawMetadata: enriched.rawMetadata,
         lastSeenAt: new Date(),
         updatedAt: new Date(),
       },
     })
     .returning({ id: schema.aiModels.id });
-  const primaryCapability: AiCapability =
-    providerType === 'chat'
-      ? 'text_generation'
-      : providerType === 'embedding'
-        ? 'embedding'
-        : 'image_generation';
-  const capabilities = [
-    ...model.capabilities.filter((item) => item.capability !== primaryCapability),
-    {
-      capability: primaryCapability,
-      supported: true,
-      source: 'provider' as const,
-      details: { providerType },
-    },
-  ];
   for (const capability of capabilities) {
     await db
       .insert(schema.aiModelCapabilities)
@@ -542,6 +559,7 @@ async function reconcileDiscoveredModel(
         set: { supported: capability.supported, details: capability.details ?? {}, updatedAt: new Date() },
       });
   }
+  return true;
 }
 
 export async function testProvider(providerId: string) {
@@ -612,11 +630,20 @@ export async function testProviderConnection(
 export async function syncProviderModels(providerId: string) {
   const runtime = await providerRuntime(providerId);
   const discovery = createModelDiscoveryAdapter(runtime);
-  if (!discovery) return { count: 0 };
+  if (!discovery) return { count: 0, skipped: 0 };
+  const settings = await getAiSettings();
+  const detector = settings.modelDetectorApiKeyEncrypted
+    ? { apiKey: (decryptAiJson(settings.modelDetectorApiKeyEncrypted) as { apiKey: string }).apiKey }
+    : null;
   const models = await discovery.listModels();
-  const seen = models.map((model) => model.externalId);
-  for (const model of models) await reconcileDiscoveredModel(providerId, runtime.type, model);
-  if (seen.length) {
+  const kept: string[] = [];
+  let skipped = 0;
+  for (const model of models) {
+    const keep = await reconcileDiscoveredModel(providerId, runtime.type, runtime.vendor, model, detector);
+    if (keep) kept.push(model.externalId);
+    else skipped++;
+  }
+  if (kept.length) {
     await db
       .update(schema.aiModels)
       .set({ availability: 'unavailable', updatedAt: new Date() })
@@ -624,13 +651,13 @@ export async function syncProviderModels(providerId: string) {
         and(
           eq(schema.aiModels.providerId, providerId),
           eq(schema.aiModels.manuallyAdded, false),
-          notInArray(schema.aiModels.externalId, seen),
+          notInArray(schema.aiModels.externalId, kept),
         ),
       );
     await db
       .update(schema.aiModels)
       .set({ availability: 'available' })
-      .where(and(eq(schema.aiModels.providerId, providerId), inArray(schema.aiModels.externalId, seen)));
+      .where(and(eq(schema.aiModels.providerId, providerId), inArray(schema.aiModels.externalId, kept)));
   }
-  return { count: models.length };
+  return { count: kept.length, skipped };
 }
