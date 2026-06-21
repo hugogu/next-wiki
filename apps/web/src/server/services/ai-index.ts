@@ -48,6 +48,23 @@ export async function getIndex(ctx: PermCtx, id: string): Promise<AiIndexView> {
   return toView(row);
 }
 
+export async function deleteIndexGeneration(ctx: PermCtx, id: string): Promise<void> {
+  assertAdmin(ctx);
+  const row = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, id) });
+  if (!row) throw new DomainError('NOT_FOUND', 'AI index not found');
+  if (row.isActive) throw new DomainError('CONFLICT', 'The active knowledge index cannot be deleted');
+  if (row.status === 'building') throw new DomainError('CONFLICT', 'A building knowledge index cannot be deleted');
+  await db.transaction(async (tx) => {
+    // Audit actions keep their history but lose the dangling generation link
+    // (the FK has no cascade); chunks and page states cascade automatically.
+    await tx
+      .update(schema.aiActions)
+      .set({ indexGenerationId: null })
+      .where(eq(schema.aiActions.indexGenerationId, id));
+    await tx.delete(schema.aiIndexGenerations).where(eq(schema.aiIndexGenerations.id, id));
+  });
+}
+
 export async function createIndexRebuild(ctx: PermCtx, reason = 'manual') {
   assertAdmin(ctx);
   const assignment = await db

@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import type { AiIndexView } from '@next-wiki/shared';
+import { apiDelete, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { TrashIcon } from '@/components/icons';
 import {
   DataTable,
   DataTableBody,
@@ -15,11 +18,26 @@ import {
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IndexDetail } from './IndexDetail';
 
 export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
   const { t } = useTranslation();
   const [detailIndex, setDetailIndex] = useState<AiIndexView | null>(null);
+  const [deleting, setDeleting] = useState<AiIndexView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const remove = async (index: AiIndexView) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiDelete(`/api/ai/indexes/${index.id}`);
+      window.location.reload();
+    } catch (value) {
+      setError((value as ApiError).message ?? t('admin.ai.error.generic'));
+      setBusy(false);
+    }
+  };
   return (
     <>
     <section className="space-y-md">
@@ -64,9 +82,22 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
                 </div>
               </DataTableCell>
               <DataTableCell align="right">
-                <Button variant="ghost" onClick={() => setDetailIndex(index)}>
-                  {t('admin.ai.index.details')}
-                </Button>
+                <div className="flex items-center justify-end gap-xs">
+                  <Button variant="ghost" onClick={() => setDetailIndex(index)}>
+                    {t('admin.ai.index.details')}
+                  </Button>
+                  <Tooltip label={t('admin.ai.index.delete')}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t('admin.ai.index.delete')}
+                      disabled={index.isActive || index.status === 'building'}
+                      onClick={() => setDeleting(index)}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
+                </div>
               </DataTableCell>
             </DataTableRow>
           ))}
@@ -87,6 +118,21 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
       >
         <IndexDetail index={detailIndex} />
       </ModalDialog>
+    )}
+    {deleting && (
+      <ConfirmDialog
+        title={t('admin.ai.index.delete')}
+        message={t('admin.ai.delete.confirm', { name: deleting.modelName })}
+        confirmLabel={t('admin.ai.index.delete')}
+        confirmVariant="danger"
+        pending={busy}
+        error={error ?? undefined}
+        onCancel={() => {
+          setDeleting(null);
+          setError(null);
+        }}
+        onConfirm={() => void remove(deleting)}
+      />
     )}
     </>
   );

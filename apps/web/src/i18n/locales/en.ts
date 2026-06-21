@@ -676,6 +676,7 @@ export const en = {
   'admin.ai.index.failed': 'Failed',
   'admin.ai.index.active': 'Active',
   'admin.ai.index.details': 'Details',
+  'admin.ai.index.delete': 'Delete index',
   'admin.ai.index.empty': 'No knowledge index has been created.',
   'admin.ai.indexStatus.building': 'Building',
   'admin.ai.indexStatus.ready': 'Ready',

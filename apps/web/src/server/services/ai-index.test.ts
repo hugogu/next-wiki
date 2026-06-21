@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
-import { createIndexRebuild, refreshIndexCounters, retryIndexPages } from './ai-index';
+import { createIndexRebuild, deleteIndexGeneration, refreshIndexCounters, retryIndexPages } from './ai-index';
 
 describe('AI index lifecycle', () => {
   let adminId: string;
@@ -59,5 +59,22 @@ describe('AI index lifecycle', () => {
     expect(await db.query.aiIndexGenerations.findFirst({
       where: eq(schema.aiIndexGenerations.id, created.generation.id),
     })).toMatchObject({ status: 'ready', isActive: true });
+  });
+
+  it('deletes an inactive generation but refuses the active one', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    // Active generation is protected.
+    await db.update(schema.aiIndexGenerations).set({ status: 'ready', isActive: true }).where(eq(schema.aiIndexGenerations.id, generationId));
+    await expect(deleteIndexGeneration(ctx, generationId)).rejects.toMatchObject({ code: 'CONFLICT' });
+    // Once retired it can be deleted, cascading its page states and nulling audit links.
+    await db.update(schema.aiIndexGenerations).set({ isActive: false, status: 'superseded' }).where(eq(schema.aiIndexGenerations.id, generationId));
+    await deleteIndexGeneration(ctx, generationId);
+    expect(await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) })).toBeUndefined();
+    expect(await db.query.aiPageIndexStates.findFirst({ where: eq(schema.aiPageIndexStates.generationId, generationId) })).toBeUndefined();
+    expect(
+      await db.query.aiActions.findFirst({ where: eq(schema.aiActions.indexGenerationId, generationId) }),
+    ).toBeUndefined();
   });
 });

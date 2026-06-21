@@ -657,6 +657,7 @@ export const zh: Translations = {
   'admin.ai.index.failed': '失败',
   'admin.ai.index.active': '当前使用',
   'admin.ai.index.details': '详情',
+  'admin.ai.index.delete': '删除索引',
   'admin.ai.index.empty': '尚未创建知识索引。',
   'admin.ai.indexStatus.building': '构建中',
   'admin.ai.indexStatus.ready': '就绪',
