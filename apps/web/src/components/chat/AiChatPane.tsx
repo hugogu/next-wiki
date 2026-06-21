@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
 import { SparklesIcon } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { ChatAnswer } from './ChatAnswer';
 
 function setAiUrl(open: boolean, mode: AiQuestionMode) {
   const url = new URL(window.location.href);
@@ -63,6 +64,7 @@ export function AiChatPane({
       </div>
     );
   }
+  const lastAssistantId = [...chat.messages].reverse().find((message) => message.role === 'assistant')?.id;
   return (
     <aside className="flex h-full w-[24rem] shrink-0 flex-col border-l border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border p-md">
@@ -78,7 +80,15 @@ export function AiChatPane({
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}
         {chat.messages.map((message) => (
           <article key={message.id} className={`rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
-            <div className="whitespace-pre-wrap">{message.text || (chat.running ? t('ai.chat.streaming') : '')}</div>
+            {message.role === 'assistant' ? (
+              message.text ? (
+                <ChatAnswer text={message.text} done={!chat.running || message.id !== lastAssistantId} />
+              ) : (
+                <div className="text-muted">{chat.running ? t('ai.chat.streaming') : ''}</div>
+              )
+            ) : (
+              <div className="whitespace-pre-wrap">{message.text}</div>
+            )}
             {message.error && <p className="mt-xs text-danger">{message.error}</p>}
             {message.error && message.role === 'assistant' && (
               <button
