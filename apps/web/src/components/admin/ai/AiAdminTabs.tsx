@@ -22,8 +22,8 @@ import { IndexList } from './IndexList';
 import { AiActionAuditTable } from './AiActionAuditTable';
 import { ModelDetectorPanel } from './ModelDetectorPanel';
 
-type AiAdminTab = 'chat' | 'embedding' | 'image' | 'detector' | 'indexes' | 'actions';
-const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'detector', 'indexes', 'actions'];
+type AiAdminTab = 'detector' | 'chat' | 'embedding' | 'image' | 'indexes' | 'actions';
+const TABS: AiAdminTab[] = ['detector', 'chat', 'embedding', 'image', 'indexes', 'actions'];
 
 const purposeByCapability = {
   chat: 'wiki_text',
@@ -32,7 +32,7 @@ const purposeByCapability = {
 } as const satisfies Record<AiProviderType, AiPurpose>;
 
 function parseTab(value: string | null): AiAdminTab {
-  return TABS.includes(value as AiAdminTab) ? (value as AiAdminTab) : 'chat';
+  return TABS.includes(value as AiAdminTab) ? (value as AiAdminTab) : 'detector';
 }
 
 export function AiAdminTabs({
@@ -70,11 +70,16 @@ export function AiAdminTabs({
   useEffect(() => {
     if (searchParams.get('tab')) return;
     const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', 'chat');
+    params.set('tab', 'detector');
     router.replace(`${pathname}?${params.toString()}`);
   }, [pathname, router, searchParams]);
 
   const tabs = [
+    {
+      id: 'detector' as const,
+      label: t('admin.ai.tabs.detector'),
+      status: hasModelDetectorApiKey ? t('admin.ai.modelDetector.configuredShort') : undefined,
+    },
     {
       id: 'chat' as const,
       label: t('admin.ai.tabs.chat'),
@@ -89,11 +94,6 @@ export function AiAdminTabs({
       id: 'image' as const,
       label: t('admin.ai.tabs.image'),
       status: String(providers.filter((provider) => provider.type === 'image').length),
-    },
-    {
-      id: 'detector' as const,
-      label: t('admin.ai.tabs.detector'),
-      status: hasModelDetectorApiKey ? t('admin.ai.modelDetector.configuredShort') : undefined,
     },
     {
       id: 'indexes' as const,
