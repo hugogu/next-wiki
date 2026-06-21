@@ -92,6 +92,13 @@
       "when": 1782005696546,
       "tag": "0012_ai_vendor_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782009394501,
+      "tag": "0013_ai_action_error_detail",
+      "breakpoints": true
     }
   ]
 }

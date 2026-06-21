@@ -45,10 +45,12 @@ export async function runAiAction(actionId: string): Promise<void> {
     const latest = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
     if (latest?.status === 'running') await finishAction(actionId, 'completed');
   } catch (error) {
+    const errorDetail = error instanceof Error ? error.stack ?? null : String(error);
     if (error instanceof DomainError) {
       await finishAction(actionId, error.code === 'CANCELLED' ? 'cancelled' : 'failed', {
         errorCode: error.code,
         errorMessage: error.message,
+        errorDetail,
       });
       return;
     }
@@ -56,6 +58,7 @@ export async function runAiAction(actionId: string): Promise<void> {
     await finishAction(actionId, normalized.code === 'CANCELLED' ? 'cancelled' : 'failed', {
       errorCode: normalized.code,
       errorMessage: normalized.message,
+      errorDetail,
     });
     if (normalized.retryable) throw normalized;
   }

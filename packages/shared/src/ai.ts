@@ -284,6 +284,7 @@ export const aiActionViewSchema = z.object({
   usageMetadata: jsonObjectSchema,
   errorCode: z.string().nullable(),
   errorMessage: z.string().nullable(),
+  errorDetail: z.string().nullable(),
   queuedAt: z.string(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),

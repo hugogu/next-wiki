@@ -101,6 +101,9 @@
           "errorMessage": {
             "type": "object"
           },
+          "errorDetail": {
+            "type": "object"
+          },
           "queuedAt": {
             "type": "string"
           },
@@ -131,6 +134,7 @@
           "usageMetadata",
           "errorCode",
           "errorMessage",
+          "errorDetail",
           "queuedAt",
           "startedAt",
           "finishedAt",

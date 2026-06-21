@@ -609,6 +609,7 @@ export const aiActions = pgTable(
     usageMetadata: jsonb('usage_metadata').notNull().default({}),
     errorCode: text('error_code'),
     errorMessage: text('error_message'),
+    errorDetail: text('error_detail'),
     cancelRequested: boolean('cancel_requested').notNull().default(false),
     queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp('started_at', { withTimezone: true }),

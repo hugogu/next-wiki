@@ -20,6 +20,9 @@ describe('AI action worker', () => {
     const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
     expect(row?.status).toBe('failed');
     expect(row?.errorCode).toBe('AI_DISABLED');
+    // The full stack trace is retained for admin diagnostics (req: run-record error detail).
+    expect(row?.errorDetail).toContain('DomainError');
+    expect(row?.errorDetail).toMatch(/\n\s+at /);
     await removeAiTestUser(userId);
   });
 });

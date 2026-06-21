@@ -1,0 +1,1 @@
+ALTER TABLE "ai_actions" ADD COLUMN "error_detail" text;

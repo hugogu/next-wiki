@@ -195,6 +195,7 @@ async function toView(row: typeof schema.aiActions.$inferSelect): Promise<AiActi
     usageMetadata: row.usageMetadata as Record<string, unknown>,
     errorCode: row.errorCode,
     errorMessage: row.errorMessage,
+    errorDetail: row.errorDetail,
     queuedAt: row.queuedAt.toISOString(),
     startedAt: row.startedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,
@@ -256,6 +257,7 @@ export async function finishAction(
     usageMetadata?: Record<string, unknown>;
     errorCode?: string | null;
     errorMessage?: string | null;
+    errorDetail?: string | null;
   } = {},
 ): Promise<void> {
   await db
@@ -266,6 +268,7 @@ export async function finishAction(
       usageMetadata: details.usageMetadata ?? {},
       errorCode: details.errorCode ?? null,
       errorMessage: details.errorMessage?.slice(0, 500) ?? null,
+      errorDetail: details.errorDetail?.slice(0, 8_000) ?? null,
       finishedAt: new Date(),
     })
     .where(eq(schema.aiActions.id, actionId));
