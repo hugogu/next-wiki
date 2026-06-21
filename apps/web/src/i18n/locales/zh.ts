@@ -236,6 +236,7 @@ export const zh: Translations = {
   'admin.transfers.export.starting': '正在启动…',
   'admin.transfers.archive.comingSoon': '上传 next-wiki 可移植归档，预览并还原其中的内容。',
   'admin.transfers.archive.preview': '上传并预览',
+  'admin.transfers.archive.chooseFile': '选择 ZIP 文件…',
   'admin.transfers.archive.previewReady': '最近一次归档预览已完成，可以开始导入。',
   'admin.transfers.archive.import': '开始导入',
   'admin.transfers.conflict.skip': '跳过已有页面',

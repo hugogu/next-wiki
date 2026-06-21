@@ -6,6 +6,8 @@ import type { TransferRunAccepted, TransferRunView, TransferSourceView } from '@
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { EyeIcon, LinkIcon, LogInIcon, TrashIcon } from '@/components/icons';
 import { apiDelete, apiPost } from '@/lib/api/client';
 import { TransferRunList } from './TransferRunList';
 
@@ -94,11 +96,29 @@ export function WikiJsSourcePanel({
           <div key={source.id} className="rounded-lg border border-border p-md">
             <div className="flex flex-wrap items-center justify-between gap-sm">
               <div><p className="font-medium">{source.name}</p><p className="text-xs text-muted">{source.baseUrl}</p></div>
-              <div className="flex flex-wrap gap-xs">
-                <Button variant="secondary" disabled={busy} onClick={() => start('wikijs_source_test', source.id)}>{t('admin.transfers.wikijs.test')}</Button>
-                <Button variant="secondary" disabled={busy} onClick={() => start('wikijs_preview', source.id)}>{t('admin.transfers.wikijs.preview')}</Button>
-                {preview && <Button disabled={busy} onClick={() => importPreview(preview.id)}>{t('admin.transfers.wikijs.import')}</Button>}
-                <Button variant="ghost" disabled={busy} onClick={async () => { await apiDelete(`/api/transfer-sources/${source.id}`); router.refresh(); }}>{t('admin.transfers.wikijs.delete')}</Button>
+              <div className="flex items-center gap-xs">
+                <Tooltip label={t('admin.transfers.wikijs.test')}>
+                  <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.test')} disabled={busy} onClick={() => start('wikijs_source_test', source.id)}>
+                    <LinkIcon className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                <Tooltip label={t('admin.transfers.wikijs.preview')}>
+                  <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.preview')} disabled={busy} onClick={() => start('wikijs_preview', source.id)}>
+                    <EyeIcon className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                {preview && (
+                  <Tooltip label={t('admin.transfers.wikijs.import')}>
+                    <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.import')} disabled={busy} onClick={() => importPreview(preview.id)}>
+                      <LogInIcon className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
+                )}
+                <Tooltip label={t('admin.transfers.wikijs.delete')}>
+                  <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.delete')} disabled={busy} onClick={async () => { await apiDelete(`/api/transfer-sources/${source.id}`); router.refresh(); }}>
+                    <TrashIcon className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
               </div>
             </div>
           </div>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { TransferArtifactView, TransferRunAccepted, TransferRunView } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { FolderIcon } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
 import { TransferRunList } from './TransferRunList';
 
@@ -83,20 +85,25 @@ export function ArchiveImportPanel({ runs }: { runs: TransferRunView[] }) {
         <h2 className="font-display text-lg font-semibold">{t('admin.transfers.tabs.archives')}</h2>
         <p className="mt-xs text-sm text-muted">{t('admin.transfers.archive.comingSoon')}</p>
         <div className="mt-md grid gap-sm sm:grid-cols-[1fr_auto_auto]">
-          <input
-            type="file"
-            accept=".zip,application/zip"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="rounded-md border border-border bg-surface px-sm py-xs text-sm"
-          />
-          <select
+          <label className="flex cursor-pointer items-center gap-sm rounded-md border border-border bg-surface px-md py-sm text-sm hover:bg-surface-elevated">
+            <FolderIcon className="h-4 w-4 shrink-0 text-muted" />
+            <span className={file ? 'truncate' : 'truncate text-muted'}>
+              {file ? file.name : t('admin.transfers.archive.chooseFile')}
+            </span>
+            <input
+              type="file"
+              accept=".zip,application/zip"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              className="sr-only"
+            />
+          </label>
+          <Select
             value={strategy}
             onChange={(event) => setStrategy(event.target.value as 'skip' | 'replace')}
-            className="rounded-md border border-border bg-surface px-sm py-xs text-sm"
           >
             <option value="skip">{t('admin.transfers.conflict.skip')}</option>
             <option value="replace">{t('admin.transfers.conflict.replace')}</option>
-          </select>
+          </Select>
           <Button disabled={!file || busy} onClick={uploadAndPreview}>
             {t('admin.transfers.archive.preview')}
           </Button>

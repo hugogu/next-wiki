@@ -236,6 +236,7 @@ export const en = {
   'admin.transfers.export.starting': 'Starting…',
   'admin.transfers.archive.comingSoon': 'Upload a portable next-wiki archive to preview and restore its content.',
   'admin.transfers.archive.preview': 'Upload and preview',
+  'admin.transfers.archive.chooseFile': 'Choose a ZIP file…',
   'admin.transfers.archive.previewReady': 'The latest archive preview is ready to import.',
   'admin.transfers.archive.import': 'Start import',
   'admin.transfers.conflict.skip': 'Skip existing pages',
