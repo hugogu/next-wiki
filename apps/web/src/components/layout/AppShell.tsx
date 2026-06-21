@@ -26,7 +26,7 @@ export function AppShell({ user, pages, pageContext, admin = false, userCenter =
           <main className="flex-1 overflow-auto relative">
             {children}
           </main>
-          {aiEntitlements && <AiChatPane entitlements={aiEntitlements} pageContext={pageContext} />}
+          {aiEntitlements && !admin && <AiChatPane entitlements={aiEntitlements} pageContext={pageContext} />}
         </div>
       </div>
     </AiAvailabilityProvider>
