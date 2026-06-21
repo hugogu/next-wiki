@@ -29,6 +29,8 @@ export type AiProviderVendorDefinition = {
   protocols: Partial<Record<AiProviderType, AiProviderKind>>;
   baseUrls: Partial<Record<AiProviderType, string>>;
   modelDiscovery: AiModelDiscoveryProtocol;
+  /** OpenRouter model-listing namespace for capability detection. Omitted when the vendor is not hosted on OpenRouter. */
+  openrouterNamespace?: string;
 };
 
 export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
@@ -46,6 +48,7 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
       image: 'https://api.openai.com/v1',
     },
     modelDiscovery: 'openai',
+    openrouterNamespace: 'openai',
   },
   {
     vendor: 'openrouter',
@@ -64,6 +67,7 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
     protocols: { chat: 'anthropic' },
     baseUrls: { chat: 'https://api.anthropic.com/v1' },
     modelDiscovery: 'anthropic',
+    openrouterNamespace: 'anthropic',
   },
   {
     vendor: 'kimi',
@@ -71,6 +75,7 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
     protocols: { chat: 'openai_compatible' },
     baseUrls: { chat: 'https://api.moonshot.cn/v1' },
     modelDiscovery: 'openai',
+    openrouterNamespace: 'moonshotai',
   },
   {
     vendor: 'voyage',
@@ -85,6 +90,7 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
     protocols: { image: 'minimax' },
     baseUrls: { image: 'https://api.minimaxi.com/v1' },
     modelDiscovery: 'none',
+    openrouterNamespace: 'minimax',
   },
   {
     vendor: 'zai',
@@ -100,6 +106,7 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
       image: 'https://api.z.ai/api/paas/v4',
     },
     modelDiscovery: 'openai',
+    openrouterNamespace: 'z-ai',
   },
   {
     vendor: 'custom',
@@ -167,6 +174,7 @@ export const aiSettingsUpdateSchema = z.object({
   enabled: z.boolean().optional(),
   eventRetentionHours: z.number().int().min(1).max(168).optional(),
   artifactRetentionHours: z.number().int().min(1).max(168).optional(),
+  modelDetectorApiKey: z.string().min(1).max(8_192).optional(),
 });
 export type AiSettingsUpdate = z.infer<typeof aiSettingsUpdateSchema>;
 

@@ -1,0 +1,1 @@
+ALTER TABLE "ai_settings" ADD COLUMN "model_detector_api_key_encrypted" text;

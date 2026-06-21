@@ -39,6 +39,7 @@ export async function getAiSettings() {
       enabled: false,
       eventRetentionHours: env.AI_EVENT_RETENTION_HOURS,
       artifactRetentionHours: env.AI_ARTIFACT_RETENTION_HOURS,
+      modelDetectorApiKeyEncrypted: null,
       updatedBy: null,
       updatedAt: new Date(0),
     }

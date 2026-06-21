@@ -96,6 +96,7 @@ export async function readSettings(ctx: PermCtx) {
     enabled: settings.enabled,
     eventRetentionHours: settings.eventRetentionHours,
     artifactRetentionHours: settings.artifactRetentionHours,
+    hasModelDetectorApiKey: Boolean(settings.modelDetectorApiKeyEncrypted),
     assignments,
   };
 }
@@ -103,7 +104,12 @@ export async function readSettings(ctx: PermCtx) {
 export async function updateSettings(ctx: PermCtx, input: AiSettingsUpdate) {
   assertCanManageAi(ctx);
   const values = {
-    ...input,
+    ...(input.modelDetectorApiKey
+      ? { modelDetectorApiKeyEncrypted: encryptAiJson({ apiKey: input.modelDetectorApiKey }) }
+      : {}),
+    ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+    ...(input.eventRetentionHours !== undefined ? { eventRetentionHours: input.eventRetentionHours } : {}),
+    ...(input.artifactRetentionHours !== undefined ? { artifactRetentionHours: input.artifactRetentionHours } : {}),
     updatedBy: actorId(ctx),
     updatedAt: new Date(),
   };

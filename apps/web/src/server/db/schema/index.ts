@@ -399,6 +399,7 @@ export const aiSettings = pgTable('ai_settings', {
   enabled: boolean('enabled').notNull().default(false),
   eventRetentionHours: integer('event_retention_hours').notNull().default(24),
   artifactRetentionHours: integer('artifact_retention_hours').notNull().default(24),
+  modelDetectorApiKeyEncrypted: text('model_detector_api_key_encrypted'),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
