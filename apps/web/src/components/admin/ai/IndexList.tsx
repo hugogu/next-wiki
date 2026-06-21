@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { useState } from 'react';
 import type { AiIndexView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -14,10 +14,14 @@ import {
 } from '@/components/ui/DataTable';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
+import { ModalDialog } from '@/components/ui/ModalDialog';
+import { IndexDetail } from './IndexDetail';
 
 export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
   const { t } = useTranslation();
+  const [detailIndex, setDetailIndex] = useState<AiIndexView | null>(null);
   return (
+    <>
     <section className="space-y-md">
       <div className="flex items-start justify-between gap-md">
         <div>
@@ -60,9 +64,9 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
                 </div>
               </DataTableCell>
               <DataTableCell align="right">
-                <Link className="text-sm text-primary hover:underline" href={`/admin/ai/indexes/${index.id}`}>
+                <Button variant="ghost" onClick={() => setDetailIndex(index)}>
                   {t('admin.ai.index.details')}
-                </Link>
+                </Button>
               </DataTableCell>
             </DataTableRow>
           ))}
@@ -76,5 +80,14 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
         </DataTableBody>
       </DataTable>
     </section>
+    {detailIndex && (
+      <ModalDialog
+        title={t('admin.ai.indexDetail.title')}
+        onClose={() => setDetailIndex(null)}
+      >
+        <IndexDetail index={detailIndex} />
+      </ModalDialog>
+    )}
+    </>
   );
 }

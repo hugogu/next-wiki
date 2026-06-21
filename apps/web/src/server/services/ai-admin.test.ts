@@ -8,6 +8,7 @@ import {
   assignPurpose,
   createManualModel,
   createProvider,
+  deleteModel,
   deleteProvider,
   listModels,
   setCapabilityOverride,
@@ -87,5 +88,27 @@ describe('AI administration service', () => {
         credentials: { apiKey: 'key' },
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('deletes unused models and rejects assigned models', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const provider = await createProvider(ctx, {
+      name: 'Deletion',
+      vendor: 'custom',
+      kind: 'openai_compatible',
+      baseUrl: 'https://example.com/v1',
+      credentials: { apiKey: 'key' },
+    });
+    const unused = await createManualModel(ctx, provider.id, {
+      externalId: 'unused',
+      displayName: 'Unused',
+    });
+    await expect(deleteModel(ctx, unused.id)).resolves.toBeUndefined();
+    const assigned = await createManualModel(ctx, provider.id, {
+      externalId: 'assigned',
+      displayName: 'Assigned',
+    });
+    await assignPurpose(ctx, 'wiki_text', assigned.id);
+    await expect(deleteModel(ctx, assigned.id)).rejects.toMatchObject({ code: 'MODEL_IN_USE' });
   });
 });

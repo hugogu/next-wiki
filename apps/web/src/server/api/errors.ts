@@ -40,6 +40,7 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'AI_FEATURE_DISABLED':
       return apiError(code, message, 403);
     case 'PROVIDER_IN_USE':
+    case 'MODEL_IN_USE':
     case 'CAPABILITY_MISMATCH':
       return apiError(code, message, 409);
     case 'MODEL_NOT_FOUND':

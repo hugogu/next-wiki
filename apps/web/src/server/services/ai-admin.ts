@@ -220,7 +220,15 @@ export async function deleteProvider(ctx: PermCtx, id: string): Promise<void> {
   const active = await db.query.aiActions.findFirst({
     where: and(eq(schema.aiActions.providerId, id), inArray(schema.aiActions.status, ['queued', 'running'])),
   });
-  if (assigned.length || active) throw new DomainError('PROVIDER_IN_USE', 'AI provider is in use');
+  const indexedModel = await db
+    .select({ id: schema.aiIndexGenerations.id })
+    .from(schema.aiIndexGenerations)
+    .innerJoin(schema.aiModels, eq(schema.aiIndexGenerations.modelId, schema.aiModels.id))
+    .where(eq(schema.aiModels.providerId, id))
+    .limit(1);
+  if (assigned.length || active || indexedModel.length) {
+    throw new DomainError('PROVIDER_IN_USE', 'AI provider is in use');
+  }
   const deleted = await db.delete(schema.aiProviders).where(eq(schema.aiProviders.id, id)).returning();
   if (!deleted.length) throw new DomainError('NOT_FOUND', 'AI provider not found');
 }
@@ -356,6 +364,22 @@ export async function updateModel(
     .returning();
   if (!row) throw new DomainError('MODEL_NOT_FOUND', 'AI model not found');
   return (await listModels(ctx, row.providerId)).find((item) => item.id === modelId)!;
+}
+
+export async function deleteModel(ctx: PermCtx, modelId: string): Promise<void> {
+  assertCanManageAi(ctx);
+  const assigned = await db.query.aiPurposeAssignments.findFirst({
+    where: eq(schema.aiPurposeAssignments.modelId, modelId),
+  });
+  if (assigned) throw new DomainError('MODEL_IN_USE', 'AI model is assigned to a purpose');
+  const index = await db.query.aiIndexGenerations.findFirst({
+    where: eq(schema.aiIndexGenerations.modelId, modelId),
+  });
+  if (index) {
+    throw new DomainError('MODEL_IN_USE', 'AI model is referenced by an index');
+  }
+  const deleted = await db.delete(schema.aiModels).where(eq(schema.aiModels.id, modelId)).returning();
+  if (!deleted.length) throw new DomainError('MODEL_NOT_FOUND', 'AI model not found');
 }
 
 export async function setCapabilityOverride(

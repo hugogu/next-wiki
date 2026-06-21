@@ -36,17 +36,22 @@ export function PurposeAssignments({
   assignments: Array<{ purpose: AiPurpose; modelId: string }>;
 }) {
   const { t } = useTranslation();
-  const [values, setValues] = useState<Record<AiPurpose, string>>(() => ({
+  const initialValues: Record<AiPurpose, string> = {
     wiki_text: assignments.find((item) => item.purpose === 'wiki_text')?.modelId ?? '',
     wiki_embedding: assignments.find((item) => item.purpose === 'wiki_embedding')?.modelId ?? '',
     wiki_image: assignments.find((item) => item.purpose === 'wiki_image')?.modelId ?? '',
-  }));
-  const selectedEmbedding = models.find((model) => model.id === values.wiki_embedding);
-  const [embeddingDimensions, setEmbeddingDimensions] = useState(
-    selectedEmbedding?.embeddingDimensions?.toString() ?? '',
-  );
+  };
+  const [values, setValues] = useState<Record<AiPurpose, string>>(initialValues);
+  const initialEmbeddingDimensions =
+    models.find((model) => model.id === initialValues.wiki_embedding)
+      ?.embeddingDimensions?.toString() ?? '';
+  const [embeddingDimensions, setEmbeddingDimensions] = useState(initialEmbeddingDimensions);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState<AiPurpose | null>(null);
+  const [saving, setSaving] = useState(false);
+  const dirty = purposes.filter((purpose) =>
+    values[purpose] !== initialValues[purpose]
+    || (purpose === 'wiki_embedding' && embeddingDimensions !== initialEmbeddingDimensions),
+  );
 
   return (
     <section className="space-y-md">
@@ -65,7 +70,7 @@ export function PurposeAssignments({
           return (
             <div
               key={purpose}
-              className="grid gap-md border-t border-border p-md first:border-t-0 lg:grid-cols-[minmax(12rem,0.8fr)_minmax(16rem,1.3fr)_auto] lg:items-center"
+              className="grid gap-md border-t border-border p-md first:border-t-0 lg:grid-cols-[minmax(12rem,0.8fr)_minmax(16rem,1.3fr)] lg:items-center"
             >
               <div>
                 <div className="flex items-center gap-sm">
@@ -121,35 +126,40 @@ export function PurposeAssignments({
                   </p>
                 )}
               </div>
-              <Button
-                disabled={
-                  !values[purpose] ||
-                  saving === purpose ||
-                  (purpose === 'wiki_embedding' && !Number(embeddingDimensions))
-                }
-                onClick={async () => {
-                  setSaving(purpose);
-                  setError(null);
-                  try {
-                    await apiPut(`/api/ai/assignments/${purpose}`, {
-                      modelId: values[purpose],
-                      confirmCapability: true,
-                      ...(purpose === 'wiki_embedding'
-                        ? { embeddingDimensions: Number(embeddingDimensions) }
-                        : {}),
-                    });
-                    window.location.reload();
-                  } catch (value) {
-                    setError((value as ApiError).message ?? t('admin.ai.error.generic'));
-                    setSaving(null);
-                  }
-                }}
-              >
-                {saving === purpose ? t('admin.ai.saving') : t('admin.ai.function.save')}
-              </Button>
             </div>
           );
         })}
+      </div>
+      <div className="flex justify-end">
+        <Button
+          disabled={
+            saving
+            || dirty.length === 0
+            || dirty.some((purpose) => !values[purpose])
+            || (dirty.includes('wiki_embedding') && !Number(embeddingDimensions))
+          }
+          onClick={async () => {
+            setSaving(true);
+            setError(null);
+            try {
+              for (const purpose of dirty) {
+                await apiPut(`/api/ai/assignments/${purpose}`, {
+                  modelId: values[purpose],
+                  confirmCapability: true,
+                  ...(purpose === 'wiki_embedding'
+                    ? { embeddingDimensions: Number(embeddingDimensions) }
+                    : {}),
+                });
+              }
+              window.location.reload();
+            } catch (value) {
+              setError((value as ApiError).message ?? t('admin.ai.error.generic'));
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? t('admin.ai.saving') : t('admin.ai.assignments.saveAll')}
+        </Button>
       </div>
     </section>
   );

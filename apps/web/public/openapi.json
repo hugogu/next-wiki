@@ -1819,6 +1819,36 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "delete-ai-models-{id}",
+        "summary": "Delete AI model @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
       }
     },
     "/ai/providers/{id}": {

@@ -10,6 +10,16 @@
 
 **Design doc:** `docs/plans/2026-06-21-ai-admin-usability-design.md`
 
+## Progress
+
+- [x] Task 1: Add OpenRouter model detection setting and service
+- [x] Task 2: Make model sync capability-aware via OpenRouter detection
+- [x] Task 3: Allow manual model addition for all vendors post-creation
+- [x] Task 4: Add model and provider deletion
+- [x] Task 5: Unify capability mapping save
+- [x] Task 6: Convert index detail to modal with failure details
+- [x] Task 7: Regenerate OpenAPI + final verification
+
 ---
 
 ### Task 1: Add OpenRouter model detection setting and service

@@ -128,6 +128,7 @@ export function AiAdminTabs({
             />
             <ModelCatalog
               models={models.filter((model) => model.providerType === selectedCapability)}
+              providers={providers.filter((provider) => provider.type === selectedCapability)}
               activeModelId={
                 assignments.find((item) => item.purpose === purposeByCapability[selectedCapability])?.modelId ?? null
               }
