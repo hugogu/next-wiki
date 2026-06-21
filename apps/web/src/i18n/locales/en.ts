@@ -654,6 +654,7 @@ export const en = {
   'admin.ai.models.delete': 'Delete model',
   'admin.ai.models.active': 'Active',
   'admin.ai.models.activate': 'Activate',
+  'admin.ai.models.activateDimensionsHint': 'Set the embedding dimensions for {{name}} to activate it. This must match the model\'s actual output size.',
   'admin.ai.chatCapability.vision': 'Vision',
   'admin.ai.chatCapability.audio': 'Audio',
   'admin.ai.chatCapability.thinking': 'Thinking',

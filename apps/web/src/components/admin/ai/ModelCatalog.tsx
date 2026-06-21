@@ -59,6 +59,8 @@ export function ModelCatalog({
   const [embeddingDimensions, setEmbeddingDimensions] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AiModelView | null>(null);
+  const [activating, setActivating] = useState<AiModelView | null>(null);
+  const [activateDims, setActivateDims] = useState('');
   const catalogType = providers[0]?.type ?? models[0]?.providerType ?? 'chat';
   const providerOptions = useMemo(
     () => [...new Map(models.map((model) => [model.providerId, model.providerName])).entries()],
@@ -96,16 +98,30 @@ export function ModelCatalog({
   };
   // Activate a model for this capability. Assignments are one-per-purpose, so
   // this implicitly deactivates whichever model was active before.
-  const activate = async (model: AiModelView) => {
+  const activate = async (model: AiModelView, dimensions?: number) => {
     setBusy(`${model.id}:activate`);
     setError(null);
     try {
-      await apiPut(`/api/ai/assignments/${purpose}`, { modelId: model.id, confirmCapability: true });
+      await apiPut(`/api/ai/assignments/${purpose}`, {
+        modelId: model.id,
+        confirmCapability: true,
+        ...(dimensions ? { embeddingDimensions: dimensions } : {}),
+      });
       window.location.reload();
     } catch (value) {
       setError((value as ApiError).message ?? t('admin.ai.error.generic'));
       setBusy(null);
     }
+  };
+  // Embedding models often have no provider-reported dimension count, so prompt
+  // for it on activation instead of blocking the action.
+  const onActivate = (model: AiModelView) => {
+    if (purpose === 'wiki_embedding' && !model.embeddingDimensions) {
+      setActivateDims('');
+      setActivating(model);
+      return;
+    }
+    void activate(model);
   };
 
   return (
@@ -253,12 +269,8 @@ export function ModelCatalog({
                           size="icon"
                           variant="ghost"
                           aria-label={t('admin.ai.models.activate')}
-                          disabled={
-                            model.availability === 'unavailable'
-                            || (purpose === 'wiki_embedding' && !model.embeddingDimensions)
-                            || busy === `${model.id}:activate`
-                          }
-                          onClick={() => void activate(model)}
+                          disabled={model.availability === 'unavailable' || busy === `${model.id}:activate`}
+                          onClick={() => onActivate(model)}
                         >
                           <CheckIcon className="h-4 w-4" />
                         </Button>
@@ -369,6 +381,44 @@ export function ModelCatalog({
           }}
           onConfirm={() => void remove(deleting)}
         />
+      )}
+      {activating && (
+        <ModalDialog
+          title={t('admin.ai.models.activate')}
+          description={t('admin.ai.models.activateDimensionsHint', { name: activating.displayName })}
+          onClose={() => setActivating(null)}
+        >
+          <form
+            className="space-y-md"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const model = activating;
+              setActivating(null);
+              void activate(model, Number(activateDims));
+            }}
+          >
+            {error && <Alert>{error}</Alert>}
+            <label className="block space-y-xs">
+              <span className="text-sm font-medium">{t('admin.ai.function.embeddingDimensions')}</span>
+              <Input
+                type="number"
+                min={1}
+                value={activateDims}
+                onChange={(event) => setActivateDims(event.target.value)}
+                required
+                autoFocus
+              />
+            </label>
+            <div className="flex justify-end gap-sm">
+              <Button type="button" variant="ghost" onClick={() => setActivating(null)}>
+                {t('common.actions.cancel')}
+              </Button>
+              <Button type="submit" disabled={!Number(activateDims)}>
+                {t('admin.ai.models.activate')}
+              </Button>
+            </div>
+          </form>
+        </ModalDialog>
       )}
     </section>
   );

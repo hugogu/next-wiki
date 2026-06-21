@@ -635,6 +635,7 @@ export const zh: Translations = {
   'admin.ai.models.delete': '删除模型',
   'admin.ai.models.active': '已激活',
   'admin.ai.models.activate': '激活',
+  'admin.ai.models.activateDimensionsHint': '为 {{name}} 设置向量维度后激活。需与该模型实际输出维度一致。',
   'admin.ai.chatCapability.vision': '视觉理解',
   'admin.ai.chatCapability.audio': '音频理解',
   'admin.ai.chatCapability.thinking': 'Thinking',
