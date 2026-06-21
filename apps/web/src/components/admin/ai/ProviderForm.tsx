@@ -23,6 +23,7 @@ const VENDOR_LABELS: Record<AiProviderVendor, TranslationKey> = {
   kimi: 'admin.ai.vendor.kimi',
   voyage: 'admin.ai.vendor.voyage',
   minimax: 'admin.ai.vendor.minimax',
+  zai: 'admin.ai.vendor.zai',
   custom: 'admin.ai.vendor.custom',
 };
 

@@ -582,6 +582,7 @@ export const en = {
   'admin.ai.vendor.kimi': 'Kimi',
   'admin.ai.vendor.voyage': 'Voyage AI',
   'admin.ai.vendor.minimax': 'MiniMax',
+  'admin.ai.vendor.zai': 'Z.ai',
   'admin.ai.vendor.custom': 'Custom OpenAI-compatible',
   'admin.ai.providerStatus.unverified': 'Unverified',
   'admin.ai.providerStatus.healthy': 'Healthy',

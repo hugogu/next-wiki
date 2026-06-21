@@ -563,6 +563,7 @@ export const zh: Translations = {
   'admin.ai.vendor.kimi': 'Kimi',
   'admin.ai.vendor.voyage': 'Voyage AI',
   'admin.ai.vendor.minimax': 'MiniMax',
+  'admin.ai.vendor.zai': 'Z.ai 智谱',
   'admin.ai.vendor.custom': '自定义 OpenAI 兼容平台',
   'admin.ai.providerStatus.unverified': '未验证',
   'admin.ai.providerStatus.healthy': '正常',
