@@ -1,11 +1,25 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { PageSummary } from '@next-wiki/shared';
-import { FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, SettingsIcon } from '@/components/icons';
+import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, SettingsIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
+
+const NAV_SCROLL_KEY = 'nav-scroll-top';
+
+/** Folder paths on the way to the active page, so its branch starts expanded. */
+function ancestorPaths(currentPath?: string): string[] {
+  if (!currentPath) return [];
+  const segments = currentPath.split('/');
+  const paths: string[] = [];
+  for (let i = 1; i < segments.length; i++) {
+    paths.push(segments.slice(0, i).join('/'));
+  }
+  return paths;
+}
 
 type AdminNavItem = {
   href: string;
@@ -53,47 +67,55 @@ function TreeItem({
   currentPath,
   depth,
   onNavigate,
+  expanded,
+  onToggle,
 }: {
   node: TreeNode;
   currentPath?: string;
   depth: number;
   onNavigate: () => void;
+  expanded: Set<string>;
+  onToggle: (path: string) => void;
 }) {
   const active = node.page && node.page.path === currentPath;
   const hasChildren = node.children.length > 0;
+  const isOpen = expanded.has(node.path);
+  const indent = { paddingLeft: `${depth * 0.6 + 0.25}rem` };
 
   return (
     <li>
-      <div
-        className="flex items-center gap-sm rounded-md text-sm transition-colors"
-        style={{ paddingLeft: `${depth * 0.75}rem` }}
-      >
-        {node.page ? (
-          <Link
-            href={getPageHref(node.page.path)}
-            onClick={onNavigate}
-            className={`
-              flex-1 flex items-center gap-sm px-md py-sm rounded-md min-w-0
-              ${active
-                ? 'bg-surface-elevated text-foreground font-medium'
-                : 'text-muted hover:text-foreground hover:bg-surface-elevated'
-              }
-            `}
-            title={node.page.title}
-          >
-            <FileTextIcon className="shrink-0" />
-            <span className="truncate">{node.page.title || leafTitleFromPath(node.path)}</span>
-          </Link>
-        ) : (
-          <span className="flex-1 flex items-center gap-sm px-md py-sm text-muted min-w-0">
-            <FolderIcon className="shrink-0" />
-            <span className="truncate">{node.name}</span>
-          </span>
-        )}
-      </div>
+      {node.page ? (
+        <Link
+          href={getPageHref(node.page.path)}
+          onClick={onNavigate}
+          className={`flex items-center gap-xs rounded-md px-sm py-1 text-sm min-w-0 transition-colors ${
+            active
+              ? 'bg-surface-elevated text-foreground font-medium'
+              : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+          }`}
+          style={indent}
+          title={node.page.title}
+        >
+          <FileTextIcon className="h-4 w-4 shrink-0" />
+          <span className="truncate">{node.page.title || leafTitleFromPath(node.path)}</span>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onToggle(node.path)}
+          className="flex w-full items-center gap-xs rounded-md px-sm py-1 text-sm text-muted min-w-0 transition-colors hover:text-foreground hover:bg-surface-elevated"
+          style={indent}
+          aria-expanded={isOpen}
+          title={node.name}
+        >
+          <ChevronRightIcon className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+          <FolderIcon className="h-4 w-4 shrink-0" />
+          <span className="truncate">{node.name}</span>
+        </button>
+      )}
 
-      {hasChildren && (
-        <ul className="mt-xs space-y-xs">
+      {hasChildren && isOpen && (
+        <ul>
           {node.children.map((child) => (
             <TreeItem
               key={child.path}
@@ -101,6 +123,8 @@ function TreeItem({
               currentPath={currentPath}
               depth={depth + 1}
               onNavigate={onNavigate}
+              expanded={expanded}
+              onToggle={onToggle}
             />
           ))}
         </ul>
@@ -140,6 +164,24 @@ export function Navigator({
     { href: '/user-center/audit', label: t('userCenter.nav.audit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
   const tree = buildPageTree(pages);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(ancestorPaths(currentPath)));
+  const toggle = (path: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+
+  // Keep the page-tree scroll position across navigations (the nav remounts on
+  // each page load, which would otherwise jump it back to the top).
+  const scrollRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = sessionStorage.getItem(NAV_SCROLL_KEY);
+    if (saved) el.scrollTop = Number(saved);
+  }, []);
 
   return (
     <>
@@ -174,7 +216,11 @@ export function Navigator({
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-sm">
+        <nav
+          ref={scrollRef}
+          onScroll={(event) => sessionStorage.setItem(NAV_SCROLL_KEY, String(event.currentTarget.scrollTop))}
+          className="flex-1 overflow-y-auto p-sm"
+        >
           {userCenter ? (
             <ul className="space-y-xs">
               {USER_CENTER_ITEMS.map((item) => {
@@ -222,7 +268,7 @@ export function Navigator({
           ) : pages.length === 0 ? (
             <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
           ) : (
-            <ul className="space-y-xs">
+            <ul className="space-y-0.5">
               {tree.map((node) => (
                 <TreeItem
                   key={node.path}
@@ -230,6 +276,8 @@ export function Navigator({
                   currentPath={currentPath}
                   depth={0}
                   onNavigate={onClose}
+                  expanded={expanded}
+                  onToggle={toggle}
                 />
               ))}
             </ul>
