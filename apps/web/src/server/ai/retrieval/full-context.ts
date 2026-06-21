@@ -14,13 +14,18 @@ export function estimateFullContextTokens(question: string, sources: QuestionSou
   return Math.ceil(inputBytes / 3);
 }
 
+// Conservative floor used when a chat model does not report its context window.
+// 8192 tokens is a safe lower bound for virtually every modern chat model, so a
+// small Wiki still fits while a genuinely oversized one fails with a clear error.
+export const DEFAULT_CONTEXT_WINDOW = 8192;
+
 export function assertFullContextCapacity(
   contextWindow: number | null,
   question: string,
   sources: QuestionSource[],
 ): void {
-  if (!contextWindow) throw new DomainError('FULL_CONTEXT_TOO_LARGE', 'The selected model has no known context capacity');
-  if (estimateFullContextTokens(question, sources) > Math.floor(contextWindow * 0.8)) {
+  const effectiveWindow = contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+  if (estimateFullContextTokens(question, sources) > Math.floor(effectiveWindow * 0.8)) {
     throw new DomainError('FULL_CONTEXT_TOO_LARGE', 'The complete readable Wiki does not fit the selected model context');
   }
 }

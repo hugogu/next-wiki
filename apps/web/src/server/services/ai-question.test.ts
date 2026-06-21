@@ -22,9 +22,12 @@ describe('full-context capacity', () => {
     );
   });
 
-  it('rejects unknown model capacity', () => {
-    expect(() => assertFullContextCapacity(null, 'question', [source('1', 'body')])).toThrowError(
-      expect.objectContaining({ code: 'FULL_CONTEXT_TOO_LARGE' }),
-    );
+  it('falls back to a conservative default when model capacity is unknown', () => {
+    // A small Wiki still fits the conservative default window.
+    expect(() => assertFullContextCapacity(null, 'question', [source('1', 'body')])).not.toThrow();
+    // A Wiki that overflows even the conservative default is still rejected clearly.
+    expect(() =>
+      assertFullContextCapacity(null, 'question', [source('1', 'a'.repeat(30_000))]),
+    ).toThrowError(expect.objectContaining({ code: 'FULL_CONTEXT_TOO_LARGE' }));
   });
 });
