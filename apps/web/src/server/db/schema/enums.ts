@@ -85,6 +85,7 @@ export const aiProviderVendorEnum = pgEnum('ai_provider_vendor', [
   'kimi',
   'voyage',
   'minimax',
+  'zai',
   'custom',
 ]);
 export const aiProviderStatusEnum = pgEnum('ai_provider_status', [

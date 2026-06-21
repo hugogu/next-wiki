@@ -17,6 +17,7 @@ export const aiProviderVendorSchema = z.enum([
   'kimi',
   'voyage',
   'minimax',
+  'zai',
   'custom',
 ]);
 export type AiProviderVendor = z.infer<typeof aiProviderVendorSchema>;
@@ -84,6 +85,21 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
     protocols: { image: 'minimax' },
     baseUrls: { image: 'https://api.minimaxi.com/v1' },
     modelDiscovery: 'none',
+  },
+  {
+    vendor: 'zai',
+    capabilities: ['chat', 'embedding', 'image'],
+    protocols: {
+      chat: 'openai_compatible',
+      embedding: 'openai_compatible',
+      image: 'openai_compatible',
+    },
+    baseUrls: {
+      chat: 'https://api.z.ai/api/paas/v4',
+      embedding: 'https://api.z.ai/api/paas/v4',
+      image: 'https://api.z.ai/api/paas/v4',
+    },
+    modelDiscovery: 'openai',
   },
   {
     vendor: 'custom',

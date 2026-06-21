@@ -1,0 +1,1 @@
+ALTER TYPE "public"."ai_provider_vendor" ADD VALUE 'zai' BEFORE 'custom';
