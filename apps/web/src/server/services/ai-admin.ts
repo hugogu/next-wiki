@@ -6,6 +6,7 @@ import {
   type AiModelView,
   type AiProviderCreate,
   type AiProviderKind,
+  type AiProviderTest,
   type AiProviderType,
   type AiProviderUpdate,
   type AiProviderView,
@@ -19,7 +20,7 @@ import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
 import { createAction, getAiSettings } from './ai-actions';
 import { createAiProviderAdapter, createModelDiscoveryAdapter } from '@/server/ai/registry';
-import type { DiscoveredModel, ProviderRuntimeConfig } from '@/server/ai/types';
+import type { DiscoveredModel, ProviderHealth, ProviderRuntimeConfig } from '@/server/ai/types';
 
 type ProviderRow = typeof schema.aiProviders.$inferSelect;
 
@@ -550,6 +551,32 @@ export async function testProvider(providerId: string) {
     })
     .where(eq(schema.aiProviders.id, providerId));
   return health;
+}
+
+/**
+ * Run a connection test synchronously and return the result to the caller,
+ * so the capability form can validate credentials before the provider is even
+ * created. A `draft` config is tested in-memory; an `existing` provider reuses
+ * its stored credentials and has its health status persisted.
+ */
+export async function testProviderConnection(
+  ctx: PermCtx,
+  input: AiProviderTest,
+): Promise<ProviderHealth> {
+  assertCanManageAi(ctx);
+  if (input.mode === 'existing') return testProvider(input.providerId);
+  const kind = resolveProviderProtocol(input.type, input.vendor, input.kind);
+  const runtime: ProviderRuntimeConfig = {
+    providerId: 'draft',
+    name: 'draft',
+    type: input.type,
+    vendor: input.vendor,
+    kind,
+    baseUrl: validateBaseUrl(input.baseUrl),
+    config: {},
+    credentials: input.credentials,
+  };
+  return (createModelDiscoveryAdapter(runtime) ?? createAiProviderAdapter(runtime)).testConnection();
 }
 
 export async function syncProviderModels(providerId: string) {

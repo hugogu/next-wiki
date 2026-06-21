@@ -194,6 +194,27 @@ export const aiProviderUpdateSchema = z.object({
   .extend({ credentials: aiProviderCredentialsSchema.optional() });
 export type AiProviderUpdate = z.infer<typeof aiProviderUpdateSchema>;
 
+export const aiProviderTestSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('existing'), providerId: z.string().uuid() }),
+  z.object({
+    mode: z.literal('draft'),
+    type: aiProviderTypeSchema,
+    vendor: aiProviderVendorSchema,
+    kind: aiProviderKindSchema.optional(),
+    baseUrl: z.string().url().max(2_048),
+    credentials: aiProviderCredentialsSchema,
+  }),
+]);
+export type AiProviderTest = z.infer<typeof aiProviderTestSchema>;
+export const aiProviderHealthSchema = z.object({
+  ok: z.boolean(),
+  latencyMs: z.number(),
+  providerRequestId: z.string().optional(),
+  errorCode: z.string().optional(),
+  errorMessage: z.string().optional(),
+});
+export type AiProviderHealth = z.infer<typeof aiProviderHealthSchema>;
+
 export const aiProviderViewSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),

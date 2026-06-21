@@ -11,6 +11,7 @@ import {
   deleteProvider,
   listModels,
   setCapabilityOverride,
+  testProviderConnection,
   updateProvider,
 } from './ai-admin';
 
@@ -61,5 +62,30 @@ describe('AI administration service', () => {
       expect.objectContaining({ capability: 'text_generation', supported: true, source: 'manual' }),
     );
     await expect(assignPurpose(ctx, 'wiki_text', model.id)).resolves.toMatchObject({ modelId: model.id });
+  });
+
+  it('guards synchronous connection tests before reaching the network', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    // Only admins may probe a provider connection.
+    await expect(
+      testProviderConnection(buildUserCtx(adminId, 'editor'), {
+        mode: 'existing',
+        providerId: '00000000-0000-4000-8000-000000000000',
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    // Testing a missing provider fails fast without a network call.
+    await expect(
+      testProviderConnection(ctx, { mode: 'existing', providerId: '00000000-0000-4000-8000-000000000000' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    // A draft config whose vendor cannot serve the capability is rejected up front.
+    await expect(
+      testProviderConnection(ctx, {
+        mode: 'draft',
+        type: 'image',
+        vendor: 'anthropic',
+        baseUrl: 'https://example.com/v1',
+        credentials: { apiKey: 'key' },
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 });

@@ -1940,6 +1940,34 @@
         }
       }
     },
+    "/ai/providers/test": {
+      "post": {
+        "operationId": "post-ai-providers-test",
+        "summary": "Test an AI provider connection synchronously @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/indexes/{id}/page-retries": {
       "post": {
         "operationId": "post-ai-indexes-{id}-page-retries",
