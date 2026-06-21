@@ -425,26 +425,7 @@
         "tags": [
           "AI"
         ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "feature",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example"
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example"
-          }
-        ],
+        "parameters": [],
         "security": [
           {
             "BearerAuth": []

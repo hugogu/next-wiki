@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, isNull, lt } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt } from 'drizzle-orm';
 import type {
   AiActionAccepted,
   AiActionEvent,
@@ -209,21 +209,37 @@ export async function getAction(ctx: PermCtx, actionId: string): Promise<AiActio
 
 export async function listActions(
   ctx: PermCtx,
-  filters: { feature?: AiActionFeature; status?: AiActionStatus; limit?: number } = {},
-): Promise<AiActionView[]> {
+  filters: {
+    feature?: AiActionFeature;
+    status?: AiActionStatus;
+    providerId?: string;
+    modelId?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<{ items: AiActionView[]; total: number }> {
   if (!can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to view AI actions');
   }
   const predicates = [];
   if (filters.feature) predicates.push(eq(schema.aiActions.feature, filters.feature));
   if (filters.status) predicates.push(eq(schema.aiActions.status, filters.status));
-  const rows = await db
-    .select()
-    .from(schema.aiActions)
-    .where(predicates.length ? and(...predicates) : undefined)
-    .orderBy(desc(schema.aiActions.queuedAt))
-    .limit(Math.min(filters.limit ?? 100, 200));
-  return Promise.all(rows.map(toView));
+  if (filters.providerId) predicates.push(eq(schema.aiActions.providerId, filters.providerId));
+  if (filters.modelId) predicates.push(eq(schema.aiActions.modelId, filters.modelId));
+  const where = predicates.length ? and(...predicates) : undefined;
+  const limit = Math.min(filters.limit ?? 50, 200);
+  const offset = Math.max(filters.offset ?? 0, 0);
+  const [rows, totals] = await Promise.all([
+    db
+      .select()
+      .from(schema.aiActions)
+      .where(where)
+      .orderBy(desc(schema.aiActions.queuedAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ value: count() }).from(schema.aiActions).where(where),
+  ]);
+  return { items: await Promise.all(rows.map(toView)), total: totals[0]?.value ?? 0 };
 }
 
 export async function requestActionCancellation(ctx: PermCtx, actionId: string): Promise<AiActionView> {

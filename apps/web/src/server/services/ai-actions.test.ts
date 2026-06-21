@@ -8,6 +8,7 @@ import {
   createAction,
   getAction,
   getActionEvents,
+  listActions,
   readActionInput,
   requestActionCancellation,
 } from './ai-actions';
@@ -37,5 +38,23 @@ describe('AI actions', () => {
     const cancelled = await requestActionCancellation(ctx, action.id);
     expect(cancelled.status).toBe('queued');
     expect((await getAction(ctx, action.id)).id).toBe(action.id);
+  });
+
+  it('paginates the audit listing with limit/offset and a total count', async () => {
+    const expiresAt = new Date(Date.now() + 60_000);
+    await db.insert(schema.aiActions).values(
+      Array.from({ length: 5 }, () => ({ feature: 'provider_test' as const, actorUserId: userId, expiresAt })),
+    );
+    const ctx = buildUserCtx(userId, 'admin');
+    const firstPage = await listActions(ctx, { limit: 2, offset: 0 });
+    expect(firstPage.total).toBe(5);
+    expect(firstPage.items).toHaveLength(2);
+    const lastPage = await listActions(ctx, { limit: 2, offset: 4 });
+    expect(lastPage.total).toBe(5);
+    expect(lastPage.items).toHaveLength(1);
+  });
+
+  it('rejects audit listing for callers without manage_ai permission', async () => {
+    await expect(listActions(buildUserCtx(userId, 'editor'), {})).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });
