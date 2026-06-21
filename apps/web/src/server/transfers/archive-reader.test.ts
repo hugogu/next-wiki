@@ -57,6 +57,24 @@ async function writeZip(name: string, buffer: Buffer): Promise<string> {
   return filePath;
 }
 
+/**
+ * yazl refuses to add unsafe metadata paths, so build the entry with a
+ * same-length safe placeholder and patch the bytes (which appear verbatim in
+ * the local and central headers) to smuggle the malicious path into the zip.
+ */
+async function zipWithRawPath(unsafePath: string): Promise<Buffer> {
+  const placeholder = 'a'.repeat(Buffer.byteLength(unsafePath, 'latin1'));
+  const zip = new ZipFile();
+  zip.addBuffer(Buffer.from('x'), placeholder);
+  const buffer = await finalize(zip);
+  const from = Buffer.from(placeholder, 'latin1');
+  const to = Buffer.from(unsafePath, 'latin1');
+  for (let i = buffer.indexOf(from); i !== -1; i = buffer.indexOf(from, i + 1)) {
+    to.copy(buffer, i);
+  }
+  return buffer;
+}
+
 function makeManifest(opts: {
   pages?: unknown[];
   assets?: unknown[];
@@ -80,26 +98,20 @@ const manifestJson = (files?: { entry: string; sha256: string; sizeBytes: number
 
 describe('inspectPortableArchive malicious inputs', () => {
   it('rejects path traversal', async () => {
-    const zip = new ZipFile();
-    zip.addBuffer(Buffer.from('x'), '../escape.md');
     await expect(
-      inspectPortableArchive(await writeZip('traversal.zip', await finalize(zip))),
+      inspectPortableArchive(await writeZip('traversal.zip', await zipWithRawPath('../escape.md'))),
     ).rejects.toMatchObject({ code: 'INVALID_ARCHIVE' });
   });
 
   it('rejects an absolute path', async () => {
-    const zip = new ZipFile();
-    zip.addBuffer(Buffer.from('x'), '/etc/passwd');
     await expect(
-      inspectPortableArchive(await writeZip('absolute.zip', await finalize(zip))),
+      inspectPortableArchive(await writeZip('absolute.zip', await zipWithRawPath('/etc/passwd'))),
     ).rejects.toMatchObject({ code: 'INVALID_ARCHIVE' });
   });
 
   it('rejects a Windows drive-letter path', async () => {
-    const zip = new ZipFile();
-    zip.addBuffer(Buffer.from('x'), 'C:/secret.txt');
     await expect(
-      inspectPortableArchive(await writeZip('drive.zip', await finalize(zip))),
+      inspectPortableArchive(await writeZip('drive.zip', await zipWithRawPath('C:/secret.txt'))),
     ).rejects.toMatchObject({ code: 'INVALID_ARCHIVE' });
   });
 

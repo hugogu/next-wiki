@@ -4,7 +4,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx, type PermCtx } from '@/server/permissions';
 import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { writePortableArchive } from '@/server/transfers/archive-writer';
 import { sha256 } from '@/server/transfers/manifest';
@@ -14,9 +13,11 @@ import { runTransferPreview } from './transfer-preview';
 // transitive config import) is evaluated, so inspectPortableArchive reads from
 // the same dir writePortableArchive writes to.
 const { tempDir } = vi.hoisted(() => {
+  /* eslint-disable @typescript-eslint/no-require-imports -- vi.hoisted runs before ESM imports initialize */
   const fs = require('node:fs') as typeof import('node:fs');
   const os = require('node:os') as typeof import('node:os');
   const path = require('node:path') as typeof import('node:path');
+  /* eslint-enable @typescript-eslint/no-require-imports */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nw-transfer-preview-'));
   process.env.TRANSFER_ARTIFACT_BASE_PATH = dir;
   return { tempDir: dir };
@@ -28,7 +29,6 @@ const TRUNCATE =
 const NOW = '2026-06-21T00:00:00.000Z';
 
 let adminId: string;
-let adminCtx: PermCtx;
 let spaceId: string;
 
 beforeAll(async () => {
@@ -42,7 +42,6 @@ beforeAll(async () => {
     })
     .returning();
   adminId = admin!.id;
-  adminCtx = buildUserCtx(adminId, 'admin');
   const [space] = await db
     .insert(schema.spaces)
     .values({ slug: 'default', name: 'Default' })
@@ -132,10 +131,10 @@ describe('runTransferPreview (archive_preview)', () => {
       pages: [{ id: '1', path: 'docs/a' }, { id: '2', path: 'docs/b' }],
       assets: [{ id: 'asset-1', bytes: Buffer.from([1, 2, 3, 4]), contentType: 'image/png' }],
     });
-    await runTransferPreview(run.id);
+    await runTransferPreview(run!.id);
 
     const updated = await db.query.transferRuns.findFirst({
-      where: eq(schema.transferRuns.id, run.id),
+      where: eq(schema.transferRuns.id, run!.id),
     });
     expect(updated?.status).toBe('completed');
     expect(updated?.sourceFingerprint).toBe(stored.contentHash);
@@ -170,10 +169,10 @@ describe('runTransferPreview (archive_preview)', () => {
     const { run } = await buildArchiveAndRun({
       pages: [{ id: '10', path: 'docs/conflict' }, { id: '11', path: 'docs/new' }],
     });
-    await runTransferPreview(run.id);
+    await runTransferPreview(run!.id);
 
     const updated = await db.query.transferRuns.findFirst({
-      where: eq(schema.transferRuns.id, run.id),
+      where: eq(schema.transferRuns.id, run!.id),
     });
     expect(updated?.createdItems).toBe(1);
     expect(updated?.skippedItems).toBe(1);
@@ -203,10 +202,10 @@ describe('runTransferPreview (archive_preview)', () => {
       pages: [{ id: '20', path: 'docs/replace' }],
       conflictStrategy: 'replace',
     });
-    await runTransferPreview(run.id);
+    await runTransferPreview(run!.id);
 
     const updated = await db.query.transferRuns.findFirst({
-      where: eq(schema.transferRuns.id, run.id),
+      where: eq(schema.transferRuns.id, run!.id),
     });
     expect(updated?.replacedItems).toBe(1);
     expect(updated?.createdItems).toBe(0);
@@ -236,10 +235,10 @@ describe('runTransferPreview (archive_preview)', () => {
         expiresAt: new Date(Date.now() + 3_600_000),
       })
       .returning();
-    await runTransferPreview(run.id);
+    await runTransferPreview(run!.id);
 
     const failed = await db.query.transferRuns.findFirst({
-      where: eq(schema.transferRuns.id, run.id),
+      where: eq(schema.transferRuns.id, run!.id),
     });
     expect(failed?.status).toBe('failed');
     expect(failed?.errorCode).toBe('INVALID_ARCHIVE');
@@ -268,10 +267,10 @@ describe('runTransferPreview (archive_preview)', () => {
         expiresAt: new Date(Date.now() + 3_600_000),
       })
       .returning();
-    await runTransferPreview(run.id);
+    await runTransferPreview(run!.id);
 
     const failed = await db.query.transferRuns.findFirst({
-      where: eq(schema.transferRuns.id, run.id),
+      where: eq(schema.transferRuns.id, run!.id),
     });
     expect(failed?.status).toBe('failed');
     expect(failed?.errorCode).toBe('INVALID_ARCHIVE');

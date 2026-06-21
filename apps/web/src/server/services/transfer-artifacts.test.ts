@@ -15,9 +15,11 @@ import * as artifacts from './transfer-artifacts';
 // the service under test uses a writable path and a deterministic limit. With
 // vitest's per-file module isolation, the env parse runs after this callback.
 const { tempDir, maxBytes } = vi.hoisted(() => {
+  /* eslint-disable @typescript-eslint/no-require-imports -- vi.hoisted runs before ESM imports initialize */
   const fs = require('node:fs') as typeof import('node:fs');
   const os = require('node:os') as typeof import('node:os');
   const path = require('node:path') as typeof import('node:path');
+  /* eslint-enable @typescript-eslint/no-require-imports */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nw-transfer-artifacts-'));
   process.env.TRANSFER_ARTIFACT_BASE_PATH = dir;
   process.env.TRANSFER_MAX_COMPRESSED_BYTES = '2048';

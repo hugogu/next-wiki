@@ -68,8 +68,8 @@ download without using any import feature.
 
 - [X] T018 [P] [US1] Add manifest/frontmatter round-trip, deterministic ordering, path encoding, and compatibility tests in `apps/web/src/server/transfers/manifest.test.ts`
 - [X] T019 [P] [US1] Add streaming ZIP generation, checksum, shared-image deduplication, bounded-memory, and atomic-finalize tests in `apps/web/src/server/transfers/archive-writer.test.ts`
-- [ ] T020 [P] [US1] Add export snapshot tests covering published-only selection, revision consistency, unavailable assets, and external-image warnings in `apps/web/src/server/jobs/transfer-export.test.ts`
-- [ ] T021 [P] [US1] Add admin-only export creation, status, artifact metadata, and download route tests in `apps/web/app/api/transfers/transfers-export.test.ts`
+- [X] T020 [P] [US1] Add export snapshot tests covering published-only selection, revision consistency, unavailable assets, and external-image warnings in `apps/web/src/server/jobs/transfer-export.test.ts`
+- [X] T021 [P] [US1] Add admin-only export creation, status, artifact metadata, and download route tests in `apps/web/app/api/transfers/transfers-export.test.ts`
 
 ### Implementation for User Story 1
 
@@ -100,9 +100,9 @@ mutation for every unsafe archive fixture.
 
 ### Tests for User Story 2
 
-- [ ] T032 [P] [US2] Add raw ZIP upload tests for byte limits, interrupted overwrite, ownership, hashing, atomic finalize, and invalid media type in `apps/web/src/server/services/transfer-artifacts.test.ts`
-- [ ] T033 [P] [US2] Add malicious archive tests for traversal, absolute/backslash paths, symlinks, duplicate normalized paths, undeclared files, truncation, zip bombs, count limits, and checksum mismatch in `apps/web/src/server/transfers/archive-reader.test.ts`
-- [ ] T034 [P] [US2] Add preview planning tests for counts, conflicts, unsupported entries, stale fingerprints, and default skip behavior in `apps/web/src/server/jobs/transfer-preview.test.ts`
+- [X] T032 [P] [US2] Add raw ZIP upload tests for byte limits, interrupted overwrite, ownership, hashing, atomic finalize, and invalid media type in `apps/web/src/server/services/transfer-artifacts.test.ts`
+- [X] T033 [P] [US2] Add malicious archive tests for traversal, absolute/backslash paths, symlinks, duplicate normalized paths, undeclared files, truncation, zip bombs, count limits, and checksum mismatch in `apps/web/src/server/transfers/archive-reader.test.ts`
+- [X] T034 [P] [US2] Add preview planning tests for counts, conflicts, unsupported entries, stale fingerprints, and default skip behavior in `apps/web/src/server/jobs/transfer-preview.test.ts`
 - [ ] T035 [P] [US2] Add archive apply tests for create/skip/replace, revision preservation, asset deduplication, atomic item failure, link rewriting, resume, and retry in `apps/web/src/server/jobs/transfer-import.test.ts`
 - [ ] T036 [P] [US2] Add archive upload/preview/import authorization and API contract tests in `apps/web/app/api/transfers/transfers-archive-import.test.ts`
 

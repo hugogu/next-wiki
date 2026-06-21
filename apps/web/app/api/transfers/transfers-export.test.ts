@@ -15,6 +15,12 @@ const artifacts = vi.hoisted(() => ({
 }));
 const artifactStore = vi.hoisted(() => ({ read: vi.fn() }));
 
+// The transfer routes are wrapped with withApiAudit, which reads next/headers
+// and resolves the actor outside a request scope. Bypass it so the tests can
+// invoke the handlers directly against the mocked session context.
+vi.mock('@/server/api/audit-wrapper', () => ({
+  withApiAudit: (handler: unknown) => handler,
+}));
 vi.mock('@/server/api/session', () => ({
   // Admin actor by default; individual tests override via mockResolvedValueOnce.
   createApiContext: vi.fn(async () => ({
