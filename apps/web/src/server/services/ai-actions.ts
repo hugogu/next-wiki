@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, lt } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type {
   AiActionAccepted,
   AiActionEvent,
@@ -7,6 +7,7 @@ import type {
   AiActionView,
   AiEventType,
   AiQuestionMode,
+  AiUsageStatsView,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -245,6 +246,45 @@ async function toView(row: typeof schema.aiActions.$inferSelect): Promise<AiActi
 
 export async function getAction(ctx: PermCtx, actionId: string): Promise<AiActionView> {
   return toView(await requireActionAccess(ctx, actionId));
+}
+
+const USAGE_CATEGORY: Partial<Record<AiActionFeature, keyof AiUsageStatsView>> = {
+  wiki_question: 'chat',
+  text_optimization: 'chat',
+  semantic_search: 'embedding',
+  index_rebuild: 'embedding',
+  image_generation: 'image',
+};
+
+export async function getUsageStats(ctx: PermCtx): Promise<AiUsageStatsView> {
+  if (!can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to view AI usage');
+  }
+  const token = (field: string) =>
+    sql<number>`coalesce(sum((${schema.aiActions.usageMetadata} ->> ${field})::numeric), 0)`;
+  const rows = await db
+    .select({
+      feature: schema.aiActions.feature,
+      requests: count(),
+      inputTokens: token('inputTokens'),
+      outputTokens: token('outputTokens'),
+      cachedInputTokens: token('cachedInputTokens'),
+    })
+    .from(schema.aiActions)
+    .where(eq(schema.aiActions.status, 'completed'))
+    .groupBy(schema.aiActions.feature);
+  const empty = () => ({ requests: 0, inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 });
+  const stats: AiUsageStatsView = { chat: empty(), embedding: empty(), image: empty() };
+  for (const row of rows) {
+    const category = USAGE_CATEGORY[row.feature];
+    if (!category) continue;
+    const bucket = stats[category];
+    bucket.requests += Number(row.requests);
+    bucket.inputTokens += Number(row.inputTokens);
+    bucket.outputTokens += Number(row.outputTokens);
+    bucket.cachedInputTokens += Number(row.cachedInputTokens);
+  }
+  return stats;
 }
 
 export async function listActions(

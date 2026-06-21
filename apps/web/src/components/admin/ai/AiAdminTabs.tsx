@@ -21,9 +21,10 @@ import { ModelCatalog } from './ModelCatalog';
 import { IndexList } from './IndexList';
 import { AiActionAuditTable } from './AiActionAuditTable';
 import { ModelDetectorPanel } from './ModelDetectorPanel';
+import { UsagePanel } from './UsagePanel';
 
-type AiAdminTab = 'detector' | 'chat' | 'embedding' | 'image' | 'indexes' | 'actions';
-const TABS: AiAdminTab[] = ['detector', 'chat', 'embedding', 'image', 'indexes', 'actions'];
+type AiAdminTab = 'detector' | 'chat' | 'embedding' | 'image' | 'indexes' | 'actions' | 'usage';
+const TABS: AiAdminTab[] = ['detector', 'chat', 'embedding', 'image', 'indexes', 'actions', 'usage'];
 
 const purposeByCapability = {
   chat: 'wiki_text',
@@ -101,6 +102,7 @@ export function AiAdminTabs({
       status: indexes.some((index) => index.isActive) ? t('admin.ai.index.active') : undefined,
     },
     { id: 'actions' as const, label: t('admin.ai.tabs.actions') },
+    { id: 'usage' as const, label: t('admin.ai.tabs.usage') },
   ];
 
   return (
@@ -149,6 +151,7 @@ export function AiAdminTabs({
         {selected === 'actions' && (
           <AiActionAuditTable actions={actions} total={actionsTotal} providers={providers} models={models} />
         )}
+        {selected === 'usage' && <UsagePanel />}
       </SettingsTabs>
 
       {addProviderOpen && (

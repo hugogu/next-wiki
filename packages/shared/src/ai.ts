@@ -362,6 +362,21 @@ export const aiActionViewSchema = z.object({
   expiresAt: z.string(),
 });
 export type AiActionView = z.infer<typeof aiActionViewSchema>;
+
+export const aiUsageCategorySchema = z.object({
+  requests: z.number().int().nonnegative(),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  cachedInputTokens: z.number().int().nonnegative(),
+});
+export type AiUsageCategory = z.infer<typeof aiUsageCategorySchema>;
+export const aiUsageStatsViewSchema = z.object({
+  chat: aiUsageCategorySchema,
+  embedding: aiUsageCategorySchema,
+  image: aiUsageCategorySchema,
+});
+export type AiUsageStatsView = z.infer<typeof aiUsageStatsViewSchema>;
+
 export const aiActionAcceptedSchema = z.object({
   id: z.string().uuid(),
   feature: aiActionFeatureSchema,

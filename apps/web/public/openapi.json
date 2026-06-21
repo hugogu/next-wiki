@@ -1643,6 +1643,34 @@
         }
       }
     },
+    "/ai/usage": {
+      "get": {
+        "operationId": "get-ai-usage",
+        "summary": "AI usage statistics @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/assignments/{purpose}": {
       "put": {
         "operationId": "put-ai-assignments-{purpose}",

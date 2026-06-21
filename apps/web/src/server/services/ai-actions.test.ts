@@ -8,6 +8,7 @@ import {
   createAction,
   getAction,
   getActionEvents,
+  getUsageStats,
   listActions,
   readActionInput,
   recordTerminalAction,
@@ -79,5 +80,22 @@ describe('AI actions', () => {
     });
     expect(items[0]?.requestMetadata).toMatchObject({ mode: 'draft', vendor: 'minimax' });
     expect(items[0]?.resultMetadata).toMatchObject({ ok: false, latencyMs: 5 });
+  });
+
+  it('aggregates completed token usage by capability category', async () => {
+    const expiresAt = new Date(Date.now() + 60_000);
+    await db.insert(schema.aiActions).values([
+      { feature: 'wiki_question', status: 'completed', actorUserId: userId, usageMetadata: { inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 }, expiresAt },
+      { feature: 'text_optimization', status: 'completed', actorUserId: userId, usageMetadata: { inputTokens: 20, outputTokens: 5 }, expiresAt },
+      { feature: 'semantic_search', status: 'completed', actorUserId: userId, usageMetadata: { inputTokens: 30 }, expiresAt },
+      { feature: 'image_generation', status: 'completed', actorUserId: userId, usageMetadata: {}, expiresAt },
+      // Failed actions and operational features are excluded from the totals.
+      { feature: 'wiki_question', status: 'failed', actorUserId: userId, usageMetadata: { inputTokens: 999 }, expiresAt },
+      { feature: 'provider_test', status: 'completed', actorUserId: userId, usageMetadata: {}, expiresAt },
+    ]);
+    const stats = await getUsageStats(buildUserCtx(userId, 'admin'));
+    expect(stats.chat).toEqual({ requests: 2, inputTokens: 120, outputTokens: 55, cachedInputTokens: 10 });
+    expect(stats.embedding).toEqual({ requests: 1, inputTokens: 30, outputTokens: 0, cachedInputTokens: 0 });
+    expect(stats.image.requests).toBe(1);
   });
 });
