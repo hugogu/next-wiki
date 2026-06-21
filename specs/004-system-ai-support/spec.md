@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-system-ai-support`
 **Created**: 2026-06-20
-**Status**: Draft
+**Status**: Implemented
 **Input**: User description: "系统级配置多个 AI Provider，支持模型能力识别、Wiki 内容向量化与向量检索、基于 Wiki 内容生成配图、优化选中文本，以及以全文或 RAG 检索模式回答 Wiki 问题。生图、文本优化和问答由管理员按用户控制开关，暂不支持用户级 AI Provider。"
 
 ## User Scenarios & Testing *(mandatory)*
