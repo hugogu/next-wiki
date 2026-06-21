@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { TransferRunView } from '@next-wiki/shared';
 import {
   DataTable,
@@ -13,6 +15,8 @@ import {
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTranslation } from '@/i18n/client';
 
+const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warnings', 'failed', 'cancelled'];
+
 function tone(status: TransferRunView['status']) {
   if (status === 'completed') return 'success' as const;
   if (status === 'completed_with_warnings') return 'warning' as const;
@@ -22,6 +26,15 @@ function tone(status: TransferRunView['status']) {
 
 export function TransferRunList({ runs }: { runs: TransferRunView[] }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  // Refresh while any run is still in flight so progress advances live instead
+  // of only updating once the run finishes.
+  const hasActive = runs.some((run) => !TERMINAL.includes(run.status));
+  useEffect(() => {
+    if (!hasActive) return;
+    const timer = setInterval(() => router.refresh(), 2_000);
+    return () => clearInterval(timer);
+  }, [hasActive, router]);
   if (runs.length === 0) {
     return <p className="rounded-lg border border-border p-md text-sm text-muted">{t('admin.transfers.history.empty')}</p>;
   }

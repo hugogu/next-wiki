@@ -251,6 +251,8 @@ export const en = {
   'admin.transfers.wikijs.import': 'Import',
   'admin.transfers.wikijs.delete': 'Delete',
   'admin.transfers.history.empty': 'No transfer runs yet.',
+  'admin.transfers.detail.warningCount': '{{count}} warnings',
+  'admin.transfers.detail.noItems': 'No items yet.',
   'admin.transfers.table.kind': 'Operation',
   'admin.transfers.table.status': 'Status',
   'admin.transfers.table.progress': 'Progress',

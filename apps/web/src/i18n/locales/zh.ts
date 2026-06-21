@@ -251,6 +251,8 @@ export const zh: Translations = {
   'admin.transfers.wikijs.import': '导入',
   'admin.transfers.wikijs.delete': '删除',
   'admin.transfers.history.empty': '暂无导入导出运行记录。',
+  'admin.transfers.detail.warningCount': '{{count}} 项警告',
+  'admin.transfers.detail.noItems': '暂无明细项。',
   'admin.transfers.table.kind': '操作',
   'admin.transfers.table.status': '状态',
   'admin.transfers.table.progress': '进度',

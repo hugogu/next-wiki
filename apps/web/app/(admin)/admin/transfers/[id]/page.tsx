@@ -17,18 +17,18 @@ export default async function TransferDetailPage({
   const ctx = { actor };
   if (!can(ctx, 'manage_transfers', { kind: 'transfers' })) notFound();
   let result: Awaited<ReturnType<typeof transfers.get>>;
-  let items: Awaited<ReturnType<typeof transfers.listItems>>['items'];
+  let itemList: Awaited<ReturnType<typeof transfers.listItems>>;
   try {
     const { id } = await params;
-    const [run, itemList] = await Promise.all([
+    const [run, list] = await Promise.all([
       transfers.get(ctx, id),
-      transfers.listItems(ctx, id, { limit: 100, offset: 0 }),
+      transfers.listItems(ctx, id, { limit: 20, offset: 0 }),
     ]);
     result = run;
-    items = itemList.items;
+    itemList = list;
   } catch (error) {
     if (error instanceof DomainError) notFound();
     throw error;
   }
-  return <Layout admin><div className="px-lg py-md"><TransferRunDetail run={result} items={items} /></div></Layout>;
+  return <Layout admin><div className="px-lg py-md"><TransferRunDetail run={result} items={itemList.items} total={itemList.total} /></div></Layout>;
 }
