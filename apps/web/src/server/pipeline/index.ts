@@ -98,7 +98,9 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(remarkRehype)
     .use(rehypeSanitize, sanitizeSchema)
     .use(() => setImageLoading)
-    .use(rehypeKatex)
+    // Render imported/third-party math best-effort without flooding logs with
+    // KaTeX strict-mode warnings (Unicode in math, comments, etc.).
+    .use(rehypeKatex, { strict: 'ignore' })
     .use(() => wrapCodeBlocks)
     .use(rehypeHighlight)
     .use(rehypeStringify)

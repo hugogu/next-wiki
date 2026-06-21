@@ -154,6 +154,25 @@ article .prose > h1:first-child {
   margin-bottom: var(--space-md);
 }
 
+.prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--color-primary-hover);
+}
+
+/* Display math should always sit on its own line with breathing room, even
+   when adjacent blocks are not separated by a blank line in the source. */
+.prose .katex-display {
+  display: block;
+  margin: var(--space-md) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .prose pre {
   background-color: var(--color-surface-elevated);
   color: var(--color-foreground);
