@@ -41,6 +41,7 @@ export function ProviderForm({
   );
   const initialVendor = vendors[0]!.vendor;
   const [name, setName] = useState('');
+  const [nameEdited, setNameEdited] = useState(false);
   const [vendor, setVendor] = useState<AiProviderVendor>(initialVendor);
   const [baseUrl, setBaseUrl] = useState(
     getAiProviderVendor(initialVendor).baseUrls[type] ?? '',
@@ -51,6 +52,12 @@ export function ProviderForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Until the admin types their own label, default it to the model id (for
+  // vendors entered manually) or the vendor name, so they rarely have to.
+  const manualModel = getAiProviderVendor(vendor).modelDiscovery === 'none';
+  const suggestedName = manualModel && manualModelId.trim() ? manualModelId.trim() : t(VENDOR_LABELS[vendor]);
+  const effectiveName = nameEdited ? name : suggestedName;
+
   return (
     <form
       className="space-y-md"
@@ -60,7 +67,7 @@ export function ProviderForm({
         setError(null);
         try {
           const provider = await apiPost<unknown, AiProviderView>('/api/ai/providers', {
-            name,
+            name: effectiveName,
             type,
             vendor,
             baseUrl,
@@ -87,7 +94,14 @@ export function ProviderForm({
       {error && <Alert>{error}</Alert>}
       <label className="block space-y-xs">
         <span className="text-sm font-medium">{t('admin.ai.providers.name')}</span>
-        <Input value={name} onChange={(event) => setName(event.target.value)} required />
+        <Input
+          value={effectiveName}
+          onChange={(event) => {
+            setNameEdited(true);
+            setName(event.target.value);
+          }}
+          required
+        />
       </label>
       <label className="block space-y-xs">
         <span className="text-sm font-medium">{t('admin.ai.providers.vendor')}</span>
