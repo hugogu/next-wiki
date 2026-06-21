@@ -12,6 +12,7 @@ import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
 import { appendActionEvent, finishAction, isCancellationRequested, readActionInput } from '@/server/services/ai-actions';
 import { assertEditableRevision } from '@/server/services/ai-optimization';
+import { getAssignedModel } from '@/server/services/ai-question';
 
 type ImageInput = {
   pageId: string;
@@ -23,6 +24,47 @@ type ImageInput = {
 // Image models cap their prompt length (MiniMax 1500, DALL·E ~4000 chars), so
 // keep the whole prompt comfortably under the smallest known limit.
 const IMAGE_PROMPT_MAX_CHARS = 1_400;
+// Above this, the raw content is condensed into a visual scene by the chat
+// model rather than truncated, so the illustration reflects the whole page.
+const IMAGE_PROMPT_SUMMARIZE_THRESHOLD = 1_000;
+
+/**
+ * Condense long page content into a concise visual scene description using the
+ * assigned chat model. Returns null when no chat model is configured or it
+ * yields nothing, so the caller can fall back to truncated raw content.
+ */
+async function summarizeForIllustration(actionId: string, title: string, source: string): Promise<string | null> {
+  let assigned;
+  try {
+    assigned = await getAssignedModel('wiki_text');
+  } catch {
+    return null;
+  }
+  const { model, provider } = assigned;
+  let summary = '';
+  for await (const event of createAiProviderAdapter(await providerRuntime(provider.id)).streamText({
+    actionId,
+    modelExternalId: model.externalId,
+    system:
+      'You write a concise visual scene description for a single thematic illustration. '
+      + 'Output only the description, under 1000 characters, no Markdown, no preamble.',
+    messages: [
+      {
+        role: 'user',
+        content:
+          `Summarize the following wiki page titled "${title}" into a vivid visual scene for a header illustration. `
+          + `Focus on concrete imagery; avoid text, UI and logos.\n\n${source.slice(0, 8_000)}`,
+      },
+    ],
+    maxOutputTokens: 500,
+    temperature: 0.4,
+    abortSignal: new AbortController().signal,
+  })) {
+    if (await isCancellationRequested(actionId)) throw new DomainError('CANCELLED', 'Image generation was cancelled');
+    if (event.type === 'delta') summary += event.text;
+  }
+  return summary.trim() || null;
+}
 
 async function readBoundedResponse(response: Response): Promise<Buffer> {
   if (!response.ok || !response.body) throw new DomainError('PROVIDER_UNAVAILABLE', 'Generated image could not be downloaded');
@@ -80,10 +122,18 @@ export async function runImageGenerationAction(actionId: string): Promise<void> 
   await assertAiFeature(ctx, 'image');
   const { page, revision } = await assertEditableRevision(ctx, input.pageId, input.revisionId);
   const source = input.source.kind === 'page' ? revision.contentSource ?? '' : input.source.text;
+  const baseInstruction =
+    `Create one relevant Wiki illustration for the page "${page.title}". `
+    + 'Do not include logos, watermarks, UI chrome, or large blocks of text. ';
+  const summary =
+    source.length > IMAGE_PROMPT_SUMMARIZE_THRESHOLD
+      ? await summarizeForIllustration(actionId, page.title, source)
+      : null;
+  if (await isCancellationRequested(actionId)) throw new DomainError('CANCELLED', 'Image generation was cancelled');
   const prompt = (
-    `Create one relevant Wiki illustration for the page "${page.title}". ` +
-    'Do not include logos, watermarks, UI chrome, or large blocks of text. ' +
-    `Use this Wiki content as the sole subject context:\n\n${source}`
+    summary
+      ? `${baseInstruction}Scene: ${summary}`
+      : `${baseInstruction}Use this Wiki content as the sole subject context:\n\n${source}`
   ).slice(0, IMAGE_PROMPT_MAX_CHARS);
   const output = await createAiProviderAdapter(await providerRuntime(action.providerId)).generateImage({
     actionId,
