@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { CheckIcon, PlusIcon, TrashIcon } from '@/components/icons';
+import { AudioIcon, CheckIcon, CircleIcon, EyeIcon, PlusIcon, SparklesIcon, TrashIcon, XIcon } from '@/components/icons';
 import { Switch } from '@/components/ui/Switch';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -31,6 +31,11 @@ const capabilityLabels: Record<ChatCapability, TranslationKey> = {
   audio: 'admin.ai.chatCapability.audio',
   thinking: 'admin.ai.chatCapability.thinking',
 };
+const capabilityIcons = {
+  vision: EyeIcon,
+  audio: AudioIcon,
+  thinking: SparklesIcon,
+} as const;
 
 export function ModelCatalog({
   models,
@@ -187,16 +192,19 @@ export function ModelCatalog({
                     <div className="flex flex-wrap gap-md">
                       {CHAT_CAPABILITIES.map((capability) => {
                         const current = model.capabilities.find((item) => item.capability === capability);
+                        const CapabilityIcon = capabilityIcons[capability];
                         return (
-                          <label key={capability} className="flex items-center gap-xs text-xs">
-                            <Switch
-                              checked={current?.supported === true}
-                              disabled={busy === `${model.id}:${capability}`}
-                              aria-label={`${model.displayName}: ${t(capabilityLabels[capability])}`}
-                              onClick={() => void toggle(model, capability, current?.supported !== true)}
-                            />
-                            <span>{t(capabilityLabels[capability])}</span>
-                          </label>
+                          <Tooltip key={capability} label={t(capabilityLabels[capability])}>
+                            <label className="flex items-center gap-xs">
+                              <Switch
+                                checked={current?.supported === true}
+                                disabled={busy === `${model.id}:${capability}`}
+                                aria-label={`${model.displayName}: ${t(capabilityLabels[capability])}`}
+                                onClick={() => void toggle(model, capability, current?.supported !== true)}
+                              />
+                              <CapabilityIcon className="h-4 w-4 text-muted" />
+                            </label>
+                          </Tooltip>
                         );
                       })}
                     </div>
@@ -217,9 +225,25 @@ export function ModelCatalog({
                   </>
                 )}
                 <DataTableCell>
-                  <StatusBadge tone={model.availability === 'available' ? 'success' : model.availability === 'unavailable' ? 'danger' : 'neutral'}>
-                    {t(`admin.ai.modelAvailability.${model.availability}` as TranslationKey)}
-                  </StatusBadge>
+                  <Tooltip label={t(`admin.ai.modelAvailability.${model.availability}` as TranslationKey)}>
+                    <span
+                      className={
+                        model.availability === 'available'
+                          ? 'text-success'
+                          : model.availability === 'unavailable'
+                            ? 'text-danger'
+                            : 'text-muted'
+                      }
+                    >
+                      {model.availability === 'available' ? (
+                        <CheckIcon className="h-4 w-4" />
+                      ) : model.availability === 'unavailable' ? (
+                        <XIcon className="h-4 w-4" />
+                      ) : (
+                        <CircleIcon className="h-4 w-4" />
+                      )}
+                    </span>
+                  </Tooltip>
                 </DataTableCell>
                 <DataTableCell align="right">
                   <div className="flex items-center justify-end gap-xs">
