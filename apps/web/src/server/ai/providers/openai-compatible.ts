@@ -7,6 +7,7 @@ import {
   type EmbeddingOutput,
   type ImageGenerationInput,
   type ImageGenerationOutput,
+  type ProviderHealth,
   type ProviderRuntimeConfig,
   type TextGenerationEvent,
   type TextGenerationInput,
@@ -32,7 +33,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
   readonly kind: AiProviderKind = 'openai_compatible';
   constructor(protected readonly config: ProviderRuntimeConfig) {}
 
-  async testConnection() {
+  async testConnection(): Promise<ProviderHealth> {
     const started = Date.now();
     try {
       const response = await providerFetch(this.config, 'models', {}, env.AI_PROVIDER_CONNECT_TIMEOUT_MS);
