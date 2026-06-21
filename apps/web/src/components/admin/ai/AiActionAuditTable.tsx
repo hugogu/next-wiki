@@ -62,6 +62,12 @@ const STATUS_ICONS: Record<AiActionStatus, { icon: typeof CheckIcon; className: 
   expired: { icon: CircleIcon, className: 'text-muted' },
 };
 
+const TOKEN_FIELDS: Array<{ key: string; label: TranslationKey }> = [
+  { key: 'inputTokens', label: 'admin.ai.actions.inputTokens' },
+  { key: 'outputTokens', label: 'admin.ai.actions.outputTokens' },
+  { key: 'cachedInputTokens', label: 'admin.ai.actions.cachedInputTokens' },
+];
+
 const FEATURES = Object.keys(FEATURE_LABELS) as AiActionFeature[];
 const STATUSES = Object.keys(STATUS_LABELS) as AiActionStatus[];
 
@@ -153,7 +159,7 @@ export function AiActionAuditTable({
           <DataTableHeader>{t('admin.ai.actions.table.status')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.user')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.providerModel')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.actions.table.error')}</DataTableHeader>
+          <DataTableHeader align="right">{t('admin.ai.actions.table.detail')}</DataTableHeader>
         </DataTableRow></DataTableHead>
         <DataTableBody>
           {items.map((action) => (
@@ -172,16 +178,14 @@ export function AiActionAuditTable({
               </DataTableCell>
               <DataTableCell className="font-mono text-xs">{action.actorUserId ?? t('admin.ai.actions.system')}</DataTableCell>
               <DataTableCell>{[action.providerName, action.modelName].filter(Boolean).join(' / ') || '—'}</DataTableCell>
-              <DataTableCell>
-                {action.errorCode ? (
-                  <button
-                    type="button"
-                    className="text-danger hover:underline"
-                    onClick={() => setViewing(action)}
-                  >
-                    {action.errorCode}
-                  </button>
-                ) : '—'}
+              <DataTableCell align="right">
+                <button
+                  type="button"
+                  className={action.errorCode ? 'text-danger hover:underline' : 'text-primary hover:underline'}
+                  onClick={() => setViewing(action)}
+                >
+                  {action.errorCode ?? t('admin.ai.actions.view')}
+                </button>
               </DataTableCell>
             </DataTableRow>
           ))}
@@ -210,12 +214,27 @@ export function AiActionAuditTable({
 
       {viewing && (
         <ModalDialog
-          title={t('admin.ai.actions.errorDetail')}
-          description={[t(FEATURE_LABELS[viewing.feature]), viewing.errorCode].filter(Boolean).join(' · ')}
+          title={t('admin.ai.actions.detailTitle')}
+          description={[t(FEATURE_LABELS[viewing.feature]), t(STATUS_LABELS[viewing.status]), viewing.errorCode]
+            .filter(Boolean)
+            .join(' · ')}
           onClose={() => setViewing(null)}
         >
           <div className="space-y-sm">
             {viewing.errorMessage && <p className="text-sm text-danger">{viewing.errorMessage}</p>}
+            {TOKEN_FIELDS.some((field) => typeof viewing.usageMetadata[field.key] === 'number') && (
+              <section className="space-y-xs">
+                <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.usage')}</h3>
+                <dl className="grid grid-cols-3 gap-sm rounded-md border border-border bg-surface p-sm text-sm">
+                  {TOKEN_FIELDS.filter((field) => typeof viewing.usageMetadata[field.key] === 'number').map((field) => (
+                    <div key={field.key}>
+                      <dt className="text-xs text-muted">{t(field.label)}</dt>
+                      <dd className="font-medium">{(viewing.usageMetadata[field.key] as number).toLocaleString()}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
             {Object.keys(viewing.requestMetadata).length > 0 && (
               <section className="space-y-xs">
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.request')}</h3>
@@ -232,12 +251,14 @@ export function AiActionAuditTable({
                 </pre>
               </section>
             )}
-            <section className="space-y-xs">
-              <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.stack')}</h3>
-              <pre className="max-h-96 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
-                {viewing.errorDetail ?? t('admin.ai.actions.noDetail')}
-              </pre>
-            </section>
+            {viewing.errorDetail && (
+              <section className="space-y-xs">
+                <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.stack')}</h3>
+                <pre className="max-h-96 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
+                  {viewing.errorDetail}
+                </pre>
+              </section>
+            )}
           </div>
         </ModalDialog>
       )}

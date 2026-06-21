@@ -146,7 +146,11 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           if (!data || data === '[DONE]') continue;
           let event: {
             choices?: Array<{ delta?: { content?: unknown }; finish_reason?: unknown }>;
-            usage?: { prompt_tokens?: number; completion_tokens?: number };
+            usage?: {
+              prompt_tokens?: number;
+              completion_tokens?: number;
+              prompt_tokens_details?: { cached_tokens?: number };
+            };
           };
           try {
             event = JSON.parse(data);
@@ -156,7 +160,14 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           const choice = event.choices?.[0];
           const text = choice?.delta?.content;
           if (typeof text === 'string' && text) yield { type: 'delta', text: text.slice(0, 64_000) };
-          if (event.usage) yield { type: 'usage', inputTokens: event.usage.prompt_tokens, outputTokens: event.usage.completion_tokens };
+          if (event.usage) {
+            yield {
+              type: 'usage',
+              inputTokens: event.usage.prompt_tokens,
+              outputTokens: event.usage.completion_tokens,
+              cachedInputTokens: event.usage.prompt_tokens_details?.cached_tokens,
+            };
+          }
           if (choice?.finish_reason) yield { type: 'done', finishReason: String(choice.finish_reason) };
         }
       }
