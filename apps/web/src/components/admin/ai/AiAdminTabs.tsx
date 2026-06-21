@@ -41,12 +41,14 @@ export function AiAdminTabs({
   assignments,
   indexes,
   actions,
+  actionsTotal,
 }: {
   providers: AiProviderView[];
   models: AiModelView[];
   assignments: Array<{ purpose: AiPurpose; modelId: string }>;
   indexes: AiIndexView[];
   actions: AiActionView[];
+  actionsTotal: number;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -134,7 +136,9 @@ export function AiAdminTabs({
         )}
         {selected === 'models' && <PurposeAssignments models={models} assignments={assignments} />}
         {selected === 'indexes' && <IndexList indexes={indexes} />}
-        {selected === 'actions' && <AiActionAuditTable actions={actions} />}
+        {selected === 'actions' && (
+          <AiActionAuditTable actions={actions} total={actionsTotal} providers={providers} models={models} />
+        )}
       </SettingsTabs>
 
       {addProviderOpen && (

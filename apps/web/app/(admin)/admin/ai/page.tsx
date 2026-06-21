@@ -19,13 +19,12 @@ export default async function AdminAiPage() {
       listProviders({ actor }),
       listModels({ actor }),
       listIndexes({ actor }),
-      listActions({ actor }, { limit: 100 }),
+      listActions({ actor }, { limit: 20 }),
     ]);
   } catch {
     notFound();
   }
   const [settings, providers, models, indexes, actions] = data;
-  const initialActions = actions.items;
   const locale = await getLocale();
   const t = getDictionary(locale);
   return (
@@ -41,7 +40,8 @@ export default async function AdminAiPage() {
           models={models}
           assignments={settings.assignments}
           indexes={indexes}
-          actions={initialActions}
+          actions={actions.items}
+          actionsTotal={actions.total}
         />
       </div>
     </Layout>
