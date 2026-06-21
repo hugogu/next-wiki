@@ -1421,6 +1421,28 @@
                     "id": {
                       "type": "string"
                     },
+                    "type": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "embedding"
+                          ]
+                        }
+                      ]
+                    },
                     "name": {
                       "type": "string"
                     },
@@ -1452,6 +1474,52 @@
                           "enum": [
                             "openrouter"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "anthropic"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "voyage"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "minimax"
+                          ]
+                        }
+                      ]
+                    },
+                    "modelDiscovery": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "openrouter"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "anthropic"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "openai"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "none"
+                          ]
                         }
                       ]
                     },
@@ -1477,12 +1545,14 @@
                   "required": [
                     "status",
                     "id",
+                    "type",
                     "name",
                     "createdAt",
                     "updatedAt",
                     "enabled",
                     "config",
                     "kind",
+                    "modelDiscovery",
                     "baseUrl",
                     "lastCheckedAt",
                     "lastErrorCode",
@@ -2212,6 +2282,28 @@
                         "null"
                       ]
                     },
+                    "providerType": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "embedding"
+                          ]
+                        }
+                      ]
+                    },
                     "capabilities": {
                       "type": "array",
                       "items": {
@@ -2228,13 +2320,31 @@
                               {
                                 "type": "string",
                                 "enum": [
+                                  "embedding"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
                                   "text_generation"
                                 ]
                               },
                               {
                                 "type": "string",
                                 "enum": [
-                                  "embedding"
+                                  "vision"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "audio"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "thinking"
                                 ]
                               }
                             ]
@@ -2314,6 +2424,7 @@
                     "outputModalities",
                     "manuallyAdded",
                     "lastSeenAt",
+                    "providerType",
                     "capabilities"
                   ]
                 }

@@ -52,6 +52,7 @@ describe('AI administration service', () => {
       displayName: 'Model',
       contextWindow: 8_000,
     });
+    await setCapabilityOverride(ctx, model.id, 'text_generation', false, { confirmed: false });
     await expect(assignPurpose(ctx, 'wiki_text', model.id)).rejects.toMatchObject({ code: 'CAPABILITY_MISMATCH' });
     await setCapabilityOverride(ctx, model.id, 'text_generation', true, { confirmed: true });
     expect((await listModels(ctx, provider.id))[0]?.capabilities).toContainEqual(

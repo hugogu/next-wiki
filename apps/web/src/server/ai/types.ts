@@ -1,4 +1,10 @@
-import type { AiApiErrorCode, AiCapability, AiProviderKind } from '@next-wiki/shared';
+import type {
+  AiApiErrorCode,
+  AiCapability,
+  AiModelDiscovery,
+  AiProviderKind,
+  AiProviderType,
+} from '@next-wiki/shared';
 
 export type ProviderCredentials = {
   apiKey?: string;
@@ -8,7 +14,9 @@ export type ProviderCredentials = {
 export type ProviderRuntimeConfig = {
   providerId: string;
   name: string;
+  type: AiProviderType;
   kind: AiProviderKind;
+  modelDiscovery: AiModelDiscovery;
   baseUrl: string;
   config: Record<string, unknown>;
   credentials: ProviderCredentials;
@@ -88,6 +96,13 @@ export interface AiProviderAdapter {
   streamText(input: TextGenerationInput): AsyncIterable<TextGenerationEvent>;
   embed(input: EmbeddingInput): Promise<EmbeddingOutput>;
   generateImage(input: ImageGenerationInput): Promise<ImageGenerationOutput>;
+}
+
+export function unsupportedProviderOperation(operation: string): never {
+  throw new AiProviderError(
+    'CAPABILITY_UNSUPPORTED',
+    `The configured provider protocol does not support ${operation}`,
+  );
 }
 
 const SAFE_CODES = new Set<AiApiErrorCode>([

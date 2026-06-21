@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import { vi } from 'vitest';
 
@@ -50,18 +51,26 @@ describe('AI Admin REST routes', () => {
   it('rejects invalid purposes and delegates valid assignments', async () => {
     const invalid = await assignmentRoute.PUT(
       new NextRequest('http://localhost/api/ai/assignments/invalid', {
-        method: 'PUT', body: JSON.stringify({ modelId: crypto.randomUUID() }),
+        method: 'PUT', body: JSON.stringify({ modelId: randomUUID() }),
       }),
       { params: Promise.resolve({ purpose: 'invalid' }) },
     );
     expect(invalid.status).toBe(400);
     services.assignPurpose.mockResolvedValue({ purpose: 'wiki_text' });
+    const modelId = randomUUID();
     const valid = await assignmentRoute.PUT(
       new NextRequest('http://localhost/api/ai/assignments/wiki_text', {
-        method: 'PUT', body: JSON.stringify({ modelId: crypto.randomUUID() }),
+        method: 'PUT',
+        body: JSON.stringify({ modelId, confirmCapability: true }),
       }),
       { params: Promise.resolve({ purpose: 'wiki_text' }) },
     );
     expect(valid.status).toBe(200);
+    expect(services.assignPurpose).toHaveBeenCalledWith(
+      expect.anything(),
+      'wiki_text',
+      modelId,
+      { confirmCapability: true, embeddingDimensions: undefined },
+    );
   });
 });

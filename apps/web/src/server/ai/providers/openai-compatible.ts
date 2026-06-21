@@ -22,6 +22,10 @@ export type ModelPayload = {
   embedding_dimensions?: unknown;
   top_provider?: { context_length?: unknown; max_completion_tokens?: unknown };
   architecture?: { input_modalities?: unknown; output_modalities?: unknown };
+  supported_parameters?: unknown;
+  supports_image_in?: unknown;
+  supports_audio_in?: unknown;
+  supports_reasoning?: unknown;
 };
 
 export class OpenAiCompatibleAdapter implements AiProviderAdapter {
@@ -75,6 +79,21 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
         {
           capability: 'text_generation',
           supported: outputModalities.length === 0 || outputModalities.includes('text'),
+          source: 'catalog',
+        },
+        {
+          capability: 'vision',
+          supported: inputModalities.includes('image') || value.supports_image_in === true,
+          source: 'catalog',
+        },
+        {
+          capability: 'audio',
+          supported: inputModalities.includes('audio') || value.supports_audio_in === true,
+          source: 'catalog',
+        },
+        {
+          capability: 'thinking',
+          supported: value.supports_reasoning === true,
           source: 'catalog',
         },
       ],

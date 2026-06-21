@@ -8,7 +8,14 @@ function combineSignals(signal: AbortSignal | undefined, timeoutMs: number): Abo
 
 export function providerHeaders(config: ProviderRuntimeConfig): Headers {
   const headers = new Headers({ 'content-type': 'application/json' });
-  if (config.credentials.apiKey) headers.set('authorization', `Bearer ${config.credentials.apiKey}`);
+  if (config.credentials.apiKey) {
+    if (config.kind === 'anthropic') {
+      headers.set('x-api-key', config.credentials.apiKey);
+      headers.set('anthropic-version', '2023-06-01');
+    } else {
+      headers.set('authorization', `Bearer ${config.credentials.apiKey}`);
+    }
+  }
   for (const [name, value] of Object.entries(config.credentials.headers ?? {})) {
     if (!['host', 'content-length'].includes(name.toLowerCase())) headers.set(name, value);
   }

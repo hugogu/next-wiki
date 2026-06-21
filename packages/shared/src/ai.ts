@@ -1,10 +1,27 @@
 import { z } from 'zod';
 
-export const aiProviderKindSchema = z.enum(['openai_compatible', 'openrouter']);
+export const aiProviderTypeSchema = z.enum(['chat', 'embedding', 'image']);
+export type AiProviderType = z.infer<typeof aiProviderTypeSchema>;
+export const aiProviderKindSchema = z.enum([
+  'openai_compatible',
+  'openrouter',
+  'anthropic',
+  'voyage',
+  'minimax',
+]);
 export type AiProviderKind = z.infer<typeof aiProviderKindSchema>;
+export const aiModelDiscoverySchema = z.enum(['openai', 'openrouter', 'anthropic', 'none']);
+export type AiModelDiscovery = z.infer<typeof aiModelDiscoverySchema>;
 export const aiProviderStatusSchema = z.enum(['unverified', 'healthy', 'unavailable', 'disabled']);
 export const aiModelAvailabilitySchema = z.enum(['available', 'unavailable', 'unknown']);
-export const aiCapabilitySchema = z.enum(['text_generation', 'embedding', 'image_generation']);
+export const aiCapabilitySchema = z.enum([
+  'text_generation',
+  'embedding',
+  'image_generation',
+  'vision',
+  'audio',
+  'thinking',
+]);
 export type AiCapability = z.infer<typeof aiCapabilitySchema>;
 export const aiCapabilitySourceSchema = z.enum(['provider', 'catalog', 'manual']);
 export const aiPurposeSchema = z.enum(['wiki_text', 'wiki_embedding', 'wiki_image']);
@@ -55,15 +72,37 @@ export const aiProviderCredentialsSchema = z
 
 export const aiProviderCreateSchema = z.object({
   name: z.string().trim().min(1).max(100),
+  type: aiProviderTypeSchema.default('chat'),
   kind: aiProviderKindSchema,
+  modelDiscovery: aiModelDiscoverySchema.default('openai'),
   baseUrl: z.string().url().max(2_048),
   config: jsonObjectSchema,
   credentials: aiProviderCredentialsSchema,
   enabled: z.boolean().default(true),
+}).superRefine((value, context) => {
+  const supported: Record<AiProviderType, AiProviderKind[]> = {
+    chat: ['openai_compatible', 'openrouter', 'anthropic'],
+    embedding: ['openai_compatible', 'openrouter', 'voyage'],
+    image: ['openai_compatible', 'openrouter', 'minimax'],
+  };
+  if (!supported[value.type].includes(value.kind)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['kind'],
+      message: `Protocol ${value.kind} does not support ${value.type} providers`,
+    });
+  }
 });
 export type AiProviderCreate = z.infer<typeof aiProviderCreateSchema>;
-export const aiProviderUpdateSchema = aiProviderCreateSchema
-  .omit({ credentials: true })
+export const aiProviderUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  type: aiProviderTypeSchema,
+  kind: aiProviderKindSchema,
+  modelDiscovery: aiModelDiscoverySchema,
+  baseUrl: z.string().url().max(2_048),
+  config: jsonObjectSchema,
+  enabled: z.boolean(),
+})
   .partial()
   .extend({ credentials: aiProviderCredentialsSchema.optional() });
 export type AiProviderUpdate = z.infer<typeof aiProviderUpdateSchema>;
@@ -71,7 +110,9 @@ export type AiProviderUpdate = z.infer<typeof aiProviderUpdateSchema>;
 export const aiProviderViewSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
+  type: aiProviderTypeSchema,
   kind: aiProviderKindSchema,
+  modelDiscovery: aiModelDiscoverySchema,
   baseUrl: z.string(),
   config: jsonObjectSchema,
   hasCredentials: z.boolean(),
@@ -101,11 +142,16 @@ export type AiModelCreate = z.infer<typeof aiModelCreateSchema>;
 export const aiModelUpdateSchema = aiModelCreateSchema.omit({ externalId: true }).partial();
 export type AiModelUpdate = z.infer<typeof aiModelUpdateSchema>;
 export const aiCapabilityOverrideSchema = z.object({ supported: z.boolean(), details: jsonObjectSchema });
-export const aiAssignmentUpdateSchema = z.object({ modelId: z.string().uuid() });
+export const aiAssignmentUpdateSchema = z.object({
+  modelId: z.string().uuid(),
+  confirmCapability: z.boolean().default(false),
+  embeddingDimensions: z.number().int().positive().nullable().optional(),
+});
 export const aiModelViewSchema = z.object({
   id: z.string().uuid(),
   providerId: z.string().uuid(),
   providerName: z.string(),
+  providerType: aiProviderTypeSchema,
   externalId: z.string(),
   canonicalId: z.string().nullable(),
   displayName: z.string(),

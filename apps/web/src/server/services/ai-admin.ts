@@ -4,6 +4,8 @@ import type {
   AiModelCreate,
   AiModelView,
   AiProviderCreate,
+  AiProviderKind,
+  AiProviderType,
   AiProviderUpdate,
   AiProviderView,
   AiPurpose,
@@ -15,7 +17,7 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
 import { createAction, getAiSettings } from './ai-actions';
-import { createAiProviderAdapter } from '@/server/ai/registry';
+import { createAiProviderAdapter, createModelDiscoveryAdapter } from '@/server/ai/registry';
 import type { DiscoveredModel, ProviderRuntimeConfig } from '@/server/ai/types';
 
 type ProviderRow = typeof schema.aiProviders.$inferSelect;
@@ -40,11 +42,24 @@ function validateBaseUrl(value: string): string {
   return url.toString().replace(/\/$/, '');
 }
 
+function validateProviderProtocol(type: AiProviderType, kind: AiProviderKind): void {
+  const supported: Record<AiProviderType, AiProviderKind[]> = {
+    chat: ['openai_compatible', 'openrouter', 'anthropic'],
+    embedding: ['openai_compatible', 'openrouter', 'voyage'],
+    image: ['openai_compatible', 'openrouter', 'minimax'],
+  };
+  if (!supported[type].includes(kind)) {
+    throw new DomainError('BAD_REQUEST', 'Provider protocol does not support this provider type');
+  }
+}
+
 function providerView(row: ProviderRow): AiProviderView {
   return {
     id: row.id,
     name: row.name,
+    type: row.type,
     kind: row.kind,
+    modelDiscovery: row.modelDiscovery,
     baseUrl: row.baseUrl,
     config: row.config as Record<string, unknown>,
     hasCredentials: Boolean(row.credentialsEncrypted),
@@ -108,19 +123,25 @@ export async function getProvider(ctx: PermCtx, id: string): Promise<AiProviderV
 
 export async function createProvider(
   ctx: PermCtx,
-  input: Omit<AiProviderCreate, 'config' | 'enabled'> & {
+  input: Omit<AiProviderCreate, 'config' | 'enabled' | 'type' | 'modelDiscovery'> & {
+    type?: AiProviderCreate['type'];
+    modelDiscovery?: AiProviderCreate['modelDiscovery'];
     config?: Record<string, unknown>;
     enabled?: boolean;
   },
 ): Promise<AiProviderView> {
   assertCanManageAi(ctx);
   const userId = actorId(ctx);
+  const type = input.type ?? 'chat';
+  validateProviderProtocol(type, input.kind);
   try {
     const [row] = await db
       .insert(schema.aiProviders)
       .values({
         name: input.name,
+        type,
         kind: input.kind,
+        modelDiscovery: input.modelDiscovery ?? 'openai',
         baseUrl: validateBaseUrl(input.baseUrl),
         config: input.config ?? {},
         credentialsEncrypted: encryptAiJson(input.credentials),
@@ -147,11 +168,14 @@ export async function updateProvider(
   assertCanManageAi(ctx);
   const current = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, id) });
   if (!current) throw new DomainError('NOT_FOUND', 'AI provider not found');
+  validateProviderProtocol(input.type ?? current.type, input.kind ?? current.kind);
   const [row] = await db
     .update(schema.aiProviders)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.type !== undefined ? { type: input.type } : {}),
       ...(input.kind !== undefined ? { kind: input.kind } : {}),
+      ...(input.modelDiscovery !== undefined ? { modelDiscovery: input.modelDiscovery } : {}),
       ...(input.baseUrl !== undefined ? { baseUrl: validateBaseUrl(input.baseUrl) } : {}),
       ...(input.config !== undefined ? { config: input.config } : {}),
       ...(input.credentials !== undefined
@@ -224,16 +248,21 @@ async function effectiveCapabilities(modelIds: string[]) {
 export async function listModels(ctx: PermCtx, providerId?: string): Promise<AiModelView[]> {
   assertCanManageAi(ctx);
   const rows = await db
-    .select({ model: schema.aiModels, providerName: schema.aiProviders.name })
+    .select({
+      model: schema.aiModels,
+      providerName: schema.aiProviders.name,
+      providerType: schema.aiProviders.type,
+    })
     .from(schema.aiModels)
     .innerJoin(schema.aiProviders, eq(schema.aiModels.providerId, schema.aiProviders.id))
     .where(providerId ? eq(schema.aiModels.providerId, providerId) : undefined)
     .orderBy(asc(schema.aiProviders.name), asc(schema.aiModels.displayName));
   const capabilities = await effectiveCapabilities(rows.map(({ model }) => model.id));
-  return rows.map(({ model, providerName }) => ({
+  return rows.map(({ model, providerName, providerType }) => ({
     id: model.id,
     providerId: model.providerId,
     providerName,
+    providerType,
     externalId: model.externalId,
     canonicalId: model.canonicalId,
     displayName: model.displayName,
@@ -275,6 +304,20 @@ export async function createManualModel(
       availability: 'available',
     })
     .returning();
+  const capability: AiCapability =
+    provider.type === 'chat'
+      ? 'text_generation'
+      : provider.type === 'embedding'
+        ? 'embedding'
+        : 'image_generation';
+  await db.insert(schema.aiModelCapabilities).values({
+    modelId: model!.id,
+    capability,
+    supported: true,
+    source: 'manual',
+    details: { providerType: provider.type },
+    updatedBy: actorId(ctx),
+  });
   return (await listModels(ctx, providerId)).find((item) => item.id === model!.id)!;
 }
 
@@ -340,7 +383,12 @@ const purposeCapability: Record<AiPurpose, AiCapability> = {
   wiki_image: 'image_generation',
 };
 
-export async function assignPurpose(ctx: PermCtx, purpose: AiPurpose, modelId: string) {
+export async function assignPurpose(
+  ctx: PermCtx,
+  purpose: AiPurpose,
+  modelId: string,
+  options: { confirmCapability?: boolean; embeddingDimensions?: number | null } = {},
+) {
   assertCanManageAi(ctx);
   const model = await db
     .select({ model: schema.aiModels, provider: schema.aiProviders })
@@ -351,10 +399,34 @@ export async function assignPurpose(ctx: PermCtx, purpose: AiPurpose, modelId: s
   if (!model[0]) throw new DomainError('MODEL_NOT_FOUND', 'AI model not found');
   if (!model[0].provider.enabled) throw new DomainError('PROVIDER_DISABLED', 'AI provider is disabled');
   if (model[0].model.availability !== 'available') throw new DomainError('MODEL_UNAVAILABLE', 'AI model is unavailable');
-  const capability = (await effectiveCapabilities([modelId])).get(modelId)?.get(purposeCapability[purpose]);
-  if (!capability?.supported) throw new DomainError('CAPABILITY_MISMATCH', 'AI model lacks the required capability');
-  if (purpose === 'wiki_embedding' && !model[0].model.embeddingDimensions) {
+  const expectedProviderType = {
+    wiki_text: 'chat',
+    wiki_embedding: 'embedding',
+    wiki_image: 'image',
+  } as const;
+  if (model[0].provider.type !== expectedProviderType[purpose]) {
+    throw new DomainError('CAPABILITY_MISMATCH', 'AI model belongs to the wrong provider type');
+  }
+  const embeddingDimensions =
+    purpose === 'wiki_embedding'
+      ? options.embeddingDimensions ?? model[0].model.embeddingDimensions
+      : null;
+  if (purpose === 'wiki_embedding' && !embeddingDimensions) {
     throw new DomainError('EMBEDDING_DIMENSIONS_REQUIRED', 'Embedding dimensions are required');
+  }
+  let capability = (await effectiveCapabilities([modelId])).get(modelId)?.get(purposeCapability[purpose]);
+  if (!capability?.supported && options.confirmCapability) {
+    await setCapabilityOverride(ctx, modelId, purposeCapability[purpose], true, {
+      confirmedDuringPurposeAssignment: true,
+    });
+    capability = (await effectiveCapabilities([modelId])).get(modelId)?.get(purposeCapability[purpose]);
+  }
+  if (!capability?.supported) throw new DomainError('CAPABILITY_MISMATCH', 'AI model lacks the required capability');
+  if (purpose === 'wiki_embedding' && embeddingDimensions !== model[0].model.embeddingDimensions) {
+    await db
+      .update(schema.aiModels)
+      .set({ embeddingDimensions, updatedAt: new Date() })
+      .where(eq(schema.aiModels.id, modelId));
   }
   const [row] = await db
     .insert(schema.aiPurposeAssignments)
@@ -380,14 +452,20 @@ export async function providerRuntime(providerId: string): Promise<ProviderRunti
   return {
     providerId: provider.id,
     name: provider.name,
+    type: provider.type,
     kind: provider.kind,
+    modelDiscovery: provider.modelDiscovery,
     baseUrl: provider.baseUrl,
     config: provider.config as Record<string, unknown>,
     credentials: decryptAiJson(provider.credentialsEncrypted),
   };
 }
 
-async function reconcileDiscoveredModel(providerId: string, model: DiscoveredModel): Promise<void> {
+async function reconcileDiscoveredModel(
+  providerId: string,
+  providerType: ProviderRow['type'],
+  model: DiscoveredModel,
+): Promise<void> {
   const [stored] = await db
     .insert(schema.aiModels)
     .values({
@@ -421,7 +499,22 @@ async function reconcileDiscoveredModel(providerId: string, model: DiscoveredMod
       },
     })
     .returning({ id: schema.aiModels.id });
-  for (const capability of model.capabilities) {
+  const primaryCapability: AiCapability =
+    providerType === 'chat'
+      ? 'text_generation'
+      : providerType === 'embedding'
+        ? 'embedding'
+        : 'image_generation';
+  const capabilities = [
+    ...model.capabilities.filter((item) => item.capability !== primaryCapability),
+    {
+      capability: primaryCapability,
+      supported: true,
+      source: 'provider' as const,
+      details: { providerType },
+    },
+  ];
+  for (const capability of capabilities) {
     await db
       .insert(schema.aiModelCapabilities)
       .values({ modelId: stored!.id, ...capability, details: capability.details ?? {} })
@@ -438,7 +531,7 @@ async function reconcileDiscoveredModel(providerId: string, model: DiscoveredMod
 
 export async function testProvider(providerId: string) {
   const runtime = await providerRuntime(providerId);
-  const health = await createAiProviderAdapter(runtime).testConnection();
+  const health = await (createModelDiscoveryAdapter(runtime) ?? createAiProviderAdapter(runtime)).testConnection();
   await db
     .update(schema.aiProviders)
     .set({
@@ -453,9 +546,11 @@ export async function testProvider(providerId: string) {
 
 export async function syncProviderModels(providerId: string) {
   const runtime = await providerRuntime(providerId);
-  const models = await createAiProviderAdapter(runtime).listModels();
+  const discovery = createModelDiscoveryAdapter(runtime);
+  if (!discovery) return { count: 0 };
+  const models = await discovery.listModels();
   const seen = models.map((model) => model.externalId);
-  for (const model of models) await reconcileDiscoveredModel(providerId, model);
+  for (const model of models) await reconcileDiscoveredModel(providerId, runtime.type, model);
   if (seen.length) {
     await db
       .update(schema.aiModels)

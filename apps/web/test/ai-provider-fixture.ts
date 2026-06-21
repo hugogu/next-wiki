@@ -23,7 +23,14 @@ export async function startAiProviderFixture(options: {
     if (request.url?.startsWith('/models')) {
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ data: [
-        { id: 'fixture/text', name: 'Fixture Text', context_length: 32_000, architecture: { input_modalities: ['text'], output_modalities: ['text'] } },
+        {
+          id: 'fixture/text',
+          name: 'Fixture Text',
+          context_length: 32_000,
+          supports_image_in: true,
+          supports_reasoning: true,
+          architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+        },
         { id: 'fixture/embed', name: 'Fixture Embedding', embedding_dimensions: dimensions, architecture: { input_modalities: ['text'], output_modalities: ['embeddings'] } },
         { id: 'fixture/image', name: 'Fixture Image', architecture: { input_modalities: ['text'], output_modalities: ['image'] } },
       ] }));
@@ -68,6 +75,7 @@ export async function startAiProviderFixture(options: {
     requests,
     close: async () => {
       server.close();
+      server.closeAllConnections();
       await once(server, 'close');
     },
   };

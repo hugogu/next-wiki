@@ -1,74 +1,131 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AiCapability, AiModelView } from '@next-wiki/shared';
-import { Button } from '@/components/ui/Button';
+import { Switch } from '@/components/ui/Switch';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
-const capabilityLabels: Record<AiCapability, TranslationKey> = {
-  text_generation: 'admin.ai.capability.text_generation',
-  embedding: 'admin.ai.capability.embedding',
-  image_generation: 'admin.ai.capability.image_generation',
+type ChatCapability = Extract<AiCapability, 'vision' | 'audio' | 'thinking'>;
+const CHAT_CAPABILITIES: ChatCapability[] = ['vision', 'audio', 'thinking'];
+const capabilityLabels: Record<ChatCapability, TranslationKey> = {
+  vision: 'admin.ai.chatCapability.vision',
+  audio: 'admin.ai.chatCapability.audio',
+  thinking: 'admin.ai.chatCapability.thinking',
 };
 
 export function ModelCatalog({ models }: { models: AiModelView[] }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [capabilityFilter, setCapabilityFilter] = useState<AiCapability | ''>('');
-  const capabilities: AiCapability[] = ['text_generation', 'embedding', 'image_generation'];
+  const [providerId, setProviderId] = useState('');
+  const providers = useMemo(
+    () => [...new Map(models.map((model) => [model.providerId, model.providerName])).entries()],
+    [models],
+  );
   const filtered = models.filter((model) => {
-    const matchesQuery = !query || `${model.providerName} ${model.displayName} ${model.externalId}`.toLowerCase().includes(query.toLowerCase());
-    const matchesCapability = !capabilityFilter || model.capabilities.some((item) => item.capability === capabilityFilter && item.supported);
-    return matchesQuery && matchesCapability;
+    const matchesQuery = !query || `${model.displayName} ${model.externalId}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (!providerId || model.providerId === providerId);
   });
   const toggle = async (model: AiModelView, capability: AiCapability, supported: boolean) => {
-    setBusy(`${model.id}:${capability}`);
+    const key = `${model.id}:${capability}`;
+    setBusy(key);
     await fetch(`/api/ai/models/${model.id}/capabilities/${capability}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ supported, details: {} }),
+      body: JSON.stringify({ supported, details: { configuredFrom: 'model_catalog' } }),
     });
     window.location.reload();
   };
+
   return (
-    <div className="space-y-sm">
-      <div className="grid gap-sm sm:grid-cols-2">
-        <input className="rounded-md border border-border bg-background px-md py-sm" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter models" />
-        <select className="rounded-md border border-border bg-background px-md py-sm" value={capabilityFilter} onChange={(event) => setCapabilityFilter(event.target.value as AiCapability | '')}>
-          <option value="">All capabilities</option>
-          {capabilities.map((capability) => <option key={capability} value={capability}>{t(capabilityLabels[capability])}</option>)}
-        </select>
+    <section className="space-y-md">
+      <div>
+        <h2 className="font-display text-lg font-semibold">{t('admin.ai.models.catalogTitle')}</h2>
+        <p className="mt-xs text-sm text-muted">{t('admin.ai.models.catalogDescription')}</p>
       </div>
-      {filtered.map((model) => (
-        <section key={model.id} className="rounded-lg border border-border bg-surface p-md">
-          <div className="flex flex-wrap items-center justify-between gap-sm">
-            <div>
-              <h2 className="font-medium">{model.displayName}</h2>
-              <p className="text-xs text-muted">{model.providerName} · {model.externalId}</p>
-            </div>
-            <span className="text-xs text-muted">{model.availability}</span>
-          </div>
-          <div className="mt-sm flex flex-wrap gap-xs">
-            {capabilities.map((capability) => {
-              const current = model.capabilities.find((item) => item.capability === capability);
-              return (
-                <Button
-                  key={capability}
-                  size="default"
-                  variant={current?.supported ? 'primary' : 'secondary'}
-                  disabled={busy === `${model.id}:${capability}`}
-                  onClick={() => void toggle(model, capability, !current?.supported)}
-                >
-                  {t(capabilityLabels[capability])}
-                  {current?.source ? ` (${current.source})` : ''}
-                </Button>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-    </div>
+      <div className="grid gap-sm sm:grid-cols-2">
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.ai.models.filter')} />
+        <Select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
+          <option value="">{t('admin.ai.models.allProviders')}</option>
+          {providers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        </Select>
+      </div>
+      <DataTable>
+        <DataTableHead>
+          <DataTableRow>
+            <DataTableHeader>{t('admin.ai.models.model')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.models.provider')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.models.type')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.models.context')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.models.chatCapabilities')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.providers.status')}</DataTableHeader>
+          </DataTableRow>
+        </DataTableHead>
+        <DataTableBody>
+          {filtered.map((model) => {
+            const type = model.providerType;
+            return (
+              <DataTableRow key={model.id}>
+                <DataTableCell>
+                  <p className="font-medium">{model.displayName}</p>
+                  <p className="mt-xs max-w-xs truncate font-mono text-xs text-muted">{model.externalId}</p>
+                </DataTableCell>
+                <DataTableCell>{model.providerName}</DataTableCell>
+                <DataTableCell>
+                  <StatusBadge tone="info">
+                    {t(`admin.ai.modelType.${type}` as TranslationKey)}
+                  </StatusBadge>
+                </DataTableCell>
+                <DataTableCell>{model.contextWindow?.toLocaleString() ?? '—'}</DataTableCell>
+                <DataTableCell>
+                  {type === 'chat' ? (
+                    <div className="flex flex-wrap gap-md">
+                      {CHAT_CAPABILITIES.map((capability) => {
+                        const current = model.capabilities.find((item) => item.capability === capability);
+                        return (
+                          <label key={capability} className="flex items-center gap-xs text-xs">
+                            <Switch
+                              checked={current?.supported === true}
+                              disabled={busy === `${model.id}:${capability}`}
+                              aria-label={`${model.displayName}: ${t(capabilityLabels[capability])}`}
+                              onClick={() => void toggle(model, capability, current?.supported !== true)}
+                            />
+                            <span>{t(capabilityLabels[capability])}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : <span className="text-xs text-muted">—</span>}
+                </DataTableCell>
+                <DataTableCell>
+                  <StatusBadge tone={model.availability === 'available' ? 'success' : model.availability === 'unavailable' ? 'danger' : 'neutral'}>
+                    {t(`admin.ai.modelAvailability.${model.availability}` as TranslationKey)}
+                  </StatusBadge>
+                </DataTableCell>
+              </DataTableRow>
+            );
+          })}
+          {filtered.length === 0 && (
+            <DataTableRow>
+              <DataTableCell colSpan={6} className="py-xl text-center text-muted">
+                {t('admin.ai.models.empty')}
+              </DataTableCell>
+            </DataTableRow>
+          )}
+        </DataTableBody>
+      </DataTable>
+    </section>
   );
 }

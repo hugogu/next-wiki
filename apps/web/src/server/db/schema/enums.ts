@@ -73,6 +73,16 @@ export const storageReplicationOperationEnum = pgEnum('storage_replication_opera
 export const aiProviderKindEnum = pgEnum('ai_provider_kind', [
   'openai_compatible',
   'openrouter',
+  'anthropic',
+  'voyage',
+  'minimax',
+]);
+export const aiProviderTypeEnum = pgEnum('ai_provider_type', ['chat', 'embedding', 'image']);
+export const aiModelDiscoveryEnum = pgEnum('ai_model_discovery', [
+  'openai',
+  'openrouter',
+  'anthropic',
+  'none',
 ]);
 export const aiProviderStatusEnum = pgEnum('ai_provider_status', [
   'unverified',
@@ -89,6 +99,9 @@ export const aiCapabilityEnum = pgEnum('ai_capability', [
   'text_generation',
   'embedding',
   'image_generation',
+  'vision',
+  'audio',
+  'thinking',
 ]);
 export const aiCapabilitySourceEnum = pgEnum('ai_capability_source', [
   'provider',

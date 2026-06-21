@@ -6,7 +6,9 @@ function config(baseUrl: string): ProviderRuntimeConfig {
   return {
     providerId: '00000000-0000-4000-8000-000000000001',
     name: 'Fixture',
+    type: 'chat',
     kind: 'openai_compatible',
+    modelDiscovery: 'openai',
     baseUrl,
     config: {},
     credentials: { apiKey: 'test-key' },
@@ -19,7 +21,14 @@ describe('OpenAI-compatible provider adapter', () => {
     try {
       const adapter = new OpenAiCompatibleAdapter(config(fixture.baseUrl));
       expect((await adapter.testConnection()).ok).toBe(true);
-      expect((await adapter.listModels()).map((model) => model.externalId)).toContain('fixture/text');
+      const models = await adapter.listModels();
+      expect(models.map((model) => model.externalId)).toContain('fixture/text');
+      expect(models.find((model) => model.externalId === 'fixture/text')?.capabilities).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ capability: 'vision', supported: true }),
+          expect.objectContaining({ capability: 'thinking', supported: true }),
+        ]),
+      );
       const controller = new AbortController();
       const text: string[] = [];
       for await (const event of adapter.streamText({

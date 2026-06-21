@@ -14,10 +14,23 @@ export class OpenRouterAdapter extends OpenAiCompatibleAdapter {
     const model = super.mapModel(value);
     if (!model) return null;
     const output = new Set(model.outputModalities);
+    const input = new Set(model.inputModalities);
+    const parameters = Array.isArray(value.supported_parameters)
+      ? value.supported_parameters.filter((item): item is string => typeof item === 'string')
+      : [];
     model.capabilities = [
       { capability: 'text_generation', supported: output.has('text'), source: 'catalog' },
       { capability: 'embedding', supported: output.has('embeddings'), source: 'catalog' },
       { capability: 'image_generation', supported: output.has('image'), source: 'catalog' },
+      { capability: 'vision', supported: input.has('image'), source: 'catalog' },
+      { capability: 'audio', supported: input.has('audio'), source: 'catalog' },
+      {
+        capability: 'thinking',
+        supported: parameters.some((parameter) =>
+          ['reasoning', 'include_reasoning', 'reasoning_effort'].includes(parameter),
+        ),
+        source: 'catalog',
+      },
     ];
     return model;
   }

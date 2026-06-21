@@ -14,6 +14,7 @@ import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 import { StorageBackendForm } from './StorageBackendForm';
 import { GitExportPanel } from './GitExportPanel';
+import { SettingsTabs } from '@/components/ui/SettingsTabs';
 
 type TabType = Extract<StorageBackendType, 'database' | 'local' | 's3' | 'git'>;
 type PrimaryTabType = Exclude<TabType, 'git'>;
@@ -310,39 +311,22 @@ export function StorageBackendTabs({
     router.replace(`${pathname}?${params.toString()}`);
   }, [pathname, router, searchParams]);
 
-  return (
-    <div className="grid gap-md md:grid-cols-[14rem_minmax(0,1fr)]">
-      <div role="tablist" aria-orientation="vertical" className="space-y-xs">
-        {TABS.map((type) => {
-          const item =
-            type === 'git' ? gitExport : backends.find((candidate) => candidate.type === type);
-          return (
-            <button
-              key={type}
-              type="button"
-              role="tab"
-              aria-selected={selected === type}
-              onClick={() => selectTab(type)}
-              className={`flex w-full items-center justify-between rounded-md px-md py-sm text-left ${
-                selected === type ? 'bg-primary text-primary-text' : 'hover:bg-surface-elevated'
-              }`}
-            >
-              <span>{t(TYPE_LABEL[type])}</span>
-              <span className="text-xs">
-                {type === 'database'
-                  ? t('admin.storage.replica.state.enabled')
-                  : item
-                    ? t(
-                        `admin.storage.replica.state.${item.replicaState}` as TranslationKey,
-                      )
-                    : t('admin.storage.replica.unconfigured')}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+  const tabs = TABS.map((type) => {
+    const item = type === 'git' ? gitExport : backends.find((candidate) => candidate.type === type);
+    return {
+      id: type,
+      label: t(TYPE_LABEL[type]),
+      status:
+        type === 'database'
+          ? t('admin.storage.replica.state.enabled')
+          : item
+            ? t(`admin.storage.replica.state.${item.replicaState}` as TranslationKey)
+            : t('admin.storage.replica.unconfigured'),
+    };
+  });
 
-      <div role="tabpanel" className="space-y-md">
+  return (
+    <SettingsTabs tabs={tabs} selected={selected} onSelect={selectTab}>
         {selected === 'git' ? (
           <GitExportPanel initial={gitExport} />
         ) : (
@@ -392,7 +376,6 @@ export function StorageBackendTabs({
             )}
           </>
         )}
-      </div>
-    </div>
+    </SettingsTabs>
   );
 }

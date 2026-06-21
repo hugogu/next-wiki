@@ -7,6 +7,8 @@ import { useAiChat } from '@/hooks/use-ai-chat';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
+import { SparklesIcon } from '@/components/icons';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 function setAiUrl(open: boolean, mode: AiQuestionMode) {
   const url = new URL(window.location.href);
@@ -47,12 +49,18 @@ export function AiChatPane({
   if (!entitlements.aiEnabled || !entitlements.questionAnsweringEnabled) return null;
   if (!open) {
     return (
-      <Button
-        className="fixed bottom-lg right-lg z-30 shadow-lg"
-        onClick={() => { setOpen(true); setAiUrl(true, chat.mode); }}
-      >
-        {t('ai.chat.open')}
-      </Button>
+      <div className="fixed bottom-lg right-lg z-30">
+        <Tooltip label={t('ai.chat.open')}>
+          <Button
+            size="icon"
+            className="rounded-full shadow-lg"
+            aria-label={t('ai.chat.open')}
+            onClick={() => { setOpen(true); setAiUrl(true, chat.mode); }}
+          >
+            <SparklesIcon />
+          </Button>
+        </Tooltip>
+      </div>
     );
   }
   return (

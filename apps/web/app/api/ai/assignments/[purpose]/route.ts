@@ -14,7 +14,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return apiError('BAD_REQUEST', !parsed.ok ? formatZodError(parsed.error) : 'Invalid purpose', 400);
   }
   try {
-    return NextResponse.json(await assignPurpose(await createApiContext(), purpose.data, parsed.data.modelId));
+    return NextResponse.json(await assignPurpose(
+      await createApiContext(),
+      purpose.data,
+      parsed.data.modelId,
+      {
+        confirmCapability: parsed.data.confirmCapability,
+        embeddingDimensions: parsed.data.embeddingDimensions,
+      },
+    ));
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);
     return internalError();

@@ -418,3 +418,13 @@ export function CircleIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function SparklesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="m12 3-1.4 3.6L7 8l3.6 1.4L12 13l1.4-3.6L17 8l-3.6-1.4L12 3Z" />
+      <path d="m5 14-.9 2.1L2 17l2.1.9L5 20l.9-2.1L8 17l-2.1-.9L5 14Z" />
+      <path d="m19 13-1 2.5-2.5 1 2.5 1 1 2.5 1-2.5 2.5-1-2.5-1-1-2.5Z" />
+    </Icon>
+  );
+}

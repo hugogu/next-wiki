@@ -29,6 +29,8 @@ import {
   userRoleEnum,
   userStatusEnum,
   aiProviderKindEnum,
+  aiProviderTypeEnum,
+  aiModelDiscoveryEnum,
   aiProviderStatusEnum,
   aiModelAvailabilityEnum,
   aiCapabilityEnum,
@@ -406,7 +408,9 @@ export const aiProviders = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    type: aiProviderTypeEnum('type').notNull().default('chat'),
     kind: aiProviderKindEnum('kind').notNull(),
+    modelDiscovery: aiModelDiscoveryEnum('model_discovery').notNull().default('openai'),
     baseUrl: text('base_url').notNull(),
     config: jsonb('config').notNull().default({}),
     credentialsEncrypted: text('credentials_encrypted').notNull(),
