@@ -168,7 +168,16 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
     const response = await providerFetch(this.config, 'embeddings', {
       method: 'POST',
       signal: input.abortSignal,
-      body: JSON.stringify({ model: input.modelExternalId, input: input.inputs }),
+      body: JSON.stringify({
+        model: input.modelExternalId,
+        input: input.inputs,
+        ...(this.config.vendor === 'openrouter'
+          ? {
+              dimensions: input.expectedDimensions,
+              encoding_format: 'float',
+            }
+          : {}),
+      }),
     });
     const payload = await readBoundedJson<{
       data?: Array<{ index?: number; embedding?: unknown }>;
@@ -180,9 +189,18 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
     const vectors = [...payload.data]
       .sort((a, b) => Number(a.index ?? 0) - Number(b.index ?? 0))
       .map((item) => item.embedding);
-    for (const vector of vectors) {
-      if (!Array.isArray(vector) || vector.length !== input.expectedDimensions || vector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
-        throw new AiProviderError('INVALID_RESPONSE', 'Provider returned an invalid embedding vector');
+    for (const [index, vector] of vectors.entries()) {
+      if (!Array.isArray(vector)) {
+        throw new AiProviderError('INVALID_RESPONSE', `Provider embedding ${index} is not a numeric vector`);
+      }
+      if (vector.length !== input.expectedDimensions) {
+        throw new AiProviderError(
+          'INVALID_RESPONSE',
+          `Provider embedding ${index} has ${vector.length} dimensions; expected ${input.expectedDimensions}`,
+        );
+      }
+      if (vector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+        throw new AiProviderError('INVALID_RESPONSE', `Provider embedding ${index} contains an invalid number`);
       }
     }
     return { vectors: vectors as number[][], usage: { inputTokens: payload.usage?.prompt_tokens }, providerRequestId: response.headers.get('x-request-id') ?? undefined };

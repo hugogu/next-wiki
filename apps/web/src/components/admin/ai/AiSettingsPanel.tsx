@@ -12,11 +12,8 @@ export function AiSettingsPanel({
   const { t } = useTranslation();
   const [value, setValue] = useState(enabled);
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-md">
-      <div>
-        <h2 className="font-medium">{t('admin.ai.global.title')}</h2>
-        <p className="text-sm text-muted">{t('admin.ai.global.description')}</p>
-      </div>
+    <label className="flex shrink-0 items-center gap-sm text-sm font-medium">
+      <span>{t('admin.ai.global.title')}</span>
       <Switch
         checked={value}
         aria-label={t('admin.ai.global.title')}
@@ -30,6 +27,6 @@ export function AiSettingsPanel({
           if (response.ok) setValue(next);
         }}
       />
-    </div>
+    </label>
   );
 }

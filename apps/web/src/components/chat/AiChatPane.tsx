@@ -7,7 +7,7 @@ import { useAiChat } from '@/hooks/use-ai-chat';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
-import { SparklesIcon } from '@/components/icons';
+import { ChevronRightIcon, SparklesIcon } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ChatAnswer } from './ChatAnswer';
 
@@ -72,9 +72,16 @@ export function AiChatPane({
           <h2 className="font-display font-semibold">{t('ai.chat.title')}</h2>
           <p className="text-xs text-muted">{t('ai.chat.providerNotice')}</p>
         </div>
-        <Button variant="ghost" onClick={() => { setOpen(false); setAiUrl(false, chat.mode); }}>
-          {t('ai.chat.close')}
-        </Button>
+        <Tooltip label={t('ai.chat.collapse')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('ai.chat.collapse')}
+            onClick={() => { setOpen(false); setAiUrl(false, chat.mode); }}
+          >
+            <ChevronRightIcon />
+          </Button>
+        </Tooltip>
       </div>
       <div className="flex-1 space-y-md overflow-auto p-md">
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}

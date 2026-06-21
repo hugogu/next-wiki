@@ -175,3 +175,17 @@ and vector dimensions that cannot be detected.
 - Auto OpenRouter namespace resolution for `custom` vendors (admin adds models
   manually).
 - Index-level `errorDetail` beyond existing `errorCode`/`errorMessage`.
+
+## Follow-up: deletion and index-build reliability
+
+Provider deletion is an explicit cascade operation. It removes the provider's
+models, purpose assignments, index generations, dependent chunks/page states,
+and completed run records in one transaction. Queued or running actions still
+block deletion. Model and provider deletion both use the shared destructive
+confirmation dialog.
+
+OpenRouter embedding calls include the configured output `dimensions` and force
+floating-point encoding. The adapter still validates every vector before
+storage. If a page fails, the index generation and its action both finish as
+failed instead of leaving a completed action attached to an
+`INDEX_BUILD_FAILED` generation.

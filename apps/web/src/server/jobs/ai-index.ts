@@ -70,5 +70,16 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
     }
   }
   await refreshIndexCounters(generation.id);
+  const completed = await db.query.aiIndexGenerations.findFirst({
+    where: eq(schema.aiIndexGenerations.id, generation.id),
+  });
+  if (completed?.status === 'failed') {
+    await finishAction(actionId, 'failed', {
+      resultMetadata: { generationId: generation.id, failedPages: completed.failedPages },
+      errorCode: completed.errorCode ?? 'INDEX_BUILD_FAILED',
+      errorMessage: completed.errorMessage ?? 'Knowledge index build failed',
+    });
+    return;
+  }
   await finishAction(actionId, 'completed', { resultMetadata: { generationId: generation.id } });
 }

@@ -36,7 +36,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-/** @openapi @summary Delete AI provider @tag AI Admin @auth bearer */
+/**
+ * Delete an AI capability provider and its dependent configuration.
+ *
+ * @openapi
+ * @summary Delete AI provider
+ * @description Cascades through the provider's models, purpose assignments, index generations, and completed run records. Active runs prevent deletion.
+ * @tag AI Admin
+ * @auth bearer
+ * @response 204
+ */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

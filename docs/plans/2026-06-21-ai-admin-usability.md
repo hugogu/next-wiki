@@ -20,6 +20,7 @@
 - [x] Task 6: Convert index detail to modal with failure details
 - [x] Task 7: Regenerate OpenAPI + final verification
 - [x] Task 8: Refine capability-specific model synchronization
+- [x] Task 9: Tighten deletion UX and embedding index reliability
 
 ---
 
@@ -488,6 +489,22 @@ pnpm lint
 TEST_DATABASE_URL=postgresql://wiki:wiki@127.0.0.1:15433/wiki_test pnpm test
 curl -sf http://127.0.0.1:3000/readyz
 ```
+
+---
+
+### Task 9: Tighten deletion UX and embedding index reliability
+
+- Place the global AI enable switch on the title row.
+- Use the shared `ConfirmDialog` for model and provider deletion.
+- Expose provider deletion directly from each capability list and cascade through
+  models, assignments, index generations, and completed run records. Keep active
+  runs as a deletion blocker.
+- Send OpenRouter embedding requests with the configured `dimensions` and
+  `encoding_format: float`, then retain strict response validation.
+- Mark the index rebuild action failed when any page leaves the generation in
+  `INDEX_BUILD_FAILED`; include expected and received dimensions in invalid-vector
+  diagnostics.
+- Regenerate OpenAPI with the provider deletion cascade semantics.
 
 ---
 

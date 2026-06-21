@@ -10,11 +10,12 @@ import type {
   AiProviderVendor,
   AiProviderView,
 } from '@next-wiki/shared';
-import { apiPost, type ApiError } from '@/lib/api/client';
+import { apiDelete, apiPost, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { EditIcon, LinkIcon, RedoIcon } from '@/components/icons';
+import { EditIcon, LinkIcon, RedoIcon, TrashIcon } from '@/components/icons';
 import {
   DataTable,
   DataTableBody,
@@ -53,6 +54,8 @@ export function ProviderList({
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [editing, setEditing] = useState<AiProviderView | null>(null);
+  const [deleting, setDeleting] = useState<AiProviderView | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const items = providers.filter((provider) => provider.type === type);
 
   const runTest = async (provider: AiProviderView) => {
@@ -94,6 +97,24 @@ export function ProviderList({
       router.refresh();
     } catch (value) {
       setFeedback({ ok: false, text: (value as ApiError).message ?? t('admin.ai.error.generic') });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (provider: AiProviderView) => {
+    setBusy(`${provider.id}:delete`);
+    setDeleteError(null);
+    try {
+      await apiDelete(`/api/ai/providers/${provider.id}`);
+      setDeleting(null);
+      router.refresh();
+    } catch (value) {
+      setDeleteError(
+        (value as ApiError).code === 'PROVIDER_IN_USE'
+          ? t('admin.ai.error.inUse')
+          : (value as ApiError).message ?? t('admin.ai.error.generic'),
+      );
     } finally {
       setBusy(null);
     }
@@ -164,6 +185,20 @@ export function ProviderList({
                       <EditIcon className="h-4 w-4" />
                     </Button>
                   </Tooltip>
+                  <Tooltip label={t('admin.ai.providers.delete')}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t('admin.ai.providers.delete')}
+                      disabled={busy === `${provider.id}:delete`}
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleting(provider);
+                      }}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
                 </div>
               </DataTableCell>
             </DataTableRow>
@@ -192,6 +227,21 @@ export function ProviderList({
             }}
           />
         </ModalDialog>
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title={t('admin.ai.providers.delete')}
+          message={t('admin.ai.providers.deleteConfirm', { name: deleting.name })}
+          confirmLabel={t('admin.ai.providers.delete')}
+          confirmVariant="danger"
+          pending={busy === `${deleting.id}:delete`}
+          error={deleteError ?? undefined}
+          onCancel={() => {
+            setDeleting(null);
+            setDeleteError(null);
+          }}
+          onConfirm={() => void remove(deleting)}
+        />
       )}
     </>
   );

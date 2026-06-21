@@ -141,7 +141,21 @@
           "expiresAt"
         ]
       },
-      "AiModelSyncResult": {},
+      "AiModelSyncResult": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "skipped": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "skipped"
+        ]
+      },
       "apiKeyViewListSchema": {
         "type": "array",
         "items": {
@@ -1929,8 +1943,8 @@
       },
       "delete": {
         "operationId": "delete-ai-providers-{id}",
-        "summary": "Delete AI provider @tag AI Admin @auth bearer",
-        "description": "",
+        "summary": "Delete AI provider",
+        "description": "Cascades through the provider's models, purpose assignments, index generations, and completed run records. Active runs prevent deletion.",
         "tags": [
           "AI Admin"
         ],

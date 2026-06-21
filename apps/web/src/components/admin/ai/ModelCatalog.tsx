@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { AiCapability, AiModelView, AiProviderView } from '@next-wiki/shared';
-import { apiDelete, apiPost, type ApiError } from '@/lib/api/client';
+import type { AiCapability, AiModelView, AiProviderView, AiPurpose } from '@next-wiki/shared';
+import { apiDelete, apiPost, apiPut, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { PlusIcon, TrashIcon } from '@/components/icons';
 import { Switch } from '@/components/ui/Switch';
@@ -34,10 +35,12 @@ const capabilityLabels: Record<ChatCapability, TranslationKey> = {
 export function ModelCatalog({
   models,
   providers,
+  purpose,
   activeModelId,
 }: {
   models: AiModelView[];
   providers: AiProviderView[];
+  purpose: AiPurpose;
   activeModelId: string | null;
 }) {
   const { t } = useTranslation();
@@ -50,6 +53,7 @@ export function ModelCatalog({
   const [displayName, setDisplayName] = useState('');
   const [embeddingDimensions, setEmbeddingDimensions] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AiModelView | null>(null);
   const catalogType = providers[0]?.type ?? models[0]?.providerType ?? 'chat';
   const providerOptions = useMemo(
     () => [...new Map(models.map((model) => [model.providerId, model.providerName])).entries()],
@@ -71,7 +75,6 @@ export function ModelCatalog({
     window.location.reload();
   };
   const remove = async (model: AiModelView) => {
-    if (!window.confirm(t('admin.ai.delete.confirm', { name: model.displayName }))) return;
     setBusy(`${model.id}:delete`);
     setError(null);
     try {
@@ -83,6 +86,19 @@ export function ModelCatalog({
           ? t('admin.ai.error.inUse')
           : (value as ApiError).message ?? t('admin.ai.error.generic'),
       );
+      setBusy(null);
+    }
+  };
+  // Activate a model for this capability. Assignments are one-per-purpose, so
+  // this implicitly deactivates whichever model was active before.
+  const activate = async (model: AiModelView) => {
+    setBusy(`${model.id}:activate`);
+    setError(null);
+    try {
+      await apiPut(`/api/ai/assignments/${purpose}`, { modelId: model.id, confirmCapability: true });
+      window.location.reload();
+    } catch (value) {
+      setError((value as ApiError).message ?? t('admin.ai.error.generic'));
       setBusy(null);
     }
   };
@@ -105,7 +121,7 @@ export function ModelCatalog({
           {t('admin.ai.models.add')}
         </Button>
       </div>
-      {error && <Alert>{error}</Alert>}
+      {error && !deleting && <Alert>{error}</Alert>}
       <div className="grid gap-sm sm:grid-cols-2">
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.ai.models.filter')} />
         <Select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
@@ -198,17 +214,34 @@ export function ModelCatalog({
                   </StatusBadge>
                 </DataTableCell>
                 <DataTableCell align="right">
-                  <Tooltip label={t('admin.ai.models.delete')}>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={t('admin.ai.models.delete')}
-                      disabled={busy === `${model.id}:delete`}
-                      onClick={() => void remove(model)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </Tooltip>
+                  <div className="flex items-center justify-end gap-sm">
+                    {model.id === activeModelId ? (
+                      <span className="text-xs font-medium text-success">{t('admin.ai.models.active')}</span>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        disabled={
+                          model.availability === 'unavailable'
+                          || (purpose === 'wiki_embedding' && !model.embeddingDimensions)
+                          || busy === `${model.id}:activate`
+                        }
+                        onClick={() => void activate(model)}
+                      >
+                        {t('admin.ai.models.activate')}
+                      </Button>
+                    )}
+                    <Tooltip label={t('admin.ai.models.delete')}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('admin.ai.models.delete')}
+                        disabled={busy === `${model.id}:delete`}
+                        onClick={() => setDeleting(model)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </DataTableCell>
               </DataTableRow>
             );
@@ -287,6 +320,21 @@ export function ModelCatalog({
             </div>
           </form>
         </ModalDialog>
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title={t('admin.ai.models.delete')}
+          message={t('admin.ai.delete.confirm', { name: deleting.displayName })}
+          confirmLabel={t('admin.ai.models.delete')}
+          confirmVariant="danger"
+          pending={busy === `${deleting.id}:delete`}
+          error={error ?? undefined}
+          onCancel={() => {
+            setDeleting(null);
+            setError(null);
+          }}
+          onConfirm={() => void remove(deleting)}
+        />
       )}
     </section>
   );

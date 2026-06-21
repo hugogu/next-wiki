@@ -134,4 +134,53 @@ describe('AI administration service', () => {
       ]),
     );
   });
+
+  it('cascades provider deletion through models and dependent AI records', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const provider = await createProvider(ctx, {
+      name: 'Cascade deletion',
+      type: 'embedding',
+      vendor: 'custom',
+      kind: 'openai_compatible',
+      baseUrl: 'https://example.com/v1',
+      credentials: { apiKey: 'key' },
+    });
+    const model = await createManualModel(ctx, provider.id, {
+      externalId: 'embedding-model',
+      displayName: 'Embedding model',
+      embeddingDimensions: 3,
+    });
+    await db.insert(schema.aiPurposeAssignments).values({
+      purpose: 'wiki_embedding',
+      modelId: model.id,
+      updatedBy: adminId,
+    });
+    const [generation] = await db.insert(schema.aiIndexGenerations).values({
+      modelId: model.id,
+      embeddingDimensions: 3,
+      chunkerVersion: 'test',
+      status: 'failed',
+      createdBy: adminId,
+    }).returning();
+    await db.insert(schema.aiActions).values({
+      feature: 'index_rebuild',
+      status: 'failed',
+      actorUserId: adminId,
+      providerId: provider.id,
+      modelId: model.id,
+      indexGenerationId: generation!.id,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(deleteProvider(ctx, provider.id)).resolves.toBeUndefined();
+    await expect(db.query.aiProviders.findFirst({
+      where: eq(schema.aiProviders.id, provider.id),
+    })).resolves.toBeUndefined();
+    await expect(db.query.aiModels.findFirst({
+      where: eq(schema.aiModels.id, model.id),
+    })).resolves.toBeUndefined();
+    await expect(db.query.aiIndexGenerations.findFirst({
+      where: eq(schema.aiIndexGenerations.id, generation!.id),
+    })).resolves.toBeUndefined();
+  });
 });

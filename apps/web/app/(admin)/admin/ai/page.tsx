@@ -30,11 +30,13 @@ export default async function AdminAiPage() {
   return (
     <Layout admin>
       <div className="space-y-md px-lg py-md">
-        <div>
-          <h1 className="font-display text-xl font-semibold">{t('admin.ai.title')}</h1>
-          <p className="mt-xs text-sm text-muted">{t('admin.ai.description')}</p>
+        <div className="flex items-start justify-between gap-md">
+          <div>
+            <h1 className="font-display text-xl font-semibold">{t('admin.ai.title')}</h1>
+            <p className="mt-xs text-sm text-muted">{t('admin.ai.description')}</p>
+          </div>
+          <AiSettingsPanel enabled={settings.enabled} />
         </div>
-        <AiSettingsPanel enabled={settings.enabled} />
         <AiAdminTabs
           providers={providers}
           models={models}

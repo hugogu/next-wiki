@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import type { AiProviderVendor, AiProviderView } from '@next-wiki/shared';
-import { apiDelete, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
@@ -33,22 +32,6 @@ export function ProviderDetail({
   const [name, setName] = useState(provider.name);
   const [baseUrl, setBaseUrl] = useState(provider.baseUrl);
   const [apiKey, setApiKey] = useState('');
-  const remove = async () => {
-    if (!window.confirm(t('admin.ai.delete.confirm', { name: provider.name }))) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      await apiDelete(`/api/ai/providers/${provider.id}`);
-      onUpdated();
-    } catch (value) {
-      setMessage(
-        (value as ApiError).code === 'PROVIDER_IN_USE'
-          ? t('admin.ai.error.inUse')
-          : (value as ApiError).message ?? t('admin.ai.error.generic'),
-      );
-      setBusy(false);
-    }
-  };
   return (
     <div className="space-y-md">
       {message && <Alert>{message}</Alert>}
@@ -94,10 +77,7 @@ export function ProviderDetail({
           <span className="text-sm font-medium">{t('admin.ai.providerDetail.newApiKey')}</span>
           <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={t('admin.ai.providerDetail.newApiKey')} />
         </label>
-        <div className="flex justify-between gap-sm pt-sm">
-          <Button type="button" variant="danger" disabled={busy} onClick={() => void remove()}>
-            {t('admin.ai.providers.delete')}
-          </Button>
+        <div className="flex justify-end gap-sm pt-sm">
           <Button type="submit" disabled={busy}>{t('admin.ai.providerDetail.save')}</Button>
         </div>
       </form>

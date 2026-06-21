@@ -17,14 +17,13 @@ import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { useTranslation } from '@/i18n/client';
 import { ProviderForm } from './ProviderForm';
 import { ProviderList } from './ProviderList';
-import { PurposeAssignments } from './PurposeAssignments';
 import { ModelCatalog } from './ModelCatalog';
 import { IndexList } from './IndexList';
 import { AiActionAuditTable } from './AiActionAuditTable';
 import { ModelDetectorPanel } from './ModelDetectorPanel';
 
-type AiAdminTab = 'chat' | 'embedding' | 'image' | 'detector' | 'models' | 'indexes' | 'actions';
-const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'detector', 'models', 'indexes', 'actions'];
+type AiAdminTab = 'chat' | 'embedding' | 'image' | 'detector' | 'indexes' | 'actions';
+const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'detector', 'indexes', 'actions'];
 
 const purposeByCapability = {
   chat: 'wiki_text',
@@ -96,7 +95,6 @@ export function AiAdminTabs({
       label: t('admin.ai.tabs.detector'),
       status: hasModelDetectorApiKey ? t('admin.ai.modelDetector.configuredShort') : undefined,
     },
-    { id: 'models' as const, label: t('admin.ai.tabs.models') },
     {
       id: 'indexes' as const,
       label: t('admin.ai.tabs.indexes'),
@@ -137,6 +135,7 @@ export function AiAdminTabs({
             <ModelCatalog
               models={models.filter((model) => model.providerType === selectedCapability)}
               providers={providers.filter((provider) => provider.type === selectedCapability)}
+              purpose={purposeByCapability[selectedCapability]}
               activeModelId={
                 assignments.find((item) => item.purpose === purposeByCapability[selectedCapability])?.modelId ?? null
               }
@@ -146,7 +145,6 @@ export function AiAdminTabs({
         {selected === 'detector' && (
           <ModelDetectorPanel hasModelDetectorApiKey={hasModelDetectorApiKey} />
         )}
-        {selected === 'models' && <PurposeAssignments models={models} assignments={assignments} />}
         {selected === 'indexes' && <IndexList indexes={indexes} />}
         {selected === 'actions' && (
           <AiActionAuditTable actions={actions} total={actionsTotal} providers={providers} models={models} />

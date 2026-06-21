@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, notInArray, or } from 'drizzle-orm';
 import {
   getAiProviderVendor,
   type AiCapability,
@@ -216,26 +216,44 @@ export async function updateProvider(
 
 export async function deleteProvider(ctx: PermCtx, id: string): Promise<void> {
   assertCanManageAi(ctx);
-  const assigned = await db
-    .select({ purpose: schema.aiPurposeAssignments.purpose })
-    .from(schema.aiPurposeAssignments)
-    .innerJoin(schema.aiModels, eq(schema.aiPurposeAssignments.modelId, schema.aiModels.id))
-    .where(eq(schema.aiModels.providerId, id))
-    .limit(1);
+  const provider = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, id) });
+  if (!provider) throw new DomainError('NOT_FOUND', 'AI provider not found');
+  const models = await db
+    .select({ id: schema.aiModels.id })
+    .from(schema.aiModels)
+    .where(eq(schema.aiModels.providerId, id));
+  const modelIds = models.map((model) => model.id);
+  const generations = modelIds.length
+    ? await db
+        .select({ id: schema.aiIndexGenerations.id })
+        .from(schema.aiIndexGenerations)
+        .where(inArray(schema.aiIndexGenerations.modelId, modelIds))
+    : [];
+  const generationIds = generations.map((generation) => generation.id);
+  const activeConditions = [eq(schema.aiActions.providerId, id)];
+  if (modelIds.length) activeConditions.push(inArray(schema.aiActions.modelId, modelIds));
+  if (generationIds.length) activeConditions.push(inArray(schema.aiActions.indexGenerationId, generationIds));
   const active = await db.query.aiActions.findFirst({
-    where: and(eq(schema.aiActions.providerId, id), inArray(schema.aiActions.status, ['queued', 'running'])),
+    where: and(
+      inArray(schema.aiActions.status, ['queued', 'running']),
+      or(...activeConditions),
+    ),
   });
-  const indexedModel = await db
-    .select({ id: schema.aiIndexGenerations.id })
-    .from(schema.aiIndexGenerations)
-    .innerJoin(schema.aiModels, eq(schema.aiIndexGenerations.modelId, schema.aiModels.id))
-    .where(eq(schema.aiModels.providerId, id))
-    .limit(1);
-  if (assigned.length || active || indexedModel.length) {
-    throw new DomainError('PROVIDER_IN_USE', 'AI provider is in use');
-  }
-  const deleted = await db.delete(schema.aiProviders).where(eq(schema.aiProviders.id, id)).returning();
-  if (!deleted.length) throw new DomainError('NOT_FOUND', 'AI provider not found');
+  if (active) throw new DomainError('PROVIDER_IN_USE', 'AI provider is in use');
+
+  await db.transaction(async (tx) => {
+    const actionConditions = [eq(schema.aiActions.providerId, id)];
+    if (modelIds.length) actionConditions.push(inArray(schema.aiActions.modelId, modelIds));
+    if (generationIds.length) actionConditions.push(inArray(schema.aiActions.indexGenerationId, generationIds));
+    await tx.delete(schema.aiActions).where(or(...actionConditions));
+    if (modelIds.length) {
+      await tx.delete(schema.aiPurposeAssignments).where(inArray(schema.aiPurposeAssignments.modelId, modelIds));
+    }
+    if (generationIds.length) {
+      await tx.delete(schema.aiIndexGenerations).where(inArray(schema.aiIndexGenerations.id, generationIds));
+    }
+    await tx.delete(schema.aiProviders).where(eq(schema.aiProviders.id, id));
+  });
 }
 
 export async function createProviderAction(

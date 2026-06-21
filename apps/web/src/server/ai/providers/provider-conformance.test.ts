@@ -2,12 +2,12 @@ import { startAiProviderFixture } from '../../../../test/ai-provider-fixture';
 import { OpenAiCompatibleAdapter } from './openai-compatible';
 import { AiProviderError, type ProviderRuntimeConfig } from '../types';
 
-function config(baseUrl: string): ProviderRuntimeConfig {
+function config(baseUrl: string, vendor: ProviderRuntimeConfig['vendor'] = 'custom'): ProviderRuntimeConfig {
   return {
     providerId: '00000000-0000-4000-8000-000000000001',
     name: 'Fixture',
     type: 'chat',
-    vendor: 'custom',
+    vendor,
     kind: 'openai_compatible',
     baseUrl,
     config: {},
@@ -19,7 +19,7 @@ describe('OpenAI-compatible provider adapter', () => {
   it('normalizes models, SSE text, embeddings, and image responses', async () => {
     const fixture = await startAiProviderFixture({ embeddingDimensions: 3 });
     try {
-      const adapter = new OpenAiCompatibleAdapter(config(fixture.baseUrl));
+      const adapter = new OpenAiCompatibleAdapter(config(fixture.baseUrl, 'openrouter'));
       expect((await adapter.testConnection()).ok).toBe(true);
       const models = await adapter.listModels();
       expect(models.map((model) => model.externalId)).toContain('fixture/text');
@@ -48,6 +48,11 @@ describe('OpenAI-compatible provider adapter', () => {
         expectedDimensions: 3,
         abortSignal: controller.signal,
       })).vectors).toHaveLength(2);
+      expect(fixture.requests.find((request) => request.path === '/embeddings')?.body).toMatchObject({
+        model: 'fixture/embed',
+        dimensions: 3,
+        encoding_format: 'float',
+      });
       expect((await adapter.generateImage({
         actionId: 'action',
         modelExternalId: 'fixture/image',
