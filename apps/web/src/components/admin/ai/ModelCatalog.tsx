@@ -25,7 +25,13 @@ const capabilityLabels: Record<ChatCapability, TranslationKey> = {
   thinking: 'admin.ai.chatCapability.thinking',
 };
 
-export function ModelCatalog({ models }: { models: AiModelView[] }) {
+export function ModelCatalog({
+  models,
+  activeModelId,
+}: {
+  models: AiModelView[];
+  activeModelId: string | null;
+}) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -79,7 +85,12 @@ export function ModelCatalog({ models }: { models: AiModelView[] }) {
             return (
               <DataTableRow key={model.id}>
                 <DataTableCell>
-                  <p className="font-medium">{model.displayName}</p>
+                  <div className="flex items-center gap-sm">
+                    <p className="font-medium">{model.displayName}</p>
+                    {model.id === activeModelId && (
+                      <StatusBadge tone="success">{t('admin.ai.models.active')}</StatusBadge>
+                    )}
+                  </div>
                   <p className="mt-xs max-w-xs truncate font-mono text-xs text-muted">{model.externalId}</p>
                 </DataTableCell>
                 <DataTableCell>{model.providerName}</DataTableCell>

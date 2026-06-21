@@ -617,6 +617,7 @@ export const en = {
   'admin.ai.models.context': 'Context',
   'admin.ai.models.chatCapabilities': 'Chat capabilities',
   'admin.ai.models.empty': 'No models match the current filters.',
+  'admin.ai.models.active': 'Active',
   'admin.ai.chatCapability.vision': 'Vision',
   'admin.ai.chatCapability.audio': 'Audio',
   'admin.ai.chatCapability.thinking': 'Thinking',

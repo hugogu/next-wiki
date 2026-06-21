@@ -598,6 +598,7 @@ export const zh: Translations = {
   'admin.ai.models.context': '上下文',
   'admin.ai.models.chatCapabilities': 'Chat 能力',
   'admin.ai.models.empty': '没有符合当前筛选条件的模型。',
+  'admin.ai.models.active': '已激活',
   'admin.ai.chatCapability.vision': '视觉理解',
   'admin.ai.chatCapability.audio': '音频理解',
   'admin.ai.chatCapability.thinking': 'Thinking',

@@ -25,6 +25,12 @@ import { AiActionAuditTable } from './AiActionAuditTable';
 type AiAdminTab = 'chat' | 'embedding' | 'image' | 'models' | 'indexes' | 'actions';
 const TABS: AiAdminTab[] = ['chat', 'embedding', 'image', 'models', 'indexes', 'actions'];
 
+const purposeByCapability = {
+  chat: 'wiki_text',
+  embedding: 'wiki_embedding',
+  image: 'wiki_image',
+} as const satisfies Record<AiProviderType, AiPurpose>;
+
 function parseTab(value: string | null): AiAdminTab {
   return TABS.includes(value as AiAdminTab) ? (value as AiAdminTab) : 'chat';
 }
@@ -118,9 +124,12 @@ export function AiAdminTabs({
               providers={providers}
               models={models}
             />
-            {selected === 'chat' && (
-              <ModelCatalog models={models.filter((model) => model.providerType === 'chat')} />
-            )}
+            <ModelCatalog
+              models={models.filter((model) => model.providerType === selectedCapability)}
+              activeModelId={
+                assignments.find((item) => item.purpose === purposeByCapability[selectedCapability])?.modelId ?? null
+              }
+            />
           </section>
         )}
         {selected === 'models' && <PurposeAssignments models={models} assignments={assignments} />}
