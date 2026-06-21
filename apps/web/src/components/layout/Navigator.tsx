@@ -130,6 +130,7 @@ export function Navigator({
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
     { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SettingsIcon className="shrink-0" /> },
     { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
+    { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <DatabaseIcon className="shrink-0" /> },
     { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
   const USER_CENTER_ITEMS: AdminNavItem[] = [

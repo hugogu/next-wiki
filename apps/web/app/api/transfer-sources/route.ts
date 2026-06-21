@@ -1,0 +1,35 @@
+import { NextResponse, type NextRequest } from 'next/server';
+import { transferSourceCreateSchema } from '@next-wiki/shared';
+import { createApiContext } from '@/server/api/session';
+import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { DomainError } from '@/server/errors';
+import { formatZodError } from '@/server/api/validate';
+import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
+import * as sources from '@/server/services/transfer-sources';
+
+/** @openapi @summary List Wiki.js transfer sources @tag Transfers @auth bearer */
+async function handleGET() {
+  try {
+    return NextResponse.json({ items: await sources.list(await createApiContext()) });
+  } catch (error) {
+    if (error instanceof DomainError) return mapDomainError(error);
+    return internalError();
+  }
+}
+
+/** @openapi @summary Create a Wiki.js transfer source @tag Transfers @auth bearer */
+async function handlePOST(request: NextRequest) {
+  const parsed = transferSourceCreateSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
+  try {
+    return NextResponse.json(await sources.create(await createApiContext(), parsed.data), {
+      status: 201,
+    });
+  } catch (error) {
+    if (error instanceof DomainError) return mapDomainError(error);
+    return internalError();
+  }
+}
+
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

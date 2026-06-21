@@ -1205,13 +1205,13 @@
                             {
                               "type": "string",
                               "enum": [
-                                "building"
+                                "ready"
                               ]
                             },
                             {
                               "type": "string",
                               "enum": [
-                                "ready"
+                                "building"
                               ]
                             },
                             {
@@ -1261,6 +1261,12 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "readyAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "embeddingDimensions": {
                           "type": "number"
                         },
@@ -1275,12 +1281,6 @@
                         },
                         "failedPages": {
                           "type": "number"
-                        },
-                        "readyAt": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
                         }
                       },
                       "required": [
@@ -1294,12 +1294,12 @@
                         "finishedAt",
                         "createdAt",
                         "isActive",
+                        "readyAt",
                         "embeddingDimensions",
                         "chunkerVersion",
                         "totalPages",
                         "completedPages",
-                        "failedPages",
-                        "readyAt"
+                        "failedPages"
                       ]
                     }
                   },
@@ -1495,6 +1495,21 @@
                         }
                       ]
                     },
+                    "baseUrl": {
+                      "type": "string"
+                    },
+                    "lastCheckedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastErrorCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "vendor": {
                       "oneOf": [
                         {
@@ -1547,21 +1562,6 @@
                         }
                       ]
                     },
-                    "baseUrl": {
-                      "type": "string"
-                    },
-                    "lastCheckedAt": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "lastErrorCode": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
                     "hasCredentials": {
                       "type": "boolean"
                     }
@@ -1576,10 +1576,10 @@
                     "enabled",
                     "config",
                     "kind",
-                    "vendor",
                     "baseUrl",
                     "lastCheckedAt",
                     "lastErrorCode",
+                    "vendor",
                     "hasCredentials"
                   ]
                 }
@@ -3554,6 +3554,315 @@
         "responses": {}
       }
     },
+    "/transfer-artifacts": {
+      "post": {
+        "operationId": "post-transfer-artifacts",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-artifacts"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/transfer-artifacts/{id}": {
+      "get": {
+        "operationId": "get-transfer-artifacts-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-artifacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      },
+      "delete": {
+        "operationId": "delete-transfer-artifacts-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-artifacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/transfer-artifacts/{id}/content": {
+      "get": {
+        "operationId": "get-transfer-artifacts-{id}-content",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-artifacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      },
+      "put": {
+        "operationId": "put-transfer-artifacts-{id}-content",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-artifacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/transfer-sources": {
+      "get": {
+        "operationId": "get-transfer-sources",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-sources"
+        ],
+        "parameters": [],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-transfer-sources",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-sources"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/transfer-sources/{id}": {
+      "get": {
+        "operationId": "get-transfer-sources-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-sources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      },
+      "patch": {
+        "operationId": "patch-transfer-sources-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-sources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      },
+      "delete": {
+        "operationId": "delete-transfer-sources-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfer-sources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/transfers": {
+      "get": {
+        "operationId": "get-transfers",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-transfers",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/transfers/{id}": {
+      "get": {
+        "operationId": "get-transfers-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/transfers/{id}/cancellation": {
+      "post": {
+        "operationId": "post-transfers-{id}-cancellation",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/transfers/{id}/items": {
+      "get": {
+        "operationId": "get-transfers-{id}-items",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/transfers/{id}/retries": {
+      "post": {
+        "operationId": "post-transfers-{id}-retries",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/user/email": {
       "patch": {
         "operationId": "patch-user-email",
@@ -3726,6 +4035,15 @@
     },
     {
       "name": "Storage"
+    },
+    {
+      "name": "Transfer-artifacts"
+    },
+    {
+      "name": "Transfer-sources"
+    },
+    {
+      "name": "Transfers"
     },
     {
       "name": "User"

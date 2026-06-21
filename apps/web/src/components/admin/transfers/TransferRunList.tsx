@@ -1,0 +1,54 @@
+'use client';
+
+import Link from 'next/link';
+import type { TransferRunView } from '@next-wiki/shared';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useTranslation } from '@/i18n/client';
+
+function tone(status: TransferRunView['status']) {
+  if (status === 'completed') return 'success' as const;
+  if (status === 'completed_with_warnings') return 'warning' as const;
+  if (status === 'failed' || status === 'cancelled') return 'danger' as const;
+  return 'info' as const;
+}
+
+export function TransferRunList({ runs }: { runs: TransferRunView[] }) {
+  const { t } = useTranslation();
+  if (runs.length === 0) {
+    return <p className="rounded-lg border border-border p-md text-sm text-muted">{t('admin.transfers.history.empty')}</p>;
+  }
+  return (
+    <DataTable>
+      <DataTableHead>
+        <DataTableRow>
+          <DataTableHeader>{t('admin.transfers.table.kind')}</DataTableHeader>
+          <DataTableHeader>{t('admin.transfers.table.status')}</DataTableHeader>
+          <DataTableHeader>{t('admin.transfers.table.progress')}</DataTableHeader>
+          <DataTableHeader>{t('admin.transfers.table.started')}</DataTableHeader>
+        </DataTableRow>
+      </DataTableHead>
+      <DataTableBody>
+        {runs.map((run) => (
+          <DataTableRow key={run.id}>
+            <DataTableCell>
+              <Link className="font-medium text-primary hover:underline" href={`/admin/transfers/${run.id}`}>
+                {t(`admin.transfers.kind.${run.kind}`)}
+              </Link>
+            </DataTableCell>
+            <DataTableCell><StatusBadge tone={tone(run.status)}>{t(`admin.transfers.status.${run.status}`)}</StatusBadge></DataTableCell>
+            <DataTableCell>{run.processedItems}/{run.totalItems}</DataTableCell>
+            <DataTableCell>{new Date(run.queuedAt).toLocaleString()}</DataTableCell>
+          </DataTableRow>
+        ))}
+      </DataTableBody>
+    </DataTable>
+  );
+}

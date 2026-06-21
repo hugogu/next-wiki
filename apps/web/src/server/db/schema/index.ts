@@ -42,6 +42,16 @@ import {
   aiActionStatusEnum,
   aiQuestionModeEnum,
   aiEventTypeEnum,
+  transferSourceTypeEnum,
+  transferSourceStatusEnum,
+  transferRunKindEnum,
+  transferRunStatusEnum,
+  transferRunPhaseEnum,
+  transferItemKindEnum,
+  transferItemActionEnum,
+  transferItemStatusEnum,
+  transferArtifactKindEnum,
+  transferArtifactStatusEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -391,6 +401,190 @@ export const contentAssetRefsRelations = relations(contentAssetRefs, ({ one }) =
     references: [pageRevisions.id],
   }),
 }));
+
+// ---- Content transfer (005) -----------------------------------------------
+
+export const transferSources = pgTable(
+  'transfer_sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: transferSourceTypeEnum('type').notNull().default('wikijs'),
+    name: text('name').notNull(),
+    baseUrl: text('base_url').notNull(),
+    allowPrivateNetwork: boolean('allow_private_network').notNull().default(false),
+    credentialsEncrypted: text('credentials_encrypted').notNull(),
+    status: transferSourceStatusEnum('status').notNull().default('unverified'),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    lastErrorCode: text('last_error_code'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    nameUnique: uniqueIndex('transfer_sources_name_unique').on(t.name),
+    typeStatusIdx: index('transfer_sources_type_status_idx').on(t.type, t.status),
+  }),
+);
+
+export const transferArtifacts = pgTable(
+  'transfer_artifacts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: transferArtifactKindEnum('kind').notNull(),
+    status: transferArtifactStatusEnum('status').notNull().default('uploading'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    runId: uuid('run_id'),
+    originalFilename: text('original_filename'),
+    storageKey: text('storage_key').notNull().unique(),
+    contentType: text('content_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    contentHash: text('content_hash'),
+    errorMessage: text('error_message'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    statusExpiryIdx: index('transfer_artifacts_status_expiry_idx').on(t.status, t.expiresAt),
+    runIdx: index('transfer_artifacts_run_idx').on(t.runId),
+    hashIdx: index('transfer_artifacts_hash_idx').on(t.contentHash),
+  }),
+);
+
+export const transferRuns = pgTable(
+  'transfer_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: transferRunKindEnum('kind').notNull(),
+    status: transferRunStatusEnum('status').notNull().default('queued'),
+    phase: transferRunPhaseEnum('phase').notNull().default('queued'),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    sourceId: uuid('source_id').references(() => transferSources.id, { onDelete: 'set null' }),
+    sourceArtifactId: uuid('source_artifact_id'),
+    previewRunId: uuid('preview_run_id'),
+    activeMutationSlot: boolean('active_mutation_slot'),
+    options: jsonb('options').notNull().default({}),
+    sourceFingerprint: text('source_fingerprint'),
+    totalItems: integer('total_items').notNull().default(0),
+    processedItems: integer('processed_items').notNull().default(0),
+    createdItems: integer('created_items').notNull().default(0),
+    replacedItems: integer('replaced_items').notNull().default(0),
+    skippedItems: integer('skipped_items').notNull().default(0),
+    convertedItems: integer('converted_items').notNull().default(0),
+    warningItems: integer('warning_items').notNull().default(0),
+    failedItems: integer('failed_items').notNull().default(0),
+    currentItem: text('current_item'),
+    cancelRequested: boolean('cancel_requested').notNull().default(false),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    errorDetail: text('error_detail'),
+    reportArtifactId: uuid('report_artifact_id'),
+    queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    statusQueuedIdx: index('transfer_runs_status_queued_idx').on(t.status, t.queuedAt),
+    kindQueuedIdx: index('transfer_runs_kind_queued_idx').on(t.kind, t.queuedAt),
+    sourceQueuedIdx: index('transfer_runs_source_queued_idx').on(t.sourceId, t.queuedAt),
+    activeMutationUnique: uniqueIndex('transfer_runs_active_mutation_unique')
+      .on(t.activeMutationSlot)
+      .where(sql`${t.activeMutationSlot} = true`),
+  }),
+);
+
+export const transferItems = pgTable(
+  'transfer_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => transferRuns.id, { onDelete: 'cascade' }),
+    kind: transferItemKindEnum('kind').notNull(),
+    sourceKey: text('source_key').notNull(),
+    sourceFingerprint: text('source_fingerprint'),
+    displayName: text('display_name').notNull(),
+    targetKey: text('target_key'),
+    action: transferItemActionEnum('action').notNull(),
+    status: transferItemStatusEnum('status').notNull().default('pending'),
+    bytesTotal: integer('bytes_total'),
+    bytesProcessed: integer('bytes_processed').notNull().default(0),
+    warningCode: text('warning_code'),
+    warningMessage: text('warning_message'),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    metadata: jsonb('metadata').notNull().default({}),
+    attempts: integer('attempts').notNull().default(0),
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    sourceUnique: uniqueIndex('transfer_items_source_unique').on(t.runId, t.kind, t.sourceKey),
+    pendingIdx: index('transfer_items_pending_idx').on(t.runId, t.status, t.availableAt),
+    actionIdx: index('transfer_items_action_idx').on(t.runId, t.action),
+  }),
+);
+
+export const transferPageMappings = pgTable(
+  'transfer_page_mappings',
+  {
+    sourceType: text('source_type').notNull(),
+    sourceIdentity: text('source_identity').notNull(),
+    sourcePageKey: text('source_page_key').notNull(),
+    sourceFingerprint: text('source_fingerprint').notNull(),
+    targetPageId: uuid('target_page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    targetPath: text('target_path').notNull(),
+    targetLocale: text('target_locale').notNull(),
+    lastRunId: uuid('last_run_id')
+      .notNull()
+      .references(() => transferRuns.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    sourceUnique: uniqueIndex('transfer_page_mappings_source_unique').on(
+      t.sourceType,
+      t.sourceIdentity,
+      t.sourcePageKey,
+    ),
+    targetIdx: index('transfer_page_mappings_target_idx').on(t.targetPageId),
+  }),
+);
+
+export const transferAssetMappings = pgTable(
+  'transfer_asset_mappings',
+  {
+    sourceType: text('source_type').notNull(),
+    sourceIdentity: text('source_identity').notNull(),
+    sourceAssetKey: text('source_asset_key').notNull(),
+    sourceFingerprint: text('source_fingerprint'),
+    targetAssetId: uuid('target_asset_id')
+      .notNull()
+      .references(() => contentAssets.id, { onDelete: 'cascade' }),
+    lastRunId: uuid('last_run_id')
+      .notNull()
+      .references(() => transferRuns.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    sourceUnique: uniqueIndex('transfer_asset_mappings_source_unique').on(
+      t.sourceType,
+      t.sourceIdentity,
+      t.sourceAssetKey,
+    ),
+    fingerprintIdx: index('transfer_asset_mappings_fingerprint_idx').on(t.sourceFingerprint),
+    targetIdx: index('transfer_asset_mappings_target_idx').on(t.targetAssetId),
+  }),
+);
 
 // ---- System AI (004) ------------------------------------------------------
 

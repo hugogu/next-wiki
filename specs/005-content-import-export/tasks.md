@@ -21,8 +21,8 @@ implemented and validated with explicit dependencies.
 **Purpose**: Install the bounded dependencies and create the transfer module
 boundaries before shared infrastructure is implemented.
 
-- [ ] T001 Add `yazl`, `yauzl`, `yaml`, `turndown`, and `ipaddr.js` plus required type packages to `apps/web/package.json` and `pnpm-lock.yaml`
-- [ ] T002 [P] Create transfer module barrel files and explicit directory boundaries in `apps/web/src/server/transfers/index.ts`, `apps/web/src/server/transfers/converters/index.ts`, and `apps/web/src/components/admin/transfers/index.ts`
+- [X] T001 Add `yazl`, `yauzl`, `yaml`, `turndown`, and `ipaddr.js` plus required type packages to `apps/web/package.json` and `pnpm-lock.yaml`
+- [X] T002 [P] Create transfer module barrel files and explicit directory boundaries in `apps/web/src/server/transfers/index.ts`, `apps/web/src/server/transfers/converters/index.ts`, and `apps/web/src/components/admin/transfers/index.ts`
 
 ---
 
@@ -33,21 +33,21 @@ artifact storage, and job registration required by every story.
 
 **⚠️ CRITICAL**: No user story work starts until this phase is complete.
 
-- [ ] T003 Define transfer enums, manifest schemas, request schemas, response views, pagination schemas, and stable error codes in `packages/shared/src/transfers.ts`, then export them from `packages/shared/src/index.ts`
-- [ ] T004 [P] Add transfer PostgreSQL enum declarations to `apps/web/src/server/db/schema/enums.ts`
-- [ ] T005 Add `transfer_sources`, `transfer_runs`, `transfer_items`, `transfer_artifacts`, `transfer_page_mappings`, and `transfer_asset_mappings` with relations, indexes, and the active-mutation partial unique index to `apps/web/src/server/db/schema/index.ts`
-- [ ] T006 Generate and review migration `apps/web/src/server/db/migrations/0016_content_transfers.sql` and its Drizzle metadata under `apps/web/src/server/db/migrations/meta/`
-- [ ] T007 [P] Add artifact retention, archive limits, remote-fetch limits, concurrency limits, and `TRANSFER_ARTIFACT_BASE_PATH` configuration to `apps/web/src/server/config.ts`, `docker-compose.yml`, and `.env.example`
-- [ ] T008 [P] Add the admin-only `manage_transfers` action/resource and API-key scope intersection rules to `apps/web/src/server/permissions/index.ts` and `packages/shared/src/api-keys.ts`
-- [ ] T009 [P] Add permission coverage for admin sessions, editors, readers, anonymous actors, and API keys in `apps/web/src/server/permissions/transfer-permissions.test.ts`
-- [ ] T010 Implement opaque storage keys, `.partial` writes, bounded streaming, SHA-256 hashing, atomic finalize, range reads, deletion, and missing-file convergence in `apps/web/src/server/transfers/artifact-store.ts`
-- [ ] T011 [P] Implement archive/source/converter explicit registration and lookup without filesystem discovery in `apps/web/src/server/transfers/registry.ts`
-- [ ] T012 Implement credential encryption/redaction and source CRUD primitives in `apps/web/src/server/services/transfer-sources.ts`
-- [ ] T013 Implement artifact reservation, ownership checks, streamed upload finalization, metadata views, retention guards, and deletion in `apps/web/src/server/services/transfer-artifacts.ts`
-- [ ] T014 Implement run creation, list/detail/item pagination, state transitions, progress counters, preview linkage, mutation-slot acquisition, and sanitized diagnostics in `apps/web/src/server/services/transfers.ts`
-- [ ] T015 Integrate transfer mutation exclusion with active content-storage migrations in `apps/web/src/server/services/transfers.ts` and `apps/web/src/server/services/migration.ts`
-- [ ] T016 Add transfer queue names, enqueue helpers, boot recovery, worker handlers, and cleanup scheduling to `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/register.ts`
-- [ ] T017 [P] Create reusable database, archive, image, actor, and Wiki.js HTTP fixtures in `apps/web/test/transfer-fixtures.ts` and `apps/web/test/wikijs-fixture.ts`
+- [X] T003 Define transfer enums, manifest schemas, request schemas, response views, pagination schemas, and stable error codes in `packages/shared/src/transfers.ts`, then export them from `packages/shared/src/index.ts`
+- [X] T004 [P] Add transfer PostgreSQL enum declarations to `apps/web/src/server/db/schema/enums.ts`
+- [X] T005 Add `transfer_sources`, `transfer_runs`, `transfer_items`, `transfer_artifacts`, `transfer_page_mappings`, and `transfer_asset_mappings` with relations, indexes, and the active-mutation partial unique index to `apps/web/src/server/db/schema/index.ts`
+- [X] T006 Generate and review migration `apps/web/src/server/db/migrations/0016_content_transfers.sql` and its Drizzle metadata under `apps/web/src/server/db/migrations/meta/`
+- [X] T007 [P] Add artifact retention, archive limits, remote-fetch limits, concurrency limits, and `TRANSFER_ARTIFACT_BASE_PATH` configuration to `apps/web/src/server/config.ts`, `docker-compose.yml`, and `.env.example`
+- [X] T008 [P] Add the admin-only `manage_transfers` action/resource and API-key scope intersection rules to `apps/web/src/server/permissions/index.ts` and `packages/shared/src/api-keys.ts`
+- [X] T009 [P] Add permission coverage for admin sessions, editors, readers, anonymous actors, and API keys in `apps/web/src/server/permissions/transfer-permissions.test.ts`
+- [X] T010 Implement opaque storage keys, `.partial` writes, bounded streaming, SHA-256 hashing, atomic finalize, range reads, deletion, and missing-file convergence in `apps/web/src/server/transfers/artifact-store.ts`
+- [X] T011 [P] Implement archive/source/converter explicit registration and lookup without filesystem discovery in `apps/web/src/server/transfers/registry.ts`
+- [X] T012 Implement credential encryption/redaction and source CRUD primitives in `apps/web/src/server/services/transfer-sources.ts`
+- [X] T013 Implement artifact reservation, ownership checks, streamed upload finalization, metadata views, retention guards, and deletion in `apps/web/src/server/services/transfer-artifacts.ts`
+- [X] T014 Implement run creation, list/detail/item pagination, state transitions, progress counters, preview linkage, mutation-slot acquisition, and sanitized diagnostics in `apps/web/src/server/services/transfers.ts`
+- [X] T015 Integrate transfer mutation exclusion with active content-storage migrations in `apps/web/src/server/services/transfers.ts` and `apps/web/src/server/services/migration.ts`
+- [X] T016 Add transfer queue names, enqueue helpers, boot recovery, worker handlers, and cleanup scheduling to `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/register.ts`
+- [X] T017 [P] Create reusable database, archive, image, actor, and Wiki.js HTTP fixtures in `apps/web/test/transfer-fixtures.ts` and `apps/web/test/wikijs-fixture.ts`
 
 **Checkpoint**: Transfer records, artifacts, authorization, and queues are ready;
 story work can begin.
@@ -66,23 +66,23 @@ download without using any import feature.
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] Add manifest/frontmatter round-trip, deterministic ordering, path encoding, and compatibility tests in `apps/web/src/server/transfers/manifest.test.ts`
-- [ ] T019 [P] [US1] Add streaming ZIP generation, checksum, shared-image deduplication, bounded-memory, and atomic-finalize tests in `apps/web/src/server/transfers/archive-writer.test.ts`
+- [X] T018 [P] [US1] Add manifest/frontmatter round-trip, deterministic ordering, path encoding, and compatibility tests in `apps/web/src/server/transfers/manifest.test.ts`
+- [X] T019 [P] [US1] Add streaming ZIP generation, checksum, shared-image deduplication, bounded-memory, and atomic-finalize tests in `apps/web/src/server/transfers/archive-writer.test.ts`
 - [ ] T020 [P] [US1] Add export snapshot tests covering published-only selection, revision consistency, unavailable assets, and external-image warnings in `apps/web/src/server/jobs/transfer-export.test.ts`
 - [ ] T021 [P] [US1] Add admin-only export creation, status, artifact metadata, and download route tests in `apps/web/app/api/transfers/transfers-export.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T022 [P] [US1] Implement YAML frontmatter serialization, archive v1 manifest construction, deterministic inventory ordering, and integrity metadata in `apps/web/src/server/transfers/manifest.ts`
-- [ ] T023 [P] [US1] Implement AST-based local asset discovery plus portable page/asset link rewriting in `apps/web/src/server/transfers/markdown-links.ts`
-- [ ] T024 [US1] Implement a consistent published-page/revision snapshot and source Markdown/image reads through existing content stores in `apps/web/src/server/services/transfer-export.ts`
-- [ ] T025 [US1] Implement streaming archive creation with content-addressed assets and `reports/export.json` in `apps/web/src/server/transfers/archive-writer.ts`
-- [ ] T026 [US1] Implement progress, warning/item outcomes, cancellation checkpoints, artifact finalization, and report linkage in `apps/web/src/server/jobs/transfer-export.ts`
-- [ ] T027 [US1] Add export run creation/list endpoints with OpenAPI annotations in `apps/web/app/api/transfers/route.ts`
-- [ ] T028 [US1] Add transfer detail and item outcome endpoints with OpenAPI annotations in `apps/web/app/api/transfers/[id]/route.ts` and `apps/web/app/api/transfers/[id]/items/route.ts`
-- [ ] T029 [US1] Add artifact metadata and permission-scoped ZIP/report streaming endpoints with range support and OpenAPI annotations in `apps/web/app/api/transfer-artifacts/[id]/route.ts` and `apps/web/app/api/transfer-artifacts/[id]/content/route.ts`
-- [ ] T030 [P] [US1] Build the URL-backed transfer admin tabs and exports panel using shared settings/table/dialog components in `apps/web/src/components/admin/transfers/TransferAdminTabs.tsx` and `apps/web/src/components/admin/transfers/ExportPanel.tsx`
-- [ ] T031 [US1] Add the admin collection page with export controls and recent run status at `apps/web/app/(admin)/admin/transfers/page.tsx`
+- [X] T022 [P] [US1] Implement YAML frontmatter serialization, archive v1 manifest construction, deterministic inventory ordering, and integrity metadata in `apps/web/src/server/transfers/manifest.ts`
+- [X] T023 [P] [US1] Implement AST-based local asset discovery plus portable page/asset link rewriting in `apps/web/src/server/transfers/markdown-links.ts`
+- [X] T024 [US1] Implement a consistent published-page/revision snapshot and source Markdown/image reads through existing content stores in `apps/web/src/server/services/transfer-export.ts`
+- [X] T025 [US1] Implement streaming archive creation with content-addressed assets and `reports/export.json` in `apps/web/src/server/transfers/archive-writer.ts`
+- [X] T026 [US1] Implement progress, warning/item outcomes, cancellation checkpoints, artifact finalization, and report linkage in `apps/web/src/server/jobs/transfer-export.ts`
+- [X] T027 [US1] Add export run creation/list endpoints with OpenAPI annotations in `apps/web/app/api/transfers/route.ts`
+- [X] T028 [US1] Add transfer detail and item outcome endpoints with OpenAPI annotations in `apps/web/app/api/transfers/[id]/route.ts` and `apps/web/app/api/transfers/[id]/items/route.ts`
+- [X] T029 [US1] Add artifact metadata and permission-scoped ZIP/report streaming endpoints with range support and OpenAPI annotations in `apps/web/app/api/transfer-artifacts/[id]/route.ts` and `apps/web/app/api/transfer-artifacts/[id]/content/route.ts`
+- [X] T030 [P] [US1] Build the URL-backed transfer admin tabs and exports panel using shared settings/table/dialog components in `apps/web/src/components/admin/transfers/TransferAdminTabs.tsx` and `apps/web/src/components/admin/transfers/ExportPanel.tsx`
+- [X] T031 [US1] Add the admin collection page with export controls and recent run status at `apps/web/app/(admin)/admin/transfers/page.tsx`
 
 **Checkpoint**: US1 is deployable as a complete backup/export MVP.
 
@@ -108,15 +108,15 @@ mutation for every unsafe archive fixture.
 
 ### Implementation for User Story 2
 
-- [ ] T037 [US2] Add upload artifact reservation and raw ZIP streaming endpoints with OpenAPI annotations in `apps/web/app/api/transfer-artifacts/route.ts` and `apps/web/app/api/transfer-artifacts/[id]/content/route.ts`
-- [ ] T038 [US2] Implement lazy central-directory inspection, normalized path validation, manifest-first declaration checks, streamed integrity checks, and archive safety limits in `apps/web/src/server/transfers/archive-reader.ts`
-- [ ] T039 [US2] Implement archive preview planning, canonical `(space, path, locale)` conflict classification, projected actions, and immutable preview items in `apps/web/src/server/jobs/transfer-preview.ts`
-- [ ] T040 [US2] Implement transaction-safe imported page creation/replacement that reuses rendering, revision publication, asset refs, replication, Git export, and AI-index reconciliation in `apps/web/src/server/services/transfer-page-writer.ts`
-- [ ] T041 [US2] Implement content-addressed imported asset writes, mapping reuse, and reference-safe rollback behavior in `apps/web/src/server/services/transfer-asset-writer.ts`
-- [ ] T042 [US2] Implement archive import execution, preview fingerprint enforcement, per-item idempotency mappings, cancellation checkpoints, and final report generation in `apps/web/src/server/jobs/transfer-import.ts`
-- [ ] T043 [US2] Extend transfer run creation validation to support archive preview/import and stale-plan rejection in `apps/web/src/server/services/transfers.ts`
-- [ ] T044 [P] [US2] Build streamed upload, validation progress, preview summary, conflict strategy, warning, and confirmation UI in `apps/web/src/components/admin/transfers/ArchiveImportPanel.tsx` and `apps/web/src/components/admin/transfers/TransferPreview.tsx`
-- [ ] T045 [US2] Wire the archive import tab, URL-backed conflict strategy, and refresh-after-start behavior into `apps/web/app/(admin)/admin/transfers/page.tsx`
+- [X] T037 [US2] Add upload artifact reservation and raw ZIP streaming endpoints with OpenAPI annotations in `apps/web/app/api/transfer-artifacts/route.ts` and `apps/web/app/api/transfer-artifacts/[id]/content/route.ts`
+- [X] T038 [US2] Implement lazy central-directory inspection, normalized path validation, manifest-first declaration checks, streamed integrity checks, and archive safety limits in `apps/web/src/server/transfers/archive-reader.ts`
+- [X] T039 [US2] Implement archive preview planning, canonical `(space, path, locale)` conflict classification, projected actions, and immutable preview items in `apps/web/src/server/jobs/transfer-preview.ts`
+- [X] T040 [US2] Implement transaction-safe imported page creation/replacement that reuses rendering, revision publication, asset refs, replication, Git export, and AI-index reconciliation in `apps/web/src/server/services/transfer-page-writer.ts`
+- [X] T041 [US2] Implement content-addressed imported asset writes, mapping reuse, and reference-safe rollback behavior in `apps/web/src/server/services/transfer-asset-writer.ts`
+- [X] T042 [US2] Implement archive import execution, preview fingerprint enforcement, per-item idempotency mappings, cancellation checkpoints, and final report generation in `apps/web/src/server/jobs/transfer-import.ts`
+- [X] T043 [US2] Extend transfer run creation validation to support archive preview/import and stale-plan rejection in `apps/web/src/server/services/transfers.ts`
+- [X] T044 [P] [US2] Build streamed upload, validation progress, preview summary, conflict strategy, warning, and confirmation UI in `apps/web/src/components/admin/transfers/ArchiveImportPanel.tsx` and `apps/web/src/components/admin/transfers/TransferPreview.tsx`
+- [X] T045 [US2] Wire the archive import tab, URL-backed conflict strategy, and refresh-after-start behavior into `apps/web/app/(admin)/admin/transfers/page.tsx`
 
 **Checkpoint**: US1 + US2 provide a complete portable export/restore workflow.
 
@@ -135,29 +135,29 @@ and verify imported pages remain complete and local.
 
 ### Tests for User Story 3
 
-- [ ] T046 [P] [US3] Add source CRUD, encrypted credential, masked response, private-network trust, deletion, and token-redaction tests in `apps/web/src/server/services/transfer-sources.test.ts`
+- [X] T046 [P] [US3] Add source CRUD, encrypted credential, masked response, private-network trust, deletion, and token-redaction tests in `apps/web/src/server/services/transfer-sources.test.ts`
 - [ ] T047 [P] [US3] Add Wiki.js GraphQL inventory/source, pagination/order, permission, malformed response, authentication, timeout, and retry tests in `apps/web/src/server/transfers/wikijs-client.test.ts`
-- [ ] T048 [P] [US3] Add Markdown identity, CKEditor HTML conversion, sanitization, tables/code/images, and unsupported-format tests in `apps/web/src/server/transfers/converters/converters.test.ts`
-- [ ] T049 [P] [US3] Add SSRF tests for loopback/private/link-local/IPv4-mapped IPv6, redirects, DNS changes, private-host opt-in, byte/time limits, media validation, and cross-origin token stripping in `apps/web/src/server/transfers/remote-fetch.test.ts`
+- [X] T048 [P] [US3] Add Markdown identity, CKEditor HTML conversion, sanitization, tables/code/images, and unsupported-format tests in `apps/web/src/server/transfers/converters/converters.test.ts`
+- [X] T049 [P] [US3] Add SSRF tests for loopback/private/link-local/IPv4-mapped IPv6, redirects, DNS changes, private-host opt-in, byte/time limits, media validation, and cross-origin token stripping in `apps/web/src/server/transfers/remote-fetch.test.ts`
 - [ ] T050 [P] [US3] Add Wiki.js source-test/preview/import tests for permission-limited discovery, conversion reporting, asset localization, conflicts, and idempotency in `apps/web/src/server/jobs/transfer-wikijs.test.ts`
 - [ ] T051 [P] [US3] Add transfer source and Wiki.js run API authorization/contract tests in `apps/web/app/api/transfer-sources/transfer-sources.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T052 [P] [US3] Implement Markdown identity conversion and conversion metadata in `apps/web/src/server/transfers/converters/markdown.ts`
-- [ ] T053 [P] [US3] Implement sanitized CKEditor/HTML-to-Markdown conversion with explicit supported element rules in `apps/web/src/server/transfers/converters/html.ts`
-- [ ] T054 [US3] Register the supported content converters and unsupported-format outcomes in `apps/web/src/server/transfers/registry.ts`
-- [ ] T055 [US3] Implement SSRF-safe bounded HTTP with protocol validation, DNS/address checks, redirect revalidation, validated-address connection, same-host private trust, and credential isolation in `apps/web/src/server/transfers/remote-fetch.ts`
-- [ ] T056 [US3] Implement fixed Wiki.js GraphQL queries, bearer authentication, page inventory/source validation, stable fingerprints, normalized errors, and capped retries in `apps/web/src/server/transfers/wikijs-client.ts`
-- [ ] T057 [US3] Implement source connection testing and sanitized health-state persistence in `apps/web/src/server/jobs/transfer-source-test.ts`
-- [ ] T058 [US3] Implement Wiki.js discovery/preview planning, supported conversion classification, permission-limit notices, link mapping, and referenced-image inventory in `apps/web/src/server/jobs/transfer-preview.ts`
-- [ ] T059 [US3] Implement authenticated same-origin and unauthenticated cross-origin image localization, SHA-256 deduplication, media validation, unresolved-reference reporting, and target URL rewriting in `apps/web/src/server/services/transfer-wikijs-assets.ts`
-- [ ] T060 [US3] Extend import execution for Wiki.js page conversion, image localization, mappings, conflict plans, and source fingerprint enforcement in `apps/web/src/server/jobs/transfer-import.ts`
-- [ ] T061 [US3] Add source collection/create endpoints with masked credentials and OpenAPI annotations in `apps/web/app/api/transfer-sources/route.ts`
-- [ ] T062 [US3] Add source detail/update/delete endpoints with active-run guards and OpenAPI annotations in `apps/web/app/api/transfer-sources/[id]/route.ts`
-- [ ] T063 [US3] Extend transfer run creation for source test, Wiki.js preview, and Wiki.js import in `apps/web/app/api/transfers/route.ts`
-- [ ] T064 [P] [US3] Build Wiki.js source list/form/test controls and preview/import workflow with shared modal, table, input, and status components in `apps/web/src/components/admin/transfers/WikiJsSourcePanel.tsx`
-- [ ] T065 [US3] Wire URL-backed Wiki.js source selection and migration controls into `apps/web/app/(admin)/admin/transfers/page.tsx`
+- [X] T052 [P] [US3] Implement Markdown identity conversion and conversion metadata in `apps/web/src/server/transfers/converters/markdown.ts`
+- [X] T053 [P] [US3] Implement sanitized CKEditor/HTML-to-Markdown conversion with explicit supported element rules in `apps/web/src/server/transfers/converters/html.ts`
+- [X] T054 [US3] Register the supported content converters and unsupported-format outcomes in `apps/web/src/server/transfers/registry.ts`
+- [X] T055 [US3] Implement SSRF-safe bounded HTTP with protocol validation, DNS/address checks, redirect revalidation, validated-address connection, same-host private trust, and credential isolation in `apps/web/src/server/transfers/remote-fetch.ts`
+- [X] T056 [US3] Implement fixed Wiki.js GraphQL queries, bearer authentication, page inventory/source validation, stable fingerprints, normalized errors, and capped retries in `apps/web/src/server/transfers/wikijs-client.ts`
+- [X] T057 [US3] Implement source connection testing and sanitized health-state persistence in `apps/web/src/server/jobs/transfer-source-test.ts`
+- [X] T058 [US3] Implement Wiki.js discovery/preview planning, supported conversion classification, permission-limit notices, link mapping, and referenced-image inventory in `apps/web/src/server/jobs/transfer-preview.ts`
+- [X] T059 [US3] Implement authenticated same-origin and unauthenticated cross-origin image localization, SHA-256 deduplication, media validation, unresolved-reference reporting, and target URL rewriting in `apps/web/src/server/services/transfer-wikijs-assets.ts`
+- [X] T060 [US3] Extend import execution for Wiki.js page conversion, image localization, mappings, conflict plans, and source fingerprint enforcement in `apps/web/src/server/jobs/transfer-import.ts`
+- [X] T061 [US3] Add source collection/create endpoints with masked credentials and OpenAPI annotations in `apps/web/app/api/transfer-sources/route.ts`
+- [X] T062 [US3] Add source detail/update/delete endpoints with active-run guards and OpenAPI annotations in `apps/web/app/api/transfer-sources/[id]/route.ts`
+- [X] T063 [US3] Extend transfer run creation for source test, Wiki.js preview, and Wiki.js import in `apps/web/app/api/transfers/route.ts`
+- [X] T064 [P] [US3] Build Wiki.js source list/form/test controls and preview/import workflow with shared modal, table, input, and status components in `apps/web/src/components/admin/transfers/WikiJsSourcePanel.tsx`
+- [X] T065 [US3] Wire URL-backed Wiki.js source selection and migration controls into `apps/web/app/(admin)/admin/transfers/page.tsx`
 
 **Checkpoint**: US3 can migrate all supported Wiki.js content without relying on
 the source after completion.
@@ -184,14 +184,14 @@ credentials.
 
 ### Implementation for User Story 4
 
-- [ ] T071 [US4] Implement cancellation requests, retry-run creation from incomplete items, retry eligibility, recovery queries, and historical lineage in `apps/web/src/server/services/transfers.ts`
-- [ ] T072 [US4] Add cancellation and retry endpoints with stable conflict responses and OpenAPI annotations in `apps/web/app/api/transfers/[id]/cancellation/route.ts` and `apps/web/app/api/transfers/[id]/retries/route.ts`
-- [ ] T073 [US4] Implement retention expiry, safe artifact deletion, orphan `.partial` cleanup, and scheduled convergence in `apps/web/src/server/jobs/transfer-cleanup.ts`
-- [ ] T074 [US4] Add structured audit events and redaction for all transfer source/run/artifact actions in `apps/web/src/server/services/transfer-audit.ts` and `apps/web/src/server/api/audit-wrapper.ts`
-- [ ] T075 [P] [US4] Build run list filters, pagination, progress polling, status badges, cancellation/retry confirmations, and artifact actions in `apps/web/src/components/admin/transfers/TransferRunList.tsx`
-- [ ] T076 [P] [US4] Build paginated item outcomes, sanitized failure details, counters, source/options summary, and report links in `apps/web/src/components/admin/transfers/TransferRunDetail.tsx`
-- [ ] T077 [US4] Add the canonical deep-linkable run detail page at `apps/web/app/(admin)/admin/transfers/[id]/page.tsx`
-- [ ] T078 [US4] Wire history filters, selected source, pagination, and active tab to URL search parameters in `apps/web/app/(admin)/admin/transfers/page.tsx`
+- [X] T071 [US4] Implement cancellation requests, retry-run creation from incomplete items, retry eligibility, recovery queries, and historical lineage in `apps/web/src/server/services/transfers.ts`
+- [X] T072 [US4] Add cancellation and retry endpoints with stable conflict responses and OpenAPI annotations in `apps/web/app/api/transfers/[id]/cancellation/route.ts` and `apps/web/app/api/transfers/[id]/retries/route.ts`
+- [X] T073 [US4] Implement retention expiry, safe artifact deletion, orphan `.partial` cleanup, and scheduled convergence in `apps/web/src/server/jobs/transfer-cleanup.ts`
+- [X] T074 [US4] Add structured audit events and redaction for all transfer source/run/artifact actions in `apps/web/src/server/services/transfer-audit.ts` and `apps/web/src/server/api/audit-wrapper.ts`
+- [X] T075 [P] [US4] Build run list filters, pagination, progress polling, status badges, cancellation/retry confirmations, and artifact actions in `apps/web/src/components/admin/transfers/TransferRunList.tsx`
+- [X] T076 [P] [US4] Build paginated item outcomes, sanitized failure details, counters, source/options summary, and report links in `apps/web/src/components/admin/transfers/TransferRunDetail.tsx`
+- [X] T077 [US4] Add the canonical deep-linkable run detail page at `apps/web/app/(admin)/admin/transfers/[id]/page.tsx`
+- [X] T078 [US4] Wire history filters, selected source, pagination, and active tab to URL search parameters in `apps/web/app/(admin)/admin/transfers/page.tsx`
 
 **Checkpoint**: All transfer operations are durable, diagnosable, cancellable,
 retryable, and auditable.
@@ -203,18 +203,18 @@ retryable, and auditable.
 **Purpose**: Finish localization, generated API documentation, end-to-end
 hardening, deployment validation, and operational documentation.
 
-- [ ] T079 [P] Add complete English transfer navigation, forms, statuses, previews, warnings, errors, reports, and accessibility text to `apps/web/src/i18n/locales/en.ts`
-- [ ] T080 [P] Add complete Chinese transfer navigation, forms, statuses, previews, warnings, errors, reports, and accessibility text to `apps/web/src/i18n/locales/zh.ts`
-- [ ] T081 Add localized transfer keys to type-safe translation declarations in `apps/web/src/i18n/types.ts`
-- [ ] T082 [P] Add migration center navigation for administrators to `apps/web/src/components/layout/Navigator.tsx`
-- [ ] T083 Regenerate and review transfer REST documentation with `next-open-api` in `apps/web/public/openapi.json`
-- [ ] T084 [P] Add schema/migration integrity coverage for all transfer tables, constraints, and indexes in `apps/web/src/server/db/transfer-schema.test.ts`
+- [X] T079 [P] Add complete English transfer navigation, forms, statuses, previews, warnings, errors, reports, and accessibility text to `apps/web/src/i18n/locales/en.ts`
+- [X] T080 [P] Add complete Chinese transfer navigation, forms, statuses, previews, warnings, errors, reports, and accessibility text to `apps/web/src/i18n/locales/zh.ts`
+- [X] T081 Add localized transfer keys to type-safe translation declarations in `apps/web/src/i18n/types.ts`
+- [X] T082 [P] Add migration center navigation for administrators to `apps/web/src/components/layout/Navigator.tsx`
+- [X] T083 Regenerate and review transfer REST documentation with `next-open-api` in `apps/web/public/openapi.json`
+- [X] T084 [P] Add schema/migration integrity coverage for all transfer tables, constraints, and indexes in `apps/web/src/server/db/transfer-schema.test.ts`
 - [ ] T085 [P] Add a portable archive export-to-empty-target round-trip integration suite in `apps/web/src/server/transfers/portable-roundtrip.test.ts`
 - [ ] T086 [P] Add 1,000-page/5,000-image streaming, progress, and memory regression coverage in `apps/web/src/server/transfers/transfer-performance.test.ts`
 - [ ] T087 Run and fix `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm --filter @next-wiki/web test:e2e` against the implementation paths listed in `specs/005-content-import-export/quickstart.md`
 - [ ] T088 Run `docker compose up -d --build`, verify migration/worker registration, restart recovery, artifact persistence, and logs without secrets, then record results in `specs/005-content-import-export/quickstart.md`
-- [ ] T089 Document archive v1 operation, retention, Wiki.js permissions, private-network trust, backup/restore, and failure recovery in `docs/content-import-export.md`
-- [ ] T090 Perform final requirement traceability for FR-001 through FR-032 and SC-001 through SC-008 in `specs/005-content-import-export/tasks.md`
+- [X] T089 Document archive v1 operation, retention, Wiki.js permissions, private-network trust, backup/restore, and failure recovery in `docs/content-import-export.md`
+- [X] T090 Perform final requirement traceability for FR-001 through FR-032 and SC-001 through SC-008 in `specs/005-content-import-export/tasks.md`
 
 ---
 
@@ -344,3 +344,17 @@ Task T070: Admin operations Playwright tests
 - Use `docker compose up -d --build` for deployment verification.
 - Only administrators may use transfer administration even though normal page
   editing remains available to editors and administrators.
+
+## Requirement Traceability
+
+| Requirements | Implementation tasks |
+|---|---|
+| FR-001, FR-017, FR-030, FR-032 | T008–T014, T046, T061–T065, T068–T083 |
+| FR-002–FR-007, FR-031 | T018–T031, T073, T085–T089 |
+| FR-008–FR-015 | T032–T045, T066–T073, T085 |
+| FR-016, FR-018–FR-023 | T046–T065 |
+| FR-024–FR-029 | T014–T016, T026, T039–T045, T057–T078 |
+| SC-001, SC-006, SC-007 | T035, T050, T085 |
+| SC-002 | T086, T088 |
+| SC-003, SC-008 | T009, T021, T033, T036, T049, T051, T069 |
+| SC-004, SC-005 | T050, T070, T087–T088 |

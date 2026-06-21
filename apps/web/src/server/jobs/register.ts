@@ -20,6 +20,12 @@ import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
 import { runWikiQuestionAction } from './ai-question';
 import { runTextOptimizationAction } from './ai-optimization';
 import { runImageGenerationAction } from './ai-image-generation';
+import { runTransferExport } from './transfer-export';
+import { runTransferPreview } from './transfer-preview';
+import { runTransferImport } from './transfer-import';
+import { runTransferSourceTest } from './transfer-source-test';
+import { runTransferCleanup } from './transfer-cleanup';
+import { findRecoverableTransferRunIds } from '@/server/services/transfers';
 
 type JobBatch = { data: unknown }[];
 
@@ -79,9 +85,25 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.aiCleanup, async () => {
     await runAiCleanup();
   });
+  await boss.work(QUEUES.transferExport, async (jobs: JobBatch) => {
+    for (const job of jobs) await runTransferExport((job.data as { runId: string }).runId);
+  });
+  await boss.work(QUEUES.transferPreview, async (jobs: JobBatch) => {
+    for (const job of jobs) await runTransferPreview((job.data as { runId: string }).runId);
+  });
+  await boss.work(QUEUES.transferImport, async (jobs: JobBatch) => {
+    for (const job of jobs) await runTransferImport((job.data as { runId: string }).runId);
+  });
+  await boss.work(QUEUES.transferSourceTest, async (jobs: JobBatch) => {
+    for (const job of jobs) await runTransferSourceTest((job.data as { runId: string }).runId);
+  });
+  await boss.work(QUEUES.transferCleanup, async () => {
+    await runTransferCleanup();
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
   await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});
+  await boss.schedule(QUEUES.transferCleanup, '15 * * * *', {});
 
   const pendingReplication = await db
     .select({ id: schema.storageReplicationTasks.id })
@@ -107,5 +129,21 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   for (const actionId of await findRecoverableActionIds()) {
     await boss.send(QUEUES.aiAction, { actionId });
     logger.info('re-enqueued interrupted AI action', { actionId });
+  }
+  for (const runId of await findRecoverableTransferRunIds()) {
+    const run = await db.query.transferRuns.findFirst({
+      where: eq(schema.transferRuns.id, runId),
+    });
+    if (!run) continue;
+    const queue =
+      run.kind === 'site_export'
+        ? QUEUES.transferExport
+        : run.kind === 'archive_preview' || run.kind === 'wikijs_preview'
+          ? QUEUES.transferPreview
+          : run.kind === 'wikijs_source_test'
+            ? QUEUES.transferSourceTest
+            : QUEUES.transferImport;
+    await boss.send(queue, { runId });
+    logger.info('re-enqueued interrupted transfer run', { runId, kind: run.kind });
   }
 }

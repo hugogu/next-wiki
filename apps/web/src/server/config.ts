@@ -28,6 +28,16 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(10 * 1024 * 1024),
+  TRANSFER_ARTIFACT_BASE_PATH: z.string().min(1).default('/data/content/transfers'),
+  TRANSFER_ARTIFACT_RETENTION_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+  TRANSFER_MAX_COMPRESSED_BYTES: z.coerce.number().int().positive().default(2 * 1024 ** 3),
+  TRANSFER_MAX_EXPANDED_BYTES: z.coerce.number().int().positive().default(4 * 1024 ** 3),
+  TRANSFER_MAX_ENTRIES: z.coerce.number().int().positive().default(50_000),
+  TRANSFER_MAX_MARKDOWN_BYTES: z.coerce.number().int().positive().default(10 * 1024 ** 2),
+  TRANSFER_MAX_COMPRESSION_RATIO: z.coerce.number().positive().default(100),
+  TRANSFER_REMOTE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  TRANSFER_REMOTE_MAX_REDIRECTS: z.coerce.number().int().min(0).max(10).default(5),
+  TRANSFER_REMOTE_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
 });
 
 // Local convenience defaults for dev/test only. In production a missing value

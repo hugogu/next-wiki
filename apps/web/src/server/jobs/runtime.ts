@@ -9,6 +9,11 @@ export const QUEUES = {
   gitExport: 'git-export',
   aiAction: 'ai-action',
   aiCleanup: 'ai-cleanup',
+  transferExport: 'transfer-export',
+  transferPreview: 'transfer-preview',
+  transferImport: 'transfer-import',
+  transferSourceTest: 'transfer-source-test',
+  transferCleanup: 'transfer-cleanup',
 } as const;
 
 /**

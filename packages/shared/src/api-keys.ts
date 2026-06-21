@@ -9,6 +9,7 @@ export const apiKeyScopeSchema = z.enum([
   'run',
   'storage',
   'preferences',
+  'transfers',
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 

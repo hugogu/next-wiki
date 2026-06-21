@@ -34,6 +34,7 @@ export type Action =
   | 'manage_storage'
   | 'manage_preferences'
   | 'manage_ai'
+  | 'manage_transfers'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -49,7 +50,8 @@ export type Resource =
   | { kind: 'ai_settings' }
   | { kind: 'ai_action'; actionId: string }
   | { kind: 'ai_index'; generationId?: string }
-  | { kind: 'ai_page'; pageId?: string };
+  | { kind: 'ai_page'; pageId?: string }
+  | { kind: 'transfers' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -60,6 +62,7 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   run: [],
   storage: ['manage_storage'],
   preferences: ['manage_preferences'],
+  transfers: ['manage_transfers'],
 };
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {
@@ -94,6 +97,7 @@ function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anony
       // the resource is always the actor's own preferences).
       return role !== 'anonymous';
     case 'manage_ai':
+    case 'manage_transfers':
       return role === 'admin';
     case 'use_ai_search':
     case 'use_ai_qa':

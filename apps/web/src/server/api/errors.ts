@@ -60,7 +60,30 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'PROVIDER_UNAVAILABLE':
       return apiError(code, message, 503);
     case 'CANCELLED':
+    case 'TRANSFER_CONFLICT':
+    case 'TRANSFER_ALREADY_RUNNING':
+    case 'SOURCE_IN_USE':
+    case 'ARTIFACT_IN_USE':
+    case 'ARTIFACT_NOT_UPLOADABLE':
+    case 'RUN_NOT_ACTIVE':
       return apiError(code, message, 409);
+    case 'TRANSFER_NOT_FOUND':
+      return apiError(code, message, 404);
+    case 'INVALID_TRANSFER_OPTIONS':
+    case 'INVALID_ARCHIVE':
+      return apiError(code, message, 400);
+    case 'ARCHIVE_TOO_LARGE':
+      return apiError(code, message, 413);
+    case 'INVALID_ARCHIVE_TYPE':
+      return apiError(code, message, 415);
+    case 'UNSUPPORTED_ARCHIVE_VERSION':
+    case 'UNSUPPORTED_SOURCE_CONTENT':
+    case 'SOURCE_INVALID_RESPONSE':
+      return apiError(code, message, 422);
+    case 'SOURCE_UNAVAILABLE':
+      return apiError(code, message, 502);
+    case 'SOURCE_TIMEOUT':
+      return apiError(code, message, 504);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

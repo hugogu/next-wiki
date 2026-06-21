@@ -13,6 +13,7 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'run',
   'storage',
   'preferences',
+  'transfers',
 ]);
 
 // ---- Content storage (003) -------------------------------------------------
@@ -157,4 +158,73 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'image_ready',
   'completed',
   'error',
+]);
+
+// ---- Content transfer (005) -----------------------------------------------
+
+export const transferSourceTypeEnum = pgEnum('transfer_source_type', ['wikijs']);
+export const transferSourceStatusEnum = pgEnum('transfer_source_status', [
+  'unverified',
+  'healthy',
+  'unavailable',
+  'disabled',
+]);
+export const transferRunKindEnum = pgEnum('transfer_run_kind', [
+  'site_export',
+  'archive_preview',
+  'archive_import',
+  'wikijs_source_test',
+  'wikijs_preview',
+  'wikijs_import',
+]);
+export const transferRunStatusEnum = pgEnum('transfer_run_status', [
+  'queued',
+  'running',
+  'completed',
+  'completed_with_warnings',
+  'failed',
+  'cancelled',
+]);
+export const transferRunPhaseEnum = pgEnum('transfer_run_phase', [
+  'queued',
+  'discovering',
+  'validating',
+  'planning',
+  'downloading',
+  'writing_assets',
+  'writing_pages',
+  'finalizing',
+  'completed',
+]);
+export const transferItemKindEnum = pgEnum('transfer_item_kind', [
+  'page',
+  'asset',
+  'archive_entry',
+]);
+export const transferItemActionEnum = pgEnum('transfer_item_action', [
+  'create',
+  'replace',
+  'skip',
+  'convert',
+  'validate',
+]);
+export const transferItemStatusEnum = pgEnum('transfer_item_status', [
+  'pending',
+  'running',
+  'completed',
+  'warning',
+  'failed',
+  'cancelled',
+]);
+export const transferArtifactKindEnum = pgEnum('transfer_artifact_kind', [
+  'source_archive',
+  'export_archive',
+  'run_report',
+]);
+export const transferArtifactStatusEnum = pgEnum('transfer_artifact_status', [
+  'uploading',
+  'ready',
+  'expired',
+  'deleted',
+  'failed',
 ]);
