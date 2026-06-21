@@ -118,14 +118,17 @@ function insertImageReference(view: EditorView, url: string, alt: string) {
   view.focus();
 }
 
-// Append an image at the end of the document on its own line, leaving existing
-// content untouched (used for AI illustrations, which augment the page).
-function appendImageReference(view: EditorView, url: string, alt: string) {
-  const end = view.state.doc.length;
-  const insert = `${end > 0 ? '\n\n' : ''}![${alt}](${url})`;
+// Insert an image on its own line below the relevant content, leaving existing
+// text untouched (used for AI illustrations, which augment the page). When a
+// selection position is given the image lands just after that line; otherwise
+// it is appended at the end of the document.
+function insertImageBelow(view: EditorView, url: string, alt: string, afterPos?: number) {
+  const anchorPos = afterPos ?? view.state.doc.length;
+  const lineEnd = view.state.doc.lineAt(anchorPos).to;
+  const insert = `${lineEnd > 0 ? '\n\n' : ''}![${alt}](${url})`;
   view.dispatch({
-    changes: { from: end, to: end, insert },
-    selection: { anchor: end + insert.length, head: end + insert.length },
+    changes: { from: lineEnd, to: lineEnd, insert },
+    selection: { anchor: lineEnd + insert.length, head: lineEnd + insert.length },
   });
   view.focus();
 }
@@ -463,7 +466,7 @@ export function SplitMarkdownEditor({
           onClose={() => setImageSelection(undefined)}
           onInsert={(url) => {
             const view = viewRef.current;
-            if (view) appendImageReference(view, url, 'AI generated illustration');
+            if (view) insertImageBelow(view, url, 'AI generated illustration', imageSelection?.to);
           }}
         />
       )}

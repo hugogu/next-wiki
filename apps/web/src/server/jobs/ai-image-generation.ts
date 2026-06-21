@@ -122,9 +122,12 @@ export async function runImageGenerationAction(actionId: string): Promise<void> 
   await assertAiFeature(ctx, 'image');
   const { page, revision } = await assertEditableRevision(ctx, input.pageId, input.revisionId);
   const source = input.source.kind === 'page' ? revision.contentSource ?? '' : input.source.text;
+  // Frame the prompt around the subject itself, not "a wiki page" — otherwise
+  // image models tend to render a screenshot of a website/UI full of text.
   const baseInstruction =
-    `Create one relevant Wiki illustration for the page "${page.title}". `
-    + 'Do not include logos, watermarks, UI chrome, or large blocks of text. ';
+    'Create a single illustrative image that visually represents the topic below. '
+    + 'Depict the concept itself — never a website, web page, browser, app, screenshot, '
+    + 'user interface, document, or blocks of text, and no logos or watermarks. ';
   const summary =
     source.length > IMAGE_PROMPT_SUMMARIZE_THRESHOLD
       ? await summarizeForIllustration(actionId, page.title, source)
@@ -132,8 +135,8 @@ export async function runImageGenerationAction(actionId: string): Promise<void> 
   if (await isCancellationRequested(actionId)) throw new DomainError('CANCELLED', 'Image generation was cancelled');
   const prompt = (
     summary
-      ? `${baseInstruction}Scene: ${summary}`
-      : `${baseInstruction}Use this Wiki content as the sole subject context:\n\n${source}`
+      ? `${baseInstruction}Topic: ${summary}`
+      : `${baseInstruction}Topic context:\n\n${source}`
   ).slice(0, IMAGE_PROMPT_MAX_CHARS);
   const output = await createAiProviderAdapter(await providerRuntime(action.providerId)).generateImage({
     actionId,
