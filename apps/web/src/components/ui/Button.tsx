@@ -11,6 +11,9 @@ export function Button({
   variant = 'primary',
   size = 'default',
   className = '',
+  // Default to a non-submitting button so buttons rendered inside a form
+  // (e.g. dialogs over the editor) don't accidentally submit it.
+  type = 'button',
   ...props
 }: ButtonProps) {
   const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -26,7 +29,7 @@ export function Button({
   };
 
   return (
-    <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
+    <button type={type} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
       {children}
     </button>
   );
