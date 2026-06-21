@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { PlusIcon, TrashIcon } from '@/components/icons';
+import { CheckIcon, PlusIcon, TrashIcon } from '@/components/icons';
 import { Switch } from '@/components/ui/Switch';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -154,12 +154,20 @@ export function ModelCatalog({
         <DataTableBody>
           {filtered.map((model) => {
             const type = model.providerType;
+            const isActive = model.id === activeModelId;
             return (
-              <DataTableRow key={model.id}>
+              <DataTableRow
+                key={model.id}
+                className={
+                  isActive
+                    ? 'bg-success/10 [&>td:first-child]:border-l-2 [&>td:first-child]:border-l-success'
+                    : ''
+                }
+              >
                 <DataTableCell>
                   <div className="flex items-center gap-sm">
                     <p className="font-medium">{model.displayName}</p>
-                    {model.id === activeModelId && (
+                    {isActive && (
                       <StatusBadge tone="success">{t('admin.ai.models.active')}</StatusBadge>
                     )}
                   </div>
@@ -214,21 +222,23 @@ export function ModelCatalog({
                   </StatusBadge>
                 </DataTableCell>
                 <DataTableCell align="right">
-                  <div className="flex items-center justify-end gap-sm">
-                    {model.id === activeModelId ? (
-                      <span className="text-xs font-medium text-success">{t('admin.ai.models.active')}</span>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        disabled={
-                          model.availability === 'unavailable'
-                          || (purpose === 'wiki_embedding' && !model.embeddingDimensions)
-                          || busy === `${model.id}:activate`
-                        }
-                        onClick={() => void activate(model)}
-                      >
-                        {t('admin.ai.models.activate')}
-                      </Button>
+                  <div className="flex items-center justify-end gap-xs">
+                    {!isActive && (
+                      <Tooltip label={t('admin.ai.models.activate')}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('admin.ai.models.activate')}
+                          disabled={
+                            model.availability === 'unavailable'
+                            || (purpose === 'wiki_embedding' && !model.embeddingDimensions)
+                            || busy === `${model.id}:activate`
+                          }
+                          onClick={() => void activate(model)}
+                        >
+                          <CheckIcon className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
                     )}
                     <Tooltip label={t('admin.ai.models.delete')}>
                       <Button
