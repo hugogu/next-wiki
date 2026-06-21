@@ -17,6 +17,14 @@ import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson, hashAiPayload } from '@/server/crypto/ai-encryption';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
+/**
+ * Knowledge-index rebuilds go to a dedicated queue so a bulk import cannot
+ * starve interactive AI actions (image generation, optimization, questions).
+ */
+export function queueForFeature(feature: AiActionFeature): string {
+  return feature === 'index_rebuild' ? QUEUES.aiIndex : QUEUES.aiAction;
+}
+
 type CreateActionInput = {
   feature: AiActionFeature;
   input?: unknown;
@@ -92,7 +100,7 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
     });
     return action!;
   });
-  await enqueue(QUEUES.aiAction, { actionId: created.id });
+  await enqueue(queueForFeature(input.feature), { actionId: created.id });
   return {
     id: created.id,
     feature: input.feature,
@@ -383,9 +391,9 @@ export async function isCancellationRequested(actionId: string): Promise<boolean
   return !row || row.cancelRequested || row.status === 'cancelled';
 }
 
-export async function findRecoverableActionIds(): Promise<string[]> {
+export async function findRecoverableActionIds(): Promise<Array<{ id: string; feature: AiActionFeature }>> {
   const rows = await db
-    .select({ id: schema.aiActions.id })
+    .select({ id: schema.aiActions.id, feature: schema.aiActions.feature })
     .from(schema.aiActions)
     .where(
       and(
@@ -399,7 +407,7 @@ export async function findRecoverableActionIds(): Promise<string[]> {
       .set({ status: 'queued', startedAt: null })
       .where(inArray(schema.aiActions.id, rows.map((row) => row.id)));
   }
-  return rows.map((row) => row.id);
+  return rows;
 }
 
 export async function cleanupExpiredAiData(): Promise<void> {

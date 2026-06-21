@@ -8,6 +8,10 @@ export const QUEUES = {
   replication: 'storage-replication',
   gitExport: 'git-export',
   aiAction: 'ai-action',
+  // Knowledge-index rebuilds run on a dedicated queue so a bulk import (which
+  // reconciles every page) cannot starve interactive AI actions like image
+  // generation or text optimization.
+  aiIndex: 'ai-index',
   aiCleanup: 'ai-cleanup',
   transferExport: 'transfer-export',
   transferPreview: 'transfer-preview',

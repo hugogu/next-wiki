@@ -13,7 +13,7 @@ import { runGitExport } from './git-export';
 import { tickScheduledGitExport } from '@/server/services/git-export';
 import { registerAiActionHandler, runAiAction } from './ai-actions';
 import { runAiCleanup } from './ai-cleanup';
-import { findRecoverableActionIds } from '@/server/services/ai-actions';
+import { findRecoverableActionIds, queueForFeature } from '@/server/services/ai-actions';
 import { runModelSyncAction, runProviderTestAction } from './ai-admin';
 import { runIndexRebuildAction } from './ai-index';
 import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
@@ -82,6 +82,13 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
       await runAiAction((job.data as { actionId: string }).actionId);
     }
   });
+  // Dedicated worker so bulk index rebuilds run independently of interactive
+  // AI actions on QUEUES.aiAction.
+  await boss.work(QUEUES.aiIndex, async (jobs: JobBatch) => {
+    for (const job of jobs) {
+      await runAiAction((job.data as { actionId: string }).actionId);
+    }
+  });
   await boss.work(QUEUES.aiCleanup, async () => {
     await runAiCleanup();
   });
@@ -126,8 +133,8 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     await boss.send(QUEUES.migration, { migrationId });
     logger.info('re-enqueued interrupted migration', { migrationId });
   }
-  for (const actionId of await findRecoverableActionIds()) {
-    await boss.send(QUEUES.aiAction, { actionId });
+  for (const { id: actionId, feature } of await findRecoverableActionIds()) {
+    await boss.send(queueForFeature(feature), { actionId });
     logger.info('re-enqueued interrupted AI action', { actionId });
   }
   for (const runId of await findRecoverableTransferRunIds()) {
