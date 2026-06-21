@@ -12,8 +12,15 @@ import { apiGet } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { ModalDialog } from '@/components/ui/ModalDialog';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { Tooltip } from '@/components/ui/Tooltip';
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CircleIcon,
+  HistoryIcon,
+  XIcon,
+} from '@/components/icons';
 import {
   DataTable,
   DataTableBody,
@@ -44,6 +51,15 @@ const STATUS_LABELS: Record<AiActionStatus, TranslationKey> = {
   failed: 'admin.ai.actionStatus.failed',
   cancelled: 'admin.ai.actionStatus.cancelled',
   expired: 'admin.ai.actionStatus.expired',
+};
+
+const STATUS_ICONS: Record<AiActionStatus, { icon: typeof CheckIcon; className: string }> = {
+  queued: { icon: CircleIcon, className: 'text-muted' },
+  running: { icon: HistoryIcon, className: 'text-primary' },
+  completed: { icon: CheckIcon, className: 'text-success' },
+  failed: { icon: XIcon, className: 'text-danger' },
+  cancelled: { icon: XIcon, className: 'text-muted' },
+  expired: { icon: CircleIcon, className: 'text-muted' },
 };
 
 const FEATURES = Object.keys(FEATURE_LABELS) as AiActionFeature[];
@@ -145,9 +161,14 @@ export function AiActionAuditTable({
               <DataTableCell>{new Date(action.queuedAt).toLocaleString()}</DataTableCell>
               <DataTableCell>{t(FEATURE_LABELS[action.feature])}</DataTableCell>
               <DataTableCell>
-                <StatusBadge tone={action.status === 'completed' ? 'success' : action.status === 'failed' ? 'danger' : 'neutral'}>
-                  {t(STATUS_LABELS[action.status])}
-                </StatusBadge>
+                <Tooltip label={t(STATUS_LABELS[action.status])}>
+                  <span className={`inline-flex ${STATUS_ICONS[action.status].className}`} aria-label={t(STATUS_LABELS[action.status])}>
+                    {(() => {
+                      const StatusIcon = STATUS_ICONS[action.status].icon;
+                      return <StatusIcon className="h-4 w-4" />;
+                    })()}
+                  </span>
+                </Tooltip>
               </DataTableCell>
               <DataTableCell className="font-mono text-xs">{action.actorUserId ?? t('admin.ai.actions.system')}</DataTableCell>
               <DataTableCell>{[action.providerName, action.modelName].filter(Boolean).join(' / ') || '—'}</DataTableCell>
