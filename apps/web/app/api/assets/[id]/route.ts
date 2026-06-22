@@ -55,14 +55,24 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
       });
     }
 
-    return new NextResponse(new Uint8Array(result.bytes), {
-      status: 200,
-      headers: {
-        'Content-Type': result.contentType,
-        // Private: honors page permission, so it must not be shared-cached.
-        'Cache-Control': 'private, max-age=300',
-      },
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': result.contentType,
+      // Private: honors page permission, so it must not be shared-cached.
+      'Cache-Control': 'private, max-age=300',
+      // Never let the browser re-sniff bytes into a more dangerous type.
+      'X-Content-Type-Options': 'nosniff',
+    };
+    if (result.contentType === 'image/svg+xml') {
+      // SVG bytes are sanitized at write time; this is defense in depth for
+      // direct navigation to the asset URL. `sandbox` with no allow-* tokens
+      // disables scripts, plugins, and same-origin privileges; `default-src
+      // 'none'` blocks any subresource load (the SVG may still use inline
+      // styles). `Content-Disposition: inline` keeps legitimate <img> rendering
+      // working without exposing a scriptable document context.
+      headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+      headers['Content-Disposition'] = 'inline';
+    }
+    return new NextResponse(new Uint8Array(result.bytes), { status: 200, headers });
   } catch {
     return internalError();
   }

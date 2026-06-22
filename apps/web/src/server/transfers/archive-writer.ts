@@ -23,6 +23,7 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/gif': 'gif',
   'image/webp': 'webp',
+  'image/svg+xml': 'svg',
 };
 
 export async function writePortableArchive(input: {
@@ -49,7 +50,7 @@ export async function writePortableArchive(input: {
       id: hash,
       entry,
       contentHash: hash,
-      contentType: asset.contentType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
+      contentType: asset.contentType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/svg+xml',
       sizeBytes: asset.bytes.length,
       sourceAssetId: asset.id,
     };
