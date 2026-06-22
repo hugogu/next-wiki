@@ -14,6 +14,7 @@ import { WikiJsClient } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
 import { findMarkdownImages } from '@/server/transfers/markdown-links';
 import { localizeWikiJsImage } from '@/server/services/transfer-wikijs-assets';
+import { enqueueGitExport } from '@/server/services/git-export';
 
 async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
   const preview = run.previewRunId
@@ -150,6 +151,11 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
     replacedItems: replaced,
     skippedItems: skipped,
   });
+  // A full snapshot export reconciles every imported page; one sync at the end
+  // is sufficient and avoids a git commit per page.
+  if (processed > 0 && !latest?.cancelRequested) {
+    await enqueueGitExport('manual');
+  }
 }
 
 async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
@@ -261,6 +267,10 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     convertedItems: converted,
     warningItems: warnings,
   });
+  // One full snapshot sync at the end is enough; do not enqueue per page.
+  if (processed > 0) {
+    await enqueueGitExport('manual');
+  }
 }
 
 export async function runTransferImport(runId: string): Promise<void> {

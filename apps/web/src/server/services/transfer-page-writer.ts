@@ -5,7 +5,6 @@ import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
 import { syncRevisionAssetRefs } from './content-assets';
 import { addReplicationTasks, kickReplication } from './storage-replication';
-import { enqueueGitExport } from './git-export';
 import { reconcilePageAcrossIndexes } from './ai-index';
 import { buildUserCtx } from '@/server/permissions';
 
@@ -82,7 +81,6 @@ export async function writeImportedPage(input: {
     return pageId;
   });
   await kickReplication();
-  await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result, buildUserCtx(input.actorUserId, 'admin'));
   return { pageId: result, revisionId, action: existing ? 'replace' : 'create' };
 }
