@@ -371,6 +371,7 @@ export const en = {
   'admin.storage.git.saved': 'Git sync configuration saved.',
   'admin.storage.git.exportNow': 'Sync now',
   'admin.storage.git.exportQueued': 'Full Git sync queued.',
+  'admin.storage.git.exportNotQueued': 'Git sync could not be queued. Please check the server logs.',
   'admin.storage.git.enableTitle': 'Enable Git sync?',
   'admin.storage.git.enableMessage':
     'The current published state will be synced immediately. Future publish, delete, and path changes will enqueue another reconciliation.',

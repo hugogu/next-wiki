@@ -360,6 +360,7 @@ export const zh: Translations = {
   'admin.storage.git.saved': 'Git 同步配置已保存。',
   'admin.storage.git.exportNow': '立即同步',
   'admin.storage.git.exportQueued': '已加入全量 Git 同步队列。',
+  'admin.storage.git.exportNotQueued': 'Git 同步未能加入队列，请检查服务器日志。',
   'admin.storage.git.enableTitle': '启用 Git 同步？',
   'admin.storage.git.enableMessage':
     '系统会立即全量同步当前已发布内容。后续发布、删除和路径修改会再次触发协调。',

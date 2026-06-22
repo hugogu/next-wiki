@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PgBoss } from 'pg-boss';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { setBoss } from '@/server/jobs/runtime';
-import { enqueueGitExport, tickScheduledGitExport } from './git-export';
+import { buildUserCtx, type PermCtx } from '@/server/permissions';
+import { enqueueGitExport, runGitExportNow, tickScheduledGitExport } from './git-export';
 
 type GitConfigOverrides = Partial<{
   autoSyncOnPublish: boolean;
@@ -12,12 +13,15 @@ type GitConfigOverrides = Partial<{
   scheduledSyncIntervalMinutes: number;
 }>;
 
+let adminCtx: PermCtx;
+let editorCtx: PermCtx;
+
 async function seedGitBackend(options: {
   isActive?: boolean;
   replicaState?: 'enabled' | 'backfilling';
   lastSyncAt?: Date | null;
   config?: GitConfigOverrides;
-}): Promise<void> {
+} = {}): Promise<void> {
   await db.insert(schema.storageBackends).values({
     type: 'git',
     purpose: 'git_export',
@@ -44,12 +48,28 @@ beforeEach(() => {
   setBoss({ send: async () => randomUUID() } as unknown as PgBoss);
 });
 
+beforeAll(async () => {
+  await db.delete(schema.storageBackends);
+  await db.delete(schema.users);
+  const [admin] = await db
+    .insert(schema.users)
+    .values({ email: 'ge-admin@example.com', passwordHash: 'HASH', role: 'admin' })
+    .returning();
+  const [editor] = await db
+    .insert(schema.users)
+    .values({ email: 'ge-editor@example.com', passwordHash: 'HASH', role: 'editor' })
+    .returning();
+  adminCtx = buildUserCtx(admin!.id, 'admin');
+  editorCtx = buildUserCtx(editor!.id, 'editor');
+});
+
 afterEach(async () => {
   setBoss(null);
   await db.delete(schema.storageBackends);
 });
 
 afterAll(async () => {
+  await db.delete(schema.users);
   await closeDb();
 });
 
@@ -114,5 +134,29 @@ describe('tickScheduledGitExport', () => {
       config: { scheduledSyncEnabled: true },
     });
     expect(await tickScheduledGitExport()).toBe(false);
+  });
+});
+
+describe('runGitExportNow', () => {
+  it('queues a manual run for admins', async () => {
+    await seedGitBackend();
+    const result = await runGitExportNow(adminCtx);
+    expect(result.queued).toBe(true);
+  });
+
+  it('rejects non-admin callers', async () => {
+    await seedGitBackend();
+    await expect(runGitExportNow(editorCtx)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('rejects when the backend is inactive', async () => {
+    await seedGitBackend({ isActive: false });
+    await expect(runGitExportNow(adminCtx)).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('throws when the job queue cannot enqueue', async () => {
+    setBoss(null);
+    await seedGitBackend();
+    await expect(runGitExportNow(adminCtx)).rejects.toMatchObject({ code: 'STORAGE_UNAVAILABLE' });
   });
 });

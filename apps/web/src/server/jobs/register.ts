@@ -44,7 +44,14 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   registerAiActionHandler('text_optimization', runTextOptimizationAction);
   registerAiActionHandler('image_generation', runImageGenerationAction);
   for (const queue of Object.values(QUEUES)) {
-    await boss.createQueue(queue);
+    // Only create queues that don't already exist. pg-boss's create_queue()
+    // is ON CONFLICT DO NOTHING, but we've observed duplicate pgboss.queue
+    // rows after container restarts (likely a pg-boss race during schema
+    // init). Skipping existing queues prevents re-creating the race window.
+    const existing = await boss.getQueues([queue]);
+    if (existing.length === 0) {
+      await boss.createQueue(queue);
+    }
   }
 
   await boss.work(QUEUES.migration, async (jobs: JobBatch) => {

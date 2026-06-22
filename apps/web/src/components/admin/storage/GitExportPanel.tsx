@@ -173,9 +173,13 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
     setError(null);
     setMessage(null);
     run.mutate(undefined, {
-      onSuccess: () => {
-        setMessage(t('admin.storage.git.exportQueued'));
-        afterChange();
+      onSuccess: (result) => {
+        if (result.queued) {
+          setMessage(t('admin.storage.git.exportQueued'));
+          afterChange();
+        } else {
+          setError(t('admin.storage.git.exportNotQueued'));
+        }
       },
       onError: (e: ApiError) => setError(e.message),
     });

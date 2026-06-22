@@ -233,7 +233,11 @@ export async function runGitExportNow(ctx: PermCtx): Promise<{ queued: boolean }
   if (!backend?.isActive) {
     throw new DomainError('BAD_REQUEST', 'Git export is not enabled');
   }
-  return { queued: await enqueueGitExport('manual') };
+  const queued = await enqueueGitExport('manual');
+  if (!queued) {
+    throw new DomainError('STORAGE_UNAVAILABLE', 'Git export could not be queued; the job queue is unavailable');
+  }
+  return { queued };
 }
 
 /**
