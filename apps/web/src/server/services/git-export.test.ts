@@ -5,7 +5,12 @@ import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { setBoss } from '@/server/jobs/runtime';
 import { buildUserCtx, type PermCtx } from '@/server/permissions';
-import { enqueueGitExport, runGitExportNow, tickScheduledGitExport } from './git-export';
+import {
+  enqueueGitExport,
+  resetGitExport,
+  runGitExportNow,
+  tickScheduledGitExport,
+} from './git-export';
 
 type GitConfigOverrides = Partial<{
   autoSyncOnPublish: boolean;
@@ -158,5 +163,24 @@ describe('runGitExportNow', () => {
     setBoss(null);
     await seedGitBackend();
     await expect(runGitExportNow(adminCtx)).rejects.toMatchObject({ code: 'STORAGE_UNAVAILABLE' });
+  });
+});
+
+describe('resetGitExport', () => {
+  it('clears a stuck backfilling state to degraded', async () => {
+    await seedGitBackend({ replicaState: 'backfilling' });
+    const result = await resetGitExport(adminCtx);
+    expect(result.replicaState).toBe('degraded');
+    expect(result.lastError).toBeTruthy();
+  });
+
+  it('rejects non-admin callers', async () => {
+    await seedGitBackend({ replicaState: 'backfilling' });
+    await expect(resetGitExport(editorCtx)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('rejects when no sync is in progress', async () => {
+    await seedGitBackend({ replicaState: 'enabled' });
+    await expect(resetGitExport(adminCtx)).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 });

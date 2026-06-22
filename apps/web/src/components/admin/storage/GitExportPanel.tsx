@@ -86,6 +86,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
     '/api/storage/git-export/ssh-key',
   );
   const run = useApiMutation<void, GitExportRunResult>('/api/storage/git-export/run');
+  const reset = useApiMutation<void, StorageBackendView>('/api/storage/git-export/reset');
 
   // Poll while a sync is in flight so the panel reflects completion without a manual reload.
   const status = useQuery({
@@ -100,7 +101,7 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
   const enabled = live?.isActive ?? false;
   const state = live?.replicaState ?? 'disabled';
   const hasHttpsSecret = live?.hasSecret === true && config?.authMode === 'https_token';
-  const pending = save.isPending || generateKey.isPending || run.isPending;
+  const pending = save.isPending || generateKey.isPending || run.isPending || reset.isPending;
 
   const body = (
     nextEnabled: boolean,
@@ -185,6 +186,18 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
     });
   };
 
+  const onReset = () => {
+    setError(null);
+    setMessage(null);
+    reset.mutate(undefined, {
+      onSuccess: () => {
+        setMessage(t('admin.storage.git.syncCancelled'));
+        afterChange();
+      },
+      onError: (e: ApiError) => setError(e.message),
+    });
+  };
+
   return (
     <div className="grid gap-md">
       {/* Status group: state plus the enable and auto-sync toggles. */}
@@ -230,6 +243,23 @@ export function GitExportPanel({ initial }: { initial: StorageBackendView | null
         </div>
         {!autoSyncOnPublish && (
           <p className="mt-sm text-xs text-warning">{t('admin.storage.git.autoSyncWarning')}</p>
+        )}
+
+        {enabled && state === 'backfilling' && (
+          <div className="mt-sm flex flex-wrap items-center justify-between gap-sm rounded-md border border-warning/30 bg-warning/5 px-sm py-sm">
+            <p className="text-xs text-muted">
+              {live?.syncStartedAt
+                ? t('admin.storage.git.syncInProgressSince', {
+                    time: new Date(live.syncStartedAt).toLocaleString(),
+                  })
+                : t('admin.storage.git.syncInProgress')}
+            </p>
+            <Button variant="secondary" onClick={onReset} disabled={pending}>
+              {reset.isPending
+                ? t('admin.storage.git.cancellingSync')
+                : t('admin.storage.git.cancelSync')}
+            </Button>
+          </div>
         )}
 
         {live?.lastSyncAt && (

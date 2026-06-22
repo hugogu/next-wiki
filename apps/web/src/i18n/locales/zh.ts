@@ -362,6 +362,11 @@ export const zh: Translations = {
   'admin.storage.git.exportNow': '立即同步',
   'admin.storage.git.exportQueued': '已加入全量 Git 同步队列。',
   'admin.storage.git.exportNotQueued': 'Git 同步未能加入队列，请检查服务器日志。',
+  'admin.storage.git.syncInProgress': '正在进行全量同步。',
+  'admin.storage.git.syncInProgressSince': '全量同步已从 {{time}} 开始运行。',
+  'admin.storage.git.cancelSync': '取消同步',
+  'admin.storage.git.cancellingSync': '正在取消…',
+  'admin.storage.git.syncCancelled': 'Git 同步已取消。',
   'admin.storage.git.enableTitle': '启用 Git 同步？',
   'admin.storage.git.enableMessage':
     '系统会立即全量同步当前已发布内容。后续发布、删除和路径修改会再次触发协调。',

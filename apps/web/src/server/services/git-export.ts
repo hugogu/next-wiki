@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   gitBackendConfigSchema,
   type GitExportUpsert,
@@ -16,8 +16,9 @@ import { DomainError } from '@/server/errors';
 import { encryptKey } from '@/server/crypto/key-encryption';
 import { assertCanManageStorage } from './storage-config';
 import type { PermCtx } from '@/server/permissions';
-import { enqueue } from '@/server/jobs/runtime';
+import { enqueue, getBoss } from '@/server/jobs/runtime';
 import { QUEUES } from '@/server/jobs/runtime';
+import { logger } from '@/server/logger';
 
 const execFileAsync = promisify(execFile);
 
@@ -238,6 +239,58 @@ export async function runGitExportNow(ctx: PermCtx): Promise<{ queued: boolean }
     throw new DomainError('STORAGE_UNAVAILABLE', 'Git export could not be queued; the job queue is unavailable');
   }
   return { queued };
+}
+
+/**
+ * Best-effort cancellation of any pending or in-flight git-export jobs so a
+ * stale queued job cannot later flip the backend back into `backfilling`.
+ * Never throws: clearing a stuck state must succeed even when the queue is
+ * unavailable or pg-boss internals are unreachable.
+ */
+async function cancelPendingGitExportJobs(): Promise<void> {
+  const boss = getBoss();
+  if (!boss) return;
+  try {
+    const rows = await db.execute<{ id: string }>(
+      sql`SELECT id FROM pgboss.job WHERE name = ${QUEUES.gitExport} AND state IN ('created', 'active', 'retry')`,
+    );
+    const ids = [...rows].map((row) => row.id);
+    if (ids.length > 0) await boss.cancel(QUEUES.gitExport, ids);
+  } catch (error) {
+    logger.warn('Failed to cancel pending git-export jobs', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Clear a Git sync that is stuck in `backfilling` (e.g. a run interrupted by a
+ * crash before timeouts existed). Cancels any pending jobs and drops the
+ * backend to `degraded` so the admin can re-run or reconfigure from the UI
+ * instead of editing the database.
+ */
+export async function resetGitExport(ctx: PermCtx): Promise<StorageBackendView> {
+  assertCanManageStorage(ctx);
+  const backend = await findGitExport();
+  if (!backend) {
+    throw new DomainError('BAD_REQUEST', 'Git export is not configured');
+  }
+  if (backend.replicaState !== 'backfilling') {
+    throw new DomainError('BAD_REQUEST', 'No Git sync is in progress to cancel');
+  }
+  await cancelPendingGitExportJobs();
+  const [updated] = await db
+    .update(schema.storageBackends)
+    .set({
+      replicaState: 'degraded',
+      syncStartedAt: null,
+      lastError: 'Sync was cancelled by an administrator.',
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.storageBackends.id, backend.id))
+    .returning();
+  if (!updated) throw new Error('Failed to reset Git export state');
+  return toView(updated);
 }
 
 /**
