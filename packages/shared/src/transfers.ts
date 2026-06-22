@@ -270,7 +270,7 @@ export const portableAssetSchema = z.object({
   id: sha256Schema,
   entry: z.string().min(1),
   contentHash: sha256Schema,
-  contentType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']),
+  contentType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']),
   sizeBytes: nonNegativeInt,
   sourceAssetId: z.string().min(1).optional(),
 });

@@ -1,11 +1,32 @@
 import { createHash } from 'node:crypto';
 import { IMAGE_CONTENT_TYPES, type ImageContentType } from '@next-wiki/shared';
+import { sanitizeSvg } from './svg-sanitize';
 
 /**
- * Detect a raster image type from its leading bytes (magic numbers). Returns
- * `null` for anything not in the allowlist — including SVG and mislabeled files
- * — so the declared content type can never be trusted over the actual bytes
- * (prevents type confusion; SVG is excluded for safety, plan D3 / research R12).
+ * Heuristically detect whether a buffer's leading bytes look like an SVG
+ * document so it can be routed to the sanitizer. This only decides *routing*;
+ * the sanitizer (which must emit a real `<svg>` root) is the authoritative gate,
+ * so a loose match here cannot let unsanitized markup through.
+ */
+function looksLikeSvg(bytes: Buffer): boolean {
+  const head = bytes.subarray(0, 2048).toString('utf8');
+  // `\s` matches a leading UTF-8 BOM (U+FEFF) as well as ordinary whitespace.
+  const start = head.replace(/^\s+/, '');
+  const prefixOk =
+    /^<\?xml[\s?]/i.test(start) ||
+    /^<!doctype\s+svg\b/i.test(start) ||
+    /^<svg[\s>]/i.test(start) ||
+    /^<!--/.test(start);
+  return prefixOk && /<svg[\s>/]/i.test(head);
+}
+
+/**
+ * Detect an image type from its leading bytes. Raster types are matched by
+ * magic numbers; SVG is matched structurally (it has no magic number). Returns
+ * `null` for anything not in the allowlist — and for mislabeled files — so the
+ * declared content type can never be trusted over the actual bytes (prevents
+ * type confusion). SVG bytes are accepted only after sanitization in
+ * `validateImage`, never on the strength of this sniff alone.
  */
 export function sniffImageType(bytes: Buffer): ImageContentType | null {
   if (bytes.length >= 8 &&
@@ -25,18 +46,33 @@ export function sniffImageType(bytes: Buffer): ImageContentType | null {
     bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') {
     return 'image/webp';
   }
+  if (looksLikeSvg(bytes)) {
+    return 'image/svg+xml';
+  }
   return null;
 }
 
 export type ImageValidationResult =
-  | { ok: true; contentType: ImageContentType; contentHash: string; sizeBytes: number }
+  | {
+      ok: true;
+      contentType: ImageContentType;
+      contentHash: string;
+      sizeBytes: number;
+      /**
+       * Canonical bytes to persist. Identical to the input for rasters; the
+       * sanitized SVG for `image/svg+xml`. Callers MUST store these, never the
+       * original input, so the stored asset matches `contentHash`/`sizeBytes`.
+       */
+      bytes: Buffer;
+    }
   | { ok: false; reason: 'too_large' | 'unsupported_type' };
 
 /**
- * Validate uploaded image bytes against the size limit and the raster allowlist,
- * verifying the type from the bytes rather than the declared mime. On success
- * returns the sniffed content type and the sha256 used for integrity/migration
- * verification.
+ * Validate uploaded image bytes against the size limit and the allowlist,
+ * verifying the type from the bytes rather than the declared mime. SVG bytes
+ * are sanitized and the sanitized form becomes the canonical stored bytes. On
+ * success returns the canonical bytes plus the sniffed content type and the
+ * sha256 (over the canonical bytes) used for integrity / migration / dedup.
  */
 export function validateImage(bytes: Buffer, maxBytes: number): ImageValidationResult {
   if (bytes.length > maxBytes) {
@@ -46,6 +82,20 @@ export function validateImage(bytes: Buffer, maxBytes: number): ImageValidationR
   if (!contentType || !IMAGE_CONTENT_TYPES.includes(contentType)) {
     return { ok: false, reason: 'unsupported_type' };
   }
-  const contentHash = createHash('sha256').update(bytes).digest('hex');
-  return { ok: true, contentType, contentHash, sizeBytes: bytes.length };
+
+  let canonical = bytes;
+  if (contentType === 'image/svg+xml') {
+    const sanitized = sanitizeSvg(bytes);
+    if (!sanitized) {
+      return { ok: false, reason: 'unsupported_type' };
+    }
+    // Sanitization only ever removes content, but guard the limit explicitly.
+    if (sanitized.length > maxBytes) {
+      return { ok: false, reason: 'too_large' };
+    }
+    canonical = sanitized;
+  }
+
+  const contentHash = createHash('sha256').update(canonical).digest('hex');
+  return { ok: true, contentType, contentHash, sizeBytes: canonical.length, bytes: canonical };
 }

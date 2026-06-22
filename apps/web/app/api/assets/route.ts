@@ -10,7 +10,7 @@ import * as contentAssets from '@/server/services/content-assets';
  *
  * @openapi
  * @summary Upload an image
- * @description Uploads a raster image (PNG, JPEG, GIF, or WebP) for use in page content. Returns the asset id and its application-relative URL.
+ * @description Uploads an image (PNG, JPEG, GIF, WebP, or SVG) for use in page content. SVG uploads are sanitized before storage. Returns the asset id and its application-relative URL.
  * @tag Assets
  * @auth bearer
  * @response 200:AssetUploadResult

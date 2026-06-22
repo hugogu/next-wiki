@@ -37,15 +37,18 @@ export type MigrationStatus = z.infer<typeof migrationStatusSchema>;
 // ---- Image upload ----------------------------------------------------------
 
 /**
- * Raster image content types accepted for in-editor uploads. SVG is excluded:
- * an SVG served same-origin can execute active content on direct navigation
- * (see plan D3 / research R12).
+ * Image content types accepted for uploads and import. The raster types are
+ * verified by magic bytes; SVG (vector) is accepted only after being sanitized
+ * (script / event-handler / external-reference stripping) on the way in and is
+ * served back under a strict `sandbox` CSP so direct navigation cannot execute
+ * active content (see plan D3 / research R12).
  */
 export const imageContentTypeSchema = z.enum([
   'image/png',
   'image/jpeg',
   'image/gif',
   'image/webp',
+  'image/svg+xml',
 ]);
 export type ImageContentType = z.infer<typeof imageContentTypeSchema>;
 

@@ -395,7 +395,7 @@ export function SplitMarkdownEditor({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/gif,image/webp"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
           multiple
           className="hidden"
           onChange={(e) => {

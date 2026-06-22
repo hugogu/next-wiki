@@ -24,7 +24,9 @@ export async function writeImportedAsset(input: {
   });
   if (existing) return { id: existing.id, contentHash: existing.contentHash };
   const created = await writeImageAsset(new DatabaseStore(), {
-    bytes: input.bytes,
+    // Persist the canonical bytes (sanitized SVG / verified raster) that match
+    // the validated hash and size, not the raw imported input.
+    bytes: validation.bytes,
     contentType: validation.contentType,
     contentHash: validation.contentHash,
     sizeBytes: validation.sizeBytes,

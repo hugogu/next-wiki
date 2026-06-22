@@ -43,14 +43,16 @@ export async function uploadImage(ctx: PermCtx, bytes: Buffer): Promise<UploadRe
     const message =
       result.reason === 'too_large'
         ? 'Image exceeds the maximum allowed size'
-        : 'Unsupported image type; allowed types are PNG, JPEG, GIF, and WebP';
+        : 'Unsupported image type; allowed types are PNG, JPEG, GIF, WebP, and SVG';
     throw new DomainError('INVALID_IMAGE', message);
   }
 
   let id: string;
   try {
     ({ id } = await writeImageAsset(new DatabaseStore(), {
-      bytes,
+      // result.bytes is the canonical (for SVG, sanitized) form that matches
+      // the returned hash and size — never persist the raw input.
+      bytes: result.bytes,
       contentType: result.contentType,
       contentHash: result.contentHash,
       sizeBytes: result.sizeBytes,
@@ -94,7 +96,10 @@ export async function getServableImage(ctx: PermCtx, assetId: string): Promise<S
 
   try {
     const preferred = await getPreferredReadBackend();
-    if (preferred?.type === 's3') {
+    // SVG must always be served by this app so the strict sandbox CSP applies.
+    // A presigned S3 URL would be fetched directly by the browser, bypassing
+    // our security headers, so SVG is never redirected even on an S3 backend.
+    if (preferred?.type === 's3' && asset.contentType !== 'image/svg+xml') {
       const replicated = await db.query.storageReplicationTasks.findFirst({
         where: and(
           eq(schema.storageReplicationTasks.backendId, preferred.id),
