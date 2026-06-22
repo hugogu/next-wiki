@@ -257,6 +257,7 @@ export const zh: Translations = {
   'admin.transfers.table.status': '状态',
   'admin.transfers.table.progress': '进度',
   'admin.transfers.table.started': '开始时间',
+  'admin.transfers.table.actions': '操作',
   'admin.transfers.kind.site_export': '站点导出',
   'admin.transfers.kind.archive_preview': '归档预览',
   'admin.transfers.kind.archive_import': '归档导入',

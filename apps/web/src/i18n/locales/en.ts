@@ -257,6 +257,7 @@ export const en = {
   'admin.transfers.table.status': 'Status',
   'admin.transfers.table.progress': 'Progress',
   'admin.transfers.table.started': 'Started',
+  'admin.transfers.table.actions': 'Actions',
   'admin.transfers.kind.site_export': 'Site export',
   'admin.transfers.kind.archive_preview': 'Archive preview',
   'admin.transfers.kind.archive_import': 'Archive import',
