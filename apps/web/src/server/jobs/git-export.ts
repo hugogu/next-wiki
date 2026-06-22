@@ -13,6 +13,13 @@ import { logger } from '@/server/logger';
 
 const execFileAsync = promisify(execFile);
 
+// Hard ceiling for any single git invocation. Network operations (fetch/push)
+// can otherwise hang forever when a connection stalls — which wedges the single
+// git-export worker and stops sync entirely. On timeout Node SIGKILLs the
+// process and the promise rejects, so the run fails into `degraded` and the
+// queue keeps draining instead of piling up.
+const GIT_TIMEOUT_MS = 120_000;
+
 let activeRun: Promise<void> | null = null;
 let rerunRequested = false;
 
@@ -25,6 +32,8 @@ async function git(
     cwd,
     env,
     maxBuffer: 10 * 1024 * 1024,
+    timeout: GIT_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
   });
 }
 
@@ -35,7 +44,7 @@ async function clearWorkingTree(directory: string): Promise<void> {
   }
 }
 
-async function buildGitEnvironment(
+export async function buildGitEnvironment(
   directory: string,
   authMode: 'https_token' | 'ssh',
   username: string | undefined,
@@ -54,12 +63,20 @@ async function buildGitEnvironment(
     const knownHostsPath = join(directory, 'known_hosts');
     await writeFile(keyPath, secret, 'utf8');
     await chmod(keyPath, 0o600);
+    // ConnectTimeout caps the initial TCP/handshake wait; the keepalive probes
+    // tear the session down if the peer goes silent mid-transfer (a stalled
+    // VPN/proxy) so ssh exits and releases git's stdio instead of lingering.
+    // BatchMode refuses any interactive prompt rather than blocking on one.
     env.GIT_SSH_COMMAND = [
       'ssh',
       `-i ${keyPath}`,
       '-o IdentitiesOnly=yes',
       '-o StrictHostKeyChecking=accept-new',
       `-o UserKnownHostsFile=${knownHostsPath}`,
+      '-o BatchMode=yes',
+      '-o ConnectTimeout=10',
+      '-o ServerAliveInterval=15',
+      '-o ServerAliveCountMax=3',
     ].join(' ');
   } else {
     const askPassPath = join(directory, 'git-askpass.sh');
@@ -72,6 +89,10 @@ async function buildGitEnvironment(
     env.GIT_ASKPASS = askPassPath;
     env.GIT_USERNAME = username || 'x-access-token';
     env.GIT_TOKEN = secret;
+    // Abort an HTTPS transfer that drops below 1 KB/s for 30s rather than
+    // hanging on a stalled connection (the SSH path relies on ServerAlive*).
+    env.GIT_HTTP_LOW_SPEED_LIMIT = '1000';
+    env.GIT_HTTP_LOW_SPEED_TIME = '30';
   }
   return env;
 }
@@ -106,7 +127,11 @@ async function executeExport(backendId: string): Promise<void> {
       config.username,
       secret,
     );
-    await execFileAsync('git', ['init', checkout], { env });
+    await execFileAsync('git', ['init', checkout], {
+      env,
+      timeout: GIT_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+    });
     await git(checkout, ['remote', 'add', 'origin', config.remoteUrl], env);
 
     let remoteBranchExists = true;
