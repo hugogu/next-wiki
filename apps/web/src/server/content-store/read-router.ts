@@ -56,3 +56,15 @@ export async function readImageWithFallback(asset: {
   }
   return new DatabaseStore().getImage(asset.id);
 }
+
+/**
+ * Read an image straight from the authoritative database, bypassing the
+ * preferred read backend. The counterpart to {@link readMarkdownFromDatabase}
+ * for callers (e.g. Git export) that reconcile the whole published snapshot and
+ * must not stall — or generate repair tasks — on a slow or unreachable replica.
+ */
+export async function readImageFromDatabase(asset: {
+  id: string;
+}): Promise<{ bytes: Buffer; contentType: string }> {
+  return new DatabaseStore().getImage(asset.id);
+}

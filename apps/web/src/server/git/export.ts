@@ -4,8 +4,8 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import {
-  readImageWithFallback,
-  readMarkdownWithFallback,
+  readImageFromDatabase,
+  readMarkdownFromDatabase,
 } from '@/server/content-store/read-router';
 import type { GitBackendConfig } from '@next-wiki/shared';
 
@@ -62,7 +62,6 @@ export async function materializeGitExport(
       revisionId: schema.pageRevisions.id,
       version: schema.pageRevisions.versionNumber,
       contentSource: schema.pageRevisions.contentSource,
-      contentHash: schema.pageRevisions.contentHash,
       publishedAt: schema.pageRevisions.publishedAt,
     })
     .from(schema.pages)
@@ -82,7 +81,6 @@ export async function materializeGitExport(
             revisionId: schema.contentAssetRefs.revisionId,
             assetId: schema.contentAssets.id,
             contentType: schema.contentAssets.contentType,
-            contentHash: schema.contentAssets.contentHash,
           })
           .from(schema.contentAssetRefs)
           .innerJoin(
@@ -97,18 +95,17 @@ export async function materializeGitExport(
           );
 
   const assetInfo = new Map(
-    refs.map((ref) => [
-      ref.assetId,
-      { contentType: ref.contentType, contentHash: ref.contentHash },
-    ]),
+    refs.map((ref) => [ref.assetId, { contentType: ref.contentType }]),
   );
   await mkdir(root, { recursive: true });
 
   for (const row of rows) {
-    const source = await readMarkdownWithFallback({
+    // Read straight from the authoritative database: a full-snapshot export
+    // must not stall on (or queue repair tasks against) a slow/unreachable
+    // read-preferred replica, and the published source always lives in the DB.
+    const source = await readMarkdownFromDatabase({
       id: row.revisionId,
       contentSource: row.contentSource,
-      contentHash: row.contentHash,
     });
     const rewritten = source.replace(ASSET_URL_PATTERN, (_match, assetId: string) => {
       const asset = assetInfo.get(assetId);
@@ -134,10 +131,7 @@ export async function materializeGitExport(
   }
 
   for (const [assetId, asset] of assetInfo) {
-    const { bytes } = await readImageWithFallback({
-      id: assetId,
-      contentHash: asset.contentHash,
-    });
+    const { bytes } = await readImageFromDatabase({ id: assetId });
     const output = safeOutputPath(
       root,
       join(config.assetsDir, `${assetId}${extensionFor(asset.contentType)}`),
