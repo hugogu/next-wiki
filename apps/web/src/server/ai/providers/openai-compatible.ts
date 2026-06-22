@@ -195,7 +195,18 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
       usage?: { prompt_tokens?: number };
     }>(response);
     if (!Array.isArray(payload.data) || payload.data.length !== input.inputs.length) {
-      throw new AiProviderError('INVALID_RESPONSE', 'Provider returned the wrong embedding count');
+      // A 200 with the wrong embedding count is a transient partial response
+      // (provider truncated the body, hit an internal batch limit, or returned
+      // an error envelope as 200). It is not caused by the input itself, so
+      // retrying with backoff typically recovers it. Observed in production
+      // with OpenRouter + qwen/qwen3-embedding-* during provider hiccups.
+      throw new AiProviderError(
+        'INVALID_RESPONSE',
+        `Provider returned the wrong embedding count (got ${
+          Array.isArray(payload.data) ? payload.data.length : 0
+        }, expected ${input.inputs.length})`,
+        true,
+      );
     }
     const vectors = [...payload.data]
       .sort((a, b) => Number(a.index ?? 0) - Number(b.index ?? 0))
