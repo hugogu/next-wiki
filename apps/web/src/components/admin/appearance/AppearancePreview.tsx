@@ -13,10 +13,15 @@ interface AppearancePreviewProps {
   fontSizes: Record<string, string>;
 }
 
+const CODE_SAMPLE = `function greet(name) {
+  return \`Hello, \${name}\`;
+}`;
+
 /**
  * Live sample that applies the in-progress (unsaved) appearance values via
- * locally-scoped CSS custom properties, so the admin sees changes immediately
- * without affecting the surrounding page.
+ * locally-scoped CSS custom properties. The body is rendered inside a real
+ * `.prose` block so headings, code, blockquotes and tables look exactly like
+ * rendered Markdown content — and reflect the configured tokens immediately.
  */
 export function AppearancePreview({
   tokenKeys,
@@ -42,6 +47,8 @@ export function AppearancePreview({
   for (const key of tokenKeys) style[`--color-${key}`] = colors[key] ?? '';
   for (const [key, value] of Object.entries(fontSizes)) style[`--font-size-${key}`] = value;
 
+  const tableTokens = ['primary', 'background', 'foreground'].filter((k) => tokenKeys.includes(k));
+
   return (
     <div className="space-y-sm">
       <div className="flex items-center justify-between">
@@ -63,46 +70,58 @@ export function AppearancePreview({
 
       <div
         style={style as CSSProperties}
-        className="overflow-hidden rounded-lg border border-border-strong"
+        className="overflow-hidden rounded-lg border border-border-strong p-md"
         data-appearance-preview
       >
-        <div className="space-y-sm p-md">
-          <h1 className="font-display font-semibold" style={{ fontSize: 'var(--font-size-h1)', lineHeight: 1.2 }}>
-            {t('admin.appearance.preview.heading')}
-          </h1>
-          <h2 className="font-display font-semibold" style={{ fontSize: 'var(--font-size-h2)' }}>
-            {t('admin.appearance.preview.subheading')}
-          </h2>
-          <p style={{ fontSize: 'var(--font-size-base)' }}>
+        <article className="prose max-w-none">
+          <h1>{t('admin.appearance.preview.heading')}</h1>
+          <p>
             {t('admin.appearance.preview.body')}{' '}
-            <a href="#" onClick={(e) => e.preventDefault()} style={{ color: 'var(--color-primary)' }} className="underline">
+            <a href="#" onClick={(e) => e.preventDefault()}>
               {t('admin.appearance.preview.link')}
             </a>
             .
           </p>
-          <div
-            className="rounded-md border p-sm"
-            style={{ backgroundColor: 'var(--color-surface-elevated)', borderColor: 'var(--color-border)' }}
+
+          <h2>{t('admin.appearance.preview.subheading')}</h2>
+          <blockquote>{t('admin.appearance.preview.quote')}</blockquote>
+          <pre>
+            <code>{CODE_SAMPLE}</code>
+          </pre>
+
+          <h3>{t('admin.appearance.preview.h3')}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>{t('admin.appearance.preview.table.token')}</th>
+                <th>{t('admin.appearance.preview.table.value')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableTokens.map((key) => (
+                <tr key={key}>
+                  <td className="font-mono">{key}</td>
+                  <td className="font-mono">{colors[key]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+
+        {/* Semantic colors not covered by prose */}
+        <div className="mt-md flex flex-wrap items-center gap-sm">
+          <span
+            className="inline-flex items-center rounded-md px-md py-sm text-sm font-medium"
+            style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
           >
-            <code className="font-mono text-sm">{"const theme = 'next-wiki';"}</code>
-          </div>
-          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-            {t('admin.appearance.preview.muted')}
-          </p>
-          <div className="flex items-center gap-sm">
-            <span
-              className="inline-flex items-center rounded-md px-md py-sm text-sm font-medium"
-              style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
-            >
-              {t('admin.appearance.preview.button')}
-            </span>
-            <span className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>
-              {t('admin.appearance.preview.danger')}
-            </span>
-            <span className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>
-              {t('admin.appearance.preview.warning')}
-            </span>
-          </div>
+            {t('admin.appearance.preview.button')}
+          </span>
+          <span className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>
+            {t('admin.appearance.preview.danger')}
+          </span>
+          <span className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>
+            {t('admin.appearance.preview.warning')}
+          </span>
         </div>
       </div>
     </div>
