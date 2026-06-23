@@ -216,12 +216,21 @@ export async function refreshIndexCounters(generationId: string): Promise<void> 
   const totalPages = [...values.values()].reduce((sum, value) => sum + value, 0);
   const pending = (values.get('pending') ?? 0) + (values.get('running') ?? 0);
   await db.update(schema.aiIndexGenerations).set({ totalPages, completedPages, failedPages }).where(eq(schema.aiIndexGenerations.id, generationId));
-  if (pending === 0 && failedPages === 0) {
+  if (pending > 0) return;
+
+  const generation = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) });
+  if (generation?.isActive) {
+    // The live index must keep serving queries. Pages that failed an incremental
+    // update retain their previously indexed chunks and surface via failedPages
+    // for admin retry — a partial failure must never take the active index
+    // offline (clears any stale failure left by an earlier reconcile run).
+    await db.update(schema.aiIndexGenerations).set({ status: 'ready', errorCode: null, errorMessage: null }).where(eq(schema.aiIndexGenerations.id, generationId));
+  } else if (failedPages === 0) {
     await db.transaction(async (tx) => {
       await tx.update(schema.aiIndexGenerations).set({ isActive: false, status: 'superseded', finishedAt: new Date() }).where(and(eq(schema.aiIndexGenerations.isActive, true), eq(schema.aiIndexGenerations.status, 'ready')));
       await tx.update(schema.aiIndexGenerations).set({ isActive: true, status: 'ready', readyAt: new Date(), finishedAt: new Date() }).where(eq(schema.aiIndexGenerations.id, generationId));
     });
-  } else if (pending === 0 && failedPages > 0) {
+  } else {
     await db.update(schema.aiIndexGenerations).set({ status: 'failed', finishedAt: new Date(), errorCode: 'INDEX_BUILD_FAILED', errorMessage: `${failedPages} page(s) failed` }).where(eq(schema.aiIndexGenerations.id, generationId));
   }
 }

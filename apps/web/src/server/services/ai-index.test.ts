@@ -61,6 +61,41 @@ describe('AI index lifecycle', () => {
     })).toMatchObject({ status: 'ready', isActive: true });
   });
 
+  it('keeps the live index active and ready when an incremental page fails', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    // The generation already went live in a previous run.
+    await db.update(schema.aiIndexGenerations)
+      .set({ status: 'ready', isActive: true, readyAt: new Date() })
+      .where(eq(schema.aiIndexGenerations.id, generationId));
+    // A second page indexed cleanly; the first was re-queued after an edit and failed to embed.
+    const okPageId = randomUUID();
+    await db.insert(schema.pages).values({
+      id: okPageId, spaceId, slug: 'page-2', path: 'page-2', title: 'Page 2', authorId: adminId,
+    });
+    await db.insert(schema.aiPageIndexStates).values({ generationId, pageId: okPageId, status: 'completed' });
+    await db.update(schema.aiPageIndexStates).set({ status: 'failed' }).where(eq(schema.aiPageIndexStates.pageId, pageId));
+    await refreshIndexCounters(generationId);
+    // A single failed incremental page must not take the whole live index offline for retrieval.
+    expect(await db.query.aiIndexGenerations.findFirst({
+      where: eq(schema.aiIndexGenerations.id, generationId),
+    })).toMatchObject({ status: 'ready', isActive: true, failedPages: 1 });
+    await db.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, okPageId));
+    await db.delete(schema.pages).where(eq(schema.pages.id, okPageId));
+  });
+
+  it('marks a never-activated build failed when pages fail', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    await db.update(schema.aiPageIndexStates).set({ status: 'failed' }).where(eq(schema.aiPageIndexStates.generationId, generationId));
+    await refreshIndexCounters(generationId);
+    expect(await db.query.aiIndexGenerations.findFirst({
+      where: eq(schema.aiIndexGenerations.id, generationId),
+    })).toMatchObject({ status: 'failed', isActive: false });
+  });
+
   it('deletes an inactive generation but refuses the active one', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const created = await createIndexRebuild(ctx, 'test');
