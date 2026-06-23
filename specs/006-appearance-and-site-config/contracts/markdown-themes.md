@@ -46,8 +46,8 @@ Update a personal theme's `css` and/or `name`.
   no color declarations (R5 / FR-011a / FR-017).
 - **200** → updated theme.
 - **400** duplicate/empty name; CSS rejected by sanitizer.
-- **403/409** attempting to edit a built-in ⇒ blocked; response signals
-  "create a copy instead" (FR-014).
+- **403 FORBIDDEN** attempting to edit a built-in (or a theme owned by another
+  user) ⇒ blocked; the response body signals "create a copy instead" (FR-014).
 
 ## `DELETE /api/markdown-themes/{id}`
 

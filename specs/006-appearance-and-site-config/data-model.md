@@ -1,8 +1,11 @@
 # Phase 1 Data Model: Appearance & Site Configuration
 
-All tables use Drizzle ORM (`apps/web/src/server/db/schema/index.ts`). Schema
-changes ship via a generated migration (`pnpm db:generate` →
-`0017_appearance_site_config.sql`). Naming is `snake_case` per project rules.
+All tables use Drizzle ORM (`apps/web/src/server/db/schema/index.ts`). To keep
+the four user stories independently deliverable, each story adds its own table(s)
+and runs `pnpm db:generate`, producing **three sequential migrations**:
+`0017_*` (appearance settings, US1), `0018_*` (site settings, US2), and
+`0019_*` (markdown themes + `users.active_markdown_theme_id`, US3). Naming is
+`snake_case` per project rules.
 
 ## Entity: `appearance_settings` (single row)
 
@@ -15,7 +18,7 @@ Site-wide system appearance. Single row keyed `id = 'default'` (mirrors
 | `light_colors` | `jsonb` not null | Map of token name → color value for light mode |
 | `dark_colors` | `jsonb` not null | Map of token name → color value for dark mode |
 | `fonts` | `jsonb` not null | `{ body, display, mono }` = font catalog keys (R6) |
-| `font_sizes` | `jsonb` not null | `{ base, scale… }` size tokens (R2) |
+| `font_sizes` | `jsonb` not null | `{ base, h1, h2, h3 }` size tokens (R2) |
 | `updated_by` | `uuid` → `users.id` `on delete set null` | Auditing |
 | `updated_at` | `timestamptz` not null default now | |
 

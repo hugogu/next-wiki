@@ -36,16 +36,19 @@ pagination primitive in `src/components/ui/`.
 **Language/Version**: TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor)
 **Primary Dependencies**: Next.js 16 (App Router/RSC), React 19.2, Drizzle ORM,
 PostgreSQL 16+, Tailwind CSS + CSS custom properties, unified/remark/rehype
-(render pipeline), Zod (`@next-wiki/shared`), TanStack Query
+(render pipeline), Zod (`@next-wiki/shared`), TanStack Query (existing
+`ApiProvider`, used by the new admin forms), `postcss` (Markdown-theme CSS
+sanitizer — already transitively present)
 **Storage**: PostgreSQL via Drizzle — new tables `appearance_settings` (single
 row), `site_settings` (single row), `markdown_themes`; new column on `users` for
 active Markdown theme; site icon bytes stored via the existing content/blob
-store or a settings-owned asset
+store (the same store used for content assets)
 **Testing**: Vitest (unit/integration), Playwright (E2E)
 **Target Platform**: Self-hosted Linux server via Docker Compose / Kubernetes
 **Project Type**: Web application (pnpm + Turborepo monorepo, `apps/web`)
-**Performance Goals**: Markdown theme switch reflected within 3s (SC-004);
-appearance/site changes reflected on next navigation with no redeploy (SC-002/3)
+**Performance Goals**: Markdown theme switch re-renders the content without a
+full page reload (SC-004); appearance/site changes reflected on next navigation
+with no redeploy (SC-002/3)
 **Constraints**: No remote/web font dependency (FR-001b); user Markdown CSS
 confined to the content area, no remote resource loading (FR-017); native
 browser navigation + URL-addressable page state preserved (constitution P10)
@@ -111,7 +114,7 @@ apps/web/
 ├── src/
 │   ├── server/
 │   │   ├── db/schema/index.ts          # + appearance_settings, site_settings, markdown_themes; users.activeMarkdownThemeId
-│   │   ├── db/migrations/0017_*.sql    # generated via pnpm db:generate
+│   │   ├── db/migrations/0017,0018,0019 # one per story, generated via pnpm db:generate
 │   │   ├── services/
 │   │   │   ├── appearance-settings.ts  # NEW service (read/write tokens, validation)
 │   │   │   ├── site-settings.ts        # NEW service (name/icon/footer/ICP)
@@ -123,9 +126,9 @@ apps/web/
 │   │   └── permissions/index.ts        # + manage_appearance capability
 │   ├── components/
 │   │   ├── ui/Pagination.tsx           # NEW shared pagination primitive (search-param driven)
+│   │   ├── ui/Footer.tsx               # NEW site footer (copyright + ICP/公安备案 links) — P5: primitives live in ui/
 │   │   ├── admin/appearance/           # NEW admin UI (token editor, site form, theme editor/preview)
-│   │   ├── theme/                       # AppearanceStyle injector (renders <style> from settings) + MD theme injector
-│   │   └── layout/Footer.tsx           # NEW site footer (copyright + ICP/公安备案 links)
+│   │   └── theme/                       # AppearanceStyle injector (renders <style> from settings) + MD theme injector
 │   └── i18n/locales/{en,zh}.ts         # + appearance/site/theme/pagination strings
 ├── public/                             # default favicon/icon asset; bundled font files (if any beyond system stack)
 └── tailwind.config.ts                  # ensure all tokens mapped (font-size tokens added)

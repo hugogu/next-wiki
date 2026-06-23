@@ -63,8 +63,9 @@ site icon/favicon, and the footer content (such as copyright text and, for
 operators in China, regulatory filing numbers — ICP 备案号 and optional public
 security 公安备案号). The configured name and icon appear in the header, browser
 tab, and anywhere the site is identified; the footer renders on every page. If
-the administrator provides no custom icon, a sensible default icon ships with the
-product and is used automatically.
+the administrator provides no custom icon, a default icon (a minimal SVG wiki
+glyph in the brand accent — see research R7) ships with the product and is used
+automatically.
 
 **Why this priority**: A self-hosted wiki must present itself as a real,
 branded site to be deployable in production. China-based operators have a legal
@@ -251,7 +252,8 @@ boundaries.
   an existing theme, and MUST be able to adjust its styles, rename it, and save
   it.
 - **FR-014**: Built-in themes MUST be read-only; an attempt to edit a built-in
-  theme MUST instead offer to create an editable copy.
+  theme MUST be rejected (treated as forbidden) and MUST instead offer to create
+  an editable copy.
 - **FR-015**: Users MUST be able to activate a theme; the active theme MUST
   control the rendering of that user's Markdown reading view and editor preview.
   Any HTML-based export reuses the same rendering and therefore inherits the
@@ -310,9 +312,9 @@ boundaries.
 - **SC-003**: An administrator can set the site name, icon, and footer (including
   ICP filing text) and have all of them appear correctly on every page; the
   configured icon appears in the browser tab.
-- **SC-004**: A user can switch their Markdown reading theme and see content
-  re-rendered with the new style within 3 seconds, while a second user's
-  rendering of the same content remains unchanged.
+- **SC-004**: A user can switch their Markdown reading theme and see the content
+  re-rendered with the new style immediately, without a full page reload, while a
+  second user's rendering of the same content remains unchanged.
 - **SC-005**: 100% of paginated lists in the product use the shared pagination
   component, expose first/previous/next/last entries, and reflect the current
   page in a URL that survives refresh and sharing.

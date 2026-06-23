@@ -9,8 +9,12 @@ Base: `app/api/settings/appearance/route.ts`. REST + OpenAPI, shared service
 
 Returns the active appearance settings (or static defaults if unset).
 
-- **Auth**: authenticated; read allowed for rendering. Write fields exposed
-  read-only.
+- **Auth**: **public-readable**, consistent with `GET /api/settings/site`. The
+  view carries no secrets — these token values are already exposed in every
+  rendered page's injected `<style>` (R1), so gating the read adds no
+  confidentiality. (Page rendering itself reads the settings server-side via the
+  service, not this endpoint; the endpoint primarily serves the admin editor.)
+  Writes (`PUT`) remain gated by `manage_appearance`.
 - **200** → `AppearanceSettingsView`:
 
 ```jsonc

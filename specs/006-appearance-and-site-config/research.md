@@ -31,10 +31,13 @@ are configured as two complete value sets (clarification Q1), mapping cleanly to
 
 **Decision**: Audit feature components for raw color/font/size literals. The
 sanctioned token layer is `globals.css` + `tailwind.config.ts`; feature
-components must reference tokens. Introduce explicit **font-size tokens**
-(`--font-size-base`, `--font-size-sm`, heading scale `--md-h1` … via the
-appearance settings) so base font size is configurable (FR-001) and Markdown
-themes can override typography (R4). Add the size tokens to `tailwind.config.ts`.
+components must reference tokens. Introduce explicit **font-size tokens** with
+the canonical shape `{ base, h1, h2, h3 }` → CSS custom properties
+`--font-size-base`, `--font-size-h1`, `--font-size-h2`, `--font-size-h3` (set
+via the appearance settings) so base font size is configurable (FR-001) and
+Markdown themes can override typography (R4). Add the size tokens to
+`tailwind.config.ts`. This `{ base, h1, h2, h3 }` shape is the single canonical
+form used across the contract, data model, and Zod schema.
 
 **Rationale**: `globals.css` `.prose` currently hardcodes heading sizes
 (`2.25rem`, etc.). Promoting them to tokens is required for FR-001 ("base font
@@ -98,8 +101,10 @@ consistency (FR-011a).
 ## R5. Confining/sanitizing user-authored Markdown CSS (FR-017)
 
 **Decision**: Sanitize on save in `css-sanitize.ts`:
-1. Parse the CSS (use a small, dependency-light CSS parser, e.g. `postcss`
-   already transitively present, or `css-tree`).
+1. Parse the CSS with **`postcss`** (already transitively present in the
+   workspace via the Tailwind toolchain — no new top-level dependency). This is
+   the committed parser choice; `css-tree` was considered but rejected to avoid
+   adding a dependency.
 2. **Reject/strip** `@import`, `url(...)` referencing non-data/remote
    resources, `position: fixed`, and any selector escaping the scoped content
    root; re-scope every rule under the content container selector at injection

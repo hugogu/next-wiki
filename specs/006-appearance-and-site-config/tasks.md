@@ -119,7 +119,7 @@ shared Zod in `packages/shared/src/`.
 - [ ] T032 [P] [US3] Add `markdown_themes` table (with unique `(owner_user_id, name)`) and `users.active_markdown_theme_id` column to `apps/web/src/server/db/schema/index.ts` per data-model
 - [ ] T033 [US3] Run `pnpm db:generate` to produce the next migration `apps/web/src/server/db/migrations/0019_*.sql` (depends on T032)
 - [ ] T034 [P] [US3] Create built-in theme registry `apps/web/src/server/appearance/builtin-themes.ts` (Default + Wiki.js-inspired typography CSS) and seed them in `apps/web/src/server/seed/` (bounded registry, P9)
-- [ ] T035 [P] [US3] Implement CSS sanitizer `apps/web/src/server/appearance/css-sanitize.ts` (allowlist typography properties, strip remote/`@import`/color, enforce max size) per research R5
+- [ ] T035 [P] [US3] Implement CSS sanitizer `apps/web/src/server/appearance/css-sanitize.ts` using `postcss` as the parser (allowlist typography properties, strip remote `url()`/`@import`/color, enforce max size) per research R5
 - [ ] T036 [P] [US3] Add Zod schemas (`markdownThemeViewSchema`, create-by-copy, rename/update, activate) in `packages/shared/src/markdown-theme.ts` + export from index
 - [ ] T037 [US3] Implement `apps/web/src/server/services/markdown-themes.ts` (list built-ins + own, view, copy, update via sanitizer, rename, delete with active-fallback, activate; ownership + built-in read-only enforcement) — depends on T032, T034, T035, T036
 - [ ] T038 [US3] Implement REST routes `apps/web/app/api/markdown-themes/route.ts`, `apps/web/app/api/markdown-themes/[id]/route.ts`, and the activate endpoint per contracts/markdown-themes.md
@@ -159,7 +159,7 @@ shared Zod in `packages/shared/src/`.
 
 - [ ] T050 [P] Regenerate/verify OpenAPI doc (`apps/web/app/api/openapi.json` / generator) includes the new settings + markdown-theme endpoints
 - [ ] T051 [P] Accessibility pass on the new admin forms and the `Pagination` control (keyboard nav, `aria-disabled`, contrast against tokens)
-- [ ] T052 Run `apps/web/specs/006-appearance-and-site-config/quickstart.md` validation end-to-end, then `pnpm lint` and `pnpm typecheck`; fix warnings
+- [ ] T052 Run `specs/006-appearance-and-site-config/quickstart.md` validation end-to-end, then `pnpm lint` and `pnpm typecheck`; fix warnings
 - [ ] T053 [P] Update `docs/architecture/` notes if token-configurability or the markdown-theme registry changes any documented invariant
 
 ---
