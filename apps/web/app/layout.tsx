@@ -6,6 +6,8 @@ import { I18nProvider } from '@/i18n/client';
 import { getLocale } from '@/i18n/server';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
+import { getAppearanceSettings } from '@/server/services/appearance-settings';
+import { buildAppearanceStyleCss } from '@/server/appearance/style';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 
@@ -15,6 +17,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const preferences = actor.kind === 'user'
     ? await userCenterService.getPreferences({ actor })
     : null;
+
+  const appearanceCss = buildAppearanceStyleCss(await getAppearanceSettings());
 
   const initialTheme = preferences?.theme ?? undefined;
   const initialLocale = preferences?.locale ?? locale;
@@ -39,6 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
+        <style id="app-appearance" dangerouslySetInnerHTML={{ __html: appearanceCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased" suppressHydrationWarning>

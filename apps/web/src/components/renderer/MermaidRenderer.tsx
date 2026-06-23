@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { mermaidThemeVariables } from './mermaid-theme';
 
 export function MermaidRenderer({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -17,15 +18,7 @@ export function MermaidRenderer({ children }: { children: ReactNode }) {
       mermaid.initialize({
         startOnLoad: false,
         theme: 'default',
-        themeVariables: {
-          fontFamily: 'var(--font-body)',
-          primaryColor: '#e7e5e4',
-          primaryTextColor: '#292524',
-          primaryBorderColor: '#a8a29e',
-          lineColor: '#57534e',
-          secondaryColor: '#f5f5f4',
-          tertiaryColor: '#fafaf9',
-        },
+        themeVariables: mermaidThemeVariables(),
       });
       void mermaid.run({ nodes: Array.from(nodes) as HTMLElement[] });
     });

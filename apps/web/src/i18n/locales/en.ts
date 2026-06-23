@@ -222,6 +222,19 @@ export const en = {
   'admin.nav.storage': 'Content Storage',
   'admin.nav.apiAudit': 'API Audit',
   'admin.nav.transfers': 'Import / Export',
+  'admin.nav.appearance': 'Appearance',
+
+  'admin.appearance.title': 'Appearance',
+  'admin.appearance.description':
+    'Configure the site-wide theme colors, fonts, and font sizes. Changes apply across the whole product without a redeploy.',
+  'admin.appearance.colors.light': 'Light mode colors',
+  'admin.appearance.colors.dark': 'Dark mode colors',
+  'admin.appearance.fonts.title': 'Fonts',
+  'admin.appearance.sizes.title': 'Font sizes',
+  'admin.appearance.save': 'Save changes',
+  'admin.appearance.saving': 'Saving...',
+  'admin.appearance.saved': 'Appearance updated.',
+  'admin.appearance.error.generic': 'Could not save appearance settings. Check your values and try again.',
 
   'admin.transfers.metadataTitle': 'Content import and export',
   'admin.transfers.title': 'Content Import and Export',

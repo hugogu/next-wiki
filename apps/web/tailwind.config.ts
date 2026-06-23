@@ -38,6 +38,12 @@ const config = {
         sans: 'var(--font-body)',
         mono: 'var(--font-mono)',
       },
+      fontSize: {
+        base: 'var(--font-size-base)',
+        h1: 'var(--font-size-h1)',
+        h2: 'var(--font-size-h2)',
+        h3: 'var(--font-size-h3)',
+      },
       height: {
         header: 'var(--header-height)',
       },

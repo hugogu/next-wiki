@@ -222,6 +222,18 @@ export const zh: Translations = {
   'admin.nav.storage': '内容存储',
   'admin.nav.apiAudit': 'API 审计',
   'admin.nav.transfers': '导入 / 导出',
+  'admin.nav.appearance': '外观',
+
+  'admin.appearance.title': '外观',
+  'admin.appearance.description': '配置全站的主题色、字体与字号。修改即时生效，无需重新部署。',
+  'admin.appearance.colors.light': '浅色模式配色',
+  'admin.appearance.colors.dark': '深色模式配色',
+  'admin.appearance.fonts.title': '字体',
+  'admin.appearance.sizes.title': '字号',
+  'admin.appearance.save': '保存修改',
+  'admin.appearance.saving': '保存中...',
+  'admin.appearance.saved': '外观已更新。',
+  'admin.appearance.error.generic': '无法保存外观设置，请检查取值后重试。',
 
   'admin.transfers.metadataTitle': '内容导入与导出',
   'admin.transfers.title': '内容导入与导出',

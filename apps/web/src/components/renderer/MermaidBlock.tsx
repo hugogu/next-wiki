@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CodeBlock } from './CodeBlock';
+import { mermaidThemeVariables } from './mermaid-theme';
 import { useTranslation } from '@/i18n/client';
 
 export function MermaidBlock({ children, source }: { children: React.ReactNode; source: string }) {
@@ -21,15 +22,7 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
       mermaid.initialize({
         startOnLoad: false,
         theme: 'default',
-        themeVariables: {
-          fontFamily: 'var(--font-body)',
-          primaryColor: '#e7e5e4',
-          primaryTextColor: '#292524',
-          primaryBorderColor: '#a8a29e',
-          lineColor: '#57534e',
-          secondaryColor: '#f5f5f4',
-          tertiaryColor: '#fafaf9',
-        },
+        themeVariables: mermaidThemeVariables(),
       });
       void mermaid.run({ nodes: Array.from(nodes) as HTMLElement[] });
     });

@@ -586,6 +586,19 @@ export const transferAssetMappings = pgTable(
   }),
 );
 
+// ---- Appearance & Site Configuration (006) --------------------------------
+
+/** Single-row, site-wide system appearance settings (id always 'default'). */
+export const appearanceSettings = pgTable('appearance_settings', {
+  id: text('id').primaryKey().default('default'),
+  lightColors: jsonb('light_colors').notNull(),
+  darkColors: jsonb('dark_colors').notNull(),
+  fonts: jsonb('fonts').notNull(),
+  fontSizes: jsonb('font_sizes').notNull(),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ---- System AI (004) ------------------------------------------------------
 
 export const aiSettings = pgTable('ai_settings', {

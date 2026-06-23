@@ -35,6 +35,7 @@ export type Action =
   | 'manage_preferences'
   | 'manage_ai'
   | 'manage_transfers'
+  | 'manage_appearance'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -51,7 +52,8 @@ export type Resource =
   | { kind: 'ai_action'; actionId: string }
   | { kind: 'ai_index'; generationId?: string }
   | { kind: 'ai_page'; pageId?: string }
-  | { kind: 'transfers' };
+  | { kind: 'transfers' }
+  | { kind: 'appearance' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -98,6 +100,7 @@ function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anony
       return role !== 'anonymous';
     case 'manage_ai':
     case 'manage_transfers':
+    case 'manage_appearance':
       return role === 'admin';
     case 'use_ai_search':
     case 'use_ai_qa':
@@ -131,6 +134,7 @@ export function can(
     if (
       action === 'manage_users' ||
       action === 'manage_ai' ||
+      action === 'manage_appearance' ||
       action === 'use_ai_search' ||
       action === 'use_ai_qa' ||
       action === 'use_ai_text_optimization' ||

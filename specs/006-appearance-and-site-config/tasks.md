@@ -28,9 +28,9 @@ shared Zod in `packages/shared/src/`.
 
 **Purpose**: Shared assets and token scaffolding used by multiple stories.
 
-- [ ] T001 [P] Generate a default site favicon as `apps/web/public/icon.svg` (minimal wiki glyph using the brand accent), per research R7
-- [ ] T002 [P] Create `apps/web/src/server/appearance/tokens.ts`: canonical token-name set, default light/dark color values (mirroring current `globals.css`), and the bundled font catalog (keys → label + font stack) per research R2/R6
-- [ ] T003 Promote hardcoded font sizes in `apps/web/app/globals.css` (`.prose` heading sizes, base size) to CSS custom properties (`--font-size-*`) and map them in `apps/web/tailwind.config.ts` per research R2
+- [X] T001 [P] Generate a default site favicon as `apps/web/public/icon.svg` (minimal wiki glyph using the brand accent), per research R7
+- [X] T002 [P] Create `apps/web/src/server/appearance/tokens.ts`: canonical token-name set, default light/dark color values (mirroring current `globals.css`), and the bundled font catalog (keys → label + font stack) per research R2/R6
+- [X] T003 Promote hardcoded font sizes in `apps/web/app/globals.css` (`.prose` heading sizes, base size) to CSS custom properties (`--font-size-*`) and map them in `apps/web/tailwind.config.ts` per research R2
 
 ---
 
@@ -40,7 +40,7 @@ shared Zod in `packages/shared/src/`.
 
 **⚠️ CRITICAL**: Complete before US1/US2 admin writes.
 
-- [ ] T004 Add `manage_appearance` capability to `apps/web/src/server/permissions/index.ts` (grant to admin role, no hardcoded bypass) and cover it in `apps/web/src/server/permissions/ai-permissions.test.ts` sibling test or a new `appearance-permissions.test.ts`
+- [X] T004 Add `manage_appearance` capability to `apps/web/src/server/permissions/index.ts` (grant to admin role, no hardcoded bypass) and cover it in `apps/web/src/server/permissions/ai-permissions.test.ts` sibling test or a new `appearance-permissions.test.ts`
 
 **Checkpoint**: Foundation ready — user stories can begin.
 
@@ -54,21 +54,21 @@ shared Zod in `packages/shared/src/`.
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Unit test for appearance validation + service (valid/invalid color, unknown font key, non-positive size, full token-set coverage) in `apps/web/src/server/services/appearance-settings.test.ts`
-- [ ] T006 [P] [US1] E2E test: appearance change reflected across reader/editor/admin in light + dark in `apps/web/tests/e2e/appearance-settings.spec.ts`
+- [X] T005 [P] [US1] Unit test for appearance validation + service (valid/invalid color, unknown font key, non-positive size, full token-set coverage) in `apps/web/src/server/services/appearance-settings.test.ts`
+- [X] T006 [P] [US1] E2E test: appearance change reflected across reader/editor/admin in light + dark in `apps/web/tests/e2e/appearance-settings.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Add `appearance_settings` single-row table (`light_colors`, `dark_colors`, `fonts`, `font_sizes` JSONB; `updated_by`/`updated_at`) to `apps/web/src/server/db/schema/index.ts` per data-model
-- [ ] T008 [US1] Run `pnpm db:generate` to produce `apps/web/src/server/db/migrations/0017_*.sql` (depends on T007)
-- [ ] T009 [P] [US1] Add Zod schemas (`appearanceSettingsViewSchema`, `updateAppearanceSettingsInputSchema`, color/font/size validators) in `packages/shared/src/appearance.ts` and export from `packages/shared/src/index.ts`
-- [ ] T010 [US1] Implement `apps/web/src/server/services/appearance-settings.ts` (read with static defaults fallback, write with validation, font-catalog check) — depends on T007, T009
-- [ ] T011 [US1] Implement REST `GET`/`PUT` in `apps/web/app/api/settings/appearance/route.ts` (gated by `manage_appearance`, OpenAPI annotations) per contracts/appearance-settings.md
-- [ ] T012 [US1] Inject configured tokens as `<style id="app-appearance">` (light `:root` + `html.dark`) with static fallback in `apps/web/app/layout.tsx` per research R1
-- [ ] T013 [P] [US1] Create admin token-editor page `apps/web/app/(admin)/admin/appearance/page.tsx` + `apps/web/src/components/admin/appearance/AppearanceForm.tsx` (color pickers, font select, size inputs; light + dark)
-- [ ] T014 [US1] Add a single "Appearance" entry to admin nav in `apps/web/src/components/layout/Navigator.tsx` (one canonical entry point)
-- [ ] T015 [P] [US1] Add appearance i18n strings to `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
-- [ ] T016 [US1] Audit feature components for raw color/font/font-size literals and replace with tokens (sweep `apps/web/src/components` + `apps/web/app`, excluding `ui/` and `globals.css`) per SC-001
+- [X] T007 [P] [US1] Add `appearance_settings` single-row table (`light_colors`, `dark_colors`, `fonts`, `font_sizes` JSONB; `updated_by`/`updated_at`) to `apps/web/src/server/db/schema/index.ts` per data-model
+- [X] T008 [US1] Run `pnpm db:generate` to produce `apps/web/src/server/db/migrations/0017_*.sql` (depends on T007)
+- [X] T009 [P] [US1] Add Zod schemas (`appearanceSettingsViewSchema`, `updateAppearanceSettingsInputSchema`, color/font/size validators) in `packages/shared/src/appearance.ts` and export from `packages/shared/src/index.ts`
+- [X] T010 [US1] Implement `apps/web/src/server/services/appearance-settings.ts` (read with static defaults fallback, write with validation, font-catalog check) — depends on T007, T009
+- [X] T011 [US1] Implement REST `GET`/`PUT` in `apps/web/app/api/settings/appearance/route.ts` (gated by `manage_appearance`, OpenAPI annotations) per contracts/appearance-settings.md
+- [X] T012 [US1] Inject configured tokens as `<style id="app-appearance">` (light `:root` + `html.dark`) with static fallback in `apps/web/app/layout.tsx` per research R1
+- [X] T013 [P] [US1] Create admin token-editor page `apps/web/app/(admin)/admin/appearance/page.tsx` + `apps/web/src/components/admin/appearance/AppearanceForm.tsx` (color pickers, font select, size inputs; light + dark)
+- [X] T014 [US1] Add a single "Appearance" entry to admin nav in `apps/web/src/components/layout/Navigator.tsx` (one canonical entry point)
+- [X] T015 [P] [US1] Add appearance i18n strings to `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T016 [US1] Audit feature components for raw color/font/font-size literals and replace with tokens (sweep `apps/web/src/components` + `apps/web/app`, excluding `ui/` and `globals.css`) per SC-001
 
 **Checkpoint**: US1 fully functional — appearance configurable site-wide.
 
