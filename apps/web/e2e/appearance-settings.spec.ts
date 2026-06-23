@@ -19,7 +19,7 @@ test.describe('admin appearance settings', () => {
     await expect(page.getByRole('heading', { name: 'Appearance', level: 1 })).toBeVisible();
 
     // Change the light-mode primary color and save.
-    const primary = page.getByLabel('lightColors primary');
+    const primary = page.getByLabel('lightColors primary', { exact: true });
     await primary.fill('#0ea5e9');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Appearance updated.')).toBeVisible();
@@ -34,7 +34,7 @@ test.describe('admin appearance settings', () => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/appearance');
 
-    await page.getByLabel('lightColors primary').fill('banana');
+    await page.getByLabel('lightColors primary', { exact: true }).fill('banana');
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     // An error is shown and the success message is not.
