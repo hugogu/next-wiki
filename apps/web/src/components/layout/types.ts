@@ -19,5 +19,7 @@ export type AppShellProps = {
   admin?: boolean;
   userCenter?: boolean;
   aiEntitlements?: AiEntitlementView | null;
+  footer?: React.ReactNode;
+  siteName: string;
   children: React.ReactNode;
 };

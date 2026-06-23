@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
@@ -8,11 +7,8 @@ import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
-  const t = getDictionary(locale);
-  return { title: t('common.brand') };
-}
+// Title intentionally omitted: the landing page inherits the configured site
+// name from the root layout's metadata (default title).
 
 export default async function HomePage() {
   const locale = await getLocale();

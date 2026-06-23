@@ -94,10 +94,12 @@ export function Header({
   user,
   pageContext,
   onMenuClick,
+  siteName,
 }: {
   user: Actor;
   pageContext?: PageContext;
   onMenuClick: () => void;
+  siteName: string;
 }) {
   const { t } = useTranslation();
   const editor = useEditor();
@@ -155,7 +157,7 @@ export function Header({
           <MenuIcon />
         </button>
         <Link href="/" className="font-display text-xl font-semibold text-foreground tracking-tight">
-          {t('common.brand')}
+          {siteName}
         </Link>
       </div>
 

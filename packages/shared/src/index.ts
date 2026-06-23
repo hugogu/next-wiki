@@ -10,6 +10,7 @@ export * from './content-storage';
 export * from './ai';
 export * from './transfers';
 export * from './appearance';
+export * from './site';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

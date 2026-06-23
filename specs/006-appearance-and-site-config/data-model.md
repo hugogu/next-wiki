@@ -38,7 +38,8 @@ Site identity + footer. Single row keyed `id = 'default'`.
 |--------|------|-------|
 | `id` | `text` PK, default `'default'` | Always one row |
 | `site_name` | `text` not null default `'next-wiki'` | Header + `<title>` |
-| `icon_asset_id` | `uuid` nullable → asset/blob ref | NULL ⇒ shipped default icon (FR-007) |
+| `icon_data` | `bytea` nullable | Custom icon bytes; NULL ⇒ shipped default icon (FR-007). Stored inline (single small favicon — simpler than coupling to the page-asset store) |
+| `icon_mime` | `text` nullable | MIME type of `icon_data` |
 | `footer_copyright` | `text` nullable | Free-form copyright line |
 | `icp_number` | `text` nullable | China ICP 备案号 |
 | `icp_url` | `text` nullable | Default `https://beian.miit.gov.cn/` |

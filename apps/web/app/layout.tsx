@@ -8,8 +8,18 @@ import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
 import { getAppearanceSettings } from '@/server/services/appearance-settings';
 import { buildAppearanceStyleCss } from '@/server/appearance/style';
+import { getSiteName } from '@/server/services/site-settings';
+import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName();
+  return {
+    title: { default: siteName, template: `%s · ${siteName}` },
+    icons: { icon: '/api/settings/site/icon' },
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();

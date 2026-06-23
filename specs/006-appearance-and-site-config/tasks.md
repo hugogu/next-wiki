@@ -82,21 +82,21 @@ shared Zod in `packages/shared/src/`.
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Unit test for site-settings service (empty name rejected, invalid URL, icon set/clear, conditional footer fields) in `apps/web/src/server/services/site-settings.test.ts`
-- [ ] T018 [P] [US2] E2E test: site name → header/title; default vs uploaded icon; footer ICP link in `apps/web/tests/e2e/site-settings.spec.ts`
+- [X] T017 [P] [US2] Unit test for site-settings service (empty name rejected, invalid URL, icon set/clear, conditional footer fields) in `apps/web/src/server/services/site-settings.test.ts`
+- [X] T018 [P] [US2] E2E test: site name → header/title; default vs uploaded icon; footer ICP link in `apps/web/tests/e2e/site-settings.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T019 [P] [US2] Add `site_settings` single-row table (`site_name`, `icon_asset_id`, `footer_copyright`, `icp_number`, `icp_url`, `public_security_number`, `public_security_url`, audit cols) to `apps/web/src/server/db/schema/index.ts`
-- [ ] T020 [US2] Run `pnpm db:generate` to produce the next migration `apps/web/src/server/db/migrations/0018_*.sql` (depends on T019)
-- [ ] T021 [P] [US2] Add Zod schemas (`siteSettingsViewSchema`, `updateSiteSettingsInputSchema`) in `packages/shared/src/site.ts` + export from index
-- [ ] T022 [US2] Implement `apps/web/src/server/services/site-settings.ts` (read public subset, write validation, icon bytes via existing content/blob store) — depends on T019, T021
-- [ ] T023 [US2] Implement REST `GET`/`PUT` in `apps/web/app/api/settings/site/route.ts` (gated by `manage_appearance`) per contracts/site-settings.md
-- [ ] T024 [US2] Implement icon routes in `apps/web/app/api/settings/site/icon/route.ts` (`GET` serve default/uploaded, `PUT` upload, `DELETE` revert)
-- [ ] T025 [US2] Wire site name + favicon into `generateMetadata` (title + icons) in `apps/web/app/layout.tsx` per research R7
-- [ ] T026 [P] [US2] Create `apps/web/src/components/ui/Footer.tsx` (always-on copyright if set; ICP/公安备案 lines only when present, linked) and mount it in the app layout
-- [ ] T027 [P] [US2] Create admin site-settings page `apps/web/app/(admin)/admin/appearance/site/page.tsx` + `apps/web/src/components/admin/appearance/SiteSettingsForm.tsx` (name, icon upload/preview, footer, ICP fields)
-- [ ] T028 [P] [US2] Add site-config i18n strings to `apps/web/src/i18n/locales/en.ts` and `zh.ts`
+- [X] T019 [P] [US2] Add `site_settings` single-row table (`site_name`, `icon_asset_id`, `footer_copyright`, `icp_number`, `icp_url`, `public_security_number`, `public_security_url`, audit cols) to `apps/web/src/server/db/schema/index.ts`
+- [X] T020 [US2] Run `pnpm db:generate` to produce the next migration `apps/web/src/server/db/migrations/0018_*.sql` (depends on T019)
+- [X] T021 [P] [US2] Add Zod schemas (`siteSettingsViewSchema`, `updateSiteSettingsInputSchema`) in `packages/shared/src/site.ts` + export from index
+- [X] T022 [US2] Implement `apps/web/src/server/services/site-settings.ts` (read public subset, write validation, icon bytes via existing content/blob store) — depends on T019, T021
+- [X] T023 [US2] Implement REST `GET`/`PUT` in `apps/web/app/api/settings/site/route.ts` (gated by `manage_appearance`) per contracts/site-settings.md
+- [X] T024 [US2] Implement icon routes in `apps/web/app/api/settings/site/icon/route.ts` (`GET` serve default/uploaded, `PUT` upload, `DELETE` revert)
+- [X] T025 [US2] Wire site name + favicon into `generateMetadata` (title + icons) in `apps/web/app/layout.tsx` per research R7
+- [X] T026 [P] [US2] Create `apps/web/src/components/ui/Footer.tsx` (always-on copyright if set; ICP/公安备案 lines only when present, linked) and mount it in the app layout
+- [X] T027 [P] [US2] Create admin site-settings page `apps/web/app/(admin)/admin/appearance/site/page.tsx` + `apps/web/src/components/admin/appearance/SiteSettingsForm.tsx` (name, icon upload/preview, footer, ICP fields)
+- [X] T028 [P] [US2] Add site-config i18n strings to `apps/web/src/i18n/locales/en.ts` and `zh.ts`
 
 **Checkpoint**: US1 + US2 work independently.
 

@@ -599,6 +599,21 @@ export const appearanceSettings = pgTable('appearance_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Single-row, site-wide identity & footer settings (id always 'default'). */
+export const siteSettings = pgTable('site_settings', {
+  id: text('id').primaryKey().default('default'),
+  siteName: text('site_name').notNull().default('next-wiki'),
+  footerCopyright: text('footer_copyright'),
+  icpNumber: text('icp_number'),
+  icpUrl: text('icp_url'),
+  publicSecurityNumber: text('public_security_number'),
+  publicSecurityUrl: text('public_security_url'),
+  iconData: bytea('icon_data'),
+  iconMime: text('icon_mime'),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ---- System AI (004) ------------------------------------------------------
 
 export const aiSettings = pgTable('ai_settings', {

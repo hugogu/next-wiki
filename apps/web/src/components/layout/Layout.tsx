@@ -6,6 +6,8 @@ import { buildAnonymousCtx } from '@/server/permissions';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
 import { getMyEntitlements } from '@/server/services/ai-entitlements';
+import { getSiteView } from '@/server/services/site-settings';
+import { Footer } from '@/components/ui/Footer';
 
 export async function Layout({
   children,
@@ -34,9 +36,19 @@ export async function Layout({
     actor.kind === 'user'
       ? await getMyEntitlements({ actor }).catch(() => null)
       : null;
+  const site = await getSiteView();
 
   return (
-    <AppShell user={actor} pages={pages} pageContext={pageContext} admin={admin} userCenter={userCenter} aiEntitlements={aiEntitlements}>
+    <AppShell
+      user={actor}
+      pages={pages}
+      pageContext={pageContext}
+      admin={admin}
+      userCenter={userCenter}
+      aiEntitlements={aiEntitlements}
+      footer={<Footer site={site} />}
+      siteName={site.siteName}
+    >
       {children}
     </AppShell>
   );
