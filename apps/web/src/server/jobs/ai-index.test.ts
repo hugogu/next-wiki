@@ -134,4 +134,37 @@ describe('index rebuild worker', () => {
     expect(state?.lastErrorMessage).toContain('AI model was not found');
     expect(embed).toHaveBeenCalledTimes(1);
   });
+
+  it('re-claims a page orphaned in running state by a crashed prior run', async () => {
+    // A previous worker marked the page running then died without completing it.
+    // Its updatedAt is stale, so the next invocation must reclaim rather than skip it.
+    await db.update(schema.aiPageIndexStates)
+      .set({ status: 'running', attempts: 1, updatedAt: new Date(Date.now() - 10 * 60_000) })
+      .where(eq(schema.aiPageIndexStates.generationId, generationId));
+    embed.mockResolvedValue({ vectors: [[0.1, 0.2, 0.3]], usage: { inputTokens: 1 } });
+
+    await runIndexRebuildAction(actionId);
+
+    const state = await db.query.aiPageIndexStates.findFirst({
+      where: eq(schema.aiPageIndexStates.generationId, generationId),
+    });
+    expect(state?.status).toBe('completed');
+    expect(state?.attempts).toBeGreaterThanOrEqual(2);
+  });
+
+  it('ignores a running page whose worker is still presumably alive', async () => {
+    // Recently flipped to running — a concurrent worker may still own it.
+    await db.update(schema.aiPageIndexStates)
+      .set({ status: 'running', attempts: 1, updatedAt: new Date() })
+      .where(eq(schema.aiPageIndexStates.generationId, generationId));
+    embed.mockResolvedValue({ vectors: [[0.1, 0.2, 0.3]], usage: { inputTokens: 1 } });
+
+    await runIndexRebuildAction(actionId);
+
+    const state = await db.query.aiPageIndexStates.findFirst({
+      where: eq(schema.aiPageIndexStates.generationId, generationId),
+    });
+    expect(state?.status).toBe('running');
+    expect(embed).not.toHaveBeenCalled();
+  });
 });

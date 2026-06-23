@@ -96,6 +96,35 @@ describe('AI index lifecycle', () => {
     })).toMatchObject({ status: 'failed', isActive: false });
   });
 
+  it('deletes every prior generation when a new build goes live (overwrite semantics)', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    // An older active generation that the new build should replace.
+    const previous = await createIndexRebuild(ctx, 'test');
+    await db.update(schema.aiPageIndexStates).set({ status: 'completed' }).where(eq(schema.aiPageIndexStates.generationId, previous.generation.id));
+    await refreshIndexCounters(previous.generation.id);
+    expect(await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, previous.generation.id) })).toMatchObject({ isActive: true, status: 'ready' });
+
+    // A failed/aborted generation from an earlier attempt — should also be wiped.
+    const aborted = await createIndexRebuild(ctx, 'test');
+    await db.update(schema.aiPageIndexStates).set({ status: 'failed' }).where(eq(schema.aiPageIndexStates.generationId, aborted.generation.id));
+    await refreshIndexCounters(aborted.generation.id);
+
+    // Build the replacement and let it go live.
+    const next = await createIndexRebuild(ctx, 'test');
+    await db.update(schema.aiPageIndexStates).set({ status: 'completed' }).where(eq(schema.aiPageIndexStates.generationId, next.generation.id));
+    await refreshIndexCounters(next.generation.id);
+
+    const remaining = await db.select().from(schema.aiIndexGenerations);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]).toMatchObject({ id: next.generation.id, isActive: true, status: 'ready' });
+    // Chunks and page states for dropped generations must cascade away.
+    expect(await db.query.aiPageIndexStates.findFirst({ where: eq(schema.aiPageIndexStates.generationId, previous.generation.id) })).toBeUndefined();
+    expect(await db.query.aiPageIndexStates.findFirst({ where: eq(schema.aiPageIndexStates.generationId, aborted.generation.id) })).toBeUndefined();
+    // Audit actions keep their history but lose the dangling generation link.
+    const dangling = await db.query.aiActions.findMany({ where: eq(schema.aiActions.indexGenerationId, previous.generation.id) });
+    expect(dangling).toHaveLength(0);
+  });
+
   it('deletes an inactive generation but refuses the active one', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const created = await createIndexRebuild(ctx, 'test');

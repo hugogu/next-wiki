@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import type { AiIndexView } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -227,8 +227,18 @@ export async function refreshIndexCounters(generationId: string): Promise<void> 
     await db.update(schema.aiIndexGenerations).set({ status: 'ready', errorCode: null, errorMessage: null }).where(eq(schema.aiIndexGenerations.id, generationId));
   } else if (failedPages === 0) {
     await db.transaction(async (tx) => {
-      await tx.update(schema.aiIndexGenerations).set({ isActive: false, status: 'superseded', finishedAt: new Date() }).where(and(eq(schema.aiIndexGenerations.isActive, true), eq(schema.aiIndexGenerations.status, 'ready')));
-      await tx.update(schema.aiIndexGenerations).set({ isActive: true, status: 'ready', readyAt: new Date(), finishedAt: new Date() }).where(eq(schema.aiIndexGenerations.id, generationId));
+      // Overwrite semantics: keep exactly one generation — the live one. Audit
+      // actions keep their history but lose the dangling FK link (the FK has no
+      // cascade); chunks and page states cascade automatically.
+      await tx
+        .update(schema.aiActions)
+        .set({ indexGenerationId: null })
+        .where(and(isNotNull(schema.aiActions.indexGenerationId), ne(schema.aiActions.indexGenerationId, generationId)));
+      await tx.delete(schema.aiIndexGenerations).where(ne(schema.aiIndexGenerations.id, generationId));
+      await tx
+        .update(schema.aiIndexGenerations)
+        .set({ isActive: true, status: 'ready', readyAt: new Date(), finishedAt: new Date() })
+        .where(eq(schema.aiIndexGenerations.id, generationId));
     });
   } else {
     await db.update(schema.aiIndexGenerations).set({ status: 'failed', finishedAt: new Date(), errorCode: 'INDEX_BUILD_FAILED', errorMessage: `${failedPages} page(s) failed` }).where(eq(schema.aiIndexGenerations.id, generationId));

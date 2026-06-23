@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, lt, or } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { chunkMarkdown } from '@/server/ai/chunking/markdown-chunker';
@@ -14,6 +14,15 @@ import { refreshIndexCounters } from '@/server/services/ai-index';
 // Backoff: 1s, 4s, 16s — keeps total worst-case latency under ~30s per page.
 const INDEX_EMBED_MAX_ATTEMPTS = 3;
 const INDEX_EMBED_BACKOFF_MS = [1_000, 4_000, 16_000];
+
+// A page that has been "running" for longer than this threshold is treated as
+// orphaned: its worker process died (container restart, OOM, pg-boss expiry
+// after 15 min, etc.) without ever flipping it to completed/failed. Re-claiming
+// stale running pages on the next invocation self-heals stuck builds — without
+// it, the worker only selects `pending` rows and the generation hangs forever
+// (observed: 4 pages orphaned at `running`, 1391/1396 progress, action marked
+// completed but generation stuck at `building`).
+const STALE_RUNNING_THRESHOLD_MS = 5 * 60 * 1000;
 
 function isRetryableEmbedError(error: unknown): boolean {
   if (error instanceof AiProviderError) return error.retryable;
@@ -43,7 +52,18 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
   const states = await db
     .select()
     .from(schema.aiPageIndexStates)
-    .where(and(eq(schema.aiPageIndexStates.generationId, generation.id), eq(schema.aiPageIndexStates.status, 'pending')))
+    .where(
+      and(
+        eq(schema.aiPageIndexStates.generationId, generation.id),
+        or(
+          eq(schema.aiPageIndexStates.status, 'pending'),
+          and(
+            eq(schema.aiPageIndexStates.status, 'running'),
+            lt(schema.aiPageIndexStates.updatedAt, new Date(Date.now() - STALE_RUNNING_THRESHOLD_MS)),
+          ),
+        ),
+      ),
+    )
     .orderBy(asc(schema.aiPageIndexStates.updatedAt));
 
   for (const state of states) {
