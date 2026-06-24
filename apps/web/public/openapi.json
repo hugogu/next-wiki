@@ -20,20 +20,6 @@
       }
     },
     "schemas": {
-      "ActivateMarkdownThemeInput": {
-        "type": "object",
-        "properties": {
-          "themeId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "themeId"
-        ]
-      },
       "AiActionView": {
         "type": "object",
         "properties": {
@@ -192,21 +178,6 @@
           "email"
         ],
         "description": "Changed email response"
-      },
-      "CreateMarkdownThemeInput": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "sourceThemeId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "sourceThemeId"
-        ]
       },
       "errorResponseSchema": {
         "type": "object",
@@ -437,7 +408,51 @@
           "password"
         ]
       },
-      "UpdateAppearanceSettingsInput": {
+      "UpdateSiteSettingsInput": {
+        "type": "object",
+        "properties": {
+          "siteName": {
+            "type": "string"
+          },
+          "footerCopyright": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "icpNumber": {
+            "type": "object"
+          },
+          "icpUrl": {
+            "type": "object"
+          },
+          "publicSecurityNumber": {
+            "type": "object"
+          },
+          "publicSecurityUrl": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "siteName"
+        ]
+      },
+      "UpdateSystemThemeInput": {
+        "type": "object",
+        "properties": {
+          "css": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "css"
+        ]
+      },
+      "UpdateUserAppearanceInput": {
         "type": "object",
         "properties": {
           "lightColors": {
@@ -497,57 +512,6 @@
           "darkColors",
           "fonts",
           "fontSizes"
-        ]
-      },
-      "UpdateMarkdownThemeInput": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "oneOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "string"
-              }
-            ]
-          },
-          "css": {
-            "type": "object"
-          }
-        }
-      },
-      "UpdateSiteSettingsInput": {
-        "type": "object",
-        "properties": {
-          "siteName": {
-            "type": "string"
-          },
-          "footerCopyright": {
-            "oneOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "string"
-              }
-            ]
-          },
-          "icpNumber": {
-            "type": "object"
-          },
-          "icpUrl": {
-            "type": "object"
-          },
-          "publicSecurityNumber": {
-            "type": "object"
-          },
-          "publicSecurityUrl": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "siteName"
         ]
       },
       "userIdParamSchema": {
@@ -2965,250 +2929,11 @@
         "responses": {}
       }
     },
-    "/markdown-themes": {
-      "get": {
-        "operationId": "get-markdown-themes",
-        "summary": "List Markdown themes",
-        "description": "Lists built-in themes plus the caller's personal themes and the active selection.",
-        "tags": [
-          "Appearance"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "post-markdown-themes",
-        "summary": "Create a Markdown theme",
-        "description": "Creates a personal, editable theme by copying an existing theme.",
-        "tags": [
-          "Appearance"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateMarkdownThemeInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "css": {
-                      "type": "string"
-                    },
-                    "isBuiltin": {
-                      "type": "boolean"
-                    },
-                    "owned": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "css",
-                    "isBuiltin",
-                    "owned"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/markdown-themes/{id}": {
-      "get": {
-        "operationId": "get-markdown-themes-{id}",
-        "summary": "Get a Markdown theme",
-        "description": "Returns the full stylesheet content of a theme the caller may view.",
-        "tags": [
-          "Appearance"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "operationId": "put-markdown-themes-{id}",
-        "summary": "Update a Markdown theme",
-        "description": "Updates a personal theme's name and/or CSS. Built-ins are read-only.",
-        "tags": [
-          "Appearance"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateMarkdownThemeInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "delete-markdown-themes-{id}",
-        "summary": "Delete a Markdown theme",
-        "description": "Deletes a personal theme. If it was active, the caller falls back to Default.",
-        "tags": [
-          "Appearance"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          }
-        }
-      }
-    },
-    "/markdown-themes/active": {
-      "put": {
-        "operationId": "put-markdown-themes-active",
-        "summary": "Activate a Markdown theme",
-        "description": "Sets the caller's active Markdown reading theme (null ⇒ Default).",
-        "tags": [
-          "Appearance"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ActivateMarkdownThemeInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/settings/appearance": {
       "get": {
         "operationId": "get-settings-appearance",
-        "summary": "Get system appearance settings",
-        "description": "Returns the active appearance tokens (or static defaults). Public-readable; values carry no secrets.",
+        "summary": "Get system theme CSS",
+        "description": "Returns the admin-authored system theme CSS (or empty string when unset). Public-readable.",
         "tags": [
           "Appearance"
         ],
@@ -3228,8 +2953,8 @@
       },
       "put": {
         "operationId": "put-settings-appearance",
-        "summary": "Update system appearance settings",
-        "description": "Replaces the site-wide appearance tokens. Requires the manage_appearance capability.",
+        "summary": "Update system theme CSS",
+        "description": "Replaces the admin-authored CSS. Sanitized on save. Requires manage_appearance.",
         "tags": [
           "Appearance"
         ],
@@ -3243,7 +2968,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateAppearanceSettingsInput"
+                "$ref": "#/components/schemas/UpdateSystemThemeInput"
               }
             }
           }
@@ -3306,6 +3031,95 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/appearance": {
+      "get": {
+        "operationId": "get-user-appearance",
+        "summary": "Get the caller's reading-theme tokens",
+        "description": "Returns the per-user reading-theme tokens (or defaults if the user has not customized). Authenticated.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-user-appearance",
+        "summary": "Update the caller's reading-theme tokens",
+        "description": "Replaces the per-user reading-theme tokens. Authenticated.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserAppearanceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-user-appearance",
+        "summary": "Reset the caller's reading-theme tokens to defaults",
+        "description": "Deletes the per-user row; subsequent reads return the static defaults. Authenticated.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
