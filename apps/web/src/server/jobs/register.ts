@@ -1,5 +1,5 @@
 import type { PgBoss } from 'pg-boss';
-import { QUEUES } from './runtime';
+import { QUEUES, QUEUE_EXPIRE_SECONDS } from './runtime';
 import { runMigration } from './content-migration';
 import { runStorageCleanup } from './storage-cleanup';
 import { runOrphanCleanup } from './orphan-cleanup';
@@ -45,6 +45,11 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   registerAiActionHandler('image_generation', runImageGenerationAction);
   for (const queue of Object.values(QUEUES)) {
     await boss.createQueue(queue);
+    const expireSeconds = QUEUE_EXPIRE_SECONDS[queue];
+    // createQueue is idempotent (ON CONFLICT DO NOTHING), so it won't alter an
+    // existing queue's config — re-assert the expiry each boot to push long-
+    // running queues past the 15-min default and prevent worker-stall cascades.
+    if (expireSeconds) await boss.updateQueue(queue, { expireInSeconds: expireSeconds });
   }
 
   await boss.work(QUEUES.migration, async (jobs: JobBatch) => {

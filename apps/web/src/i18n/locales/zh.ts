@@ -791,6 +791,8 @@ export const zh: Translations = {
   'admin.ai.index.active': '当前使用',
   'admin.ai.index.details': '详情',
   'admin.ai.index.delete': '删除索引',
+  'admin.ai.index.cancel': '取消构建',
+  'admin.ai.index.cancel.confirm': '停止"{name}"的构建?未完成的部分将被丢弃。',
   'admin.ai.index.empty': '尚未创建知识索引。',
   'admin.ai.indexStatus.building': '构建中',
   'admin.ai.indexStatus.ready': '就绪',

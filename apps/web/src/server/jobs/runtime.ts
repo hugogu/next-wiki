@@ -21,6 +21,24 @@ export const QUEUES = {
 } as const;
 
 /**
+ * Per-queue handler-expiry floor. pg-boss's default is 900s (15min), which
+ * long-running jobs blow past: a full index rebuild embeds every page (often
+ * 30–60+ min), a site export/import walks the whole tree, a full Git snapshot
+ * push can stall on a slow remote. When a handler exceeds its expiry, pg-boss
+ * marks the job failed AND the worker for that queue stalls and never recovers,
+ * cascading until every queue is dead and `getBoss()` resolves null in route
+ * handlers ("job queue is unavailable"). Queues not listed keep the 15-min
+ * default — interactive/cleanup jobs should fail fast on a stall.
+ */
+export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
+  [QUEUES.aiIndex]: 4 * 60 * 60,
+  [QUEUES.transferExport]: 4 * 60 * 60,
+  [QUEUES.transferImport]: 4 * 60 * 60,
+  [QUEUES.migration]: 4 * 60 * 60,
+  [QUEUES.gitExport]: 60 * 60,
+};
+
+/**
  * Thin queue facade. The boot bootstrap sets the started pg-boss instance here
  * once; route handlers enqueue through it. When unset (tests, build, or a
  * worker that failed to start) enqueue is a safe no-op so request handling never

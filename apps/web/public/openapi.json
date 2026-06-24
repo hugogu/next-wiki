@@ -20,6 +20,20 @@
       }
     },
     "schemas": {
+      "ActivateMarkdownThemeInput": {
+        "type": "object",
+        "properties": {
+          "themeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "themeId"
+        ]
+      },
       "AiActionView": {
         "type": "object",
         "properties": {
@@ -178,6 +192,21 @@
           "email"
         ],
         "description": "Changed email response"
+      },
+      "CreateMarkdownThemeInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sourceThemeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "sourceThemeId"
+        ]
       },
       "errorResponseSchema": {
         "type": "object",
@@ -406,6 +435,119 @@
         "required": [
           "email",
           "password"
+        ]
+      },
+      "UpdateAppearanceSettingsInput": {
+        "type": "object",
+        "properties": {
+          "lightColors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "darkColors": {
+            "type": "object"
+          },
+          "fonts": {
+            "type": "object",
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "display": {
+                "type": "string"
+              },
+              "mono": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "body",
+              "display",
+              "mono"
+            ]
+          },
+          "fontSizes": {
+            "type": "object",
+            "properties": {
+              "base": {
+                "type": "string"
+              },
+              "h1": {
+                "type": "string"
+              },
+              "h2": {
+                "type": "string"
+              },
+              "h3": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "base",
+              "h1",
+              "h2",
+              "h3"
+            ]
+          }
+        },
+        "required": [
+          "lightColors",
+          "darkColors",
+          "fonts",
+          "fontSizes"
+        ]
+      },
+      "UpdateMarkdownThemeInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "css": {
+            "type": "object"
+          }
+        }
+      },
+      "UpdateSiteSettingsInput": {
+        "type": "object",
+        "properties": {
+          "siteName": {
+            "type": "string"
+          },
+          "footerCopyright": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "icpNumber": {
+            "type": "object"
+          },
+          "icpUrl": {
+            "type": "object"
+          },
+          "publicSecurityNumber": {
+            "type": "object"
+          },
+          "publicSecurityUrl": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "siteName"
         ]
       },
       "userIdParamSchema": {
@@ -2058,6 +2200,38 @@
         }
       }
     },
+    "/ai/indexes/{id}/cancel": {
+      "post": {
+        "operationId": "post-ai-indexes-{id}-cancel",
+        "summary": "Cancel building AI index @tag AI Admin @auth bearer @response 204",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "bearer @response 204": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/ai/indexes/{id}/page-retries": {
       "post": {
         "operationId": "post-ai-indexes-{id}-page-retries",
@@ -2791,6 +2965,429 @@
         "responses": {}
       }
     },
+    "/markdown-themes": {
+      "get": {
+        "operationId": "get-markdown-themes",
+        "summary": "List Markdown themes",
+        "description": "Lists built-in themes plus the caller's personal themes and the active selection.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-markdown-themes",
+        "summary": "Create a Markdown theme",
+        "description": "Creates a personal, editable theme by copying an existing theme.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMarkdownThemeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "css": {
+                      "type": "string"
+                    },
+                    "isBuiltin": {
+                      "type": "boolean"
+                    },
+                    "owned": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "css",
+                    "isBuiltin",
+                    "owned"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/markdown-themes/{id}": {
+      "get": {
+        "operationId": "get-markdown-themes-{id}",
+        "summary": "Get a Markdown theme",
+        "description": "Returns the full stylesheet content of a theme the caller may view.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-markdown-themes-{id}",
+        "summary": "Update a Markdown theme",
+        "description": "Updates a personal theme's name and/or CSS. Built-ins are read-only.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMarkdownThemeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-markdown-themes-{id}",
+        "summary": "Delete a Markdown theme",
+        "description": "Deletes a personal theme. If it was active, the caller falls back to Default.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/markdown-themes/active": {
+      "put": {
+        "operationId": "put-markdown-themes-active",
+        "summary": "Activate a Markdown theme",
+        "description": "Sets the caller's active Markdown reading theme (null ⇒ Default).",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateMarkdownThemeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/appearance": {
+      "get": {
+        "operationId": "get-settings-appearance",
+        "summary": "Get system appearance settings",
+        "description": "Returns the active appearance tokens (or static defaults). Public-readable; values carry no secrets.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-settings-appearance",
+        "summary": "Update system appearance settings",
+        "description": "Replaces the site-wide appearance tokens. Requires the manage_appearance capability.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAppearanceSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/site": {
+      "get": {
+        "operationId": "get-settings-site",
+        "summary": "Get site information",
+        "description": "Returns the public site identity and footer settings.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-settings-site",
+        "summary": "Update site information",
+        "description": "Updates the site name and footer fields. Requires the manage_appearance capability.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSiteSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/site/icon": {
+      "get": {
+        "operationId": "get-settings-site-icon",
+        "summary": "Get the site icon",
+        "description": "Serves the configured site icon, or redirects to the shipped default.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-settings-site-icon",
+        "summary": "Upload the site icon",
+        "description": "Uploads a custom site icon (SVG/PNG/ICO). Requires the manage_appearance capability.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-settings-site-icon",
+        "summary": "Remove the custom site icon",
+        "description": "Reverts the site icon to the shipped default. Requires the manage_appearance capability.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assets": {
       "post": {
         "operationId": "post-assets",
@@ -3413,6 +4010,18 @@
         "responses": {}
       }
     },
+    "/storage/git-export/reset": {
+      "post": {
+        "operationId": "post-storage-git-export-reset",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/storage/git-export/run": {
       "post": {
         "operationId": "post-storage-git-export-run",
@@ -4002,6 +4611,9 @@
     },
     {
       "name": "Api-keys"
+    },
+    {
+      "name": "Appearance"
     },
     {
       "name": "Assets"

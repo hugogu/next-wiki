@@ -5,7 +5,7 @@ import { chunkMarkdown } from '@/server/ai/chunking/markdown-chunker';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { AiProviderError } from '@/server/ai/types';
 import { providerRuntime } from '@/server/services/ai-admin';
-import { readActionInput, finishAction } from '@/server/services/ai-actions';
+import { readActionInput, finishAction, isCancellationRequested } from '@/server/services/ai-actions';
 import { refreshIndexCounters } from '@/server/services/ai-index';
 
 // Per-page embed retry. Embedding providers (notably OpenRouter-backed models)
@@ -34,6 +34,28 @@ function isRetryableEmbedError(error: unknown): boolean {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Cancel cleanup: a never-activated build is dropped entirely (keep-only-active
+// policy — its partial output is useless); an already-live index retains its
+// chunks so retrieval keeps serving, mirroring the partial-failure invariant.
+async function finalizeCancellation(actionId: string, generation: { id: string; isActive: boolean }): Promise<void> {
+  if (generation.isActive) {
+    // Force the live index back to `ready` so retrieval keeps accepting it.
+    // refreshIndexCounters would bail on pending>0; pages not yet processed
+    // retain their previously indexed chunks and stay pending for a retry.
+    await db.update(schema.aiIndexGenerations)
+      .set({ status: 'ready', errorCode: null, errorMessage: null })
+      .where(eq(schema.aiIndexGenerations.id, generation.id));
+    await finishAction(actionId, 'cancelled', { resultMetadata: { generationId: generation.id } });
+    return;
+  }
+  await db.update(schema.aiActions)
+    .set({ indexGenerationId: null })
+    .where(eq(schema.aiActions.indexGenerationId, generation.id));
+  // aiPageIndexStates and aiKnowledgeChunks cascade via onDelete.
+  await db.delete(schema.aiIndexGenerations).where(eq(schema.aiIndexGenerations.id, generation.id));
+  await finishAction(actionId, 'cancelled', { resultMetadata: { generationId: generation.id, deleted: true } });
 }
 
 export async function runIndexRebuildAction(actionId: string): Promise<void> {
@@ -66,7 +88,14 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
     )
     .orderBy(asc(schema.aiPageIndexStates.updatedAt));
 
+  let cancelled = false;
   for (const state of states) {
+    // Cheap PK lookup per page — lets an admin cancel a long rebuild without
+    // waiting for it to exhaust all 1396 pages.
+    if (await isCancellationRequested(actionId)) {
+      cancelled = true;
+      break;
+    }
     await db.update(schema.aiPageIndexStates).set({ status: 'running', attempts: state.attempts + 1, updatedAt: new Date() }).where(and(eq(schema.aiPageIndexStates.generationId, generation.id), eq(schema.aiPageIndexStates.pageId, state.pageId)));
     try {
       if (!state.targetRevisionId) {
@@ -121,6 +150,13 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
     } catch (error) {
       await db.update(schema.aiPageIndexStates).set({ status: 'failed', lastErrorCode: 'INDEX_PAGE_FAILED', lastErrorMessage: String(error).slice(0, 500), updatedAt: new Date() }).where(and(eq(schema.aiPageIndexStates.generationId, generation.id), eq(schema.aiPageIndexStates.pageId, state.pageId)));
     }
+  }
+  if (cancelled) {
+    // Re-read in case the generation row was mutated by a concurrent run.
+    const fresh = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generation.id) });
+    if (fresh) await finalizeCancellation(actionId, fresh);
+    else await finishAction(actionId, 'cancelled', { resultMetadata: { generationId: generation.id } });
+    return;
   }
   await refreshIndexCounters(generation.id);
   const completed = await db.query.aiIndexGenerations.findFirst({

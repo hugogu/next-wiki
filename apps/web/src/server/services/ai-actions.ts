@@ -25,6 +25,18 @@ export function queueForFeature(feature: AiActionFeature): string {
   return feature === 'index_rebuild' ? QUEUES.aiIndex : QUEUES.aiAction;
 }
 
+// A full rebuild embeds every published page and routinely runs 30–60+ minutes
+// on modest wikis, far beyond pg-boss's 15-minute default expiry. Without this
+// override the job expires mid-build, pg-boss retries it, and pages orphaned in
+// `running` (the worker had marked them but died before completing) never get
+// re-claimed — observed as a build stuck forever at e.g. 1391/1396. Interactive
+// actions stay on the default short expiry.
+export const indexRebuildExpireSeconds = 4 * 60 * 60;
+
+export function expireSecondsForFeature(feature: AiActionFeature): number | undefined {
+  return feature === 'index_rebuild' ? indexRebuildExpireSeconds : undefined;
+}
+
 type CreateActionInput = {
   feature: AiActionFeature;
   input?: unknown;
@@ -100,7 +112,8 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
     });
     return action!;
   });
-  await enqueue(queueForFeature(input.feature), { actionId: created.id });
+  const expireSeconds = expireSecondsForFeature(input.feature);
+  await enqueue(queueForFeature(input.feature), { actionId: created.id }, expireSeconds ? { expireInSeconds: expireSeconds } : undefined);
   return {
     id: created.id,
     feature: input.feature,

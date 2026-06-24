@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
-import { createIndexRebuild, deleteIndexGeneration, refreshIndexCounters, retryIndexPages } from './ai-index';
+import { createIndexRebuild, cancelIndexGeneration, deleteIndexGeneration, refreshIndexCounters, retryIndexPages } from './ai-index';
 
 describe('AI index lifecycle', () => {
   let adminId: string;
@@ -140,5 +140,31 @@ describe('AI index lifecycle', () => {
     expect(
       await db.query.aiActions.findFirst({ where: eq(schema.aiActions.indexGenerationId, generationId) }),
     ).toBeUndefined();
+  });
+
+  it('cancels the active build action of a building generation', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    expect(created.action.id).toBeDefined();
+
+    await cancelIndexGeneration(ctx, generationId);
+
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
+    expect(action?.cancelRequested).toBe(true);
+  });
+
+  it('refuses to cancel a generation that is not currently building', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    await db.update(schema.aiPageIndexStates).set({ status: 'completed' }).where(eq(schema.aiPageIndexStates.generationId, generationId));
+    await refreshIndexCounters(generationId);
+    // Now ready+active — nothing to cancel.
+    await expect(cancelIndexGeneration(ctx, generationId)).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('refuses to cancel a non-existent generation', async () => {
+    await expect(cancelIndexGeneration(buildUserCtx(adminId, 'admin'), randomUUID())).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

@@ -1,11 +1,11 @@
-import { and, asc, count, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import type { AiIndexView } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { CHUNKER_VERSION } from '@/server/ai/chunking/markdown-chunker';
-import { createAction } from './ai-actions';
+import { createAction, requestActionCancellation } from './ai-actions';
 
 function assertAdmin(ctx: PermCtx): void {
   if (ctx.actor.kind !== 'user' || !can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
@@ -63,6 +63,24 @@ export async function deleteIndexGeneration(ctx: PermCtx, id: string): Promise<v
       .where(eq(schema.aiActions.indexGenerationId, id));
     await tx.delete(schema.aiIndexGenerations).where(eq(schema.aiIndexGenerations.id, id));
   });
+}
+
+export async function cancelIndexGeneration(ctx: PermCtx, generationId: string): Promise<void> {
+  assertAdmin(ctx);
+  const row = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) });
+  if (!row) throw new DomainError('NOT_FOUND', 'AI index not found');
+  if (row.status !== 'building') throw new DomainError('CONFLICT', 'Only a building knowledge index can be cancelled');
+  // The worker polls this flag each page and finalizes the cancellation itself
+  // (deleting a never-activated generation, or leaving a live index intact).
+  const action = await db.query.aiActions.findFirst({
+    where: and(
+      eq(schema.aiActions.indexGenerationId, generationId),
+      inArray(schema.aiActions.status, ['queued', 'running']),
+    ),
+    orderBy: desc(schema.aiActions.queuedAt),
+  });
+  if (!action) throw new DomainError('NOT_FOUND', 'No active build action to cancel');
+  await requestActionCancellation(ctx, action.id);
 }
 
 export async function createIndexRebuild(ctx: PermCtx, reason = 'manual') {

@@ -13,6 +13,8 @@ import {
   readActionInput,
   recordTerminalAction,
   requestActionCancellation,
+  indexRebuildExpireSeconds,
+  expireSecondsForFeature,
 } from './ai-actions';
 
 describe('AI actions', () => {
@@ -97,5 +99,14 @@ describe('AI actions', () => {
     expect(stats.chat).toEqual({ requests: 2, inputTokens: 120, outputTokens: 55, cachedInputTokens: 10 });
     expect(stats.embedding).toEqual({ requests: 1, inputTokens: 30, outputTokens: 0, cachedInputTokens: 0 });
     expect(stats.image.requests).toBe(1);
+  });
+
+  it('extends the pg-boss expiry window for index rebuilds and leaves interactive actions on the default', () => {
+    // A 1396-page rebuild at ~0.5 page/s runs ~47 min, far beyond pg-boss's 15-min
+    // default — without an override the job expires mid-build, gets retried, and
+    // orphans pages in `running`. Interactive actions keep the short default.
+    expect(expireSecondsForFeature('index_rebuild')).toBe(indexRebuildExpireSeconds);
+    expect(expireSecondsForFeature('wiki_question')).toBeUndefined();
+    expect(expireSecondsForFeature('image_generation')).toBeUndefined();
   });
 });

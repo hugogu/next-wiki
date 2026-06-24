@@ -167,4 +167,34 @@ describe('index rebuild worker', () => {
     expect(state?.status).toBe('running');
     expect(embed).not.toHaveBeenCalled();
   });
+
+  it('stops the build and drops the partial generation when cancel is requested', async () => {
+    // Fresh (never-active) build cancelled mid-flight — the partial output is useless.
+    await db.update(schema.aiIndexGenerations).set({ isActive: false }).where(eq(schema.aiIndexGenerations.id, generationId));
+    await db.update(schema.aiActions).set({ cancelRequested: true }).where(eq(schema.aiActions.id, actionId));
+    embed.mockResolvedValue({ vectors: [[0.1, 0.2, 0.3]], usage: { inputTokens: 1 } });
+
+    await runIndexRebuildAction(actionId);
+
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
+    expect(action?.status).toBe('cancelled');
+    expect(await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) })).toBeUndefined();
+    expect(await db.query.aiKnowledgeChunks.findMany({ where: eq(schema.aiKnowledgeChunks.generationId, generationId) })).toHaveLength(0);
+    expect(embed).not.toHaveBeenCalled();
+  });
+
+  it('leaves the live index intact when an incremental rebuild is cancelled', async () => {
+    // Active generation: cancelling an incremental reconcile must not take it offline.
+    await db.update(schema.aiPageIndexStates).set({ status: 'pending' }).where(eq(schema.aiPageIndexStates.generationId, generationId));
+    await db.update(schema.aiActions).set({ cancelRequested: true }).where(eq(schema.aiActions.id, actionId));
+    embed.mockResolvedValue({ vectors: [[0.1, 0.2, 0.3]], usage: { inputTokens: 1 } });
+
+    await runIndexRebuildAction(actionId);
+
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
+    expect(action?.status).toBe('cancelled');
+    const generation = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) });
+    expect(generation?.isActive).toBe(true);
+    expect(generation?.status).toBe('ready');
+  });
 });

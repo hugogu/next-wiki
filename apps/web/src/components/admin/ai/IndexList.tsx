@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { AiIndexView } from '@next-wiki/shared';
-import { apiDelete, type ApiError } from '@/lib/api/client';
+import { apiDelete, apiPost, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -25,6 +25,7 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
   const { t } = useTranslation();
   const [detailIndex, setDetailIndex] = useState<AiIndexView | null>(null);
   const [deleting, setDeleting] = useState<AiIndexView | null>(null);
+  const [cancelling, setCancelling] = useState<AiIndexView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const remove = async (index: AiIndexView) => {
@@ -32,6 +33,17 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
     setError(null);
     try {
       await apiDelete(`/api/ai/indexes/${index.id}`);
+      window.location.reload();
+    } catch (value) {
+      setError((value as ApiError).message ?? t('admin.ai.error.generic'));
+      setBusy(false);
+    }
+  };
+  const cancel = async (index: AiIndexView) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiPost<void, void>(`/api/ai/indexes/${index.id}/cancel`, undefined);
       window.location.reload();
     } catch (value) {
       setError((value as ApiError).message ?? t('admin.ai.error.generic'));
@@ -86,6 +98,15 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
                   <Button variant="ghost" onClick={() => setDetailIndex(index)}>
                     {t('admin.ai.index.details')}
                   </Button>
+                  {index.status === 'building' && (
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setCancelling(index)}
+                    >
+                      {t('admin.ai.index.cancel')}
+                    </Button>
+                  )}
                   <Tooltip label={t('admin.ai.index.delete')}>
                     <Button
                       size="icon"
@@ -132,6 +153,21 @@ export function IndexList({ indexes }: { indexes: AiIndexView[] }) {
           setError(null);
         }}
         onConfirm={() => void remove(deleting)}
+      />
+    )}
+    {cancelling && (
+      <ConfirmDialog
+        title={t('admin.ai.index.cancel')}
+        message={t('admin.ai.index.cancel.confirm', { name: cancelling.modelName })}
+        confirmLabel={t('admin.ai.index.cancel')}
+        confirmVariant="danger"
+        pending={busy}
+        error={error ?? undefined}
+        onCancel={() => {
+          setCancelling(null);
+          setError(null);
+        }}
+        onConfirm={() => void cancel(cancelling)}
       />
     )}
     </>
