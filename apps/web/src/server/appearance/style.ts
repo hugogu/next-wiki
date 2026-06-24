@@ -1,35 +1,35 @@
-import type { AppearanceColors, AppearanceFonts, AppearanceFontSizes } from '@next-wiki/shared';
-import { COLOR_TOKEN_KEYS, FONT_SIZE_KEYS, FONT_SLOTS, resolveFontStack } from './tokens';
+import type { UserAppearanceColors, UserAppearanceFonts, UserAppearanceFontSizes } from '@next-wiki/shared';
+import { COLOR_TOKEN_KEYS, FONT_SIZE_KEYS, FONT_SLOTS, resolveFontStack } from './user-tokens';
 
-interface AppearanceValues {
-  lightColors: AppearanceColors;
-  darkColors: AppearanceColors;
-  fonts: AppearanceFonts;
-  fontSizes: AppearanceFontSizes;
+interface UserAppearanceValues {
+  lightColors: UserAppearanceColors;
+  darkColors: UserAppearanceColors;
+  fonts: UserAppearanceFonts;
+  fontSizes: UserAppearanceFontSizes;
 }
 
-function colorVars(colors: AppearanceColors): string {
+function colorVars(colors: UserAppearanceColors): string {
   return COLOR_TOKEN_KEYS.map((key) => `--color-${key}:${colors[key]};`).join('');
 }
 
-function fontVars(fonts: AppearanceFonts): string {
+function fontVars(fonts: UserAppearanceFonts): string {
   return FONT_SLOTS.map((slot) => {
     const stack = resolveFontStack(fonts[slot]);
     return stack ? `--font-${slot}:${stack};` : '';
   }).join('');
 }
 
-function sizeVars(sizes: AppearanceFontSizes): string {
+function sizeVars(sizes: UserAppearanceFontSizes): string {
   return FONT_SIZE_KEYS.map((key) => `--font-size-${key}:${sizes[key]};`).join('');
 }
 
 /**
- * Build the `<style>` body that overrides the static design tokens with the
- * admin-configured appearance. Light colors + fonts + sizes apply to `:root`;
- * dark colors apply to `html.dark` (research R1). Fonts/sizes are mode-neutral.
+ * Build the `<style>` body for a user's per-row reading-theme tokens. Light
+ * values apply to `.prose.prose`; dark values apply to `html.dark .prose.prose`
+ * (specificity 0,2,0 — wins over the static `:root` defaults inside content).
  */
-export function buildAppearanceStyleCss(values: AppearanceValues): string {
-  const root = `:root{${colorVars(values.lightColors)}${fontVars(values.fonts)}${sizeVars(values.fontSizes)}}`;
-  const dark = `html.dark{${colorVars(values.darkColors)}}`;
-  return `${root}${dark}`;
+export function buildUserAppearanceCss(values: UserAppearanceValues): string {
+  const light = `.prose.prose{${colorVars(values.lightColors)}${fontVars(values.fonts)}${sizeVars(values.fontSizes)}}`;
+  const dark = `html.dark .prose.prose{${colorVars(values.darkColors)}}`;
+  return `${light}${dark}`;
 }

@@ -1,46 +1,50 @@
 import { describe, it, expect } from 'vitest';
 import { DomainError } from '@/server/errors';
-import { sanitizeThemeCss, scopeThemeCss, THEME_SCOPE } from '@/server/appearance/css-sanitize';
+import { sanitizeSystemThemeCss } from '@/server/appearance/css-sanitize';
 
-describe('sanitizeThemeCss', () => {
-  it('keeps allowlisted typography/layout properties', () => {
-    const out = sanitizeThemeCss('h1 { font-size: 2rem; margin: 1rem; line-height: 1.2; }');
+describe('sanitizeSystemThemeCss', () => {
+  it('keeps allowlisted layout, typography, and border geometry', () => {
+    const out = sanitizeSystemThemeCss(
+      '.header { display: flex; gap: 1rem; padding: 0.5rem; border-bottom-width: 1px; border-bottom-style: solid; } h1 { font-size: 2rem; line-height: 1.2; }',
+    );
+    expect(out).toContain('display: flex');
+    expect(out).toContain('gap: 1rem');
     expect(out).toContain('font-size: 2rem');
-    expect(out).toContain('margin: 1rem');
-    expect(out).toContain('line-height: 1.2');
+    expect(out).toContain('border-bottom-width: 1px');
   });
 
   it('strips color and background declarations', () => {
-    const out = sanitizeThemeCss('p { color: red; background-color: blue; font-weight: 700; }');
+    const out = sanitizeSystemThemeCss(
+      'p { color: red; background-color: blue; font-weight: 700; }',
+    );
     expect(out).not.toContain('color');
     expect(out).not.toContain('background');
     expect(out).toContain('font-weight: 700');
   });
 
   it('strips remote url() and @import', () => {
-    const out = sanitizeThemeCss('@import url("http://evil.test/x.css"); h1 { background: url(http://evil.test/i.png); font-size: 1rem; }');
+    const out = sanitizeSystemThemeCss(
+      '@import url("http://evil.test/x.css"); .x { background: url(http://evil.test/i.png); padding: 1rem; }',
+    );
     expect(out.toLowerCase()).not.toContain('@import');
     expect(out.toLowerCase()).not.toContain('url(');
-    expect(out).toContain('font-size: 1rem');
+    expect(out).toContain('padding: 1rem');
   });
 
-  it('allows border geometry but not border color shorthands', () => {
-    const out = sanitizeThemeCss('blockquote { border-left-width: 3px; border-left-style: solid; border-left: 3px solid red; border-color: red; }');
-    expect(out).toContain('border-left-width: 3px');
-    expect(out).toContain('border-left-style: solid');
-    expect(out).not.toContain('border-left:');
-    expect(out).not.toContain('border-color');
+  it('keeps @keyframes but strips color declarations inside them', () => {
+    const out = sanitizeSystemThemeCss(
+      '@keyframes pulse { 0% { opacity: 0.4; color: red; } 100% { opacity: 1; } }',
+    );
+    expect(out).toContain('@keyframes');
+    expect(out).toContain('opacity: 0.4');
+    expect(out).not.toContain('color');
   });
 
   it('rejects oversized stylesheets', () => {
-    expect(() => sanitizeThemeCss('h1{font-size:1rem;}'.repeat(2000))).toThrow(DomainError);
+    expect(() => sanitizeSystemThemeCss('h1{font-size:1rem;}'.repeat(5000))).toThrow(DomainError);
   });
-});
 
-describe('scopeThemeCss', () => {
-  it('prefixes every selector with the content-root scope', () => {
-    const out = scopeThemeCss('h1 { font-size: 2rem; }\nblockquote { font-style: italic; }');
-    expect(out).toContain(`${THEME_SCOPE} h1`);
-    expect(out).toContain(`${THEME_SCOPE} blockquote`);
+  it('rejects invalid CSS', () => {
+    expect(() => sanitizeSystemThemeCss('this is not css }}}')).toThrow(DomainError);
   });
 });

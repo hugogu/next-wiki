@@ -1,25 +1,23 @@
-import postcss, { type AtRule } from 'postcss';
+import postcss from 'postcss';
 import { DomainError } from '@/server/errors';
 
 /**
- * Confine user-authored Markdown theme CSS to typography/layout (FR-017, R5):
- * - allowlist only typography/spacing/border-geometry properties (no colors,
- *   no backgrounds — those inherit the system tokens, FR-011a)
- * - strip remote/dangerous values (`url(...)`, `@import`, `expression(...)`)
- * - drop at-rules other than `@media`
- * Scoping under the content root is applied separately at injection time.
+ * Confine admin-authored system-theme CSS to layout/structure/typography
+ * (006). Colors and backgrounds are NOT allowed because they belong to the
+ * user's reading-theme tokens; the admin's CSS styles the app shell, not
+ * content. The allowlist mirrors the previous user-CSS sanitizer but
+ * additionally permits layout properties and `@keyframes` (with color
+ * declarations inside keyframes stripped).
  */
 
-const MAX_CSS_LENGTH = 20_000;
-const ALLOWED_AT_RULES = new Set(['media']);
-export const THEME_SCOPE = '.prose.prose';
+const MAX_CSS_LENGTH = 50_000;
+const ALLOWED_AT_RULES = new Set(['media', 'keyframes']);
 
 function isAllowedProperty(prop: string): boolean {
   const p = prop.trim().toLowerCase();
   if (p.startsWith('--')) return false;
   if (p === 'color' || p.endsWith('-color') || p.startsWith('background')) return false;
   if (p.startsWith('border')) {
-    // border geometry only — never the color-bearing shorthands
     return /^border(-(top|right|bottom|left))?-(width|style)$/.test(p) || p.includes('radius');
   }
   return (
@@ -36,7 +34,32 @@ function isAllowedProperty(prop: string): boolean {
     p === 'vertical-align' ||
     p === 'quotes' ||
     p === 'hyphens' ||
-    p === 'tab-size'
+    p === 'tab-size' ||
+    p === 'display' ||
+    p === 'position' ||
+    p === 'top' ||
+    p === 'right' ||
+    p === 'bottom' ||
+    p === 'left' ||
+    p === 'z-index' ||
+    p.startsWith('flex') ||
+    p.startsWith('grid') ||
+    p === 'width' ||
+    p === 'height' ||
+    p.startsWith('max-') ||
+    p.startsWith('min-') ||
+    p === 'gap' ||
+    p === 'row-gap' ||
+    p === 'column-gap' ||
+    p.startsWith('overflow') ||
+    p.startsWith('transform') ||
+    p.startsWith('transition') ||
+    p.startsWith('animation') ||
+    p === 'box-shadow' ||
+    p === 'opacity' ||
+    p === 'cursor' ||
+    p === 'pointer-events' ||
+    p === 'visibility'
   );
 }
 
@@ -51,16 +74,16 @@ function isForbiddenValue(value: string): boolean {
   );
 }
 
-/** Sanitize on save. Returns cleaned CSS (element selectors preserved). */
-export function sanitizeThemeCss(css: string): string {
+/** Sanitize on save. Returns cleaned CSS. */
+export function sanitizeSystemThemeCss(css: string): string {
   if (css.length > MAX_CSS_LENGTH) {
-    throw new DomainError('BAD_REQUEST', 'Theme stylesheet is too large');
+    throw new DomainError('BAD_REQUEST', 'System theme stylesheet is too large');
   }
   let root;
   try {
     root = postcss.parse(css);
   } catch {
-    throw new DomainError('BAD_REQUEST', 'Theme stylesheet is not valid CSS');
+    throw new DomainError('BAD_REQUEST', 'System theme stylesheet is not valid CSS');
   }
 
   root.walkAtRules((at) => {
@@ -73,21 +96,5 @@ export function sanitizeThemeCss(css: string): string {
     if (rule.nodes.length === 0) rule.remove();
   });
 
-  return root.toString();
-}
-
-/** Prefix every rule's selectors with the content-root scope for injection. */
-export function scopeThemeCss(css: string, scope: string = THEME_SCOPE): string {
-  let root;
-  try {
-    root = postcss.parse(css);
-  } catch {
-    return '';
-  }
-  root.walkRules((rule) => {
-    const parent = rule.parent;
-    if (parent && parent.type === 'atrule' && /keyframes/i.test((parent as AtRule).name)) return;
-    rule.selectors = rule.selectors.map((sel) => `${scope} ${sel}`);
-  });
   return root.toString();
 }

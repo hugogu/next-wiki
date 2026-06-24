@@ -1,10 +1,9 @@
 /**
- * Canonical appearance token registry and default values.
- *
- * These mirror the static fallbacks in `app/globals.css`. The admin-configurable
- * `appearance_settings` row overrides them at runtime; when unset, these defaults
- * apply (see research R1/R2). Colors are configured separately for light and
- * dark mode; fonts are chosen from the bundled `FONT_CATALOG` only (FR-001b).
+ * Canonical reading-theme token registry and default values for the per-user
+ * reading theme (006). These mirror the static fallbacks in `app/globals.css`.
+ * When a user has no row in `user_appearance` the layout falls back to these
+ * defaults; otherwise the user's per-row values override the custom
+ * properties inside `.prose` via `buildUserAppearanceCss`.
  */
 
 /** Color token keys. The CSS custom property is `--color-${key}`. */
