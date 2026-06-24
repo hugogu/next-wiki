@@ -80,14 +80,15 @@ export function validateUserAppearanceInput(input: UpdateUserAppearanceInput): v
   assertFontSizes(input.fontSizes);
 }
 
-const DEFAULTS = {
-  lightColors: DEFAULT_LIGHT_COLORS,
-  darkColors: DEFAULT_DARK_COLORS,
-  fonts: DEFAULT_FONTS,
-  fontSizes: DEFAULT_FONT_SIZES,
-};
-
-function toView(values: typeof DEFAULTS, isCustomized: boolean): UserAppearanceView {
+function toView(
+  values: {
+    lightColors: UserAppearanceColors;
+    darkColors: UserAppearanceColors;
+    fonts: UserAppearanceFonts;
+    fontSizes: UserAppearanceFontSizes;
+  },
+  isCustomized: boolean,
+): UserAppearanceView {
   return {
     lightColors: values.lightColors,
     darkColors: values.darkColors,
@@ -105,7 +106,16 @@ export async function getUserAppearance(ctx: PermCtx): Promise<UserAppearanceVie
   const row = await db.query.userAppearance.findFirst({
     where: eq(schema.userAppearance.userId, userId),
   });
-  if (!row) return toView(DEFAULTS, false);
+  if (!row)
+    return toView(
+      {
+        lightColors: DEFAULT_LIGHT_COLORS,
+        darkColors: DEFAULT_DARK_COLORS,
+        fonts: DEFAULT_FONTS,
+        fontSizes: DEFAULT_FONT_SIZES,
+      },
+      false,
+    );
   return toView(
     {
       lightColors: row.lightColors as UserAppearanceColors,
@@ -146,12 +156,28 @@ export async function updateUserAppearance(
       },
     });
 
-  return toView(input, true);
+  return toView(
+    {
+      lightColors: input.lightColors,
+      darkColors: input.darkColors,
+      fonts: input.fonts,
+      fontSizes: input.fontSizes,
+    },
+    true,
+  );
 }
 
 /** Delete the user's per-row tokens; falls back to the static defaults. */
 export async function resetUserAppearance(ctx: PermCtx): Promise<UserAppearanceView> {
   const userId = requireUserId(ctx);
   await db.delete(schema.userAppearance).where(eq(schema.userAppearance.userId, userId));
-  return toView(DEFAULTS, false);
+  return toView(
+    {
+      lightColors: DEFAULT_LIGHT_COLORS,
+      darkColors: DEFAULT_DARK_COLORS,
+      fonts: DEFAULT_FONTS,
+      fontSizes: DEFAULT_FONT_SIZES,
+    },
+    false,
+  );
 }
