@@ -6,11 +6,10 @@ import { I18nProvider } from '@/i18n/client';
 import { getLocale } from '@/i18n/server';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
-import { getAppearanceSettings } from '@/server/services/appearance-settings';
-import { buildAppearanceStyleCss } from '@/server/appearance/style';
+import { getSystemThemeCss } from '@/server/services/system-theme';
+import { getUserAppearance } from '@/server/services/user-appearance';
+import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
-import { getActiveThemeCss } from '@/server/services/markdown-themes';
-import { scopeThemeCss } from '@/server/appearance/css-sanitize';
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
@@ -30,9 +29,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ? await userCenterService.getPreferences({ actor })
     : null;
 
-  const appearanceCss = buildAppearanceStyleCss(await getAppearanceSettings());
-  const userId = actor.kind === 'user' ? actor.userId : null;
-  const markdownThemeCss = scopeThemeCss(await getActiveThemeCss(userId));
+  const systemCss = await getSystemThemeCss();
+  let readingThemeCss = '';
+  if (actor.kind === 'user') {
+    const userAppearance = await getUserAppearance({ actor });
+    if (userAppearance.isCustomized) {
+      readingThemeCss = buildUserAppearanceCss(userAppearance);
+    }
+  }
 
   const initialTheme = preferences?.theme ?? undefined;
   const initialLocale = preferences?.locale ?? locale;
@@ -57,8 +61,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
-        <style id="app-appearance" dangerouslySetInnerHTML={{ __html: appearanceCss }} />
-        <style id="app-md-theme" dangerouslySetInnerHTML={{ __html: markdownThemeCss }} />
+        <style id="app-system-theme" dangerouslySetInnerHTML={{ __html: systemCss }} />
+        <style id="app-reading-theme" dangerouslySetInnerHTML={{ __html: readingThemeCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased" suppressHydrationWarning>
