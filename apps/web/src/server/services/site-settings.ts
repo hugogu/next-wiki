@@ -2,9 +2,8 @@ import { eq } from 'drizzle-orm';
 import type { SiteSettingsView, UpdateSiteSettingsInput } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { getActorUserId, type PermCtx } from '@/server/permissions';
+import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { assertCanManageAppearance } from './appearance-settings';
 
 const SETTINGS_ID = 'default';
 const ICON_ROUTE = '/api/settings/site/icon';
@@ -12,6 +11,12 @@ const ICON_ROUTE = '/api/settings/site/icon';
 export const DEFAULT_SITE_NAME = 'next-wiki';
 export const DEFAULT_ICP_URL = 'https://beian.miit.gov.cn/';
 export const DEFAULT_PUBLIC_SECURITY_URL = 'https://beian.mps.gov.cn/';
+
+function assertCanManage(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user' || !can(ctx, 'manage_appearance', { kind: 'appearance' })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to manage site settings');
+  }
+}
 
 const ALLOWED_ICON_MIME = new Set([
   'image/svg+xml',
@@ -63,7 +68,7 @@ export async function updateSiteSettings(
   ctx: PermCtx,
   input: UpdateSiteSettingsInput,
 ): Promise<SiteSettingsView> {
-  assertCanManageAppearance(ctx);
+  assertCanManage(ctx);
   const values = {
     siteName: input.siteName,
     footerCopyright: input.footerCopyright ?? null,
@@ -90,7 +95,7 @@ export async function getIcon(): Promise<{ data: Buffer; mime: string } | null> 
 
 /** Store a custom site icon. Requires manage_appearance. */
 export async function setIcon(ctx: PermCtx, bytes: Buffer, mime: string): Promise<void> {
-  assertCanManageAppearance(ctx);
+  assertCanManage(ctx);
   if (!ALLOWED_ICON_MIME.has(mime)) {
     throw new DomainError('BAD_REQUEST', 'Icon must be an SVG, PNG, or ICO image');
   }
@@ -111,7 +116,7 @@ export async function setIcon(ctx: PermCtx, bytes: Buffer, mime: string): Promis
 
 /** Clear the custom icon, reverting to the shipped default. Requires manage_appearance. */
 export async function clearIcon(ctx: PermCtx): Promise<void> {
-  assertCanManageAppearance(ctx);
+  assertCanManage(ctx);
   await db
     .update(schema.siteSettings)
     .set({ iconData: null, iconMime: null, updatedBy: getActorUserId(ctx), updatedAt: new Date() })
