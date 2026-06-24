@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
-import { AppearanceForm } from '@/components/admin/appearance/AppearanceForm';
+import { SystemThemeForm } from '@/components/admin/appearance/SystemThemeForm';
 import { AppearanceNav } from '@/components/admin/appearance/AppearanceNav';
 import { getCurrentActor } from '@/server/services/auth';
 import { can } from '@/server/permissions';
-import { getAppearanceView } from '@/server/services/appearance-settings';
+import { getSystemThemeView } from '@/server/services/system-theme';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export default async function AdminAppearancePage() {
   const actor = await getCurrentActor();
   if (!can({ actor }, 'manage_appearance', { kind: 'appearance' })) notFound();
 
-  const view = await getAppearanceView();
+  const view = await getSystemThemeView();
   const locale = await getLocale();
   const t = getDictionary(locale);
 
@@ -25,7 +25,7 @@ export default async function AdminAppearancePage() {
           <p className="mt-xs text-sm text-muted">{t('admin.appearance.description')}</p>
         </div>
         <AppearanceNav />
-        <AppearanceForm initial={view} />
+        <SystemThemeForm initial={view} />
       </div>
     </Layout>
   );
