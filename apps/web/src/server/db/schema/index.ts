@@ -98,6 +98,7 @@ export const users = pgTable(
     displayName: text('display_name'),
     themePreference: text('theme_preference'),
     localePreference: text('locale_preference'),
+    activeMarkdownThemeId: uuid('active_markdown_theme_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -613,6 +614,29 @@ export const siteSettings = pgTable('site_settings', {
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Per-user Markdown reading themes. Built-ins have `owner_user_id = NULL` and
+ * `is_builtin = true` (read-only); personal themes are owned by a user.
+ * A user's active theme is `users.active_markdown_theme_id` (cleared in-service
+ * when the referenced theme is deleted — no DB FK to avoid a cyclic constraint).
+ */
+export const markdownThemes = pgTable(
+  'markdown_themes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerUserId: uuid('owner_user_id').references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    css: text('css').notNull(),
+    isBuiltin: boolean('is_builtin').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    ownerNameIdx: uniqueIndex('markdown_themes_owner_name_idx').on(t.ownerUserId, t.name),
+    ownerIdx: index('markdown_themes_owner_idx').on(t.ownerUserId),
+  }),
+);
 
 // ---- System AI (004) ------------------------------------------------------
 

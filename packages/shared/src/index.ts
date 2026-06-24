@@ -11,6 +11,7 @@ export * from './ai';
 export * from './transfers';
 export * from './appearance';
 export * from './site';
+export * from './markdown-theme';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

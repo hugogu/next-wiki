@@ -134,6 +134,13 @@
       "when": 1782224624105,
       "tag": "0018_supreme_the_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782302563817,
+      "tag": "0019_bumpy_wasp",
+      "breakpoints": true
     }
   ]
 }

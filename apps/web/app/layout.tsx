@@ -9,6 +9,8 @@ import * as userCenterService from '@/server/services/user-center';
 import { getAppearanceSettings } from '@/server/services/appearance-settings';
 import { buildAppearanceStyleCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
+import { getActiveThemeCss } from '@/server/services/markdown-themes';
+import { scopeThemeCss } from '@/server/appearance/css-sanitize';
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
@@ -29,6 +31,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     : null;
 
   const appearanceCss = buildAppearanceStyleCss(await getAppearanceSettings());
+  const userId = actor.kind === 'user' ? actor.userId : null;
+  const markdownThemeCss = scopeThemeCss(await getActiveThemeCss(userId));
 
   const initialTheme = preferences?.theme ?? undefined;
   const initialLocale = preferences?.locale ?? locale;
@@ -54,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <style id="app-appearance" dangerouslySetInnerHTML={{ __html: appearanceCss }} />
+        <style id="app-md-theme" dangerouslySetInnerHTML={{ __html: markdownThemeCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased" suppressHydrationWarning>

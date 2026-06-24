@@ -110,23 +110,23 @@ shared Zod in `packages/shared/src/`.
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] Unit test for CSS sanitizer (strips `@import`, remote `url()`, `color`/`background-color`; keeps typography props; re-scopes selectors) in `apps/web/src/server/appearance/css-sanitize.test.ts`
-- [ ] T030 [P] [US3] Unit test for markdown-themes service (built-in read-only/copy, duplicate/empty name rejection, activate, delete-active fallback to Default, cross-user isolation) in `apps/web/src/server/services/markdown-themes.test.ts`
-- [ ] T031 [P] [US3] E2E test: copy → edit → activate; second user unchanged; sanitization in `apps/web/tests/e2e/markdown-themes.spec.ts`
+- [X] T029 [P] [US3] Unit test for CSS sanitizer (strips `@import`, remote `url()`, `color`/`background-color`; keeps typography props; re-scopes selectors) in `apps/web/src/server/appearance/css-sanitize.test.ts`
+- [X] T030 [P] [US3] Unit test for markdown-themes service (built-in read-only/copy, duplicate/empty name rejection, activate, delete-active fallback to Default, cross-user isolation) in `apps/web/src/server/services/markdown-themes.test.ts`
+- [X] T031 [P] [US3] E2E test: copy → edit → activate; second user unchanged; sanitization in `apps/web/tests/e2e/markdown-themes.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T032 [P] [US3] Add `markdown_themes` table (with unique `(owner_user_id, name)`) and `users.active_markdown_theme_id` column to `apps/web/src/server/db/schema/index.ts` per data-model
-- [ ] T033 [US3] Run `pnpm db:generate` to produce the next migration `apps/web/src/server/db/migrations/0019_*.sql` (depends on T032)
-- [ ] T034 [P] [US3] Create built-in theme registry `apps/web/src/server/appearance/builtin-themes.ts` (Default + Wiki.js-inspired typography CSS) and seed them in `apps/web/src/server/seed/` (bounded registry, P9)
-- [ ] T035 [P] [US3] Implement CSS sanitizer `apps/web/src/server/appearance/css-sanitize.ts` using `postcss` as the parser (allowlist typography properties, strip remote `url()`/`@import`/color, enforce max size) per research R5
-- [ ] T036 [P] [US3] Add Zod schemas (`markdownThemeViewSchema`, create-by-copy, rename/update, activate) in `packages/shared/src/markdown-theme.ts` + export from index
-- [ ] T037 [US3] Implement `apps/web/src/server/services/markdown-themes.ts` (list built-ins + own, view, copy, update via sanitizer, rename, delete with active-fallback, activate; ownership + built-in read-only enforcement) — depends on T032, T034, T035, T036
-- [ ] T038 [US3] Implement REST routes `apps/web/app/api/markdown-themes/route.ts`, `apps/web/app/api/markdown-themes/[id]/route.ts`, and the activate endpoint per contracts/markdown-themes.md
-- [ ] T039 [US3] Resolve the user's active theme in `apps/web/src/server/services/user-center.ts` `getPreferences` and inject the scoped active-theme `<style>` in `apps/web/app/layout.tsx` (depends on T037)
-- [ ] T040 [US3] Apply the scoped theme container to the reader in `apps/web/src/components/renderer/ContentRenderer.tsx` and the editor preview (`apps/web/src/components/editor/SplitMarkdownEditor.tsx`) per research R4
-- [ ] T041 [P] [US3] Create per-user Markdown themes UI: page `apps/web/app/(admin)/admin/appearance/themes/page.tsx` (+ view/edit/preview/rename/activate components in `apps/web/src/components/admin/appearance/`); editing a built-in offers "create a copy"
-- [ ] T042 [P] [US3] Add Markdown-theme i18n strings to `apps/web/src/i18n/locales/en.ts` and `zh.ts`
+- [X] T032 [P] [US3] Add `markdown_themes` table (with unique `(owner_user_id, name)`) and `users.active_markdown_theme_id` column to `apps/web/src/server/db/schema/index.ts` per data-model
+- [X] T033 [US3] Run `pnpm db:generate` to produce the next migration `apps/web/src/server/db/migrations/0019_*.sql` (depends on T032)
+- [X] T034 [P] [US3] Create built-in theme registry `apps/web/src/server/appearance/builtin-themes.ts` (Default + Wiki.js-inspired typography CSS) and seed them in `apps/web/src/server/seed/` (bounded registry, P9)
+- [X] T035 [P] [US3] Implement CSS sanitizer `apps/web/src/server/appearance/css-sanitize.ts` using `postcss` as the parser (allowlist typography properties, strip remote `url()`/`@import`/color, enforce max size) per research R5
+- [X] T036 [P] [US3] Add Zod schemas (`markdownThemeViewSchema`, create-by-copy, rename/update, activate) in `packages/shared/src/markdown-theme.ts` + export from index
+- [X] T037 [US3] Implement `apps/web/src/server/services/markdown-themes.ts` (list built-ins + own, view, copy, update via sanitizer, rename, delete with active-fallback, activate; ownership + built-in read-only enforcement) — depends on T032, T034, T035, T036
+- [X] T038 [US3] Implement REST routes `apps/web/app/api/markdown-themes/route.ts`, `apps/web/app/api/markdown-themes/[id]/route.ts`, and the activate endpoint per contracts/markdown-themes.md
+- [X] T039 [US3] Resolve the user's active theme in `apps/web/src/server/services/user-center.ts` `getPreferences` and inject the scoped active-theme `<style>` in `apps/web/app/layout.tsx` (depends on T037)
+- [X] T040 [US3] Apply the scoped theme container to the reader in `apps/web/src/components/renderer/ContentRenderer.tsx` and the editor preview (`apps/web/src/components/editor/SplitMarkdownEditor.tsx`) per research R4
+- [X] T041 [P] [US3] Create per-user Markdown themes UI: page `apps/web/app/(admin)/admin/appearance/themes/page.tsx` (+ view/edit/preview/rename/activate components in `apps/web/src/components/admin/appearance/`); editing a built-in offers "create a copy"
+- [X] T042 [P] [US3] Add Markdown-theme i18n strings to `apps/web/src/i18n/locales/en.ts` and `zh.ts`
 
 **Checkpoint**: US1 + US2 + US3 independently functional.
 
