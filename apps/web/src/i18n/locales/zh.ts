@@ -243,6 +243,8 @@ export const zh: Translations = {
   'admin.appearance.preview.body': '正文展示所选字体与字号下段落的阅读效果。这里有一个',
   'admin.appearance.preview.link': '示例链接',
   'admin.appearance.preview.quote': '引用块使用弱化色与左侧强调边框。',
+  'admin.appearance.preview.listItem': '列表项,用于展示间距与项目符号。',
+  'admin.appearance.preview.listItemAlt': '第二个列表项,用于观察节奏。',
   'admin.appearance.preview.table.token': '名称',
   'admin.appearance.preview.table.value': '取值',
   'admin.appearance.preview.muted': '用于提示与说明的次要弱化文本。',

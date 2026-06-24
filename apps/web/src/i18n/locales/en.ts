@@ -244,6 +244,8 @@ export const en = {
   'admin.appearance.preview.body': 'Body text shows how paragraphs read with the chosen font and size. Here is a',
   'admin.appearance.preview.link': 'sample link',
   'admin.appearance.preview.quote': 'Blockquotes use the muted color and a left accent border.',
+  'admin.appearance.preview.listItem': 'A list item to show spacing and bullets.',
+  'admin.appearance.preview.listItemAlt': 'A second item for rhythm.',
   'admin.appearance.preview.table.token': 'Token',
   'admin.appearance.preview.table.value': 'Value',
   'admin.appearance.preview.muted': 'Muted secondary text for hints and captions.',

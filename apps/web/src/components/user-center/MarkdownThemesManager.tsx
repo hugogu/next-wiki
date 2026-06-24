@@ -5,6 +5,7 @@ import type { MarkdownThemeListView, MarkdownThemeView } from '@next-wiki/shared
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
+import { MarkdownThemePreview } from '@/components/appearance/MarkdownThemePreview';
 import { useTranslation } from '@/i18n/client';
 
 export function MarkdownThemesManager({ initial }: { initial: MarkdownThemeListView }) {
@@ -151,61 +152,71 @@ export function MarkdownThemesManager({ initial }: { initial: MarkdownThemeListV
         })}
       </aside>
 
-      <section className="min-w-0 space-y-sm">
+      <section className="min-w-0">
         {!detail ? (
           <p className="text-sm text-muted">{t('userCenter.readingTheme.selectHint')}</p>
         ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-sm">
-              {detail.owned ? (
-                <Input
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  className="max-w-xs"
-                  aria-label={t('userCenter.readingTheme.nameLabel')}
-                />
-              ) : (
-                <h2 className="font-display text-lg font-semibold">{detail.name}</h2>
-              )}
-              {detail.isBuiltin && <span className="text-xs text-muted">{t('userCenter.readingTheme.builtinReadonly')}</span>}
-            </div>
-
-            <textarea
-              value={draftCss}
-              onChange={(e) => setDraftCss(e.target.value)}
-              readOnly={!detail.owned}
-              spellCheck={false}
-              rows={18}
-              className="w-full rounded-md border border-border bg-surface p-md font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
-              aria-label={t('userCenter.readingTheme.cssLabel')}
-            />
-
-            {error && <Alert>{error}</Alert>}
-            {notice && (
-              <div className="rounded-md bg-primary/10 p-sm text-sm text-primary" role="status">
-                {notice}
+          <div className="grid gap-lg lg:grid-cols-2">
+            {/* Editor */}
+            <div className="space-y-sm">
+              <div className="flex flex-wrap items-center gap-sm">
+                {detail.owned ? (
+                  <Input
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    className="max-w-xs"
+                    aria-label={t('userCenter.readingTheme.nameLabel')}
+                  />
+                ) : (
+                  <h2 className="font-display text-lg font-semibold">{detail.name}</h2>
+                )}
+                {detail.isBuiltin && (
+                  <span className="text-xs text-muted">{t('userCenter.readingTheme.builtinReadonly')}</span>
+                )}
               </div>
-            )}
 
-            <div className="flex flex-wrap items-center gap-sm">
-              <Button onClick={() => activate(detail.id)} disabled={busy}>
-                {t('userCenter.readingTheme.activate')}
-              </Button>
-              <Button variant="secondary" onClick={copy} disabled={busy}>
-                {t('userCenter.readingTheme.copy')}
-              </Button>
-              {detail.owned && (
-                <>
-                  <Button variant="secondary" onClick={save} disabled={busy}>
-                    {t('userCenter.readingTheme.save')}
-                  </Button>
-                  <Button variant="ghost" onClick={remove} disabled={busy}>
-                    {t('userCenter.readingTheme.delete')}
-                  </Button>
-                </>
+              <textarea
+                value={draftCss}
+                onChange={(e) => setDraftCss(e.target.value)}
+                readOnly={!detail.owned}
+                spellCheck={false}
+                rows={18}
+                className="w-full rounded-md border border-border bg-surface p-md font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
+                aria-label={t('userCenter.readingTheme.cssLabel')}
+              />
+
+              {error && <Alert>{error}</Alert>}
+              {notice && (
+                <div className="rounded-md bg-primary/10 p-sm text-sm text-primary" role="status">
+                  {notice}
+                </div>
               )}
+
+              <div className="flex flex-wrap items-center gap-sm">
+                <Button onClick={() => activate(detail.id)} disabled={busy}>
+                  {t('userCenter.readingTheme.activate')}
+                </Button>
+                <Button variant="secondary" onClick={copy} disabled={busy}>
+                  {t('userCenter.readingTheme.copy')}
+                </Button>
+                {detail.owned && (
+                  <>
+                    <Button variant="secondary" onClick={save} disabled={busy}>
+                      {t('userCenter.readingTheme.save')}
+                    </Button>
+                    <Button variant="ghost" onClick={remove} disabled={busy}>
+                      {t('userCenter.readingTheme.delete')}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          </>
+
+            {/* Live preview */}
+            <div className="lg:sticky lg:top-md lg:self-start">
+              <MarkdownThemePreview css={draftCss} />
+            </div>
+          </div>
         )}
       </section>
     </div>

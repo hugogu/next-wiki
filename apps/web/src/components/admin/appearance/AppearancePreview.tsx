@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from 'react';
 import type { AppearanceSettingsView } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
+import { ProsePreviewSample } from '@/components/appearance/ProsePreviewSample';
 
 interface AppearancePreviewProps {
   tokenKeys: string[];
@@ -13,15 +14,11 @@ interface AppearancePreviewProps {
   fontSizes: Record<string, string>;
 }
 
-const CODE_SAMPLE = `function greet(name) {
-  return \`Hello, \${name}\`;
-}`;
-
 /**
  * Live sample that applies the in-progress (unsaved) appearance values via
- * locally-scoped CSS custom properties. The body is rendered inside a real
- * `.prose` block so headings, code, blockquotes and tables look exactly like
- * rendered Markdown content — and reflect the configured tokens immediately.
+ * locally-scoped CSS custom properties. The body is the shared `.prose` sample
+ * so headings, code, blockquotes and tables look exactly like rendered Markdown
+ * content — and reflect the configured tokens immediately.
  */
 export function AppearancePreview({
   tokenKeys,
@@ -47,8 +44,6 @@ export function AppearancePreview({
   for (const key of tokenKeys) style[`--color-${key}`] = colors[key] ?? '';
   for (const [key, value] of Object.entries(fontSizes)) style[`--font-size-${key}`] = value;
 
-  const tableTokens = ['primary', 'background', 'foreground'].filter((k) => tokenKeys.includes(k));
-
   return (
     <div className="space-y-sm">
       <div className="flex items-center justify-between">
@@ -73,40 +68,7 @@ export function AppearancePreview({
         className="overflow-hidden rounded-lg border border-border-strong p-md"
         data-appearance-preview
       >
-        <article className="prose max-w-none">
-          <h1>{t('admin.appearance.preview.heading')}</h1>
-          <p>
-            {t('admin.appearance.preview.body')}{' '}
-            <a href="#" onClick={(e) => e.preventDefault()}>
-              {t('admin.appearance.preview.link')}
-            </a>
-            .
-          </p>
-
-          <h2>{t('admin.appearance.preview.subheading')}</h2>
-          <blockquote>{t('admin.appearance.preview.quote')}</blockquote>
-          <pre>
-            <code>{CODE_SAMPLE}</code>
-          </pre>
-
-          <h3>{t('admin.appearance.preview.h3')}</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>{t('admin.appearance.preview.table.token')}</th>
-                <th>{t('admin.appearance.preview.table.value')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableTokens.map((key) => (
-                <tr key={key}>
-                  <td className="font-mono">{key}</td>
-                  <td className="font-mono">{colors[key]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
+        <ProsePreviewSample />
 
         {/* Semantic colors not covered by prose */}
         <div className="mt-md flex flex-wrap items-center gap-sm">
