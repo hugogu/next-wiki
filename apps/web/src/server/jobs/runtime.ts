@@ -47,11 +47,6 @@ export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
  * The instance is held on `globalThis` because Next.js bundles instrumentation
  * and route handlers separately — a plain module-level variable would not be
  * shared between them, leaving routes unable to enqueue.
- *
- * In practice Next.js 16 can still run route handlers in a separate JS realm
- * (worker thread / vm context) where even `Symbol.for` is not shared with the
- * instrumentation realm. In production we therefore fall back to a lightweight,
- * enqueue-only pg-boss instance that connects to the same database tables.
  */
 const BOSS_KEY = Symbol.for('next-wiki.pgboss');
 type BossGlobal = typeof globalThis & { [BOSS_KEY]?: PgBoss | null };
@@ -64,38 +59,12 @@ export function getBoss(): PgBoss | null {
   return (globalThis as BossGlobal)[BOSS_KEY] ?? null;
 }
 
-let lazyBossPromise: Promise<PgBoss> | null = null;
-
-async function getOrStartLazyBoss(): Promise<PgBoss> {
-  if (lazyBossPromise) return lazyBossPromise;
-  lazyBossPromise = (async () => {
-    const { createBoss } = await import('./create-boss');
-    const { logger } = await import('@/server/logger');
-    const boss = createBoss();
-    boss.on('error', (error: unknown) => logger.error('pg-boss lazy enqueue error', { error: String(error) }));
-    await boss.start();
-    logger.info('pg-boss lazy enqueue instance started');
-    return boss;
-  })();
-  return lazyBossPromise;
-}
-
 export async function enqueue(
   queue: string,
   data: Record<string, unknown>,
   options?: SendOptions,
 ): Promise<string | null> {
   const boss = getBoss();
-  if (boss) return boss.send(queue, data, options);
-  // Avoid spawning real DB connections in tests/build where the bootstrap
-  // instance intentionally isn't present.
-  if (process.env.NODE_ENV !== 'production') return null;
-  try {
-    const lazy = await getOrStartLazyBoss();
-    return lazy.send(queue, data, options);
-  } catch (error) {
-    const { logger } = await import('@/server/logger');
-    logger.error('failed to start lazy pg-boss for enqueue', { error: String(error) });
-    return null;
-  }
+  if (!boss) return null;
+  return boss.send(queue, data, options);
 }
