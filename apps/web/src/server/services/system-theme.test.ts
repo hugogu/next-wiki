@@ -35,6 +35,9 @@ describe('system-theme service', () => {
     const view = await getSystemThemeView();
     expect(view.css).toBe('');
     expect(view.updatedAt).toBeNull();
+    expect(view.templates.length).toBeGreaterThanOrEqual(2);
+    expect(view.templates.find((t) => t.name === 'Default')).toBeDefined();
+    expect(view.templates.find((t) => t.name === 'Wiki.js-inspired')).toBeDefined();
     expect(await getSystemThemeCss()).toBe('');
   });
 

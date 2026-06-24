@@ -1,12 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { SystemThemeView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
 import { SystemThemePreview } from './SystemThemePreview';
 
-export function SystemThemeForm({ initial }: { initial: { css: string; updatedAt: string | null } }) {
+export function SystemThemeForm({ initial }: { initial: SystemThemeView }) {
   const { t } = useTranslation();
   const [css, setCss] = useState(initial.css);
   const [saving, setSaving] = useState(false);
@@ -41,7 +42,12 @@ export function SystemThemeForm({ initial }: { initial: { css: string; updatedAt
     }
   }
 
-  async function onReset() {
+  function onApplyTemplate(templateCss: string) {
+    setCss(templateCss);
+    setSaved(false);
+  }
+
+  function onClear() {
     setCss('');
   }
 
@@ -49,6 +55,25 @@ export function SystemThemeForm({ initial }: { initial: { css: string; updatedAt
     <div className="grid grid-cols-1 gap-lg lg:grid-cols-2">
       <div className="space-y-sm">
         <p className="text-sm text-muted">{t('admin.appearance.css.hint')}</p>
+
+        <div className="space-y-xs">
+          <span className="block text-xs font-medium text-muted">
+            {t('admin.appearance.templates.label')}
+          </span>
+          <div className="flex flex-wrap gap-xs">
+            {initial.templates.map((template) => (
+              <Button
+                key={template.id}
+                variant="secondary"
+                type="button"
+                onClick={() => onApplyTemplate(template.css)}
+              >
+                {template.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <textarea
           value={css}
           onChange={(e) => setCss(e.target.value)}
@@ -69,7 +94,7 @@ export function SystemThemeForm({ initial }: { initial: { css: string; updatedAt
           <Button onClick={onSave} disabled={saving || !dirty}>
             {saving ? t('admin.appearance.saving') : t('admin.appearance.save')}
           </Button>
-          <Button variant="ghost" onClick={onReset} disabled={saving || !css}>
+          <Button variant="ghost" onClick={onClear} disabled={saving || !css}>
             {t('admin.appearance.css.reset')}
           </Button>
         </div>

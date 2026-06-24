@@ -231,6 +231,9 @@ export const en = {
   'admin.appearance.css.hint':
     'CSS is applied to the app shell (outside Markdown content). Colors and fonts inside reading content are controlled by each user in their Reading theme. Maximum 50 KB. Layout, typography, borders, shadows, and animations are allowed.',
   'admin.appearance.css.reset': 'Clear',
+  'admin.appearance.templates.label': 'Start from a template',
+  'admin.appearance.templates.hint':
+    'Pick a starting point — the editor will populate. Edit and save to customize.',
   'admin.appearance.save': 'Save changes',
   'admin.appearance.saving': 'Saving...',
   'admin.appearance.saved': 'System theme updated.',

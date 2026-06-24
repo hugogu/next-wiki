@@ -6,9 +6,17 @@ import { z } from 'zod';
  * (outside .prose). See `apps/web/src/server/services/system-theme.ts`.
  */
 
+export const systemThemeTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  css: z.string(),
+});
+export type SystemThemeTemplate = z.infer<typeof systemThemeTemplateSchema>;
+
 export const systemThemeViewSchema = z.object({
   css: z.string(),
   updatedAt: z.string().nullable(),
+  templates: z.array(systemThemeTemplateSchema),
 });
 export type SystemThemeView = z.infer<typeof systemThemeViewSchema>;
 

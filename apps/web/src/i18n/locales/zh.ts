@@ -231,6 +231,8 @@ export const zh: Translations = {
   'admin.appearance.css.hint':
     'CSS 仅作用于应用界面（不作用于 Markdown 阅读内容）。阅读内容中的颜色与字体由用户在「阅读主题」中设置。最大 50 KB。允许使用布局、字体、边框、阴影与动画。',
   'admin.appearance.css.reset': '清空',
+  'admin.appearance.templates.label': '从模板开始',
+  'admin.appearance.templates.hint': '选择一个起点 —— 编辑器会填充。修改后保存即可定制。',
   'admin.appearance.save': '保存修改',
   'admin.appearance.saving': '保存中...',
   'admin.appearance.saved': '系统主题已更新。',

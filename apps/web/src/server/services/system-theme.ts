@@ -5,6 +5,7 @@ import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { sanitizeSystemThemeCss } from '@/server/appearance/css-sanitize';
+import { BUILTIN_TEMPLATES } from '@/server/appearance/builtin-themes';
 
 const SETTINGS_ID = 'default';
 
@@ -34,6 +35,7 @@ export async function getSystemThemeView(): Promise<SystemThemeView> {
   return {
     css: row?.css ?? '',
     updatedAt: row?.updatedAt ? row.updatedAt.toISOString() : null,
+    templates: BUILTIN_TEMPLATES.map((t) => ({ id: t.id, name: t.name, css: t.css })),
   };
 }
 
@@ -59,5 +61,9 @@ export async function updateSystemThemeCss(
       set: { css: sanitized, updatedBy: values.updatedBy, updatedAt: values.updatedAt },
     });
 
-  return { css: sanitized, updatedAt: values.updatedAt.toISOString() };
+  return {
+    css: sanitized,
+    updatedAt: values.updatedAt.toISOString(),
+    templates: BUILTIN_TEMPLATES.map((t) => ({ id: t.id, name: t.name, css: t.css })),
+  };
 }
