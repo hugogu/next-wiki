@@ -9,9 +9,9 @@ export * from './audit';
 export * from './content-storage';
 export * from './ai';
 export * from './transfers';
-export * from './appearance';
+export * from './user-appearance';
 export * from './site';
-export * from './markdown-theme';
+export * from './system-theme';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 
