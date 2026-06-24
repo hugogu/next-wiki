@@ -98,7 +98,6 @@ export const users = pgTable(
     displayName: text('display_name'),
     themePreference: text('theme_preference'),
     localePreference: text('locale_preference'),
-    activeMarkdownThemeId: uuid('active_markdown_theme_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -589,17 +588,6 @@ export const transferAssetMappings = pgTable(
 
 // ---- Appearance & Site Configuration (006) --------------------------------
 
-/** Single-row, site-wide system appearance settings (id always 'default'). */
-export const appearanceSettings = pgTable('appearance_settings', {
-  id: text('id').primaryKey().default('default'),
-  lightColors: jsonb('light_colors').notNull(),
-  darkColors: jsonb('dark_colors').notNull(),
-  fonts: jsonb('fonts').notNull(),
-  fontSizes: jsonb('font_sizes').notNull(),
-  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
 /** Single-row, site-wide identity & footer settings (id always 'default'). */
 export const siteSettings = pgTable('site_settings', {
   id: text('id').primaryKey().default('default'),
@@ -615,28 +603,28 @@ export const siteSettings = pgTable('site_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/**
- * Per-user Markdown reading themes. Built-ins have `owner_user_id = NULL` and
- * `is_builtin = true` (read-only); personal themes are owned by a user.
- * A user's active theme is `users.active_markdown_theme_id` (cleared in-service
- * when the referenced theme is deleted — no DB FK to avoid a cyclic constraint).
- */
-export const markdownThemes = pgTable(
-  'markdown_themes',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    ownerUserId: uuid('owner_user_id').references(() => users.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
-    css: text('css').notNull(),
-    isBuiltin: boolean('is_builtin').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    ownerNameIdx: uniqueIndex('markdown_themes_owner_name_idx').on(t.ownerUserId, t.name),
-    ownerIdx: index('markdown_themes_owner_idx').on(t.ownerUserId),
-  }),
-);
+/** Single-row, site-wide system theme CSS. Admin authors free-form CSS that is
+ * sanitized on save and applied to the app shell (outside .prose). */
+export const systemThemeSettings = pgTable('system_theme_settings', {
+  id: text('id').primaryKey().default('default'),
+  css: text('css').notNull().default(''),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Per-user reading-theme tokens. Absent row means the user has not customized;
+ * the root layout falls back to the static defaults. The user's light/dark mode
+ * preference (users.themePreference) selects which color set applies. */
+export const userAppearance = pgTable('user_appearance', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  lightColors: jsonb('light_colors').notNull(),
+  darkColors: jsonb('dark_colors').notNull(),
+  fonts: jsonb('fonts').notNull(),
+  fontSizes: jsonb('font_sizes').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ---- System AI (004) ------------------------------------------------------
 
