@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { eq } from 'drizzle-orm';
 import type { UpdateUserAppearanceInput } from '@next-wiki/shared';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
