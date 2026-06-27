@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useId } from 'react';
+import { useState, useCallback, useEffect, useId, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/i18n/client';
 import type { AuditEntry, AuditListResponse } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
@@ -14,7 +15,14 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
-import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
+import { Pagination, buildPageHref } from '@/components/ui/Pagination';
+import { SearchIcon } from '@/components/icons';
+
+/** Parse the URL `page` param; non-numeric/zero/negative fall back to page 1. */
+function parsePage(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
 
 const METHOD_OPTIONS = ['', 'GET', 'POST', 'PATCH', 'PUT', 'DELETE'];
 
@@ -41,9 +49,14 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
   const pathId = useId();
   const startTimeId = useId();
   const endTimeId = useId();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The active page lives in the URL (?page=N) so refresh, deep link, and
+  // back/forward all restore it (FR-021).
+  const page = parsePage(searchParams.get('page'));
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(initialData.page);
   const [filters, setFilters] = useState({
     userId: '',
     status: '',
@@ -75,7 +88,6 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
       try {
         const result = await apiGet<AuditListResponse>(`/api/audit/all?${buildParams(targetPage).toString()}`);
         setData(result);
-        setPage(targetPage);
       } finally {
         setLoading(false);
       }
@@ -83,13 +95,44 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
     [buildParams],
   );
 
+  const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+
+  // Clamp an out-of-range deep link (?page=99999) down to the last real page
+  // (FR-023); `data.total` is accurate regardless of the fetched page.
+  useEffect(() => {
+    if (page > totalPages) {
+      router.replace(buildPageHref(pathname, new URLSearchParams(searchParams), 'page', totalPages));
+    }
+  }, [page, totalPages, router, pathname, searchParams]);
+
+  // Fetch when the URL page changes. On first render, `initialData` already
+  // covers the server's landing page, so only fetch if the URL points elsewhere
+  // (e.g. a refresh on ?page=3).
+  const fetchRef = useRef(fetchPage);
+  useEffect(() => {
+    fetchRef.current = fetchPage;
+  });
+  const mounted = useRef(false);
+  useEffect(() => {
+    const firstRender = !mounted.current;
+    mounted.current = true;
+    if (firstRender && page === initialData.page) return;
+    void fetchRef.current(page);
+  }, [page, initialData.page]);
+
   const updateFilter = (key: keyof typeof filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleApply = () => fetchPage(1);
-
-  const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  // Applying filters always returns to page 1. If already there, refetch in
+  // place; otherwise navigate (the effect above performs the fetch).
+  const handleApply = () => {
+    if (page === 1) {
+      void fetchPage(1);
+    } else {
+      router.push(buildPageHref(pathname, new URLSearchParams(searchParams), 'page', 1));
+    }
+  };
 
   return (
     <div className="space-y-md">
@@ -208,29 +251,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
             </DataTableBody>
           </DataTable>
 
-          <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => fetchPage(page - 1)}
-              disabled={page <= 1 || loading}
-            >
-              <ChevronLeftIcon />
-              <span className="ml-2">{t('userCenter.audit.prev')}</span>
-            </Button>
-            <span className="text-sm text-muted">
-              {t('userCenter.audit.page')} {page} {t('userCenter.audit.of')} {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => fetchPage(page + 1)}
-              disabled={page >= totalPages || loading}
-            >
-              <span className="mr-2">{t('userCenter.audit.next')}</span>
-              <ChevronRightIcon />
-            </Button>
-          </div>
+          <Pagination currentPage={Math.min(page, totalPages)} totalPages={totalPages} />
         </>
       )}
     </div>
