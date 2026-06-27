@@ -1,57 +1,57 @@
-# Contract: System Appearance Settings (REST)
+# Contract: System Theme Settings (REST)
+
+> **Amended 2026-06-24 — see [swap-amendment.md](../swap-amendment.md).** The
+> admin `/api/settings/appearance` endpoint no longer carries structured tokens;
+> it now manages **free-form system theme CSS**. Per-user structured tokens moved
+> to [`user-appearance.md`](./user-appearance.md).
 
 Base: `app/api/settings/appearance/route.ts`. REST + OpenAPI, shared service
-(`src/server/services/appearance-settings.ts`), Zod in
-`@next-wiki/shared/appearance.ts`. All writes gated by `manage_appearance` via
+(`src/server/services/system-theme.ts`), Zod in
+`@next-wiki/shared/system-theme.ts`. Writes gated by `manage_appearance` via
 `can()`.
 
 ## `GET /api/settings/appearance`
 
-Returns the active appearance settings (or static defaults if unset).
+Returns the admin-authored system theme CSS (or empty string when unset).
 
-- **Auth**: **public-readable**, consistent with `GET /api/settings/site`. The
-  view carries no secrets — these token values are already exposed in every
-  rendered page's injected `<style>` (R1), so gating the read adds no
-  confidentiality. (Page rendering itself reads the settings server-side via the
-  service, not this endpoint; the endpoint primarily serves the admin editor.)
-  Writes (`PUT`) remain gated by `manage_appearance`.
-- **200** → `AppearanceSettingsView`:
+- **Auth**: **public-readable** (consistent with `GET /api/settings/site`). The
+  CSS is already emitted into every rendered page's `<style id="app-system-theme">`,
+  so gating the read adds no confidentiality. Page rendering reads the value
+  server-side via the service; this endpoint primarily serves the admin editor.
+- **200** → `SystemThemeView`:
 
 ```jsonc
 {
-  "lightColors": { "color-primary": "#b45309", "color-background": "#fafaf9", "...": "..." },
-  "darkColors":  { "color-primary": "#f59e0b", "color-background": "#1c1917", "...": "..." },
-  "fonts":       { "body": "source-sans-3", "display": "crimson-pro", "mono": "system-mono" },
-  "fontSizes":   { "base": "1rem", "h1": "2.25rem", "h2": "1.75rem", "h3": "1.375rem" },
-  "fontCatalog": [ { "key": "source-sans-3", "label": "Source Sans 3", "stack": "..." }, "..." ],
-  "tokenKeys":   [ "color-primary", "color-background", "..." ]
+  "css": "/* app-shell CSS authored by an admin */ .header { border-radius: 0; }"
 }
 ```
 
 ## `PUT /api/settings/appearance`
 
-Replace the appearance settings.
+Replace the system theme CSS.
 
 - **Auth**: `manage_appearance` (FORBIDDEN otherwise).
-- **Body**: `UpdateAppearanceSettingsInput` (`lightColors`, `darkColors`,
-  `fonts`, `fontSizes`).
-- **Validation** (FR-005): each color a valid CSS color; each font a catalog
-  key; each size a positive length; both color maps cover the full token set.
-- **200** → updated `AppearanceSettingsView`.
-- **400** `BAD_REQUEST` → invalid color/font/size; prior values unchanged.
+- **Body**: `UpdateSystemThemeInput` (`{ css }`).
+- **Validation**: `css` passes `sanitizeSystemThemeCss` — allowlisted properties
+  (incl. layout / keyframes), no remote `url()` / `@import`, **no color
+  declarations** (colors stay token-driven for light/dark consistency, R5 /
+  FR-017); max size enforced.
+- **200** → updated `SystemThemeView`.
+- **400** `BAD_REQUEST` → CSS rejected by the sanitizer; prior value unchanged.
 - **403** `FORBIDDEN` → missing capability.
 
 ## Behavior
 
-- On success, the next request's root-layout render injects the new tokens (R1);
-  no redeploy (SC-002). Light and dark are independent value sets (FR-001a).
-- A reset/clear action restores static defaults (delete row or PUT defaults).
+- On success, the next root-layout render injects the new CSS unscoped as
+  `<style id="app-system-theme">`; no redeploy (SC-002).
+- The system CSS styles the app shell (outside `.prose`). Inside `.prose` it may
+  affect layout/spacing/borders/shadows but never color variables (the sanitizer
+  forbids color declarations); per-user reading-theme tokens always win there
+  (specificity `.prose.prose`).
 
 ## Test scenarios
 
-1. PUT valid light+dark sets → 200, GET reflects them, rendered page uses new
-   primary color in both modes.
-2. PUT malformed color → 400, GET still returns previous values (FR-005).
-3. PUT unknown font key → 400 (FR-001b / R6).
-4. PUT non-positive font size → 400.
-5. PUT as non-admin → 403.
+1. PUT valid CSS → 200, GET reflects it, rendered page shell shows the change.
+2. PUT CSS with a `color:` declaration → stripped/rejected by the sanitizer.
+3. PUT CSS with remote `url()` / `@import` → rejected (R5).
+4. PUT as non-admin → 403.

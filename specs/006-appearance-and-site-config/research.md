@@ -1,5 +1,13 @@
 # Phase 0 Research: Appearance & Site Configuration
 
+> **Amended 2026-06-24 — theme ownership inverted.** See
+> [swap-amendment.md](./swap-amendment.md). R3/R4/R5 below record the original
+> decisions; the **as-built** design swapped ownership: per-user reading theme →
+> structured tokens (`user_appearance`), admin system theme → free-form
+> sanitized CSS (`system_theme_settings`). The injection mechanism (R1), token
+> set (R2), fonts (R6), site icon (R7), footer (R8), and pagination (R9) are
+> unchanged. Inline **Amended** notes flag the differences.
+
 The technology stack is fixed by the constitution (Next.js 16, Drizzle,
 PostgreSQL, Tailwind + CSS custom properties, unified/remark/rehype). There are
 no open `NEEDS CLARIFICATION` items in Technical Context. This document records
@@ -49,6 +57,11 @@ components.
 
 ## R3. Settings storage shape
 
+> **Amended:** as-built, the structured-token table is per-user
+> (`user_appearance`, PK `user_id`), not a single admin row; the admin single
+> row holds free-form CSS (`system_theme_settings`). Site settings store the
+> icon inline as `icon_data`/`icon_mime`, not an asset FK.
+
 **Decision**: Two single-row tables mirroring the existing `ai_settings`
 pattern (`id text primary key default 'default'`):
 - `appearance_settings`: JSONB `light_colors`, JSONB `dark_colors`, JSONB
@@ -69,6 +82,14 @@ validated by Zod at the service boundary.
 - *Key/value EAV table* — rejected: over-engineered for a fixed, validated set.
 
 ## R4. Markdown theme model, scoping, and color inheritance
+
+> **Amended:** there is no `markdown_themes` table and no per-user CSS list in
+> the as-built design. The per-user surface is structured tokens
+> (`user_appearance`); the admin surface is free-form CSS
+> (`system_theme_settings`). The color-inheritance invariant still holds: user
+> reading-theme tokens win inside `.prose.prose`; the system CSS may not set
+> colors. Starting token defaults live in code under
+> `apps/web/src/server/appearance/`, not as seeded DB rows.
 
 **Decision**: `markdown_themes` table: `id`, `owner_user_id` (NULL = built-in),
 `name`, `css` (text), `is_builtin` (bool), timestamps; unique `(owner_user_id,
@@ -98,7 +119,13 @@ consistency (FR-011a).
   prefs already live on `users`; consistency over a new table.
 - *Allow themes to set colors* — rejected by clarification Q3 (consistency).
 
-## R5. Confining/sanitizing user-authored Markdown CSS (FR-017)
+## R5. Confining/sanitizing authored CSS (FR-017)
+
+> **Amended:** the sanitized free-form CSS is now the **admin system theme**
+> (`sanitizeSystemThemeCss` in `css-sanitize.ts`), not per-user Markdown CSS.
+> The allowlist additionally permits layout properties and `@keyframes`; it
+> still strips remote `url()` / `@import` and all color declarations, and the
+> CSS is applied to the app shell (per-user reading colors come from tokens).
 
 **Decision**: Sanitize on save in `css-sanitize.ts`:
 1. Parse the CSS with **`postcss`** (already transitively present in the
@@ -207,9 +234,9 @@ component" (FR-019) and the duplicate-entry-point anti-pattern.
 |---|-------|----------|
 | R1 | Token injection | Root-layout `<style>` overriding `:root`/`html.dark` from DB |
 | R2 | Hardcoded literals | Audit + promote font sizes to tokens; design-system layer exempt |
-| R3 | Settings storage | Two single-row tables (`ai_settings` pattern), JSONB token bags |
-| R4 | MD theme model | `markdown_themes` table + `users.active_markdown_theme_id`; typography-only, colors from tokens |
-| R5 | CSS safety | Sanitize (allowlist props, strip remote url/@import) + re-scope at inject |
+| R3 | Settings storage | *(amended)* `system_theme_settings` (1 admin row, CSS) + `user_appearance` (per-user tokens) + `site_settings` |
+| R4 | Theme model | *(amended)* per-user structured tokens (`user_appearance`); no `markdown_themes` table; colors from tokens, win inside `.prose.prose` |
+| R5 | CSS safety | *(amended)* `sanitizeSystemThemeCss` (allowlist props/layout/keyframes, strip remote url/@import + colors) on the admin system CSS |
 | R6 | Fonts | Keyed bundled catalog (`next/font` self-hosted + system stacks) |
 | R7 | Default icon | Shipped SVG default; `generateMetadata`; uploaded icon via blob store |
 | R8 | China footer | Optional ICP/公安备案 fields linked to official registries |

@@ -3,26 +3,31 @@
 Validation guide proving the feature works end-to-end. Assumes the monorepo dev
 setup (see root `CLAUDE.md`).
 
+> **Amended 2026-06-24 — theme ownership inverted** (see
+> [swap-amendment.md](./swap-amendment.md)). Scenarios 1 and 3 below reflect the
+> **as-built** UI: the admin surface edits free-form **system theme CSS**, and
+> the per-user surface edits **structured reading-theme tokens** (colors / fonts
+> / sizes). Scenarios 2 and 4 are unchanged.
+
 ## Prerequisites
 
 ```bash
 pnpm install
-pnpm db:migrate            # applies 0017 (appearance), 0018 (site), 0019 (markdown themes) + built-in theme seed
+pnpm db:migrate            # 0017–0019 (original appearance/site/theme) then 0020_swap_themes (inversion)
 pnpm --filter @next-wiki/web dev    # http://localhost:3000
 ```
 
 Sign in as an admin (a user with the `manage_appearance` capability).
 
-## Scenario 1 — System appearance (Story 1)
+## Scenario 1 — System theme CSS (Story 1, as-built)
 
-1. Go to **Admin → Appearance → System**.
-2. Change the **primary** color (light and dark), the **body font** (from the
-   bundled catalog), and the **base font size**; Save.
-3. Visit a reader page, the editor, and an admin page — all reflect the new
-   primary color/font in both light and dark mode (toggle theme).
+1. Go to **Admin → Appearance** (`/admin/appearance`).
+2. Enter free-form **system theme CSS** for the app shell (e.g.
+   `.header { border-radius: 0; }`); Save.
+3. Reload any page — the shell reflects the new CSS in both light and dark mode.
 4. Verify no redeploy was needed (SC-002).
-5. Enter a malformed color or unknown font → Save is rejected, previous values
-   stay active (FR-005).
+5. Add a `color:` declaration, a remote `url()`, or an `@import` → stripped /
+   rejected by the sanitizer on save (R5 / FR-017).
 
 **Code audit** (SC-001):
 ```bash
@@ -44,19 +49,17 @@ rg -n "#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|font-family:|font-size:\s*[\d.]+(rem|
    them, ICP linked to `beian.miit.gov.cn` (FR-009/FR-010). Clear ICP → footer
    omits the compliance line (edge case).
 
-## Scenario 3 — Markdown themes (Story 3)
+## Scenario 3 — Reading-theme tokens (Story 3, as-built)
 
-1. **Admin → Appearance → Markdown Themes** (per-user surface).
-2. See built-in **Default** and **Wiki.js-inspired**; open each to view full CSS
-   (FR-011/FR-012).
-3. Try to edit a built-in → blocked, offered "create a copy" (FR-014).
-4. Copy one, edit typography (font size/spacing), rename, Save (FR-013).
-   - Add `color:` / remote `url()` / `@import` → sanitized away on save (R5).
-5. Activate the personal theme → an article re-renders with new typography
-   immediately, without a full page reload; colors stay consistent with the
-   system theme (FR-011a, SC-004).
-6. In a second browser/user, the same article is unchanged (FR-016).
-7. Delete the active theme → falls back to Default (FR-018).
+1. Go to **User Center → Reading theme** (`/user-center/reading-theme`).
+2. Pick a **primary** color (light and dark), a **body font** (from the bundled
+   catalog), and a **base font size**; Save.
+3. Open an article — the reader (and editor preview) re-render with the chosen
+   typography/colors in your active light/dark mode (FR-015, SC-004).
+4. Enter a malformed color or unknown font → Save rejected, previous values
+   stay (FR-005).
+5. In a second browser/user, the same article is unchanged (FR-016).
+6. **Reset to defaults** → reads fall back to the static defaults.
 
 ## Scenario 4 — Pagination (Story 4)
 
@@ -72,8 +75,8 @@ rg -n "#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|font-family:|font-size:\s*[\d.]+(rem|
 ## Automated checks
 
 ```bash
-pnpm --filter @next-wiki/web test        # unit/integration: settings services,
-                                         # css sanitizer, theme registry, pagination clamp
+pnpm --filter @next-wiki/web test        # unit/integration: system-theme + user-appearance
+                                         # + site-settings services, css sanitizer, pagination clamp
 pnpm --filter @next-wiki/web test:e2e    # Playwright: scenarios 1–4 above
 pnpm lint && pnpm typecheck
 ```

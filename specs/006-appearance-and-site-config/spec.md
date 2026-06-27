@@ -2,7 +2,17 @@
 
 **Feature Branch**: `006-appearance-and-site-config`  
 **Created**: 2026-06-22  
-**Status**: Draft  
+**Status**: Implemented (amended 2026-06-24)  
+
+> **Amendment 2026-06-24 — theme ownership inverted.** This spec captures the
+> original intent. After a design review the implementation inverted Stories 1
+> and 3: the **per-user reading theme** became **structured tokens** (light/dark
+> colors, fonts, sizes) and the **admin system theme** became **free-form,
+> sanitized CSS** — instead of admin tokens + a per-user editable-CSS list. The
+> US3 wording below (view/copy/edit/rename/activate CSS files) therefore reflects
+> the original request, not the as-built UI. See
+> [swap-amendment.md](./swap-amendment.md) for the rationale and the as-built
+> design; Stories 2 (site identity) and 4 (pagination) are unaffected.
 **Input**: User description: "1. 引入系统级别的主题色、默认字体、字号等配置，并在代码层面引入全局的主题色模块，使用名来引用颜色，页面的代码样式中不hardcode任何颜色、字体、字号等样式信息。 2. 引入一个Markdown主题的用户配置模块，用于控制markdown中各种元素的样式，以便不同用户可以以不同格式风格来阅读Markdown。当前样式为默认样式，同时探查 https://docs.requarks.io/editors/markdown 这个Wiki的样式作为另一个样式选项。用户可以直接在页面内查看每个样式（CSS文件内容）、复制、调整、更名、启动。3. 引入网站基础信息配置模块，来配置网站名、图标（你来生成一个默认的）、页脚信息 （比如版权及备案信息）为中国用户可能提供独立的备案号配置。 4. 优化分页导航，添加第一页和最后一页的入口，同时第几页的信息需要作为参数体现在URL上。（这应该是统一的分页组件，不需要各个页面自己做的）"
 
 ## Clarifications
@@ -95,6 +105,14 @@ icon, and footer, and the filing number links to the official registry.
 ---
 
 ### User Story 3 - Personal Markdown Reading Themes (Priority: P3)
+
+> **Amended (see header):** as-built, this story ships as **per-user structured
+> reading-theme tokens** (light/dark colors, fonts, sizes) at
+> `/user-center/reading-theme`, not an editable per-user CSS-file list. The
+> free-form-CSS surface moved to the **admin system theme**
+> (`/admin/appearance`). FR-011..FR-018 below describe the original CSS-list
+> design; the as-built equivalents are token edit/reset (see
+> [contracts/user-appearance.md](./contracts/user-appearance.md)).
 
 A reader wants Markdown content to be rendered in a visual style of their
 choosing. They open a Markdown themes area and see the available themes,

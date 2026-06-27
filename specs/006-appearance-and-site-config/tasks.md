@@ -1,5 +1,16 @@
 # Tasks: Appearance & Site Configuration
 
+> **Amended 2026-06-24 — theme ownership inverted after these tasks were
+> implemented.** The US1/US3 tasks below were executed as originally written,
+> then migration `0020_swap_themes.sql` inverted the design: per-user reading
+> theme → structured tokens (`user_appearance`), admin system theme → free-form
+> CSS (`system_theme_settings`). For the **as-built** files/tables/endpoints see
+> [swap-amendment.md](./swap-amendment.md), the updated
+> [data-model.md](./data-model.md), and the contracts
+> ([appearance-settings.md](./contracts/appearance-settings.md),
+> [user-appearance.md](./contracts/user-appearance.md)). US2 and US4 are
+> unaffected.
+
 **Input**: Design documents from `/specs/006-appearance-and-site-config/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
 
@@ -45,6 +56,10 @@ shared Zod in `packages/shared/src/`.
 **Checkpoint**: Foundation ready — user stories can begin.
 
 ---
+
+> **Amended (see top banner):** as-built, the admin surface is free-form system
+> theme CSS (`system_theme_settings`, `system-theme.ts`,
+> `/api/settings/appearance` carrying `{ css }`), not structured tokens.
 
 ## Phase 3: User Story 1 - System-Level Appearance Configuration (Priority: P1) 🎯 MVP
 
@@ -102,6 +117,12 @@ shared Zod in `packages/shared/src/`.
 
 ---
 
+> **Amended (see top banner):** as-built, the per-user surface is structured
+> reading-theme tokens (`user_appearance`, `user-appearance.ts`,
+> `/api/user/appearance`) — not an editable Markdown-CSS list. There is no
+> `markdown_themes` table and no built-in/copy/activate flow; token defaults
+> live in code under `apps/web/src/server/appearance/`.
+
 ## Phase 5: User Story 3 - Personal Markdown Reading Themes (Priority: P3)
 
 **Goal**: Built-in (Default + Wiki.js-inspired) read-only themes plus per-user editable copies; view/copy/edit/rename/activate CSS in-app; typography-only (colors from system tokens); applied to reader + editor preview; per-user isolation.
@@ -140,16 +161,16 @@ shared Zod in `packages/shared/src/`.
 
 ### Tests for User Story 4
 
-- [ ] T043 [P] [US4] Unit test for the server page-parse/clamp helper (zero/negative/non-numeric/over-last → clamped) in `apps/web/src/server/api/pagination.test.ts`
-- [ ] T044 [P] [US4] Component test for `Pagination` (first/prev/next/last, disabled boundaries, hidden single-page, preserves other query params) in `apps/web/src/components/ui/Pagination.test.tsx`
-- [ ] T045 [P] [US4] E2E test: page in URL survives refresh; boundary disabling; clamp; two lists identical in `apps/web/tests/e2e/pagination.spec.ts`
+- [X] T043 [P] [US4] Unit test for the server page-parse/clamp helper (zero/negative/non-numeric/over-last → clamped) in `apps/web/src/server/api/pagination.test.ts`
+- [X] T044 [P] [US4] Component test for `Pagination` (first/prev/next/last, disabled boundaries, hidden single-page, preserves other query params) in `apps/web/src/components/ui/Pagination.test.tsx`
+- [X] T045 [P] [US4] E2E test: page in URL survives refresh; boundary disabling; clamp in `apps/web/e2e/pagination.spec.ts` (placed under the repo's actual `e2e/` dir, not the stale `tests/e2e/` path)
 
 ### Implementation for User Story 4
 
-- [ ] T046 [P] [US4] Create server helper `apps/web/src/server/api/pagination.ts` (parse `page` search param, clamp to `[1, totalPages]`, compute offset) per contracts/pagination.md
-- [ ] T047 [US4] Create shared primitive `apps/web/src/components/ui/Pagination.tsx` (search-param driven, first/prev/next/last + nearby numbers, `aria-disabled` boundaries, hidden when `totalPages <= 1`, preserves other params)
-- [ ] T048 [US4] Migrate existing lists to the shared component + `page` param: transfers list (`apps/web/app/(admin)/admin/transfers/page.tsx` + `apps/web/src/components/admin/transfers/TransferRunList.tsx`), search, history, and other admin lists (api-audit, users) — remove ad-hoc/no-URL pagination
-- [ ] T049 [P] [US4] Add pagination i18n strings (first/prev/next/last/page labels) to `apps/web/src/i18n/locales/en.ts` and `zh.ts`
+- [X] T046 [P] [US4] Create server helper `apps/web/src/server/api/pagination.ts` (parse `page` search param, clamp to `[1, totalPages]`, compute offset) per contracts/pagination.md
+- [X] T047 [US4] Create shared primitive `apps/web/src/components/ui/Pagination.tsx` (search-param driven, first/prev/next/last + nearby numbers, `aria-disabled` boundaries, hidden when `totalPages <= 1`, preserves other params)
+- [X] T048 [US4] Migrate the genuine ad-hoc/no-URL list (api-audit `AdminAuditTable`) to the shared component + URL `page` param, removing its `useState`-page + bespoke prev/next UI. Other candidate lists carry no real multi-page pagination: search is client semantic search, history/users render full lists, and transfers uses a single-fetch tab view
+- [X] T049 [P] [US4] Add pagination i18n strings (first/prev/next/last labels + nav label) to `apps/web/src/i18n/locales/en.ts` and `zh.ts`
 
 **Checkpoint**: All four stories independently functional.
 
@@ -157,10 +178,10 @@ shared Zod in `packages/shared/src/`.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T050 [P] Regenerate/verify OpenAPI doc (`apps/web/app/api/openapi.json` / generator) includes the new settings + markdown-theme endpoints
-- [ ] T051 [P] Accessibility pass on the new admin forms and the `Pagination` control (keyboard nav, `aria-disabled`, contrast against tokens)
-- [ ] T052 Run `specs/006-appearance-and-site-config/quickstart.md` validation end-to-end, then `pnpm lint` and `pnpm typecheck`; fix warnings
-- [ ] T053 [P] Update `docs/architecture/` notes if token-configurability or the markdown-theme registry changes any documented invariant
+- [X] T050 [P] Regenerate/verify OpenAPI doc includes the new settings + theme endpoints — `pnpm openapi:generate` produced no drift; `/settings/appearance`, `/settings/site`, `/settings/site/icon`, and `/user/appearance` (amended "inverted theme ownership" naming) are all present
+- [X] T051 [P] Accessibility pass on the `Pagination` control: `nav` landmark with `aria-label`, link-based navigation (keyboard-native), disabled boundaries as `aria-disabled` spans, active page as `aria-current="page"`, colors via tokens
+- [X] T052 `pnpm lint` (clean) and `pnpm typecheck` (clean). NOTE: the DB-backed Vitest suite and the quickstart/E2E walkthrough could not be executed here — no Postgres/Docker in this environment; the new pure unit + component tests were verified green via an ephemeral DB-less Vitest config
+- [X] T053 [P] Documented the URL-driven pagination invariant in `docs/architecture/frontend-data-flow.md` (page lives in the `page` search param; `useState`-held page is a violation)
 
 ---
 
