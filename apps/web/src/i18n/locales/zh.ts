@@ -891,6 +891,13 @@ export const zh: Translations = {
   'ai.image.confirming': '保存中…',
   'ai.image.error': '无法将生成图片保存为 Wiki 资产。',
 
+  // Pagination
+  'pagination.label': '分页',
+  'pagination.first': '首页',
+  'pagination.previous': '上一页',
+  'pagination.next': '下一页',
+  'pagination.last': '末页',
+
   // Errors
   'errors.notFound.code': '404',
   'errors.notFound.message': '此页面不存在。',

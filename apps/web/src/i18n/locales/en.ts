@@ -911,6 +911,13 @@ export const en = {
   'ai.image.confirming': 'Saving…',
   'ai.image.error': 'Could not promote the generated image.',
 
+  // Pagination
+  'pagination.label': 'Pagination',
+  'pagination.first': 'First',
+  'pagination.previous': 'Previous',
+  'pagination.next': 'Next',
+  'pagination.last': 'Last',
+
   // Errors
   'errors.notFound.code': '404',
   'errors.notFound.message': 'This page does not exist.',
