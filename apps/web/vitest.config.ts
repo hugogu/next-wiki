@@ -3,6 +3,9 @@ import path from 'node:path';
 import { TEST_DATABASE_URL } from './test/test-db';
 
 export default defineConfig({
+  // Use the automatic JSX runtime (matching Next.js) so component tests can
+  // render TSX without importing React explicitly.
+  esbuild: { jsx: 'automatic' },
   test: {
     globals: true,
     environment: 'node',
