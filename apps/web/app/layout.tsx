@@ -6,7 +6,7 @@ import { I18nProvider } from '@/i18n/client';
 import { getLocale } from '@/i18n/server';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
-import { getSystemThemeCss } from '@/server/services/system-theme';
+import { getActiveThemeCss } from '@/server/services/system-theme';
 import { getUserAppearance } from '@/server/services/user-appearance';
 import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ? await userCenterService.getPreferences({ actor })
     : null;
 
-  const systemCss = await getSystemThemeCss();
+  const systemCss = await getActiveThemeCss();
   let readingThemeCss = '';
   if (actor.kind === 'user') {
     const userAppearance = await getUserAppearance({ actor });

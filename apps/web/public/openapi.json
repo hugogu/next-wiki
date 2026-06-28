@@ -20,6 +20,20 @@
       }
     },
     "schemas": {
+      "ActivateSystemThemeInput": {
+        "type": "object",
+        "properties": {
+          "themeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "themeId"
+        ]
+      },
       "AiActionView": {
         "type": "object",
         "properties": {
@@ -178,6 +192,21 @@
           "email"
         ],
         "description": "Changed email response"
+      },
+      "CreateSystemThemeInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sourceThemeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "sourceThemeId"
+        ]
       },
       "errorResponseSchema": {
         "type": "object",
@@ -444,13 +473,20 @@
       "UpdateSystemThemeInput": {
         "type": "object",
         "properties": {
+          "name": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
           "css": {
-            "type": "string"
+            "type": "object"
           }
-        },
-        "required": [
-          "css"
-        ]
+        }
       },
       "UpdateUserAppearanceInput": {
         "type": "object",
@@ -2929,15 +2965,20 @@
         "responses": {}
       }
     },
-    "/settings/appearance": {
+    "/system-themes": {
       "get": {
-        "operationId": "get-settings-appearance",
-        "summary": "Get system theme CSS",
-        "description": "Returns the admin-authored system theme CSS (or empty string when unset). Public-readable.",
+        "operationId": "get-system-themes",
+        "summary": "List system themes",
+        "description": "Lists all system themes (built-ins + custom) and the active selection. Requires manage_appearance.",
         "tags": [
           "Appearance"
         ],
         "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
@@ -2951,10 +2992,10 @@
           }
         }
       },
-      "put": {
-        "operationId": "put-settings-appearance",
-        "summary": "Update system theme CSS",
-        "description": "Replaces the admin-authored CSS. Sanitized on save. Requires manage_appearance.",
+      "post": {
+        "operationId": "post-system-themes",
+        "summary": "Create a system theme",
+        "description": "Copies an existing theme (typically a built-in) into a new editable custom row. Requires manage_appearance.",
         "tags": [
           "Appearance"
         ],
@@ -2968,18 +3009,38 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateSystemThemeInput"
+                "$ref": "#/components/schemas/CreateSystemThemeInput"
               }
             }
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "css": {
+                      "type": "string"
+                    },
+                    "isBuiltin": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "css",
+                    "isBuiltin"
+                  ]
                 }
               }
             }
@@ -3027,6 +3088,158 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateSiteSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-themes/{id}": {
+      "get": {
+        "operationId": "get-system-themes-{id}",
+        "summary": "Get a system theme",
+        "description": "Returns the full system theme (id, name, css, isBuiltin). Requires manage_appearance.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-system-themes-{id}",
+        "summary": "Update a system theme",
+        "description": "Updates a custom theme's name and/or CSS. Built-ins are read-only. Requires manage_appearance.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemThemeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-system-themes-{id}",
+        "summary": "Delete a system theme",
+        "description": "Deletes a custom theme. Built-ins cannot be deleted. If the deleted theme was active, the active pointer is cleared. Requires manage_appearance.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/system-themes/active": {
+      "put": {
+        "operationId": "put-system-themes-active",
+        "summary": "Activate a system theme",
+        "description": "Sets the active system theme. Pass null to clear the active selection. Requires manage_appearance.",
+        "tags": [
+          "Appearance"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateSystemThemeInput"
               }
             }
           }

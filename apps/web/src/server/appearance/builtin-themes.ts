@@ -1,24 +1,22 @@
 /**
- * Built-in system-theme CSS templates (006). Admin picks one as a starting
- * point and customizes from there. The templates are typography/layout only —
- * no color/background declarations — so they pass the sanitizer unchanged and
- * inherit the live `--color-*` / `--font-*` tokens.
- *
- * `Default` is an empty stylesheet; `Wiki.js-inspired` mimics the Wiki.js
- * reading style (bolder headings, tighter body, accent underlines) for admins
- * who want a recognizable starting point.
+ * Built-in system themes (006). Seeded into `system_themes` with stable ids
+ * and `is_builtin = true` so admins can view, copy, and activate them. Each
+ * stylesheet is typography/layout only — no color declarations — so it
+ * passes the sanitizer unchanged and inherits the live color tokens.
  */
 
-export interface BuiltInSystemTemplate {
+export interface BuiltInSystemTheme {
   id: string;
   name: string;
   css: string;
 }
 
-export const EMPTY_TEMPLATE_ID = 'empty';
-export const WIKIJS_TEMPLATE_ID = 'wikijs';
+export const DEFAULT_THEME_ID = '00000000-0000-0000-0000-0000000000e1';
+export const WIKIJS_THEME_ID = '00000000-0000-0000-0000-0000000000e2';
 
-const EMPTY_CSS = '';
+const DEFAULT_CSS = `/* Default — the standard next-wiki system style. */
+/* Add your customizations below. */
+`;
 
 const WIKIJS_CSS = `/* Wiki.js-inspired — bolder headings with underlines, tighter body. */
 h1 {
@@ -74,7 +72,7 @@ th {
 }
 `;
 
-export const BUILTIN_TEMPLATES: BuiltInSystemTemplate[] = [
-  { id: EMPTY_TEMPLATE_ID, name: 'Default', css: EMPTY_CSS },
-  { id: WIKIJS_TEMPLATE_ID, name: 'Wiki.js-inspired', css: WIKIJS_CSS },
+export const BUILTIN_THEMES: BuiltInSystemTheme[] = [
+  { id: DEFAULT_THEME_ID, name: 'Default', css: DEFAULT_CSS },
+  { id: WIKIJS_THEME_ID, name: 'Wiki.js-inspired', css: WIKIJS_CSS },
 ];

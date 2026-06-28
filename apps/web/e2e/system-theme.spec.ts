@@ -11,36 +11,26 @@ async function login(page: Page, email: string, password: string) {
   await page.waitForURL('/');
 }
 
-test.describe('admin system theme', () => {
-  test('admin writes CSS and it is injected on the next page', async ({ page }) => {
+test.describe('admin system themes', () => {
+  test('admin sees built-ins, copies, edits, and activates a custom theme', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/appearance');
 
     await expect(page.getByRole('heading', { name: 'Appearance', level: 1 })).toBeVisible();
 
-    const textarea = page.getByLabel('System theme stylesheet');
-    await textarea.fill('.header { display: flex; gap: 1rem; }');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-    await expect(page.getByText('System theme updated.')).toBeVisible();
+    await page.getByRole('button', { name: /Wiki.js-inspired/ }).click();
+    await expect(page.getByText('Built-in themes are read-only.')).toBeVisible();
+    await expect(page.getByLabel('Theme stylesheet')).toHaveValue(/font-size/);
 
-    await page.goto('/');
-    const css = await page.locator('#app-system-theme').innerText();
-    expect(css).toContain('display: flex');
-  });
+    await page.getByRole('button', { name: 'Copy to edit' }).click();
+    await expect(page.getByText('Copy created.')).toBeVisible();
 
-  test('color declarations are stripped on save', async ({ page }) => {
-    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/appearance');
+    await page.getByLabel('Theme name').fill('My System Theme');
+    await page.getByLabel('Theme stylesheet').fill('h1 { font-size: 3rem; }');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText('Theme saved.')).toBeVisible();
 
-    await page
-      .getByLabel('System theme stylesheet')
-      .fill('.x { color: red; background: blue; padding: 1rem; }');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-
-    await page.goto('/');
-    const css = await page.locator('#app-system-theme').innerText();
-    expect(css).not.toContain('color');
-    expect(css).not.toContain('background');
-    expect(css).toContain('padding: 1rem');
+    await page.getByRole('button', { name: 'Activate' }).click();
+    await expect(page.getByText('Theme activated.')).toBeVisible();
   });
 });

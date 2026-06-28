@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
+import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
 import { env } from '@/server/config';
 
 const DEFAULT_SPACE_SLUG = 'default';
@@ -29,6 +30,8 @@ export async function seedDefaultStorageBackend() {
 
 export async function seedDatabase() {
   await seedDefaultStorageBackend();
+  // Built-in system themes are core (read-only) data, seeded on every boot.
+  await seedBuiltinSystemThemes();
 
   if (env.NODE_ENV === 'production' && env.NEXT_WIKI_SEED !== 'true') {
     return;

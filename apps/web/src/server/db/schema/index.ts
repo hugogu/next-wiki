@@ -603,14 +603,37 @@ export const siteSettings = pgTable('site_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Single-row, site-wide system theme CSS. Admin authors free-form CSS that is
- * sanitized on save and applied to the app shell (outside .prose). */
+/** Single-row pointer to the active admin-authored system theme (always id
+ * 'default'). The actual CSS lives in `system_themes`; this row holds the
+ * active pointer so the layout can resolve the current CSS in one query. */
 export const systemThemeSettings = pgTable('system_theme_settings', {
   id: text('id').primaryKey().default('default'),
-  css: text('css').notNull().default(''),
+  activeThemeId: uuid('active_theme_id').references(() => systemThemes.id, {
+    onDelete: 'set null',
+  }),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Shared list of system themes (admin-managed). Built-in themes are seeded
+ * with `is_builtin = true` and are read-only. Admins copy a built-in into a
+ * custom row, edit it, and activate it. The active row is stored on
+ * `system_theme_settings.active_theme_id`. */
+export const systemThemes = pgTable(
+  'system_themes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    css: text('css').notNull().default(''),
+    isBuiltin: boolean('is_builtin').notNull().default(false),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    nameIdx: uniqueIndex('system_themes_name_idx').on(t.name),
+  }),
+);
 
 /** Per-user reading-theme tokens. Absent row means the user has not customized;
  * the root layout falls back to the static defaults. The user's light/dark mode

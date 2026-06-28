@@ -148,6 +148,13 @@
       "when": 1782390400000,
       "tag": "0020_swap_themes",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1782476800000,
+      "tag": "0021_system_themes_list",
+      "breakpoints": true
     }
   ]
 }
