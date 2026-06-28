@@ -1,57 +1,86 @@
-# Contract: System Theme Settings (REST)
+# Contract: System Themes (REST)
 
-> **Amended 2026-06-24 — see [swap-amendment.md](../swap-amendment.md).** The
-> admin `/api/settings/appearance` endpoint no longer carries structured tokens;
-> it now manages **free-form system theme CSS**. Per-user structured tokens moved
-> to [`user-appearance.md`](./user-appearance.md).
+> **Amended 2026-06-24 — theme ownership inverted** (see
+> [swap-amendment.md](../swap-amendment.md)) and **2026-06-24 — single CSS
+> replaced by a named list** (migration `0021_system_themes_list.sql`). The old
+> single `GET/PUT /api/settings/appearance` endpoint is **removed**; system
+> themes are now a named, admin-managed list under `/api/system-themes`, with one
+> active theme tracked by `system_theme_settings.active_theme_id`. Per-user
+> structured tokens live in [`user-appearance.md`](./user-appearance.md).
 
-Base: `app/api/settings/appearance/route.ts`. REST + OpenAPI, shared service
-(`src/server/services/system-theme.ts`), Zod in
+Base: `app/api/system-themes/route.ts` (+ `[id]/route.ts`, `active/route.ts`).
+REST + OpenAPI, shared service (`src/server/services/system-theme.ts`), Zod in
 `@next-wiki/shared/system-theme.ts`. Writes gated by `manage_appearance` via
-`can()`.
+`can()`. CSS is sanitized on save (`sanitizeSystemThemeCss`: layout/typography
+allowlist incl. `@keyframes`; no color/background; no remote `url()`/`@import`).
 
-## `GET /api/settings/appearance`
+## `GET /api/system-themes`
 
-Returns the admin-authored system theme CSS (or empty string when unset).
+List system themes (built-ins + custom) and the active selection.
 
-- **Auth**: **public-readable** (consistent with `GET /api/settings/site`). The
-  CSS is already emitted into every rendered page's `<style id="app-system-theme">`,
-  so gating the read adds no confidentiality. Page rendering reads the value
-  server-side via the service; this endpoint primarily serves the admin editor.
-- **200** → `SystemThemeView`:
+- **Auth**: authenticated.
+- **200** → `SystemThemeListView`:
 
 ```jsonc
 {
-  "css": "/* app-shell CSS authored by an admin */ .header { border-radius: 0; }"
+  "activeThemeId": "uuid|null",          // null ⇒ no system CSS injected
+  "themes": [
+    { "id": "uuid", "name": "Default",          "isBuiltin": true },
+    { "id": "uuid", "name": "Wiki.js-inspired",  "isBuiltin": true },
+    { "id": "uuid", "name": "Our Brand",         "isBuiltin": false }
+  ]
 }
 ```
 
-## `PUT /api/settings/appearance`
+## `POST /api/system-themes`
 
-Replace the system theme CSS.
+Create a custom theme by copying an existing one.
 
-- **Auth**: `manage_appearance` (FORBIDDEN otherwise).
-- **Body**: `UpdateSystemThemeInput` (`{ css }`).
-- **Validation**: `css` passes `sanitizeSystemThemeCss` — allowlisted properties
-  (incl. layout / keyframes), no remote `url()` / `@import`, **no color
-  declarations** (colors stay token-driven for light/dark consistency, R5 /
-  FR-017); max size enforced.
+- **Auth**: `manage_appearance`.
+- **Body**: `CreateSystemThemeInput` = `{ sourceThemeId: uuid, name: string }`.
+- **201** → `SystemThemeView` (`{ id, name, css, isBuiltin: false }`).
+- **400** duplicate/empty name; invalid source. **403** missing capability.
+
+## `GET /api/system-themes/{id}`
+
+Full CSS of one theme.
+
+- **200** → `SystemThemeView` (`{ id, name, css, isBuiltin }`).
+- **404** unknown id.
+
+## `PUT /api/system-themes/{id}`
+
+Update a custom theme's `name` and/or `css`.
+
+- **Auth**: `manage_appearance`.
+- **Body**: `UpdateSystemThemeInput` = `{ name?, css? }`. CSS sanitized on save.
 - **200** → updated `SystemThemeView`.
-- **400** `BAD_REQUEST` → CSS rejected by the sanitizer; prior value unchanged.
-- **403** `FORBIDDEN` → missing capability.
+- **400** duplicate/empty name; CSS rejected by sanitizer.
+- **403/409** editing a built-in is blocked — response signals "create a copy".
 
-## Behavior
+## `DELETE /api/system-themes/{id}`
 
-- On success, the next root-layout render injects the new CSS unscoped as
-  `<style id="app-system-theme">`; no redeploy (SC-002).
-- The system CSS styles the app shell (outside `.prose`). Inside `.prose` it may
-  affect layout/spacing/borders/shadows but never color variables (the sanitizer
-  forbids color declarations); per-user reading-theme tokens always win there
-  (specificity `.prose.prose`).
+Delete a custom theme. If it was active, the active pointer clears (no system
+CSS injected).
+
+- **204**. **403** for built-ins.
+
+## `PUT /api/system-themes/active`
+
+Activate a theme for the whole site.
+
+- **Auth**: `manage_appearance`.
+- **Body**: `ActivateSystemThemeInput` = `{ themeId: uuid | null }` (null ⇒ none).
+- Sets `system_theme_settings.active_theme_id`.
+- **200** → `{ activeThemeId }`. The next render injects the active theme's CSS
+  as `<style id="app-system-theme">`; no redeploy (SC-002).
 
 ## Test scenarios
 
-1. PUT valid CSS → 200, GET reflects it, rendered page shell shows the change.
-2. PUT CSS with a `color:` declaration → stripped/rejected by the sanitizer.
-3. PUT CSS with remote `url()` / `@import` → rejected (R5).
-4. PUT as non-admin → 403.
+1. GET list → ≥2 built-ins present; `activeThemeId` reflects the active row.
+2. Copy a built-in → editable custom theme; edit + rename + save (sanitized).
+3. PUT CSS with a `color:` / remote `url()` / `@import` → stripped/rejected (R5).
+4. Edit a built-in → blocked with a copy hint.
+5. Activate a theme → app shell reflects it on next render; activate `null` →
+   shell reverts to no system CSS.
+6. Delete the active theme → active pointer clears. Non-admin write → 403.

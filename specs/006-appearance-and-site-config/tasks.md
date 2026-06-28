@@ -4,7 +4,10 @@
 > implemented.** The US1/US3 tasks below were executed as originally written,
 > then migration `0020_swap_themes.sql` inverted the design: per-user reading
 > theme → structured tokens (`user_appearance`), admin system theme → free-form
-> CSS (`system_theme_settings`). For the **as-built** files/tables/endpoints see
+> CSS. A follow-up (`0021_system_themes_list.sql`) turned the single system CSS
+> into a named **`system_themes`** list + an active pointer
+> (`system_theme_settings.active_theme_id`), served under `/api/system-themes`.
+> For the **as-built** files/tables/endpoints see
 > [swap-amendment.md](./swap-amendment.md), the updated
 > [data-model.md](./data-model.md), and the contracts
 > ([appearance-settings.md](./contracts/appearance-settings.md),
@@ -57,9 +60,10 @@ shared Zod in `packages/shared/src/`.
 
 ---
 
-> **Amended (see top banner):** as-built, the admin surface is free-form system
-> theme CSS (`system_theme_settings`, `system-theme.ts`,
-> `/api/settings/appearance` carrying `{ css }`), not structured tokens.
+> **Amended (see top banner):** as-built, the admin surface is a named list of
+> free-form system-theme CSS (`system_themes` + `system_theme_settings`,
+> `system-theme.ts`, `/api/system-themes` list/`[id]`/active), not structured
+> tokens and not a single CSS endpoint.
 
 ## Phase 3: User Story 1 - System-Level Appearance Configuration (Priority: P1) 🎯 MVP
 

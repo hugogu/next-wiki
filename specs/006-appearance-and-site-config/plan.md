@@ -5,11 +5,13 @@
 
 > **Amended 2026-06-24 — theme ownership inverted.** This plan records the
 > original approach. The as-built design swapped Stories 1 and 3: tables are
-> `system_theme_settings` (admin CSS, 1 row) + `user_appearance` (per-user
-> tokens), shared Zod is `system-theme.ts` + `user-appearance.ts`, services are
-> `system-theme.ts` + `user-appearance.ts`, and the only new REST surfaces are
-> `/api/settings/appearance` (CSS) + `/api/user/appearance` (tokens). There is
-> no `markdown_themes` table, no `markdown-themes` routes, and no
+> `system_themes` (named admin-CSS list) + `system_theme_settings.active_theme_id`
+> + `user_appearance` (per-user tokens), shared Zod is `system-theme.ts` +
+> `user-appearance.ts`, services are `system-theme.ts` + `user-appearance.ts`,
+> and the new REST surfaces are `/api/system-themes` (list/`[id]`/active) +
+> `/api/user/appearance` (tokens). The single `/api/settings/appearance` CSS
+> endpoint was removed by `0021_system_themes_list.sql`. There is no
+> `markdown_themes` table, no `markdown-themes` routes, and no
 > `users.active_markdown_theme_id`. See [swap-amendment.md](./swap-amendment.md),
 > [data-model.md](./data-model.md), and the
 > [contracts](./contracts/). References below to `appearance_settings`,

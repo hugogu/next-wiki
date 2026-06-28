@@ -12,26 +12,50 @@
 All tables use Drizzle ORM (`apps/web/src/server/db/schema/index.ts`). Naming is
 `snake_case` per project rules. Migration order: `0017_*`/`0019_*` introduced the
 original appearance + markdown-theme tables, `0018_*` added `site_settings`
-(US2), and `0020_swap_themes.sql` performed the inversion to the as-built tables
-below.
+(US2), `0020_swap_themes.sql` performed the inversion to the as-built tables
+below, and `0021_system_themes_list.sql` replaced the single
+`system_theme_settings.css` column with a named **`system_themes`** list plus an
+`active_theme_id` pointer.
 
 ## Entity: `system_theme_settings` (single row)
 
-Site-wide system theme **CSS** authored by an admin. Single row keyed
-`id = 'default'` (mirrors `ai_settings`). The CSS is sanitized on save and
-applied to the app shell (outside `.prose`).
+Site-wide pointer to the **active** system theme. Single row keyed
+`id = 'default'` (mirrors `ai_settings`). Migration `0021_system_themes_list.sql`
+dropped the inline `css` column in favour of `active_theme_id`; the layout
+resolves the active CSS in one query via this pointer.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `text` PK, default `'default'` | Always one row |
-| `css` | `text` not null default `''` | Sanitized free-form CSS (R5) |
+| `active_theme_id` | `uuid` nullable → `system_themes.id` `on delete set null` | Active system theme; NULL ⇒ no system CSS injected |
 | `updated_by` | `uuid` → `users.id` `on delete set null` | Auditing |
 | `updated_at` | `timestamptz` not null default now | |
+
+## Entity: `system_themes`
+
+The list of named system themes (admin-authored app-shell CSS). Built-ins
+(`is_builtin = true`) are seeded and read-only; admins may create (by copying),
+edit, rename, delete custom themes, and activate one via
+`system_theme_settings.active_theme_id`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK default random | |
+| `name` | `text` not null | Unique index `system_themes_name_idx` |
+| `css` | `text` not null default `''` | Sanitized free-form CSS (R5) |
+| `is_builtin` | `boolean` not null default false | Built-ins are read-only |
+| `created_by` | `uuid` nullable → `users.id` `on delete set null` | Auditing |
+| `created_at` / `updated_at` | `timestamptz` not null default now | |
 
 **Validation** (Zod `@next-wiki/shared/system-theme.ts`): `css` passes
 `sanitizeSystemThemeCss` (allowlisted properties incl. layout/keyframes; no
 remote `url()` / `@import`; no color declarations — colors stay token-driven so
-light/dark stays consistent, R5 / FR-017); enforce a max size.
+light/dark stays consistent, R5 / FR-017); enforce a max size. `name` is
+non-empty, length-bounded, and unique. Built-in rows are immutable via the API
+(editing one offers a copy instead).
+
+**Built-in seed rows** (P9 bounded registry, seeded on boot with stable ids):
+"Default" and "Wiki.js-inspired".
 
 ## Entity: `user_appearance` (one row per user)
 
@@ -92,7 +116,8 @@ also seeds the static fallback used when a user has no `user_appearance` row
 
 ```text
 users 1───0..1 user_appearance      (user_id PK/FK, cascade delete)
-system_theme_settings (1 row)        updated_by → users
+users 1───* system_themes           (created_by, nullable on delete set null)
+system_theme_settings (1 row)        active_theme_id → system_themes; updated_by → users
 site_settings (1 row)                updated_by → users; icon stored inline (icon_data/icon_mime)
 ```
 
@@ -102,14 +127,15 @@ site_settings (1 row)                updated_by → users; icon stored inline (i
   `user_appearance` tokens (or static defaults) via `buildUserAppearanceCss`
   and injected as `<style id="app-reading-theme">` scoped to `.prose.prose`
   (R1 / R4).
-- **System theme CSS**: read from `system_theme_settings` (or empty) and
-  injected unscoped as `<style id="app-system-theme">` for the app shell.
+- **System theme CSS**: the active `system_themes` row, resolved via
+  `system_theme_settings.active_theme_id` (or empty when none active), injected
+  unscoped as `<style id="app-system-theme">` for the app shell.
 - **Pagination state**: the `page` URL search param — not persisted (R9).
 
 ## Permissions
 
-- `manage_appearance` capability gates writes to `system_theme_settings` and
-  `site_settings` — evaluated through the existing `can()` chokepoint; no
-  hardcoded admin bypass (Permission mandate).
+- `manage_appearance` capability gates writes to `system_themes`, the active
+  pointer (`system_theme_settings`), and `site_settings` — evaluated through the
+  existing `can()` chokepoint; no hardcoded admin bypass (Permission mandate).
 - `user_appearance` read/write is scoped to the **owning user** (the caller);
   no admin capability required.

@@ -13,7 +13,7 @@ setup (see root `CLAUDE.md`).
 
 ```bash
 pnpm install
-pnpm db:migrate            # 0017–0019 (original appearance/site/theme) then 0020_swap_themes (inversion)
+pnpm db:migrate            # 0017–0019 (original) → 0020_swap_themes (inversion) → 0021_system_themes_list (named system-theme list)
 pnpm --filter @next-wiki/web dev    # http://localhost:3000
 ```
 
