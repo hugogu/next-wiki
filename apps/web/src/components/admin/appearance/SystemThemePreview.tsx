@@ -13,7 +13,15 @@ import { useTranslation } from '@/i18n/client';
 export function SystemThemePreview({ css }: { css: string }) {
   const { t } = useTranslation();
   const scopeClass = `stp-${useId().replace(/[:]/g, '')}`;
-  const scopedCss = `.${scopeClass} {\n${css}\n}`;
+  // Neutralize the globally-active system theme inside this preview so it shows
+  // ONLY the theme being previewed (e.g. previewing Default while Wiki.js is
+  // active must not inherit Wiki.js's blockquote card / quote icon). The
+  // previewed CSS below has the same specificity and comes later, so it wins.
+  const isolate =
+    `.${scopeClass} .prose.prose blockquote{background-color:transparent;border-radius:0;position:static;min-height:0;overflow:visible;}` +
+    `.${scopeClass} .prose.prose blockquote::before{content:none;}` +
+    `.${scopeClass} .prose.prose h1,.${scopeClass} .prose.prose h2,.${scopeClass} .prose.prose h3,.${scopeClass} .prose.prose h4{border-bottom-width:0;padding-bottom:0;}`;
+  const scopedCss = `${isolate}\n.${scopeClass} {\n${css}\n}`;
 
   return (
     <div className="space-y-sm">
