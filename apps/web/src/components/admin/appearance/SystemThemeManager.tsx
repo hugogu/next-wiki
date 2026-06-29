@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
 import { SystemThemePreview } from './SystemThemePreview';
+import { CssEditor } from './CssEditor';
 
 export function SystemThemeManager({
   initial,
@@ -213,14 +214,11 @@ export function SystemThemeManager({
                 )}
               </div>
 
-              <textarea
+              <CssEditor
                 value={draftCss}
-                onChange={(e) => setDraftCss(e.target.value)}
+                onChange={setDraftCss}
                 readOnly={detail.isBuiltin}
-                spellCheck={false}
-                rows={18}
-                className="w-full rounded-md border border-border bg-surface p-md font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
-                aria-label={t('admin.appearance.cssLabel')}
+                ariaLabel={t('admin.appearance.cssLabel')}
               />
 
               {error && <Alert>{error}</Alert>}
