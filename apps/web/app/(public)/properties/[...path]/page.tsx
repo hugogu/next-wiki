@@ -38,6 +38,7 @@ export default async function PageProperties({ params }: { params: Params }) {
   }
 
   const pageContext = {
+    pageId: page.pageId,
     path,
     title: page.title,
     status: page.status,
@@ -56,7 +57,7 @@ export default async function PageProperties({ params }: { params: Params }) {
         <p className="text-muted mb-lg">
           {t('page.properties.description')}
         </p>
-        <PagePropertiesForm path={path} />
+        <PagePropertiesForm pageId={page.pageId} path={path} />
       </div>
     </Layout>
   );

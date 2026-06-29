@@ -63,6 +63,19 @@ export const assetUploadResultSchema = z.object({
 });
 export type AssetUploadResult = z.infer<typeof assetUploadResultSchema>;
 
+export const publicAssetResourceSchema = z.object({
+  id: z.string().uuid(),
+  contentType: imageContentTypeSchema,
+  sizeBytes: z.number().int().nonnegative(),
+  url: z.string(),
+  markdown: z.string(),
+  createdAt: z.string(),
+});
+export type PublicAssetResource = z.infer<typeof publicAssetResourceSchema>;
+
+export const publicAssetUploadResultSchema = publicAssetResourceSchema;
+export type PublicAssetUploadResult = z.infer<typeof publicAssetUploadResultSchema>;
+
 // ---- Backend configuration (per-type, non-secret) --------------------------
 //
 // Secret fields (S3 secret access key, Git token) are NEVER part of these

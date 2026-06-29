@@ -24,7 +24,7 @@ import {
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
-import { getPageHref, getEditHref, getHistoryHref } from '@/lib/path';
+import { getPageHref, getEditHref, getHistoryHref, getPublicApiPagePublicationUrl } from '@/lib/path';
 
 function IconButton({
   href,
@@ -109,13 +109,10 @@ export function Header({
   const role = isSignedIn ? user.role : null;
 
   const handlePublish = async () => {
-    if (!pageContext || !pageContext.canPublish || pageContext.status === 'published') return;
+    if (!pageContext || !pageContext.pageId || !pageContext.canPublish || pageContext.status === 'published') return;
     setPublishing(true);
     try {
-      await apiPost<{ path: string; version: number }, { versionId: string }>('/api/revisions/publish', {
-        path: pageContext.path,
-        version: pageContext.version,
-      });
+      await apiPost<Record<string, never>, unknown>(getPublicApiPagePublicationUrl(pageContext.pageId, pageContext.version), {});
       window.location.href = getPageHref(pageContext.path);
     } catch {
       setPublishing(false);

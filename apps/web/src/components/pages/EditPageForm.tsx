@@ -3,12 +3,22 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { newDraftBodySchema, type NewDraftBody, updatePagePropertiesSchema, type UpdatePagePropertiesInput } from '@next-wiki/shared';
+import {
+  newDraftBodySchema,
+  type NewDraftBody,
+  publicDraftCreateInputSchema,
+  type PublicDraftCreateInput,
+  publicPagePropertiesInputSchema,
+  type PublicPagePropertiesInput,
+  type PublicPageResource,
+  type PublicRevisionResource,
+  updatePagePropertiesSchema,
+} from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { apiPost, apiPatch, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
-import { getApiPageEditUrl, getApiPagePropertiesUrl, getHistoryHref, getPageHref } from '@/lib/path';
+import { getPublicApiPageDraftsUrl, getPublicApiPagePropertiesUrl, getHistoryHref, getPageHref } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
@@ -48,14 +58,22 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
             setIsSaving(false);
             return;
           }
-          const res = await apiPatch<UpdatePagePropertiesInput, { newPath: string }>(getApiPagePropertiesUrl(path), parsed.data);
-          editPath = res.newPath;
+          const body = publicPagePropertiesInputSchema.parse({
+            ...parsed.data,
+            baseRevisionId: initial.revisionId,
+          });
+          const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPagePropertiesUrl(initial.pageId), body);
+          editPath = res.path;
         }
-        await apiPost<NewDraftBody, { versionId: string; versionNumber: number }>(getApiPageEditUrl(editPath), data);
+        const draftBody = publicDraftCreateInputSchema.parse({
+          ...data,
+          baseRevisionId: initial.revisionId,
+        });
+        await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
         window.location.href = getHistoryHref(editPath);
       } catch (err) {
         const error = err as ApiError;
-        if (error.code === 'CONFLICT') {
+        if (error.code === 'CONFLICT' || error.code === 'PAGE_PATH_CONFLICT') {
           setServerError(t('page.edit.error.pathExists'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
           setServerError(t('page.edit.error.forbidden'));
@@ -66,7 +84,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
         setIsSaving(false);
       }
     },
-    [path, newPath, t],
+    [path, newPath, initial.revisionId, initial.pageId, t],
   );
 
   const save = useCallback(() => {

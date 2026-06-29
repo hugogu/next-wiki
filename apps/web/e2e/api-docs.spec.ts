@@ -7,6 +7,7 @@ test.describe('api docs', () => {
     const body = await response.json();
     expect(body.openapi).toMatch(/^3\./);
     expect(body.paths['/pages']).toBeDefined();
+    expect(body.paths['/v1/pages']).toBeDefined();
     for (const path of [
       '/ai/settings',
       '/ai/providers',

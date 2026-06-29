@@ -19,10 +19,10 @@
 
 **Purpose**: Establish shared public API scaffolding without implementing story behavior.
 
-- [ ] T001 Add shared public page/revision schema scaffolding and exports in `packages/shared/src/pages.ts`
-- [ ] T002 [P] Add shared public asset schema scaffolding and exports in `packages/shared/src/content-storage.ts`
-- [ ] T003 [P] Add public wiki API E2E fixture helpers for users, keys, pages, and assets in `apps/web/test/public-wiki-api-fixtures.ts`
-- [ ] T004 Add `/api/v1` route adapter helper for actor resolution, JSON parsing, audit wrapping, and service invocation in `apps/web/app/api/v1/_shared/route.ts`
+- [X] T001 Add shared public page/revision schema scaffolding and exports in `packages/shared/src/pages.ts`
+- [X] T002 [P] Add shared public asset schema scaffolding and exports in `packages/shared/src/content-storage.ts`
+- [X] T003 [P] Add public wiki API E2E fixture helpers for users, keys, pages, and assets in `apps/web/test/public-wiki-api-fixtures.ts`
+- [X] T004 Add `/api/v1` route adapter helper for actor resolution, JSON parsing, audit wrapping, and service invocation in `apps/web/app/api/v1/_shared/route.ts`
 
 ---
 
@@ -32,12 +32,12 @@
 
 **CRITICAL**: No user story implementation should start until these tasks are complete.
 
-- [ ] T005 Implement stable public API error code mapping in `apps/web/src/server/api/public-errors.ts`
-- [ ] T006 [P] Implement bounded cursor/limit pagination helpers for public lists in `apps/web/src/server/api/public-pagination.ts`
-- [ ] T007 Create the public content DTO facade skeleton over existing page, revision, asset, and permission services in `apps/web/src/server/services/public-content.ts`
-- [ ] T008 Add architecture tests proving `/api/v1` routes do not import existing internal route handlers or own business logic in `apps/web/app/api/v1/public-route-architecture.test.ts`
-- [ ] T009 Register initial public API schema names for next-openapi-gen in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T010 Export shared public API schemas from the package barrel in `packages/shared/src/index.ts`
+- [X] T005 Implement stable public API error code mapping in `apps/web/src/server/api/public-errors.ts`
+- [X] T006 [P] Implement bounded cursor/limit pagination helpers for public lists in `apps/web/src/server/api/public-pagination.ts`
+- [X] T007 Create the public content DTO facade skeleton over existing page, revision, asset, and permission services in `apps/web/src/server/services/public-content.ts`
+- [X] T008 Add architecture tests proving `/api/v1` routes do not import existing internal route handlers or own business logic in `apps/web/app/api/v1/public-route-architecture.test.ts`
+- [X] T009 Register initial public API schema names for next-openapi-gen in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T010 Export shared public API schemas from the package barrel in `packages/shared/src/index.ts`
 
 **Checkpoint**: Public API foundation is ready; user story work can proceed.
 
@@ -51,20 +51,20 @@
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Add route tests for `GET /api/v1/pages`, `GET /api/v1/pages/{id}`, and `GET /api/v1/pages/by-path/{path}` in `apps/web/app/api/v1/pages/public-pages-read-routes.test.ts`
-- [ ] T012 [P] [US1] Add service tests for readable page DTOs, Markdown source visibility, and hidden drafts in `apps/web/src/server/services/public-content-read.test.ts`
-- [ ] T013 [P] [US1] Add E2E read workflow covering Reader, Editor, and Admin API keys in `apps/web/e2e/public-wiki-api-read.spec.ts`
+- [X] T011 [P] [US1] Add route tests for `GET /api/v1/pages`, `GET /api/v1/pages/{id}`, and `GET /api/v1/pages/by-path/{path}` in `apps/web/app/api/v1/pages/public-pages-read-routes.test.ts`
+- [X] T012 [P] [US1] Add service tests for readable page DTOs, Markdown source visibility, and hidden drafts in `apps/web/src/server/services/public-content-read.test.ts`
+- [X] T013 [P] [US1] Add E2E read workflow covering Reader, Editor, and Admin API keys in `apps/web/e2e/public-wiki-api-read.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implement `PublicPageResource`, `PublicRevisionResource`, list query, by-path query, and read response schemas in `packages/shared/src/pages.ts`
-- [ ] T015 [US1] Implement list/read/page-source DTO mapping over existing page services in `apps/web/src/server/services/public-content.ts`
-- [ ] T016 [US1] Implement `GET /api/v1/pages` using the shared route adapter and public content service in `apps/web/app/api/v1/pages/route.ts`
-- [ ] T017 [P] [US1] Implement `GET /api/v1/pages/{id}` using the shared route adapter and public content service in `apps/web/app/api/v1/pages/[id]/route.ts`
-- [ ] T018 [P] [US1] Implement `GET /api/v1/pages/by-path/{...path}` using canonical path decoding in `apps/web/app/api/v1/pages/by-path/[...path]/route.ts`
-- [ ] T019 [US1] Add read endpoint OpenAPI metadata and exported schemas for next-openapi-gen in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T020 [US1] Add public content read URL helpers for first-party client migration in `apps/web/src/lib/path.ts`
-- [ ] T021 [US1] Regenerate the OpenAPI document with read endpoints present in `apps/web/public/openapi.json`
+- [X] T014 [US1] Implement `PublicPageResource`, `PublicRevisionResource`, list query, by-path query, and read response schemas in `packages/shared/src/pages.ts`
+- [X] T015 [US1] Implement list/read/page-source DTO mapping over existing page services in `apps/web/src/server/services/public-content.ts`
+- [X] T016 [US1] Implement `GET /api/v1/pages` using the shared route adapter and public content service in `apps/web/app/api/v1/pages/route.ts`
+- [X] T017 [P] [US1] Implement `GET /api/v1/pages/{id}` using the shared route adapter and public content service in `apps/web/app/api/v1/pages/[id]/route.ts`
+- [X] T018 [P] [US1] Implement `GET /api/v1/pages/by-path/{...path}` using canonical path decoding in `apps/web/app/api/v1/pages/by-path/[...path]/route.ts`
+- [X] T019 [US1] Add read endpoint OpenAPI metadata and exported schemas for next-openapi-gen in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T020 [US1] Add public content read URL helpers for first-party client migration in `apps/web/src/lib/path.ts`
+- [X] T021 [US1] Regenerate the OpenAPI document with read endpoints present in `apps/web/public/openapi.json`
 
 **Checkpoint**: US1 is independently usable as the MVP read-only public wiki API.
 
@@ -78,28 +78,28 @@
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Add route tests for create, draft, properties, revision history, revision detail, publish, Reader denial, and stale conflicts in `apps/web/app/api/v1/pages/public-pages-write-routes.test.ts`
-- [ ] T023 [P] [US2] Add service tests for public create/draft/property/publish DTOs and stale revision guards in `apps/web/src/server/services/public-content-write.test.ts`
-- [ ] T024 [P] [US2] Add E2E create-draft-publish-update-history workflow with Reader/Editor keys in `apps/web/e2e/public-wiki-api-write.spec.ts`
+- [X] T022 [P] [US2] Add route tests for create, draft, properties, revision history, revision detail, publish, Reader denial, and stale conflicts in `apps/web/app/api/v1/pages/public-pages-write-routes.test.ts`
+- [X] T023 [P] [US2] Add service tests for public create/draft/property/publish DTOs and stale revision guards in `apps/web/src/server/services/public-content-write.test.ts`
+- [X] T024 [P] [US2] Add E2E create-draft-publish-update-history workflow with Reader/Editor keys in `apps/web/e2e/public-wiki-api-write.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Implement public create, draft, properties, revision list, revision detail, and publication schemas in `packages/shared/src/pages.ts`
-- [ ] T026 [US2] Add base revision conflict checks for public draft and property updates in `apps/web/src/server/services/pages.ts`
-- [ ] T027 [US2] Add expected revision validation for public publication in `apps/web/src/server/services/revisions.ts`
-- [ ] T028 [US2] Implement public create, draft, properties, revision, and publish facade methods in `apps/web/src/server/services/public-content.ts`
-- [ ] T029 [US2] Implement `POST /api/v1/pages` in the existing public pages route file in `apps/web/app/api/v1/pages/route.ts`
-- [ ] T030 [P] [US2] Implement `POST /api/v1/pages/{id}/drafts` in `apps/web/app/api/v1/pages/[id]/drafts/route.ts`
-- [ ] T031 [P] [US2] Implement `PATCH /api/v1/pages/{id}/properties` in `apps/web/app/api/v1/pages/[id]/properties/route.ts`
-- [ ] T032 [P] [US2] Implement `GET /api/v1/pages/{id}/revisions` in `apps/web/app/api/v1/pages/[id]/revisions/route.ts`
-- [ ] T033 [P] [US2] Implement `GET /api/v1/pages/{id}/revisions/{version}` in `apps/web/app/api/v1/pages/[id]/revisions/[version]/route.ts`
-- [ ] T034 [P] [US2] Implement `POST /api/v1/pages/{id}/revisions/{version}/publication` in `apps/web/app/api/v1/pages/[id]/revisions/[version]/publication/route.ts`
-- [ ] T035 [US2] Add write/revision/publication endpoint OpenAPI metadata and schemas in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T036 [US2] Update first-party create page client calls to prefer `POST /api/v1/pages` in `apps/web/src/components/pages/CreatePageForm.tsx`
-- [ ] T037 [US2] Update first-party publish button calls to prefer `/api/v1` publication endpoints in `apps/web/src/components/pages/PublishButton.tsx`
-- [ ] T038 [US2] Update header publish calls to prefer `/api/v1` publication endpoints in `apps/web/src/components/layout/Header.tsx`
-- [ ] T039 [US2] Update page edit, history, revision, and properties URL helpers to prefer public content APIs in `apps/web/src/lib/path.ts`
-- [ ] T040 [US2] Regenerate the OpenAPI document with write, history, and publish endpoints present in `apps/web/public/openapi.json`
+- [X] T025 [US2] Implement public create, draft, properties, revision list, revision detail, and publication schemas in `packages/shared/src/pages.ts`
+- [X] T026 [US2] Add base revision conflict checks for public draft and property updates in `apps/web/src/server/services/pages.ts`
+- [X] T027 [US2] Add expected revision validation for public publication in `apps/web/src/server/services/revisions.ts`
+- [X] T028 [US2] Implement public create, draft, properties, revision, and publish facade methods in `apps/web/src/server/services/public-content.ts`
+- [X] T029 [US2] Implement `POST /api/v1/pages` in the existing public pages route file in `apps/web/app/api/v1/pages/route.ts`
+- [X] T030 [P] [US2] Implement `POST /api/v1/pages/{id}/drafts` in `apps/web/app/api/v1/pages/[id]/drafts/route.ts`
+- [X] T031 [P] [US2] Implement `PATCH /api/v1/pages/{id}/properties` in `apps/web/app/api/v1/pages/[id]/properties/route.ts`
+- [X] T032 [P] [US2] Implement `GET /api/v1/pages/{id}/revisions` in `apps/web/app/api/v1/pages/[id]/revisions/route.ts`
+- [X] T033 [P] [US2] Implement `GET /api/v1/pages/{id}/revisions/{version}` in `apps/web/app/api/v1/pages/[id]/revisions/[version]/route.ts`
+- [X] T034 [P] [US2] Implement `POST /api/v1/pages/{id}/revisions/{version}/publication` in `apps/web/app/api/v1/pages/[id]/revisions/[version]/publication/route.ts`
+- [X] T035 [US2] Add write/revision/publication endpoint OpenAPI metadata and schemas in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T036 [US2] Update first-party create page client calls to prefer `POST /api/v1/pages` in `apps/web/src/components/pages/CreatePageForm.tsx`
+- [X] T037 [US2] Update first-party publish button calls to prefer `/api/v1` publication endpoints in `apps/web/src/components/pages/PublishButton.tsx`
+- [X] T038 [US2] Update header publish calls to prefer `/api/v1` publication endpoints in `apps/web/src/components/layout/Header.tsx`
+- [X] T039 [US2] Update page edit, history, revision, and properties URL helpers to prefer public content APIs in `apps/web/src/lib/path.ts`
+- [X] T040 [US2] Regenerate the OpenAPI document with write, history, and publish endpoints present in `apps/web/public/openapi.json`
 
 **Checkpoint**: US1 and US2 together provide core Wiki.js replacement automation for pages and revisions.
 
@@ -113,21 +113,21 @@
 
 ### Tests for User Story 3
 
-- [ ] T041 [P] [US3] Add route tests for asset upload, metadata read, content streaming, unsupported type, oversized file, and Reader denial in `apps/web/app/api/v1/assets/public-assets-routes.test.ts`
-- [ ] T042 [P] [US3] Add service permission tests for public asset metadata/content visibility through page references in `apps/web/src/server/services/public-content-assets.test.ts`
-- [ ] T043 [P] [US3] Add E2E asset upload, Markdown insertion, publication, and Reader content access workflow in `apps/web/e2e/public-wiki-api-assets.spec.ts`
+- [X] T041 [P] [US3] Add route tests for asset upload, metadata read, content streaming, unsupported type, oversized file, and Reader denial in `apps/web/app/api/v1/assets/public-assets-routes.test.ts`
+- [X] T042 [P] [US3] Add service permission tests for public asset metadata/content visibility through page references in `apps/web/src/server/services/public-content-assets.test.ts`
+- [X] T043 [P] [US3] Add E2E asset upload, Markdown insertion, publication, and Reader content access workflow in `apps/web/e2e/public-wiki-api-assets.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] Implement `PublicAssetResource` and public asset upload response schemas in `packages/shared/src/content-storage.ts`
-- [ ] T045 [US3] Implement public asset DTO mapping and visibility checks over existing asset services in `apps/web/src/server/services/public-content.ts`
-- [ ] T046 [US3] Extend content asset service methods only where needed for public metadata/content reuse in `apps/web/src/server/services/content-assets.ts`
-- [ ] T047 [US3] Implement `POST /api/v1/assets` using multipart parsing and shared upload service in `apps/web/app/api/v1/assets/route.ts`
-- [ ] T048 [P] [US3] Implement `GET /api/v1/assets/{id}` metadata reads in `apps/web/app/api/v1/assets/[id]/route.ts`
-- [ ] T049 [P] [US3] Implement `GET /api/v1/assets/{id}/content` byte streaming in `apps/web/app/api/v1/assets/[id]/content/route.ts`
-- [ ] T050 [US3] Update the first-party editor image upload helper to prefer `POST /api/v1/assets` in `apps/web/src/lib/api/assets.ts`
-- [ ] T051 [US3] Add asset endpoint OpenAPI metadata and schemas in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T052 [US3] Regenerate the OpenAPI document with asset endpoints present in `apps/web/public/openapi.json`
+- [X] T044 [US3] Implement `PublicAssetResource` and public asset upload response schemas in `packages/shared/src/content-storage.ts`
+- [X] T045 [US3] Implement public asset DTO mapping and visibility checks over existing asset services in `apps/web/src/server/services/public-content.ts`
+- [X] T046 [US3] Extend content asset service methods only where needed for public metadata/content reuse in `apps/web/src/server/services/content-assets.ts`
+- [X] T047 [US3] Implement `POST /api/v1/assets` using multipart parsing and shared upload service in `apps/web/app/api/v1/assets/route.ts`
+- [X] T048 [P] [US3] Implement `GET /api/v1/assets/{id}` metadata reads in `apps/web/app/api/v1/assets/[id]/route.ts`
+- [X] T049 [P] [US3] Implement `GET /api/v1/assets/{id}/content` byte streaming in `apps/web/app/api/v1/assets/[id]/content/route.ts`
+- [X] T050 [US3] Update the first-party editor image upload helper to prefer `POST /api/v1/assets` in `apps/web/src/lib/api/assets.ts`
+- [X] T051 [US3] Add asset endpoint OpenAPI metadata and schemas in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T052 [US3] Regenerate the OpenAPI document with asset endpoints present in `apps/web/public/openapi.json`
 
 **Checkpoint**: Public page automation supports Markdown images/files through permission-safe asset APIs.
 
@@ -141,19 +141,19 @@
 
 ### Tests for User Story 4
 
-- [ ] T053 [P] [US4] Add route tests for permission-safe page search by path, title, content, status, and pagination in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`
-- [ ] T054 [P] [US4] Add audit tests proving public API calls record actor, key, route, status, and sanitized errors without source bodies in `apps/web/src/server/services/public-content-audit.test.ts`
-- [ ] T055 [P] [US4] Add E2E search, audit, and API docs workflow in `apps/web/e2e/public-wiki-api-search-audit.spec.ts`
+- [X] T053 [P] [US4] Add route tests for permission-safe page search by path, title, content, status, and pagination in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`
+- [X] T054 [P] [US4] Add audit tests proving public API calls record actor, key, route, status, and sanitized errors without source bodies in `apps/web/src/server/services/public-content-audit.test.ts`
+- [X] T055 [P] [US4] Add E2E search, audit, and API docs workflow in `apps/web/e2e/public-wiki-api-search-audit.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T056 [US4] Implement `PublicSearchResult`, search query, and search response schemas in `packages/shared/src/pages.ts`
-- [ ] T057 [US4] Implement permission-filtered public page search over existing readable page data in `apps/web/src/server/services/public-content.ts`
-- [ ] T058 [US4] Implement `GET /api/v1/search/pages` using the shared route adapter and public content service in `apps/web/app/api/v1/search/pages/route.ts`
-- [ ] T059 [US4] Ensure the shared `/api/v1` route adapter records sanitized audit entries for success, denial, validation failure, and server errors in `apps/web/app/api/v1/_shared/route.ts`
-- [ ] T060 [US4] Add search, common error, and audit-related OpenAPI metadata and schemas in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T061 [US4] Extend API documentation E2E coverage to assert `/api/v1` resources appear in `/api-docs` in `apps/web/e2e/api-docs.spec.ts`
-- [ ] T062 [US4] Regenerate the OpenAPI document with search and complete public content workflows present in `apps/web/public/openapi.json`
+- [X] T056 [US4] Implement `PublicSearchResult`, search query, and search response schemas in `packages/shared/src/pages.ts`
+- [X] T057 [US4] Implement permission-filtered public page search over existing readable page data in `apps/web/src/server/services/public-content.ts`
+- [X] T058 [US4] Implement `GET /api/v1/search/pages` using the shared route adapter and public content service in `apps/web/app/api/v1/search/pages/route.ts`
+- [X] T059 [US4] Ensure the shared `/api/v1` route adapter records sanitized audit entries for success, denial, validation failure, and server errors in `apps/web/app/api/v1/_shared/route.ts`
+- [X] T060 [US4] Add search, common error, and audit-related OpenAPI metadata and schemas in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T061 [US4] Extend API documentation E2E coverage to assert `/api/v1` resources appear in `/api-docs` in `apps/web/e2e/api-docs.spec.ts`
+- [X] T062 [US4] Regenerate the OpenAPI document with search and complete public content workflows present in `apps/web/public/openapi.json`
 
 **Checkpoint**: Public content automation is discoverable, searchable, and accountable.
 
@@ -163,9 +163,9 @@
 
 **Purpose**: Verify cross-story behavior, remove drift, and make the feature ready for implementation handoff.
 
-- [ ] T063 [P] Add full public API smoke workflow covering create, write Markdown, upload asset, publish, query, update, and history in `apps/web/e2e/public-wiki-api.spec.ts`
-- [ ] T064 [P] Add regression tests that compare public API and existing browser/internal workflow outcomes for permissions, validation, revision creation, publication, search visibility, and asset visibility in `apps/web/e2e/public-wiki-api-equivalence.spec.ts`
-- [ ] T065 Update quickstart validation notes after implementation details settle in `specs/007-public-wiki-api/quickstart.md`
+- [X] T063 [P] Add full public API smoke workflow covering create, write Markdown, upload asset, publish, query, update, and history in `apps/web/e2e/public-wiki-api.spec.ts`
+- [X] T064 [P] Add regression tests that compare public API and existing browser/internal workflow outcomes for permissions, validation, revision creation, publication, search visibility, and asset visibility in `apps/web/e2e/public-wiki-api-equivalence.spec.ts`
+- [X] T065 Update quickstart validation notes after implementation details settle in `specs/007-public-wiki-api/quickstart.md`
 - [ ] T066 Run typecheck, lint, unit tests, E2E tests, OpenAPI generation, and Docker Compose verification, then record results in `specs/007-public-wiki-api/tasks.md`
 
 ---
@@ -271,3 +271,13 @@ Search implementation T058 can proceed in parallel with audit adapter hardening 
 - Do not implement MCP, AI knowledge layering, AI governance, or AI-specific API scopes in these tasks.
 - API changes must update generated docs through next-openapi-gen.
 - Existing user work in unrelated dirty files must not be reverted during implementation.
+
+## Validation Log
+
+- 2026-06-29: `pnpm --filter @next-wiki/shared typecheck` passed.
+- 2026-06-29: `pnpm --filter @next-wiki/web typecheck` passed.
+- 2026-06-29: `pnpm --filter @next-wiki/web lint` passed.
+- 2026-06-29: OpenAPI regenerated with `next-openapi-gen`; `/v1/pages`, `/v1/assets`, and `/v1/search/pages` are present in `apps/web/public/openapi.json`.
+- 2026-06-29: `docker compose up -d --build` passed and `docker compose ps` showed healthy database plus running web service.
+- 2026-06-29: Vitest and Playwright E2E remain unverified because direct test database access on `localhost:15433` requires sandbox escalation, and escalation was rejected by the platform usage limit.
+- 2026-06-30: `docker compose up -d --build` passed after switching Docker production build to `next build --webpack`; `docker compose ps` showed healthy database plus running web service.

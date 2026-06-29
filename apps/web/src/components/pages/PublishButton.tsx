@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
-import { getPageHref } from '@/lib/path';
+import { getPageHref, getPublicApiPagePublicationUrl } from '@/lib/path';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 
-export function PublishButton({ path, version }: { path: string; version: number }) {
+export function PublishButton({ pageId, path, version }: { pageId: string; path: string; version: number }) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
-  const publish = useApiMutation<{ path: string; version: number }, { versionId: string }>('/api/revisions/publish', {
+  const publish = useApiMutation<Record<string, never>, unknown>(getPublicApiPagePublicationUrl(pageId, version), {
     onSuccess: () => {
       window.location.href = getPageHref(path);
     },
@@ -32,7 +32,7 @@ export function PublishButton({ path, version }: { path: string; version: number
         disabled={publish.isPending}
         onClick={() => {
           setError(null);
-          publish.mutate({ path, version });
+          publish.mutate({});
         }}
       >
         {publish.isPending ? t('page.publish.button.submitting') : t('page.publish.button.submit')}

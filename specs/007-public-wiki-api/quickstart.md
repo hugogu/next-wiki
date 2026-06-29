@@ -133,6 +133,9 @@ curl -fsS http://127.0.0.1:3000/api/openapi.json | rg '"/api/v1/pages"'
 
 Open `/api-docs` and confirm Public Wiki Content API resources are present.
 
+The generated OpenAPI paths are exposed without the Next.js `/api` prefix, so
+the public page list appears as `/v1/pages` in the OpenAPI document.
+
 Review audit history:
 
 - key owner sees their API-key calls in user audit;

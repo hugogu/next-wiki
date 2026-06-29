@@ -34,6 +34,38 @@ export function getApiPagePrefix(path: string): string {
   return `/api/pages/${encodePath(path)}`;
 }
 
+export function getPublicApiPageUrl(id: string): string {
+  return `/api/v1/pages/${encodeURIComponent(id)}`;
+}
+
+export function getPublicApiPageByPathUrl(path: string): string {
+  return `/api/v1/pages/by-path/${encodePath(path)}`;
+}
+
+export function getPublicApiPagesUrl(): string {
+  return '/api/v1/pages';
+}
+
+export function getPublicApiPageDraftsUrl(pageId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/drafts`;
+}
+
+export function getPublicApiPagePropertiesUrl(pageId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/properties`;
+}
+
+export function getPublicApiPageRevisionsUrl(pageId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions`;
+}
+
+export function getPublicApiPageRevisionUrl(pageId: string, version: number): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions/${version}`;
+}
+
+export function getPublicApiPagePublicationUrl(pageId: string, version: number): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions/${version}/publication`;
+}
+
 export function getApiPageEditUrl(path: string): string {
   return `/api/edit/${encodePath(path)}`;
 }

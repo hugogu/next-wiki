@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createPageInputSchema, type CreatePageInput } from '@next-wiki/shared';
+import { publicPageCreateInputSchema, type PublicPageCreateInput, type PublicPageResource } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { apiPost, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
-import { getPageHref } from '@/lib/path';
+import { getPageHref, getPublicApiPagesUrl } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
@@ -26,8 +26,8 @@ export function CreatePageForm() {
     setValue,
     watch,
     formState: { errors },
-  } = useForm<CreatePageInput>({
-    resolver: zodResolver(createPageInputSchema),
+  } = useForm<PublicPageCreateInput>({
+    resolver: zodResolver(publicPageCreateInputSchema),
     defaultValues: { path: '', title: '', contentSource: '' },
   });
 
@@ -36,11 +36,11 @@ export function CreatePageForm() {
   const contentSource = watch('contentSource');
 
   const onSubmit = useCallback(
-    async (data: CreatePageInput) => {
+    async (data: PublicPageCreateInput) => {
       setServerError(null);
       setIsSaving(true);
       try {
-        await apiPost<CreatePageInput, { pageId: string; versionId: string }>('/api/pages', data);
+        await apiPost<PublicPageCreateInput, PublicPageResource>(getPublicApiPagesUrl(), data);
         window.location.href = getPageHref(data.path);
       } catch (err) {
         const error = err as ApiError;

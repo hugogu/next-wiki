@@ -33,6 +33,21 @@ import {
   updateProfileInputSchema,
   userViewSchema,
   assetUploadResultSchema,
+  publicAssetResourceSchema,
+  publicAssetUploadResultSchema,
+  publicDraftCreateInputSchema,
+  publicPageCreateInputSchema,
+  publicPageListQuerySchema,
+  publicPageListResponseSchema,
+  publicPagePropertiesInputSchema,
+  publicPageResourceSchema,
+  publicPageSearchQuerySchema,
+  publicPageSearchResponseSchema,
+  publicPublicationInputSchema,
+  publicRevisionListQuerySchema,
+  publicRevisionListResponseSchema,
+  publicRevisionResourceSchema,
+  publicSearchResultSchema,
   storageOverviewSchema,
   storageBackendViewSchema,
   storageBackendUpsertSchema,
@@ -137,6 +152,21 @@ export const errorResponseSchema = z
   .describe('API error response');
 
 export const AssetUploadResult = assetUploadResultSchema;
+export const PublicAssetResource = publicAssetResourceSchema;
+export const PublicAssetUploadResult = publicAssetUploadResultSchema;
+export const PublicDraftCreateInput = publicDraftCreateInputSchema;
+export const PublicPageCreateInput = publicPageCreateInputSchema;
+export const PublicPageListQuery = publicPageListQuerySchema;
+export const PublicPageListResponse = publicPageListResponseSchema;
+export const PublicPagePropertiesInput = publicPagePropertiesInputSchema;
+export const PublicPageResource = publicPageResourceSchema;
+export const PublicPageSearchQuery = publicPageSearchQuerySchema;
+export const PublicPageSearchResponse = publicPageSearchResponseSchema;
+export const PublicPublicationInput = publicPublicationInputSchema;
+export const PublicRevisionListQuery = publicRevisionListQuerySchema;
+export const PublicRevisionListResponse = publicRevisionListResponseSchema;
+export const PublicRevisionResource = publicRevisionResourceSchema;
+export const PublicSearchResult = publicSearchResultSchema;
 export const StorageOverview = storageOverviewSchema;
 export const StorageBackendView = storageBackendViewSchema;
 export const StorageBackendUpsert = storageBackendUpsertSchema;

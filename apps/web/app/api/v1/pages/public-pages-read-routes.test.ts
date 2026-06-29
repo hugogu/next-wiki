@@ -1,0 +1,81 @@
+import { randomUUID } from 'node:crypto';
+import { NextRequest } from 'next/server';
+import { describe, expect, it, vi } from 'vitest';
+
+const publicContent = vi.hoisted(() => ({
+  listPages: vi.fn(),
+  getPageById: vi.fn(),
+  getPageByPath: vi.fn(),
+}));
+
+vi.mock('@/server/api/audit-wrapper', () => ({
+  withApiAudit: (handler: unknown) => handler,
+}));
+vi.mock('@/server/api/session', () => ({
+  createApiContext: vi.fn(async () => ({ actor: { kind: 'api_key', userId: 'reader', role: 'reader', scopes: ['view'], keyId: 'key' } })),
+}));
+vi.mock('@/server/services/public-content', () => publicContent);
+
+import * as listRoute from './route';
+import * as idRoute from './[id]/route';
+import * as byPathRoute from './by-path/[...path]/route';
+
+describe('Public Wiki read routes', () => {
+  it('GET /api/v1/pages validates query and delegates to the public content service', async () => {
+    publicContent.listPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const response = await listRoute.GET(
+      new NextRequest('http://localhost/api/v1/pages?limit=10&order=recent'),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publicContent.listPages).toHaveBeenCalledWith(expect.anything(), {
+      status: 'published',
+      limit: 10,
+      order: 'recent',
+    });
+  });
+
+  it('GET /api/v1/pages/[id] rejects invalid ids and returns hidden pages as 404', async () => {
+    const invalid = await idRoute.GET(
+      new NextRequest('http://localhost/api/v1/pages/not-a-uuid'),
+      { params: Promise.resolve({ id: 'not-a-uuid' }) },
+    );
+    expect(invalid.status).toBe(422);
+
+    publicContent.getPageById.mockResolvedValue(null);
+    const missing = await idRoute.GET(
+      new NextRequest('http://localhost/api/v1/pages/00000000-0000-0000-0000-000000000000'),
+      { params: Promise.resolve({ id: '00000000-0000-0000-0000-000000000000' }) },
+    );
+    expect(missing.status).toBe(404);
+  });
+
+  it('GET /api/v1/pages/by-path/[...path] decodes canonical path segments', async () => {
+    const pageId = randomUUID();
+    publicContent.getPageByPath.mockResolvedValue({
+      id: pageId,
+      spaceSlug: 'default',
+      path: 'docs/intro',
+      locale: 'en',
+      title: 'Intro',
+      contentSource: '# Intro',
+      status: 'published',
+      author: { id: null, displayName: null },
+      latestRevision: null,
+      publishedRevision: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      links: { self: '', byPath: '', revisions: '', drafts: '', properties: '' },
+    });
+
+    const response = await byPathRoute.GET(
+      new NextRequest('http://localhost/api/v1/pages/by-path/docs/intro'),
+      { params: Promise.resolve({ path: ['docs', 'intro'] }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publicContent.getPageByPath).toHaveBeenCalledWith(expect.anything(), 'docs/intro');
+  });
+});

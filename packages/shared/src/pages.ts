@@ -54,3 +54,138 @@ export const updatePagePropertiesSchema = z.object({
   path: pathSchema,
 });
 export type UpdatePagePropertiesInput = z.infer<typeof updatePagePropertiesSchema>;
+
+export const publicPageStatusSchema = z.enum(['draft', 'published', 'deleted']);
+export type PublicPageStatus = z.infer<typeof publicPageStatusSchema>;
+
+export const publicRevisionStatusSchema = z.enum(['draft', 'published']);
+export type PublicRevisionStatus = z.infer<typeof publicRevisionStatusSchema>;
+
+export const publicAuthorSchema = z.object({
+  id: z.string().uuid().nullable(),
+  displayName: z.string().nullable(),
+});
+export type PublicAuthor = z.infer<typeof publicAuthorSchema>;
+
+export const publicRevisionSummarySchema = z.object({
+  id: z.string().uuid(),
+  pageId: z.string().uuid(),
+  version: z.number().int().min(1),
+  status: publicRevisionStatusSchema,
+  contentType: z.literal('text/markdown'),
+  contentHash: z.string(),
+  author: publicAuthorSchema,
+  createdAt: z.string(),
+  publishedAt: z.string().nullable(),
+  canPublish: z.boolean(),
+});
+export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
+
+export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
+  contentSource: z.string().optional(),
+});
+export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
+
+export const publicPageResourceSchema = z.object({
+  id: z.string().uuid(),
+  spaceSlug: z.string(),
+  path: pathSchema,
+  locale: z.string(),
+  title: z.string(),
+  contentSource: z.string().optional(),
+  status: publicPageStatusSchema,
+  author: publicAuthorSchema,
+  latestRevision: publicRevisionSummarySchema.nullable(),
+  publishedRevision: publicRevisionSummarySchema.nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  links: z.object({
+    self: z.string(),
+    byPath: z.string(),
+    revisions: z.string(),
+    drafts: z.string(),
+    properties: z.string(),
+  }),
+});
+export type PublicPageResource = z.infer<typeof publicPageResourceSchema>;
+
+export const publicPageListQuerySchema = z.object({
+  status: z.enum(['published', 'draft', 'all']).default('published'),
+  q: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+  order: z.enum(['path', 'recent']).default('path'),
+});
+export type PublicPageListQuery = z.infer<typeof publicPageListQuerySchema>;
+
+export const publicPageListResponseSchema = z.object({
+  items: z.array(publicPageResourceSchema),
+  nextCursor: z.string().nullable(),
+});
+export type PublicPageListResponse = z.infer<typeof publicPageListResponseSchema>;
+
+export const publicPageCreateInputSchema = z.object({
+  path: pathSchema,
+  locale: z.string().min(1).max(20).optional(),
+  title: z.string().min(1).max(200),
+  contentSource: z.string().min(1),
+});
+export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
+
+export const publicDraftCreateInputSchema = z.object({
+  title: z.string().min(1).max(200),
+  contentSource: z.string().min(1),
+  baseRevisionId: z.string().uuid().optional(),
+  baseContentHash: z.string().optional(),
+});
+export type PublicDraftCreateInput = z.infer<typeof publicDraftCreateInputSchema>;
+
+export const publicPagePropertiesInputSchema = z.object({
+  path: pathSchema.optional(),
+  title: z.string().min(1).max(200).optional(),
+  baseRevisionId: z.string().uuid().optional(),
+}).refine((value) => value.path || value.title, {
+  message: 'Provide path or title',
+});
+export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
+
+export const publicRevisionListQuerySchema = z.object({
+  status: z.enum(['published', 'draft', 'all']).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+});
+export type PublicRevisionListQuery = z.infer<typeof publicRevisionListQuerySchema>;
+
+export const publicRevisionListResponseSchema = z.object({
+  items: z.array(publicRevisionResourceSchema),
+  nextCursor: z.string().nullable(),
+});
+export type PublicRevisionListResponse = z.infer<typeof publicRevisionListResponseSchema>;
+
+export const publicPublicationInputSchema = z.object({
+  expectedRevisionId: z.string().uuid().optional(),
+});
+export type PublicPublicationInput = z.infer<typeof publicPublicationInputSchema>;
+
+export const publicPageSearchQuerySchema = z.object({
+  q: z.string().min(1).max(200),
+  scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
+  status: z.enum(['published', 'draft', 'all']).default('published'),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+});
+export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
+
+export const publicSearchResultSchema = z.object({
+  page: publicPageResourceSchema,
+  matchType: z.enum(['path', 'title', 'content']),
+  excerpt: z.string().nullable(),
+  score: z.number().nullable(),
+});
+export type PublicSearchResult = z.infer<typeof publicSearchResultSchema>;
+
+export const publicPageSearchResponseSchema = z.object({
+  items: z.array(publicSearchResultSchema),
+  nextCursor: z.string().nullable(),
+});
+export type PublicPageSearchResponse = z.infer<typeof publicPageSearchResponseSchema>;

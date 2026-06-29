@@ -15,7 +15,7 @@ function getUserId(ctx: PermCtx): string | null {
 
 export async function publish(
   ctx: PermCtx,
-  input: { path: string; version: number },
+  input: { path: string; version: number; expectedRevisionId?: string },
 ): Promise<{ versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -46,6 +46,10 @@ export async function publish(
       ),
     });
     if (!revision) throw new DomainError('NOT_FOUND', 'Revision not found');
+
+    if (input.expectedRevisionId && revision.id !== input.expectedRevisionId) {
+      throw new DomainError('STALE_REVISION', 'The revision does not match the expected revision id');
+    }
 
     const isAuthor = revision.authorId === userId;
     if (!can(ctx, 'publish', { kind: 'revision', pageId: page.id, version: input.version }, { isAuthor })) {

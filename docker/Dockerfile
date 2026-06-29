@@ -17,7 +17,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://localhost:5432/next_wiki
 RUN pnpm --filter @next-wiki/web exec drizzle-kit generate
-RUN pnpm --filter @next-wiki/web build
+RUN pnpm --filter @next-wiki/web exec next build --webpack
 
 FROM ${NODE_IMAGE} AS runner
 RUN apk add --no-cache git openssh-client

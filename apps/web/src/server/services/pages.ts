@@ -345,7 +345,7 @@ export async function create(
 export async function newDraft(
   ctx: PermCtx,
   path: string,
-  input: { title: string; contentSource: string },
+  input: { title: string; contentSource: string; baseRevisionId?: string; baseContentHash?: string },
 ): Promise<{ versionId: string; versionNumber: number }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -371,6 +371,19 @@ export async function newDraft(
 
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id })) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
+    }
+
+    if (input.baseRevisionId && page.latestVersionId !== input.baseRevisionId) {
+      throw new DomainError('STALE_REVISION', 'The page has changed since the supplied base revision');
+    }
+
+    if (input.baseContentHash && page.latestVersionId) {
+      const latest = await tx.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, page.latestVersionId),
+      });
+      if (latest && latest.contentHash !== input.baseContentHash) {
+        throw new DomainError('STALE_REVISION', 'The page has changed since the supplied content hash');
+      }
     }
 
     const maxResult = await tx
@@ -419,7 +432,7 @@ export async function newDraft(
 export async function updateProperties(
   ctx: PermCtx,
   currentPath: string,
-  input: { path: string },
+  input: { path?: string; title?: string; baseRevisionId?: string },
 ): Promise<{ pageId: string; newPath: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -429,9 +442,15 @@ export async function updateProperties(
   const space = await getDefaultSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
-  const pathCheck = pathSchema.safeParse(input.path);
-  if (!pathCheck.success) {
-    throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
+  if (!input.path && !input.title) {
+    throw new DomainError('BAD_REQUEST', 'Provide path or title');
+  }
+
+  if (input.path) {
+    const pathCheck = pathSchema.safeParse(input.path);
+    if (!pathCheck.success) {
+      throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
+    }
   }
 
   const result = await db.transaction(async (tx) => {
@@ -449,9 +468,14 @@ export async function updateProperties(
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
 
-    if (input.path !== currentPath) {
+    if (input.baseRevisionId && page.latestVersionId !== input.baseRevisionId) {
+      throw new DomainError('STALE_REVISION', 'The page has changed since the supplied base revision');
+    }
+
+    const nextPath = input.path ?? currentPath;
+    if (nextPath !== currentPath) {
       const existing = await tx.query.pages.findFirst({
-        where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, input.path)),
+        where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, nextPath)),
       });
       if (existing) {
         throw new DomainError('CONFLICT', 'A page with this path already exists');
@@ -461,15 +485,16 @@ export async function updateProperties(
     await tx
       .update(schema.pages)
       .set({
-        path: input.path,
-        slug: leafSlugFromPath(input.path),
+        path: nextPath,
+        slug: leafSlugFromPath(nextPath),
+        ...(input.title ? { title: input.title } : {}),
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, page.id));
 
-    return { pageId: page.id, newPath: input.path };
+    return { pageId: page.id, newPath: nextPath };
   });
-  if (input.path !== currentPath) await enqueueGitExport('publish');
+  if (result.newPath !== currentPath) await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   return result;
 }

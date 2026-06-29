@@ -35,7 +35,8 @@ export default async function HistoryPage({ params }: { params: Params }) {
   }
 
   const pageContext = page
-    ? {
+      ? {
+        pageId: page.pageId,
         path,
         title: page.title,
         status: page.status,
@@ -69,8 +70,8 @@ export default async function HistoryPage({ params }: { params: Params }) {
                     {t('page.history.revisionMeta', { date: new Date(r.createdAt).toLocaleDateString(locale), name: r.authorDisplayName ?? t('common.unknownAuthor') })}
                   </p>
                 </div>
-                {r.status === 'draft' && r.canPublish ? (
-                  <PublishButton path={path} version={r.version} />
+                {r.status === 'draft' && r.canPublish && page?.pageId ? (
+                  <PublishButton pageId={page.pageId} path={path} version={r.version} />
                 ) : null}
               </li>
             ))}

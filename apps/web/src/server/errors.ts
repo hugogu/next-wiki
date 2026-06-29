@@ -13,6 +13,8 @@ export type DomainErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'CONFLICT'
+  | 'STALE_REVISION'
+  | 'REVISION_ALREADY_PUBLISHED'
   // Content storage (003).
   | 'INVALID_IMAGE' // 400: rejected upload (bad type/size)
   | 'STORAGE_MIGRATING' // 423: write blocked by an in-progress backend migration

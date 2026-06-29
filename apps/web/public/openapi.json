@@ -288,6 +288,18 @@
         },
         "description": "List of published page summaries"
       },
+      "paramsSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "PreviewInput": {
         "type": "object",
         "properties": {
@@ -358,6 +370,39 @@
           "displayName"
         ],
         "description": "Profile view"
+      },
+      "PublicAssetResource": {
+        "type": "object"
+      },
+      "PublicAssetUploadResult": {
+        "type": "object"
+      },
+      "PublicDraftCreateInput": {
+        "type": "object"
+      },
+      "PublicPageCreateInput": {
+        "type": "object"
+      },
+      "PublicPageListResponse": {
+        "type": "object"
+      },
+      "PublicPagePropertiesInput": {
+        "type": "object"
+      },
+      "PublicPageResource": {
+        "type": "object"
+      },
+      "PublicPageSearchResponse": {
+        "type": "object"
+      },
+      "PublicPublicationInput": {
+        "type": "object"
+      },
+      "PublicRevisionListResponse": {
+        "type": "object"
+      },
+      "PublicRevisionResource": {
+        "type": "object"
       },
       "RegisterInput": {
         "type": "object",
@@ -3867,6 +3912,516 @@
         "responses": {}
       }
     },
+    "/v1/assets": {
+      "post": {
+        "operationId": "post-v1-assets",
+        "summary": "Upload public wiki asset",
+        "description": "Uploads an image asset and returns a Markdown-ready public reference.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicAssetUploadResultSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages": {
+      "get": {
+        "operationId": "get-v1-pages",
+        "summary": "List public wiki pages",
+        "description": "Lists pages visible to the caller through the stable Public Wiki Content API.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageListResponseSchema"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-v1-pages",
+        "summary": "Create public wiki page",
+        "description": "Creates a page through the stable Public Wiki Content API.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/publicPageCreateInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{id}": {
+      "get": {
+        "operationId": "get-v1-assets-{id}",
+        "summary": "Get public wiki asset metadata",
+        "description": "Returns asset metadata if the caller may read the asset.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicAssetResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}": {
+      "get": {
+        "operationId": "get-v1-pages-{id}",
+        "summary": "Get public wiki page by id",
+        "description": "Returns public page metadata and readable Markdown source for a stable page id.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search/pages": {
+      "get": {
+        "operationId": "get-v1-search-pages",
+        "summary": "Search public wiki pages",
+        "description": "Searches readable pages by path, title, or Markdown source.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageSearchResponseSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{id}/content": {
+      "get": {
+        "operationId": "get-v1-assets-{id}-content",
+        "summary": "Get public wiki asset content",
+        "description": "Streams asset bytes if the caller may read the asset.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/drafts": {
+      "post": {
+        "operationId": "post-v1-pages-{id}-drafts",
+        "summary": "Create public wiki page draft",
+        "description": "Creates a new draft revision from Markdown source.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/publicDraftCreateInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicRevisionResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/properties": {
+      "patch": {
+        "operationId": "patch-v1-pages-{id}-properties",
+        "summary": "Update public wiki page properties",
+        "description": "Updates page title and/or canonical path through the public content API.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/publicPagePropertiesInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-revisions",
+        "summary": "List public wiki page revisions",
+        "description": "Lists revisions visible to the caller.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicRevisionListResponseSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/by-path/{path}": {
+      "get": {
+        "operationId": "get-v1-pages-by-path-{path}",
+        "summary": "Get public wiki page by path",
+        "description": "Returns public page metadata and readable Markdown source for a canonical page path.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions/{version}": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-revisions-{version}",
+        "summary": "Get public wiki page revision",
+        "description": "Returns visible revision metadata and readable Markdown source.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: version"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicRevisionResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions/{version}/publication": {
+      "post": {
+        "operationId": "post-v1-pages-{id}-revisions-{version}-publication",
+        "summary": "Publish public wiki page revision",
+        "description": "Publishes an eligible draft revision and returns the updated public page resource.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: version"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/publicPublicationInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/revisions/publish": {
       "post": {
         "operationId": "post-revisions-publish",
@@ -4668,6 +5223,9 @@
     },
     {
       "name": "Properties"
+    },
+    {
+      "name": "Public Wiki Content"
     },
     {
       "name": "Revisions"

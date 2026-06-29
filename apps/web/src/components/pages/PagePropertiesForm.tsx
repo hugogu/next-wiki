@@ -4,28 +4,28 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { updatePagePropertiesSchema, type UpdatePagePropertiesInput } from '@next-wiki/shared';
+import { publicPagePropertiesInputSchema, type PublicPagePropertiesInput, type PublicPageResource, updatePagePropertiesSchema, type UpdatePagePropertiesInput } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
-import { getApiPagePropertiesUrl, getPageHref } from '@/lib/path';
+import { getPublicApiPagePropertiesUrl, getPageHref } from '@/lib/path';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
-export function PagePropertiesForm({ path }: { path: string }) {
+export function PagePropertiesForm({ pageId, path }: { pageId: string; path: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
-  const update = useApiMutation<UpdatePagePropertiesInput, { pageId: string; newPath: string }>(getApiPagePropertiesUrl(path), {
+  const update = useApiMutation<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPagePropertiesUrl(pageId), {
     method: 'PATCH',
     onSuccess: (data) => {
-      if (data.newPath === path) {
+      if (data.path === path) {
         router.refresh();
       } else {
-        window.location.href = getPageHref(data.newPath) + '/properties';
+        window.location.href = getPageHref(data.path) + '/properties';
       }
     },
     onError: (err: ApiError) => {
-      if (err.code === 'CONFLICT') {
+      if (err.code === 'CONFLICT' || err.code === 'PAGE_PATH_CONFLICT') {
         setServerError(t('page.properties.error.pathExists'));
       } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setServerError(t('page.properties.error.forbidden'));
@@ -48,7 +48,7 @@ export function PagePropertiesForm({ path }: { path: string }) {
     <form
       onSubmit={handleSubmit((data) => {
         setServerError(null);
-        update.mutate(data);
+        update.mutate(publicPagePropertiesInputSchema.parse(data));
       })}
       className="bg-surface border border-border rounded-lg p-lg space-y-md"
     >
