@@ -1,16 +1,17 @@
 'use client';
 
 import { useId } from 'react';
-import { ProsePreviewSample } from '@/components/appearance/ProsePreviewSample';
+import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { useTranslation } from '@/i18n/client';
 
 /**
  * Live preview of the admin's system-theme CSS. The candidate CSS is injected
- * into a sandboxed wrapper that renders a small app-shell mock (header,
- * sidebar, button, card) plus the shared `.prose` sample. Colors come from the
- * active reading-theme tokens — the admin's CSS controls layout/structure.
+ * into a sandboxed wrapper that renders a small app-shell mock plus a real
+ * rendered-Markdown sample (syntax-highlighted code, KaTeX math, and a Mermaid
+ * diagram), so the admin's CSS can target `.prose`, `.hljs`, `.katex`, and
+ * `.mermaid` exactly as on real pages. Colors come from the reading-theme tokens.
  */
-export function SystemThemePreview({ css }: { css: string }) {
+export function SystemThemePreview({ css, sampleHtml }: { css: string; sampleHtml: string }) {
   const { t } = useTranslation();
   const scopeClass = `stp-${useId().replace(/[:]/g, '')}`;
   // Neutralize the globally-active system theme inside this preview so it shows
@@ -38,7 +39,7 @@ export function SystemThemePreview({ css }: { css: string }) {
             {t('admin.appearance.preview.button')}
           </span>
         </div>
-        <ProsePreviewSample />
+        <ContentRenderer html={sampleHtml} />
       </div>
     </div>
   );

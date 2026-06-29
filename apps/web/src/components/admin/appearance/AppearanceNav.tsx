@@ -9,8 +9,8 @@ export function AppearanceNav() {
   const pathname = usePathname();
   const { t } = useTranslation();
   const items = [
-    { href: '/admin/appearance', label: t('admin.appearance.tabs.system') },
-    { href: '/admin/appearance/site', label: t('admin.appearance.tabs.site') },
+    { href: '/admin/appearance', label: t('admin.appearance.tabs.site') },
+    { href: '/admin/appearance/system', label: t('admin.appearance.tabs.system') },
   ];
   return (
     <nav className="flex gap-xs border-b border-border">

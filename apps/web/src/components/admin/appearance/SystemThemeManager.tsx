@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type {
   SystemThemeListView,
   SystemThemeView,
@@ -11,8 +12,18 @@ import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
 import { SystemThemePreview } from './SystemThemePreview';
 
-export function SystemThemeManager({ initial }: { initial: SystemThemeListView }) {
+export function SystemThemeManager({
+  initial,
+  sampleHtml,
+}: {
+  initial: SystemThemeListView;
+  sampleHtml: string;
+}) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const themeParam = searchParams.get('theme');
   const [themes, setThemes] = useState(initial.themes);
   const [activeThemeId, setActiveThemeId] = useState(initial.activeThemeId);
   const [detail, setDetail] = useState<SystemThemeView | null>(null);
@@ -21,6 +32,11 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  /** The selected theme lives in the URL (?theme=<id>) so it is deep-linkable. */
+  const selectInUrl = (id: string | null) => {
+    router.replace(id ? `${pathname}?theme=${id}` : pathname, { scroll: false });
+  };
 
   async function refreshList() {
     const res = await fetch('/api/system-themes');
@@ -31,9 +47,13 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
     }
   }
 
-  async function selectTheme(id: string) {
+  async function selectTheme(id: string | null) {
     setError(null);
     setNotice(null);
+    if (!id) {
+      setDetail(null);
+      return;
+    }
     const res = await fetch(`/api/system-themes/${id}`);
     if (!res.ok) {
       setError(t('admin.appearance.error.generic'));
@@ -82,6 +102,7 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
       setDetail(created);
       setDraftName(created.name);
       setDraftCss(created.css);
+      selectInUrl(created.id);
       setNotice(t('admin.appearance.copied'));
     });
 
@@ -113,6 +134,7 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
         return;
       }
       setDetail(null);
+      selectInUrl(null);
       await refreshList();
       setNotice(t('admin.appearance.deleted'));
     });
@@ -130,6 +152,14 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
     }
   }
 
+  useEffect(() => {
+    // The URL ?theme param is the source of truth for the selection; fetch (or
+    // clear) the theme it points to. This is a deliberate URL→state sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void selectTheme(themeParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeParam]);
+
   return (
     <div className="grid gap-lg md:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="space-y-xs">
@@ -140,7 +170,7 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
             <button
               key={theme.id}
               type="button"
-              onClick={() => selectTheme(theme.id)}
+              onClick={() => selectInUrl(theme.id)}
               className={`flex w-full items-center justify-between gap-sm rounded-md px-md py-sm text-left text-sm ${
                 selected ? 'bg-surface-elevated' : 'hover:bg-surface-elevated'
               }`}
@@ -236,7 +266,7 @@ export function SystemThemeManager({ initial }: { initial: SystemThemeListView }
             </div>
 
             <div className="lg:sticky lg:top-md lg:self-start">
-              <SystemThemePreview css={draftCss} />
+              <SystemThemePreview css={draftCss} sampleHtml={sampleHtml} />
             </div>
           </div>
         )}
