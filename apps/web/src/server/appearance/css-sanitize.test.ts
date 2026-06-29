@@ -47,4 +47,23 @@ describe('sanitizeSystemThemeCss', () => {
   it('rejects invalid CSS', () => {
     expect(() => sanitizeSystemThemeCss('this is not css }}}')).toThrow(DomainError);
   });
+
+  it('keeps token (var) colors and content but strips hardcoded colors', () => {
+    const out = sanitizeSystemThemeCss(
+      'blockquote::before { content: "Q"; background-color: var(--color-muted); color: var(--color-surface); } .x { background: #fff; color: rgb(0,0,0); }',
+    );
+    expect(out).toContain('content:');
+    expect(out).toContain('background-color: var(--color-muted)');
+    expect(out).toContain('color: var(--color-surface)');
+    expect(out).not.toContain('#fff');
+    expect(out).not.toContain('rgb(');
+  });
+
+  it('allows flex/grid alignment properties', () => {
+    const out = sanitizeSystemThemeCss(
+      '.x { display: flex; align-items: center; justify-content: center; gap: 1rem; }',
+    );
+    expect(out).toContain('align-items: center');
+    expect(out).toContain('justify-content: center');
+  });
 });

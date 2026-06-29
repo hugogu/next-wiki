@@ -49,8 +49,11 @@ edit, rename, delete custom themes, and activate one via
 
 **Validation** (Zod `@next-wiki/shared/system-theme.ts`): `css` passes
 `sanitizeSystemThemeCss` (allowlisted properties incl. layout/keyframes; no
-remote `url()` / `@import`; no color declarations — colors stay token-driven so
-light/dark stays consistent, R5 / FR-017); enforce a max size. `name` is
+remote `url()` / `@import`; color-bearing properties allowed only with a design
+token (`var(--…)`) or safe keyword — hardcoded hex/rgb stripped — so colors stay
+token-driven and light/dark stays consistent; `content` and flex/grid alignment
+permitted for decorations like the blockquote icon, R5 / FR-017); enforce a max
+size. `name` is
 non-empty, length-bounded, and unique. Built-in rows are immutable via the API
 (editing one offers a copy instead).
 

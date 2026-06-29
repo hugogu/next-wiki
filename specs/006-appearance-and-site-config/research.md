@@ -123,9 +123,10 @@ consistency (FR-011a).
 
 > **Amended:** the sanitized free-form CSS is now the **admin system theme**
 > (`sanitizeSystemThemeCss` in `css-sanitize.ts`), not per-user Markdown CSS.
-> The allowlist additionally permits layout properties and `@keyframes`; it
-> still strips remote `url()` / `@import` and all color declarations, and the
-> CSS is applied to the app shell (per-user reading colors come from tokens).
+> The allowlist additionally permits layout properties, `@keyframes`, `content`,
+> and flex/grid alignment; it still strips remote `url()` / `@import`, and allows
+> color-bearing properties only with design-token values (`var(--…)`) or safe
+> keywords — hardcoded colors are stripped so themes stay light/dark-consistent.
 
 **Decision**: Sanitize on save in `css-sanitize.ts`:
 1. Parse the CSS with **`postcss`** (already transitively present in the

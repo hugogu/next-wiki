@@ -136,10 +136,34 @@ const WIKIJS_CSS = `/* Wiki.js-inspired — GitHub-style content (Wiki.js render
   margin-bottom: var(--space-md);
 }
 .prose.prose blockquote {
-  padding: 0 1em;
-  border-left-width: 0.25em;
-  border-left-style: solid;
+  position: relative;
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  padding-left: 4.5rem;
+  min-height: 3.5rem;
+  background-color: var(--color-surface-elevated);
+  border-radius: var(--radius-md);
+  border-left-width: 0;
   font-style: normal;
+  overflow: hidden;
+}
+.prose.prose blockquote::before {
+  /* Quote icon — edit this glyph to customize the blockquote icon. */
+  content: '“';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-muted);
+  color: var(--color-surface);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2.75rem;
+  line-height: 1;
 }
 .prose.prose pre {
   padding: var(--space-md);

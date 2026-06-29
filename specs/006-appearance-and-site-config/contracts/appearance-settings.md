@@ -12,7 +12,9 @@ Base: `app/api/system-themes/route.ts` (+ `[id]/route.ts`, `active/route.ts`).
 REST + OpenAPI, shared service (`src/server/services/system-theme.ts`), Zod in
 `@next-wiki/shared/system-theme.ts`. Writes gated by `manage_appearance` via
 `can()`. CSS is sanitized on save (`sanitizeSystemThemeCss`: layout/typography
-allowlist incl. `@keyframes`; no color/background; no remote `url()`/`@import`).
+allowlist incl. `@keyframes`, `content`, and flex/grid alignment; color-bearing
+properties allowed only with `var(--…)` tokens or safe keywords — hardcoded
+colors and remote `url()`/`@import` are stripped).
 
 ## `GET /api/system-themes`
 
