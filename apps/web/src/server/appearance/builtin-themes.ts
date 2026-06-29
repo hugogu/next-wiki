@@ -14,134 +14,157 @@ export interface BuiltInSystemTheme {
 export const DEFAULT_THEME_ID = '00000000-0000-0000-0000-0000000000e1';
 export const WIKIJS_THEME_ID = '00000000-0000-0000-0000-0000000000e2';
 
+// Built-in CSS targets the content container (.prose.prose, doubled for
+// specificity so it wins over the base globals.css .prose rules). Colors and
+// backgrounds are intentionally omitted — they come from the active theme
+// tokens — so the stylesheets pass the sanitizer unchanged.
+
 const DEFAULT_CSS = `/* Default — the standard next-wiki content style. Copy and tweak to customize. */
-/* Colors are inherited from the active theme tokens, so none are set here. */
-h1,
-h2,
-h3,
-h4 {
+/* Mirrors the built-in baseline: plain headings (no underline rules),
+   token-driven sizes, a left-bordered blockquote, and bordered tables.
+   Colors are inherited from the active theme tokens. */
+.prose.prose {
+  line-height: 1.75;
+}
+.prose.prose h1,
+.prose.prose h2,
+.prose.prose h3,
+.prose.prose h4 {
   font-family: var(--font-display);
   font-weight: 600;
   margin-top: var(--space-xl);
   margin-bottom: var(--space-md);
 }
-h1 {
+.prose.prose h1 {
   font-size: var(--font-size-h1);
   line-height: 1.2;
 }
-h2 {
+.prose.prose h2 {
   font-size: var(--font-size-h2);
 }
-h3 {
+.prose.prose h3 {
   font-size: var(--font-size-h3);
 }
-p {
-  line-height: 1.75;
+.prose.prose p {
   margin-bottom: var(--space-md);
 }
-a {
+.prose.prose a {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-blockquote {
+.prose.prose blockquote {
   padding-left: var(--space-md);
   border-left-width: 3px;
   border-left-style: solid;
   font-style: italic;
 }
-pre {
+.prose.prose pre {
   padding: var(--space-md);
   border-radius: var(--radius-md);
   border-width: 1px;
   border-style: solid;
   font-size: 0.875rem;
 }
-code {
+.prose.prose code {
   font-family: var(--font-mono);
   font-size: 0.875em;
   padding: 0.125rem 0.375rem;
   border-radius: var(--radius-sm);
 }
-ul,
-ol {
+.prose.prose ul,
+.prose.prose ol {
   padding-left: var(--space-lg);
   margin-bottom: var(--space-md);
 }
-ul {
+.prose.prose ul {
   list-style-type: disc;
 }
-ol {
+.prose.prose ol {
   list-style-type: decimal;
 }
-li {
+.prose.prose li {
   margin-bottom: var(--space-xs);
 }
-table {
-  margin-bottom: var(--space-md);
-  font-size: 0.9375rem;
-}
-th,
-td {
+.prose.prose th,
+.prose.prose td {
   padding: var(--space-sm) var(--space-md);
   border-width: 1px;
   border-style: solid;
+  text-align: left;
 }
-th {
+.prose.prose th {
   font-weight: 600;
 }
 `;
 
-const WIKIJS_CSS = `/* Wiki.js-inspired — bolder headings with underlines, tighter body. */
-h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1.3;
+const WIKIJS_CSS = `/* Wiki.js-inspired — GitHub-style content (Wiki.js renders Markdown this way). */
+/* Sans-serif headings, h1/h2 underlined with a bottom rule, tighter body,
+   GitHub-sized table cells and list indents. Border/line colors come from the
+   active theme tokens (this theme sets only geometry). */
+.prose.prose {
+  line-height: 1.5;
+}
+.prose.prose h1,
+.prose.prose h2,
+.prose.prose h3,
+.prose.prose h4 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: 1.25;
   margin-top: var(--space-xl);
-  padding-bottom: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+.prose.prose h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
   border-bottom-width: 1px;
   border-bottom-style: solid;
 }
-h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  padding-bottom: var(--space-xs);
+.prose.prose h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
   border-bottom-width: 1px;
   border-bottom-style: solid;
 }
-h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
+.prose.prose h3 {
+  font-size: 1.25em;
 }
-p {
-  line-height: 1.6;
+.prose.prose h4 {
+  font-size: 1em;
 }
-blockquote {
-  padding: var(--space-sm) var(--space-md);
-  border-left-width: 4px;
+.prose.prose p {
+  margin-bottom: var(--space-md);
+}
+.prose.prose blockquote {
+  padding: 0 1em;
+  border-left-width: 0.25em;
   border-left-style: solid;
   font-style: normal;
 }
-pre {
+.prose.prose pre {
   padding: var(--space-md);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-}
-code {
-  font-family: var(--font-mono);
+  border-radius: var(--radius-md);
   font-size: 0.85em;
 }
-ul,
-ol {
-  padding-left: var(--space-xl);
+.prose.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-sm);
 }
-th,
-td {
-  padding: var(--space-sm) var(--space-md);
+.prose.prose ul,
+.prose.prose ol {
+  padding-left: 2em;
+  margin-bottom: var(--space-md);
+}
+.prose.prose th,
+.prose.prose td {
+  padding: 0.375rem 0.8125rem;
   border-width: 1px;
   border-style: solid;
 }
-th {
-  font-weight: 700;
+.prose.prose th {
+  font-weight: 600;
 }
 `;
 
