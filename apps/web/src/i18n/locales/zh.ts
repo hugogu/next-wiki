@@ -80,9 +80,13 @@ export const zh: Translations = {
   'home.tagline': '一个宁静、专注的团队知识库。',
   'home.empty.title': '暂无已发布页面',
   'home.empty.body': '编辑者发布页面后，内容将显示在这里。',
-  'home.publishedPagesTitle': '已发布页面',
+  'home.recentPagesTitle': '最新页面',
+  'home.viewAllPages': '查看全部页面',
   'home.page.publishedOn': '发布于 {{date}}',
   'home.page.updatedRecently': '最近更新',
+  'pages.list.metadataTitle': '全部页面',
+  'pages.list.title': '全部页面',
+  'pages.list.empty': '暂无已发布页面。',
 
   // Page read
   'page.read.draftBanner': '此页面为草稿，尚未发布。',

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNull, desc, max } from 'drizzle-orm';
+import { eq, and, isNull, desc, max, count } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
@@ -48,7 +48,22 @@ async function readRevisionMarkdown(revision: {
   return readMarkdownWithFallback(revision);
 }
 
-export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
+export interface ListPublishedOptions {
+  /** Cap the number of rows returned. Omit for the full list. */
+  limit?: number;
+  /** Skip this many rows (for paging). Omit to start at the first row. */
+  offset?: number;
+  /**
+   * `path` (default) keeps the stable alphabetical order used by navigation;
+   * `recent` returns the most recently published pages first.
+   */
+  order?: 'path' | 'recent';
+}
+
+export async function listPublished(
+  ctx: PermCtx,
+  options: ListPublishedOptions = {},
+): Promise<PageSummary[]> {
   const space = await getDefaultSpace();
   if (!space) return [];
 
@@ -56,7 +71,7 @@ export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
     return [];
   }
 
-  const rows = await db
+  const query = db
     .select({
       path: schema.pages.path,
       title: schema.pages.title,
@@ -73,7 +88,14 @@ export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
         isNull(schema.pages.deletedAt),
       ),
     )
-    .orderBy(schema.pages.path);
+    .orderBy(
+      options.order === 'recent' ? desc(schema.pageRevisions.publishedAt) : schema.pages.path,
+    )
+    .$dynamic();
+
+  const limited = options.limit != null ? query.limit(options.limit) : query;
+  const paged = options.offset != null ? limited.offset(options.offset) : limited;
+  const rows = await paged;
 
   return rows.map((r) => ({
     path: r.path,
@@ -82,6 +104,29 @@ export async function listPublished(ctx: PermCtx): Promise<PageSummary[]> {
     publishedAt: r.publishedAt?.toISOString() ?? null,
     updatedAt: r.updatedAt.toISOString(),
   }));
+}
+
+/** Total number of published pages in the default space, mirroring `listPublished`'s filter. */
+export async function countPublished(ctx: PermCtx): Promise<number> {
+  const space = await getDefaultSpace();
+  if (!space) return 0;
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+    return 0;
+  }
+
+  const [row] = await db
+    .select({ value: count() })
+    .from(schema.pages)
+    .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
+    .where(
+      and(
+        eq(schema.pages.spaceId, space.id),
+        isNull(schema.pages.deletedAt),
+      ),
+    );
+
+  return row?.value ?? 0;
 }
 
 export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | null> {

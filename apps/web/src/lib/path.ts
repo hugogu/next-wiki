@@ -10,6 +10,10 @@ export function getPageHref(path: string): string {
   return `/${encodePath(path)}`;
 }
 
+export function getPagesHref(): string {
+  return '/pages';
+}
+
 export function getEditHref(path: string): string {
   return `/edit/${encodePath(path)}`;
 }

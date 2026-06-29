@@ -80,9 +80,13 @@ export const en = {
   'home.tagline': 'A calm, focused place for team knowledge.',
   'home.empty.title': 'No published pages yet',
   'home.empty.body': 'Pages will appear here once an editor publishes them.',
-  'home.publishedPagesTitle': 'Published pages',
+  'home.recentPagesTitle': 'Latest pages',
+  'home.viewAllPages': 'View all pages',
   'home.page.publishedOn': 'Published {{date}}',
   'home.page.updatedRecently': 'Updated recently',
+  'pages.list.metadataTitle': 'All pages',
+  'pages.list.title': 'All pages',
+  'pages.list.empty': 'No published pages yet.',
 
   // Page read
   'page.read.draftBanner': 'This page is a draft and not yet published.',

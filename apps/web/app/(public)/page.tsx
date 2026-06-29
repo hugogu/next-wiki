@@ -2,7 +2,7 @@ import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
-import { getPageHref } from '@/lib/path';
+import { getPageHref, getPagesHref } from '@/lib/path';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,11 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const locale = await getLocale();
   const t = getDictionary(locale);
-  const pages = await pageService.listPublished(buildAnonymousCtx());
+  const ctx = buildAnonymousCtx();
+  const [pages, totalPublished] = await Promise.all([
+    pageService.listPublished(ctx, { limit: 10, order: 'recent' }),
+    pageService.countPublished(ctx),
+  ]);
 
   return (
     <Layout>
@@ -32,7 +36,14 @@ export default async function HomePage() {
             </EmptyState>
           ) : (
             <div className="text-left">
-              <h2 className="font-display text-2xl font-semibold mb-md">{t('home.publishedPagesTitle')}</h2>
+              <div className="mb-md flex items-center justify-between gap-md">
+                <h2 className="font-display text-2xl font-semibold">{t('home.recentPagesTitle')}</h2>
+                {totalPublished > pages.length && (
+                  <a href={getPagesHref()} className="text-sm font-medium text-primary hover:underline">
+                    {t('home.viewAllPages')}
+                  </a>
+                )}
+              </div>
               <ul className="space-y-sm">
                 {pages.map((page) => (
                   <li key={page.path}>
