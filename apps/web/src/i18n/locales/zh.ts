@@ -237,6 +237,8 @@ export const zh: Translations = {
   'admin.appearance.save': '保存',
   'admin.appearance.saved': '已保存主题。',
   'admin.appearance.delete': '删除',
+  'admin.appearance.deleteConfirm.title': '删除主题?',
+  'admin.appearance.deleteConfirm.message': '确定删除“{{name}}”吗?此操作无法撤销。',
   'admin.appearance.deleted': '已删除主题。',
   'admin.appearance.selectHint': '选择主题以查看或启用，复制内置主题以自定义。',
   'admin.appearance.nameLabel': '主题名称',

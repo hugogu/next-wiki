@@ -12,6 +12,7 @@ import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
 import { SystemThemePreview } from './SystemThemePreview';
 import { CssEditor } from './CssEditor';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export function SystemThemeManager({
   initial,
@@ -33,6 +34,7 @@ export function SystemThemeManager({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   /** The selected theme lives in the URL (?theme=<id>) so it is deep-linkable. */
   const selectInUrl = (id: string | null) => {
@@ -134,6 +136,7 @@ export function SystemThemeManager({
         setError(await readError(res));
         return;
       }
+      setConfirmDelete(false);
       setDetail(null);
       selectInUrl(null);
       await refreshList();
@@ -255,7 +258,7 @@ export function SystemThemeManager({
                     <Button variant="secondary" onClick={save} disabled={busy}>
                       {t('admin.appearance.save')}
                     </Button>
-                    <Button variant="ghost" onClick={remove} disabled={busy}>
+                    <Button variant="ghost" onClick={() => setConfirmDelete(true)} disabled={busy}>
                       {t('admin.appearance.delete')}
                     </Button>
                   </>
@@ -269,6 +272,22 @@ export function SystemThemeManager({
           </div>
         )}
       </section>
+
+      {confirmDelete && detail && (
+        <ConfirmDialog
+          title={t('admin.appearance.deleteConfirm.title')}
+          message={t('admin.appearance.deleteConfirm.message', { name: detail.name })}
+          confirmLabel={t('admin.appearance.delete')}
+          confirmVariant="danger"
+          pending={busy}
+          error={error ?? undefined}
+          onConfirm={remove}
+          onCancel={() => {
+            setConfirmDelete(false);
+            setError(null);
+          }}
+        />
+      )}
     </div>
   );
 }

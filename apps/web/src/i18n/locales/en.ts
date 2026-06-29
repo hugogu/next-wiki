@@ -237,6 +237,8 @@ export const en = {
   'admin.appearance.save': 'Save',
   'admin.appearance.saved': 'Theme saved.',
   'admin.appearance.delete': 'Delete',
+  'admin.appearance.deleteConfirm.title': 'Delete theme?',
+  'admin.appearance.deleteConfirm.message': 'Delete "{{name}}"? This cannot be undone.',
   'admin.appearance.deleted': 'Theme deleted.',
   'admin.appearance.selectHint': 'Select a theme to view or activate it, or copy a built-in to customize.',
   'admin.appearance.nameLabel': 'Theme name',
