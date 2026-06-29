@@ -6,15 +6,20 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
 import { ColorTokenGrid, FontSlotEditors, FontSizeEditors } from '@/components/appearance/TokenEditors';
-import { ReadingThemePreview } from '@/components/appearance/ReadingThemePreview';
+import { ThemePreview, buildPreviewVars } from '@/components/appearance/ThemePreview';
 
-export function ReadingThemeForm({ initial }: { initial: UserAppearanceView }) {
+export function ReadingThemeForm({
+  initial,
+  sampleHtml,
+}: {
+  initial: UserAppearanceView;
+  sampleHtml: string;
+}) {
   const { t } = useTranslation();
   const [lightColors, setLight] = useState({ ...initial.lightColors });
   const [darkColors, setDark] = useState({ ...initial.darkColors });
   const [fonts, setFonts] = useState({ ...initial.fonts });
   const [fontSizes, setFontSizes] = useState({ ...initial.fontSizes });
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -111,14 +116,10 @@ export function ReadingThemeForm({ initial }: { initial: UserAppearanceView }) {
       </div>
 
       <div className="lg:sticky lg:top-md lg:self-start">
-        <ReadingThemePreview
-          lightColors={lightColors}
-          darkColors={darkColors}
-          fonts={fonts}
-          fontSizes={fontSizes}
-          mode={mode}
-          onToggleMode={setMode}
-          fontCatalog={initial.fontCatalog}
+        <ThemePreview
+          sampleHtml={sampleHtml}
+          lightVars={buildPreviewVars(lightColors, fonts, fontSizes, initial.fontCatalog)}
+          darkVars={buildPreviewVars(darkColors, fonts, fontSizes, initial.fontCatalog)}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { SystemThemeManager } from '@/components/admin/appearance/SystemThemeManager';
 import { AppearanceNav } from '@/components/admin/appearance/AppearanceNav';
-import { PREVIEW_SAMPLE_MARKDOWN } from '@/components/admin/appearance/preview-sample';
+import { PREVIEW_SAMPLE_MARKDOWN } from '@/components/appearance/preview-sample';
 import { getCurrentActor } from '@/server/services/auth';
 import { can } from '@/server/permissions';
 import { listSystemThemes } from '@/server/services/system-theme';

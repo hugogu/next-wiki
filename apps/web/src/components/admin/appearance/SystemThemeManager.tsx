@@ -10,9 +10,21 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
-import { SystemThemePreview } from './SystemThemePreview';
+import { ThemePreview, buildPreviewVars } from '@/components/appearance/ThemePreview';
 import { CssEditor } from './CssEditor';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import {
+  DEFAULT_DARK_COLORS,
+  DEFAULT_FONT_SIZES,
+  DEFAULT_FONTS,
+  DEFAULT_LIGHT_COLORS,
+  FONT_CATALOG,
+} from '@/server/appearance/user-tokens';
+
+// System themes are color-agnostic, so the preview uses the default site tokens
+// (one set per mode) and lets the Light/Dark switcher show the CSS against both.
+const SYSTEM_LIGHT_VARS = buildPreviewVars(DEFAULT_LIGHT_COLORS, DEFAULT_FONTS, DEFAULT_FONT_SIZES, FONT_CATALOG);
+const SYSTEM_DARK_VARS = buildPreviewVars(DEFAULT_DARK_COLORS, DEFAULT_FONTS, DEFAULT_FONT_SIZES, FONT_CATALOG);
 
 export function SystemThemeManager({
   initial,
@@ -267,7 +279,12 @@ export function SystemThemeManager({
             </div>
 
             <div className="lg:sticky lg:top-md lg:self-start">
-              <SystemThemePreview css={draftCss} sampleHtml={sampleHtml} />
+              <ThemePreview
+                sampleHtml={sampleHtml}
+                lightVars={SYSTEM_LIGHT_VARS}
+                darkVars={SYSTEM_DARK_VARS}
+                injectedCss={draftCss}
+              />
             </div>
           </div>
         )}
