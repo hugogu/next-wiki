@@ -10,7 +10,7 @@ import * as publicContent from '@/server/services/public-content';
  * @description Searches readable pages by path, title, or Markdown source.
  * @tag Public Wiki Content
  * @auth bearer
- * @query PublicPageSearchQuery
+ * @queryParams PublicPageSearchQuery
  * @response PublicPageSearchResponse
  */
 export const GET = withPublicApi(async (request, _context, ctx) => {

@@ -125,16 +125,30 @@ Expected: `409 STALE_REVISION` and no new revision is created.
 
 ## Audit and Documentation
 
+Regenerate API documentation after any public route, schema, or annotation
+change:
+
+```bash
+pnpm --filter @next-wiki/web openapi:generate
+```
+
+Do not edit `apps/web/public/openapi.json` directly. The command runs
+next-openapi-gen against route annotations and `openapi-schemas.ts`, then runs a
+narrow finalizer for generator output normalization and asset media types.
+
 Verify generated API documentation:
 
 ```bash
-curl -fsS http://127.0.0.1:3000/api/openapi.json | rg '"/api/v1/pages"'
+curl -fsS http://127.0.0.1:3000/api/openapi.json | rg '"/v1/pages"'
+curl -fsS http://127.0.0.1:3000/api/public-openapi.json | rg '"/v1/search/pages"'
 ```
 
-Open `/api-docs` and confirm Public Wiki Content API resources are present.
+Open `/api-docs` and confirm only Public v1 Wiki Content API resources are
+present.
 
-The generated OpenAPI paths are exposed without the Next.js `/api` prefix, so
-the public page list appears as `/v1/pages` in the OpenAPI document.
+The generated OpenAPI paths are exposed without the Next.js `/api` prefix. The
+full generated document is served from `/api/openapi.json`; `/api-docs` loads
+the filtered `/api/public-openapi.json` view for external automation clients.
 
 Review audit history:
 

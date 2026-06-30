@@ -110,7 +110,10 @@ apps/web/e2e/
 under `apps/web/app/api/v1/` as the stable external REST surface. Business
 logic remains in `apps/web/src/server/services/`; a `public-content` service may
 map shared service results into stable DTOs but must not own page/revision/asset
-business decisions. Shared Zod schemas live in `packages/shared`.
+business decisions. Runtime validation schemas live in `packages/shared`.
+OpenAPI-facing Zod schemas for next-openapi-gen live in
+`apps/web/src/server/api/openapi-schemas.ts` so the generator can discover
+request, response, and query shapes without post-generation JSON hand edits.
 
 ## Complexity Tracking
 

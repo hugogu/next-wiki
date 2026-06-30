@@ -14,6 +14,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Creates a new draft revision from Markdown source.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @body PublicDraftCreateInput
  * @response 201:PublicRevisionResource
  */

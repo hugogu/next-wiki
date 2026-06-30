@@ -14,7 +14,8 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Lists revisions visible to the caller.
  * @tag Public Wiki Content
  * @auth bearer
- * @query PublicRevisionListQuery
+ * @pathParams PublicPageIdPathParams
+ * @queryParams PublicRevisionListQuery
  * @response PublicRevisionListResponse
  */
 export const GET = withPublicApi<{ id: string }>(async (request, { params }, ctx) => {

@@ -11,7 +11,7 @@ const ApiReferenceReact = nextDynamic(
 export function ApiDocsViewer() {
   return (
     <div className="api-docs-scalar">
-      <ApiReferenceReact configuration={{ url: '/api/openapi.json' }} />
+      <ApiReferenceReact configuration={{ url: '/api/public-openapi.json' }} />
     </div>
   );
 }

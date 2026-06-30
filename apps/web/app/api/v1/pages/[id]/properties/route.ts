@@ -14,6 +14,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Updates page title and/or canonical path through the public content API.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @body PublicPagePropertiesInput
  * @response PublicPageResource
  */

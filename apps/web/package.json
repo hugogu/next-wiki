@@ -15,7 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "openapi:generate": "openapi-gen generate"
+    "openapi:generate": "NODE_OPTIONS=--max-old-space-size=4096 openapi-gen generate && node scripts/finalize-openapi.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1073.0",

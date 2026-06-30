@@ -10,7 +10,7 @@ import * as publicContent from '@/server/services/public-content';
  * @description Lists pages visible to the caller through the stable Public Wiki Content API.
  * @tag Public Wiki Content
  * @auth bearer
- * @query PublicPageListQuery
+ * @queryParams PublicPageListQuery
  * @response PublicPageListResponse
  */
 export const GET = withPublicApi(async (request, _context, ctx) => {

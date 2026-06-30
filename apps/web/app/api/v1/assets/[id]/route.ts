@@ -13,6 +13,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Returns asset metadata if the caller may read the asset.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicAssetIdPathParams
  * @response PublicAssetResource
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {

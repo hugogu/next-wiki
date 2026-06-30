@@ -13,6 +13,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Returns public page metadata and readable Markdown source for a stable page id.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @response PublicPageResource
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {

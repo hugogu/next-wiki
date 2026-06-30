@@ -371,38 +371,789 @@
         ],
         "description": "Profile view"
       },
+      "PublicAssetIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public asset identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Public asset ID path parameters."
+      },
       "PublicAssetResource": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public asset identifier."
+          },
+          "contentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicImageContentType"
+              }
+            ],
+            "description": "MIME type of the stored asset."
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Size of the asset in bytes."
+          },
+          "url": {
+            "type": "string",
+            "description": "URL to fetch the asset content."
+          },
+          "markdown": {
+            "type": "string",
+            "description": "Ready-to-paste Markdown image snippet referencing this asset."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the asset was created (ISO 8601)."
+          }
+        },
+        "required": [
+          "id",
+          "contentType",
+          "sizeBytes",
+          "url",
+          "markdown",
+          "createdAt"
+        ],
+        "description": "Public wiki asset metadata."
       },
       "PublicAssetUploadResult": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public asset identifier."
+          },
+          "contentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicImageContentType"
+              }
+            ],
+            "description": "MIME type of the uploaded asset."
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Size of the uploaded asset in bytes."
+          },
+          "url": {
+            "type": "string",
+            "description": "URL to fetch the uploaded asset content."
+          },
+          "markdown": {
+            "type": "string",
+            "description": "Ready-to-paste Markdown image snippet referencing the uploaded asset."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the asset was created (ISO 8601)."
+          }
+        },
+        "required": [
+          "id",
+          "contentType",
+          "sizeBytes",
+          "url",
+          "markdown",
+          "createdAt"
+        ],
+        "description": "Uploaded public wiki asset metadata."
+      },
+      "PublicAuthor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Author user identifier, or null when the author is not disclosed."
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Author display name, or null when not available."
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "description": "Public author identity visible to the caller."
       },
       "PublicDraftCreateInput": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Human-readable title for the draft revision."
+          },
+          "contentSource": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Markdown source of the draft revision."
+          },
+          "baseRevisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Revision the draft is based on, for conflict detection. Omit to base on the latest revision."
+          },
+          "baseContentHash": {
+            "type": "string",
+            "description": "Expected content hash of the base revision, used for optimistic concurrency control."
+          }
+        },
+        "required": [
+          "title",
+          "contentSource"
+        ],
+        "description": "Create a draft revision for an existing public page."
+      },
+      "PublicImageContentType": {
+        "type": "string",
+        "enum": [
+          "image/png",
+          "image/jpeg",
+          "image/gif",
+          "image/webp",
+          "image/svg+xml"
+        ]
       },
       "PublicPageCreateInput": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "path": {
+            "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "locale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "Locale of the page content (e.g. \"en\"). Defaults to the workspace default."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Human-readable page title."
+          },
+          "contentSource": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Markdown source of the initial page revision."
+          }
+        },
+        "required": [
+          "path",
+          "title",
+          "contentSource"
+        ],
+        "description": "Create a public wiki page."
+      },
+      "PublicPageIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public page identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Public page ID path parameters."
+      },
+      "PublicPageListQuery": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "draft",
+              "all"
+            ],
+            "default": "published",
+            "description": "Filter pages by lifecycle state. Defaults to published."
+          },
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Optional free-text query to filter pages by path or title."
+          },
+          "limit": {
+            "default": 20,
+            "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "path",
+              "recent"
+            ],
+            "default": "path",
+            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+          }
+        },
+        "description": "Public page list query parameters."
       },
       "PublicPageListResponse": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPageResource"
+            },
+            "description": "Page resources for the current result window."
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor for the next page of results, or null when there are no more."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "Paginated public page list."
+      },
+      "PublicPagePath": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "pattern": "^[a-z0-9]([a-z0-9-/]*[a-z0-9])?$",
+        "description": "Canonical wiki page path. Use lowercase slash-separated path segments."
+      },
+      "PublicPagePathParams": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Canonical wiki page path. Use slash-separated path segments."
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "description": "Public page path parameters."
       },
       "PublicPagePropertiesInput": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "path": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "New page title."
+          },
+          "baseRevisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Expected current revision id, used for optimistic concurrency control."
+          }
+        },
+        "description": "Update page properties. Provide at least one of path or title."
       },
       "PublicPageResource": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public page identifier."
+          },
+          "spaceSlug": {
+            "type": "string",
+            "description": "Slug of the wiki space the page belongs to."
+          },
+          "path": {
+            "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale of the page content (e.g. \"en\", \"zh\")."
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable page title."
+          },
+          "contentSource": {
+            "type": "string",
+            "description": "Markdown source of the current revision. Present only when the caller may read the content."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "deleted"
+            ],
+            "description": "Page lifecycle state: an unpublished draft, a published page, or a soft-deleted page."
+          },
+          "author": {
+            "$ref": "#/components/schemas/PublicAuthor"
+          },
+          "latestRevision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicRevisionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most recent revision of any status, or null if none exists."
+          },
+          "publishedRevision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicRevisionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most recent published revision, or null if never published."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the page was created (ISO 8601)."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the page was last updated (ISO 8601)."
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string",
+                "description": "Canonical API URL of this page resource."
+              },
+              "byPath": {
+                "type": "string",
+                "description": "API URL to look up this page by its canonical path."
+              },
+              "revisions": {
+                "type": "string",
+                "description": "API URL listing this page revisions."
+              },
+              "drafts": {
+                "type": "string",
+                "description": "API URL for creating draft revisions of this page."
+              },
+              "properties": {
+                "type": "string",
+                "description": "API URL for updating this page properties."
+              }
+            },
+            "required": [
+              "self",
+              "byPath",
+              "revisions",
+              "drafts",
+              "properties"
+            ],
+            "description": "Related API resource URLs for this page."
+          }
+        },
+        "required": [
+          "id",
+          "spaceSlug",
+          "path",
+          "locale",
+          "title",
+          "status",
+          "author",
+          "latestRevision",
+          "publishedRevision",
+          "createdAt",
+          "updatedAt",
+          "links"
+        ],
+        "description": "Public wiki page resource."
+      },
+      "PublicPageRevisionPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public page identifier."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Revision version number."
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "description": "Public page revision path parameters."
+      },
+      "PublicPageSearchQuery": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Free-text search query."
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "path",
+              "title",
+              "content",
+              "all"
+            ],
+            "default": "all",
+            "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "draft",
+              "all"
+            ],
+            "default": "published",
+            "description": "Filter results by page lifecycle state. Defaults to published."
+          },
+          "limit": {
+            "default": 20,
+            "description": "Maximum number of results to return per request (1-100). Defaults to 20.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque pagination cursor returned by a previous response."
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "description": "Public page search query parameters."
       },
       "PublicPageSearchResponse": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSearchResult"
+            },
+            "description": "Search results for the current result window."
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor for the next page of results, or null when there are no more."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "Paginated public page search response."
       },
       "PublicPublicationInput": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "expectedRevisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Revision id the caller expects to publish, used for optimistic concurrency control."
+          }
+        },
+        "description": "Publish revision input."
+      },
+      "PublicRevisionListQuery": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "draft",
+              "all"
+            ],
+            "description": "Filter revisions by lifecycle state. Defaults to all."
+          },
+          "limit": {
+            "default": 20,
+            "description": "Maximum number of revisions to return per request (1-100). Defaults to 20.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque pagination cursor returned by a previous response."
+          }
+        },
+        "description": "Public revision list query parameters."
       },
       "PublicRevisionListResponse": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicRevisionResource"
+            },
+            "description": "Revision resources for the current result window."
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor for the next page of results, or null when there are no more."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "Paginated public revision list."
       },
       "PublicRevisionResource": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable revision identifier."
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page this revision belongs to."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Monotonically increasing revision version, starting at 1."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "description": "Revision lifecycle state: an unpublished draft or a published revision."
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "text/markdown"
+            ],
+            "description": "Content media type of the revision body. Always text/markdown."
+          },
+          "contentHash": {
+            "type": "string",
+            "description": "Content hash of the Markdown source, used for optimistic concurrency control."
+          },
+          "author": {
+            "$ref": "#/components/schemas/PublicAuthor"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the revision was created (ISO 8601)."
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Timestamp when the revision was published (ISO 8601), or null if still a draft."
+          },
+          "canPublish": {
+            "type": "boolean",
+            "description": "Whether the current caller is allowed to publish this revision."
+          },
+          "contentSource": {
+            "type": "string",
+            "description": "Markdown source of the revision. Present only when the caller is permitted to read the content."
+          }
+        },
+        "required": [
+          "id",
+          "pageId",
+          "version",
+          "status",
+          "contentType",
+          "contentHash",
+          "author",
+          "createdAt",
+          "publishedAt",
+          "canPublish"
+        ],
+        "description": "Public page revision metadata."
+      },
+      "PublicRevisionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable revision identifier."
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page this revision belongs to."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Monotonically increasing revision version, starting at 1."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "description": "Revision lifecycle state: an unpublished draft or a published revision."
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "text/markdown"
+            ],
+            "description": "Content media type of the revision body. Always text/markdown."
+          },
+          "contentHash": {
+            "type": "string",
+            "description": "Content hash of the Markdown source, used for optimistic concurrency control."
+          },
+          "author": {
+            "$ref": "#/components/schemas/PublicAuthor"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the revision was created (ISO 8601)."
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Timestamp when the revision was published (ISO 8601), or null if still a draft."
+          },
+          "canPublish": {
+            "type": "boolean",
+            "description": "Whether the current caller is allowed to publish this revision."
+          }
+        },
+        "required": [
+          "id",
+          "pageId",
+          "version",
+          "status",
+          "contentType",
+          "contentHash",
+          "author",
+          "createdAt",
+          "publishedAt",
+          "canPublish"
+        ],
+        "description": "Public page revision metadata."
+      },
+      "PublicSearchResult": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/PublicPageResource"
+          },
+          "matchType": {
+            "type": "string",
+            "enum": [
+              "path",
+              "title",
+              "content"
+            ],
+            "description": "Which field produced the match for this result."
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Highlighted snippet around the match, or null when not applicable."
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Relevance score of the match, or null when not ranked."
+          }
+        },
+        "required": [
+          "page",
+          "matchType",
+          "excerpt",
+          "score"
+        ],
+        "description": "Public page search result."
       },
       "RegisterInput": {
         "type": "object",
@@ -3932,7 +4683,27 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicAssetUploadResultSchema"
+                  "$ref": "#/components/schemas/PublicAssetUploadResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file to upload."
+                  }
                 }
               }
             }
@@ -3948,7 +4719,74 @@
         "tags": [
           "Public Wiki Content"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "default": "published",
+              "description": "Filter pages by lifecycle state. Defaults to published."
+            },
+            "description": "Filter pages by lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Optional free-text query to filter pages by path or title."
+            },
+            "description": "Optional free-text query to filter pages by path or title."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of pages to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "path",
+                "recent"
+              ],
+              "default": "path",
+              "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+            },
+            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+          }
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3960,7 +4798,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageListResponseSchema"
+                  "$ref": "#/components/schemas/PublicPageListResponse"
                 }
               }
             }
@@ -3984,7 +4822,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/publicPageCreateInputSchema"
+                "$ref": "#/components/schemas/PublicPageCreateInput"
               }
             }
           }
@@ -3995,7 +4833,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                  "$ref": "#/components/schemas/PublicPageResource"
                 }
               }
             }
@@ -4013,14 +4851,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public asset identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public asset identifier.",
+            "example": "123"
           }
         ],
         "security": [
@@ -4034,7 +4874,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicAssetResourceSchema"
+                  "$ref": "#/components/schemas/PublicAssetResource"
                 }
               }
             }
@@ -4052,14 +4892,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "123"
           }
         ],
         "security": [
@@ -4073,7 +4915,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                  "$ref": "#/components/schemas/PublicPageResource"
                 }
               }
             }
@@ -4089,7 +4931,76 @@
         "tags": [
           "Public Wiki Content"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Free-text search query."
+            },
+            "description": "Free-text search query."
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "path",
+                "title",
+                "content",
+                "all"
+              ],
+              "default": "all",
+              "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+            },
+            "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "default": "published",
+              "description": "Filter results by page lifecycle state. Defaults to published."
+            },
+            "description": "Filter results by page lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of results to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of results to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          }
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -4101,7 +5012,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageSearchResponseSchema"
+                  "$ref": "#/components/schemas/PublicPageSearchResponse"
                 }
               }
             }
@@ -4119,14 +5030,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public asset identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public asset identifier.",
+            "example": "123"
           }
         ],
         "security": [
@@ -4136,7 +5049,45 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "Asset bytes.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           }
         }
       }
@@ -4151,14 +5102,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "123"
           }
         ],
         "security": [
@@ -4170,7 +5123,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/publicDraftCreateInputSchema"
+                "$ref": "#/components/schemas/PublicDraftCreateInput"
               }
             }
           }
@@ -4181,7 +5134,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicRevisionResourceSchema"
+                  "$ref": "#/components/schemas/PublicRevisionResource"
                 }
               }
             }
@@ -4199,14 +5152,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "123"
           }
         ],
         "security": [
@@ -4218,7 +5173,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/publicPagePropertiesInputSchema"
+                "$ref": "#/components/schemas/PublicPagePropertiesInput"
               }
             }
           }
@@ -4229,7 +5184,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                  "$ref": "#/components/schemas/PublicPageResource"
                 }
               }
             }
@@ -4247,14 +5202,54 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "description": "Filter revisions by lifecycle state. Defaults to all."
+            },
+            "description": "Filter revisions by lifecycle state. Defaults to all."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of revisions to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of revisions to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "123"
           }
         ],
         "security": [
@@ -4268,7 +5263,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicRevisionListResponseSchema"
+                  "$ref": "#/components/schemas/PublicRevisionListResponse"
                 }
               }
             }
@@ -4286,14 +5281,15 @@
         ],
         "parameters": [
           {
-            "name": "path",
             "in": "path",
+            "name": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "description": "Canonical wiki page path. Use slash-separated path segments."
             },
-            "example": "example",
-            "description": "Path parameter: path"
+            "description": "Canonical wiki page path. Use slash-separated path segments.",
+            "example": "example"
           }
         ],
         "security": [
@@ -4307,7 +5303,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                  "$ref": "#/components/schemas/PublicPageResource"
                 }
               }
             }
@@ -4325,24 +5321,29 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "123"
           },
           {
-            "name": "version",
             "in": "path",
+            "name": "version",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Revision version number."
             },
-            "example": "example",
-            "description": "Path parameter: version"
+            "description": "Revision version number.",
+            "example": "example"
           }
         ],
         "security": [
@@ -4356,7 +5357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicRevisionResourceSchema"
+                  "$ref": "#/components/schemas/PublicRevisionResource"
                 }
               }
             }
@@ -4374,24 +5375,29 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "123"
           },
           {
-            "name": "version",
             "in": "path",
+            "name": "version",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Revision version number."
             },
-            "example": "example",
-            "description": "Path parameter: version"
+            "description": "Revision version number.",
+            "example": "example"
           }
         ],
         "security": [
@@ -4403,7 +5409,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/publicPublicationInputSchema"
+                "$ref": "#/components/schemas/PublicPublicationInput"
               }
             }
           }
@@ -4414,7 +5420,30 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/publicPageResourceSchema"
+                  "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public-openapi.json": {
+      "get": {
+        "operationId": "get-public-openapi.json",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Public-openapi.json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -5226,6 +6255,9 @@
     },
     {
       "name": "Public Wiki Content"
+    },
+    {
+      "name": "Public-openapi.json"
     },
     {
       "name": "Revisions"

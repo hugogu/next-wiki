@@ -8,6 +8,47 @@ test.describe('api docs', () => {
     expect(body.openapi).toMatch(/^3\./);
     expect(body.paths['/pages']).toBeDefined();
     expect(body.paths['/v1/pages']).toBeDefined();
+    expect(body.paths['/v1/search/pages'].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'q', in: 'query', required: true }),
+        expect.objectContaining({ name: 'scope', in: 'query' }),
+        expect.objectContaining({ name: 'status', in: 'query' }),
+      ]),
+    );
+    expect(body.paths['/v1/search/pages'].get.responses['200'].content['application/json'].schema.$ref).toBe(
+      '#/components/schemas/PublicPageSearchResponse',
+    );
+    expect(body.paths['/v1/pages'].post.requestBody.content['application/json'].schema.$ref).toBe(
+      '#/components/schemas/PublicPageCreateInput',
+    );
+    expect(body.paths['/v1/pages/{id}'].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'id',
+          in: 'path',
+          schema: expect.objectContaining({ type: 'string', format: 'uuid' }),
+        }),
+      ]),
+    );
+    expect(body.paths['/v1/pages/{id}/revisions/{version}'].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'version',
+          in: 'path',
+          schema: expect.objectContaining({ type: 'integer' }),
+        }),
+      ]),
+    );
+    expect(body.components.schemas.PublicPageCreateInput.required).toEqual(
+      expect.arrayContaining(['path', 'title', 'contentSource']),
+    );
+    expect(body.components.schemas.PublicPageCreateInput.properties).toEqual(
+      expect.objectContaining({
+        path: expect.objectContaining({ type: 'string' }),
+        title: expect.objectContaining({ type: 'string' }),
+        contentSource: expect.objectContaining({ type: 'string' }),
+      }),
+    );
     for (const path of [
       '/ai/settings',
       '/ai/providers',
@@ -23,15 +64,31 @@ test.describe('api docs', () => {
       expect(body.paths[path], `OpenAPI path ${path}`).toBeDefined();
     }
 
+    const publicResponse = await page.request.get('/api/public-openapi.json');
+    expect(publicResponse.status()).toBe(200);
+    const publicBody = await publicResponse.json();
+    expect(Object.keys(publicBody.paths).every((path) => path.startsWith('/v1/'))).toBe(true);
+    expect(publicBody.paths['/v1/pages']).toBeDefined();
+    expect(publicBody.paths['/v1/search/pages']).toBeDefined();
+    expect(publicBody.paths['/ai/settings']).toBeUndefined();
+    expect(publicBody.paths['/pages']).toBeUndefined();
+    expect(publicBody.components.schemas.PublicPageCreateInput.properties).toEqual(
+      expect.objectContaining({
+        path: expect.objectContaining({ type: 'string' }),
+        title: expect.objectContaining({ type: 'string' }),
+        contentSource: expect.objectContaining({ type: 'string' }),
+      }),
+    );
+
     await page.goto('/api-docs', { waitUntil: 'networkidle' });
     expect(page.url()).toContain('/api-docs');
     await expect(page.locator('.scalar-api-reference').first()).toBeVisible();
-    await expect(page.locator('text=Next Wiki API').first()).toBeVisible();
+    await expect(page.locator('text=Next Wiki Public API').first()).toBeVisible();
     await expect(page.locator('text=Authentication').first()).toBeVisible();
 
-    const docsSidebar = page.getByRole('navigation', { name: 'Sidebar for Next Wiki API' });
+    const docsSidebar = page.getByRole('navigation', { name: 'Sidebar for Next Wiki Public API' });
     const docsContent = page.getByRole('main', {
-      name: 'Open API Documentation for Next Wiki API',
+      name: 'Open API Documentation for Next Wiki Public API',
     });
     await expect(docsSidebar).toBeVisible();
     await expect(docsContent).toBeVisible();

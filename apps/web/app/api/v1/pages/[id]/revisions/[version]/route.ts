@@ -16,6 +16,7 @@ const paramsSchema = z.object({
  * @description Returns visible revision metadata and readable Markdown source.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicPageRevisionPathParams
  * @response PublicRevisionResource
  */
 export const GET = withPublicApi<{ id: string; version: string }>(async (_request, { params }, ctx) => {

@@ -160,6 +160,20 @@ Rules:
   API changes require a new major version prefix. (The current slice ships
   unversioned internal routes; the `/api/v1/` prefix is introduced when the
   public REST contract is frozen.)
+- `apps/web/public/openapi.json` is a generated artifact. API contract changes
+  MUST update route annotations and OpenAPI-facing Zod schemas first, then run
+  `pnpm --filter @next-wiki/web openapi:generate`; direct hand edits to the
+  generated JSON are not allowed.
+- Public API route annotations MUST use the next-openapi-gen-supported tags
+  (`@body`, `@response`, `@queryParams`, `@params`) and schema names exported
+  from `apps/web/src/server/api/openapi-schemas.ts`. Public request and
+  response schemas SHOULD be generated from those Zod definitions; post-
+  generation scripts MAY only normalize generator output or document transport
+  details that the generator cannot express, such as multipart upload and binary
+  download media types.
+- `/api/openapi.json` serves the full generated REST specification. `/api-docs`
+  and `/api/public-openapi.json` expose the filtered Public v1 contract for
+  external automation clients.
 - MCP is optional and MAY be enabled independently of public REST, but it uses
   the same token scopes, permission model, and services.
 - API tokens are scoped (`read`, `write`, `admin`, `ai`, `mcp`) and managed via

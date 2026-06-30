@@ -17,6 +17,7 @@ const paramsSchema = z.object({
  * @description Publishes an eligible draft revision and returns the updated public page resource.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicPageRevisionPathParams
  * @body PublicPublicationInput
  * @response PublicPageResource
  */

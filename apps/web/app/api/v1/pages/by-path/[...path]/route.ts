@@ -17,6 +17,7 @@ function getPath(path: string[]): string {
  * @description Returns public page metadata and readable Markdown source for a canonical page path.
  * @tag Public Wiki Content
  * @auth bearer
+ * @pathParams PublicPagePathParams
  * @response PublicPageResource
  */
 export const GET = withPublicApi<{ path: string[] }>(async (_request, { params }, ctx) => {
