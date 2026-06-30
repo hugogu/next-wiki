@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { publicPagePropertiesInputSchema, type PublicPagePropertiesInput, type PublicPageResource, updatePagePropertiesSchema, type UpdatePagePropertiesInput } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
-import { getPublicApiPagePropertiesUrl, getPageHref } from '@/lib/path';
+import { getPublicApiPageUrl, getPageHref } from '@/lib/path';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 
@@ -15,7 +15,7 @@ export function PagePropertiesForm({ pageId, path }: { pageId: string; path: str
   const { t } = useTranslation();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
-  const update = useApiMutation<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPagePropertiesUrl(pageId), {
+  const update = useApiMutation<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPageUrl(pageId), {
     method: 'PATCH',
     onSuccess: (data) => {
       if (data.path === path) {

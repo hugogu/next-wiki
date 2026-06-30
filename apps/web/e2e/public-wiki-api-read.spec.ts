@@ -56,11 +56,12 @@ test.describe('Public Wiki Content API read workflow', () => {
     const item = listBody.items.find((pageItem: { path: string }) => pageItem.path === path);
     expect(item).toBeTruthy();
 
-    const readResponse = await page.request.get(`/api/v1/pages/by-path/${path}`, {
+    const readResponse = await page.request.get(`/api/v1/pages?path=${path}`, {
       headers: { Authorization: `Bearer ${readKey}` },
     });
     expect(readResponse.status()).toBe(200);
     const readBody = await readResponse.json();
-    expect(readBody.contentSource).toBe('# Public API Read');
+    expect(readBody.items).toHaveLength(1);
+    expect(readBody.items[0].contentSource).toBe('# Public API Read');
   });
 });

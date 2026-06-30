@@ -42,10 +42,9 @@ function encodePath(path: string): string {
 function links(page: PageRow) {
   return {
     self: `/api/v1/pages/${page.id}`,
-    byPath: `/api/v1/pages/by-path/${encodePath(page.path)}`,
+    byPath: `/api/v1/pages?path=${encodePath(page.path)}`,
     revisions: `/api/v1/pages/${page.id}/revisions`,
     drafts: `/api/v1/pages/${page.id}/drafts`,
-    properties: `/api/v1/pages/${page.id}/properties`,
   };
 }
 
@@ -156,6 +155,11 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
     return { items: [], nextCursor: null };
+  }
+
+  if (query.path) {
+    const page = await getPageByPath(ctx, query.path);
+    return { items: page ? [page] : [], nextCursor: null };
   }
 
   const cursor = decodePublicCursor(query.cursor);

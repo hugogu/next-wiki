@@ -51,7 +51,7 @@ describe('public content read facade', () => {
     expect(page?.title).toBe('Readable');
     expect(page?.contentSource).toBe('# Readable');
     expect(page?.publishedRevision?.version).toBe(1);
-    expect(page?.links.byPath).toBe('/api/v1/pages/by-path/public/readable');
+    expect(page?.links.byPath).toBe('/api/v1/pages?path=public/readable');
   });
 
   it('hides draft-only pages from reader API keys', async () => {

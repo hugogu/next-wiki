@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { publicPagePropertiesInputSchema } from '@next-wiki/shared';
 import { publicApiError, validationError } from '@/server/api/public-errors';
-import { publicJson, withPublicApi } from '../../_shared/route';
+import { parsePublicJson, publicJson, withPublicApi } from '../../_shared/route';
 import * as publicContent from '@/server/services/public-content';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
@@ -23,4 +24,26 @@ export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ct
   const page = await publicContent.getPageById(ctx, parsed.data.id);
   if (!page) return publicApiError('NOT_FOUND', 'Page not found', 404);
   return publicJson(page);
+});
+
+/**
+ * Update page properties (title and/or canonical path).
+ *
+ * @openapi
+ * @summary Update public wiki page
+ * @description Updates page title and/or canonical path through the public content API.
+ * @tag Public Wiki Content
+ * @auth bearer
+ * @pathParams PublicPageIdPathParams
+ * @body PublicPagePropertiesInput
+ * @response PublicPageResource
+ */
+export const PATCH = withPublicApi<{ id: string }>(async (request, { params }, ctx) => {
+  const parsedParams = paramsSchema.safeParse(await params);
+  if (!parsedParams.success) return validationError(parsedParams.error);
+
+  const parsedBody = await parsePublicJson(request, publicPagePropertiesInputSchema);
+  if (!parsedBody.ok) return parsedBody.response;
+
+  return publicJson(await publicContent.updateProperties(ctx, parsedParams.data.id, parsedBody.data));
 });

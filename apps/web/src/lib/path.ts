@@ -38,20 +38,16 @@ export function getPublicApiPageUrl(id: string): string {
   return `/api/v1/pages/${encodeURIComponent(id)}`;
 }
 
-export function getPublicApiPageByPathUrl(path: string): string {
-  return `/api/v1/pages/by-path/${encodePath(path)}`;
-}
-
 export function getPublicApiPagesUrl(): string {
   return '/api/v1/pages';
 }
 
-export function getPublicApiPageDraftsUrl(pageId: string): string {
-  return `/api/v1/pages/${encodeURIComponent(pageId)}/drafts`;
+export function getPublicApiPageByPathUrl(path: string): string {
+  return `/api/v1/pages?path=${encodePath(path)}`;
 }
 
-export function getPublicApiPagePropertiesUrl(pageId: string): string {
-  return `/api/v1/pages/${encodeURIComponent(pageId)}/properties`;
+export function getPublicApiPageDraftsUrl(pageId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/drafts`;
 }
 
 export function getPublicApiPageRevisionsUrl(pageId: string): string {

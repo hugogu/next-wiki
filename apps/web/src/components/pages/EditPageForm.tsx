@@ -18,7 +18,7 @@ import { useTranslation } from '@/i18n/client';
 import { apiPost, apiPatch, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
-import { getPublicApiPageDraftsUrl, getPublicApiPagePropertiesUrl, getHistoryHref, getPageHref } from '@/lib/path';
+import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getHistoryHref, getPageHref } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
@@ -62,7 +62,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
             ...parsed.data,
             baseRevisionId: initial.revisionId,
           });
-          const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPagePropertiesUrl(initial.pageId), body);
+          const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPageUrl(initial.pageId), body);
           editPath = res.path;
         }
         const draftBody = publicDraftCreateInputSchema.parse({

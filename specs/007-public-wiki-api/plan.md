@@ -81,11 +81,9 @@ apps/web/app/api/
     │   ├── route.ts
     │   ├── [id]/route.ts
     │   ├── [id]/drafts/route.ts
-    │   ├── [id]/properties/route.ts
     │   ├── [id]/revisions/route.ts
     │   ├── [id]/revisions/[version]/route.ts
     │   └── [id]/revisions/[version]/publication/route.ts
-    ├── pages/by-path/[...path]/route.ts
     ├── assets/route.ts
     ├── assets/[id]/route.ts
     ├── assets/[id]/content/route.ts

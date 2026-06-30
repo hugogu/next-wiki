@@ -21,8 +21,8 @@ vi.mock('@/server/api/session', () => ({
 vi.mock('@/server/services/public-content', () => publicContent);
 
 import * as pagesRoute from './route';
+import * as idRoute from './[id]/route';
 import * as draftsRoute from './[id]/drafts/route';
-import * as propertiesRoute from './[id]/properties/route';
 import * as revisionsRoute from './[id]/revisions/route';
 import * as revisionRoute from './[id]/revisions/[version]/route';
 import * as publicationRoute from './[id]/revisions/[version]/publication/route';
@@ -56,8 +56,8 @@ describe('Public Wiki write routes', () => {
     expect(draft.status).toBe(409);
 
     publicContent.updateProperties.mockRejectedValueOnce(new DomainError('STALE_REVISION', 'stale'));
-    const properties = await propertiesRoute.PATCH(
-      request('PATCH', `http://localhost/api/v1/pages/${id}/properties`, { title: 'T', baseRevisionId: randomUUID() }),
+    const properties = await idRoute.PATCH(
+      request('PATCH', `http://localhost/api/v1/pages/${id}`, { title: 'T', baseRevisionId: randomUUID() }),
       { params: Promise.resolve({ id }) },
     );
     expect(properties.status).toBe(409);

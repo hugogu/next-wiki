@@ -37,6 +37,7 @@ Query:
 |---|---|---|
 | `status` | `published`, `draft`, `all` | Defaults to `published`; draft/all return only visible drafts |
 | `q` | string | Optional path/title/content search shortcut |
+| `path` | string | Optional exact canonical path lookup; returns at most one item and ignores other filters |
 | `limit` | number | Default 20, max 100 |
 | `cursor` | string | Optional pagination cursor |
 | `order` | `path`, `recent` | Defaults to `path` |
@@ -79,16 +80,14 @@ Return a page by stable id.
 
 Response `200`: `PublicPageResource`.
 
-### `GET /api/v1/pages/by-path/{...path}`
+Look up a page by canonical path through the list endpoint's `path` filter:
+`GET /api/v1/pages?path=docs/getting-started`. The default space/locale apply.
+The response is a `PublicPageListResponse` containing at most one item.
 
-Return a page by canonical path. Path segments are slash-preserving and use the
-default space/locale for this feature.
+### `PATCH /api/v1/pages/{id}`
 
-Response `200`: `PublicPageResource`.
-
-### `PATCH /api/v1/pages/{id}/properties`
-
-Update page properties without changing Markdown source.
+Update page properties (title and/or canonical path) without changing Markdown
+source.
 
 Request:
 

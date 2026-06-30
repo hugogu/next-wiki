@@ -104,7 +104,6 @@ export const publicPageResourceSchema = z.object({
     byPath: z.string(),
     revisions: z.string(),
     drafts: z.string(),
-    properties: z.string(),
   }),
 });
 export type PublicPageResource = z.infer<typeof publicPageResourceSchema>;
@@ -112,6 +111,7 @@ export type PublicPageResource = z.infer<typeof publicPageResourceSchema>;
 export const publicPageListQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   q: z.string().min(1).max(200).optional(),
+  path: pathSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),

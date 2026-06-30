@@ -30,12 +30,12 @@ Expected:
 - Draft-only pages from other users are absent.
 - Each item has stable page and revision identity.
 
-Read a page by path:
+Read a page by path (exact lookup via the list endpoint; returns at most one item):
 
 ```bash
 curl -fsS \
   -H "Authorization: Bearer $READER_KEY" \
-  "http://127.0.0.1:3000/api/v1/pages/by-path/welcome"
+  "http://127.0.0.1:3000/api/v1/pages?path=welcome"
 ```
 
 ## Create, Draft, Publish

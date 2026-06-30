@@ -149,12 +149,6 @@ export const PublicPageIdPathParams = z
   })
   .describe('Public page ID path parameters.');
 
-export const PublicPagePathParams = z
-  .object({
-    path: z.string().describe('Canonical wiki page path. Use slash-separated path segments.'),
-  })
-  .describe('Public page path parameters.');
-
 export const PublicPageRevisionPathParams = z
   .object({
     id: z.string().uuid().describe('Stable public page identifier.'),
@@ -230,11 +224,10 @@ export const PublicPageResource = z
     updatedAt: z.string().datetime().describe('Timestamp when the page was last updated (ISO 8601).'),
     links: z
       .object({
-        self: z.string().describe('Canonical API URL of this page resource.'),
-        byPath: z.string().describe('API URL to look up this page by its canonical path.'),
+        self: z.string().describe('Canonical API URL of this page resource. Also the target for PATCH updates.'),
+        byPath: z.string().describe('API URL to look up this page by its canonical path (GET /v1/pages?path=...).'),
         revisions: z.string().describe('API URL listing this page revisions.'),
         drafts: z.string().describe('API URL for creating draft revisions of this page.'),
-        properties: z.string().describe('API URL for updating this page properties.'),
       })
       .describe('Related API resource URLs for this page.'),
   })
@@ -248,6 +241,9 @@ export const PublicPageListQuery = z
       .default('published')
       .describe('Filter pages by lifecycle state. Defaults to published.'),
     q: z.string().min(1).max(200).optional().describe('Optional free-text query to filter pages by path or title.'),
+    path: PublicPagePath.optional().describe(
+      'Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters.',
+    ),
     limit: z.coerce
       .number()
       .int()
