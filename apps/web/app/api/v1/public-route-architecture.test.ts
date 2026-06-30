@@ -21,7 +21,11 @@ describe('public API route architecture', () => {
     for (const file of files) {
       const source = await readFile(file, 'utf8');
       expect(source, file).not.toMatch(/from ['"]@\/app\/api\//);
-      expect(source, file).not.toMatch(/from ['"]\.\.\/\.\.\/(?!_shared)/);
+      // Relative parent imports are only allowed to reach the shared route helper,
+      // at any nesting depth (e.g. ../_shared, ../../_shared, ../../../_shared).
+      // The `(?!\.\.\/)` anchors the check to the final `../` so deeper paths are not
+      // mistaken for a violation by backtracking.
+      expect(source, file).not.toMatch(/from ['"](?:\.\.\/)+(?!\.\.\/)(?!_shared[/'"])/);
       expect(source, file).not.toMatch(/fetch\(['"`]\/api\/(?!v1\/)/);
     }
   });
