@@ -1,11 +1,19 @@
 import { z } from 'zod';
-import type { WikiApiClient } from '../api-client';
+import type { PublicPageResource, WikiApiClient } from '../api-client';
 
 export const resourceUriRegex = /^wiki:\/\/pages\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 export async function listWikiResources(client: WikiApiClient) {
-  const response = await client.listPages({ status: 'published', limit: 100, order: 'path' });
-  return response.items.map((page) => ({
+  const pages: PublicPageResource[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const response = await client.listPages({ status: 'published', limit: 100, order: 'path', cursor });
+    pages.push(...response.items);
+    cursor = response.nextCursor ?? undefined;
+  } while (cursor);
+
+  return pages.map((page) => ({
     uri: `wiki://pages/${page.id}`,
     name: page.title,
     mimeType: 'text/markdown' as const,

@@ -48,6 +48,38 @@ describe('wiki-page resources', () => {
     expect(resources[0]?.mimeType).toBe('text/markdown');
   });
 
+  it('follows cursor to list pages beyond a single page of results', async () => {
+    const makePage = (id: string) => ({
+      id,
+      spaceSlug: 'main',
+      path: `docs/${id}`,
+      locale: 'en',
+      title: id,
+      status: 'published',
+      author: { id: null, displayName: null },
+      latestRevision: null,
+      publishedRevision: null,
+      createdAt: '',
+      updatedAt: '',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+
+    const listPages = vi
+      .fn()
+      .mockResolvedValueOnce({ items: [makePage('page-1')], nextCursor: 'cursor-1' })
+      .mockResolvedValueOnce({ items: [makePage('page-2')], nextCursor: null });
+    const client = createClient({ listPages });
+
+    const resources = await listWikiResources(client);
+
+    expect(listPages).toHaveBeenCalledTimes(2);
+    expect(listPages).toHaveBeenNthCalledWith(2, expect.objectContaining({ cursor: 'cursor-1' }));
+    expect(resources.map((resource) => resource.uri)).toEqual([
+      'wiki://pages/page-1',
+      'wiki://pages/page-2',
+    ]);
+  });
+
   it('reads page markdown source', async () => {
     const client = createClient({
       getPage: vi.fn().mockResolvedValue({
