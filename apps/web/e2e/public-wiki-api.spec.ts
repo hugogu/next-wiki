@@ -45,7 +45,7 @@ test.describe('Public Wiki Content API smoke workflow', () => {
     expect(asset.status()).toBe(201);
     const assetBody = await asset.json();
 
-    const create = await page.request.post('/api/v1/pages', {
+    const create = await page.request.post('/api/v1/pages?include=latestRevision', {
       headers: { Authorization: `Bearer ${key}` },
       data: { path, title: 'Public Smoke', contentSource: `# Public Smoke\n${assetBody.markdown}` },
     });

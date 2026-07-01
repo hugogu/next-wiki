@@ -585,6 +585,24 @@
         ],
         "description": "Public page ID path parameters."
       },
+      "PublicPageIncludeQuery": {
+        "type": "object",
+        "properties": {
+          "include": {
+            "type": "string",
+            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+          }
+        },
+        "description": "Optional ?include= query parameter for endpoints returning a single PublicPageResource."
+      },
+      "PublicPageIncludeValue": {
+        "type": "string",
+        "enum": [
+          "latestRevision",
+          "publishedRevision"
+        ],
+        "description": "Optional page relation that can be requested via ?include=."
+      },
       "PublicPageListQuery": {
         "type": "object",
         "properties": {
@@ -631,6 +649,10 @@
             ],
             "default": "path",
             "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+          },
+          "include": {
+            "type": "string",
+            "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
           }
         },
         "description": "Public page list query parameters."
@@ -715,7 +737,7 @@
           },
           "contentSource": {
             "type": "string",
-            "description": "Markdown source of the current revision. Present only when the caller may read the content."
+            "description": "Markdown source of the current revision. Omitted from list/search results; present on single-page reads and writes."
           },
           "status": {
             "type": "string",
@@ -738,7 +760,7 @@
                 "type": "null"
               }
             ],
-            "description": "Most recent revision of any status, or null if none exists."
+            "description": "Most recent revision of any status, or null if none exists. Omitted unless requested via ?include=latestRevision."
           },
           "publishedRevision": {
             "anyOf": [
@@ -749,7 +771,7 @@
                 "type": "null"
               }
             ],
-            "description": "Most recent published revision, or null if never published."
+            "description": "Most recent published revision, or null if never published. Omitted unless requested via ?include=publishedRevision."
           },
           "createdAt": {
             "type": "string",
@@ -798,8 +820,6 @@
           "title",
           "status",
           "author",
-          "latestRevision",
-          "publishedRevision",
           "createdAt",
           "updatedAt",
           "links"
@@ -867,6 +887,17 @@
           "cursor": {
             "type": "string",
             "description": "Opaque pagination cursor returned by a previous response."
+          },
+          "include": {
+            "type": "string",
+            "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+          },
+          "excerptLength": {
+            "default": 100,
+            "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.",
+            "type": "integer",
+            "minimum": 20,
+            "maximum": 500
           }
         },
         "required": [
@@ -1018,7 +1049,7 @@
           },
           "contentSource": {
             "type": "string",
-            "description": "Markdown source of the revision. Present only when the caller is permitted to read the content."
+            "description": "Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list."
           }
         },
         "required": [
@@ -1127,7 +1158,7 @@
               "string",
               "null"
             ],
-            "description": "Highlighted snippet around the match, or null when not applicable."
+            "description": "Snippet of contentSource centered on the matched keyword (~excerptLength characters), or null for path/title matches or when not applicable. The result page never includes the full contentSource."
           },
           "score": {
             "type": [
@@ -4705,7 +4736,7 @@
       "get": {
         "operationId": "get-v1-pages",
         "summary": "List public wiki pages",
-        "description": "Lists pages visible to the caller through the stable Public Wiki Content API.",
+        "description": "Lists pages visible to the caller through the stable Public Wiki Content API. List",
         "tags": [
           "Public Wiki Content"
         ],
@@ -4789,6 +4820,16 @@
               "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
             },
             "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+            },
+            "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
           }
         ],
         "security": [
@@ -4816,7 +4857,18 @@
         "tags": [
           "Public Wiki Content"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+          }
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -4896,6 +4948,16 @@
         ],
         "parameters": [
           {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+          },
+          {
             "in": "path",
             "name": "id",
             "required": true,
@@ -4934,6 +4996,16 @@
           "Public Wiki Content"
         ],
         "parameters": [
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+          },
           {
             "in": "path",
             "name": "id",
@@ -5051,6 +5123,29 @@
               "description": "Opaque pagination cursor returned by a previous response."
             },
             "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+          },
+          {
+            "in": "query",
+            "name": "excerptLength",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.",
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 500
+            },
+            "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100."
           }
         ],
         "security": [
@@ -5336,6 +5431,16 @@
           "Public Wiki Content"
         ],
         "parameters": [
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+          },
           {
             "in": "path",
             "name": "id",

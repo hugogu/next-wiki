@@ -5,6 +5,7 @@ import type {
   PublicAssetResource,
   PublicDraftCreateInput,
   PublicPageCreateInput,
+  PublicPageInclude,
   PublicPageListQuery,
   PublicPageListResponse,
   PublicPagePropertiesInput,
@@ -41,6 +42,24 @@ function encodePath(path: string): string {
 
 function likePattern(term: string): string {
   return `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
+
+/** Returns a copy of a page resource with contentSource omitted (list/search shape). */
+function stripPageContent(page: PublicPageResource): PublicPageResource {
+  const copy = { ...page };
+  delete copy.contentSource;
+  return copy;
+}
+
+/** Centers a plain-text excerpt on the first case-insensitive match of `term`. */
+function buildExcerpt(content: string, term: string, windowSize: number): string | null {
+  const index = content.toLowerCase().indexOf(term.toLowerCase());
+  if (index === -1) return null;
+  const before = Math.floor(windowSize / 2);
+  const start = Math.max(0, index - before);
+  const end = Math.min(content.length, start + windowSize);
+  const excerpt = content.slice(start, end);
+  return `${start > 0 ? '…' : ''}${excerpt}${end < content.length ? '…' : ''}`;
 }
 
 function links(page: PageRow) {
@@ -86,11 +105,23 @@ async function revisionSummary(ctx: PermCtx, page: PageRow, revision: RevisionRo
  */
 type ContentReader = (revision: RevisionRow) => Promise<string>;
 
+type VisiblePageOptions = {
+  readContent: ContentReader;
+  includeContent: boolean;
+  include: readonly PublicPageInclude[];
+};
+
+const DEFAULT_VISIBLE_PAGE_OPTIONS: VisiblePageOptions = {
+  readContent: readMarkdownWithFallback,
+  includeContent: true,
+  include: [],
+};
+
 async function visiblePageResource(
   ctx: PermCtx,
   space: { slug: string; anonymousRead: boolean; defaultLocale: string },
   page: PageRow,
-  readContent: ContentReader = readMarkdownWithFallback,
+  options: VisiblePageOptions = DEFAULT_VISIBLE_PAGE_OPTIONS,
 ): Promise<PublicPageResource | null> {
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
     return null;
@@ -117,11 +148,14 @@ async function visiblePageResource(
   const current = visibleLatest ?? published;
   if (!current) return null;
 
+  const wantsLatest = options.include.includes('latestRevision');
+  const wantsPublished = options.include.includes('publishedRevision');
+
   const [contentSource, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
-    readContent(current),
+    options.includeContent ? options.readContent(current) : Promise.resolve(undefined),
     author(page.authorId),
-    revisionSummary(ctx, page, visibleLatest),
-    revisionSummary(ctx, page, published),
+    wantsLatest ? revisionSummary(ctx, page, visibleLatest) : Promise.resolve(undefined),
+    wantsPublished ? revisionSummary(ctx, page, published) : Promise.resolve(undefined),
   ]);
 
   return {
@@ -141,7 +175,7 @@ async function visiblePageResource(
   };
 }
 
-async function getVisiblePage(ctx: PermCtx, predicate: SQL): Promise<PublicPageResource | null> {
+async function getVisiblePage(ctx: PermCtx, predicate: SQL, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
   const space = await getDefaultSpace();
   if (!space) return null;
   const page = await db.query.pages.findFirst({
@@ -152,7 +186,7 @@ async function getVisiblePage(ctx: PermCtx, predicate: SQL): Promise<PublicPageR
     ),
   });
   if (!page) return null;
-  return visiblePageResource(ctx, space, page);
+  return visiblePageResource(ctx, space, page, { ...DEFAULT_VISIBLE_PAGE_OPTIONS, include });
 }
 
 async function getPageRowById(pageId: string): Promise<PageRow | null> {
@@ -167,22 +201,54 @@ async function getPageRowById(pageId: string): Promise<PageRow | null> {
   })) ?? null;
 }
 
+type VisibleRevisionOptions = {
+  readContent: ContentReader;
+  includeContent: boolean;
+};
+
+const DEFAULT_VISIBLE_REVISION_OPTIONS: VisibleRevisionOptions = {
+  readContent: readMarkdownWithFallback,
+  includeContent: true,
+};
+
 async function visibleRevisionResource(
   ctx: PermCtx,
   page: PageRow,
   revision: RevisionRow,
-  readContent: ContentReader = readMarkdownWithFallback,
+  options: VisibleRevisionOptions = DEFAULT_VISIBLE_REVISION_OPTIONS,
 ): Promise<PublicRevisionResource | null> {
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? revision.authorId === userId : false;
   if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, { isAuthor })) {
     return null;
   }
-  const [summary, contentSource] = await Promise.all([revisionSummary(ctx, page, revision), readContent(revision)]);
+  const [summary, contentSource] = await Promise.all([
+    revisionSummary(ctx, page, revision),
+    options.includeContent ? options.readContent(revision) : Promise.resolve(undefined),
+  ]);
   return { ...summary!, contentSource };
 }
 
-export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promise<PublicPageListResponse> {
+type ListPagesQuery = {
+  status: 'published' | 'draft' | 'all';
+  q?: string;
+  path?: string;
+  limit: number;
+  cursor?: string;
+  order: 'path' | 'recent';
+  include: readonly PublicPageInclude[];
+};
+
+/**
+ * Shared row-fetch/permission-filter logic for both the list endpoint and search
+ * (search reuses this rather than the public listPages so it can read contentSource
+ * for match/excerpt computation before the public list shape strips it).
+ */
+async function listPagesInternal(
+  ctx: PermCtx,
+  query: ListPagesQuery,
+  options: { includeContent: boolean },
+): Promise<PublicPageListResponse> {
   const space = await getDefaultSpace();
   if (!space) return { items: [], nextCursor: null };
 
@@ -191,7 +257,7 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   }
 
   if (query.path) {
-    const page = await getPageByPath(ctx, query.path);
+    const page = await getPageByPath(ctx, query.path, query.include);
     return { items: page ? [page] : [], nextCursor: null };
   }
 
@@ -228,7 +294,13 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   // synchronously, so this is a free in-memory read instead of N remote round trips.
   // Resolve the whole row window concurrently — these are independent per-row reads.
   const resolved = await Promise.all(
-    rows.map(({ page }) => visiblePageResource(ctx, space, page, readMarkdownFromDatabase)),
+    rows.map(({ page }) =>
+      visiblePageResource(ctx, space, page, {
+        readContent: readMarkdownFromDatabase,
+        includeContent: options.includeContent,
+        include: query.include,
+      }),
+    ),
   );
 
   const items: PublicPageResource[] = [];
@@ -253,21 +325,35 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   };
 }
 
-export async function getPageById(ctx: PermCtx, id: string): Promise<PublicPageResource | null> {
-  return getVisiblePage(ctx, eq(schema.pages.id, id));
+export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promise<PublicPageListResponse> {
+  // The list endpoint never returns contentSource; only fetch it when a q filter
+  // needs it for the JS-level re-check above.
+  const result = await listPagesInternal(ctx, query, { includeContent: Boolean(query.q) });
+  // The `path` filter is a single-page lookup wearing the list endpoint's clothes
+  // (at most one item, no browsing) — keep its contentSource like GET /pages/{id}.
+  if (query.path) return result;
+  return { items: result.items.map(stripPageContent), nextCursor: result.nextCursor };
 }
 
-export async function getPageByPath(ctx: PermCtx, path: string): Promise<PublicPageResource | null> {
-  return getVisiblePage(ctx, eq(schema.pages.path, path));
+export async function getPageById(ctx: PermCtx, id: string, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
+  return getVisiblePage(ctx, eq(schema.pages.id, id), include);
 }
 
-export async function createPage(ctx: PermCtx, input: PublicPageCreateInput): Promise<PublicPageResource> {
+export async function getPageByPath(ctx: PermCtx, path: string, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
+  return getVisiblePage(ctx, eq(schema.pages.path, path), include);
+}
+
+export async function createPage(
+  ctx: PermCtx,
+  input: PublicPageCreateInput,
+  include: readonly PublicPageInclude[] = [],
+): Promise<PublicPageResource> {
   const created = await pageService.create(ctx, {
     path: input.path,
     title: input.title,
     contentSource: input.contentSource,
   });
-  const page = await getPageById(ctx, created.pageId);
+  const page = await getPageById(ctx, created.pageId, include);
   if (!page) throw new DomainError('NOT_FOUND', 'Created page is not visible');
   return page;
 }
@@ -281,14 +367,23 @@ export async function createDraft(ctx: PermCtx, pageId: string, input: PublicDra
   return revision;
 }
 
-export async function updateProperties(ctx: PermCtx, pageId: string, input: PublicPagePropertiesInput): Promise<PublicPageResource> {
+export async function updateProperties(
+  ctx: PermCtx,
+  pageId: string,
+  input: PublicPagePropertiesInput,
+  include: readonly PublicPageInclude[] = [],
+): Promise<PublicPageResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   const updated = await pageService.updateProperties(ctx, page.path, input);
-  const view = await getPageById(ctx, updated.pageId);
+  const view = await getPageById(ctx, updated.pageId, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Updated page is not visible');
   return view;
 }
+
+// Revision history never returns Markdown source — fetch a single revision
+// (GET /pages/{id}/revisions/{version}) for content.
+const LIST_REVISION_OPTIONS: VisibleRevisionOptions = { readContent: readMarkdownFromDatabase, includeContent: false };
 
 export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicRevisionListQuery): Promise<PublicRevisionListResponse> {
   const page = await getPageRowById(pageId);
@@ -306,7 +401,7 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
     (row) => !query.status || query.status === 'all' || row.status === query.status,
   );
   const resolved = await Promise.all(
-    candidates.map((row) => visibleRevisionResource(ctx, page, row, readMarkdownFromDatabase)),
+    candidates.map((row) => visibleRevisionResource(ctx, page, row, LIST_REVISION_OPTIONS)),
   );
 
   const items: PublicRevisionResource[] = [];
@@ -333,7 +428,13 @@ export async function getRevision(ctx: PermCtx, pageId: string, version: number)
   return visibleRevisionResource(ctx, page, revision);
 }
 
-export async function publishRevision(ctx: PermCtx, pageId: string, version: number, input: PublicPublicationInput): Promise<PublicPageResource> {
+export async function publishRevision(
+  ctx: PermCtx,
+  pageId: string,
+  version: number,
+  input: PublicPublicationInput,
+  include: readonly PublicPageInclude[] = [],
+): Promise<PublicPageResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   await revisionService.publish(ctx, {
@@ -341,7 +442,7 @@ export async function publishRevision(ctx: PermCtx, pageId: string, version: num
     version,
     expectedRevisionId: input.expectedRevisionId,
   });
-  const view = await getPageById(ctx, page.id);
+  const view = await getPageById(ctx, page.id, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Published page is not visible');
   return view;
 }
@@ -388,13 +489,21 @@ export async function getAssetContent(ctx: PermCtx, id: string) {
 }
 
 export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): Promise<PublicPageSearchResponse> {
-  const pages = await listPages(ctx, {
-    status: query.status,
-    q: query.q,
-    limit: query.limit,
-    cursor: query.cursor,
-    order: 'recent',
-  });
+  // Fetch through the internal (content-included) path rather than the public
+  // listPages, since matchType/excerpt need contentSource before the public
+  // page shape strips it.
+  const pages = await listPagesInternal(
+    ctx,
+    {
+      status: query.status,
+      q: query.q,
+      limit: query.limit,
+      cursor: query.cursor,
+      order: 'recent',
+      include: query.include,
+    },
+    { includeContent: true },
+  );
   const q = query.q.toLowerCase();
   return {
     items: pages.items
@@ -403,8 +512,8 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
         const titleMatch = page.title.toLowerCase().includes(q);
         const contentMatch = page.contentSource?.toLowerCase().includes(q) ?? false;
         const matchType: 'path' | 'title' | 'content' = pathMatch ? 'path' : titleMatch ? 'title' : contentMatch ? 'content' : 'title';
-        const excerpt = page.contentSource && contentMatch ? page.contentSource.slice(0, 240) : null;
-        return { page, matchType, excerpt, score: null };
+        const excerpt = matchType === 'content' && page.contentSource ? buildExcerpt(page.contentSource, query.q, query.excerptLength) : null;
+        return { page: stripPageContent(page), matchType, excerpt, score: null };
       })
       .filter((item) => query.scope === 'all' || item.matchType === query.scope),
     nextCursor: pages.nextCursor,

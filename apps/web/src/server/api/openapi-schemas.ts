@@ -200,8 +200,12 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
   contentSource: z
     .string()
     .optional()
-    .describe('Markdown source of the revision. Present only when the caller is permitted to read the content.'),
+    .describe('Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list.'),
 }).describe('Public page revision with Markdown source when the caller may read it.');
+
+export const PublicPageIncludeValue = z
+  .enum(['latestRevision', 'publishedRevision'])
+  .describe('Optional page relation that can be requested via ?include=.');
 
 export const PublicPageResource = z
   .object({
@@ -213,13 +217,19 @@ export const PublicPageResource = z
     contentSource: z
       .string()
       .optional()
-      .describe('Markdown source of the current revision. Present only when the caller may read the content.'),
+      .describe('Markdown source of the current revision. Omitted from list/search results; present on single-page reads and writes.'),
     status: z
       .enum(['draft', 'published', 'deleted'])
       .describe('Page lifecycle state: an unpublished draft, a published page, or a soft-deleted page.'),
     author: PublicAuthor,
-    latestRevision: PublicRevisionSummary.nullable().describe('Most recent revision of any status, or null if none exists.'),
-    publishedRevision: PublicRevisionSummary.nullable().describe('Most recent published revision, or null if never published.'),
+    latestRevision: PublicRevisionSummary
+      .nullable()
+      .optional()
+      .describe('Most recent revision of any status, or null if none exists. Omitted unless requested via ?include=latestRevision.'),
+    publishedRevision: PublicRevisionSummary
+      .nullable()
+      .optional()
+      .describe('Most recent published revision, or null if never published. Omitted unless requested via ?include=publishedRevision.'),
     createdAt: z.string().datetime().describe('Timestamp when the page was created (ISO 8601).'),
     updatedAt: z.string().datetime().describe('Timestamp when the page was last updated (ISO 8601).'),
     links: z
@@ -258,8 +268,23 @@ export const PublicPageListQuery = z
       .optional()
       .default('path')
       .describe('Sort order: alphabetical by path, or most recently updated first. Defaults to path.'),
+    include: z
+      .string()
+      .optional()
+      .describe(
+        'Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead.',
+      ),
   })
   .describe('Public page list query parameters.');
+
+export const PublicPageIncludeQuery = z
+  .object({
+    include: z
+      .string()
+      .optional()
+      .describe('Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision.'),
+  })
+  .describe('Optional ?include= query parameter for endpoints returning a single PublicPageResource.');
 
 export const PublicPageListResponse = z
   .object({
@@ -362,6 +387,18 @@ export const PublicPageSearchQuery = z
       .default(20)
       .describe('Maximum number of results to return per request (1-100). Defaults to 20.'),
     cursor: z.string().optional().describe('Opaque pagination cursor returned by a previous response.'),
+    include: z
+      .string()
+      .optional()
+      .describe('Comma-separated relations to include on each result page: latestRevision, publishedRevision.'),
+    excerptLength: z.coerce
+      .number()
+      .int()
+      .min(20)
+      .max(500)
+      .optional()
+      .default(100)
+      .describe('Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.'),
   })
   .describe('Public page search query parameters.');
 
@@ -369,7 +406,12 @@ export const PublicSearchResult = z
   .object({
     page: PublicPageResource,
     matchType: z.enum(['path', 'title', 'content']).describe('Which field produced the match for this result.'),
-    excerpt: z.string().nullable().describe('Highlighted snippet around the match, or null when not applicable.'),
+    excerpt: z
+      .string()
+      .nullable()
+      .describe(
+        'Snippet of contentSource centered on the matched keyword (~excerptLength characters), or null for path/title matches or when not applicable. The result page never includes the full contentSource.',
+      ),
     score: z.number().nullable().describe('Relevance score of the match, or null when not ranked.'),
   })
   .describe('Public page search result.');

@@ -34,11 +34,15 @@ describe('public content write facade', () => {
     const editor = await createPublicApiUser('public-write-editor@example.com', 'editor');
     const ctx = buildApiKeyCtx(editor.id, 'editor', ['view', 'create', 'edit'], 'editor-key');
 
-    const page = await publicContent.createPage(ctx, {
-      path: 'public/write',
-      title: 'Write',
-      contentSource: '# Write',
-    });
+    const page = await publicContent.createPage(
+      ctx,
+      {
+        path: 'public/write',
+        title: 'Write',
+        contentSource: '# Write',
+      },
+      ['latestRevision'],
+    );
     expect(page.status).toBe('draft');
 
     const draft = await publicContent.createDraft(ctx, page.id, {
@@ -55,7 +59,7 @@ describe('public content write facade', () => {
     });
     expect(renamed.path).toBe('public/write-renamed');
 
-    const published = await publicContent.publishRevision(ctx, page.id, 2, { expectedRevisionId: draft.id });
+    const published = await publicContent.publishRevision(ctx, page.id, 2, { expectedRevisionId: draft.id }, ['publishedRevision']);
     expect(published.publishedRevision?.version).toBe(2);
   });
 

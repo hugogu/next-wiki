@@ -30,6 +30,8 @@ describe('Public Wiki page search route', () => {
       scope: 'title',
       status: 'published',
       limit: 5,
+      include: [],
+      excerptLength: 100,
     });
   });
 

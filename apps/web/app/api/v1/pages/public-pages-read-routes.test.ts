@@ -31,6 +31,7 @@ describe('Public Wiki read routes', () => {
       status: 'published',
       limit: 10,
       order: 'recent',
+      include: [],
     });
   });
 
@@ -63,6 +64,7 @@ describe('Public Wiki read routes', () => {
       path: 'docs/intro',
       limit: 20,
       order: 'path',
+      include: [],
     });
   });
 });

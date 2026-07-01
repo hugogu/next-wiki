@@ -43,7 +43,7 @@ describe('Public Wiki write routes', () => {
       { params: Promise.resolve({}) },
     );
     expect(response.status).toBe(201);
-    expect(publicContent.createPage).toHaveBeenCalledWith(expect.anything(), { path: 'docs/new', title: 'New', contentSource: '# New' });
+    expect(publicContent.createPage).toHaveBeenCalledWith(expect.anything(), { path: 'docs/new', title: 'New', contentSource: '# New' }, []);
   });
 
   it('drafts and properties routes surface stale conflicts as 409', async () => {
@@ -76,6 +76,6 @@ describe('Public Wiki write routes', () => {
     expect(publicContent.getRevision).toHaveBeenCalledWith(expect.anything(), id, 2);
 
     expect((await publicationRoute.POST(request('POST', `http://localhost/api/v1/pages/${id}/revisions/2/publication`, {}), { params: Promise.resolve({ id, version: '2' }) })).status).toBe(200);
-    expect(publicContent.publishRevision).toHaveBeenCalledWith(expect.anything(), id, 2, {});
+    expect(publicContent.publishRevision).toHaveBeenCalledWith(expect.anything(), id, 2, {}, []);
   });
 });

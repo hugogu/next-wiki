@@ -25,11 +25,30 @@ logic.
 }
 ```
 
+## Response shape: `include` and list/search trimming
+
+`PublicPageResource` items returned when browsing multiple pages (`GET /api/v1/pages`
+without `path=`, and `GET /api/v1/search/pages`) never include `contentSource`.
+Fetch Markdown source via `GET /api/v1/pages/{id}` or a specific revision endpoint.
+`GET /api/v1/pages?path=...` is the exception: it returns at most one item and
+behaves like a single-page lookup, so it keeps `contentSource` like `GET /pages/{id}`.
+
+`latestRevision` and `publishedRevision` are omitted from every `PublicPageResource`
+response (list, get, create, update, publish, and search's embedded `page`) unless
+requested through `?include=latestRevision,publishedRevision` (comma-separated).
+When omitted, the key is absent from the JSON body rather than `null`. Fetch full
+revision history and content via `GET /api/v1/pages/{id}/revisions` and
+`GET /api/v1/pages/{id}/revisions/{version}`.
+
+`GET /api/v1/pages/{id}/revisions` (revision list) never includes `contentSource`
+on its items either; fetch a single revision's Markdown via
+`GET /api/v1/pages/{id}/revisions/{version}`.
+
 ## Pages
 
 ### `GET /api/v1/pages`
 
-List pages visible to the caller.
+List pages visible to the caller. Items are the trimmed list shape described above.
 
 Query:
 
@@ -41,6 +60,7 @@ Query:
 | `limit` | number | Default 20, max 100 |
 | `cursor` | string | Optional pagination cursor |
 | `order` | `path`, `recent` | Defaults to `path` |
+| `include` | comma-separated: `latestRevision`, `publishedRevision` | Optional; omitted by default |
 
 Response `200`:
 
@@ -66,6 +86,8 @@ Request:
 }
 ```
 
+Query: `include` (see above).
+
 Response `201`: `PublicPageResource`.
 
 Errors:
@@ -78,6 +100,8 @@ Errors:
 
 Return a page by stable id.
 
+Query: `include` (see above).
+
 Response `200`: `PublicPageResource`.
 
 Look up a page by canonical path through the list endpoint's `path` filter:
@@ -88,6 +112,8 @@ The response is a `PublicPageListResponse` containing at most one item.
 
 Update page properties (title and/or canonical path) without changing Markdown
 source.
+
+Query: `include` (see above).
 
 Request:
 
@@ -134,7 +160,8 @@ Errors:
 
 ### `GET /api/v1/pages/{id}/revisions`
 
-List visible revisions.
+List visible revisions. Items never include `contentSource`; fetch a specific
+revision's Markdown via `GET /api/v1/pages/{id}/revisions/{version}`.
 
 Query:
 
@@ -163,6 +190,8 @@ Response `200`: `PublicRevisionResource`.
 
 Publish an eligible draft revision.
 
+Query: `include` (see above).
+
 Request:
 
 ```json
@@ -171,7 +200,8 @@ Request:
 }
 ```
 
-Response `200`: `PublicPageResource` with the new published revision.
+Response `200`: `PublicPageResource`. Pass `?include=publishedRevision` to get the
+new published revision's id/publishedAt on this response.
 
 Errors:
 
@@ -224,7 +254,10 @@ Unreadable or missing assets return `404 NOT_FOUND`.
 
 ### `GET /api/v1/search/pages`
 
-Search pages visible to the caller.
+Search pages visible to the caller. Each result's `page` is the trimmed list
+shape (no `contentSource`; see above). Instead of full content, a `content`-scope
+match includes `excerpt`: the text surrounding the first match of `q`, sized by
+`excerptLength`. `excerpt` is `null` for `path`/`title` matches.
 
 Query:
 
@@ -235,6 +268,8 @@ Query:
 | `status` | `published`, `draft`, `all` | Defaults to `published` |
 | `limit` | number | Default 20, max 100 |
 | `cursor` | string | Optional pagination cursor |
+| `include` | comma-separated: `latestRevision`, `publishedRevision` | Optional; omitted by default |
+| `excerptLength` | number | Approximate characters of context around the match (20-500). Default 100 |
 
 Response `200`:
 

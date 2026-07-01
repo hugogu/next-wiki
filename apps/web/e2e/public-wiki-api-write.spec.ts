@@ -36,7 +36,7 @@ test.describe('Public Wiki Content API write workflow', () => {
     await login(page);
     const key = await createApiKey(page, keyName, ['View', 'Create', 'Edit']);
 
-    const create = await page.request.post('/api/v1/pages', {
+    const create = await page.request.post('/api/v1/pages?include=latestRevision', {
       headers: { Authorization: `Bearer ${key}` },
       data: { path, title: 'Public API Write', contentSource: '# Initial' },
     });

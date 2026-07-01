@@ -86,6 +86,21 @@ export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
 });
 export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
 
+export const publicPageIncludeValues = ['latestRevision', 'publishedRevision'] as const;
+export const publicPageIncludeSchema = z.enum(publicPageIncludeValues);
+export type PublicPageInclude = z.infer<typeof publicPageIncludeSchema>;
+
+/** Parses a comma-separated `include` query param into a de-duplicated array. */
+export const publicIncludeQuerySchema = z
+  .string()
+  .optional()
+  .transform((value) =>
+    value
+      ? Array.from(new Set(value.split(',').map((part) => part.trim()).filter(Boolean)))
+      : [],
+  )
+  .pipe(z.array(publicPageIncludeSchema));
+
 export const publicPageResourceSchema = z.object({
   id: z.string().uuid(),
   spaceSlug: z.string(),
@@ -95,8 +110,8 @@ export const publicPageResourceSchema = z.object({
   contentSource: z.string().optional(),
   status: publicPageStatusSchema,
   author: publicAuthorSchema,
-  latestRevision: publicRevisionSummarySchema.nullable(),
-  publishedRevision: publicRevisionSummarySchema.nullable(),
+  latestRevision: publicRevisionSummarySchema.nullable().optional(),
+  publishedRevision: publicRevisionSummarySchema.nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   links: z.object({
@@ -115,8 +130,17 @@ export const publicPageListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
+  include: publicIncludeQuerySchema,
 });
 export type PublicPageListQuery = z.infer<typeof publicPageListQuerySchema>;
+
+/** Shared `?include=` query shape for endpoints returning a single PublicPageResource
+ * (get by id, create, update properties, publish) — controls whether latestRevision/
+ * publishedRevision are populated. */
+export const publicPageIncludeQuerySchema = z.object({
+  include: publicIncludeQuerySchema,
+});
+export type PublicPageIncludeQuery = z.infer<typeof publicPageIncludeQuerySchema>;
 
 export const publicPageListResponseSchema = z.object({
   items: z.array(publicPageResourceSchema),
@@ -173,6 +197,8 @@ export const publicPageSearchQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+  include: publicIncludeQuerySchema,
+  excerptLength: z.coerce.number().int().min(20).max(500).default(100),
 });
 export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
 
