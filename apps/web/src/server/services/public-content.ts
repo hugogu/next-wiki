@@ -85,12 +85,16 @@ async function visiblePageResource(ctx: PermCtx, space: { slug: string; anonymou
   const isPageAuthor = userId ? page.authorId === userId : false;
   const canSeeDraft = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor: isPageAuthor });
 
-  const published = (page.currentPublishedVersionId
-    ? await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.currentPublishedVersionId) })
-    : null) ?? null;
-  const latest = (page.latestVersionId
-    ? await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.latestVersionId) })
-    : null) ?? null;
+  const [publishedRow, latestRow] = await Promise.all([
+    page.currentPublishedVersionId
+      ? db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.currentPublishedVersionId) })
+      : Promise.resolve(undefined),
+    page.latestVersionId
+      ? db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.latestVersionId) })
+      : Promise.resolve(undefined),
+  ]);
+  const published = publishedRow ?? null;
+  const latest = latestRow ?? null;
 
   if (!published && !canSeeDraft) return null;
 
@@ -98,17 +102,24 @@ async function visiblePageResource(ctx: PermCtx, space: { slug: string; anonymou
   const current = visibleLatest ?? published;
   if (!current) return null;
 
+  const [contentSource, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
+    readMarkdownWithFallback(current),
+    author(page.authorId),
+    revisionSummary(ctx, page, visibleLatest),
+    revisionSummary(ctx, page, published),
+  ]);
+
   return {
     id: page.id,
     spaceSlug: space.slug,
     path: page.path,
     locale: page.locale,
     title: page.title,
-    contentSource: await readMarkdownWithFallback(current),
+    contentSource,
     status: published ? 'published' : 'draft',
-    author: await author(page.authorId),
-    latestRevision: await revisionSummary(ctx, page, visibleLatest),
-    publishedRevision: await revisionSummary(ctx, page, published),
+    author: pageAuthor,
+    latestRevision,
+    publishedRevision,
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString(),
     links: links(page),
@@ -194,9 +205,13 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
     .limit(query.limit + 1)
     .offset(cursor.offset);
 
+  // Each row's markdown may live behind a network read (S3/local backend), so resolve
+  // the whole window concurrently instead of one page at a time (was O(n) sequential
+  // round trips, making a 20-row page take as long as 20x a single page fetch).
+  const resolved = await Promise.all(rows.map(({ page }) => visiblePageResource(ctx, space, page)));
+
   const items: PublicPageResource[] = [];
-  for (const { page } of rows) {
-    const item = await visiblePageResource(ctx, space, page);
+  for (const item of resolved) {
     if (!item) continue;
     if (query.status === 'draft' && item.status !== 'draft') continue;
     if (query.q) {
@@ -267,10 +282,13 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
     .limit(query.limit + 1)
     .offset(cursor.offset);
 
+  const candidates = rows.filter(
+    (row) => !query.status || query.status === 'all' || row.status === query.status,
+  );
+  const resolved = await Promise.all(candidates.map((row) => visibleRevisionResource(ctx, page, row)));
+
   const items: PublicRevisionResource[] = [];
-  for (const row of rows) {
-    if (query.status && query.status !== 'all' && row.status !== query.status) continue;
-    const item = await visibleRevisionResource(ctx, page, row);
+  for (const item of resolved) {
     if (item) items.push(item);
     if (items.length >= query.limit) break;
   }
