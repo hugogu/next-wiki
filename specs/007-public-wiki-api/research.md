@@ -119,3 +119,83 @@ configuration and should not be mandatory for the baseline.
   disabled and the feature must work without AI.
 - Omit search until full-text infrastructure is expanded: rejected because
   external tools need a basic discovery workflow.
+
+## R8 — MCP Server Package Placement
+
+**Decision**: Place the MCP Server in the existing monorepo as
+`packages/mcp-server/` (`@next-wiki/mcp-server`), not in a separate repository.
+
+**Rationale**:
+- The MCP Server is a thin client of the v1 REST API and shares types from
+  `@next-wiki/shared`. A separate repo would duplicate type definitions or
+  require cross-repo package versioning for no architectural benefit.
+- The pnpm workspace + Turborepo monorepo already supports multi-package
+  builds, shared typechecking, and unified CI. Adding one more package is
+  zero-friction.
+- The MCP Server is a publishable npm package (users install and run it locally
+  via `npx @next-wiki/mcp-server`), which fits `packages/` semantics better
+  than `apps/` (deployable web services).
+- Single repo means contract changes (new v1 endpoint, schema update) and MCP
+  tool updates land in the same PR, preventing drift.
+
+**Alternatives considered**:
+- Separate repository: rejected because the MCP Server has no independent
+  release cadence, no separate team, and depends on shared types from this
+  repo.
+- `apps/mcp-server/`: rejected because MCP servers are package/CLI tools, not
+  web applications with their own deployment. The HTTP/SSE transport variant
+  can later be mounted inside `apps/web` at `/api/mcp` without a separate app.
+
+## R9 — MCP Transport and Authentication Model
+
+**Decision**: The MCP Server uses stdio as the primary transport and holds the
+API key internally. AI clients (Claude Desktop, Cursor) never see or manage
+bearer tokens.
+
+**Rationale**:
+- stdio is the universal MCP transport supported by all major AI clients
+  (Claude Desktop, Cursor, Windsurf). It requires zero network configuration
+  from the user — just a config entry pointing to the server binary.
+- Embedding the API key in the MCP Server process (via `NEXT_WIKI_API_KEY`
+  environment variable or `--api-key` flag) removes the most error-prone step
+  for AI agents: HTTP auth header construction. The AI interacts with typed
+  tool parameters only.
+- All permission enforcement remains server-side in the v1 REST API. The MCP
+  Server is a pure passthrough — it does not re-implement any permission logic.
+  A Reader-scoped key in the MCP config means all write tools will return
+  permission errors from the server, identical to a direct REST call.
+- HTTP/SSE transport is documented as a SHOULD (FR-026) for future remote
+  deployment but is not required for the initial release.
+
+**Alternatives considered**:
+- Have the AI client pass the API key as a tool parameter: rejected because it
+  leaks secrets into prompt context and LLM token streams.
+- Implement OAuth in the MCP Server: rejected as over-engineering for the
+  current scale; API key is already the established auth model.
+- HTTP-only (no stdio): rejected because it breaks Claude Desktop and Cursor
+  local workflows, which expect stdio.
+
+## R10 — MCP Tool Design Principles
+
+**Decision**: Each MCP tool maps 1:1 to a v1 REST endpoint. Tool names use
+`snake_case` action verbs. Response shapes are flattened and de-HTTP-ified.
+
+**Rationale**:
+- 1:1 mapping keeps the MCP Server maintainable — when a REST endpoint changes,
+  exactly one tool updates. No tool composition logic to drift.
+- LLMs select tools by name and description. Clear names like `search_wiki`,
+  `create_page`, `upload_image` outperform generic names like `execute_api`.
+- Raw HTTP response envelopes (`{ items: [...], nextCursor: "..." }`) waste
+  tokens and confuse LLMs. Flattening to `{ results: [...], has_more: true }`
+  with plain-language field names improves comprehension.
+- The `upload_image` tool is especially important: LLMs cannot construct
+  multipart form data. The MCP tool accepts image bytes as a base64 parameter
+  and handles the multipart encoding internally.
+
+**Alternatives considered**:
+- Composite tools (e.g., `create_and_publish_page`): rejected for the initial
+  release to keep the surface minimal and avoid duplicating workflow logic.
+  Composite workflows can be layered later as higher-level tools.
+- Expose raw REST passthrough as a single generic tool: rejected because it
+  defeats the purpose of MCP — AI would still need to construct URLs and HTTP
+  methods.

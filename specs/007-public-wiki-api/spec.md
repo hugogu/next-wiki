@@ -3,7 +3,9 @@
 **Feature Branch**: `007-public-wiki-api`  
 **Created**: 2026-06-29  
 **Status**: Draft  
-**Input**: User description: "为 next-wiki 增加稳定的 Public Wiki Content API，使 OpenClaw、OpenCode 等外部工具能通过 API 高效访问、查询和更新 Wiki 内容，从而让 next-wiki 具备替代 Wiki.js 的基础自动化能力。本功能应把现有页面、版本、草稿、发布、资产、搜索和权限能力整理为清晰、版本化、长期稳定的外部接口，而不是让外部工具依赖当前内部前端 API。外部工具应能使用 API Key 按权限列出页面、读取页面元数据和 Markdown 源文、创建页面、保存草稿、发布版本、更新页面属性、查看历史版本、上传并引用图片/文件、搜索页面，并获得清晰的错误与审计记录。所有操作必须遵守现有 Reader/Editor/Admin 角色和 API Key scope 约束；Reader 只能读取，Editor/Admin 才能创建、编辑和发布。接口需纳入 OpenAPI 文档，提供可验证的端到端流程：创建页面、写入 Markdown、上传图片、发布、查询、更新、查看历史。MCP、AI 知识分层和高级治理能力不在本阶段范围内。"
+**Input**: User description: "为 next-wiki 增加稳定的 Public Wiki Content API，使 OpenClaw、OpenCode 等外部工具能通过 API 高效访问、查询和更新 Wiki 内容，从而让 next-wiki 具备替代 Wiki.js 的基础自动化能力。本功能应把现有页面、版本、草稿、发布、资产、搜索和权限能力整理为清晰、版本化、长期稳定的外部接口，而不是让外部工具依赖当前内部前端 API。外部工具应能使用 API Key 按权限列出页面、读取页面元数据和 Markdown 源文、创建页面、保存草稿、发布版本、更新页面属性、查看历史版本、上传并引用图片/文件、搜索页面，并获得清晰的错误与审计记录。所有操作必须遵守现有 Reader/Editor/Admin 角色和 API Key scope 约束；Reader 只能读取，Editor/Admin 才能创建、编辑和发布。接口需纳入 OpenAPI 文档，提供可验证的端到端流程：创建页面、写入 Markdown、上传图片、发布、查询、更新、查看历史。"
+
+**Update 2026-07-01**: MCP Server 建设纳入本 feature 范围。在 v1 REST API 已实现的基础上，增加 MCP Server 作为 AI 原生接入层，使 Claude Desktop、Cursor 等 MCP 兼容客户端即插即用。AI 知识分层和高级治理能力仍不在范围内。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -123,6 +125,48 @@ operations appear in user-visible and administrator-visible audit history.
    search, and history workflows are discoverable with request and response
    schemas.
 
+---
+
+### User Story 5 - MCP Server for AI-Native Wiki Access (Priority: P2)
+
+As an AI tool user (Claude Desktop, Cursor, or other MCP-compatible clients),
+I want an MCP Server that exposes wiki content operations as MCP tools, so that
+AI agents can search, read, create, edit, and publish wiki content without
+manually constructing REST calls or managing authentication tokens.
+
+**Why this priority**: The v1 REST API already enables programmatic integration;
+the MCP Server layers on top to provide a native experience for MCP-compatible
+AI tools, removing the overhead of HTTP request construction, multipart form
+assembly, and token management. The v1 API surface is small (11 endpoints), so
+the MCP tool mapping is straightforward.
+
+**Independent Test**: Configure the MCP Server with an Editor API key in Claude
+Desktop or Cursor, then ask the AI to search for a page, read its content,
+create a new page with an uploaded image, publish it, and verify the content
+appears correctly through both the MCP tools and the web UI.
+
+**Acceptance Scenarios**:
+
+1. **Given** an MCP-compatible AI client configured with the wiki MCP Server,
+   **When** the client calls the `search_wiki` tool, **Then** it receives only
+   readable pages as structured results without needing to construct HTTP
+   requests or manage bearer tokens.
+2. **Given** an Editor-scoped MCP Server configuration, **When** the AI creates
+   a page and publishes it through MCP tools, **Then** the page appears in the
+   web UI with correct content, uploaded assets, and revision history.
+3. **Given** an MCP `upload_image` tool call, **When** the AI inserts the
+   returned markdown reference into page content and publishes, **Then** the
+   image renders correctly in the published page without manual multipart form
+   construction.
+4. **Given** a Reader-scoped MCP Server configuration, **When** the AI attempts
+   to create or publish through MCP tools, **Then** the operation is denied with
+   a clear permission error, consistent with the REST API behavior.
+5. **Given** a wiki page that the configured API key can read, **When** the MCP
+   client lists or reads resources, **Then** the page content is available as an
+   MCP resource for context-aware AI workflows.
+
+---
+
 ### Edge Cases
 
 - A key has the right API scope but belongs to a role that lacks the page action.
@@ -201,8 +245,9 @@ operations appear in user-visible and administrator-visible audit history.
 - **FR-018**: The system MUST provide a complete externally driven workflow:
   create page, write Markdown, upload asset, reference asset, publish, query,
   update, and inspect history.
-- **FR-019**: The feature MUST NOT introduce MCP tools, AI knowledge layering,
-  AI governance workflows, or new AI-specific behavior.
+- **FR-019**: The feature MUST NOT introduce AI knowledge layering,
+  AI governance workflows, or new AI-specific behavior beyond the MCP Server
+  defined in User Story 5.
 - **FR-020**: Existing first-party wiki reading, editing, publishing, asset, and
   administration workflows MUST continue to work while external public API
   routes are added.
@@ -210,6 +255,26 @@ operations appear in user-visible and administrator-visible audit history.
   routes, and first-party UI flows MUST be verified through tests that prove the
   same permissions, validation, revision creation, publication, search
   visibility, and asset visibility decisions are applied.
+- **FR-022**: The system MUST provide an MCP Server package (`@next-wiki/mcp-server`)
+  in the monorepo that exposes the v1 public API as MCP tools, using the same
+  permission, audit, and error model.
+- **FR-023**: Each MCP tool MUST map to exactly one v1 public API operation and
+  MUST NOT introduce independent business logic, validation, or permission rules.
+- **FR-024**: The MCP Server MUST authenticate to the v1 API using a configured
+  API key (via environment variable or config file), so that AI clients do not
+  need to manage bearer tokens or understand the REST auth model.
+- **FR-025**: The MCP Server MUST expose readable wiki pages as MCP resources
+  (URI scheme `wiki://pages/{id}`) for context-aware AI workflows that prefer
+  resource subscription over tool calls.
+- **FR-026**: The MCP Server MUST support stdio transport for local AI client
+  integration (Claude Desktop, Cursor) and SHOULD support HTTP/SSE transport for
+  remote deployment scenarios.
+- **FR-027**: MCP tool responses MUST use structured, LLM-friendly shapes (flat
+  objects, clear field names, no raw HTTP envelope wrappers) to minimize token
+  overhead and maximize AI comprehension.
+- **FR-028**: MCP tool descriptions MUST clearly state what each tool does, its
+  required parameters, and what it returns, so that AI agents can autonomously
+  select the right tool without human guidance.
 
 ### Key Entities
 
@@ -222,6 +287,11 @@ operations appear in user-visible and administrator-visible audit history.
 - **Public Asset Resource**: A stable external representation of an uploaded
   image or file that can be referenced by Markdown and read according to page
   visibility.
+- **MCP Tool**: A named, typed operation exposed by the MCP Server that maps
+  1:1 to a v1 public API endpoint, with LLM-optimized parameter and response
+  shapes.
+- **MCP Resource**: A read-only wiki page exposed via the MCP resource URI
+  scheme for AI context injection.
 - **API Key Actor**: The external caller identity, combining key scopes with
   the owning user's role and status.
 - **Audit Entry**: A non-content-bearing record of an external API operation
@@ -249,7 +319,6 @@ operations appear in user-visible and administrator-visible audit history.
 
 ### Out of Scope
 
-- MCP server or MCP tool generation.
 - AI knowledge layering, shared memory, or AI governance workflows.
 - User-owned AI providers or AI-specific API scopes.
 - Wiki.js protocol compatibility beyond supporting comparable content
@@ -283,3 +352,9 @@ operations appear in user-visible and administrator-visible audit history.
   first-party frontend, tests show equivalent outcomes for permissions,
   validation failures, created revisions, published content, search visibility,
   and audit behavior.
+- **SC-009**: An MCP-compatible AI client (Claude Desktop or Cursor) configured
+  with the MCP Server can search, read, create, upload image, publish, and view
+  history through MCP tools alone, without any manual REST construction.
+- **SC-010**: MCP tool permission behavior is identical to the REST API for the
+  same API key — Reader-scoped MCP configurations cannot write or publish, and
+  all operations are audited identically.

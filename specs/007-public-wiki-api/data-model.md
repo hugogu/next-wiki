@@ -151,3 +151,51 @@ Existing audit entity records API-key and session calls.
 - Record method, path, actor, key id, status, duration, and sanitized error.
 - Do not record full Markdown source, request body, uploaded bytes, or rendered
   content.
+
+## MCP Tool
+
+An MCP tool is a named, typed operation that maps 1:1 to a v1 REST endpoint.
+The MCP Server introduces no new persistent data — tools are stateless
+passthrough calls to the REST API.
+
+### Tool Inventory
+
+| Tool Name | REST Endpoint | Scope Required | Description |
+|---|---|---|---|
+| `search_wiki` | `GET /v1/search/pages` | `view` | Search pages by keyword |
+| `list_pages` | `GET /v1/pages` | `view` | List visible pages |
+| `get_page` | `GET /v1/pages/{id}` | `view` | Get page with source |
+| `create_page` | `POST /v1/pages` | `create` | Create new page |
+| `save_draft` | `POST /v1/pages/{id}/drafts` | `edit` | Save draft revision |
+| `update_page_properties` | `PATCH /v1/pages/{id}` | `edit` | Update title/path |
+| `publish_page` | `POST /v1/pages/{id}/revisions/{ver}/publication` | `edit` | Publish revision |
+| `list_revisions` | `GET /v1/pages/{id}/revisions` | `view` | List revision history |
+| `get_revision` | `GET /v1/pages/{id}/revisions/{ver}` | `view` | Get revision detail |
+| `upload_image` | `POST /v1/assets` | `create` | Upload image, return markdown ref |
+
+### Response Shape Transformation
+
+MCP tool responses flatten REST envelopes into LLM-friendly shapes:
+
+| REST Field | MCP Field | Rationale |
+|---|---|---|
+| `items` | Domain-specific (`pages`, `revisions`, `results`) | Clearer for LLM selection |
+| `nextCursor` | `nextCursor` + `hasMore` boolean | Explicit signal for pagination |
+| HTTP status codes | Omitted | Errors surface as MCP error responses |
+| Nested `links` objects | Flattened ID fields | Reduces token overhead |
+
+## MCP Resource
+
+An MCP resource exposes readable wiki content via the `wiki://` URI scheme.
+
+| Field | Type | Notes |
+|---|---|---|
+| `uri` | string | `wiki://pages/{id}` |
+| `mimeType` | string | Always `text/markdown` |
+| `text` | string | Full Markdown source of the readable page |
+
+### Resource Discovery
+
+The MCP Server exposes a resource list endpoint that returns all pages readable
+by the configured API key, allowing MCP clients to discover available content
+without tool calls.

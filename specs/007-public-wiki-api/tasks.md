@@ -170,6 +170,76 @@
 
 ---
 
+## Phase 8: User Story 5 - MCP Server (Priority: P2)
+
+**Goal**: Provide an MCP Server package (`@next-wiki/mcp-server`) that exposes the v1 REST API as MCP tools and resources for AI-native clients (Claude Desktop, Cursor).
+
+**Independent Test**: Configure the MCP Server with an Editor API key, connect from an MCP-compatible client, search pages, read content, create a page with an uploaded image, publish it, and verify through both MCP tools and the web UI.
+
+### Setup
+
+- [ ] T067 Create `packages/mcp-server/` package scaffold: `package.json`, `tsconfig.json`, `src/index.ts` stdio entry point, and add to pnpm workspace in `packages/mcp-server/package.json`
+- [ ] T068 [P] Add `@modelcontextprotocol/sdk` dependency and configure build (tsup or tson) for ESM + CJS dual output in `packages/mcp-server/package.json`
+- [ ] T069 [P] Add shared MCP tool shape types and response transformation helpers in `packages/mcp-server/src/shapes.ts`
+
+### API Client Layer
+
+- [ ] T070 Implement thin HTTP client wrapping all v1 REST endpoints with typed responses in `packages/mcp-server/src/api-client.ts`
+- [ ] T071 [P] Add unit tests for the API client covering auth header injection, error mapping, and pagination in `packages/mcp-server/src/api-client.test.ts`
+
+### Read Tools
+
+- [ ] T072 [P] [US5] Implement `search_wiki` tool mapping to `GET /v1/search/pages` in `packages/mcp-server/src/tools/search-wiki.ts`
+- [ ] T073 [P] [US5] Implement `list_pages` tool mapping to `GET /v1/pages` in `packages/mcp-server/src/tools/list-pages.ts`
+- [ ] T074 [P] [US5] Implement `get_page` tool mapping to `GET /v1/pages/{id}` in `packages/mcp-server/src/tools/get-page.ts`
+- [ ] T075 [P] [US5] Implement `list_revisions` tool mapping to `GET /v1/pages/{id}/revisions` in `packages/mcp-server/src/tools/list-revisions.ts`
+- [ ] T076 [P] [US5] Implement `get_revision` tool mapping to `GET /v1/pages/{id}/revisions/{version}` in `packages/mcp-server/src/tools/get-revision.ts`
+
+### Write Tools
+
+- [ ] T077 [US5] Implement `create_page` tool mapping to `POST /v1/pages` in `packages/mcp-server/src/tools/create-page.ts`
+- [ ] T078 [P] [US5] Implement `save_draft` tool mapping to `POST /v1/pages/{id}/drafts` in `packages/mcp-server/src/tools/save-draft.ts`
+- [ ] T079 [P] [US5] Implement `update_page_properties` tool mapping to `PATCH /v1/pages/{id}` in `packages/mcp-server/src/tools/update-properties.ts`
+- [ ] T080 [P] [US5] Implement `publish_page` tool mapping to `POST /v1/pages/{id}/revisions/{version}/publication` in `packages/mcp-server/src/tools/publish-page.ts`
+
+### Asset Tool
+
+- [ ] T081 [US5] Implement `upload_image` tool mapping to `POST /v1/assets` with base64-to-multipart encoding in `packages/mcp-server/src/tools/upload-image.ts`
+
+### Resources
+
+- [ ] T082 [US5] Implement MCP resource handler for `wiki://pages/{id}` URI scheme in `packages/mcp-server/src/resources/wiki-page.ts`
+- [ ] T083 [P] [US5] Implement resource list handler returning all readable pages in `packages/mcp-server/src/resources/wiki-page.ts`
+
+### Server Registration & Entry Point
+
+- [ ] T084 [US5] Register all tools and resources on the MCP Server instance, configure stdio transport, and read API key from env in `packages/mcp-server/src/server.ts`
+- [ ] T085 [US5] Wire stdio entry point and CLI arg parsing (`--api-key`, `--api-url`) in `packages/mcp-server/src/index.ts`
+
+### Tests
+
+- [ ] T086 [P] [US5] Add unit tests for each tool's parameter validation, REST mapping, and response shape transformation in `packages/mcp-server/src/tools/*.test.ts`
+- [ ] T087 [P] [US5] Add unit tests for resource handler covering readable/unreadable pages and Markdown source in `packages/mcp-server/src/resources/wiki-page.test.ts`
+- [ ] T088 [US5] Add integration test that starts a mock v1 API server, connects the MCP Server via in-memory transport, and exercises the full search → read → create → upload → publish workflow in `packages/mcp-server/src/integration.test.ts`
+
+### Documentation
+
+- [ ] T089 [US5] Write `packages/mcp-server/README.md` with configuration guides for Claude Desktop, Cursor, and generic MCP clients
+- [ ] T090 [US5] Update `specs/007-public-wiki-api/quickstart.md` with MCP Server configuration and usage examples
+
+**Checkpoint**: AI-native clients can interact with wiki content through MCP tools with zero REST knowledge.
+
+---
+
+## Phase 9: Final Verification (Updated)
+
+- [ ] T091 Run typecheck, lint, and unit tests for the MCP Server package: `pnpm --filter @next-wiki/mcp-server typecheck && pnpm --filter @next-wiki/mcp-server lint && pnpm --filter @next-wiki/mcp-server test`
+- [ ] T092 Run full monorepo verification: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
+- [ ] T093 Run Docker Compose verification with the MCP Server package included: `docker compose up -d --build && docker compose ps`
+- [ ] T094 Record final verification results in `specs/007-public-wiki-api/tasks.md`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -180,7 +250,9 @@
 - **US2 Write/Publish API (Phase 4)**: Depends on Foundational and benefits from US1 DTO/read paths
 - **US3 Asset API (Phase 5)**: Depends on Foundational and can run after US1 read visibility is available
 - **US4 Search/Audit/Docs (Phase 6)**: Depends on Foundational; search benefits from US1 readable-page DTOs and audit benefits from all route adapter use
-- **Polish (Phase 7)**: Depends on all desired user stories
+- **Polish (Phase 7)**: Depends on all desired user stories (US1–US4)
+- **MCP Server (Phase 8)**: Depends on Phases 1–7 (v1 REST API must be implemented and stable)
+- **Final Verification (Phase 9)**: Depends on all phases
 
 ### User Story Dependencies
 
@@ -188,6 +260,7 @@
 - **US2 (P1)**: Can start after foundation, but should integrate with US1 resource/revision schemas
 - **US3 (P2)**: Can start after foundation; asset visibility tests are easier after US1/US2 publication paths exist
 - **US4 (P2)**: Can start after foundation; complete audit/docs checks require routes from US1-US3
+- **US5 (P2)**: Depends on all v1 REST endpoints (US1–US4) being implemented; MCP tools are thin clients over those endpoints
 
 ### Implementation Order
 
@@ -196,7 +269,9 @@
 3. Complete US2 and validate create/draft/publish/history.
 4. Complete US3 and validate asset upload/reference/read.
 5. Complete US4 and validate search, audit, and docs.
-6. Complete cross-story smoke and equivalence checks.
+6. Complete cross-story smoke and equivalence checks (Phase 7).
+7. Complete US5 MCP Server and validate with an MCP-compatible client (Phase 8).
+8. Run final verification across all packages (Phase 9).
 
 ---
 
@@ -268,7 +343,8 @@ Search implementation T058 can proceed in parallel with audit adapter hardening 
 ## Notes
 
 - Public `/api/v1` route handlers must stay thin adapters over shared services.
-- Do not implement MCP, AI knowledge layering, AI governance, or AI-specific API scopes in these tasks.
+- MCP Server tools must map 1:1 to v1 REST endpoints and contain no business logic.
+- Do not implement AI knowledge layering, AI governance, or AI-specific API scopes in these tasks.
 - API changes must update generated docs through next-openapi-gen.
 - Existing user work in unrelated dirty files must not be reverted during implementation.
 

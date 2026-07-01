@@ -17,7 +17,7 @@ equivalent public operation exists.
 
 **Language/Version**: TypeScript 5.6 on Node.js 20.9+; Docker image tracks Node 24  
 **Primary Dependencies**: Next.js 16 App Router, React 19.2, Drizzle ORM, Zod,
-TanStack Query, next-openapi-gen, existing content-store and audit services  
+TanStack Query, next-openapi-gen, `@modelcontextprotocol/sdk`, existing content-store and audit services  
 **Storage**: Existing PostgreSQL 16 database and current content storage backends;
 no new persistent store required  
 **Testing**: Vitest route/service tests and Playwright E2E/API workflow coverage  
@@ -40,7 +40,7 @@ wiki scale and current 10,000-page AI/indexing assumptions
 | Principle / Mandate | Status | Design compliance |
 |---|---|---|
 | P1 Simple Deployment | PASS | Adds route handlers, schemas, and tests only. No new service, queue, cache, or storage dependency. |
-| P2 AI Optional | PASS | Does not introduce AI behavior, AI scopes, model calls, or MCP tools. Existing AI remains optional. |
+| P2 AI Optional | PASS | The MCP Server exposes existing wiki content operations as tools; it does not introduce AI model calls, AI knowledge layering, or AI governance. AI remains optional — the MCP Server works identically with any MCP-compatible client. |
 | P3 Rendering Pipeline | PASS | Public write operations continue to submit Markdown source through the existing render pipeline; no rendered HTML becomes canonical input. |
 | P4 Permissions First-Class | PASS | Every public operation constructs a permission context and calls shared services that enforce role, scope, page, revision, and asset visibility. |
 | P5 UI Consistency | PASS | No new major UI surface beyond existing API docs; any first-party client changes reuse existing UI and data-flow primitives. |
@@ -63,7 +63,8 @@ specs/007-public-wiki-api/
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
-│   └── rest-api.md
+│   ├── rest-api.md
+│   └── mcp-tools.md
 └── tasks.md
 ```
 
@@ -74,6 +75,29 @@ packages/shared/src/
 ├── pages.ts                    # extend public page/revision/resource schemas
 ├── content-storage.ts          # reuse/extend asset response schemas where needed
 └── index.ts                    # export public API contracts
+
+packages/mcp-server/             # MCP Server package (@next-wiki/mcp-server)
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts                # stdio entry point, reads API key from env
+│   ├── server.ts               # MCP Server instance, tool & resource registration
+│   ├── tools/
+│   │   ├── search-wiki.ts      # maps to GET /v1/search/pages
+│   │   ├── list-pages.ts       # maps to GET /v1/pages
+│   │   ├── get-page.ts         # maps to GET /v1/pages/{id}
+│   │   ├── create-page.ts      # maps to POST /v1/pages
+│   │   ├── save-draft.ts       # maps to POST /v1/pages/{id}/drafts
+│   │   ├── update-properties.ts # maps to PATCH /v1/pages/{id}
+│   │   ├── publish-page.ts     # maps to POST /v1/pages/{id}/revisions/{ver}/publication
+│   │   ├── list-revisions.ts   # maps to GET /v1/pages/{id}/revisions
+│   │   ├── get-revision.ts     # maps to GET /v1/pages/{id}/revisions/{ver}
+│   │   └── upload-image.ts     # maps to POST /v1/assets (base64 → multipart)
+│   ├── resources/
+│   │   └── wiki-page.ts        # MCP resource handler for wiki://pages/{id}
+│   ├── api-client.ts           # thin HTTP client wrapping v1 REST endpoints
+│   └── shapes.ts               # LLM-friendly response shapes (flat, de-HTTP-ified)
+└── README.md                   # configuration guide for Claude Desktop / Cursor
 
 apps/web/app/api/
 └── v1/
@@ -112,6 +136,9 @@ business decisions. Runtime validation schemas live in `packages/shared`.
 OpenAPI-facing Zod schemas for next-openapi-gen live in
 `apps/web/src/server/api/openapi-schemas.ts` so the generator can discover
 request, response, and query shapes without post-generation JSON hand edits.
+The MCP Server lives in `packages/mcp-server/` as a publishable npm package
+(`@next-wiki/mcp-server`); it imports types from `@next-wiki/shared` and calls
+the v1 REST API over HTTP, introducing no business logic of its own.
 
 ## Complexity Tracking
 
