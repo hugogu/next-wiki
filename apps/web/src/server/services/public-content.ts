@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNotNull, isNull, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, isNotNull, isNull, lte, or, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type {
@@ -60,6 +60,32 @@ function buildExcerpt(content: string, term: string, windowSize: number): string
   const end = Math.min(content.length, start + windowSize);
   const excerpt = content.slice(start, end);
   return `${start > 0 ? '…' : ''}${excerpt}${end < content.length ? '…' : ''}`;
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let from = 0;
+  for (;;) {
+    const index = haystack.indexOf(needle, from);
+    if (index === -1) return count;
+    count += 1;
+    from = index + needle.length;
+  }
+}
+
+/**
+ * Heuristic relevance score in (0, 1], since search has no real full-text index
+ * (plain ILIKE substring matching). Tiered so path matches always outrank title
+ * matches, which always outrank content matches; within a tier, an exact
+ * path/title match or more frequent content mentions score higher.
+ */
+function scoreSearchMatch(matchType: 'path' | 'title' | 'content', page: PublicPageResource, term: string): number {
+  const q = term.toLowerCase();
+  if (matchType === 'path') return page.path.toLowerCase() === q ? 1 : 0.95;
+  if (matchType === 'title') return page.title.toLowerCase() === q ? 0.9 : 0.8;
+  const occurrences = page.contentSource ? countOccurrences(page.contentSource.toLowerCase(), q) : 0;
+  return Math.min(0.3 + occurrences * 0.05, 0.7);
 }
 
 function links(page: PageRow) {
@@ -230,6 +256,10 @@ type ListPagesQuery = {
   cursor?: string;
   order: 'path' | 'recent';
   include: readonly PublicPageInclude[];
+  createdStart?: Date;
+  createdEnd?: Date;
+  updatedStart?: Date;
+  updatedEnd?: Date;
 };
 
 /**
@@ -262,6 +292,10 @@ async function listPagesInternal(
   if (query.status === 'published') {
     conditions.push(isNotNull(schema.pages.currentPublishedVersionId));
   }
+  if (query.createdStart) conditions.push(gte(schema.pages.createdAt, query.createdStart));
+  if (query.createdEnd) conditions.push(lte(schema.pages.createdAt, query.createdEnd));
+  if (query.updatedStart) conditions.push(gte(schema.pages.updatedAt, query.updatedStart));
+  if (query.updatedEnd) conditions.push(lte(schema.pages.updatedAt, query.updatedEnd));
   if (query.q) {
     const pattern = likePattern(query.q);
     conditions.push(
@@ -490,21 +524,29 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
       cursor: query.cursor,
       order: 'recent',
       include: query.include,
+      createdStart: query.createdStart,
+      createdEnd: query.createdEnd,
+      updatedStart: query.updatedStart,
+      updatedEnd: query.updatedEnd,
     },
     { includeContent: true },
   );
   const q = query.q.toLowerCase();
-  return {
-    items: pages.items
-      .map((page) => {
-        const pathMatch = page.path.toLowerCase().includes(q);
-        const titleMatch = page.title.toLowerCase().includes(q);
-        const contentMatch = page.contentSource?.toLowerCase().includes(q) ?? false;
-        const matchType: 'path' | 'title' | 'content' = pathMatch ? 'path' : titleMatch ? 'title' : contentMatch ? 'content' : 'title';
-        const excerpt = matchType === 'content' && page.contentSource ? buildExcerpt(page.contentSource, query.q, query.excerptLength) : null;
-        return { page: stripPageContent(page), matchType, excerpt, score: null };
-      })
-      .filter((item) => query.scope === 'all' || item.matchType === query.scope),
-    nextCursor: pages.nextCursor,
-  };
+  const items = pages.items
+    .map((page) => {
+      const pathMatch = page.path.toLowerCase().includes(q);
+      const titleMatch = page.title.toLowerCase().includes(q);
+      const contentMatch = page.contentSource?.toLowerCase().includes(q) ?? false;
+      const matchType: 'path' | 'title' | 'content' = pathMatch ? 'path' : titleMatch ? 'title' : contentMatch ? 'content' : 'title';
+      const excerpt = matchType === 'content' && page.contentSource ? buildExcerpt(page.contentSource, query.q, query.excerptLength) : null;
+      const score = scoreSearchMatch(matchType, page, query.q);
+      return { page: stripPageContent(page), matchType, excerpt, score };
+    })
+    .filter((item) => query.scope === 'all' || item.matchType === query.scope)
+    // Real relevance ranking within this page of results; pagination itself still
+    // walks the underlying table by recency (see listPagesInternal), since a
+    // globally-ranked cursor would need a real search index rather than ILIKE.
+    .sort((a, b) => b.score - a.score);
+
+  return { items, nextCursor: pages.nextCursor };
 }

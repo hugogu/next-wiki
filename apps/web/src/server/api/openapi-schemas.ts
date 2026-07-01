@@ -399,6 +399,10 @@ export const PublicPageSearchQuery = z
       .optional()
       .default(100)
       .describe('Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.'),
+    createdStart: z.coerce.date().optional().describe('Only include pages created at or after this ISO 8601 timestamp.'),
+    createdEnd: z.coerce.date().optional().describe('Only include pages created at or before this ISO 8601 timestamp.'),
+    updatedStart: z.coerce.date().optional().describe('Only include pages last updated at or after this ISO 8601 timestamp.'),
+    updatedEnd: z.coerce.date().optional().describe('Only include pages last updated at or before this ISO 8601 timestamp.'),
   })
   .describe('Public page search query parameters.');
 
@@ -412,7 +416,12 @@ export const PublicSearchResult = z
       .describe(
         'Snippet of contentSource centered on the matched keyword (~excerptLength characters), or null for path/title matches or when not applicable. The result page never includes the full contentSource.',
       ),
-    score: z.number().nullable().describe('Relevance score of the match, or null when not ranked.'),
+    score: z
+      .number()
+      .nullable()
+      .describe(
+        'Relevance score in (0, 1]. Path matches score highest, then title, then content (weighted by how many times the term appears). Results are sorted by score descending within each returned page; null is not currently produced.',
+      ),
   })
   .describe('Public page search result.');
 

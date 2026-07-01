@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
@@ -207,5 +208,87 @@ describe('public content read facade', () => {
 
     const single = await publicContent.getRevision(readerCtx, page!.id, 1);
     expect(single?.contentSource).toBe('# v1');
+  });
+
+  it('filters search results by createdStart/createdEnd and updatedStart/updatedEnd', async () => {
+    const editor = await createPublicApiUser('public-daterange-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-daterange-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, { path: 'docs/old-daterange', title: 'DateRangeMatch Old', contentSource: 'x' });
+    await revisions.publish(editorCtx, { path: 'docs/old-daterange', version: 1 });
+    await pageService.create(editorCtx, { path: 'docs/new-daterange', title: 'DateRangeMatch New', contentSource: 'x' });
+    await revisions.publish(editorCtx, { path: 'docs/new-daterange', version: 1 });
+
+    const oldDate = new Date('2020-01-01T00:00:00Z');
+    await db
+      .update(schema.pages)
+      .set({ createdAt: oldDate, updatedAt: oldDate })
+      .where(eq(schema.pages.path, 'docs/old-daterange'));
+
+    const boundary = new Date('2020-06-01T00:00:00Z');
+
+    const onlyOld = await publicContent.searchPages(readerCtx, {
+      q: 'DateRangeMatch',
+      scope: 'title',
+      status: 'published',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+      createdEnd: boundary,
+    });
+    expect(onlyOld.items.map((item) => item.page.path)).toEqual(['docs/old-daterange']);
+
+    const onlyNew = await publicContent.searchPages(readerCtx, {
+      q: 'DateRangeMatch',
+      scope: 'title',
+      status: 'published',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+      createdStart: boundary,
+    });
+    expect(onlyNew.items.map((item) => item.page.path)).toEqual(['docs/new-daterange']);
+  });
+
+  it('scores and sorts results: path > title > content, higher for exact/repeated matches', async () => {
+    const editor = await createPublicApiUser('public-score-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-score-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, {
+      path: 'docs/some-content-page',
+      title: 'Unrelated',
+      contentSource: 'zeta appears here. zeta again.',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/some-content-page', version: 1 });
+
+    await pageService.create(editorCtx, {
+      path: 'docs/some-title-page',
+      title: 'The Zeta Project',
+      contentSource: 'no mention',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/some-title-page', version: 1 });
+
+    await pageService.create(editorCtx, { path: 'zeta', title: 'Something Else', contentSource: 'no mention' });
+    await revisions.publish(editorCtx, { path: 'zeta', version: 1 });
+
+    const result = await publicContent.searchPages(readerCtx, {
+      q: 'zeta',
+      scope: 'all',
+      status: 'published',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+    });
+
+    expect(result.items[0]?.matchType).toBe('path');
+    expect(result.items[result.items.length - 1]?.matchType).toBe('content');
+    for (let i = 1; i < result.items.length; i++) {
+      expect(result.items[i - 1]!.score!).toBeGreaterThanOrEqual(result.items[i]!.score!);
+    }
+    expect(result.items.every((item) => item.score !== null && item.score > 0 && item.score <= 1)).toBe(true);
   });
 });

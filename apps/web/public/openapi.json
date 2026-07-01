@@ -898,6 +898,26 @@
             "type": "integer",
             "minimum": 20,
             "maximum": 500
+          },
+          "createdStart": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only include pages created at or after this ISO 8601 timestamp."
+          },
+          "createdEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only include pages created at or before this ISO 8601 timestamp."
+          },
+          "updatedStart": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+          },
+          "updatedEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only include pages last updated at or before this ISO 8601 timestamp."
           }
         },
         "required": [
@@ -1165,7 +1185,7 @@
               "number",
               "null"
             ],
-            "description": "Relevance score of the match, or null when not ranked."
+            "description": "Relevance score in (0, 1]. Path matches score highest, then title, then content (weighted by how many times the term appears). Results are sorted by score descending within each returned page; null is not currently produced."
           }
         },
         "required": [
@@ -5051,7 +5071,7 @@
       "get": {
         "operationId": "get-v1-search-pages",
         "summary": "Search public wiki pages",
-        "description": "Searches readable pages by path, title, or Markdown source.",
+        "description": "Searches readable pages by path, title, or Markdown source. Optionally",
         "tags": [
           "Public Wiki Content"
         ],
@@ -5146,6 +5166,50 @@
               "maximum": 500
             },
             "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100."
+          },
+          {
+            "in": "query",
+            "name": "createdStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages created at or after this ISO 8601 timestamp."
+            },
+            "description": "Only include pages created at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "createdEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages created at or before this ISO 8601 timestamp."
+            },
+            "description": "Only include pages created at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "updatedStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+            },
+            "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "updatedEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+            },
+            "description": "Only include pages last updated at or before this ISO 8601 timestamp."
           }
         ],
         "security": [

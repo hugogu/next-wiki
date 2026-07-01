@@ -259,6 +259,15 @@ shape (no `contentSource`; see above). Instead of full content, a `content`-scop
 match includes `excerpt`: the text surrounding the first match of `q`, sized by
 `excerptLength`. `excerpt` is `null` for `path`/`title` matches.
 
+Each result also carries a `score` in `(0, 1]`: a heuristic relevance score since
+matching is plain substring search, not a real full-text index. Path matches
+always outrank title matches, which always outrank content matches; within a
+tier, an exact path/title match or a higher content mention count scores
+higher. Results are sorted by `score` descending within the returned page.
+Pagination itself still walks the underlying table ordered by recency, so
+`score` ordering is only meaningful within one page of results, not globally
+across the whole result set.
+
 Query:
 
 | Param | Type | Notes |
@@ -270,6 +279,8 @@ Query:
 | `cursor` | string | Optional pagination cursor |
 | `include` | comma-separated: `latestRevision`, `publishedRevision` | Optional; omitted by default |
 | `excerptLength` | number | Approximate characters of context around the match (20-500). Default 100 |
+| `createdStart` / `createdEnd` | ISO 8601 timestamp | Optional; filter by page creation time |
+| `updatedStart` / `updatedEnd` | ISO 8601 timestamp | Optional; filter by page last-updated time |
 
 Response `200`:
 

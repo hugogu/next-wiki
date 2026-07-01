@@ -191,15 +191,28 @@ export const publicPublicationInputSchema = z.object({
 });
 export type PublicPublicationInput = z.infer<typeof publicPublicationInputSchema>;
 
-export const publicPageSearchQuerySchema = z.object({
-  q: z.string().min(1).max(200),
-  scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
-  status: z.enum(['published', 'draft', 'all']).default('published'),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  cursor: z.string().optional(),
-  include: publicIncludeQuerySchema,
-  excerptLength: z.coerce.number().int().min(20).max(500).default(100),
-});
+export const publicPageSearchQuerySchema = z
+  .object({
+    q: z.string().min(1).max(200),
+    scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
+    status: z.enum(['published', 'draft', 'all']).default('published'),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    cursor: z.string().optional(),
+    include: publicIncludeQuerySchema,
+    excerptLength: z.coerce.number().int().min(20).max(500).default(100),
+    createdStart: z.coerce.date().optional(),
+    createdEnd: z.coerce.date().optional(),
+    updatedStart: z.coerce.date().optional(),
+    updatedEnd: z.coerce.date().optional(),
+  })
+  .refine((value) => !value.createdStart || !value.createdEnd || value.createdStart <= value.createdEnd, {
+    message: 'createdStart must be before or equal to createdEnd',
+    path: ['createdStart'],
+  })
+  .refine((value) => !value.updatedStart || !value.updatedEnd || value.updatedStart <= value.updatedEnd, {
+    message: 'updatedStart must be before or equal to updatedEnd',
+    path: ['updatedStart'],
+  });
 export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
 
 export const publicSearchResultSchema = z.object({
