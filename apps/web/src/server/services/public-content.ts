@@ -20,7 +20,7 @@ import type {
 import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagination';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { readMarkdownFromDatabase, readMarkdownWithFallback } from '@/server/content-store/read-router';
+import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
@@ -96,23 +96,20 @@ async function revisionSummary(ctx: PermCtx, page: PageRow, revision: RevisionRo
 }
 
 /**
- * Single-page reads (getPageById/getPageByPath) prefer the replica backend
- * (e.g. S3) to keep read load off the database. Bulk reads (search, list,
- * export) pass readMarkdownFromDatabase instead: the DB row already has
- * content_source in hand (every write stores it there synchronously,
- * see pages.ts create/newDraft), so this skips the network round trip
- * entirely rather than fanning out one remote read per row.
+ * Every /api/v1 response is a plain JSON body with no conditional-request support
+ * (no ETag/Cache-Control validators), so there is no HTTP caching layer that could
+ * ever turn a repeat request into a cheap 304 and make an S3 read worth its network
+ * round trip. Always read content straight from the DB row already in hand (every
+ * write stores content_source synchronously, see pages.ts create/newDraft). The
+ * S3-preferred replica exists for endpoints that DO support 304 (e.g. asset content
+ * serving), not this API.
  */
-type ContentReader = (revision: RevisionRow) => Promise<string>;
-
 type VisiblePageOptions = {
-  readContent: ContentReader;
   includeContent: boolean;
   include: readonly PublicPageInclude[];
 };
 
 const DEFAULT_VISIBLE_PAGE_OPTIONS: VisiblePageOptions = {
-  readContent: readMarkdownWithFallback,
   includeContent: true,
   include: [],
 };
@@ -152,7 +149,7 @@ async function visiblePageResource(
   const wantsPublished = options.include.includes('publishedRevision');
 
   const [contentSource, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
-    options.includeContent ? options.readContent(current) : Promise.resolve(undefined),
+    options.includeContent ? readMarkdownFromDatabase(current) : Promise.resolve(undefined),
     author(page.authorId),
     wantsLatest ? revisionSummary(ctx, page, visibleLatest) : Promise.resolve(undefined),
     wantsPublished ? revisionSummary(ctx, page, published) : Promise.resolve(undefined),
@@ -202,14 +199,10 @@ async function getPageRowById(pageId: string): Promise<PageRow | null> {
 }
 
 type VisibleRevisionOptions = {
-  readContent: ContentReader;
   includeContent: boolean;
 };
 
-const DEFAULT_VISIBLE_REVISION_OPTIONS: VisibleRevisionOptions = {
-  readContent: readMarkdownWithFallback,
-  includeContent: true,
-};
+const DEFAULT_VISIBLE_REVISION_OPTIONS: VisibleRevisionOptions = { includeContent: true };
 
 async function visibleRevisionResource(
   ctx: PermCtx,
@@ -224,7 +217,7 @@ async function visibleRevisionResource(
   }
   const [summary, contentSource] = await Promise.all([
     revisionSummary(ctx, page, revision),
-    options.includeContent ? options.readContent(revision) : Promise.resolve(undefined),
+    options.includeContent ? readMarkdownFromDatabase(revision) : Promise.resolve(undefined),
   ]);
   return { ...summary!, contentSource };
 }
@@ -289,14 +282,10 @@ async function listPagesInternal(
     .limit(query.limit + 1)
     .offset(cursor.offset);
 
-  // Bulk listing/search reads content straight from the DB (readMarkdownFromDatabase)
-  // rather than the S3-preferred replica: every write stores content_source
-  // synchronously, so this is a free in-memory read instead of N remote round trips.
   // Resolve the whole row window concurrently — these are independent per-row reads.
   const resolved = await Promise.all(
     rows.map(({ page }) =>
       visiblePageResource(ctx, space, page, {
-        readContent: readMarkdownFromDatabase,
         includeContent: options.includeContent,
         include: query.include,
       }),
@@ -383,7 +372,7 @@ export async function updateProperties(
 
 // Revision history never returns Markdown source — fetch a single revision
 // (GET /pages/{id}/revisions/{version}) for content.
-const LIST_REVISION_OPTIONS: VisibleRevisionOptions = { readContent: readMarkdownFromDatabase, includeContent: false };
+const LIST_REVISION_OPTIONS: VisibleRevisionOptions = { includeContent: false };
 
 export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicRevisionListQuery): Promise<PublicRevisionListResponse> {
   const page = await getPageRowById(pageId);
