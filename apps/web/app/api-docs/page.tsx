@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ApiDocsPage() {
   return (
-    <div className="api-docs-container h-screen overflow-hidden">
+    <div className="api-docs-container">
       <ApiDocsViewer />
     </div>
   );
