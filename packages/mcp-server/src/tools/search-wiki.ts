@@ -13,6 +13,10 @@ export const searchWikiSchema = {
     .max(500)
     .optional()
     .describe('Approximate characters of context around the matched keyword in each excerpt; defaults to 100'),
+  createdStart: z.string().datetime().optional().describe('Only include pages created at or after this ISO 8601 timestamp'),
+  createdEnd: z.string().datetime().optional().describe('Only include pages created at or before this ISO 8601 timestamp'),
+  updatedStart: z.string().datetime().optional().describe('Only include pages last updated at or after this ISO 8601 timestamp'),
+  updatedEnd: z.string().datetime().optional().describe('Only include pages last updated at or before this ISO 8601 timestamp'),
 };
 export type SearchWikiInput = z.infer<z.ZodObject<typeof searchWikiSchema>>;
 
@@ -22,6 +26,10 @@ export async function searchWiki(client: WikiApiClient, args: SearchWikiInput) {
     scope: args.scope,
     limit: args.limit,
     excerptLength: args.excerptLength,
+    createdStart: args.createdStart ? new Date(args.createdStart) : undefined,
+    createdEnd: args.createdEnd ? new Date(args.createdEnd) : undefined,
+    updatedStart: args.updatedStart ? new Date(args.updatedStart) : undefined,
+    updatedEnd: args.updatedEnd ? new Date(args.updatedEnd) : undefined,
   });
   return searchWikiResponse(response);
 }

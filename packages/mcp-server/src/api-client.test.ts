@@ -113,6 +113,24 @@ describe('WikiApiClient', () => {
     expect(url.toString()).toContain('excerptLength=50');
   });
 
+  it('passes created/updated date range filters through to search', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.searchPages({
+      q: 'hello',
+      createdStart: new Date('2026-01-01T00:00:00.000Z'),
+      updatedEnd: new Date('2026-06-01T00:00:00.000Z'),
+    });
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toContain('createdStart=2026-01-01T00%3A00%3A00.000Z');
+    expect(url.toString()).toContain('updatedEnd=2026-06-01T00%3A00%3A00.000Z');
+    expect(url.toString()).not.toContain('createdEnd=');
+    expect(url.toString()).not.toContain('updatedStart=');
+  });
+
   it('uploads images without dropping the base URL path prefix', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'asset-id' }), { status: 200 }),

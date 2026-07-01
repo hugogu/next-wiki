@@ -11,6 +11,7 @@ export type SearchWikiResult = {
   title: string;
   matchType: 'path' | 'title' | 'content';
   excerpt: string | null;
+  score: number | null;
 };
 
 export function searchWikiResponse(source: PublicPageSearchResponse): {
@@ -24,6 +25,7 @@ export function searchWikiResponse(source: PublicPageSearchResponse): {
       title: item.page.title,
       matchType: item.matchType,
       excerpt: item.excerpt,
+      score: item.score,
     })),
     hasMore: source.nextCursor !== null,
   };

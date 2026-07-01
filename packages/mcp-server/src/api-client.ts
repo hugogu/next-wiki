@@ -130,6 +130,10 @@ export const publicPageSearchQuerySchema = z.object({
   cursor: z.string().optional(),
   include: z.array(publicPageIncludeSchema).default([]),
   excerptLength: z.coerce.number().int().min(20).max(500).default(100),
+  createdStart: z.coerce.date().optional(),
+  createdEnd: z.coerce.date().optional(),
+  updatedStart: z.coerce.date().optional(),
+  updatedEnd: z.coerce.date().optional(),
 });
 export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
 
@@ -219,6 +223,10 @@ export class WikiApiClient {
     if (query.cursor) params.set('cursor', query.cursor);
     if (query.include?.length) params.set('include', query.include.join(','));
     if (query.excerptLength) params.set('excerptLength', String(query.excerptLength));
+    if (query.createdStart) params.set('createdStart', query.createdStart.toISOString());
+    if (query.createdEnd) params.set('createdEnd', query.createdEnd.toISOString());
+    if (query.updatedStart) params.set('updatedStart', query.updatedStart.toISOString());
+    if (query.updatedEnd) params.set('updatedEnd', query.updatedEnd.toISOString());
     return this.request<PublicPageSearchResponse>(`/search/pages?${params.toString()}`);
   }
 

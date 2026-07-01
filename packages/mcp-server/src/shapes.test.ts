@@ -28,7 +28,7 @@ describe('shape transformers', () => {
           },
           matchType: 'title',
           excerpt: '...',
-          score: null,
+          score: 0.8,
         },
       ],
       nextCursor: null,
@@ -40,6 +40,7 @@ describe('shape transformers', () => {
       title: 'Test',
       matchType: 'title',
       excerpt: '...',
+      score: 0.8,
     });
     expect(result.hasMore).toBe(false);
   });
