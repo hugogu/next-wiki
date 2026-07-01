@@ -1,4 +1,9 @@
-import type { PublicAssetResource, PublicPageResource, PublicPageSearchResponse, PublicRevisionResource } from '@next-wiki/shared';
+import type {
+  PublicAssetResource,
+  PublicPageResource,
+  PublicPageSearchResponse,
+  PublicRevisionResource,
+} from './api-client';
 
 export type SearchWikiResult = {
   id: string;
