@@ -31,7 +31,7 @@ export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
 });
 export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
 
-const pathSchema = z
+export const pathSchema = z
   .string()
   .min(1)
   .max(200)
@@ -164,6 +164,12 @@ export class WikiApiClientError extends Error {
   }
 }
 
+function joinUrl(baseUrl: string, path: string): URL {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+  return new URL(normalizedPath, normalizedBase);
+}
+
 export class WikiApiClient {
   constructor(
     private readonly baseUrl: string,
@@ -171,10 +177,10 @@ export class WikiApiClient {
   ) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const url = new URL(path, this.baseUrl);
+    const url = joinUrl(this.baseUrl, path);
     const headers = new Headers(init.headers);
     headers.set('Authorization', `Bearer ${this.apiKey}`);
-    if (init.body && !headers.has('Content-Type')) {
+    if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
 
@@ -264,20 +270,9 @@ export class WikiApiClient {
     const formData = new FormData();
     formData.set('file', file);
 
-    const url = new URL('/assets', this.baseUrl);
-    const headers = new Headers();
-    headers.set('Authorization', `Bearer ${this.apiKey}`);
-
-    const response = await fetch(url, { method: 'POST', headers, body: formData });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as WikiApiError | Record<string, never>;
-      throw new WikiApiClientError(
-        'message' in body ? body.message : `HTTP ${response.status}`,
-        response.status,
-        'code' in body ? body.code : `HTTP_${response.status}`,
-      );
-    }
-
-    return (await response.json()) as PublicAssetResource;
+    return this.request<PublicAssetResource>('/assets', {
+      method: 'POST',
+      body: formData,
+    });
   }
 }

@@ -54,4 +54,32 @@ describe('WikiApiClient', () => {
     expect(url.toString()).toContain('scope=title');
     expect(url.toString()).toContain('limit=10');
   });
+
+  it('preserves the base URL path prefix when building request URLs', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.listPages({});
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toBe('http://localhost:3000/api/v1/pages?');
+  });
+
+  it('uploads images without dropping the base URL path prefix', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'asset-id' }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.uploadImage(new Blob(['data'], { type: 'image/png' }));
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(url.toString()).toBe('http://localhost:3000/api/v1/assets');
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.headers as Headers).has('Content-Type')).toBe(false);
+  });
 });
