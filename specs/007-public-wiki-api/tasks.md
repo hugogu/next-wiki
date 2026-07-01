@@ -178,54 +178,54 @@
 
 ### Setup
 
-- [ ] T067 Create `packages/mcp-server/` package scaffold: `package.json`, `tsconfig.json`, `src/index.ts` stdio entry point, and add to pnpm workspace in `packages/mcp-server/package.json`
-- [ ] T068 [P] Add `@modelcontextprotocol/sdk` dependency and configure build (tsup or tson) for ESM + CJS dual output in `packages/mcp-server/package.json`
-- [ ] T069 [P] Add shared MCP tool shape types and response transformation helpers in `packages/mcp-server/src/shapes.ts`
+- [X] T067 Create `packages/mcp-server/` package scaffold: `package.json`, `tsconfig.json`, `src/index.ts` stdio entry point, and add to pnpm workspace in `packages/mcp-server/package.json`
+- [X] T068 [P] Add `@modelcontextprotocol/sdk` dependency and configure build (tsup or tson) for ESM + CJS dual output in `packages/mcp-server/package.json`
+- [X] T069 [P] Add shared MCP tool shape types and response transformation helpers in `packages/mcp-server/src/shapes.ts`
 
 ### API Client Layer
 
-- [ ] T070 Implement thin HTTP client wrapping all v1 REST endpoints with typed responses in `packages/mcp-server/src/api-client.ts`
-- [ ] T071 [P] Add unit tests for the API client covering auth header injection, error mapping, and pagination in `packages/mcp-server/src/api-client.test.ts`
+- [X] T070 Implement thin HTTP client wrapping all v1 REST endpoints with typed responses in `packages/mcp-server/src/api-client.ts`
+- [X] T071 [P] Add unit tests for the API client covering auth header injection, error mapping, and pagination in `packages/mcp-server/src/api-client.test.ts`
 
 ### Read Tools
 
-- [ ] T072 [P] [US5] Implement `search_wiki` tool mapping to `GET /v1/search/pages` in `packages/mcp-server/src/tools/search-wiki.ts`
-- [ ] T073 [P] [US5] Implement `list_pages` tool mapping to `GET /v1/pages` in `packages/mcp-server/src/tools/list-pages.ts`
-- [ ] T074 [P] [US5] Implement `get_page` tool mapping to `GET /v1/pages/{id}` in `packages/mcp-server/src/tools/get-page.ts`
-- [ ] T075 [P] [US5] Implement `list_revisions` tool mapping to `GET /v1/pages/{id}/revisions` in `packages/mcp-server/src/tools/list-revisions.ts`
-- [ ] T076 [P] [US5] Implement `get_revision` tool mapping to `GET /v1/pages/{id}/revisions/{version}` in `packages/mcp-server/src/tools/get-revision.ts`
+- [X] T072 [P] [US5] Implement `search_wiki` tool mapping to `GET /v1/search/pages` in `packages/mcp-server/src/tools/search-wiki.ts`
+- [X] T073 [P] [US5] Implement `list_pages` tool mapping to `GET /v1/pages` in `packages/mcp-server/src/tools/list-pages.ts`
+- [X] T074 [P] [US5] Implement `get_page` tool mapping to `GET /v1/pages/{id}` in `packages/mcp-server/src/tools/get-page.ts`
+- [X] T075 [P] [US5] Implement `list_revisions` tool mapping to `GET /v1/pages/{id}/revisions` in `packages/mcp-server/src/tools/list-revisions.ts`
+- [X] T076 [P] [US5] Implement `get_revision` tool mapping to `GET /v1/pages/{id}/revisions/{version}` in `packages/mcp-server/src/tools/get-revision.ts`
 
 ### Write Tools
 
-- [ ] T077 [US5] Implement `create_page` tool mapping to `POST /v1/pages` in `packages/mcp-server/src/tools/create-page.ts`
-- [ ] T078 [P] [US5] Implement `save_draft` tool mapping to `POST /v1/pages/{id}/drafts` in `packages/mcp-server/src/tools/save-draft.ts`
-- [ ] T079 [P] [US5] Implement `update_page_properties` tool mapping to `PATCH /v1/pages/{id}` in `packages/mcp-server/src/tools/update-properties.ts`
-- [ ] T080 [P] [US5] Implement `publish_page` tool mapping to `POST /v1/pages/{id}/revisions/{version}/publication` in `packages/mcp-server/src/tools/publish-page.ts`
+- [X] T077 [US5] Implement `create_page` tool mapping to `POST /v1/pages` in `packages/mcp-server/src/tools/create-page.ts`
+- [X] T078 [P] [US5] Implement `save_draft` tool mapping to `POST /v1/pages/{id}/drafts` in `packages/mcp-server/src/tools/save-draft.ts`
+- [X] T079 [P] [US5] Implement `update_page_properties` tool mapping to `PATCH /v1/pages/{id}` in `packages/mcp-server/src/tools/update-properties.ts`
+- [X] T080 [P] [US5] Implement `publish_page` tool mapping to `POST /v1/pages/{id}/revisions/{version}/publication` in `packages/mcp-server/src/tools/publish-page.ts`
 
 ### Asset Tool
 
-- [ ] T081 [US5] Implement `upload_image` tool mapping to `POST /v1/assets` with base64-to-multipart encoding in `packages/mcp-server/src/tools/upload-image.ts`
+- [X] T081 [US5] Implement `upload_image` tool mapping to `POST /v1/assets` with base64-to-multipart encoding in `packages/mcp-server/src/tools/upload-image.ts`
 
 ### Resources
 
-- [ ] T082 [US5] Implement MCP resource handler for `wiki://pages/{id}` URI scheme in `packages/mcp-server/src/resources/wiki-page.ts`
-- [ ] T083 [P] [US5] Implement resource list handler returning all readable pages in `packages/mcp-server/src/resources/wiki-page.ts`
+- [X] T082 [US5] Implement MCP resource handler for `wiki://pages/{id}` URI scheme in `packages/mcp-server/src/resources/wiki-page.ts`
+- [X] T083 [P] [US5] Implement resource list handler returning all readable pages in `packages/mcp-server/src/resources/wiki-page.ts`
 
 ### Server Registration & Entry Point
 
-- [ ] T084 [US5] Register all tools and resources on the MCP Server instance, configure stdio transport, and read API key from env in `packages/mcp-server/src/server.ts`
-- [ ] T085 [US5] Wire stdio entry point and CLI arg parsing (`--api-key`, `--api-url`) in `packages/mcp-server/src/index.ts`
+- [X] T084 [US5] Register all tools and resources on the MCP Server instance, configure stdio transport, and read API key from env in `packages/mcp-server/src/server.ts`
+- [X] T085 [US5] Wire stdio entry point and CLI arg parsing (`--api-key`, `--api-url`) in `packages/mcp-server/src/index.ts`
 
 ### Tests
 
-- [ ] T086 [P] [US5] Add unit tests for each tool's parameter validation, REST mapping, and response shape transformation in `packages/mcp-server/src/tools/*.test.ts`
-- [ ] T087 [P] [US5] Add unit tests for resource handler covering readable/unreadable pages and Markdown source in `packages/mcp-server/src/resources/wiki-page.test.ts`
-- [ ] T088 [US5] Add integration test that starts a mock v1 API server, connects the MCP Server via in-memory transport, and exercises the full search → read → create → upload → publish workflow in `packages/mcp-server/src/integration.test.ts`
+- [X] T086 [P] [US5] Add unit tests for each tool's parameter validation, REST mapping, and response shape transformation in `packages/mcp-server/src/tools/*.test.ts`
+- [X] T087 [P] [US5] Add unit tests for resource handler covering readable/unreadable pages and Markdown source in `packages/mcp-server/src/resources/wiki-page.test.ts`
+- [X] T088 [US5] Add integration test that starts a mock v1 API server, connects the MCP Server via in-memory transport, and exercises the full search → read → create → upload → publish workflow in `packages/mcp-server/src/integration.test.ts`
 
 ### Documentation
 
-- [ ] T089 [US5] Write `packages/mcp-server/README.md` with configuration guides for Claude Desktop, Cursor, and generic MCP clients
-- [ ] T090 [US5] Update `specs/007-public-wiki-api/quickstart.md` with MCP Server configuration and usage examples
+- [X] T089 [US5] Write `packages/mcp-server/README.md` with configuration guides for Claude Desktop, Cursor, and generic MCP clients
+- [X] T090 [US5] Update `specs/007-public-wiki-api/quickstart.md` with MCP Server configuration and usage examples
 
 **Checkpoint**: AI-native clients can interact with wiki content through MCP tools with zero REST knowledge.
 
@@ -233,7 +233,7 @@
 
 ## Phase 9: Final Verification (Updated)
 
-- [ ] T091 Run typecheck, lint, and unit tests for the MCP Server package: `pnpm --filter @next-wiki/mcp-server typecheck && pnpm --filter @next-wiki/mcp-server lint && pnpm --filter @next-wiki/mcp-server test`
+- [X] T091 Run typecheck, lint, and unit tests for the MCP Server package: `pnpm --filter @next-wiki/mcp-server typecheck && pnpm --filter @next-wiki/mcp-server lint && pnpm --filter @next-wiki/mcp-server test`
 - [ ] T092 Run full monorepo verification: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 - [ ] T093 Run Docker Compose verification with the MCP Server package included: `docker compose up -d --build && docker compose ps`
 - [ ] T094 Record final verification results in `specs/007-public-wiki-api/tasks.md`
@@ -356,4 +356,7 @@ Search implementation T058 can proceed in parallel with audit adapter hardening 
 - 2026-06-29: OpenAPI regenerated with `next-openapi-gen`; `/v1/pages`, `/v1/assets`, and `/v1/search/pages` are present in `apps/web/public/openapi.json`.
 - 2026-06-29: `docker compose up -d --build` passed and `docker compose ps` showed healthy database plus running web service.
 - 2026-06-29: Vitest and Playwright E2E remain unverified because direct test database access on `localhost:15433` requires sandbox escalation, and escalation was rejected by the platform usage limit.
-- 2026-06-30: `docker compose up -d --build` passed after switching Docker production build to `next build --webpack`; `docker compose ps` showed healthy database plus running web service.
+- 2026-07-01: `@next-wiki/mcp-server` package created in `packages/mcp-server/`.
+- 2026-07-01: `pnpm --filter @next-wiki/mcp-server typecheck`, `lint`, and `test` passed (14 tests).
+- 2026-07-01: `pnpm typecheck`, `pnpm lint`, and `pnpm build` passed across the monorepo.
+- 2026-07-01: Web E2E and Docker Compose verification remain pending.
