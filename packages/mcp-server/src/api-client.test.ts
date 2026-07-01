@@ -68,6 +68,51 @@ describe('WikiApiClient', () => {
     expect(url.toString()).toBe('http://localhost:3000/api/v1/pages?');
   });
 
+  it('requests both revision relations when fetching a single page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.getPage('page-id');
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toBe('http://localhost:3000/api/v1/pages/page-id?include=latestRevision,publishedRevision');
+  });
+
+  it('requests latestRevision when creating a page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 201 }));
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.createPage({ path: 'docs/new', title: 'New', contentSource: '# New' });
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toBe('http://localhost:3000/api/v1/pages?include=latestRevision');
+  });
+
+  it('requests publishedRevision when publishing a page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.publishPage('page-id', 2, {});
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toBe('http://localhost:3000/api/v1/pages/page-id/revisions/2/publication?include=publishedRevision');
+  });
+
+  it('passes include and excerptLength through to search', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const client = createClient();
+    await client.searchPages({ q: 'hello', include: ['latestRevision'], excerptLength: 50 });
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toContain('include=latestRevision');
+    expect(url.toString()).toContain('excerptLength=50');
+  });
+
   it('uploads images without dropping the base URL path prefix', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'asset-id' }), { status: 200 }),

@@ -42,17 +42,23 @@ export const pathSchema = z
     message: 'Path cannot contain consecutive slashes',
   });
 
+export const publicPageIncludeSchema = z.enum(['latestRevision', 'publishedRevision']);
+export type PublicPageInclude = z.infer<typeof publicPageIncludeSchema>;
+
 export const publicPageResourceSchema = z.object({
   id: z.string().uuid(),
   spaceSlug: z.string(),
   path: pathSchema,
   locale: z.string(),
   title: z.string(),
+  // Omitted by the API for list/search results; present for single-page reads and writes.
   contentSource: z.string().optional(),
   status: publicPageStatusSchema,
   author: publicAuthorSchema,
-  latestRevision: publicRevisionSummarySchema.nullable(),
-  publishedRevision: publicRevisionSummarySchema.nullable(),
+  // Omitted by the API unless requested via ?include=latestRevision.
+  latestRevision: publicRevisionSummarySchema.nullable().optional(),
+  // Omitted by the API unless requested via ?include=publishedRevision.
+  publishedRevision: publicRevisionSummarySchema.nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   links: z.object({
@@ -71,6 +77,7 @@ export const publicPageListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
+  include: z.array(publicPageIncludeSchema).default([]),
 });
 export type PublicPageListQuery = z.infer<typeof publicPageListQuerySchema>;
 
@@ -121,6 +128,8 @@ export const publicPageSearchQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+  include: z.array(publicPageIncludeSchema).default([]),
+  excerptLength: z.coerce.number().int().min(20).max(500).default(100),
 });
 export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
 
@@ -208,6 +217,8 @@ export class WikiApiClient {
     if (query.status) params.set('status', query.status);
     if (query.limit) params.set('limit', String(query.limit));
     if (query.cursor) params.set('cursor', query.cursor);
+    if (query.include?.length) params.set('include', query.include.join(','));
+    if (query.excerptLength) params.set('excerptLength', String(query.excerptLength));
     return this.request<PublicPageSearchResponse>(`/search/pages?${params.toString()}`);
   }
 
@@ -219,15 +230,19 @@ export class WikiApiClient {
     if (query.limit) params.set('limit', String(query.limit));
     if (query.cursor) params.set('cursor', query.cursor);
     if (query.order) params.set('order', query.order);
+    if (query.include?.length) params.set('include', query.include.join(','));
     return this.request<{ items: PublicPageResource[]; nextCursor: string | null }>(`/pages?${params.toString()}`);
   }
 
+  // Always requests both revision relations: get_page surfaces latestRevisionId/
+  // publishedRevisionId, which the API omits by default (see shapes.ts getPageResponse).
   async getPage(id: string): Promise<PublicPageResource> {
-    return this.request<PublicPageResource>(`/pages/${id}`);
+    return this.request<PublicPageResource>(`/pages/${id}?include=latestRevision,publishedRevision`);
   }
 
+  // include=latestRevision so the response carries the initial draft's revisionId.
   async createPage(input: PublicPageCreateInput): Promise<PublicPageResource> {
-    return this.request<PublicPageResource>('/pages', {
+    return this.request<PublicPageResource>('/pages?include=latestRevision', {
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -247,8 +262,9 @@ export class WikiApiClient {
     });
   }
 
+  // include=publishedRevision so the response carries the new published revision's id/publishedAt.
   async publishPage(pageId: string, version: number, input: PublicPublicationInput): Promise<PublicPageResource> {
-    return this.request<PublicPageResource>(`/pages/${pageId}/revisions/${version}/publication`, {
+    return this.request<PublicPageResource>(`/pages/${pageId}/revisions/${version}/publication?include=publishedRevision`, {
       method: 'POST',
       body: JSON.stringify(input),
     });

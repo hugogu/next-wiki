@@ -52,6 +52,15 @@ describe('tools', () => {
     expect(result.results[0]?.title).toBe('Test');
   });
 
+  it('search_wiki forwards excerptLength to the client', async () => {
+    const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ searchPages });
+
+    await searchWiki(client, { query: 'test', excerptLength: 50 });
+
+    expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({ excerptLength: 50 }));
+  });
+
   it('get_page returns content source', async () => {
     const client = createClient({
       getPage: vi.fn().mockResolvedValue({
