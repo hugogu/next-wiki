@@ -1,13 +1,9 @@
 import { z } from 'zod';
-import type { WikiApiClient } from '../api-client';
+import { pathSchema, type WikiApiClient } from '../api-client';
 import { createPageResponse } from '../shapes';
 
 export const createPageSchema = {
-  path: z
-    .string()
-    .min(1)
-    .max(200)
-    .describe('Canonical page path, e.g. docs/getting-started'),
+  path: pathSchema.describe('Canonical page path, e.g. docs/getting-started'),
   title: z.string().min(1).max(200).describe('Page title'),
   contentSource: z.string().min(1).describe('Markdown source content'),
   locale: z.string().min(1).max(20).optional().describe('Locale; defaults to wiki default'),
