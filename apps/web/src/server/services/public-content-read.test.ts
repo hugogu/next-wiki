@@ -90,4 +90,35 @@ describe('public content read facade', () => {
     expect(first.items).toHaveLength(1);
     expect(first.nextCursor).toBeTruthy();
   });
+
+  it('finds a q match outside the default pagination window', async () => {
+    const editor = await createPublicApiUser('public-search-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-search-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    // The match sorts oldest-by-publish-time; create enough newer pages first
+    // to push it past a default-sized (limit=20) fetch window.
+    await pageService.create(editorCtx, {
+      path: 'philosophy/figures/wang-yangming',
+      title: '王阳明',
+      contentSource: '# 王阳明\n\n王阳明（1472—1529）是明代著名的思想家。',
+    });
+    await revisions.publish(editorCtx, { path: 'philosophy/figures/wang-yangming', version: 1 });
+
+    for (let i = 0; i < 25; i++) {
+      const path = `public/filler-${i}`;
+      await pageService.create(editorCtx, { path, title: `Filler ${i}`, contentSource: path });
+      await revisions.publish(editorCtx, { path, version: 1 });
+    }
+
+    const result = await publicContent.listPages(readerCtx, {
+      status: 'published',
+      q: '王阳明',
+      limit: 20,
+      order: 'recent',
+    });
+
+    expect(result.items.map((item) => item.path)).toContain('philosophy/figures/wang-yangming');
+  });
 });

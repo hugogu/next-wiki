@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNotNull, isNull, or, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type {
@@ -37,6 +37,10 @@ async function getDefaultSpace() {
 
 function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
+}
+
+function likePattern(term: string): string {
+  return `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 }
 
 function links(page: PageRow) {
@@ -163,27 +167,42 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   }
 
   const cursor = decodePublicCursor(query.cursor);
+  const conditions: SQL[] = [
+    eq(schema.pages.spaceId, space.id),
+    isNull(schema.pages.deletedAt),
+  ];
+  if (query.status === 'published') {
+    conditions.push(isNotNull(schema.pages.currentPublishedVersionId));
+  }
+  if (query.q) {
+    const pattern = likePattern(query.q);
+    conditions.push(
+      or(
+        ilike(schema.pages.path, pattern),
+        ilike(schema.pages.title, pattern),
+        ilike(schema.pageRevisions.contentSource, pattern),
+      )!,
+    );
+  }
+
   const rows = await db
     .select({ page: schema.pages })
     .from(schema.pages)
     .leftJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
-    .where(
-      and(
-        eq(schema.pages.spaceId, space.id),
-        isNull(schema.pages.deletedAt),
-      ),
-    )
+    .where(and(...conditions))
     .orderBy(query.order === 'recent' ? desc(schema.pageRevisions.publishedAt) : schema.pages.path)
     .limit(query.limit + 1)
     .offset(cursor.offset);
 
   const items: PublicPageResource[] = [];
   for (const { page } of rows) {
-    if (query.status === 'published' && !page.currentPublishedVersionId) continue;
     const item = await visiblePageResource(ctx, space, page);
     if (!item) continue;
     if (query.status === 'draft' && item.status !== 'draft') continue;
     if (query.q) {
+      // The SQL predicate above matches page/title columns and DB-backed content; re-check here
+      // since content stored in external backends (see 003-content-storage-backends) isn't in
+      // pageRevisions.contentSource and can only be verified after readMarkdownWithFallback.
       const q = query.q.toLowerCase();
       if (!item.path.toLowerCase().includes(q) && !item.title.toLowerCase().includes(q) && !item.contentSource?.toLowerCase().includes(q)) {
         continue;
