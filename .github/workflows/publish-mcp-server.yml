@@ -1,0 +1,51 @@
+name: Publish @next-wiki/mcp-server
+
+on:
+  push:
+    tags:
+      - 'mcp-server-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @next-wiki/shared build
+
+      - name: Typecheck MCP server
+        run: pnpm --filter @next-wiki/mcp-server typecheck
+
+      - name: Lint MCP server
+        run: pnpm --filter @next-wiki/mcp-server lint
+
+      - name: Test MCP server
+        run: pnpm --filter @next-wiki/mcp-server test
+
+      - name: Build MCP server
+        run: pnpm --filter @next-wiki/mcp-server build
+
+      - name: Publish to npm
+        working-directory: packages/mcp-server
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

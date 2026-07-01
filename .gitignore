@@ -9,6 +9,8 @@
 .github/agents
 .github/prompts
 .github/skills
+!.github/workflows
+!.github/workflows/**
 .specify/scripts
 .specify/templates
 .codex/skills
@@ -21,7 +23,7 @@
 commands
 extensions
 integrations
-workflows
+# workflows    <- 这一行会误伤 .github/workflows，已移除
 
 # 构建产物
 dist/

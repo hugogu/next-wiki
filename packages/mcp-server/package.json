@@ -1,13 +1,17 @@
 {
   "name": "@next-wiki/mcp-server",
   "version": "0.1.0",
-  "private": true,
+  "description": "MCP Server for next-wiki. Exposes the v1 Public Wiki Content API as MCP tools and resources.",
   "type": "module",
   "bin": {
-    "next-wiki-mcp-server": "./dist/index.js"
+    "next-wiki-mcp-server": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --out-dir dist --clean",
@@ -17,7 +21,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@next-wiki/shared": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -28,5 +31,12 @@
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.0.0",
     "vitest": "^3.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

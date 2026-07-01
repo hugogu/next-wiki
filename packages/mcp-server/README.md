@@ -85,6 +85,31 @@ Readable pages are exposed as MCP resources:
 ```bash
 pnpm install
 pnpm --filter @next-wiki/mcp-server typecheck
+pnpm --filter @next-wiki/mcp-server lint
 pnpm --filter @next-wiki/mcp-server test
 pnpm --filter @next-wiki/mcp-server build
 ```
+
+## Publishing
+
+The package is published to npm automatically via GitHub Actions when a tag
+matching `mcp-server-v*` is pushed.
+
+### Publish a new version
+
+1. Bump the version in `packages/mcp-server/package.json`.
+2. Commit the change.
+3. Create and push a tag:
+
+```bash
+git tag mcp-server-v0.1.1
+git push origin mcp-server-v0.1.1
+```
+
+GitHub Actions will then build, test, and publish the package to npm with
+provenance.
+
+### Required repository secret
+
+Add an `NPM_TOKEN` secret to the repository with publish permission for the
+`@next-wiki` npm scope.
