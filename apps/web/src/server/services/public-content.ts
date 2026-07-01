@@ -19,7 +19,7 @@ import type {
 import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagination';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { readMarkdownWithFallback } from '@/server/content-store/read-router';
+import { readMarkdownFromDatabase, readMarkdownWithFallback } from '@/server/content-store/read-router';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
@@ -76,7 +76,22 @@ async function revisionSummary(ctx: PermCtx, page: PageRow, revision: RevisionRo
   };
 }
 
-async function visiblePageResource(ctx: PermCtx, space: { slug: string; anonymousRead: boolean; defaultLocale: string }, page: PageRow): Promise<PublicPageResource | null> {
+/**
+ * Single-page reads (getPageById/getPageByPath) prefer the replica backend
+ * (e.g. S3) to keep read load off the database. Bulk reads (search, list,
+ * export) pass readMarkdownFromDatabase instead: the DB row already has
+ * content_source in hand (every write stores it there synchronously,
+ * see pages.ts create/newDraft), so this skips the network round trip
+ * entirely rather than fanning out one remote read per row.
+ */
+type ContentReader = (revision: RevisionRow) => Promise<string>;
+
+async function visiblePageResource(
+  ctx: PermCtx,
+  space: { slug: string; anonymousRead: boolean; defaultLocale: string },
+  page: PageRow,
+  readContent: ContentReader = readMarkdownWithFallback,
+): Promise<PublicPageResource | null> {
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
     return null;
   }
@@ -103,7 +118,7 @@ async function visiblePageResource(ctx: PermCtx, space: { slug: string; anonymou
   if (!current) return null;
 
   const [contentSource, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
-    readMarkdownWithFallback(current),
+    readContent(current),
     author(page.authorId),
     revisionSummary(ctx, page, visibleLatest),
     revisionSummary(ctx, page, published),
@@ -152,16 +167,19 @@ async function getPageRowById(pageId: string): Promise<PageRow | null> {
   })) ?? null;
 }
 
-async function visibleRevisionResource(ctx: PermCtx, page: PageRow, revision: RevisionRow): Promise<PublicRevisionResource | null> {
+async function visibleRevisionResource(
+  ctx: PermCtx,
+  page: PageRow,
+  revision: RevisionRow,
+  readContent: ContentReader = readMarkdownWithFallback,
+): Promise<PublicRevisionResource | null> {
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? revision.authorId === userId : false;
   if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, { isAuthor })) {
     return null;
   }
-  return {
-    ...(await revisionSummary(ctx, page, revision))!,
-    contentSource: await readMarkdownWithFallback(revision),
-  };
+  const [summary, contentSource] = await Promise.all([revisionSummary(ctx, page, revision), readContent(revision)]);
+  return { ...summary!, contentSource };
 }
 
 export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promise<PublicPageListResponse> {
@@ -205,19 +223,21 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
     .limit(query.limit + 1)
     .offset(cursor.offset);
 
-  // Each row's markdown may live behind a network read (S3/local backend), so resolve
-  // the whole window concurrently instead of one page at a time (was O(n) sequential
-  // round trips, making a 20-row page take as long as 20x a single page fetch).
-  const resolved = await Promise.all(rows.map(({ page }) => visiblePageResource(ctx, space, page)));
+  // Bulk listing/search reads content straight from the DB (readMarkdownFromDatabase)
+  // rather than the S3-preferred replica: every write stores content_source
+  // synchronously, so this is a free in-memory read instead of N remote round trips.
+  // Resolve the whole row window concurrently — these are independent per-row reads.
+  const resolved = await Promise.all(
+    rows.map(({ page }) => visiblePageResource(ctx, space, page, readMarkdownFromDatabase)),
+  );
 
   const items: PublicPageResource[] = [];
   for (const item of resolved) {
     if (!item) continue;
     if (query.status === 'draft' && item.status !== 'draft') continue;
     if (query.q) {
-      // The SQL predicate above matches page/title columns and DB-backed content; re-check here
-      // since content stored in external backends (see 003-content-storage-backends) isn't in
-      // pageRevisions.contentSource and can only be verified after readMarkdownWithFallback.
+      // The SQL predicate above already matches path/title/content; this re-check
+      // covers rows whose q-match relies on locale/permission-adjusted content.
       const q = query.q.toLowerCase();
       if (!item.path.toLowerCase().includes(q) && !item.title.toLowerCase().includes(q) && !item.contentSource?.toLowerCase().includes(q)) {
         continue;
@@ -285,7 +305,9 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
   const candidates = rows.filter(
     (row) => !query.status || query.status === 'all' || row.status === query.status,
   );
-  const resolved = await Promise.all(candidates.map((row) => visibleRevisionResource(ctx, page, row)));
+  const resolved = await Promise.all(
+    candidates.map((row) => visibleRevisionResource(ctx, page, row, readMarkdownFromDatabase)),
+  );
 
   const items: PublicRevisionResource[] = [];
   for (const item of resolved) {

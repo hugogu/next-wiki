@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { readImageWithFallback, readMarkdownWithFallback } from '@/server/content-store/read-router';
+import { readImageFromDatabase, readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { extractLocalAssetIds } from '@/server/transfers/markdown-links';
 
 export type ExportAsset = {
@@ -48,42 +48,53 @@ export async function capturePublishedSnapshot(): Promise<{
     .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)))
     .orderBy(schema.pages.locale, schema.pages.path);
 
-  const pages: ExportPage[] = [];
+  // A full-instance export reconciles the whole published snapshot, so read markdown
+  // and images straight from the database (always in sync, see pages.ts create/newDraft)
+  // instead of the S3-preferred replica, and resolve rows concurrently.
   const assetIds = new Set<string>();
-  for (const row of rows) {
-    const markdown = await readMarkdownWithFallback(row.revision);
-    const referenced = extractLocalAssetIds(markdown);
-    referenced.forEach((id) => assetIds.add(id));
-    pages.push({
-      id: row.page.id,
-      revisionId: row.revision.id,
-      path: row.page.path,
-      locale: row.page.locale,
-      title: row.page.title,
-      markdown,
-      contentHash: row.revision.contentHash,
-      publishedAt: row.revision.publishedAt?.toISOString() ?? null,
-      createdAt: row.page.createdAt.toISOString(),
-      updatedAt: row.page.updatedAt.toISOString(),
-      assetIds: referenced,
-    });
-  }
+  const pages: ExportPage[] = await Promise.all(
+    rows.map(async (row) => {
+      const markdown = await readMarkdownFromDatabase(row.revision);
+      const referenced = extractLocalAssetIds(markdown);
+      referenced.forEach((id) => assetIds.add(id));
+      return {
+        id: row.page.id,
+        revisionId: row.revision.id,
+        path: row.page.path,
+        locale: row.page.locale,
+        title: row.page.title,
+        markdown,
+        contentHash: row.revision.contentHash,
+        publishedAt: row.revision.publishedAt?.toISOString() ?? null,
+        createdAt: row.page.createdAt.toISOString(),
+        updatedAt: row.page.updatedAt.toISOString(),
+        assetIds: referenced,
+      };
+    }),
+  );
 
-  const assets: ExportAsset[] = [];
-  for (const id of [...assetIds].sort()) {
-    const asset = await db.query.contentAssets.findFirst({
-      where: and(eq(schema.contentAssets.id, id), isNull(schema.contentAssets.deletedAt)),
-    });
-    if (!asset) continue;
-    const image = await readImageWithFallback(asset);
-    assets.push({
-      id,
-      contentHash: asset.contentHash,
-      contentType: image.contentType,
-      sizeBytes: image.bytes.length,
-      bytes: image.bytes,
-    });
-  }
+  const assetRows = await Promise.all(
+    [...assetIds].sort().map((id) =>
+      db.query.contentAssets.findFirst({
+        where: and(eq(schema.contentAssets.id, id), isNull(schema.contentAssets.deletedAt)),
+      }),
+    ),
+  );
+  const assets = (
+    await Promise.all(
+      assetRows.map(async (asset): Promise<ExportAsset | null> => {
+        if (!asset) return null;
+        const image = await readImageFromDatabase(asset);
+        return {
+          id: asset.id,
+          contentHash: asset.contentHash,
+          contentType: image.contentType,
+          sizeBytes: image.bytes.length,
+          bytes: image.bytes,
+        };
+      }),
+    )
+  ).filter((asset): asset is ExportAsset => asset !== null);
   return {
     instanceId: space.id,
     spaceSlug: space.slug,
