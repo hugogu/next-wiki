@@ -80,6 +80,62 @@ Readable pages are exposed as MCP resources:
 - URI scheme: `wiki://pages/{id}`
 - MIME type: `text/markdown`
 
+## AI Agent Usage
+
+This MCP server is designed to be the primary interface for AI agents working
+with next-wiki content. Agents should prefer these tools over direct REST calls
+because auth, parameter validation, and permission checks are handled internally.
+
+### When to use these tools
+
+- **Knowledge retrieval**: `search_wiki`, `list_pages`, `get_page`
+- **Content creation**: `create_page`, `save_draft`, `publish_page`
+- **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`
+- **Media**: `upload_image` for inserting images into Markdown
+
+### Memory conventions
+
+When using next-wiki as AI long-term memory, prefer these path prefixes and
+frontmatter metadata:
+
+| Purpose | Path prefix | Example |
+|---|---|---|
+| Project context | `memory/projects/{name}/...` | `memory/projects/payment-routing` |
+| Decisions | `memory/decisions/{yyyy-mm-dd}-{topic}` | `memory/decisions/2026-07-01-mcp-strategy` |
+| Meeting notes | `memory/meetings/{yyyy-mm-dd}-{title}` | `memory/meetings/2026-07-01-standup` |
+| Reference docs | `memory/reference/{topic}` | `memory/reference/llm-provider-matrix` |
+
+Suggested frontmatter fields: `status`, `tags`, `owner`, `reviewed_at`,
+`related_pages`.
+
+### OpenCode
+
+Add to `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "next-wiki": {
+      "type": "local",
+      "command": ["npx", "-y", "@next-wiki/mcp-server"],
+      "environment": {
+        "NEXT_WIKI_API_URL": "http://localhost:3000/api/v1",
+        "NEXT_WIKI_API_KEY": "your-api-key"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+Then prompt the agent with:
+
+```text
+Use the next-wiki MCP tools to search for pages about X, read the most
+relevant one, and summarize it.
+```
+
 ## Development
 
 ```bash
