@@ -3,6 +3,7 @@
 **Feature Branch**: `007-public-wiki-api`
 **Created**: 2026-07-02
 **Status**: Draft
+**Input**: User description: "Close the P0/P1 maintenance gaps in the Public Wiki Content API: page soft-delete, backlinks, revision diff, batch create, wiki stats, and duplicate detection — each with a matching MCP tool."
 **Depends on**: 007-public-wiki-api (v1 REST API + MCP Server)
 
 ## Context
@@ -34,6 +35,14 @@ As an Editor or Admin using an external tool or AI agent, I want to soft-delete
 pages that are outdated, duplicated, or no longer needed, so that I can keep the
 wiki clean and prevent knowledge-base rot without losing revision history.
 
+**Why this priority**: Without deletion the wiki can only grow, making every
+subsequent maintenance operation (search, stats, duplicate detection) noisier
+and less useful. This is the single most fundamental maintenance primitive.
+
+**Independent Test**: Send `DELETE /v1/pages/{id}` with an Editor key and
+verify the page disappears from default list/search, then reappears with
+`status=deleted`. No other feature is needed to validate this.
+
 **Acceptance Scenarios**:
 
 1. **Given** an Editor or Admin key and a page exists, **When** the key sends
@@ -55,6 +64,14 @@ As an AI agent or automation tool, I want to query which pages link to a target
 page, so that I can maintain referential integrity before deleting, renaming, or
 restructuring the wiki.
 
+**Why this priority**: Backlinks are a prerequisite for safe deletion and
+renaming — without knowing inbound references, any structural change risks
+creating broken links. It is the second half of the P0 safety net.
+
+**Independent Test**: Create two pages that link to a third, call
+`GET /v1/pages/{id}/backlinks` on the target, and confirm both referencing
+pages appear. No other feature is needed to validate this.
+
 **Acceptance Scenarios**:
 
 1. **Given** pages A and B both contain Markdown links to page C, **When** the
@@ -70,6 +87,16 @@ restructuring the wiki.
 As an AI agent reviewing change history, I want a structured diff between two
 revisions, so that I can understand what changed without downloading and
 comparing two full Markdown documents.
+
+**Why this priority**: Diff completes the P0 triad (delete, backlinks, diff) by
+giving agents a lightweight change-review capability. Without it, reviewing
+even a single edit requires two full-document fetches and client-side
+comparison.
+
+**Independent Test**: Edit a page to create v1 and v2, call
+`GET /v1/pages/{id}/revisions/2/diff?against=1`, and confirm the response
+contains the expected added/removed lines with correct counts. No other
+feature is needed to validate this.
 
 **Acceptance Scenarios**:
 
@@ -87,6 +114,16 @@ comparing two full Markdown documents.
 As an AI agent building a knowledge base, I want to create multiple pages in a
 single request, so that I can efficiently bootstrap a subtree without N round
 trips and with transactional consistency.
+
+**Why this priority**: Batch create is the highest-value efficiency gain for
+agents bootstrapping or migrating content. It is P1 (not P0) because the
+single-page create endpoint already works — batch is an optimization, not a
+gap in core capability.
+
+**Independent Test**: Send `POST /v1/pages/batch` with two page definitions,
+confirm both are created with correct paths and revision ids, then send a
+second batch with a conflicting path and confirm a 409 with zero pages
+created. No other feature is needed to validate this.
 
 **Acceptance Scenarios**:
 
@@ -107,6 +144,14 @@ aggregate overview of wiki health, so that I can identify stale pages, drafts
 needing review, and overall knowledge-base coverage without paginating through
 every page.
 
+**Why this priority**: Stats gives maintainers a dashboard-level view to
+prioritise cleanup work. It is P1 because it amplifies the value of the P0
+features (delete, backlinks, diff) by showing where they are needed most.
+
+**Independent Test**: Create pages across two directories with mixed
+statuses, call `GET /v1/stats`, and confirm the counts and directory breakdown
+match. No other feature is needed to validate this.
+
 **Acceptance Scenarios**:
 
 1. **Given** a wiki with published pages, drafts, and deleted pages, **When**
@@ -124,6 +169,16 @@ every page.
 As an AI agent about to create a page, I want to check whether similar pages
 already exist, so that I can avoid creating duplicates and the "重复和混乱"
 problem.
+
+**Why this priority**: Duplicate detection prevents knowledge-base entropy at
+creation time, which is cheaper than post-hoc cleanup. It is P1 because the
+P0 delete capability already provides the cleanup path; similarity check is a
+preventive optimisation.
+
+**Independent Test**: Create a page titled "Payment Routing", call
+`POST /v1/search/similar` with title "payment routing", and confirm the
+existing page is returned with a high score. No other feature is needed to
+validate this.
 
 **Acceptance Scenarios**:
 
@@ -218,16 +273,22 @@ problem.
 
 ## Success Criteria *(mandatory)*
 
-- **SC-001**: An AI agent can delete an outdated page, check backlinks before
-  renaming, review the diff of the last change, batch-create a new subtree, get
-  wiki stats, and check for duplicates — all through the public API.
-- **SC-002**: Soft-deleted pages are excluded from all default-browsing surfaces
-  (list, search, tree) and included only on explicit `status=all/deleted`
-  request.
-- **SC-003**: Batch creation is provably atomic — a conflicting batch leaves
-  zero pages created.
-- **SC-004**: Stats endpoint returns in O(1) aggregated queries without
-  paginating all pages.
+### Measurable Outcomes
+
+- **SC-001**: An AI agent can complete a full maintenance cycle (delete an
+  outdated page, check backlinks, review the last diff, batch-create a 5-page
+  subtree, read stats, and run a duplicate check) in under 30 seconds using
+  only the public API.
+- **SC-002**: Soft-deleted pages are verifiably absent from list, search, and
+  tree responses when using default filters, and verifiably present only when
+  `status=all` or `status=deleted` is explicitly requested — confirmed by
+  automated test coverage on all three browsing surfaces.
+- **SC-003**: Batch creation is provably atomic: when any page in a batch
+  conflicts, automated tests confirm zero pages were created (no partial state
+  remains in the database).
+- **SC-004**: The stats endpoint returns a complete wiki overview to the caller
+  in under 500 milliseconds on a wiki of up to 10,000 pages, without the caller
+  needing to paginate through page lists.
 - **SC-005**: Duplicate detection has zero false positives above the configured
   similarity threshold on a test corpus of 50 distinct pages.
 - **SC-006**: All six new MCP tools pass integration tests with both
