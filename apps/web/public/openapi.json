@@ -500,6 +500,106 @@
         ],
         "description": "Public author identity visible to the caller."
       },
+      "PublicBacklink": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page containing the link."
+          },
+          "path": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "Canonical path of the page containing the link."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the page containing the link."
+          },
+          "linkText": {
+            "type": "string",
+            "description": "Link text used in the Markdown link."
+          }
+        },
+        "required": [
+          "pageId",
+          "path",
+          "title",
+          "linkText"
+        ],
+        "description": "A single backlink to a target page."
+      },
+      "PublicBacklinksResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicBacklink"
+            },
+            "description": "Pages visible to the caller that link to the target page."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "Backlinks response."
+      },
+      "PublicBatchCreateResult": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Created page identifier."
+                },
+                "path": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PublicPagePath"
+                    }
+                  ],
+                  "description": "Canonical path of the created page."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Title of the created page."
+                },
+                "revisionId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Identifier of the initial draft revision."
+                }
+              },
+              "required": [
+                "id",
+                "path",
+                "title",
+                "revisionId"
+              ]
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of pages created."
+          }
+        },
+        "required": [
+          "created",
+          "count"
+        ],
+        "description": "Result of a batch page creation request."
+      },
       "PublicDraftCreateInput": {
         "type": "object",
         "properties": {
@@ -540,6 +640,7 @@
           "image/svg+xml"
         ]
       },
+      "PublicPageBatchCreateInput": {},
       "PublicPageCreateInput": {
         "type": "object",
         "properties": {
@@ -1079,6 +1180,58 @@
         },
         "description": "Publish revision input."
       },
+      "PublicRevisionDiffQuery": {
+        "type": "object",
+        "properties": {
+          "against": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Earlier version number to diff against."
+          }
+        },
+        "required": [
+          "against"
+        ],
+        "description": "Revision diff query parameters."
+      },
+      "PublicRevisionDiffResponse": {
+        "type": "object",
+        "properties": {
+          "fromVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Earlier revision version."
+          },
+          "toVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Later revision version."
+          },
+          "diff": {
+            "type": "string",
+            "description": "Unified diff between the two revision sources."
+          },
+          "additions": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of added lines."
+          },
+          "deletions": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of removed lines."
+          }
+        },
+        "required": [
+          "fromVersion",
+          "toVersion",
+          "diff",
+          "additions",
+          "deletions"
+        ],
+        "description": "Structured diff between two page revisions."
+      },
       "PublicRevisionListQuery": {
         "type": "object",
         "properties": {
@@ -1314,6 +1467,196 @@
           "score"
         ],
         "description": "Public page search result."
+      },
+      "PublicSimilarQuery": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Proposed page title."
+          },
+          "path": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "Proposed page path."
+          },
+          "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Minimum similarity score [0,1]; defaults to 0.5."
+          }
+        },
+        "description": "Similar-page detection request."
+      },
+      "PublicSimilarResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSimilarResult"
+            },
+            "description": "Candidate similar pages sorted by score descending."
+          },
+          "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Threshold applied to the result set."
+          }
+        },
+        "required": [
+          "results",
+          "threshold"
+        ],
+        "description": "Similar-page detection response."
+      },
+      "PublicSimilarResult": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Existing page identifier."
+          },
+          "path": {
+            "type": "string",
+            "description": "Existing page path."
+          },
+          "title": {
+            "type": "string",
+            "description": "Existing page title."
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Similarity score in [0, 1]."
+          }
+        },
+        "required": [
+          "pageId",
+          "path",
+          "title",
+          "score"
+        ],
+        "description": "A single similar-page candidate."
+      },
+      "PublicStatsQuery": {
+        "type": "object",
+        "properties": {
+          "include": {
+            "type": "string",
+            "enum": [
+              "orphans"
+            ],
+            "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+          }
+        },
+        "description": "Wiki stats query parameters."
+      },
+      "PublicStatsResponse": {
+        "type": "object",
+        "properties": {
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total visible pages."
+          },
+          "publishedPages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Published pages visible to the caller."
+          },
+          "draftPages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Draft pages visible to the caller."
+          },
+          "deletedPages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Soft-deleted pages visible to the caller."
+          },
+          "recentActivity": {
+            "type": "object",
+            "properties": {
+              "createdInLast7Days": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Pages created in the last 7 days."
+              },
+              "updatedInLast7Days": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Pages updated in the last 7 days."
+              }
+            },
+            "required": [
+              "createdInLast7Days",
+              "updatedInLast7Days"
+            ]
+          },
+          "directories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "segment": {
+                  "type": "string"
+                },
+                "pageCount": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "segment",
+                "pageCount"
+              ]
+            },
+            "description": "Top-level directory breakdown."
+          },
+          "orphans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "path",
+                "title"
+              ]
+            },
+            "description": "Pages with no inbound links, when include=orphans is requested."
+          }
+        },
+        "required": [
+          "totalPages",
+          "publishedPages",
+          "draftPages",
+          "deletedPages",
+          "recentActivity",
+          "directories"
+        ],
+        "description": "Aggregate wiki statistics."
       },
       "RegisterInput": {
         "type": "object",
@@ -5050,6 +5393,48 @@
         }
       }
     },
+    "/v1/stats": {
+      "get": {
+        "operationId": "get-v1-stats",
+        "summary": "Get public wiki stats",
+        "description": "Returns page counts, recent activity, directory breakdown, and optional orphan detection.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "orphans"
+              ],
+              "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+            },
+            "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tree": {
       "get": {
         "operationId": "get-v1-tree",
@@ -5257,6 +5642,75 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "delete-v1-pages-{id}",
+        "summary": "Delete public wiki page",
+        "description": "Soft-deletes the page, preserving all revision history. The page disappears from default list/search/tree responses.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/v1/pages/batch": {
+      "post": {
+        "operationId": "post-v1-pages-batch",
+        "summary": "Batch create public wiki pages",
+        "description": "Creates up to 50 pages in a single atomic transaction.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageBatchCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBatchCreateResult"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/search/pages": {
@@ -5437,6 +5891,43 @@
         }
       }
     },
+    "/v1/search/similar": {
+      "post": {
+        "operationId": "post-v1-search-similar",
+        "summary": "Find similar public wiki pages",
+        "description": "Checks whether existing pages are likely duplicates of a proposed title or path.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicSimilarQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSimilarResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/assets/{id}/content": {
       "get": {
         "operationId": "get-v1-assets-{id}-content",
@@ -5502,6 +5993,45 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/backlinks": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-backlinks",
+        "summary": "Get public wiki page backlinks",
+        "description": "Returns pages visible to the caller that contain Markdown links to the target page.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBacklinksResponse"
                 }
               }
             }
@@ -5685,6 +6215,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicRevisionResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions/{version}/diff": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-revisions-{version}-diff",
+        "summary": "Get public wiki revision diff",
+        "description": "Returns a unified diff and line counts between the requested version and the `against` version.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "against",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Earlier version number to diff against."
+            },
+            "description": "Earlier version number to diff against."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRevisionDiffResponse"
                 }
               }
             }

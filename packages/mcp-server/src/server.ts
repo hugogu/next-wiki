@@ -1,9 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { WikiApiClient } from './api-client';
 import { createPage, createPageSchema } from './tools/create-page';
+import { deletePage, deletePageSchema } from './tools/delete-page';
+import { getBacklinks, getBacklinksSchema } from './tools/get-backlinks';
+import { getDiff, getDiffSchema } from './tools/get-diff';
 import { getPage, getPageSchema } from './tools/get-page';
 import { getPageTree, getPageTreeSchema } from './tools/get-page-tree';
 import { getRevision, getRevisionSchema } from './tools/get-revision';
+import { getStats, getStatsSchema } from './tools/get-stats';
 import { listPages, listPagesSchema } from './tools/list-pages';
 import { listRevisions, listRevisionsSchema } from './tools/list-revisions';
 import { publishPage, publishPageSchema } from './tools/publish-page';
@@ -11,6 +15,8 @@ import { saveDraft, saveDraftSchema } from './tools/save-draft';
 import { searchWiki, searchWikiSchema } from './tools/search-wiki';
 import { updatePageProperties, updatePagePropertiesSchema } from './tools/update-properties';
 import { uploadImage, uploadImageSchema } from './tools/upload-image';
+import { batchCreatePages, batchCreatePagesSchema } from './tools/batch-create-pages';
+import { findSimilar, findSimilarSchema } from './tools/find-similar';
 import { listWikiResources, readWikiResource } from './resources/wiki-page';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
@@ -77,6 +83,40 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('upload_image', 'Upload an image and receive a Markdown-ready reference.', uploadImageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await uploadImage(client, args)) }],
   }));
+
+  server.tool('delete_page', 'Soft-delete a wiki page, preserving its revision history.', deletePageSchema, async (args) => ({
+    content: [{ type: 'text', text: JSON.stringify(await deletePage(client, args)) }],
+  }));
+
+  server.tool('get_backlinks', 'Find pages that link to a target page.', getBacklinksSchema, async (args) => ({
+    content: [{ type: 'text', text: JSON.stringify(await getBacklinks(client, args)) }],
+  }));
+
+  server.tool('get_diff', 'Get a structured diff between two revisions of a page.', getDiffSchema, async (args) => ({
+    content: [{ type: 'text', text: JSON.stringify(await getDiff(client, args)) }],
+  }));
+
+  server.tool(
+    'batch_create_pages',
+    'Create up to 50 pages atomically in a single transaction.',
+    batchCreatePagesSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await batchCreatePages(client, args)) }],
+    }),
+  );
+
+  server.tool('get_stats', 'Get aggregate wiki statistics and optional orphan detection.', getStatsSchema, async (args) => ({
+    content: [{ type: 'text', text: JSON.stringify(await getStats(client, args)) }],
+  }));
+
+  server.tool(
+    'find_similar',
+    'Check for existing pages similar to a proposed title or path.',
+    findSimilarSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await findSimilar(client, args)) }],
+    }),
+  );
 
   server.resource(
     'wiki-page',

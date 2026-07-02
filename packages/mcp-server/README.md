@@ -72,6 +72,13 @@ Add to Cursor MCP settings:
 | `list_revisions` | List revision history |
 | `get_revision` | Get revision detail |
 | `upload_image` | Upload an image and receive markdown reference |
+| `get_page_tree` | Get the directory tree of pages |
+| `delete_page` | Soft-delete a page |
+| `get_backlinks` | Find pages linking to a target page |
+| `get_diff` | Diff two revisions of a page |
+| `batch_create_pages` | Create up to 50 pages atomically |
+| `get_stats` | Wiki health overview and orphan detection |
+| `find_similar` | Check for existing similar pages |
 
 ## Resources
 
@@ -88,9 +95,9 @@ because auth, parameter validation, and permission checks are handled internally
 
 ### When to use these tools
 
-- **Knowledge retrieval**: `search_wiki`, `list_pages`, `get_page`
-- **Content creation**: `create_page`, `save_draft`, `publish_page`
-- **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`
+- **Knowledge retrieval**: `search_wiki`, `list_pages`, `get_page`, `get_page_tree`
+- **Content creation**: `create_page`, `save_draft`, `publish_page`, `batch_create_pages`
+- **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`, `delete_page`, `get_backlinks`, `get_diff`, `get_stats`, `find_similar`
 - **Media**: `upload_image` for inserting images into Markdown
 
 ### Memory conventions

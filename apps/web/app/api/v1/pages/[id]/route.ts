@@ -57,3 +57,22 @@ export const PATCH = withPublicApi<{ id: string }>(async (request, { params }, c
 
   return publicJson(await publicContent.updateProperties(ctx, parsedParams.data.id, parsedBody.data, parsedQuery.data.include));
 });
+
+/**
+ * Soft-delete a page.
+ *
+ * @openapi
+ * @summary Delete public wiki page
+ * @description Soft-deletes the page, preserving all revision history. The page disappears from default list/search/tree responses.
+ * @tag Public Wiki Content
+ * @auth bearer
+ * @pathParams PublicPageIdPathParams
+ * @response 204
+ */
+export const DELETE = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {
+  const parsedParams = paramsSchema.safeParse(await params);
+  if (!parsedParams.success) return validationError(parsedParams.error);
+
+  await publicContent.deletePage(ctx, parsedParams.data.id);
+  return new Response(null, { status: 204 });
+});

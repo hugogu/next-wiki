@@ -64,6 +64,8 @@ calls, shell `curl`, or database access.
 - Create pages, save drafts, update properties, publish revisions.
 - Upload images and receive Markdown-ready references.
 - Use the wiki as long-term memory or a structured knowledge base.
+- Delete outdated pages, check backlinks before reorganizing, compare revisions.
+- Batch-create subtrees, monitor wiki health stats, detect duplicate pages.
 
 ### When NOT to use MCP tools
 
@@ -88,6 +90,13 @@ server is named `next-wiki`, the tools are:
 | `next-wiki_list_revisions` | List revision history |
 | `next-wiki_get_revision` | Read a specific revision |
 | `next-wiki_upload_image` | Upload image, get Markdown reference |
+| `next-wiki_get_page_tree` | Get directory tree of pages |
+| `next-wiki_delete_page` | Soft-delete a page |
+| `next-wiki_get_backlinks` | Find pages linking to a target page |
+| `next-wiki_get_diff` | Diff two revisions of a page |
+| `next-wiki_batch_create_pages` | Create up to 50 pages atomically |
+| `next-wiki_get_stats` | Wiki health overview and orphan detection |
+| `next-wiki_find_similar` | Check for existing similar pages |
 
 Prompt example for OpenCode:
 
@@ -98,7 +107,7 @@ most relevant one, and summarize its content.
 
 ### Preferred content workflow
 
-1. **Discover**: call `next-wiki_search_wiki` or `next-wiki_list_pages` first.
+1. **Discover**: call `next-wiki_search_wiki`, `next-wiki_list_pages`, or `next-wiki_get_page_tree` first.
 2. **Read**: call `next-wiki_get_page` with the page id to retrieve Markdown
    source and revision metadata.
 3. **Draft**: for edits, call `next-wiki_save_draft` with the latest revision
@@ -107,6 +116,8 @@ most relevant one, and summarize its content.
    current published version.
 5. **Assets**: for images, call `next-wiki_upload_image` and insert the returned
    `markdown` string into page content.
+6. **Maintenance**: before deleting or moving a page, call `next-wiki_get_backlinks`
+   to find references; use `next-wiki_get_diff` to review changes.
 
 ### Memory and knowledge conventions
 

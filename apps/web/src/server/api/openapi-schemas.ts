@@ -476,6 +476,100 @@ export const PublicPageTreeResponse = z
   })
   .describe('Hierarchical directory structure of public wiki pages.');
 
+export const PublicBatchCreateResult = z
+  .object({
+    created: z.array(
+      z.object({
+        id: z.string().uuid().describe('Created page identifier.'),
+        path: PublicPagePath.describe('Canonical path of the created page.'),
+        title: z.string().describe('Title of the created page.'),
+        revisionId: z.string().uuid().describe('Identifier of the initial draft revision.'),
+      }),
+    ),
+    count: z.number().int().nonnegative().describe('Number of pages created.'),
+  })
+  .describe('Result of a batch page creation request.');
+
+export const PublicBacklink = z
+  .object({
+    pageId: z.string().uuid().describe('Identifier of the page containing the link.'),
+    path: PublicPagePath.describe('Canonical path of the page containing the link.'),
+    title: z.string().describe('Title of the page containing the link.'),
+    linkText: z.string().describe('Link text used in the Markdown link.'),
+  })
+  .describe('A single backlink to a target page.');
+
+export const PublicBacklinksResponse = z
+  .object({
+    items: z.array(PublicBacklink).describe('Pages visible to the caller that link to the target page.'),
+  })
+  .describe('Backlinks response.');
+
+export const PublicRevisionDiffQuery = z
+  .object({
+    against: z.coerce.number().int().min(1).describe('Earlier version number to diff against.'),
+  })
+  .describe('Revision diff query parameters.');
+
+export const PublicRevisionDiffResponse = z
+  .object({
+    fromVersion: z.number().int().min(1).describe('Earlier revision version.'),
+    toVersion: z.number().int().min(1).describe('Later revision version.'),
+    diff: z.string().describe('Unified diff between the two revision sources.'),
+    additions: z.number().int().nonnegative().describe('Number of added lines.'),
+    deletions: z.number().int().nonnegative().describe('Number of removed lines.'),
+  })
+  .describe('Structured diff between two page revisions.');
+
+export const PublicStatsQuery = z
+  .object({
+    include: z.enum(['orphans']).optional().describe('Optional additional report; "orphans" lists pages with zero inbound links.'),
+  })
+  .describe('Wiki stats query parameters.');
+
+export const PublicStatsResponse = z
+  .object({
+    totalPages: z.number().int().nonnegative().describe('Total visible pages.'),
+    publishedPages: z.number().int().nonnegative().describe('Published pages visible to the caller.'),
+    draftPages: z.number().int().nonnegative().describe('Draft pages visible to the caller.'),
+    deletedPages: z.number().int().nonnegative().describe('Soft-deleted pages visible to the caller.'),
+    recentActivity: z.object({
+      createdInLast7Days: z.number().int().nonnegative().describe('Pages created in the last 7 days.'),
+      updatedInLast7Days: z.number().int().nonnegative().describe('Pages updated in the last 7 days.'),
+    }),
+    directories: z.array(z.object({ segment: z.string(), pageCount: z.number().int().nonnegative() })).describe('Top-level directory breakdown.'),
+    orphans: z
+      .array(z.object({ id: z.string().uuid(), path: z.string(), title: z.string() }))
+      .optional()
+      .describe('Pages with no inbound links, when include=orphans is requested.'),
+  })
+  .describe('Aggregate wiki statistics.');
+
+export const PublicSimilarQuery = z
+  .object({
+    title: z.string().min(1).max(200).optional().describe('Proposed page title.'),
+    path: PublicPagePath.optional().describe('Proposed page path.'),
+    threshold: z.number().min(0).max(1).optional().describe('Minimum similarity score [0,1]; defaults to 0.5.'),
+  })
+  .refine((value) => value.title || value.path, { message: 'At least one of title or path must be provided' })
+  .describe('Similar-page detection request.');
+
+export const PublicSimilarResult = z
+  .object({
+    pageId: z.string().uuid().describe('Existing page identifier.'),
+    path: z.string().describe('Existing page path.'),
+    title: z.string().describe('Existing page title.'),
+    score: z.number().min(0).max(1).describe('Similarity score in [0, 1].'),
+  })
+  .describe('A single similar-page candidate.');
+
+export const PublicSimilarResponse = z
+  .object({
+    results: z.array(PublicSimilarResult).describe('Candidate similar pages sorted by score descending.'),
+    threshold: z.number().min(0).max(1).describe('Threshold applied to the result set.'),
+  })
+  .describe('Similar-page detection response.');
+
 export const PublicAssetResource = z
   .object({
     id: z.string().uuid().describe('Stable public asset identifier.'),

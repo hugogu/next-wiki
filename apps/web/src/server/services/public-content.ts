@@ -100,6 +100,21 @@ function links(page: PageRow) {
   };
 }
 
+function minimalDeletedPageResource(space: { slug: string }, page: PageRow): PublicPageResource {
+  return {
+    id: page.id,
+    spaceSlug: space.slug,
+    path: page.path,
+    locale: page.locale,
+    title: page.title,
+    status: 'deleted',
+    author: { id: null, displayName: null },
+    createdAt: page.createdAt.toISOString(),
+    updatedAt: page.updatedAt.toISOString(),
+    links: links(page),
+  };
+}
+
 async function author(id: string | null) {
   if (!id) return { id: null, displayName: null };
   const row = await db.query.users.findFirst({ where: eq(schema.users.id, id) });
@@ -252,7 +267,7 @@ async function visibleRevisionResource(
 }
 
 type ListPagesQuery = {
-  status: 'published' | 'draft' | 'all';
+  status: 'published' | 'draft' | 'all' | 'deleted';
   q?: string;
   path?: string;
   pathPrefix?: string;
@@ -288,11 +303,17 @@ async function listPagesInternal(
     return { items: page ? [page] : [], nextCursor: null };
   }
 
+  const canSeeDeleted = query.status === 'deleted' || query.status === 'all'
+    ? can(ctx, 'delete', { kind: 'page_list' })
+    : false;
+
   const cursor = decodePublicCursor(query.cursor);
-  const conditions: SQL[] = [
-    eq(schema.pages.spaceId, space.id),
-    isNull(schema.pages.deletedAt),
-  ];
+  const conditions: SQL[] = [eq(schema.pages.spaceId, space.id)];
+  if (query.status === 'deleted') {
+    conditions.push(isNotNull(schema.pages.deletedAt));
+  } else if (query.status !== 'all') {
+    conditions.push(isNull(schema.pages.deletedAt));
+  }
   if (query.pathPrefix) {
     conditions.push(
       or(
@@ -330,18 +351,23 @@ async function listPagesInternal(
 
   // Resolve the whole row window concurrently — these are independent per-row reads.
   const resolved = await Promise.all(
-    rows.map(({ page }) =>
-      visiblePageResource(ctx, space, page, {
+    rows.map(({ page }) => {
+      if (page.deletedAt) {
+        return canSeeDeleted ? minimalDeletedPageResource(space, page) : Promise.resolve(null);
+      }
+      return visiblePageResource(ctx, space, page, {
         includeContent: options.includeContent,
         include: query.include,
-      }),
-    ),
+      });
+    }),
   );
 
   const items: PublicPageResource[] = [];
   for (const item of resolved) {
     if (!item) continue;
     if (query.status === 'draft' && item.status !== 'draft') continue;
+    if (query.status === 'deleted' && item.status !== 'deleted') continue;
+    if (query.status === 'published' && item.status !== 'published') continue;
     if (query.q) {
       // The SQL predicate above already matches path/title/content; this re-check
       // covers rows whose q-match relies on locale/permission-adjusted content.
@@ -707,7 +733,6 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
       ),
     );
 
-  const userId = getActorUserId(ctx);
   const items: PublicBacklink[] = [];
   for (const row of rows) {
     if (row.id === pageId) continue;

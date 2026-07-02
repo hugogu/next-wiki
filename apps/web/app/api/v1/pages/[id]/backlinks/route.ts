@@ -1,4 +1,4 @@
-import { publicJson, withPublicApi } from '../../_shared/route';
+import { publicJson, withPublicApi } from '../../../_shared/route';
 import * as publicContent from '@/server/services/public-content';
 
 /**

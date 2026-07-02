@@ -153,6 +153,69 @@ export const publicPageSearchResponseSchema = z.object({
 });
 export type PublicPageSearchResponse = z.infer<typeof publicPageSearchResponseSchema>;
 
+export const publicBatchCreateResultSchema = z.object({
+  created: z.array(
+    z.object({
+      id: z.string().uuid(),
+      path: pathSchema,
+      title: z.string(),
+      revisionId: z.string().uuid(),
+    }),
+  ),
+  count: z.number().int().nonnegative(),
+});
+export type PublicBatchCreateResult = z.infer<typeof publicBatchCreateResultSchema>;
+
+export const publicBacklinkSchema = z.object({
+  pageId: z.string().uuid(),
+  path: pathSchema,
+  title: z.string(),
+  linkText: z.string(),
+});
+export type PublicBacklink = z.infer<typeof publicBacklinkSchema>;
+
+export const publicBacklinksResponseSchema = z.object({
+  items: z.array(publicBacklinkSchema),
+});
+export type PublicBacklinksResponse = z.infer<typeof publicBacklinksResponseSchema>;
+
+export const publicRevisionDiffResponseSchema = z.object({
+  fromVersion: z.number().int().min(1),
+  toVersion: z.number().int().min(1),
+  diff: z.string(),
+  additions: z.number().int().nonnegative(),
+  deletions: z.number().int().nonnegative(),
+});
+export type PublicRevisionDiffResponse = z.infer<typeof publicRevisionDiffResponseSchema>;
+
+export const publicStatsResponseSchema = z.object({
+  totalPages: z.number().int().nonnegative(),
+  publishedPages: z.number().int().nonnegative(),
+  draftPages: z.number().int().nonnegative(),
+  deletedPages: z.number().int().nonnegative(),
+  recentActivity: z.object({
+    createdInLast7Days: z.number().int().nonnegative(),
+    updatedInLast7Days: z.number().int().nonnegative(),
+  }),
+  directories: z.array(z.object({ segment: z.string(), pageCount: z.number().int().nonnegative() })),
+  orphans: z.array(z.object({ id: z.string().uuid(), path: z.string(), title: z.string() })).optional(),
+});
+export type PublicStatsResponse = z.infer<typeof publicStatsResponseSchema>;
+
+export const publicSimilarResultSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  title: z.string(),
+  score: z.number().min(0).max(1),
+});
+export type PublicSimilarResult = z.infer<typeof publicSimilarResultSchema>;
+
+export const publicSimilarResponseSchema = z.object({
+  results: z.array(publicSimilarResultSchema),
+  threshold: z.number().min(0).max(1),
+});
+export type PublicSimilarResponse = z.infer<typeof publicSimilarResponseSchema>;
+
 export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object({
   path: z.string(),
   segment: z.string(),
@@ -322,6 +385,38 @@ export class WikiApiClient {
 
   async getRevision(pageId: string, version: number): Promise<PublicRevisionResource> {
     return this.request<PublicRevisionResource>(`/pages/${pageId}/revisions/${version}`);
+  }
+
+  async deletePage(pageId: string): Promise<void> {
+    return this.request<void>(`/pages/${pageId}`, { method: 'DELETE' });
+  }
+
+  async getBacklinks(pageId: string): Promise<PublicBacklinksResponse> {
+    return this.request<PublicBacklinksResponse>(`/pages/${pageId}/backlinks`);
+  }
+
+  async getDiff(pageId: string, version: number, against: number): Promise<PublicRevisionDiffResponse> {
+    return this.request<PublicRevisionDiffResponse>(`/pages/${pageId}/revisions/${version}/diff?against=${against}`);
+  }
+
+  async batchCreatePages(input: { pages: PublicPageCreateInput[] }): Promise<PublicBatchCreateResult> {
+    return this.request<PublicBatchCreateResult>('/pages/batch', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getStats(options?: { includeOrphans?: boolean }): Promise<PublicStatsResponse> {
+    const params = new URLSearchParams();
+    if (options?.includeOrphans) params.set('include', 'orphans');
+    return this.request<PublicStatsResponse>(`/stats?${params.toString()}`);
+  }
+
+  async findSimilar(input: { title?: string; path?: string; threshold?: number }): Promise<PublicSimilarResponse> {
+    return this.request<PublicSimilarResponse>('/search/similar', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   async uploadImage(file: File | Blob): Promise<PublicAssetResource> {
