@@ -66,6 +66,20 @@ export function toPublicOpenApiDocument(source: OpenApiDocument): OpenApiDocumen
   const sourceSchemas = sourceComponents.schemas ?? {};
   const schemas = collectReferencedSchemas(sourceSchemas, schemaRefs);
 
+  // Keep only tags that are referenced by the public v1 endpoints.
+  const usedTagNames = new Set<string>();
+  for (const methods of Object.values(paths)) {
+    if (!methods || typeof methods !== 'object') continue;
+    for (const op of Object.values(methods)) {
+      if (op && typeof op === 'object' && Array.isArray((op as { tags?: unknown }).tags)) {
+        for (const tag of (op as { tags?: string[] }).tags!) {
+          if (typeof tag === 'string') usedTagNames.add(tag);
+        }
+      }
+    }
+  }
+  const tags = (source.tags ?? []).filter((tag) => usedTagNames.has(tag.name));
+
   return {
     ...source,
     info: {
@@ -73,7 +87,7 @@ export function toPublicOpenApiDocument(source: OpenApiDocument): OpenApiDocumen
       title: 'Next Wiki Public API',
       description: 'Public Wiki Content API for external tools and automation.',
     },
-    tags: [{ name: 'Public Wiki Content' }],
+    tags,
     paths,
     components: {
       securitySchemes: sourceComponents.securitySchemes ?? {},
