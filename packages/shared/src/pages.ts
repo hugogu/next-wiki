@@ -259,3 +259,92 @@ export const publicPageTreeResponseSchema = z.object({
   pageCount: z.number().int().nonnegative(),
 });
 export type PublicPageTreeResponse = z.infer<typeof publicPageTreeResponseSchema>;
+
+// ---- 008: Maintenance & Intelligence schemas ----
+
+export const publicPageBatchCreateInputSchema = z.object({
+  pages: z.array(publicPageCreateInputSchema).min(1).max(50),
+});
+export type PublicPageBatchCreateInput = z.infer<typeof publicPageBatchCreateInputSchema>;
+
+export const publicBatchCreateResultSchema = z.object({
+  created: z.array(
+    z.object({
+      id: z.string().uuid(),
+      path: pathSchema,
+      title: z.string(),
+      revisionId: z.string().uuid(),
+    }),
+  ),
+  count: z.number().int().nonnegative(),
+});
+export type PublicBatchCreateResult = z.infer<typeof publicBatchCreateResultSchema>;
+
+export const publicBacklinkSchema = z.object({
+  pageId: z.string().uuid(),
+  path: pathSchema,
+  title: z.string(),
+  linkText: z.string(),
+});
+export type PublicBacklink = z.infer<typeof publicBacklinkSchema>;
+
+export const publicBacklinksResponseSchema = z.object({
+  items: z.array(publicBacklinkSchema),
+});
+export type PublicBacklinksResponse = z.infer<typeof publicBacklinksResponseSchema>;
+
+export const publicRevisionDiffQuerySchema = z.object({
+  against: z.coerce.number().int().min(1),
+});
+export type PublicRevisionDiffQuery = z.infer<typeof publicRevisionDiffQuerySchema>;
+
+export const publicRevisionDiffResponseSchema = z.object({
+  fromVersion: z.number().int().min(1),
+  toVersion: z.number().int().min(1),
+  diff: z.string(),
+  additions: z.number().int().nonnegative(),
+  deletions: z.number().int().nonnegative(),
+});
+export type PublicRevisionDiffResponse = z.infer<typeof publicRevisionDiffResponseSchema>;
+
+export const publicStatsQuerySchema = z.object({
+  include: z.enum(['orphans']).optional(),
+});
+export type PublicStatsQuery = z.infer<typeof publicStatsQuerySchema>;
+
+export const publicStatsResponseSchema = z.object({
+  totalPages: z.number().int().nonnegative(),
+  publishedPages: z.number().int().nonnegative(),
+  draftPages: z.number().int().nonnegative(),
+  deletedPages: z.number().int().nonnegative(),
+  recentActivity: z.object({
+    createdInLast7Days: z.number().int().nonnegative(),
+    updatedInLast7Days: z.number().int().nonnegative(),
+  }),
+  directories: z.array(z.object({ segment: z.string(), pageCount: z.number().int().nonnegative() })),
+  orphans: z.array(z.object({ id: z.string().uuid(), path: z.string(), title: z.string() })).optional(),
+});
+export type PublicStatsResponse = z.infer<typeof publicStatsResponseSchema>;
+
+export const publicSimilarQuerySchema = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    path: pathSchema.optional(),
+    threshold: z.number().min(0).max(1).optional(),
+  })
+  .refine((v) => v.title || v.path, { message: 'At least one of title or path must be provided' });
+export type PublicSimilarQuery = z.infer<typeof publicSimilarQuerySchema>;
+
+export const publicSimilarResultSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  title: z.string(),
+  score: z.number().min(0).max(1),
+});
+export type PublicSimilarResult = z.infer<typeof publicSimilarResultSchema>;
+
+export const publicSimilarResponseSchema = z.object({
+  results: z.array(publicSimilarResultSchema),
+  threshold: z.number().min(0).max(1),
+});
+export type PublicSimilarResponse = z.infer<typeof publicSimilarResponseSchema>;

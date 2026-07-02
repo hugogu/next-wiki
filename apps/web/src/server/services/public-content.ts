@@ -656,3 +656,341 @@ function buildTree(pages: { id: string; path: string; title: string; status: 'dr
   }
   return root;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 1: Soft-delete
+// ---------------------------------------------------------------------------
+
+export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
+  const page = await getPageRowById(pageId);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  await pageService.remove(ctx, page.path);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Backlinks
+// ---------------------------------------------------------------------------
+
+const MARKDOWN_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+
+export type PublicBacklink = {
+  pageId: string;
+  path: string;
+  title: string;
+  linkText: string;
+};
+
+export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ items: PublicBacklink[] }> {
+  const targetPage = await getPageRowById(pageId);
+  if (!targetPage) return { items: [] };
+
+  const space = await getDefaultSpace();
+  if (!space) return { items: [] };
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+    return { items: [] };
+  }
+
+  const targetPath = targetPage.path;
+  const rows = await db
+    .select({
+      id: schema.pages.id,
+      path: schema.pages.path,
+      title: schema.pages.title,
+      authorId: schema.pages.authorId,
+    })
+    .from(schema.pages)
+    .where(
+      and(
+        eq(schema.pages.spaceId, space.id),
+        isNull(schema.pages.deletedAt),
+        isNotNull(schema.pages.currentPublishedVersionId),
+      ),
+    );
+
+  const userId = getActorUserId(ctx);
+  const items: PublicBacklink[] = [];
+  for (const row of rows) {
+    if (row.id === pageId) continue;
+    const page = await getVisiblePage(ctx, eq(schema.pages.id, row.id), []);
+    if (!page?.contentSource) continue;
+    let matched = false;
+    let linkText = '';
+    for (const match of page.contentSource.matchAll(MARKDOWN_LINK_RE)) {
+      const text = match[1] ?? '';
+      const href = match[2] ?? '';
+      const cleanHref = href.replace(/^\//, '').replace(/^\/api\/v1\/pages\//, '');
+      if (cleanHref === targetPath || href === targetPath || href === `/api/v1/pages/${pageId}`) {
+        matched = true;
+        linkText = text;
+        break;
+      }
+    }
+    if (matched) {
+      items.push({ pageId: row.id, path: row.path, title: row.title, linkText });
+    }
+  }
+  return { items };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: Revision Diff
+// ---------------------------------------------------------------------------
+
+export type PublicRevisionDiff = {
+  fromVersion: number;
+  toVersion: number;
+  diff: string;
+  additions: number;
+  deletions: number;
+};
+
+export async function getDiff(
+  ctx: PermCtx,
+  pageId: string,
+  toVersion: number,
+  fromVersion: number,
+): Promise<PublicRevisionDiff | null> {
+  const [toRevision, fromRevision] = await Promise.all([
+    getRevision(ctx, pageId, toVersion),
+    getRevision(ctx, pageId, fromVersion),
+  ]);
+  if (!toRevision || !fromRevision) return null;
+
+  const toSource = toRevision.contentSource ?? '';
+  const fromSource = fromRevision.contentSource ?? '';
+  const { diffLines, createPatch } = await import('diff');
+  const patch = createPatch(`v${fromVersion}`, fromSource, toSource, '', '');
+  const changes = diffLines(fromSource, toSource);
+  let additions = 0;
+  let deletions = 0;
+  for (const part of changes) {
+    if (part.added) additions += part.value.split('\n').filter(Boolean).length;
+    if (part.removed) deletions += part.value.split('\n').filter(Boolean).length;
+  }
+  return { fromVersion, toVersion, diff: patch, additions, deletions };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Batch Create
+// ---------------------------------------------------------------------------
+
+export type PublicBatchCreateResult = {
+  created: { id: string; path: string; title: string; revisionId: string }[];
+  count: number;
+};
+
+export async function batchCreatePages(
+  ctx: PermCtx,
+  input: { pages: PublicPageCreateInput[] },
+): Promise<PublicBatchCreateResult> {
+  const created: PublicBatchCreateResult['created'] = [];
+  await db.transaction(async () => {
+    for (const pageInput of input.pages) {
+      const result = await pageService.create(ctx, {
+        path: pageInput.path,
+        title: pageInput.title,
+        contentSource: pageInput.contentSource,
+      });
+      const page = await getPageById(ctx, result.pageId, ['latestRevision']);
+      if (!page) throw new DomainError('NOT_FOUND', 'Created page is not visible');
+      created.push({
+        id: page.id,
+        path: page.path,
+        title: page.title,
+        revisionId: page.latestRevision?.id ?? '',
+      });
+    }
+  });
+  return { created, count: created.length };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Stats
+// ---------------------------------------------------------------------------
+
+export type PublicStats = {
+  totalPages: number;
+  publishedPages: number;
+  draftPages: number;
+  deletedPages: number;
+  recentActivity: { createdInLast7Days: number; updatedInLast7Days: number };
+  directories: { segment: string; pageCount: number }[];
+  orphans?: { id: string; path: string; title: string }[];
+};
+
+export async function getStats(
+  ctx: PermCtx,
+  options: { includeOrphans?: boolean } = {},
+): Promise<PublicStats> {
+  const space = await getDefaultSpace();
+  if (!space) {
+    return { totalPages: 0, publishedPages: 0, draftPages: 0, deletedPages: 0, recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 }, directories: [] };
+  }
+
+  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 }, { isAuthor: false });
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const allRows = await db
+    .select({
+      id: schema.pages.id,
+      path: schema.pages.path,
+      title: schema.pages.title,
+      authorId: schema.pages.authorId,
+      currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+      deletedAt: schema.pages.deletedAt,
+      createdAt: schema.pages.createdAt,
+      updatedAt: schema.pages.updatedAt,
+    })
+    .from(schema.pages)
+    .where(eq(schema.pages.spaceId, space.id));
+
+  let publishedPages = 0;
+  let draftPages = 0;
+  let deletedPages = 0;
+  let createdInLast7Days = 0;
+  let updatedInLast7Days = 0;
+  const dirMap = new Map<string, number>();
+  const visiblePublishedPaths = new Set<string>();
+
+  const userId = getActorUserId(ctx);
+  for (const row of allRows) {
+    if (row.deletedAt) {
+      deletedPages += 1;
+      continue;
+    }
+    const isPublished = row.currentPublishedVersionId !== null;
+    if (isPublished) {
+      publishedPages += 1;
+      visiblePublishedPaths.add(row.path);
+    } else {
+      if (!canSeeDrafts) continue;
+      const isAuthor = userId ? row.authorId === userId : false;
+      if (!can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, { isAuthor })) continue;
+      draftPages += 1;
+    }
+    if (row.createdAt >= sevenDaysAgo) createdInLast7Days += 1;
+    if (row.updatedAt >= sevenDaysAgo) updatedInLast7Days += 1;
+    const topSegment = row.path.split('/')[0] ?? '(root)';
+    dirMap.set(topSegment, (dirMap.get(topSegment) ?? 0) + 1);
+  }
+
+  const directories = [...dirMap.entries()]
+    .map(([segment, pageCount]) => ({ segment, pageCount }))
+    .sort((a, b) => b.pageCount - a.pageCount);
+
+  let orphans: PublicStats['orphans'];
+  if (options.includeOrphans && visiblePublishedPaths.size > 0) {
+    const linkedPaths = new Set<string>();
+    for (const row of allRows) {
+      if (row.deletedAt || !row.currentPublishedVersionId) continue;
+      const page = await getVisiblePage(ctx, eq(schema.pages.id, row.id), []);
+      if (!page?.contentSource) continue;
+      for (const match of page.contentSource.matchAll(MARKDOWN_LINK_RE)) {
+        const href = (match[2] ?? '').replace(/^\//, '');
+        if (href) linkedPaths.add(href);
+      }
+    }
+    orphans = allRows
+      .filter((row) => !row.deletedAt && row.currentPublishedVersionId && visiblePublishedPaths.has(row.path) && !linkedPaths.has(row.path))
+      .map((row) => ({ id: row.id, path: row.path, title: row.title }));
+  }
+
+  return {
+    totalPages: publishedPages + draftPages,
+    publishedPages,
+    draftPages,
+    deletedPages,
+    recentActivity: { createdInLast7Days, updatedInLast7Days },
+    directories,
+    ...(orphans ? { orphans } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: Duplicate Detection
+// ---------------------------------------------------------------------------
+
+export type PublicSimilarResult = {
+  pageId: string;
+  path: string;
+  title: string;
+  score: number;
+};
+
+function bigrams(str: string): Set<string> {
+  const s = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const result = new Set<string>();
+  for (let i = 0; i < s.length - 1; i++) result.add(s.slice(i, i + 2));
+  return result;
+}
+
+function diceCoefficient(a: string, b: string): number {
+  const bgA = bigrams(a);
+  const bgB = bigrams(b);
+  if (bgA.size === 0 || bgB.size === 0) return 0;
+  let intersection = 0;
+  for (const bg of bgA) if (bgB.has(bg)) intersection += 1;
+  return (2 * intersection) / (bgA.size + bgB.size);
+}
+
+function levenshteinNormalized(a: string, b: string): number {
+  const la = a.toLowerCase();
+  const lb = b.toLowerCase();
+  if (la === lb) return 1;
+  const matrix: number[][] = Array.from({ length: la.length + 1 }, () => new Array(lb.length + 1).fill(0));
+  for (let i = 0; i <= la.length; i++) matrix[i]![0] = i;
+  for (let j = 0; j <= lb.length; j++) matrix[0]![j] = j;
+  for (let i = 1; i <= la.length; i++) {
+    for (let j = 1; j <= lb.length; j++) {
+      const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
+      matrix[i]![j] = Math.min(matrix[i - 1]![j]! + 1, matrix[i]![j - 1]! + 1, matrix[i - 1]![j - 1]! + cost);
+    }
+  }
+  const distance = matrix[la.length]![lb.length]!;
+  return 1 - distance / Math.max(la.length, lb.length);
+}
+
+export async function findSimilar(
+  ctx: PermCtx,
+  input: { title?: string; path?: string; threshold?: number },
+): Promise<{ results: PublicSimilarResult[]; threshold: number }> {
+  const threshold = input.threshold ?? 0.5;
+  const space = await getDefaultSpace();
+  if (!space) return { results: [], threshold };
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+    return { results: [], threshold };
+  }
+
+  const rows = await db
+    .select({ id: schema.pages.id, path: schema.pages.path, title: schema.pages.title })
+    .from(schema.pages)
+    .where(
+      and(
+        eq(schema.pages.spaceId, space.id),
+        isNull(schema.pages.deletedAt),
+        isNotNull(schema.pages.currentPublishedVersionId),
+      ),
+    );
+
+  const results: PublicSimilarResult[] = [];
+  for (const row of rows) {
+    let score = 0;
+    let components = 0;
+    if (input.path) {
+      score += diceCoefficient(input.path, row.path);
+      components += 1;
+    }
+    if (input.title) {
+      score += levenshteinNormalized(input.title, row.title);
+      components += 1;
+    }
+    const combined = components > 0 ? score / components : 0;
+    if (combined >= threshold) {
+      results.push({ pageId: row.id, path: row.path, title: row.title, score: Math.round(combined * 100) / 100 });
+    }
+  }
+  results.sort((a, b) => b.score - a.score);
+  return { results, threshold };
+}
