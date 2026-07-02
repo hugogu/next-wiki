@@ -4936,7 +4936,7 @@
               "description": "Stable public asset identifier."
             },
             "description": "Stable public asset identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -4987,7 +4987,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -5036,7 +5036,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -5250,7 +5250,7 @@
               "description": "Stable public asset identifier."
             },
             "description": "Stable public asset identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -5322,7 +5322,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -5410,7 +5410,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -5451,7 +5451,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
             "in": "path",
@@ -5464,7 +5464,7 @@
               "description": "Revision version number."
             },
             "description": "Revision version number.",
-            "example": "example"
+            "example": 1
           }
         ],
         "security": [
@@ -5515,7 +5515,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
             "in": "path",
@@ -5528,7 +5528,7 @@
               "description": "Revision version number."
             },
             "description": "Revision version number.",
-            "example": "example"
+            "example": 1
           }
         ],
         "security": [

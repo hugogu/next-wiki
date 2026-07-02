@@ -106,4 +106,25 @@ if (uploadAsset) setMultipartAssetRequest(uploadAsset);
 const getAssetContent = operation('/v1/assets/{id}/content', 'get');
 if (getAssetContent) setBinaryAssetResponse(getAssetContent);
 
+const UUID_EXAMPLE = '550e8400-e29b-41d4-a716-446655440000';
+
+function fixPathParamExamples() {
+  for (const pathItem of Object.values(document.paths || {})) {
+    for (const op of Object.values(pathItem || {})) {
+      if (!op || typeof op !== 'object' || !Array.isArray(op.parameters)) continue;
+      for (const param of op.parameters) {
+        if (param.in !== 'path' || !param.schema || typeof param.schema !== 'object') continue;
+        const schema = param.schema;
+        if (schema.format === 'uuid') {
+          param.example = UUID_EXAMPLE;
+        } else if ((schema.type === 'integer' || schema.type === 'number') && typeof param.example !== 'number') {
+          param.example = schema.minimum && typeof schema.minimum === 'number' ? schema.minimum : 1;
+        }
+      }
+    }
+  }
+}
+
+fixPathParamExamples();
+
 fs.writeFileSync(openapiPath, `${JSON.stringify(document, null, 2)}\n`);
