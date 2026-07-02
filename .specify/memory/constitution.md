@@ -1,79 +1,103 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 1.3.0 -> 1.4.0
-  Bump rationale: MINOR — align fixed Technology Decisions with the
-  implementation actually shipped in 001-core-wiki-platform. No principle,
-  anti-pattern, or mandate invariant changed; only three technology choices
-  were reconciled to current reality:
-    - Editor (client): Toast UI Editor -> CodeMirror 6 (also fixes the prior
-      Toast-UI-vs-Tiptap contradiction between this file and
-      docs/architecture/mandates.md)
-    - Auth: Better Auth -> custom bcrypt + DB-backed sessions
-    - Styling & UI: "Mantine + Tailwind" -> Tailwind + CSS custom properties
-      with in-house components in src/components/ui/ (no Mantine dependency)
-  Companion edits in docs/architecture/{mandates,project-structure,
-  frontend-data-flow}.md drop the tRPC layer (first-party app uses the same
-  REST route handlers via TanStack Query) and the Tiptap/Mantine references.
-  These are technology-decision reconciliations, not invariant changes.
+  Version change: 1.4.0 -> 2.0.0
+  Bump rationale: MAJOR — redefines the Mission and redefines three Core
+  Principles (P1, P2, P4/new-P5), plus adds a new Core Principle (P3). Per
+  Versioning Policy, redefinition of a Core Principle requires a MAJOR bump
+  regardless of how much surrounding text is unchanged.
 
-  Prior entry (1.2.0 -> 1.3.0):
-  ==================
-  Version change: 1.2.0 -> 1.3.0
-  Bump rationale: MINOR — restructure to separate durable governance
-  (constitution: principles, anti-patterns, decisions) from detailed
-  architecture reference. No principle removed or redefined; all mandates
-  relocated verbatim to docs/architecture/ and referenced by a short index.
-  P5 and P12 trimmed back to terse declarations since their operational
-  detail now lives in docs/architecture/mandates.md.
-
-  Relocated (binding text unchanged, now in docs/architecture/):
-    - Architectural Mandates (12 mandates) -> docs/architecture/mandates.md
-    - Project Structure                  -> docs/architecture/project-structure.md
-    - Frontend Data Flow                 -> docs/architecture/frontend-data-flow.md
+  Mission change:
+    - Repositioned from "open-source, self-hosted wiki for personal and
+      enterprise knowledge management" to "personal, AI-native knowledge base
+      service" — personal use is now the primary story, AI-assisted creation
+      is the default (not merely optional) interaction path, and the wiki is
+      explicitly framed as the user's provider-agnostic AI memory.
 
   Modified principles:
-    - P5 trimmed (detail moved to docs/architecture/mandates.md)
-    - P12 trimmed (URL schemes moved to docs/architecture/mandates.md)
+    - P1 "Simple Deployment is a Feature" -> "Simple Deployment is a Feature,
+      Personal by Default": default deployment now MUST be immediately usable
+      by one person with no multi-user/organization setup.
+    - P2 "AI as Optional Enhancement, Chat as First-Class UI" -> "AI-Native
+      Creation, Never Vendor-Locked": AI-assisted conversation is now the
+      default creation path (manual editing is the fallback, not the primary
+      designed experience), while the "fully usable without AI" invariant and
+      vendor-agnostic interface requirement are preserved and sharpened.
+    - P4 "Permissions are First-Class" -> P5 "Permissions are First-Class,
+      Personal by Default": added the single-owner zero-config default while
+      preserving every existing MUST (permission checks on every surface,
+      configurable anonymous read, no bolted-on retrofits).
 
-  Added sections:
-    - "Architectural Mandates" index (links to docs/architecture/)
+  Added principles:
+    - New P3 "The Knowledge Base is the User's Portable AI Memory": formalizes
+      the MCP-as-AI-memory pattern already documented informally in CLAUDE.md,
+      and elevates the "AI Knowledge Layer" mandate's grounding/citation
+      requirement from an index-table one-liner to a full Core Principle.
 
-  Removed sections (content relocated, not deleted):
-    - Detailed Architectural Mandates body
-    - Project Structure body
-    - Frontend Data Flow body
+  Renumbered principles (content unchanged): old P3->P4, P5->P6, P6->P7,
+  P7->P8, P8->P9, P9->P10, P10->P11.
+
+  Added anti-patterns:
+    - "AI content as second-class": AI-authored content stored, versioned, or
+      permission-checked differently from manually-authored content.
+    - "Vendor-locked AI integration": hard-coding a single AI vendor's
+      proprietary SDK/API as the only integration path.
+
+  Removed sections: none (prior Sync Impact Report history trimmed from this
+  header; full history remains in git blame for this file).
 
   Templates requiring updates:
-    - .specify/templates/plan-template.md       — no change (Constitution
-      Check derives gates from principles + index, which remain in this file)
-    - .specify/templates/spec-template.md        — no change (generic)
-    - .specify/templates/tasks-template.md       — no change (generic)
+    - .specify/templates/plan-template.md   — ✅ no change needed (Constitution
+      Check section derives gates generically from this file; no hardcoded
+      principle numbers or mission text found)
+    - .specify/templates/spec-template.md   — ✅ no change needed (generic,
+      no principle/mission references found)
+    - .specify/templates/tasks-template.md  — ✅ no change needed (generic,
+      no principle/mission references found)
+    - docs/architecture/mandates.md         — ✅ no invariant conflict; the
+      existing "AI Knowledge Layer" and "API Architecture" (MCP) sections
+      already match the new P3 wording and need no rewrite, only the new
+      cross-reference added in the Architectural Mandates index below
+    - docs/architecture/project-structure.md, frontend-data-flow.md — ✅ no
+      change needed (structural, not mission/principle text)
 
-  Follow-up TODOs: none. When a mandate in docs/architecture/ changes in a way
-  that redefines an invariant, bump the constitution version per Governance.
+  Follow-up TODOs: none. This file also restores governance content
+  (Authoritative Sources, Compliance Review, Ratifiers) that was truncated by
+  an earlier file-write error and had been silently missing from the working
+  tree; no semantic change versus the last intact version (94b4940).
 -->
 
 # next-wiki Project Constitution
 
-**Version**: 1.4.0
+**Version**: 2.0.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-06-18
+**Last Amended**: 2026-07-02
 
 ---
 
 ## Mission
 
-next-wiki is an open-source, self-hosted wiki system for personal and
-enterprise knowledge management. It exists to make durable knowledge easy to
-write, organize, search, protect, integrate, and operate.
+next-wiki is a personal, AI-native knowledge base service. It exists to let
+one person build a durable, private knowledge base through conversation with
+AI — and for that same knowledge base to serve as the grounding memory any AI
+assistant draws on when talking with its owner. Writing, organizing, and
+retrieving knowledge should feel like talking to an assistant that remembers
+everything its owner has told it, without tying that memory to any single AI
+company.
+
+Each next-wiki deployment belongs to exactly one person by default: their
+knowledge, their instance, their history. Multi-user sharing and group
+permissions remain available as an optional extension for teams, but they are
+not the product's primary story.
 
 next-wiki is deployed via Docker Compose or Kubernetes, built on Next.js,
 TypeScript, and PostgreSQL, and designed around a small default footprint. AI
-capabilities are first-class integrations: when an LLM provider is configured,
-a persistent AI chat side pane is available throughout the wiki, letting users
-ask questions, explore content, and generate new pages through conversation.
-The wiki remains fully useful without an LLM provider.
+is native to how the product works — the persistent AI chat side pane and MCP
+are the default paths for creating and refining content — but the wiki never
+depends on a live model connection to remain readable, searchable, and
+editable. AI providers are interchangeable: next-wiki defines a
+provider-agnostic contract so a person's knowledge outlives any specific AI
+product, model, or pricing change.
 
 The project optimizes for operational simplicity, clear architecture, reliable
 permissions, versioned content, open integration surfaces, and grounded AI
@@ -83,47 +107,79 @@ retrieval over broad feature accumulation.
 
 ## Core Principles
 
-### P1: Simple Deployment is a Feature
+### P1: Simple Deployment is a Feature, Personal by Default
 
-The system MUST be deployable with a single `docker compose up`. The default
+The system MUST be deployable with a single `docker compose up`, and that
+default deployment MUST be immediately usable by one person without any
+multi-user setup, invitation flow, or organization concept. The default
 deployment MUST require PostgreSQL as its only stateful service. The default
 deployment MAY run separate app and worker containers, but they MUST use the
 same application image and MUST NOT require Redis, Elasticsearch, object
 storage, external queues, or an LLM provider.
 
 Every new default dependency or service requires explicit justification in the
-feature spec. Optional features such as AI, Git sync, SSO, Meilisearch, object
-storage, and MCP MUST NOT increase the baseline deployment footprint.
+feature spec. Optional features such as multi-user sharing, Git sync, SSO,
+Meilisearch, object storage, and MCP MUST NOT increase the baseline deployment
+footprint or add setup steps to the single-owner default case.
 
-Rationale: Self-hosted software succeeds when installation, backup, upgrade, and
-debugging stay ordinary. A smaller core is easier to trust and maintain.
+Rationale: Self-hosted software succeeds when installation, backup, upgrade,
+and debugging stay ordinary. A smaller core is easier to trust and maintain,
+and a product that is personal by default must not force a new owner through
+team or organization concepts before they can write their first page.
 
-### P2: AI as Optional Enhancement, Chat as First-Class UI
+### P2: AI-Native Creation, Never Vendor-Locked
 
-The system MUST function as a fully capable wiki without any LLM configuration.
-AI features are activated only by explicit provider configuration via environment
-variables (`LLM_PROVIDER`, `LLM_API_KEY`) or an encrypted admin setting. The AI
-layer MUST NOT make outbound model calls, embedding calls, or provider discovery
-calls when AI mode is disabled.
+Conversing with AI is the primary, default way to create and organize
+knowledge in next-wiki — not a bolted-on assistant. The persistent AI chat
+side pane, and MCP for external AI clients, MUST be the first-class path for
+drafting pages, restructuring the page tree, and refining content through
+dialogue. The manual editor MUST remain fully capable and MUST NOT require AI:
+the system stays completely usable without any LLM configured, and browsing,
+search, and manual editing MUST NOT depend on a live model connection.
 
-When AI mode is active, a persistent **AI chat side pane** MUST be available
-throughout the wiki — on reader pages, the editor, and the admin dashboard. The
-chat pane is the primary AI interaction surface. It is context-aware (knows the
-current page), permission-scoped (only retrieves content the user can read), and
-capable of answering questions, generating page drafts, and suggesting edits.
-Generated content MUST go through the normal page creation or edit flow and MUST
-NOT be auto-published without user confirmation.
+AI features are activated only by explicit provider configuration via
+environment variables (`LLM_PROVIDER`, `LLM_API_KEY`) or an encrypted admin
+setting. The AI layer MUST NOT make outbound model calls, embedding calls, or
+provider discovery calls when AI mode is disabled. Every AI integration MUST
+go through a provider-agnostic interface — an OpenAI-compatible HTTP API or an
+explicit provider adapter — so a user can switch AI vendors without losing
+their knowledge base or workflow. No feature may hard-code a single vendor's
+proprietary SDK or API as its only integration path.
 
-AI output MUST be grounded in retrieved page revisions and MUST expose citations
-or source links in user-facing answers. AI features MUST degrade gracefully when
-provider credentials are absent or invalid.
+Generated content MUST go through the normal page creation or edit flow and
+MUST NOT be auto-published without user confirmation. AI features MUST degrade
+gracefully when provider credentials are absent or invalid.
 
-Rationale: AI should improve retrieval and synthesis without making the wiki
-dependent on a model provider or unsafe for private deployments. The chat pane
-makes AI interaction discoverable and consistent rather than scattered across
-individual features.
+Rationale: The product's identity is AI-native knowledge building, but native
+must not mean dependent. Vendor independence protects the user's knowledge
+from any single AI company's pricing, availability, or policy changes, and the
+"no-AI" fallback keeps the wiki trustworthy as durable storage regardless of
+AI market conditions.
 
-### P3: Rendering Pipeline is Sacred
+### P3: The Knowledge Base is the User's Portable AI Memory
+
+next-wiki is not only a place AI writes to — it is the grounding memory an AI
+assistant reads from when talking with its owner. Any MCP-compatible AI
+client (Claude, GPT, Gemini, a local model, or a future assistant) MUST be
+able to search, read, and — with appropriate scope — write into the same
+permission-scoped store that backs the chat side pane and the web UI. Content
+authored through AI conversation and content authored through the manual
+editor MUST be stored identically: same page tree, same revision model, same
+permission checks. There is no second-class "AI content" table or code path.
+
+AI answers MUST be grounded in retrieved page revisions and MUST expose
+citations or source links; if no permitted source supports an answer, the
+response MUST say so instead of inventing content. The retrieval index
+(embeddings, summaries, extracted entities) is a derived, rebuildable
+projection over page revisions, never the source of truth, and MUST respect
+the same space, path, locale, and permission scope as direct reads.
+
+Rationale: A user who switches AI assistants must not lose the memory they
+built. Treating the wiki as the durable, provider-agnostic memory layer — and
+the AI vendor as a replaceable reasoning engine on top of it — is what makes
+independence from any single AI supplier real rather than aspirational.
+
+### P4: Rendering Pipeline is Sacred
 
 The content rendering pipeline (`source -> parse -> transform[] -> render`) MUST
 be a first-class, pluggable pipeline from day one. Renderers MUST NOT be
@@ -136,19 +192,25 @@ Rationale: Content rendering is core infrastructure. Keeping it explicit and
 replaceable makes new content types possible without coupling editors, storage,
 and page components together.
 
-### P4: Permissions are First-Class
+### P5: Permissions are First-Class, Personal by Default
 
-The permission model (per-page, per-operation, per-group) MUST be designed into
-the data model and API layer from the start, not bolted on later. Every API
-route, server component loader, background job, search query, and AI retrieval
-operation MUST check permissions before returning data. Anonymous read access
-MUST be a configurable permission, not a special code path.
+Every deployment MUST work correctly for a single owner with zero permission
+configuration: the owner has full read/write access to their own space by
+default. The permission model (per-page, per-operation, per-group) MUST still
+be designed into the data model and API layer from the start, not bolted on
+later, so that sharing, collaborators, and multi-user deployments remain a
+configuration change rather than a rewrite. Every API route, server component
+loader, background job, search query, and AI retrieval or MCP operation MUST
+check permissions before returning data — even when only one user exists.
+Anonymous read access MUST be a configurable permission, not a special code
+path.
 
-Rationale: Permissions touch every query, every integration surface, and every
-AI retrieval path. Treating them as infrastructure prevents expensive retrofits
-and data leaks.
+Rationale: Personal by default does not mean permission-free. A single
+owner's data must still be provably isolated from other people's instances,
+and the same checks that protect a shared deployment protect a personal one
+from a compromised integration or a misconfigured AI tool.
 
-### P5: Style System Independence & UI Consistency
+### P6: Style System Independence & UI Consistency
 
 The UI MUST be built on a design token system (CSS custom properties). Color,
 spacing, radius, and typography MUST NOT be hardcoded in feature components.
@@ -164,7 +226,7 @@ MUST be expressed as tokens or shared components, never inline overrides.
 Rationale: A single source of truth for styling and resources keeps the product
 coherent and themeable as the codebase grows.
 
-### P6: Async-First for Heavy Operations
+### P7: Async-First for Heavy Operations
 
 Any operation that may take more than 500ms (LLM calls, Git sync, bulk import,
 export, search re-indexing, embedding rebuilds, email batches, or large asset
@@ -172,14 +234,14 @@ processing) MUST be executed as a background job via pg-boss. User-facing API
 routes MUST return immediately with a job ID. The UI MUST reflect job status
 asynchronously. Synchronous LLM calls in request handlers are PROHIBITED.
 
-### P7: Version Everything
+### P8: Version Everything
 
 Every page save MUST create an immutable revision record. Deletion MUST be soft
 by default (tombstone + retention policy). Diff between any two revisions MUST
 be computable without reconstructing full history. The revision model MUST
 support future Git sync without schema changes.
 
-### P8: Open Standards Over Proprietary
+### P9: Open Standards Over Proprietary
 
 The public API for client integrations MUST be REST + JSON with OpenAPI documentation.
 
@@ -192,7 +254,7 @@ Markdown + frontmatter. No vendor lock-in belongs in the critical path.
 Rationale: REST + OpenAPI provides the stable public contract for scripts, 
 integrations, bots, and non-TypeScript clients.
 
-### P9: Explicit Over Implicit
+### P10: Explicit Over Implicit
 
 Application modules, services, render plugins, jobs, auth providers, AI
 providers, and integration handlers MUST be explicitly registered in a single,
@@ -210,7 +272,7 @@ and testable loading contract.
 Rationale: Explicit registration makes the system understandable by reading the
 entry points and testable without hidden runtime state.
 
-### P10: Native Web Navigation & Unified Entry Points
+### P11: Native Web Navigation & Unified Entry Points
 
 Every user-facing surface MUST have a complete, server-aware route, and every
 route MUST render a breadcrumb derived from the route hierarchy and the page
@@ -248,14 +310,14 @@ the linked docs) requires a constitution amendment.
 |---------|--------------------|--------|
 | Page Tree & Path System | Pages addressed by canonical key `(space_id, path, locale)`; path is language-neutral and authoritative for routing, imports, exports, and permissions. | `docs/architecture/mandates.md` |
 | Rendering Pipeline | Pipeline is `source -> parse -> transform[] -> render` with discrete, typed, registered plugins; transformers never touch the DB directly. | `docs/architecture/mandates.md` |
-| Permission Model | Three axes (subject, resource, action); evaluation order explicit deny > allow > parent > space default > global default; no hardcoded admin bypass. | `docs/architecture/mandates.md` |
+| Permission Model | Three axes (subject, resource, action); evaluation order explicit deny > allow > parent > space default > global default; no hardcoded admin bypass; single owner is the zero-config default (P5). | `docs/architecture/mandates.md` |
 | Content Versioning | Every mutation creates an immutable `page_revision`; diff at source level only; revisions never deleted by normal operations. | `docs/architecture/mandates.md` |
 | Multi-language Content | Translations keyed by `(space_id, path, locale)` via `translation_group_id`; permissions NOT inherited across translations. | `docs/architecture/mandates.md` |
 | Editor Extensibility | Pluggable editor interface; client-side AST never leaves browser; serialize to raw source only; Markdown is default. | `docs/architecture/mandates.md` |
 | Git Storage Sync | Optional, async, pg-boss job; two-way sync blocked until conflict model specified; DB stays source of truth. | `docs/architecture/mandates.md` |
-| API Architecture | Two layers (REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions. | `docs/architecture/mandates.md` |
+| API Architecture | Two layers (REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions; MCP is the standard external-AI-client path into the memory described in P3. | `docs/architecture/mandates.md` |
 | Deployment & Operations Baseline | Single `docker compose up`; PostgreSQL + named volumes; `/healthz`, `/readyz`, job status, structured logs, documented backup/restore. | `docs/architecture/mandates.md` |
-| AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations. | `docs/architecture/mandates.md` |
+| AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations (see P3). | `docs/architecture/mandates.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
 | Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
 | Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; all UI primitives isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
@@ -285,6 +347,14 @@ These patterns are PROHIBITED. Any PR introducing them MUST be rejected.
   design system with inline colors, spacing, fonts, icons, or copy-pasted
   styles. All visual resources flow through `src/components/ui/` and the token
   system.
+- **AI content as second-class**: Storing, versioning, or permission-checking
+  AI-authored content differently from manually-authored content (e.g. a
+  separate table, an unversioned write path, or a retrieval query that skips
+  permission checks). AI and human authorship MUST be indistinguishable to the
+  storage and permission layers.
+- **Vendor-locked AI integration**: Hard-coding a single AI vendor's
+  proprietary SDK or API as the only integration path for a feature, instead
+  of going through the provider-agnostic interface required by P2 and P3.
 
 ---
 
@@ -301,7 +371,7 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 | Job Queue | pg-boss | Runs in PostgreSQL, zero extra services |
 | Auth | Custom bcrypt + DB-backed sessions | Zero-dependency local email/password baseline; `bcryptjs` hashing, server-issued session cookies stored in PostgreSQL; OAuth/OIDC adapters added later behind the same `can()` chokepoint |
 | API (public REST) | REST + OpenAPI | Third-party integrations, scriptable clients, stable public contract |
-| API (AI agents) | MCP Server (optional) | AI-agent integration over permissioned tools |
+| API (AI agents) | MCP Server (optional) | AI-agent integration over permissioned tools; the standard path for external AI clients to use the wiki as memory (P3) |
 | Markdown Parser | unified / remark / rehype | AST-based, pluggable, server-side rendering |
 | Editor (client) | CodeMirror 6 | Lightweight split Markdown editor; serializes to raw Markdown only; no heavy WYSIWYG/AST runtime shipped to the client; modular `@codemirror/*` packages |
 | Vector Search | pgvector (PostgreSQL extension) | No extra service, integrates with PostgreSQL |
@@ -334,4 +404,32 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 - **MAJOR**: Removal or redefinition of a Core Principle, Anti-Pattern, or the
   one-line invariant of any Architectural Mandate (including in
   `docs/architecture/`).
-- **MINOR**
+- **MINOR**: New principle, mandate, anti-pattern, technology decision, or
+  material restructure of how governance is organized.
+- **PATCH**: Clarifications, wording fixes, typo fixes, non-semantic refinements
+  to this file or to `docs/architecture/`.
+
+Editorial refinement of `docs/architecture/` detail that does not change an
+invariant does not require a constitution version bump; it is reviewed via
+normal PR.
+
+### Authoritative Sources
+
+This constitution is the source of truth for principles, anti-patterns, and
+technology decisions. `docs/architecture/` holds the binding detailed rules for
+each Architectural Mandate and is governed by this constitution. When the two
+appear to conflict, this file prevails; resolve the conflict via an amendment.
+
+### Compliance Review
+
+Every feature PR MUST include a checklist item confirming no Anti-Patterns were
+introduced. Architecture-affecting PRs MUST reference the relevant Core
+Principle or Architectural Mandate they satisfy or amend. Features that touch
+deployment, permissions, AI, import/export, or public APIs MUST include tests or
+manual verification notes for those surfaces.
+
+### Ratifiers
+
+This constitution was ratified by the project founder on 2026-05-30.
+Subsequent amendments are ratified by any two active maintainers, or by the
+founder while the project has fewer than two active maintainers.
