@@ -74,6 +74,7 @@ export const publicPageListQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   q: z.string().min(1).max(200).optional(),
   path: pathSchema.optional(),
+  pathPrefix: pathSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
@@ -126,6 +127,7 @@ export const publicPageSearchQuerySchema = z.object({
   q: z.string().min(1).max(200),
   scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
   status: z.enum(['published', 'draft', 'all']).default('published'),
+  pathPrefix: pathSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   include: z.array(publicPageIncludeSchema).default([]),
@@ -150,6 +152,29 @@ export const publicPageSearchResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type PublicPageSearchResponse = z.infer<typeof publicPageSearchResponseSchema>;
+
+export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object({
+  path: z.string(),
+  segment: z.string(),
+  title: z.string().nullable(),
+  pageId: z.string().uuid().nullable(),
+  status: publicPageStatusSchema.nullable(),
+  children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
+});
+export type PublicPageTreeNode = {
+  path: string;
+  segment: string;
+  title: string | null;
+  pageId: string | null;
+  status: PublicPageStatus | null;
+  children: PublicPageTreeNode[];
+};
+
+export const publicPageTreeResponseSchema = z.object({
+  root: publicPageTreeNodeSchema,
+  pageCount: z.number().int().nonnegative(),
+});
+export type PublicPageTreeResponse = z.infer<typeof publicPageTreeResponseSchema>;
 
 export const publicAssetResourceSchema = z.object({
   id: z.string().uuid(),
@@ -219,6 +244,7 @@ export class WikiApiClient {
     params.set('q', query.q ?? '');
     if (query.scope) params.set('scope', query.scope);
     if (query.status) params.set('status', query.status);
+    if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
     if (query.limit) params.set('limit', String(query.limit));
     if (query.cursor) params.set('cursor', query.cursor);
     if (query.include?.length) params.set('include', query.include.join(','));
@@ -235,11 +261,19 @@ export class WikiApiClient {
     if (query.status) params.set('status', query.status);
     if (query.q) params.set('q', query.q);
     if (query.path) params.set('path', query.path);
+    if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
     if (query.limit) params.set('limit', String(query.limit));
     if (query.cursor) params.set('cursor', query.cursor);
     if (query.order) params.set('order', query.order);
     if (query.include?.length) params.set('include', query.include.join(','));
     return this.request<{ items: PublicPageResource[]; nextCursor: string | null }>(`/pages?${params.toString()}`);
+  }
+
+  async getPageTree(query: { status?: 'published' | 'draft' | 'all'; pathPrefix?: string }): Promise<PublicPageTreeResponse> {
+    const params = new URLSearchParams();
+    if (query.status) params.set('status', query.status);
+    if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
+    return this.request<PublicPageTreeResponse>(`/tree?${params.toString()}`);
   }
 
   // Always requests both revision relations: get_page surfaces latestRevisionId/

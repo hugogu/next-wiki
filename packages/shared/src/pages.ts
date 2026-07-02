@@ -127,6 +127,7 @@ export const publicPageListQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   q: z.string().min(1).max(200).optional(),
   path: pathSchema.optional(),
+  pathPrefix: pathSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
@@ -196,6 +197,7 @@ export const publicPageSearchQuerySchema = z
     q: z.string().min(1).max(200),
     scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
     status: z.enum(['published', 'draft', 'all']).default('published'),
+    pathPrefix: pathSchema.optional(),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     cursor: z.string().optional(),
     include: publicIncludeQuerySchema,
@@ -228,3 +230,32 @@ export const publicPageSearchResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type PublicPageSearchResponse = z.infer<typeof publicPageSearchResponseSchema>;
+
+export const publicPageTreeQuerySchema = z.object({
+  status: z.enum(['published', 'draft', 'all']).default('published'),
+  pathPrefix: pathSchema.optional(),
+});
+export type PublicPageTreeQuery = z.infer<typeof publicPageTreeQuerySchema>;
+
+export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object({
+  path: z.string(),
+  segment: z.string(),
+  title: z.string().nullable(),
+  pageId: z.string().uuid().nullable(),
+  status: publicPageStatusSchema.nullable(),
+  children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
+});
+export type PublicPageTreeNode = {
+  path: string;
+  segment: string;
+  title: string | null;
+  pageId: string | null;
+  status: PublicPageStatus | null;
+  children: PublicPageTreeNode[];
+};
+
+export const publicPageTreeResponseSchema = z.object({
+  root: publicPageTreeNodeSchema,
+  pageCount: z.number().int().nonnegative(),
+});
+export type PublicPageTreeResponse = z.infer<typeof publicPageTreeResponseSchema>;

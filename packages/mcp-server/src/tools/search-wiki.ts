@@ -5,6 +5,7 @@ import { searchWikiResponse } from '../shapes';
 export const searchWikiSchema = {
   query: z.string().min(1).max(200).describe('Search term'),
   scope: z.enum(['path', 'title', 'content', 'all']).optional().describe('Search scope; defaults to all'),
+  pathPrefix: z.string().optional().describe('Restrict matching to pages under a directory subtree (e.g. "docs")'),
   limit: z.number().int().min(1).max(100).optional().describe('Maximum results; defaults to 20'),
   excerptLength: z
     .number()
@@ -24,6 +25,7 @@ export async function searchWiki(client: WikiApiClient, args: SearchWikiInput) {
   const response = await client.searchPages({
     q: args.query,
     scope: args.scope,
+    pathPrefix: args.pathPrefix,
     limit: args.limit,
     excerptLength: args.excerptLength,
     createdStart: args.createdStart ? new Date(args.createdStart) : undefined,

@@ -2,6 +2,8 @@ import type {
   PublicAssetResource,
   PublicPageResource,
   PublicPageSearchResponse,
+  PublicPageTreeNode,
+  PublicPageTreeResponse,
   PublicRevisionResource,
 } from './api-client';
 
@@ -206,5 +208,35 @@ export function uploadImageResponse(source: PublicAssetResource): {
     markdown: source.markdown,
     contentType: source.contentType,
     sizeBytes: source.sizeBytes,
+  };
+}
+
+export type TreeNode = {
+  path: string;
+  segment: string;
+  title: string | null;
+  pageId: string | null;
+  status: string | null;
+  children: TreeNode[];
+};
+
+function flattenTree(node: PublicPageTreeNode): TreeNode {
+  return {
+    path: node.path,
+    segment: node.segment,
+    title: node.title,
+    pageId: node.pageId,
+    status: node.status,
+    children: node.children.map(flattenTree),
+  };
+}
+
+export function pageTreeResponse(source: PublicPageTreeResponse): {
+  root: TreeNode;
+  pageCount: number;
+} {
+  return {
+    root: flattenTree(source.root),
+    pageCount: source.pageCount,
   };
 }

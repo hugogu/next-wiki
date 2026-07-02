@@ -67,4 +67,22 @@ describe('Public Wiki read routes', () => {
       include: [],
     });
   });
+
+  it('GET /api/v1/pages?pathPrefix= delegates the subtree filter to listPages', async () => {
+    publicContent.listPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const response = await listRoute.GET(
+      new NextRequest('http://localhost/api/v1/pages?pathPrefix=docs'),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publicContent.listPages).toHaveBeenCalledWith(expect.anything(), {
+      status: 'published',
+      pathPrefix: 'docs',
+      limit: 20,
+      order: 'path',
+      include: [],
+    });
+  });
 });

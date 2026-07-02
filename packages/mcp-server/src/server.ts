@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { WikiApiClient } from './api-client';
 import { createPage, createPageSchema } from './tools/create-page';
 import { getPage, getPageSchema } from './tools/get-page';
+import { getPageTree, getPageTreeSchema } from './tools/get-page-tree';
 import { getRevision, getRevisionSchema } from './tools/get-revision';
 import { listPages, listPagesSchema } from './tools/list-pages';
 import { listRevisions, listRevisionsSchema } from './tools/list-revisions';
@@ -25,6 +26,15 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('list_pages', 'List wiki pages visible to the configured API key.', listPagesSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await listPages(client, args)) }],
   }));
+
+  server.tool(
+    'get_page_tree',
+    'Get the directory tree of wiki pages for a global structural overview. Use ?pathPrefix to scope to a subdirectory.',
+    getPageTreeSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await getPageTree(client, args)) }],
+    }),
+  );
 
   server.tool('get_page', 'Get a wiki page by ID, including Markdown source if readable.', getPageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getPage(client, args)) }],

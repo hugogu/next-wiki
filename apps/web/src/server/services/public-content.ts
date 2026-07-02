@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, isNotNull, isNull, lte, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, isNotNull, isNull, lte, or, like, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type {
@@ -12,6 +12,9 @@ import type {
   PublicPageResource,
   PublicPageSearchQuery,
   PublicPageSearchResponse,
+  PublicPageTreeNode,
+  PublicPageTreeQuery,
+  PublicPageTreeResponse,
   PublicPublicationInput,
   PublicRevisionListQuery,
   PublicRevisionListResponse,
@@ -252,6 +255,7 @@ type ListPagesQuery = {
   status: 'published' | 'draft' | 'all';
   q?: string;
   path?: string;
+  pathPrefix?: string;
   limit: number;
   cursor?: string;
   order: 'path' | 'recent';
@@ -289,6 +293,14 @@ async function listPagesInternal(
     eq(schema.pages.spaceId, space.id),
     isNull(schema.pages.deletedAt),
   ];
+  if (query.pathPrefix) {
+    conditions.push(
+      or(
+        eq(schema.pages.path, query.pathPrefix),
+        like(schema.pages.path, `${query.pathPrefix}/%`),
+      )!,
+    );
+  }
   if (query.status === 'published') {
     conditions.push(isNotNull(schema.pages.currentPublishedVersionId));
   }
@@ -520,6 +532,7 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
     {
       status: query.status,
       q: query.q,
+      pathPrefix: query.pathPrefix,
       limit: query.limit,
       cursor: query.cursor,
       order: 'recent',
@@ -549,4 +562,97 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
     .sort((a, b) => b.score - a.score);
 
   return { items, nextCursor: pages.nextCursor };
+}
+
+export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Promise<PublicPageTreeResponse> {
+  const space = await getDefaultSpace();
+  if (!space) return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+    return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };
+  }
+
+  const conditions: SQL[] = [
+    eq(schema.pages.spaceId, space.id),
+    isNull(schema.pages.deletedAt),
+  ];
+  if (query.status === 'published') {
+    conditions.push(isNotNull(schema.pages.currentPublishedVersionId));
+  }
+  if (query.pathPrefix) {
+    conditions.push(
+      or(
+        eq(schema.pages.path, query.pathPrefix),
+        like(schema.pages.path, `${query.pathPrefix}/%`),
+      )!,
+    );
+  }
+
+  const rows = await db
+    .select({
+      id: schema.pages.id,
+      path: schema.pages.path,
+      title: schema.pages.title,
+      authorId: schema.pages.authorId,
+      currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+    })
+    .from(schema.pages)
+    .where(and(...conditions))
+    .orderBy(schema.pages.path);
+
+  type Row = { id: string; path: string; title: string; status: 'draft' | 'published' };
+  const visible: Row[] = [];
+  const userId = getActorUserId(ctx);
+  for (const row of rows) {
+    const status: Row['status'] = row.currentPublishedVersionId ? 'published' : 'draft';
+    if (query.status === 'draft' && status !== 'draft') continue;
+    if (query.status === 'published' && status !== 'published') continue;
+    if (status === 'draft') {
+      const isAuthor = userId ? row.authorId === userId : false;
+      if (!can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, { isAuthor })) continue;
+    }
+    visible.push({ id: row.id, path: row.path, title: row.title, status });
+  }
+
+  return { root: buildTree(visible, query.pathPrefix), pageCount: visible.length };
+}
+
+function emptyNode(path: string): PublicPageTreeNode {
+  return { path, segment: lastSegment(path), title: null, pageId: null, status: null, children: [] };
+}
+
+function lastSegment(path: string): string {
+  const index = path.lastIndexOf('/');
+  return index === -1 ? path : path.slice(index + 1);
+}
+
+function buildTree(pages: { id: string; path: string; title: string; status: 'draft' | 'published' }[], pathPrefix?: string): PublicPageTreeNode {
+  const prefix = pathPrefix ?? '';
+  const root: PublicPageTreeNode = { path: prefix, segment: lastSegment(prefix), title: null, pageId: null, status: null, children: [] };
+
+  for (const page of pages) {
+    const full = page.path;
+    const relativePath = prefix ? full.slice(prefix.length + 1) : full;
+    const segments = relativePath.split('/').filter(Boolean);
+    if (segments.length === 0) continue;
+    let current = root;
+    let accumulated = prefix;
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i]!;
+      accumulated = accumulated ? `${accumulated}/${segment}` : segment;
+      const isLeaf = i === segments.length - 1;
+      let child: PublicPageTreeNode | undefined = current.children.find((c) => c.segment === segment);
+      if (!child) {
+        child = { path: accumulated, segment, title: null, pageId: null, status: null, children: [] };
+        current.children.push(child);
+      }
+      if (isLeaf) {
+        child.title = page.title;
+        child.pageId = page.id;
+        child.status = page.status;
+      }
+      current = child;
+    }
+  }
+  return root;
 }

@@ -254,6 +254,9 @@ export const PublicPageListQuery = z
     path: PublicPagePath.optional().describe(
       'Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters.',
     ),
+    pathPrefix: PublicPagePath.optional().describe(
+      'Directory prefix to list all pages under a subtree (e.g. "docs" matches "docs/a", "docs/b", "docs"). Cannot be combined with path.',
+    ),
     limit: z.coerce
       .number()
       .int()
@@ -378,6 +381,9 @@ export const PublicPageSearchQuery = z
       .optional()
       .default('published')
       .describe('Filter results by page lifecycle state. Defaults to published.'),
+    pathPrefix: PublicPagePath.optional().describe(
+      'Directory prefix to restrict matching to pages under a subtree (e.g. "docs" matches "docs/a", "docs/b").',
+    ),
     limit: z.coerce
       .number()
       .int()
@@ -431,6 +437,44 @@ export const PublicPageSearchResponse = z
     nextCursor: z.string().nullable().describe('Cursor for the next page of results, or null when there are no more.'),
   })
   .describe('Paginated public page search response.');
+
+export const PublicPageTreeNode: z.ZodType<{
+  path: string;
+  segment: string;
+  title: string | null;
+  pageId: string | null;
+  status: 'draft' | 'published' | 'deleted' | null;
+  children: unknown[];
+}> = z
+  .object({
+    path: z.string().describe('Full canonical path of this node (may be empty for the root).'),
+    segment: z.string().describe('Last slash-separated segment of the path.'),
+    title: z.string().nullable().describe('Page title when a page exists at this path, otherwise null.'),
+    pageId: z.string().uuid().nullable().describe('Page id when a page exists at this path, otherwise null.'),
+    status: z.enum(['draft', 'published', 'deleted']).nullable().describe('Page status when a page exists, otherwise null.'),
+    children: z.array(z.lazy(() => PublicPageTreeNode)).describe('Child nodes ordered by path segment.'),
+  })
+  .describe('A single node in the public wiki page directory tree.');
+
+export const PublicPageTreeQuery = z
+  .object({
+    status: z
+      .enum(['published', 'draft', 'all'])
+      .optional()
+      .default('published')
+      .describe('Filter pages by lifecycle state. Defaults to published.'),
+    pathPrefix: PublicPagePath.optional().describe(
+      'Directory prefix to scope the tree to a subtree (e.g. "docs" returns only the docs/ branch).',
+    ),
+  })
+  .describe('Public page tree query parameters.');
+
+export const PublicPageTreeResponse = z
+  .object({
+    root: PublicPageTreeNode.describe('Root node of the directory tree. When pathPrefix is set, this is the prefix node.'),
+    pageCount: z.number().int().nonnegative().describe('Total number of visible pages represented in the tree.'),
+  })
+  .describe('Hierarchical directory structure of public wiki pages.');
 
 export const PublicAssetResource = z
   .object({

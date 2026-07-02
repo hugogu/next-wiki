@@ -630,6 +630,14 @@
             ],
             "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
           },
+          "pathPrefix": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
+          },
           "limit": {
             "default": 20,
             "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
@@ -877,6 +885,14 @@
             "default": "published",
             "description": "Filter results by page lifecycle state. Defaults to published."
           },
+          "pathPrefix": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+          },
           "limit": {
             "default": 20,
             "description": "Maximum number of results to return per request (1-100). Defaults to 20.",
@@ -948,6 +964,109 @@
           "nextCursor"
         ],
         "description": "Paginated public page search response."
+      },
+      "PublicPageTreeNode": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Full canonical path of this node (may be empty for the root)."
+          },
+          "segment": {
+            "type": "string",
+            "description": "Last slash-separated segment of the path."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Page title when a page exists at this path, otherwise null."
+          },
+          "pageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Page id when a page exists at this path, otherwise null."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "draft",
+              "published",
+              "deleted"
+            ],
+            "description": "Page status when a page exists, otherwise null."
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPageTreeNode"
+            },
+            "description": "Child nodes ordered by path segment."
+          }
+        },
+        "required": [
+          "path",
+          "segment",
+          "title",
+          "pageId",
+          "status",
+          "children"
+        ],
+        "description": "A single node in the public wiki page directory tree."
+      },
+      "PublicPageTreeQuery": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "draft",
+              "all"
+            ],
+            "default": "published",
+            "description": "Filter pages by lifecycle state. Defaults to published."
+          },
+          "pathPrefix": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+          }
+        },
+        "description": "Public page tree query parameters."
+      },
+      "PublicPageTreeResponse": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPageTreeNode"
+              }
+            ],
+            "description": "Root node of the directory tree. When pathPrefix is set, this is the prefix node."
+          },
+          "pageCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of visible pages represented in the tree."
+          }
+        },
+        "required": [
+          "root",
+          "pageCount"
+        ],
+        "description": "Hierarchical directory structure of public wiki pages."
       },
       "PublicPublicationInput": {
         "type": "object",
@@ -4805,6 +4924,20 @@
           },
           {
             "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
+            },
+            "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -4910,6 +5043,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tree": {
+      "get": {
+        "operationId": "get-v1-tree",
+        "summary": "Get public wiki page tree",
+        "description": "Returns the hierarchical directory structure of pages visible to the caller.",
+        "tags": [
+          "Public Wiki Content"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "default": "published",
+              "description": "Filter pages by lifecycle state. Defaults to published."
+            },
+            "description": "Filter pages by lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+            },
+            "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageTreeResponse"
                 }
               }
             }
@@ -5120,6 +5312,20 @@
               "description": "Filter results by page lifecycle state. Defaults to published."
             },
             "description": "Filter results by page lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+            },
+            "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
           },
           {
             "in": "query",
