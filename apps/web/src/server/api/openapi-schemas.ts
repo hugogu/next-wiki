@@ -476,6 +476,12 @@ export const PublicPageTreeResponse = z
   })
   .describe('Hierarchical directory structure of public wiki pages.');
 
+export const PublicPageBatchCreateInput = z
+  .object({
+    pages: z.array(PublicPageCreateInput).min(1).max(50).describe('Pages to create atomically (1-50).'),
+  })
+  .describe('Batch create public wiki pages.');
+
 export const PublicBatchCreateResult = z
   .object({
     created: z.array(

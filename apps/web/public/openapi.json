@@ -640,7 +640,24 @@
           "image/svg+xml"
         ]
       },
-      "PublicPageBatchCreateInput": {},
+      "PublicPageBatchCreateInput": {
+        "type": "object",
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPageCreateInput"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Pages to create atomically (1-50)."
+          }
+        },
+        "required": [
+          "pages"
+        ],
+        "description": "Batch create public wiki pages."
+      },
       "PublicPageCreateInput": {
         "type": "object",
         "properties": {
