@@ -5172,7 +5172,7 @@
         "summary": "Upload public wiki asset",
         "description": "Uploads an image asset and returns a Markdown-ready public reference.",
         "tags": [
-          "Public Wiki Content"
+          "Assets"
         ],
         "parameters": [],
         "security": [
@@ -5220,7 +5220,7 @@
         "summary": "List public wiki pages",
         "description": "Lists pages visible to the caller through the stable Public Wiki Content API. List",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -5351,7 +5351,7 @@
         "summary": "Create public wiki page",
         "description": "Creates a page through the stable Public Wiki Content API.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -5399,7 +5399,7 @@
         "summary": "Get public wiki stats",
         "description": "Returns page counts, recent activity, directory breakdown, and optional orphan detection.",
         "tags": [
-          "Public Wiki Content"
+          "Stats"
         ],
         "parameters": [
           {
@@ -5441,7 +5441,7 @@
         "summary": "Get public wiki page tree",
         "description": "Returns the hierarchical directory structure of pages visible to the caller.",
         "tags": [
-          "Public Wiki Content"
+          "Tree"
         ],
         "parameters": [
           {
@@ -5500,7 +5500,7 @@
         "summary": "Get public wiki asset metadata",
         "description": "Returns asset metadata if the caller may read the asset.",
         "tags": [
-          "Public Wiki Content"
+          "Assets"
         ],
         "parameters": [
           {
@@ -5541,7 +5541,7 @@
         "summary": "Get public wiki page by id",
         "description": "Returns public page metadata and readable Markdown source for a stable page id.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -5590,7 +5590,7 @@
         "summary": "Update public wiki page",
         "description": "Updates page title and/or canonical path through the public content API.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -5648,7 +5648,7 @@
         "summary": "Delete public wiki page",
         "description": "Soft-deletes the page, preserving all revision history. The page disappears from default list/search/tree responses.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -5682,7 +5682,7 @@
         "summary": "Batch create public wiki pages",
         "description": "Creates up to 50 pages in a single atomic transaction.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [],
         "security": [
@@ -5719,7 +5719,7 @@
         "summary": "Search public wiki pages",
         "description": "Searches readable pages by path, title, or Markdown source. Optionally",
         "tags": [
-          "Public Wiki Content"
+          "Search"
         ],
         "parameters": [
           {
@@ -5897,7 +5897,7 @@
         "summary": "Find similar public wiki pages",
         "description": "Checks whether existing pages are likely duplicates of a proposed title or path.",
         "tags": [
-          "Public Wiki Content"
+          "Search"
         ],
         "parameters": [],
         "security": [
@@ -5934,7 +5934,7 @@
         "summary": "Get public wiki asset content",
         "description": "Streams asset bytes if the caller may read the asset.",
         "tags": [
-          "Public Wiki Content"
+          "Assets"
         ],
         "parameters": [
           {
@@ -6006,7 +6006,7 @@
         "summary": "Get public wiki page backlinks",
         "description": "Returns pages visible to the caller that contain Markdown links to the target page.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -6045,7 +6045,7 @@
         "summary": "Create public wiki page draft",
         "description": "Creates a new draft revision from Markdown source.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -6095,7 +6095,7 @@
         "summary": "List public wiki page revisions",
         "description": "Lists revisions visible to the caller.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -6174,7 +6174,7 @@
         "summary": "Get public wiki page revision",
         "description": "Returns visible revision metadata and readable Markdown source.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -6228,7 +6228,7 @@
         "summary": "Get public wiki revision diff",
         "description": "Returns a unified diff and line counts between the requested version and the `against` version.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -6269,7 +6269,7 @@
         "summary": "Publish public wiki page revision",
         "description": "Publishes an eligible draft revision and returns the updated public page resource.",
         "tags": [
-          "Public Wiki Content"
+          "Pages"
         ],
         "parameters": [
           {
@@ -7123,6 +7123,26 @@
   },
   "tags": [
     {
+      "name": "Assets",
+      "description": "Upload and fetch public image assets referenced by wiki pages."
+    },
+    {
+      "name": "Pages",
+      "description": "Create, read, update, delete, and batch-create public wiki pages."
+    },
+    {
+      "name": "Search",
+      "description": "Full-text search and duplicate detection across readable pages."
+    },
+    {
+      "name": "Stats",
+      "description": "Aggregate wiki health metrics and orphan detection."
+    },
+    {
+      "name": "Tree",
+      "description": "Hierarchical directory structure of visible pages."
+    },
+    {
       "name": "AI"
     },
     {
@@ -7133,9 +7153,6 @@
     },
     {
       "name": "Appearance"
-    },
-    {
-      "name": "Assets"
     },
     {
       "name": "Audit"
@@ -7151,9 +7168,6 @@
     },
     {
       "name": "Openapi.json"
-    },
-    {
-      "name": "Pages"
     },
     {
       "name": "Preview"
