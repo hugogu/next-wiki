@@ -5718,253 +5718,6 @@
         }
       }
     },
-    "/v1/pages/{id}/revisions": {
-      "get": {
-        "operationId": "get-v1-pages-{id}-revisions",
-        "summary": "List public wiki page revisions",
-        "description": "Lists revisions visible to the caller.",
-        "tags": [
-          "Pages"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "published",
-                "draft",
-                "all"
-              ],
-              "description": "Filter revisions by lifecycle state. Defaults to all."
-            },
-            "description": "Filter revisions by lifecycle state. Defaults to all."
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "description": "Maximum number of revisions to return per request (1-100). Defaults to 20.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            },
-            "description": "Maximum number of revisions to return per request (1-100). Defaults to 20."
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Opaque pagination cursor returned by a previous response."
-            },
-            "description": "Opaque pagination cursor returned by a previous response."
-          },
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Stable public page identifier."
-            },
-            "description": "Stable public page identifier.",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicRevisionListResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/pages/{id}/revisions/{version}": {
-      "get": {
-        "operationId": "get-v1-pages-{id}-revisions-{version}",
-        "summary": "Get public wiki page revision",
-        "description": "Returns visible revision metadata and readable Markdown source.",
-        "tags": [
-          "Pages"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Stable public page identifier."
-            },
-            "description": "Stable public page identifier.",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991,
-              "description": "Revision version number."
-            },
-            "description": "Revision version number.",
-            "example": 1
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicRevisionResource"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/pages/{id}/revisions/{version}/diff": {
-      "get": {
-        "operationId": "get-v1-pages-{id}-revisions-{version}-diff",
-        "summary": "Get public wiki revision diff",
-        "description": "Returns a unified diff and line counts between the requested version and the `against` version.",
-        "tags": [
-          "Pages"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "against",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991,
-              "description": "Earlier version number to diff against."
-            },
-            "description": "Earlier version number to diff against."
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicRevisionDiffResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/pages/{id}/revisions/{version}/publication": {
-      "post": {
-        "operationId": "post-v1-pages-{id}-revisions-{version}-publication",
-        "summary": "Publish public wiki page revision",
-        "description": "Publishes an eligible draft revision and returns the updated public page resource.",
-        "tags": [
-          "Pages"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "include",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
-            },
-            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
-          },
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Stable public page identifier."
-            },
-            "description": "Stable public page identifier.",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991,
-              "description": "Revision version number."
-            },
-            "description": "Revision version number.",
-            "example": 1
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublicPublicationInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicPageResource"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/preview": {
       "post": {
         "operationId": "post-preview",
@@ -6086,6 +5839,253 @@
           }
         ],
         "responses": {}
+      }
+    },
+    "/v1/pages/{id}/revisions": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-revisions",
+        "summary": "List public wiki page revisions",
+        "description": "Lists revisions visible to the caller.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "description": "Filter revisions by lifecycle state. Defaults to all."
+            },
+            "description": "Filter revisions by lifecycle state. Defaults to all."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of revisions to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of revisions to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRevisionListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions/{version}": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-revisions-{version}",
+        "summary": "Get public wiki page revision",
+        "description": "Returns visible revision metadata and readable Markdown source.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Revision version number."
+            },
+            "description": "Revision version number.",
+            "example": 1
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRevisionResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions/{version}/diff": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-revisions-{version}-diff",
+        "summary": "Get public wiki revision diff",
+        "description": "Returns a unified diff and line counts between the requested version and the `against` version.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "against",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Earlier version number to diff against."
+            },
+            "description": "Earlier version number to diff against."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRevisionDiffResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/revisions/{version}/publication": {
+      "post": {
+        "operationId": "post-v1-pages-{id}-revisions-{version}-publication",
+        "summary": "Publish public wiki page revision",
+        "description": "Publishes an eligible draft revision and returns the updated public page resource.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include in the returned page resource: latestRevision, publishedRevision."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Revision version number."
+            },
+            "description": "Revision version number.",
+            "example": 1
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPublicationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/search/pages": {

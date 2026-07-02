@@ -12,7 +12,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @openapi
  * @summary List public wiki page revisions
  * @description Lists revisions visible to the caller.
- * @tag Pages
+ * @tag Revisions
  * @auth bearer
  * @pathParams PublicPageIdPathParams
  * @queryParams PublicRevisionListQuery
