@@ -14,7 +14,7 @@ const paramsSchema = z.object({
  * @openapi
  * @summary Get public wiki page revision
  * @description Returns visible revision metadata and readable Markdown source.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @pathParams PublicPageRevisionPathParams
  * @response PublicRevisionResource

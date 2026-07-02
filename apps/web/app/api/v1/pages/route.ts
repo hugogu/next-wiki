@@ -12,7 +12,7 @@ import * as publicContent from '@/server/services/public-content';
  *   summaries with ?include=latestRevision,publishedRevision, or fetch Markdown via GET /pages/{id}.
  *   The path= exact-lookup filter is the exception: it returns at most one item and keeps
  *   contentSource, since it behaves like a single-page lookup rather than browsing.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @queryParams PublicPageListQuery
  * @response PublicPageListResponse
@@ -29,7 +29,7 @@ export const GET = withPublicApi(async (request, _context, ctx) => {
  * @openapi
  * @summary Create public wiki page
  * @description Creates a page through the stable Public Wiki Content API.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @queryParams PublicPageIncludeQuery
  * @body PublicPageCreateInput

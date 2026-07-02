@@ -14,7 +14,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Returns public page metadata and readable Markdown source for a stable page id.
  *   latestRevision/publishedRevision are omitted unless requested via
  *   ?include=latestRevision,publishedRevision.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @pathParams PublicPageIdPathParams
  * @queryParams PublicPageIncludeQuery
@@ -38,7 +38,7 @@ export const GET = withPublicApi<{ id: string }>(async (request, { params }, ctx
  * @openapi
  * @summary Update public wiki page
  * @description Updates page title and/or canonical path through the public content API.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @pathParams PublicPageIdPathParams
  * @queryParams PublicPageIncludeQuery
@@ -64,7 +64,7 @@ export const PATCH = withPublicApi<{ id: string }>(async (request, { params }, c
  * @openapi
  * @summary Delete public wiki page
  * @description Soft-deletes the page, preserving all revision history. The page disappears from default list/search/tree responses.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @pathParams PublicPageIdPathParams
  * @response 204

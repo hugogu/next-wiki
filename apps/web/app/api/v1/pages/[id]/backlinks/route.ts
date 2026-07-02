@@ -7,7 +7,7 @@ import * as publicContent from '@/server/services/public-content';
  * @openapi
  * @summary Get public wiki page backlinks
  * @description Returns pages visible to the caller that contain Markdown links to the target page.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @response PublicBacklinksResponse
  */

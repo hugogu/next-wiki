@@ -11,7 +11,7 @@ import * as publicContent from '@/server/services/public-content';
  *   Each node carries its full path, the last path segment, and — when a page exists at that
  *   path — the page id, title, and status. Intermediate segments with no page are represented
  *   as branch nodes (pageId null). Use ?pathPrefix= to scope the tree to a subdirectory.
- * @tag Public Wiki Content
+ * @tag Tree
  * @auth bearer
  * @queryParams PublicPageTreeQuery
  * @response PublicPageTreeResponse

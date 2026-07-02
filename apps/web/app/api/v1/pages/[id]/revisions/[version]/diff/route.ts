@@ -9,7 +9,7 @@ import { publicRevisionDiffQuerySchema } from '@next-wiki/shared';
  * @openapi
  * @summary Get public wiki revision diff
  * @description Returns a unified diff and line counts between the requested version and the `against` version.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @queryParams PublicRevisionDiffQuery
  * @response PublicRevisionDiffResponse

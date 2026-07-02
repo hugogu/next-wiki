@@ -8,7 +8,7 @@ import * as publicContent from '@/server/services/public-content';
  * @openapi
  * @summary Batch create public wiki pages
  * @description Creates up to 50 pages in a single atomic transaction.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @body PublicPageBatchCreateInput
  * @response 201:PublicBatchCreateResult

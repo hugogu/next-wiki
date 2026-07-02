@@ -8,7 +8,7 @@ import * as publicContent from '@/server/services/public-content';
  * @openapi
  * @summary Find similar public wiki pages
  * @description Checks whether existing pages are likely duplicates of a proposed title or path.
- * @tag Public Wiki Content
+ * @tag Search
  * @auth bearer
  * @body PublicSimilarQuery
  * @response PublicSimilarResponse

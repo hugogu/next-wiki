@@ -8,7 +8,7 @@ import * as publicContent from '@/server/services/public-content';
  * @openapi
  * @summary Upload public wiki asset
  * @description Uploads an image asset and returns a Markdown-ready public reference.
- * @tag Public Wiki Content
+ * @tag Assets
  * @auth bearer
  * @response 201:PublicAssetUploadResult
  */

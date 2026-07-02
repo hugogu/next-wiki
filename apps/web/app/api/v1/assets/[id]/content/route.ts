@@ -16,7 +16,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @openapi
  * @summary Get public wiki asset content
  * @description Streams asset bytes if the caller may read the asset.
- * @tag Public Wiki Content
+ * @tag Assets
  * @auth bearer
  * @pathParams PublicAssetIdPathParams
  * @response 200

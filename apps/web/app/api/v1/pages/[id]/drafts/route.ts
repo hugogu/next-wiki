@@ -12,7 +12,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @openapi
  * @summary Create public wiki page draft
  * @description Creates a new draft revision from Markdown source.
- * @tag Public Wiki Content
+ * @tag Pages
  * @auth bearer
  * @pathParams PublicPageIdPathParams
  * @body PublicDraftCreateInput

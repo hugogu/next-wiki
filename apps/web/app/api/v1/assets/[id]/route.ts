@@ -11,7 +11,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @openapi
  * @summary Get public wiki asset metadata
  * @description Returns asset metadata if the caller may read the asset.
- * @tag Public Wiki Content
+ * @tag Assets
  * @auth bearer
  * @pathParams PublicAssetIdPathParams
  * @response PublicAssetResource

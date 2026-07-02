@@ -4749,6 +4749,167 @@
         "responses": {}
       }
     },
+    "/v1/assets": {
+      "post": {
+        "operationId": "post-v1-assets",
+        "summary": "Upload public wiki asset",
+        "description": "Uploads an image asset and returns a Markdown-ready public reference.",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicAssetUploadResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file to upload."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{id}": {
+      "get": {
+        "operationId": "get-v1-assets-{id}",
+        "summary": "Get public wiki asset metadata",
+        "description": "Returns asset metadata if the caller may read the asset.",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public asset identifier."
+            },
+            "description": "Stable public asset identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicAssetResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{id}/content": {
+      "get": {
+        "operationId": "get-v1-assets-{id}-content",
+        "summary": "Get public wiki asset content",
+        "description": "Streams asset bytes if the caller may read the asset.",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public asset identifier."
+            },
+            "description": "Stable public asset identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset bytes.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "operationId": "get-audit",
@@ -5111,109 +5272,6 @@
         }
       }
     },
-    "/preview": {
-      "post": {
-        "operationId": "post-preview",
-        "summary": "Render markdown preview",
-        "description": "Renders the provided markdown source to HTML without persisting anything.",
-        "tags": [
-          "Preview"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/previewInputSchema"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PreviewOutput"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/properties/{path}": {
-      "patch": {
-        "operationId": "patch-properties-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Properties"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/v1/assets": {
-      "post": {
-        "operationId": "post-v1-assets",
-        "summary": "Upload public wiki asset",
-        "description": "Uploads an image asset and returns a Markdown-ready public reference.",
-        "tags": [
-          "Assets"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicAssetUploadResult"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "file"
-                ],
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Image file to upload."
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/pages": {
       "get": {
         "operationId": "get-v1-pages",
@@ -5393,148 +5451,6 @@
         }
       }
     },
-    "/v1/stats": {
-      "get": {
-        "operationId": "get-v1-stats",
-        "summary": "Get public wiki stats",
-        "description": "Returns page counts, recent activity, directory breakdown, and optional orphan detection.",
-        "tags": [
-          "Stats"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "include",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "orphans"
-              ],
-              "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
-            },
-            "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicStatsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/tree": {
-      "get": {
-        "operationId": "get-v1-tree",
-        "summary": "Get public wiki page tree",
-        "description": "Returns the hierarchical directory structure of pages visible to the caller.",
-        "tags": [
-          "Tree"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "published",
-                "draft",
-                "all"
-              ],
-              "default": "published",
-              "description": "Filter pages by lifecycle state. Defaults to published."
-            },
-            "description": "Filter pages by lifecycle state. Defaults to published."
-          },
-          {
-            "in": "query",
-            "name": "pathPrefix",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PublicPagePath"
-                }
-              ],
-              "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
-            },
-            "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicPageTreeResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/assets/{id}": {
-      "get": {
-        "operationId": "get-v1-assets-{id}",
-        "summary": "Get public wiki asset metadata",
-        "description": "Returns asset metadata if the caller may read the asset.",
-        "tags": [
-          "Assets"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Stable public asset identifier."
-            },
-            "description": "Stable public asset identifier.",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicAssetResource"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/pages/{id}": {
       "get": {
         "operationId": "get-v1-pages-{id}",
@@ -5706,293 +5622,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicBatchCreateResult"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/search/pages": {
-      "get": {
-        "operationId": "get-v1-search-pages",
-        "summary": "Search public wiki pages",
-        "description": "Searches readable pages by path, title, or Markdown source. Optionally",
-        "tags": [
-          "Search"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "q",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200,
-              "description": "Free-text search query."
-            },
-            "description": "Free-text search query."
-          },
-          {
-            "in": "query",
-            "name": "scope",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "path",
-                "title",
-                "content",
-                "all"
-              ],
-              "default": "all",
-              "description": "Restrict matching to a field, or search across all fields. Defaults to all."
-            },
-            "description": "Restrict matching to a field, or search across all fields. Defaults to all."
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "published",
-                "draft",
-                "all"
-              ],
-              "default": "published",
-              "description": "Filter results by page lifecycle state. Defaults to published."
-            },
-            "description": "Filter results by page lifecycle state. Defaults to published."
-          },
-          {
-            "in": "query",
-            "name": "pathPrefix",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PublicPagePath"
-                }
-              ],
-              "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
-            },
-            "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "description": "Maximum number of results to return per request (1-100). Defaults to 20.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            },
-            "description": "Maximum number of results to return per request (1-100). Defaults to 20."
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Opaque pagination cursor returned by a previous response."
-            },
-            "description": "Opaque pagination cursor returned by a previous response."
-          },
-          {
-            "in": "query",
-            "name": "include",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
-            },
-            "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
-          },
-          {
-            "in": "query",
-            "name": "excerptLength",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.",
-              "type": "integer",
-              "minimum": 20,
-              "maximum": 500
-            },
-            "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100."
-          },
-          {
-            "in": "query",
-            "name": "createdStart",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Only include pages created at or after this ISO 8601 timestamp."
-            },
-            "description": "Only include pages created at or after this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "createdEnd",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Only include pages created at or before this ISO 8601 timestamp."
-            },
-            "description": "Only include pages created at or before this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "updatedStart",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Only include pages last updated at or after this ISO 8601 timestamp."
-            },
-            "description": "Only include pages last updated at or after this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "updatedEnd",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Only include pages last updated at or before this ISO 8601 timestamp."
-            },
-            "description": "Only include pages last updated at or before this ISO 8601 timestamp."
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicPageSearchResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/search/similar": {
-      "post": {
-        "operationId": "post-v1-search-similar",
-        "summary": "Find similar public wiki pages",
-        "description": "Checks whether existing pages are likely duplicates of a proposed title or path.",
-        "tags": [
-          "Search"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublicSimilarQuery"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicSimilarResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/assets/{id}/content": {
-      "get": {
-        "operationId": "get-v1-assets-{id}-content",
-        "summary": "Get public wiki asset content",
-        "description": "Streams asset bytes if the caller may read the asset.",
-        "tags": [
-          "Assets"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Stable public asset identifier."
-            },
-            "description": "Stable public asset identifier.",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Asset bytes.",
-            "content": {
-              "image/png": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "image/jpeg": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "image/gif": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "image/webp": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "image/svg+xml": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "application/octet-stream": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
                 }
               }
             }
@@ -6336,6 +5965,61 @@
         }
       }
     },
+    "/preview": {
+      "post": {
+        "operationId": "post-preview",
+        "summary": "Render markdown preview",
+        "description": "Renders the provided markdown source to HTML without persisting anything.",
+        "tags": [
+          "Preview"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/previewInputSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/properties/{path}": {
+      "patch": {
+        "operationId": "patch-properties-{path}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Properties"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/public-openapi.json": {
       "get": {
         "operationId": "get-public-openapi.json",
@@ -6402,6 +6086,263 @@
           }
         ],
         "responses": {}
+      }
+    },
+    "/v1/search/pages": {
+      "get": {
+        "operationId": "get-v1-search-pages",
+        "summary": "Search public wiki pages",
+        "description": "Searches readable pages by path, title, or Markdown source. Optionally",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Free-text search query."
+            },
+            "description": "Free-text search query."
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "path",
+                "title",
+                "content",
+                "all"
+              ],
+              "default": "all",
+              "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+            },
+            "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "default": "published",
+              "description": "Filter results by page lifecycle state. Defaults to published."
+            },
+            "description": "Filter results by page lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+            },
+            "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of results to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of results to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+          },
+          {
+            "in": "query",
+            "name": "excerptLength",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.",
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 500
+            },
+            "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100."
+          },
+          {
+            "in": "query",
+            "name": "createdStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages created at or after this ISO 8601 timestamp."
+            },
+            "description": "Only include pages created at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "createdEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages created at or before this ISO 8601 timestamp."
+            },
+            "description": "Only include pages created at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "updatedStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+            },
+            "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "updatedEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+            },
+            "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search/similar": {
+      "post": {
+        "operationId": "post-v1-search-similar",
+        "summary": "Find similar public wiki pages",
+        "description": "Checks whether existing pages are likely duplicates of a proposed title or path.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicSimilarQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSimilarResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats": {
+      "get": {
+        "operationId": "get-v1-stats",
+        "summary": "Get public wiki stats",
+        "description": "Returns page counts, recent activity, directory breakdown, and optional orphan detection.",
+        "tags": [
+          "Stats"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "orphans"
+              ],
+              "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+            },
+            "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatsResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage": {
@@ -6991,6 +6932,65 @@
         "responses": {}
       }
     },
+    "/v1/tree": {
+      "get": {
+        "operationId": "get-v1-tree",
+        "summary": "Get public wiki page tree",
+        "description": "Returns the hierarchical directory structure of pages visible to the caller.",
+        "tags": [
+          "Tree"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "default": "published",
+              "description": "Filter pages by lifecycle state. Defaults to published."
+            },
+            "description": "Filter pages by lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+            },
+            "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageTreeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/user/email": {
       "patch": {
         "operationId": "patch-user-email",
@@ -7123,26 +7123,6 @@
   },
   "tags": [
     {
-      "name": "Assets",
-      "description": "Upload and fetch public image assets referenced by wiki pages."
-    },
-    {
-      "name": "Pages",
-      "description": "Create, read, update, delete, and batch-create public wiki pages."
-    },
-    {
-      "name": "Search",
-      "description": "Full-text search and duplicate detection across readable pages."
-    },
-    {
-      "name": "Stats",
-      "description": "Aggregate wiki health metrics and orphan detection."
-    },
-    {
-      "name": "Tree",
-      "description": "Hierarchical directory structure of visible pages."
-    },
-    {
       "name": "AI"
     },
     {
@@ -7153,6 +7133,9 @@
     },
     {
       "name": "Appearance"
+    },
+    {
+      "name": "Assets"
     },
     {
       "name": "Audit"
@@ -7170,19 +7153,25 @@
       "name": "Openapi.json"
     },
     {
+      "name": "Pages"
+    },
+    {
       "name": "Preview"
     },
     {
       "name": "Properties"
     },
     {
-      "name": "Public Wiki Content"
-    },
-    {
       "name": "Public-openapi.json"
     },
     {
       "name": "Revisions"
+    },
+    {
+      "name": "Search"
+    },
+    {
+      "name": "Stats"
     },
     {
       "name": "Storage"
@@ -7195,6 +7184,9 @@
     },
     {
       "name": "Transfers"
+    },
+    {
+      "name": "Tree"
     },
     {
       "name": "User"

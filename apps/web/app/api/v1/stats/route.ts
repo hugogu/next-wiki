@@ -8,7 +8,7 @@ import * as publicContent from '@/server/services/public-content';
  * @openapi
  * @summary Get public wiki stats
  * @description Returns page counts, recent activity, directory breakdown, and optional orphan detection.
- * @tag Public Wiki Content
+ * @tag Stats
  * @auth bearer
  * @queryParams PublicStatsQuery
  * @response PublicStatsResponse
