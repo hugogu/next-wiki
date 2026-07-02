@@ -2,6 +2,7 @@
   "name": "next-wiki",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "turbo run build",

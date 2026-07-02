@@ -3,6 +3,7 @@
   "version": "0.1.5",
   "description": "MCP Server for next-wiki. Exposes the v1 Public Wiki Content API as MCP tools and resources.",
   "type": "module",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/hugogu/next-wiki.git",
