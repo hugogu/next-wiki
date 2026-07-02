@@ -62,11 +62,13 @@ letting AI write formal content unreviewed.
 
 1. **Raw** — unstructured, append-only capture. Agent session notes, facts
    learned mid-conversation, imported snippets. Not shaped like a page, not
-   assigned to a space yet, never shown to Readers or the outside world.
+   assigned to a space yet, and — by default permission policy, not a
+   hardcoded rule — not exposed beyond its owner and Admins.
 2. **Proposal** — a structured, reviewable suggestion derived from one or more
    raw records: either a new page or, more commonly as the wiki matures, a
-   patch against an existing formal page. Visible to whoever can edit the
-   target; not yet part of the wiki's live content.
+   patch against an existing formal page. Default policy makes it visible to
+   whoever already holds edit permission on the target; not yet part of the
+   wiki's live content.
 3. **Formal** — exactly what next-wiki already calls a published page today
    (001/007): the current live revision, versioned, permission-scoped to
    whoever can read that space. This spec does not change formal-page
@@ -82,6 +84,17 @@ of who authored it or which space it lives in — an owner can hand-write
 straight into formal, and an agent's raw note can be promoted all the way to
 public. The pipeline describes how content *can* flow, not who is allowed to
 skip steps.
+
+**On roles and permissions**: this spec deliberately does not design the
+permission model in depth — that is 001/004's existing three-axis model
+(subject, resource, action; explicit deny > allow > inherited > space default
+> global default per the constitution's Permission Model mandate), extended
+with a resource type per layer. Every place below that names "owner",
+"Admin", "Editor", or "Reader" is describing a **sensible default policy**,
+not a hardcoded rule — actual visibility of each layer MUST be resolved
+through the same permission check every other resource uses, so it stays
+configurable (grant an Editor raw access, restrict a second owner-equivalent
+account, etc.) without a code change.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -118,11 +131,12 @@ none produced a page, page revision, or space assignment as a side effect.
 4. **Given** a memory record with no explicit `expiresAt`, **When** the
    configured default retention window elapses without the record being
    referenced by a proposal, **Then** it becomes eligible for pruning.
-5. **Given** the owner's account, **When** they or an Admin browse the raw
-   stream, **Then** they see all records regardless of which account wrote
-   them; **Given** a non-owner Editor, **When** they browse the raw stream,
-   **Then** they see only records their own key wrote — raw capture is never
-   exposed to Readers.
+5. **Given** the default permission policy for the raw layer, **When** the
+   owner or an Admin browses the raw stream, **Then** they see all records
+   regardless of which account wrote them; **When** a non-owner Editor
+   browses it, **Then** they see only records their own key wrote by default
+   — this is the out-of-the-box grant, not a hardcoded exception, so an
+   administrator can widen or narrow it like any other permission entry.
 
 ---
 
@@ -213,18 +227,23 @@ read it, and that unrelated formal pages remain internal-only.
 
 ---
 
-### User Story 4 — Owner's Chat Spans Every Layer; Outside Callers See Only Public (Priority: P1)
+### User Story 4 — Retrieval Scope Follows Layer Permissions, Not a Hardcoded Role Table (Priority: P1)
 
 As the owner, I want the AI chat pane and semantic search to draw on my raw
 notes, pending proposals, and formal pages by default with no extra toggle,
-because it is all my own memory — while anonymous visitors and external API
-callers only ever see the public layer, and Editors/Readers see only what
-their role already allows.
+because it is all my own memory — while callers with less access see only
+the layers their permission grants already cover. The *mechanism* MUST be
+"retrieval scope = whatever the caller's permissions resolve to for each
+layer," not a hardcoded table of what each role sees; owner/Editor/Reader/
+anonymous defaults below are the out-of-the-box policy, not an invariant.
 
 **Why this priority**: This is what makes the layering meaningful rather than
 cosmetic, and directly reflects the single-owner mission (P1/P5): there is no
 reason to gate the owner's own chat behind an opt-in for their own memory.
-Depends on US1–US3 for there to be anything layered to retrieve.
+Depends on US1–US3 for there to be anything layered to retrieve. Full
+permission-model design (custom grants beyond the defaults, per-layer ACL UI)
+is intentionally out of scope for this feature — the design direction is set
+here so it does not need retrofitting later.
 
 **Independent Test**: As the owner, ask the chat a question whose answer only
 exists in a raw memory record. Confirm it is used and labeled as raw/unreviewed.
@@ -235,23 +254,28 @@ internal content.
 
 **Acceptance Scenarios**:
 
-1. **Given** the owner (authenticated session or an owner-scoped API
-   key/MCP session), **When** they ask a question, **Then** retrieval spans
-   raw, proposal, and formal content they can read, by default, with no
-   opt-in step.
-2. **Given** an anonymous visitor or an external Public API/MCP caller,
-   **When** they ask a question or search, **Then** retrieval is scoped to
-   the public layer only, matching 004's and 007's existing default
-   permission-scoped behavior.
-3. **Given** an Editor or Reader account in a shared deployment, **When**
-   they ask a question, **Then** retrieval covers formal (and public) content
-   they can read, plus proposals targeting pages they can edit; raw content is
-   never included for non-owner, non-admin accounts.
-4. **Given** any answer, **When** it is presented, **Then** every citation
+1. **Given** any caller, **When** they ask a question, **Then** retrieval for
+   each layer is filtered by that layer's permission check for the caller —
+   there is no separate "retrieval scope" concept layered on top of the
+   permission model.
+2. **Given** the owner's default permission grants (full read on every layer
+   by default), **When** they ask a question, **Then** retrieval spans raw,
+   proposal, and formal content with no opt-in step, because their existing
+   grants already cover all of it.
+3. **Given** an anonymous visitor or an external Public API/MCP caller with
+   only the default public-layer grant, **When** they ask a question or
+   search, **Then** retrieval is scoped to the public layer only, matching
+   004's and 007's existing default permission-scoped behavior.
+4. **Given** an Editor or Reader account with its default grants (formal and
+   public content they can read, plus — for Editors — proposals targeting
+   pages they can edit), **When** they ask a question, **Then** retrieval
+   reflects exactly those grants; raw is excluded because no default grant
+   covers it for that account, not because of a role check.
+5. **Given** any answer, **When** it is presented, **Then** every citation
    indicates its layer (`raw`, `proposal`, `formal`, or `public`) so the
    reader can weight its authority — raw and proposal citations are marked
    unreviewed/provisional, formal and public are not.
-5. **Given** a permission or layer-scope change between retrieval and answer
+6. **Given** a permission or layer-scope change between retrieval and answer
    delivery, **When** the answer is about to stream, **Then** the system
    re-checks scope before returning content, consistent with 004's existing
    revalidate-before-return rule.
@@ -363,10 +387,14 @@ confirm the correct fact is returned for each.
   (`generatedProposalId`).
 - **FR-003**: Memory records MUST be immutable after creation; corrections
   MUST be new records optionally referencing the record they supersede.
-- **FR-004**: The raw layer MUST be visible in full to the owner and Admins
-  regardless of writer; non-owner Editors MUST see only records their own
-  credential wrote. The raw layer MUST NOT be visible to Readers, anonymous
-  callers, or external Public API/MCP callers under any scope.
+- **FR-004**: Read access to the raw layer MUST be governed by the same
+  permission model as pages (subject/resource/action, per the constitution's
+  Permission Model mandate), applied to a new per-record resource type.
+  Default policy (administrator-configurable, not hardcoded): owner and
+  Admins can read all records regardless of writer; other accounts can read
+  only records their own credential wrote; anonymous and external Public
+  API/MCP callers get no default grant. Widening or narrowing this default is
+  a permission-entry change, not a code change.
 - **FR-005**: Unreferenced (not linked to any proposal), unpinned memory
   records past a configurable default retention window become eligible for
   background pruning; pruning MUST NOT alter any page, revision, or
@@ -385,10 +413,12 @@ confirm the correct fact is returned for each.
 - **FR-008**: A proposal MUST reference its source raw record(s), its kind
   (amend | new-page), and — for amend proposals — the base revision id it was
   computed against.
-- **FR-009**: Proposals MUST be visible to the owner/Admins and to any
-  Editor who already holds edit permission on the proposal's target (existing
-  page for amend, target space for new-page); Readers and external callers
-  MUST NOT see proposals.
+- **FR-009**: Read access to a proposal MUST be governed by the same
+  permission model, resolved against the proposal's target (existing page for
+  amend, target space for new-page). Default policy: owner/Admins see all
+  proposals; other accounts see a proposal only where they already hold edit
+  permission on its target; anonymous and external Public API/MCP callers get
+  no default grant. As with FR-004, this is a configurable default.
 - **FR-010**: Accepting a proposal MUST create a new page or a new page
   revision applying the proposal content, through the same versioning model
   as any other edit (P8/existing P7 "version everything"); the accept action
@@ -415,37 +445,43 @@ confirm the correct fact is returned for each.
 - **FR-016**: Public visibility MUST default to off for newly published
   formal pages.
 
-#### Layer-Aware Retrieval
+#### Layer-Aware Retrieval & Permission Defaults
 
 - **FR-017**: Raw, proposal, and formal content MUST each be embedded into
   the semantic index (extending 004's index-generation model), tagged with
   their layer and review status; a public-layer query is a permission-filtered
   view over the formal-layer embeddings, not a separate index.
-- **FR-018**: The owner's chat and semantic search MUST default to retrieving
-  across raw, proposal, and formal layers with no opt-in step required.
-- **FR-019**: Anonymous callers and external Public API/MCP callers MUST be
-  scoped to the public layer only, matching 004's and 007's existing default
-  behavior unchanged.
-- **FR-020**: Non-owner Editor/Reader accounts MUST be scoped to formal and
-  public content they can read, plus (Editors only) proposals targeting pages
-  they can edit; raw is excluded for all non-owner, non-admin accounts.
-- **FR-021**: Every citation or retrieved excerpt MUST indicate its source
+- **FR-018**: Retrieval scope for any caller and any layer MUST be derived
+  from that layer's permission check (FR-004, FR-009, and 001/007's existing
+  page permissions for formal/public) at query time. There MUST NOT be a
+  separate, hardcoded "what does role X see" table independent of those
+  permission checks — this is the load-bearing design decision of this
+  feature, even though the full permission-model UI/configuration surface is
+  out of scope here (see Out of Scope).
+- **FR-019**: The default permission grants from FR-004/FR-009, plus formal/
+  public's existing defaults, MUST combine so that: the owner's chat/search
+  spans raw, proposal, and formal with no opt-in step (because their default
+  grants already cover all layers); anonymous and external Public API/MCP
+  callers are scoped to public only; other accounts see whatever their formal/
+  public/raw/proposal grants resolve to. None of these outcomes are special-
+  cased in code beyond "apply the permission check per layer."
+- **FR-020**: Every citation or retrieved excerpt MUST indicate its source
   layer; raw and proposal citations MUST be visually/structurally marked as
   unreviewed, distinct from formal/public citations.
-- **FR-022**: Retrieval MUST re-check permission and layer scope at answer
+- **FR-021**: Retrieval MUST re-check permission and layer scope at answer
   time, not only at request start, consistent with 004's existing
   revalidate-before-return rule.
 
 #### Maintenance ("Lint")
 
-- **FR-023**: A periodic background job MUST identify: raw records past a
+- **FR-022**: A periodic background job MUST identify: raw records past a
   configurable age with no generated proposal, proposals pending review past
   a configurable age, candidate-duplicate proposals/pages (reusing 008), and
   orphaned formal pages (reusing 008).
-- **FR-024**: The job MUST flag direct contradictions between open proposals
+- **FR-023**: The job MUST flag direct contradictions between open proposals
   or between a proposal and existing formal content covering the same
   subject, without auto-resolving them.
-- **FR-025**: Findings MUST be actionable (accept/reject/promote/delete) but
+- **FR-024**: Findings MUST be actionable (accept/reject/promote/delete) but
   MUST NOT trigger any automatic content change; dismissing a finding
   suppresses only that specific finding until the underlying content changes.
 
@@ -503,6 +539,11 @@ confirm the correct fact is returned for each.
 - Redacting or transforming content specifically for public exposure (US3
   reuses the existing all-or-nothing anonymous-read permission; selective
   public-safe rewriting of a formal page is a future enhancement).
+- Detailed permission-model design for the new raw/proposal resource types:
+  custom grants beyond the stated defaults, an ACL configuration UI, and
+  group-based grants are future work. This spec only fixes the *direction*
+  (layer visibility is a permission check, not a hardcoded role table, per
+  FR-018) so later permission work does not require revisiting this pipeline.
 
 ## Success Criteria *(mandatory)*
 
