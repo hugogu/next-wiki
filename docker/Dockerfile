@@ -16,9 +16,13 @@ ENV API_KEY_ENCRYPTION_KEY=${API_KEY_ENCRYPTION_KEY}
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://localhost:5432/next_wiki
-RUN pnpm --filter @next-wiki/web exec drizzle-kit generate
-RUN pnpm --filter @next-wiki/web openapi:generate
-RUN pnpm --filter @next-wiki/web exec next build --webpack
+# Generate migrations and OpenAPI spec in parallel; they write to disjoint paths.
+RUN pnpm --filter @next-wiki/web exec drizzle-kit generate & \
+    pnpm --filter @next-wiki/web openapi:generate & \
+    wait
+# Mount Next.js build cache so incremental Docker builds reuse previous work.
+RUN --mount=type=cache,target=/app/apps/web/.next/cache,id=next-cache-${TARGETARCH} \
+    pnpm --filter @next-wiki/web exec next build --webpack
 
 FROM ${NODE_IMAGE} AS runner
 RUN apk add --no-cache git openssh-client
