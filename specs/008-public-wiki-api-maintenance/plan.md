@@ -13,12 +13,21 @@ existing permission model, audit pipeline, and Zod schemas.
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x on Node.js 20.9+
+**Language/Version**: TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor)
 **Primary Dependencies**: Next.js 16 App Router, Drizzle ORM, Zod,
 next-openapi-gen, `@modelcontextprotocol/sdk`
 **Storage**: Existing PostgreSQL 16 — no new tables or migrations required
 **Diff library**: `diff` npm package (unified line diff, MIT, 0 deps at runtime)
 **Testing**: Vitest route/service tests, MCP tool tests
+**Target Platform**: Linux server (Docker Compose / Kubernetes), same image as
+existing web container
+**Project Type**: web-service (pnpm workspaces + Turborepo monorepo)
+**Performance Goals**: Stats response under 500 ms on 10,000 pages (SC-004);
+backlink scan sub-second at current scale (≤10k pages, few KB each)
+**Constraints**: No new stateful services or DB extensions (P1); no new
+database migrations; backlink extraction scan-based at query time
+**Scale/Scope**: ≤10k pages current; batch limit 50 pages per request;
+similarity check over all visible page titles+paths in memory
 
 ## Constitution Check
 
@@ -32,6 +41,24 @@ next-openapi-gen, `@modelcontextprotocol/sdk`
 | API Architecture mandate | PASS | New routes are contract adapters over services. No business logic in route handlers. |
 
 ## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/008-public-wiki-api-maintenance/
+├── plan.md              # This file
+├── research.md          # Phase 0: decisions R1-R7
+├── data-model.md        # Phase 1: no new tables, shared schemas
+├── quickstart.md        # Phase 1: endpoint usage examples
+├── contracts/
+│   ├── rest-api.md      # Phase 1: REST endpoint contracts
+│   └── mcp-tools.md     # Phase 1: MCP tool contracts
+├── checklists/
+│   └── requirements.md  # Spec quality validation
+└── tasks.md             # Phase 2: task breakdown (separate command)
+```
+
+### Source Code (repository root)
 
 ```text
 packages/shared/src/
@@ -65,6 +92,13 @@ apps/web/src/server/
     ├── public-content.ts       # add delete/backlinks/diff/batch/stats/similar
     └── wiki-diff.ts            # thin diff computation wrapper
 ```
+
+**Structure Decision**: This feature extends the existing monorepo layout
+established by 007-public-wiki-api. No new packages or apps are introduced.
+New code is added to existing files (`public-content.ts`, `openapi-schemas.ts`,
+`pages.ts`) and new route/tool files follow the established naming convention.
+The `diff` computation wrapper (`wiki-diff.ts`) is the only new file in the
+server layer, kept as a thin isolated module for testability.
 
 ## Implementation Phases
 
