@@ -1,8 +1,12 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Layout } from '@/components/ui/Layout';
 import { LoginForm } from '@/components/auth/LoginForm';
+import * as setupService from '@/server/services/setup';
 import { getLocale, getDictionary } from '@/i18n/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -11,6 +15,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LoginPage() {
+  // First-run onboarding: there is nothing to sign in to yet.
+  if (await setupService.isSetupNeeded()) {
+    redirect('/setup');
+  }
+
   const locale = await getLocale();
   const t = getDictionary(locale);
 

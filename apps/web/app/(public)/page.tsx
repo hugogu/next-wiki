@@ -1,6 +1,8 @@
+import { redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
+import * as setupService from '@/server/services/setup';
 import { buildAnonymousCtx } from '@/server/permissions';
 import { getPageHref, getPagesHref } from '@/lib/path';
 import { getLocale, getDictionary } from '@/i18n/server';
@@ -11,6 +13,13 @@ export const dynamic = 'force-dynamic';
 // name from the root layout's metadata (default title).
 
 export default async function HomePage() {
+  // First-run onboarding: if no admin exists yet, guide the visitor to the
+  // guided `/setup` route so the initial admin can be created. This makes a
+  // fresh deployment usable with no extra steps.
+  if (await setupService.isSetupNeeded()) {
+    redirect('/setup');
+  }
+
   const locale = await getLocale();
   const t = getDictionary(locale);
   const ctx = buildAnonymousCtx();
