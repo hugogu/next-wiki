@@ -28,4 +28,24 @@ describe('assistant answer rendering pipeline', () => {
     expect(html).toContain('katex');
     expect(html).toContain('<a href="/math/constants/pi/integral">S1</a>');
   });
+
+  it('links full-width bracket markers (【S1】), which some models emit in Chinese answers', () => {
+    const citations: AiCitation[] = [
+      {
+        pageId: '00000000-0000-4000-8000-000000000001',
+        title: '高斯积分',
+        path: 'math/constants/pi/integral',
+        locale: 'zh',
+        revisionId: '00000000-0000-4000-8000-000000000002',
+        revisionHash: 'hash',
+      },
+    ];
+    const answer = '高斯积分公式为 $\\int_{-\\infty}^{\\infty} e^{-x^2}dx = \\sqrt{\\pi}$【S1】。';
+
+    const linked = linkifyCitationMarkers(answer, citations);
+    const { html } = renderMarkdown(linked);
+
+    expect(html).toContain('katex');
+    expect(html).toContain('<a href="/math/constants/pi/integral">S1</a>');
+  });
 });

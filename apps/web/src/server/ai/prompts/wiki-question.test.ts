@@ -27,6 +27,12 @@ describe('Wiki question prompts', () => {
     ]);
   });
 
+  it('recognizes full-width bracket markers (【S1】) some models substitute in CJK answers', () => {
+    expect(normalizeQuestionCitations('答案【S1】。', sources)).toEqual([
+      expect.objectContaining({ pageId: sources[0]!.pageId }),
+    ]);
+  });
+
   it('detects explicit or source-free insufficient evidence', () => {
     expect(isInsufficientAnswer('INSUFFICIENT_WIKI_EVIDENCE', sources)).toBe(true);
     expect(isInsufficientAnswer('anything', [])).toBe(true);

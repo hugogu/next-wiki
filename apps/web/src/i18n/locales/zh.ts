@@ -870,6 +870,7 @@ export const zh: Translations = {
   'ai.chat.title': 'Wiki AI',
   'ai.chat.close': '关闭',
   'ai.chat.collapse': '收起',
+  'ai.chat.newSession': '新建会话',
   'ai.chat.providerNotice': '你的问题和相关 Wiki 内容可能会发送给系统配置的 AI 平台。',
   'ai.chat.empty': '提出一个基于本 Wiki 内容的问题。',
   'ai.chat.streaming': '生成中…',

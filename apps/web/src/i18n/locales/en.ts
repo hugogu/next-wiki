@@ -889,6 +889,7 @@ export const en = {
   'ai.chat.title': 'Wiki AI',
   'ai.chat.close': 'Close',
   'ai.chat.collapse': 'Collapse',
+  'ai.chat.newSession': 'New session',
   'ai.chat.providerNotice': 'Your question and relevant Wiki content may be sent to the configured AI provider.',
   'ai.chat.empty': 'Ask a question grounded in this Wiki.',
   'ai.chat.streaming': 'Generating…',

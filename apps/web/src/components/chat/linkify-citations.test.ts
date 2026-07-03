@@ -30,4 +30,9 @@ describe('linkifyCitationMarkers', () => {
   it('returns the original text when there are no citations', () => {
     expect(linkifyCitationMarkers('No markers here', undefined)).toBe('No markers here');
   });
+
+  it('normalizes full-width bracket markers (【S1】) to ASCII Markdown links', () => {
+    const citations = [citation({ path: 'math/pi/integral' })];
+    expect(linkifyCitationMarkers('见【S1】。', citations)).toBe('见[S1](/math/pi/integral)。');
+  });
 });

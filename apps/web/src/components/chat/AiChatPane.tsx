@@ -7,8 +7,9 @@ import { useAiChat } from '@/hooks/use-ai-chat';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
-import { ChevronRightIcon, SparklesIcon } from '@/components/icons';
+import { ChevronRightIcon, PlusIcon, SparklesIcon } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { useChatStore } from './chat-store';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatThinking } from './ChatThinking';
 
@@ -28,13 +29,6 @@ export function AiChatPane({
   pageContext?: PageContext;
 }) {
   const { t } = useTranslation();
-  const initialMode =
-    typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('aiMode') === 'full'
-      ? 'full'
-      : 'retrieval';
-  const [open, setOpen] = useState(
-    () => typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('ai') === 'open',
-  );
   const [question, setQuestion] = useState('');
   const chat = useAiChat(
     pageContext?.pageId && pageContext.revisionId
@@ -43,13 +37,25 @@ export function AiChatPane({
   );
 
   useEffect(() => {
-    chat.setMode(initialMode);
-    // Initial URL state is intentionally read once per mount.
+    // Hydration is deferred (skipHydration) so the pre-mount render matches
+    // the server, then we restore the persisted session and let an explicit
+    // `?ai=open`/`?aiMode=full` link (e.g. a shared URL) override it.
+    let cancelled = false;
+    void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
+      if (cancelled) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('ai') === 'open') chat.setOpen(true);
+      if (url.searchParams.get('aiMode') === 'full') chat.setMode('full');
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Runs once per mount; chat identity is stable across the pane's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!entitlements.aiEnabled || !entitlements.questionAnsweringEnabled) return null;
-  if (!open) {
+  if (!chat.open) {
     return (
       <div className="fixed bottom-lg right-lg z-30">
         <Tooltip label={t('ai.chat.open')}>
@@ -57,7 +63,7 @@ export function AiChatPane({
             size="icon"
             className="rounded-full shadow-lg"
             aria-label={t('ai.chat.open')}
-            onClick={() => { setOpen(true); setAiUrl(true, chat.mode); }}
+            onClick={() => { chat.setOpen(true); setAiUrl(true, chat.mode); }}
           >
             <SparklesIcon />
           </Button>
@@ -73,16 +79,29 @@ export function AiChatPane({
           <h2 className="font-display font-semibold">{t('ai.chat.title')}</h2>
           <p className="text-xs text-muted">{t('ai.chat.providerNotice')}</p>
         </div>
-        <Tooltip label={t('ai.chat.collapse')}>
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={t('ai.chat.collapse')}
-            onClick={() => { setOpen(false); setAiUrl(false, chat.mode); }}
-          >
-            <ChevronRightIcon />
-          </Button>
-        </Tooltip>
+        <div className="flex items-center gap-xs">
+          <Tooltip label={t('ai.chat.newSession')}>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t('ai.chat.newSession')}
+              disabled={chat.messages.length === 0}
+              onClick={() => { chat.cancel(); chat.newSession(); }}
+            >
+              <PlusIcon />
+            </Button>
+          </Tooltip>
+          <Tooltip label={t('ai.chat.collapse')}>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t('ai.chat.collapse')}
+              onClick={() => { chat.setOpen(false); setAiUrl(false, chat.mode); }}
+            >
+              <ChevronRightIcon />
+            </Button>
+          </Tooltip>
+        </div>
       </div>
       <div className="flex-1 space-y-md overflow-auto p-md">
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}

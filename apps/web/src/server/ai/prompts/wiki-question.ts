@@ -2,6 +2,13 @@ import type { AiCitation, AiSearchResult } from '@next-wiki/shared';
 
 export type QuestionSource = AiCitation & { id: string; content: string };
 
+/**
+ * Matches a citation marker in either plain ASCII brackets ([S1]) or the
+ * full-width brackets (【S1】) models sometimes substitute when answering in
+ * CJK locales — both must be recognized or citations silently vanish.
+ */
+const CITATION_MARKER = /[\[【](S\d+)[\]】]/g;
+
 export function buildWikiQuestionPrompt(question: string, sources: QuestionSource[]) {
   const sourceText = sources
     .map((source) => `<source id="${source.id}" title="${source.title}" path="${source.path}">\n${source.content}\n</source>`)
@@ -9,7 +16,7 @@ export function buildWikiQuestionPrompt(question: string, sources: QuestionSourc
   return {
     system:
       'You are a helpful Wiki assistant. Use only the supplied Wiki sources to answer. ' +
-      'Cite factual claims with source ids such as [S1]. ' +
+      'Cite factual claims with source ids in plain ASCII brackets exactly like [S1] — never full-width brackets such as 【S1】, even when answering in Chinese. ' +
       'If the user asks which page contains or mentions something, answer with the page title and cite the relevant source; ' +
       'do not spell out the raw page path as plain text, the citation link already carries it. ' +
       'Format every mathematical expression using Markdown math syntax: wrap inline math in single dollar signs like $x^2$ ' +
@@ -34,7 +41,7 @@ export function searchResultsToSources(results: AiSearchResult[]): QuestionSourc
 
 export function normalizeQuestionCitations(text: string, sources: QuestionSource[]): AiCitation[] {
   const allowed = new Map(sources.map((source) => [source.id, source]));
-  const ids = [...text.matchAll(/\[(S\d+)\]/g)].map((match) => match[1]!);
+  const ids = [...text.matchAll(CITATION_MARKER)].map((match) => match[1]!);
   return [...new Set(ids)]
     .map((id) => allowed.get(id))
     .filter((source): source is QuestionSource => Boolean(source))
