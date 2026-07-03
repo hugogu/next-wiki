@@ -62,6 +62,7 @@ export type TextGenerationInput = {
 };
 export type TextGenerationEvent =
   | { type: 'delta'; text: string }
+  | { type: 'reasoning_delta'; text: string }
   | { type: 'usage'; inputTokens?: number; outputTokens?: number; cachedInputTokens?: number }
   | { type: 'provider_request_id'; id: string }
   | { type: 'done'; finishReason?: string };

@@ -7,8 +7,10 @@ export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  thinking?: string;
   citations?: AiCitation[];
   error?: string;
+  insufficient?: boolean;
 };
 
 type ChatState = {
@@ -17,6 +19,8 @@ type ChatState = {
   setMode: (mode: AiQuestionMode) => void;
   add: (message: ChatMessage) => void;
   append: (id: string, text: string) => void;
+  think: (id: string, text: string) => void;
+  insufficient: (id: string) => void;
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
 };
@@ -28,6 +32,12 @@ export const useChatStore = create<ChatState>((set) => ({
   add: (message) => set((state) => ({ messages: [...state.messages, message] })),
   append: (id, text) => set((state) => ({
     messages: state.messages.map((message) => message.id === id ? { ...message, text: message.text + text } : message),
+  })),
+  think: (id, text) => set((state) => ({
+    messages: state.messages.map((message) => message.id === id ? { ...message, thinking: (message.thinking ?? '') + text } : message),
+  })),
+  insufficient: (id) => set((state) => ({
+    messages: state.messages.map((message) => message.id === id ? { ...message, text: '', insufficient: true } : message),
   })),
   citations: (id, citations) => set((state) => ({
     messages: state.messages.map((message) => message.id === id ? { ...message, citations } : message),

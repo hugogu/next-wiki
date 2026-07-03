@@ -127,6 +127,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
         messages: [{ role: 'system', content: input.system }, ...input.messages],
         max_tokens: input.maxOutputTokens,
         temperature: input.temperature,
+        stream_options: { include_usage: true },
       }),
     });
     const requestId = response.headers.get('x-request-id');
@@ -145,7 +146,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           const data = line.slice(5).trim();
           if (!data || data === '[DONE]') continue;
           let event: {
-            choices?: Array<{ delta?: { content?: unknown }; finish_reason?: unknown }>;
+            choices?: Array<{ delta?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown }; finish_reason?: unknown }>;
             usage?: {
               prompt_tokens?: number;
               completion_tokens?: number;
@@ -160,6 +161,8 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           const choice = event.choices?.[0];
           const text = choice?.delta?.content;
           if (typeof text === 'string' && text) yield { type: 'delta', text: text.slice(0, 64_000) };
+          const reasoning = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning;
+          if (typeof reasoning === 'string' && reasoning) yield { type: 'reasoning_delta', text: reasoning.slice(0, 64_000) };
           if (event.usage) {
             yield {
               type: 'usage',

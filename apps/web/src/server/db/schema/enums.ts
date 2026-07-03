@@ -152,6 +152,7 @@ export const aiQuestionModeEnum = pgEnum('ai_question_mode', ['full', 'retrieval
 export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'status',
   'text_delta',
+  'reasoning_delta',
   'search_results',
   'citations',
   'optimization',

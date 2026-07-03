@@ -10,6 +10,7 @@ import { useTranslation } from '@/i18n/client';
 import { ChevronRightIcon, SparklesIcon } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ChatAnswer } from './ChatAnswer';
+import { ChatThinking } from './ChatThinking';
 
 function setAiUrl(open: boolean, mode: AiQuestionMode) {
   const url = new URL(window.location.href);
@@ -88,11 +89,18 @@ export function AiChatPane({
         {chat.messages.map((message) => (
           <article key={message.id} className={`rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
-              message.text ? (
-                <ChatAnswer text={message.text} done={!chat.running || message.id !== lastAssistantId} />
-              ) : (
-                <div className="text-muted">{chat.running ? t('ai.chat.streaming') : ''}</div>
-              )
+              <div className="space-y-sm">
+                {message.thinking && (
+                  <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId} />
+                )}
+                {message.text ? (
+                  <ChatAnswer text={message.text} done={!chat.running || message.id !== lastAssistantId} />
+                ) : message.insufficient ? (
+                  <p className="text-muted">{t('ai.chat.insufficient')}</p>
+                ) : (
+                  <div className="text-muted">{chat.running ? t('ai.chat.streaming') : ''}</div>
+                )}
+              </div>
             ) : (
               <div className="whitespace-pre-wrap">{message.text}</div>
             )}

@@ -84,6 +84,8 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
     if (event.type === 'delta') {
       answer += event.text;
       await appendActionEvent(actionId, 'text_delta', { text: event.text });
+    } else if (event.type === 'reasoning_delta') {
+      await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
     } else if (event.type === 'usage') {
       usage = { ...usage, ...event };
     }

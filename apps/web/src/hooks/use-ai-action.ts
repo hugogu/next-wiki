@@ -42,7 +42,7 @@ export function useAiAction() {
     const source = new EventSource(action.eventsUrl);
     sourceRef.current = source;
     const eventTypes: AiEventType[] = [
-      'status', 'text_delta', 'search_results', 'citations', 'optimization',
+      'status', 'text_delta', 'reasoning_delta', 'search_results', 'citations', 'optimization',
       'image_ready', 'completed', 'error',
     ];
     for (const type of eventTypes) {

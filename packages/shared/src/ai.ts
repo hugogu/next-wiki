@@ -178,6 +178,7 @@ export type AiQuestionMode = z.infer<typeof aiQuestionModeSchema>;
 export const aiEventTypeSchema = z.enum([
   'status',
   'text_delta',
+  'reasoning_delta',
   'search_results',
   'citations',
   'optimization',
