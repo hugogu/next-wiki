@@ -139,4 +139,52 @@ See `packages/mcp-server/README.md` for installation and configuration in Claude
 Desktop, Cursor, and OpenCode. A project-level `opencode.json` is provided as a
 starting point.
 
+## Database Migrations (Drizzle) — never hand-author
+
+Every schema change MUST be produced by running `pnpm db:generate`
+(`drizzle-kit generate`) against the actual `src/server/db/schema/*.ts` files.
+This is the only supported way to add a migration. Do not hand-write a
+`NNNN_*.sql` file and manually add a matching entry to
+`meta/_journal.json` — `drizzle-kit generate` is the only thing that produces
+a correct `meta/NNNN_snapshot.json` alongside them, and that snapshot is
+required for every future `db:generate` call to work.
+
+**Why this matters**: `drizzle-kit generate` diffs the current schema against
+the *newest snapshot file present in `meta/`*, not against the journal or the
+SQL history. If a migration's snapshot is missing, the next `generate` call
+silently diffs against an older snapshot instead, folds multiple real
+migrations' worth of changes into one comparison, and can misread an
+unrelated drop+create pair (e.g. two tables being replaced) as an ambiguous
+table/column **rename**. In an agent or CI context there's no terminal to
+answer that interactive prompt, so `db:generate` just blocks — for every
+schema change, not just the one that broke it. This exact drift happened in
+commits `044ab59` and `705fdb2` (2026-06-24 and 2026-06-28): the migrations
+were hand-authored with a hand-edited `_journal.json`, and the corresponding
+`meta/0020_snapshot.json` / `meta/0021_snapshot.json` were simply never
+created, which broke `pnpm db:generate` for anyone touching the schema after.
+This branch (`feature/ux-improvements`) repeated the same mistake for
+`0022_ai_reasoning_delta.sql` / `0023_ai_question_event.sql`.
+
+**Rules**:
+
+- To add a schema change: edit `schema/*.ts`, then run `pnpm db:generate`.
+  Never write the `.sql` migration or touch `meta/_journal.json` by hand.
+- If the generated SQL needs a manual correction (rare — e.g. a cast Drizzle
+  can't infer), edit only the generated `.sql` file. Never touch
+  `meta/_journal.json` or the `meta/NNNN_snapshot.json` Drizzle just wrote.
+- After any schema/migration change, run `pnpm db:generate` a second time
+  with no further edits — it must report `No schema changes, nothing to
+  migrate`. If it doesn't, or if it opens an interactive rename prompt in a
+  non-interactive session, stop and investigate the snapshot chain rather
+  than answering blind or patching files around it.
+- If you ever discover a missing `meta/NNNN_snapshot.json` for an
+  already-committed migration, don't guess at its shape: reconstruct it
+  programmatically from the last valid snapshot plus the exact SQL
+  statements in that migration file (each `CREATE`/`DROP`/`ALTER` maps
+  directly to a snapshot diff), then confirm with `pnpm db:generate`
+  reporting no changes. Verify the fix with a harmless throwaway schema
+  edit (confirm it generates a clean incremental migration with no rename
+  prompt), then revert the throwaway edit before committing — only the
+  reconstructed snapshot(s) should ship.
+
 <!-- MANUAL ADDITIONS END -->
