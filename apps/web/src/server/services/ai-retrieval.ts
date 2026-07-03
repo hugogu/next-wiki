@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
-import { exactCosineSearch } from '@/server/ai/retrieval/vector-search';
+import { exactCosineSearch, type VectorMatch } from '@/server/ai/retrieval/vector-search';
 import { providerRuntime } from './ai-admin';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction, readActionInput, appendActionEvent, finishAction } from './ai-actions';
@@ -36,23 +36,34 @@ export async function retrieve(
   queryVector: number[],
   limit: number,
 ): Promise<AiSearchResult[]> {
-  const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 4, 20));
-  const pages = new Map<string, AiSearchResult>();
+  const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
+  const chunksByPage = new Map<string, VectorMatch[]>();
   for (const match of matches) {
-    if (pages.has(match.pageId)) continue;
-    pages.set(match.pageId, {
-      pageId: match.pageId,
-      title: match.title,
-      path: match.path,
-      locale: match.locale,
-      revisionId: match.revisionId,
-      revisionHash: match.contentHash,
-      excerpt: match.contentText.slice(0, 600),
-      score: match.score,
-    });
-    if (pages.size >= limit) break;
+    const group = chunksByPage.get(match.pageId) ?? [];
+    group.push(match);
+    chunksByPage.set(match.pageId, group);
   }
-  return [...pages.values()];
+  return [...chunksByPage.entries()]
+    .map(([pageId, pageMatches]) => {
+      const best = pageMatches.sort((a, b) => b.score - a.score)[0]!;
+      const combinedExcerpt = pageMatches
+        .slice(0, 3)
+        .map((m) => m.contentText)
+        .join('\n\n')
+        .slice(0, 1200);
+      return {
+        pageId,
+        title: best.title,
+        path: best.path,
+        locale: best.locale,
+        revisionId: best.revisionId,
+        revisionHash: best.contentHash,
+        excerpt: combinedExcerpt,
+        score: best.score,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }
 
 export async function runSemanticSearchAction(actionId: string): Promise<void> {

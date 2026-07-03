@@ -8,8 +8,10 @@ export function buildWikiQuestionPrompt(question: string, sources: QuestionSourc
     .join('\n\n');
   return {
     system:
-      'Answer only from the supplied Wiki sources. Cite factual claims with source ids such as [S1]. ' +
-      'If the sources do not support an answer, respond exactly with INSUFFICIENT_WIKI_EVIDENCE. Do not invent citations.',
+      'You are a helpful Wiki assistant. Use only the supplied Wiki sources to answer. ' +
+      'Cite factual claims with source ids such as [S1]. ' +
+      'If the user asks which page contains or mentions something, answer with the page title and path and cite the relevant source. ' +
+      'If the sources truly do not support any answer, respond exactly with INSUFFICIENT_WIKI_EVIDENCE. Do not invent citations.',
     user: `${sourceText}\n\n<question>\n${question}\n</question>`,
   };
 }
