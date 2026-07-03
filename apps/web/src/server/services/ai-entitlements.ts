@@ -12,6 +12,24 @@ const disabled = {
   imageGenerationEnabled: false,
 };
 
+const enabled = {
+  questionAnsweringEnabled: true,
+  textOptimizationEnabled: true,
+  imageGenerationEnabled: true,
+};
+
+/**
+ * Per-user feature toggles applied when no explicit entitlement row exists.
+ *
+ * Non-admins are fail-closed (disabled). Admins default to enabled so a fresh
+ * instance is usable without first opening a second screen to grant the owner
+ * AI access. An explicit row always wins over this fallback (see the upsert in
+ * updateUserEntitlements), so an admin's access can still be revoked per-feature.
+ */
+function defaultEntitlementsFor(role: 'admin' | 'editor' | 'reader') {
+  return role === 'admin' ? enabled : disabled;
+}
+
 function assertAdmin(ctx: PermCtx): void {
   if (ctx.actor.kind !== 'user' || !can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to manage AI access');
@@ -40,7 +58,7 @@ export async function getUserEntitlements(ctx: PermCtx, userId: string): Promise
   const reasons = await availabilityReasons();
   return {
     userId,
-    ...(row ?? disabled),
+    ...(row ?? defaultEntitlementsFor(user.role)),
     aiEnabled: user.status === 'active' && !reasons.includes('AI_DISABLED'),
     reasons: user.status === 'active' ? reasons : ['USER_DISABLED', ...reasons],
   };
@@ -74,7 +92,7 @@ export async function getMyEntitlements(ctx: PermCtx): Promise<AiEntitlementView
   const reasons = await availabilityReasons();
   return {
     userId: ctx.actor.userId,
-    ...(row ?? disabled),
+    ...(row ?? defaultEntitlementsFor(user.role)),
     aiEnabled: !reasons.includes('AI_DISABLED'),
     reasons,
   };

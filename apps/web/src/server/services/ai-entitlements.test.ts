@@ -30,6 +30,22 @@ describe('AI user entitlements', () => {
     await expect(assertAiFeature(buildUserCtx(readerId, 'reader'), 'text')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('defaults absent admin rows to enabled, but an explicit row still wins', async () => {
+    const entitlements = await getMyEntitlements(buildUserCtx(adminId, 'admin'));
+    expect(entitlements.questionAnsweringEnabled).toBe(true);
+    expect(entitlements.textOptimizationEnabled).toBe(true);
+    expect(entitlements.imageGenerationEnabled).toBe(true);
+
+    // An explicit all-off row overrides the admin default.
+    await updateUserEntitlements(buildUserCtx(adminId, 'admin'), adminId, {
+      questionAnsweringEnabled: false,
+      textOptimizationEnabled: false,
+      imageGenerationEnabled: false,
+    });
+    const after = await getMyEntitlements(buildUserCtx(adminId, 'admin'));
+    expect(after.questionAnsweringEnabled).toBe(false);
+  });
+
   it('fails closed on global disable and disabled users', async () => {
     await db.update(schema.aiSettings).set({ enabled: false }).where(eq(schema.aiSettings.id, 'default'));
     await expect(assertAiFeature(buildUserCtx(readerId, 'reader'), 'question')).rejects.toMatchObject({ code: 'AI_DISABLED' });

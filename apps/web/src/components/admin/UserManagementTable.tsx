@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import type { UserView } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +14,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
+import { UserAiAccessDialog } from '@/components/admin/ai/UserAiAccessDialog';
 import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon, SettingsIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
@@ -53,6 +53,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState('');
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
+  const [aiUser, setAiUser] = useState<UserView | null>(null);
 
   const setRole = useApiMutation<{ userId: string; role: UserView['role'] }, { ok: true }>(
     ({ userId }) => `/api/users/${encodeURIComponent(userId)}/role`,
@@ -181,14 +182,12 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                       </form>
                     ) : (
                       <>
-                        <Link
-                          href={`/admin/users/${user.id}/ai`}
-                          aria-label={t('admin.ai.entitlement.manage')}
-                          title={t('admin.ai.entitlement.manage')}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground"
+                        <IconButton
+                          label={t('admin.ai.entitlement.manage')}
+                          onClick={() => setAiUser(user)}
                         >
                           <SettingsIcon />
-                        </Link>
+                        </IconButton>
                         <IconButton
                           label={t('admin.users.resetPassword.button')}
                           onClick={() => setResettingUserId(user.id)}
@@ -216,6 +215,8 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
             ))}
         </DataTableBody>
       </DataTable>
+
+      {aiUser && <UserAiAccessDialog user={aiUser} onClose={() => setAiUser(null)} />}
     </div>
   );
 }
