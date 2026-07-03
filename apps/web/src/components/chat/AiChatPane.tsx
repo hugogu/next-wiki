@@ -94,7 +94,11 @@ export function AiChatPane({
                   <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId} />
                 )}
                 {message.text ? (
-                  <ChatAnswer text={message.text} done={!chat.running || message.id !== lastAssistantId} />
+                  <ChatAnswer
+                    text={message.text}
+                    citations={message.citations}
+                    done={!chat.running || message.id !== lastAssistantId}
+                  />
                 ) : message.insufficient ? (
                   <p className="text-muted">{t('ai.chat.insufficient')}</p>
                 ) : (

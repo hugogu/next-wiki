@@ -10,7 +10,10 @@ export function buildWikiQuestionPrompt(question: string, sources: QuestionSourc
     system:
       'You are a helpful Wiki assistant. Use only the supplied Wiki sources to answer. ' +
       'Cite factual claims with source ids such as [S1]. ' +
-      'If the user asks which page contains or mentions something, answer with the page title and path and cite the relevant source. ' +
+      'If the user asks which page contains or mentions something, answer with the page title and cite the relevant source; ' +
+      'do not spell out the raw page path as plain text, the citation link already carries it. ' +
+      'Format every mathematical expression using Markdown math syntax: wrap inline math in single dollar signs like $x^2$ ' +
+      'and block/display math in double dollar signs on their own lines like $$\\int_0^1 x\\,dx$$. Never emit bare LaTeX without dollar-sign delimiters. ' +
       'If the sources truly do not support any answer, respond exactly with INSUFFICIENT_WIKI_EVIDENCE. Do not invent citations.',
     user: `${sourceText}\n\n<question>\n${question}\n</question>`,
   };
