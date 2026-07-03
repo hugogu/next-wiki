@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 export type SettingsTabItem<T extends string> = {
   id: T;
   label: string;
-  status?: string;
+  status?: ReactNode;
 };
 
 export function SettingsTabs<T extends string>({

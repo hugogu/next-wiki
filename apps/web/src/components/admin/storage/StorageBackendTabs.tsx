@@ -9,12 +9,14 @@ import type {
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 import { StorageBackendForm } from './StorageBackendForm';
 import { GitExportPanel } from './GitExportPanel';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
+import { CheckIcon } from '@/components/icons';
 
 type TabType = Extract<StorageBackendType, 'database' | 'local' | 's3' | 'git'>;
 type PrimaryTabType = Exclude<TabType, 'git'>;
@@ -313,15 +315,25 @@ export function StorageBackendTabs({
 
   const tabs = TABS.map((type) => {
     const item = type === 'git' ? gitExport : backends.find((candidate) => candidate.type === type);
+    const state =
+      type === 'database'
+        ? 'enabled'
+        : item
+          ? item.replicaState
+          : 'unconfigured';
+    const stateLabel = t(`admin.storage.replica.state.${state}` as TranslationKey);
+    const status =
+      state === 'enabled' ? (
+        <Tooltip label={stateLabel}>
+          <CheckIcon className="h-4 w-4 text-success" />
+        </Tooltip>
+      ) : (
+        stateLabel
+      );
     return {
       id: type,
       label: t(TYPE_LABEL[type]),
-      status:
-        type === 'database'
-          ? t('admin.storage.replica.state.enabled')
-          : item
-            ? t(`admin.storage.replica.state.${item.replicaState}` as TranslationKey)
-            : t('admin.storage.replica.unconfigured'),
+      status,
     };
   });
 

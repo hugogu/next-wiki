@@ -30,7 +30,7 @@ export function ModelDetectorPanel({
         <p className="mt-xs text-sm text-muted">{t('admin.ai.modelDetector.description')}</p>
       </div>
       <form
-        className="max-w-2xl space-y-md rounded-lg border border-border bg-surface p-md"
+        className="space-y-md rounded-lg border border-border bg-surface p-md"
         onSubmit={async (event) => {
           event.preventDefault();
           setSaving(true);

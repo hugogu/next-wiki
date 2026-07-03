@@ -10,10 +10,11 @@ import type {
   AiProviderType,
   AiPurpose,
 } from '@next-wiki/shared';
-import { PlusIcon } from '@/components/icons';
+import { PlusIcon, CheckIcon } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from '@/i18n/client';
 import { ProviderForm } from './ProviderForm';
 import { ProviderList } from './ProviderList';
@@ -79,7 +80,11 @@ export function AiAdminTabs({
     {
       id: 'detector' as const,
       label: t('admin.ai.tabs.detector'),
-      status: hasModelDetectorApiKey ? t('admin.ai.modelDetector.configuredShort') : undefined,
+      status: hasModelDetectorApiKey ? (
+        <Tooltip label={t('admin.ai.modelDetector.configuredShort')}>
+          <CheckIcon className="h-4 w-4 text-success" />
+        </Tooltip>
+      ) : undefined,
     },
     {
       id: 'chat' as const,
@@ -99,7 +104,11 @@ export function AiAdminTabs({
     {
       id: 'indexes' as const,
       label: t('admin.ai.tabs.indexes'),
-      status: indexes.some((index) => index.isActive) ? t('admin.ai.index.active') : undefined,
+      status: indexes.some((index) => index.isActive) ? (
+        <Tooltip label={t('admin.ai.index.active')}>
+          <CheckIcon className="h-4 w-4 text-success" />
+        </Tooltip>
+      ) : undefined,
     },
     { id: 'actions' as const, label: t('admin.ai.tabs.actions') },
     { id: 'usage' as const, label: t('admin.ai.tabs.usage') },
