@@ -165,4 +165,20 @@ describe('userService US5', () => {
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
   });
+
+  describe('hasAnyAdmin', () => {
+    it('reflects the presence of an admin account (shared first-run check)', async () => {
+      // Start from a clean slate so the assertion is deterministic.
+      await cleanup();
+      expect(await userService.hasAnyAdmin()).toBe(false);
+
+      // A non-admin account does not satisfy the check.
+      await createUser('reader-hasanyadmin@example.com', 'reader');
+      expect(await userService.hasAnyAdmin()).toBe(false);
+
+      // Creating the first admin flips it.
+      await createUser('admin-hasanyadmin@example.com', 'admin');
+      expect(await userService.hasAnyAdmin()).toBe(true);
+    });
+  });
 });

@@ -7,6 +7,7 @@ import { env } from '@/server/config';
 import { DomainError } from '@/server/errors';
 import type { Actor, PermCtx } from '@/server/permissions';
 import * as apiKeys from '@/server/services/api-keys';
+import { hasAnyAdmin } from '@/server/services/users';
 
 const SESSION_COOKIE = 'next-wiki-session';
 const SESSION_MAX_AGE_DAYS = 30;
@@ -92,16 +93,18 @@ export async function register(input: { email: string; password: string }): Prom
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
-  const anyAdmin = await db.query.users.findFirst({
-    where: eq(schema.users.role, 'admin'),
-  });
+  // Shared first-admin check: the first account becomes admin (safety net so
+  // an instance is never admin-less), subsequent registrations are readers.
+  // The guided first-run path is `/setup`; registration is the normal-user
+  // path. Both share this single source of truth (see users.hasAnyAdmin).
+  const adminExists = await hasAnyAdmin();
 
   const [user] = await db
     .insert(schema.users)
     .values({
       email: input.email,
       passwordHash,
-      role: anyAdmin ? 'reader' : 'admin',
+      role: adminExists ? 'reader' : 'admin',
       status: 'active',
     })
     .returning({ id: schema.users.id });

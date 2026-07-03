@@ -16,6 +16,21 @@ function requireAdmin(ctx: PermCtx): void {
   }
 }
 
+/**
+ * Shared first-admin check: returns true if at least one admin account exists.
+ *
+ * This is the single source of truth for the "first-run / onboarding" decision
+ * used by the `/setup` bootstrap route and by registration (which grants admin
+ * to the first account as a safety net). Pre-auth/bootstrap callers use this
+ * directly because no permission context exists yet.
+ */
+export async function hasAnyAdmin(): Promise<boolean> {
+  const existingAdmin = await db.query.users.findFirst({
+    where: eq(schema.users.role, 'admin'),
+  });
+  return Boolean(existingAdmin);
+}
+
 export async function list(ctx: PermCtx): Promise<UserView[]> {
   requireAdmin(ctx);
   return listInternal();

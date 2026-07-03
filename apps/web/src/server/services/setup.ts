@@ -3,16 +3,14 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
+import { hasAnyAdmin } from '@/server/services/users';
 import { DomainError } from '@/server/errors';
 
 /**
  * Returns true if the first-run setup is still needed (zero admins exist).
  */
 export async function isSetupNeeded(): Promise<boolean> {
-  const existingAdmin = await db.query.users.findFirst({
-    where: eq(schema.users.role, 'admin'),
-  });
-  return !existingAdmin;
+  return !(await hasAnyAdmin());
 }
 
 /**
@@ -23,11 +21,7 @@ export async function isSetupNeeded(): Promise<boolean> {
  * changes.
  */
 export async function setupAdmin(input: { email: string; password: string }): Promise<{ userId: string }> {
-  const existingAdmin = await db.query.users.findFirst({
-    where: eq(schema.users.role, 'admin'),
-  });
-
-  if (existingAdmin) {
+  if (await hasAnyAdmin()) {
     throw new DomainError('FORBIDDEN', 'An admin account already exists');
   }
 
