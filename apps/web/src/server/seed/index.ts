@@ -28,32 +28,51 @@ export async function seedDefaultStorageBackend() {
     });
 }
 
+/**
+ * Ensure the default space exists. Like the storage backend and built-in
+ * themes, this is core infrastructure: every page is scoped to a space, and
+ * create/edit/delete require a default space to exist. Seeded on every boot
+ * (idempotent) so a freshly set-up instance is usable immediately after the
+ * first admin is created via the `/setup` first-run route.
+ */
+export async function seedDefaultSpace() {
+  const existing = await db.query.spaces.findFirst({
+    where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
+  });
+  if (existing) return;
+  const [created] = await db
+    .insert(schema.spaces)
+    .values({
+      slug: DEFAULT_SPACE_SLUG,
+      name: 'Default',
+      defaultLocale: 'en',
+      anonymousRead: true,
+    })
+    .returning();
+  if (!created) throw new Error('Seed failed: could not create default space');
+}
+
 export async function seedDatabase() {
   await seedDefaultStorageBackend();
   // Built-in system themes are core (read-only) data, seeded on every boot.
   await seedBuiltinSystemThemes();
+  // The default space is core infrastructure; seeded on every boot so the
+  // instance is writable right after first-run setup.
+  await seedDefaultSpace();
 
+  // Demo/sample data only: a sample admin account and welcome page. This NEVER
+  // runs in production unless explicitly opted in via NEXT_WIKI_SEED=true. The
+  // first real admin is created interactively through the /setup first-run
+  // route (see services/setup.ts); shipping a hard-coded admin would both
+  // preempt that flow and expose a publicly-known credential.
   if (env.NODE_ENV === 'production' && env.NEXT_WIKI_SEED !== 'true') {
     return;
   }
 
-  let space = await db.query.spaces.findFirst({
+  const space = await db.query.spaces.findFirst({
     where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
   });
-
-  if (!space) {
-    const [created] = await db
-      .insert(schema.spaces)
-      .values({
-        slug: DEFAULT_SPACE_SLUG,
-        name: 'Default',
-        defaultLocale: 'en',
-        anonymousRead: true,
-      })
-      .returning();
-    if (!created) throw new Error('Seed failed: could not create default space');
-    space = created;
-  }
+  if (!space) throw new Error('Seed failed: default space missing');
 
   let admin = await db.query.users.findFirst({
     where: eq(schema.users.email, 'admin@example.com'),

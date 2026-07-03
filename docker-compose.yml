@@ -30,7 +30,11 @@ services:
       DATABASE_URL: postgresql://wiki:wiki@db:5432/wiki
       APP_URL: ${APP_URL:-http://localhost:${WEB_PORT:-3000}}
       NODE_ENV: ${NODE_ENV:-production}
-      NEXT_WIKI_SEED: 'true'
+      # Demo seed (admin@example.com + welcome page). Default off in production
+      # so deployments use the interactive /setup first-run route instead of a
+      # hard-coded, publicly-known admin account. Set NEXT_WIKI_SEED=true to
+      # restore the sample data (also auto-enabled when NODE_ENV != production).
+      NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
       CONTENT_LOCAL_BASE_PATH: ${CONTENT_LOCAL_BASE_PATH:-/data/content}
       CONTENT_LOCAL_HOST_PATH: ${CONTENT_LOCAL_HOST_PATH:-./.content-data}
