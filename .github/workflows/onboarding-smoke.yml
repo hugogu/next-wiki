@@ -1,0 +1,89 @@
+name: Onboarding Smoke (fresh deploy)
+
+# Verifies the first-run onboarding experience against a freshly built
+# production container — the same flow a user gets after cloning and running
+# `docker compose up`. This is intentionally a manual / opt-in workflow because
+# it builds the Docker image (heavier than the unit/integration suites).
+#
+# Two ways to trigger:
+#   1. In a PR: add the label `run-onboarding-smoke`. The label is auto-removed
+#      when the run finishes so you can re-add it to re-run.
+#   2. Actions tab → "Run workflow", optionally passing a PR number to verify
+#      that PR's head; leave it blank to verify the selected branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to verify (blank = run on the selected branch)'
+        required: false
+        type: string
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: onboarding-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fresh-deploy:
+    # Label path only runs for the dedicated trigger label; workflow_dispatch always runs.
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-onboarding-smoke'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # On the label trigger verify the exact PR head; otherwise the dispatch ref.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Checkout PR ${{ inputs.pr_number }} (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr checkout "${{ inputs.pr_number }}"
+
+      - name: Resolved commit
+        run: git --no-pager log -1 --oneline
+
+      - name: Build and start stack (production, no demo seed)
+        # No env overrides needed: docker-compose.yml defaults to production +
+        # NEXT_WIKI_SEED=false. Set them explicitly so an ambient runner env
+        # can never silently flip the instance into dev/seeding mode.
+        run: docker compose up -d --build
+        env:
+          NODE_ENV: production
+          NEXT_WIKI_SEED: 'false'
+
+      - name: Wait for /healthz
+        run: |
+          code=""
+          for _ in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 http://localhost:3000/healthz || true)
+            if [ "$code" = "200" ]; then echo "healthy"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::App did not become healthy (last status: ${code:-<none>})"
+          docker compose logs --no-color --no-log-prefix web || true
+          exit 1
+
+      - name: Run onboarding assertions
+        run: ./scripts/verify-onboarding.sh http://localhost:3000 next-wiki-db
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color --no-log-prefix
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+      - name: Remove trigger label (allow re-runs)
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr edit "${{ github.event.pull_request.number }}" --remove-label run-onboarding-smoke || true
