@@ -35,7 +35,7 @@ export async function createActionEventStream(
           }
           if (closed) break;
           controller.enqueue(encoder.encode(': heartbeat\n\n'));
-          await new Promise((resolve) => setTimeout(resolve, 1_000));
+          await new Promise((resolve) => setTimeout(resolve, 250));
         }
       } finally {
         controller.close();
