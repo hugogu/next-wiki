@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { PageSummary } from '@next-wiki/shared';
-import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon } from '@/components/icons';
+import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 
@@ -163,6 +163,7 @@ export function Navigator({
     { href: '/user-center/password', label: t('userCenter.nav.password'), icon: <LockIcon className="shrink-0" /> },
     { href: '/user-center/api-keys', label: t('userCenter.nav.apiKeys'), icon: <KeyIcon className="shrink-0" /> },
     { href: '/user-center/reading-theme', label: t('userCenter.nav.readingTheme'), icon: <EyeIcon className="shrink-0" /> },
+    { href: '/user-center/ai-sessions', label: t('userCenter.nav.aiSessions'), icon: <SparklesIcon className="shrink-0" /> },
     { href: '/user-center/audit', label: t('userCenter.nav.audit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
   const tree = buildPageTree(pages);

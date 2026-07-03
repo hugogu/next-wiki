@@ -9,7 +9,7 @@ const INSUFFICIENT_MARKER = 'INSUFFICIENT_WIKI_EVIDENCE';
 const THINK_OPEN = '<think>';
 const THINK_CLOSE = '</think>';
 
-type StreamState = {
+export type StreamState = {
   markerBuffer: string;
   tagBuffer: string;
   insideThink: boolean;
@@ -22,7 +22,7 @@ type StreamState = {
  * characters and prepend them to the next chunk. Everything else is emitted
  * immediately so both thinking and answer sections stream in real time.
  */
-function processTextDelta(state: StreamState, rawText: string): { answerText: string; thinkingText: string } {
+export function processTextDelta(state: StreamState, rawText: string): { answerText: string; thinkingText: string } {
   let chunk = state.tagBuffer + rawText;
   state.tagBuffer = '';
 
@@ -69,7 +69,7 @@ function processTextDelta(state: StreamState, rawText: string): { answerText: st
 }
 
 /** Flushes any held-back buffer when the stream ends. */
-function flushStreamState(state: StreamState): { answerText: string; thinkingText: string } {
+export function flushStreamState(state: StreamState): { answerText: string; thinkingText: string } {
   const buffer = state.tagBuffer;
   state.tagBuffer = '';
   if (!buffer) return { answerText: '', thinkingText: '' };

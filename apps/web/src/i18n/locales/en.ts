@@ -508,6 +508,7 @@ export const en = {
   'userCenter.nav.apiKeys': 'API Keys',
   'userCenter.nav.audit': 'Audit Log',
   'userCenter.nav.readingTheme': 'Reading theme',
+  'userCenter.nav.aiSessions': 'AI Chat History',
   'userCenter.readingTheme.title': 'Reading theme',
   'userCenter.readingTheme.description':
     'Choose the colors, fonts, and sizes used when you read Markdown content. Changes apply inside the reader (the rest of the site keeps the admin system theme).',
@@ -548,6 +549,29 @@ export const en = {
 
   'userCenter.apiKeys.metadataTitle': 'API Keys',
   'userCenter.audit.metadataTitle': 'Audit Log',
+  'userCenter.aiSessions.metadataTitle': 'AI Chat History',
+
+  // AI chat session history
+  'userCenter.aiSessions.title': 'AI Chat History',
+  'userCenter.aiSessions.description': 'Search, review, resume, or permanently delete your past Ask AI conversations.',
+  'userCenter.aiSessions.searchLabel': 'Search',
+  'userCenter.aiSessions.searchPlaceholder': 'Search by question text',
+  'userCenter.aiSessions.filterByStatus': 'Status',
+  'userCenter.aiSessions.allStatuses': 'All',
+  'userCenter.aiSessions.empty': 'No AI chat sessions yet.',
+  'userCenter.aiSessions.question': 'Question',
+  'userCenter.aiSessions.status': 'Status',
+  'userCenter.aiSessions.date': 'Date',
+  'userCenter.aiSessions.actions': 'Actions',
+  'userCenter.aiSessions.contentExpired': 'Content expired',
+  'userCenter.aiSessions.view': 'View',
+  'userCenter.aiSessions.continue': 'Continue',
+  'userCenter.aiSessions.delete': 'Delete',
+  'userCenter.aiSessions.deleteTitle': 'Delete this session?',
+  'userCenter.aiSessions.deleteMessage': 'This permanently deletes the question, answer, and citations. This cannot be undone.',
+  'userCenter.aiSessions.deleteFailed': 'Could not delete this session.',
+  'userCenter.aiSessions.detailTitle': 'Session detail',
+  'userCenter.aiSessions.loading': 'Loading…',
 
   // Audit
   'userCenter.audit.title': 'Audit Log',

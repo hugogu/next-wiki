@@ -159,6 +159,7 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'image_ready',
   'completed',
   'error',
+  'question',
 ]);
 
 // ---- Content transfer (005) -----------------------------------------------

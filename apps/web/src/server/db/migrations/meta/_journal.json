@@ -162,6 +162,13 @@
       "when": 1782563200000,
       "tag": "0022_ai_reasoning_delta",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1783090300956,
+      "tag": "0023_ai_question_event",
+      "breakpoints": true
     }
   ]
 }

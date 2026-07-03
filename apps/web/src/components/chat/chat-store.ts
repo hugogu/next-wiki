@@ -27,6 +27,13 @@ type ChatState = {
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
   newSession: () => void;
+  loadSession: (session: {
+    mode: AiQuestionMode;
+    question: string;
+    answer: string;
+    citations: AiCitation[];
+    insufficient: boolean;
+  }) => void;
 };
 
 /**
@@ -60,6 +67,14 @@ export const useChatStore = create<ChatState>()(
         messages: state.messages.map((message) => message.id === id ? { ...message, error } : message),
       })),
       newSession: () => set({ messages: [] }),
+      loadSession: ({ mode, question, answer, citations, insufficient }) => set({
+        mode,
+        open: true,
+        messages: [
+          { id: crypto.randomUUID(), role: 'user', text: question },
+          { id: crypto.randomUUID(), role: 'assistant', text: answer, citations, insufficient },
+        ],
+      }),
     }),
     {
       name: 'ai-chat',

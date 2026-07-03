@@ -11,6 +11,7 @@ import { ChevronRightIcon, PlusIcon, SparklesIcon } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { ChatAnswer } from './ChatAnswer';
+import { ChatCitations } from './ChatCitations';
 import { ChatThinking } from './ChatThinking';
 
 function setAiUrl(open: boolean, mode: AiQuestionMode) {
@@ -141,15 +142,7 @@ export function AiChatPane({
                 {t('ai.chat.retry')}
               </button>
             )}
-            {message.citations?.length ? (
-              <ul className="mt-sm space-y-xs border-t border-border pt-sm text-xs">
-                {message.citations.map((citation) => (
-                  <li key={`${citation.pageId}:${citation.revisionId}`}>
-                    <a className="text-primary hover:underline" href={`/${citation.path}`}>{citation.title}</a>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <ChatCitations citations={message.citations} />
           </article>
         ))}
       </div>

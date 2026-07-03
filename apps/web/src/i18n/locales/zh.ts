@@ -490,6 +490,7 @@ export const zh: Translations = {
   'userCenter.nav.apiKeys': 'API 密钥',
   'userCenter.nav.audit': '审计日志',
   'userCenter.nav.readingTheme': '阅读主题',
+  'userCenter.nav.aiSessions': 'AI 会话历史',
   'userCenter.readingTheme.title': '阅读主题',
   'userCenter.readingTheme.description':
     '选择阅读 Markdown 内容时使用的颜色、字体与字号。修改仅作用于阅读器（站点其他部分仍使用管理员设置的系统主题）。',
@@ -530,6 +531,29 @@ export const zh: Translations = {
 
   'userCenter.apiKeys.metadataTitle': 'API 密钥',
   'userCenter.audit.metadataTitle': '审计日志',
+  'userCenter.aiSessions.metadataTitle': 'AI 会话历史',
+
+  // AI 会话历史
+  'userCenter.aiSessions.title': 'AI 会话历史',
+  'userCenter.aiSessions.description': '搜索、查看、继续或永久删除你过去与 Ask AI 的对话。',
+  'userCenter.aiSessions.searchLabel': '搜索',
+  'userCenter.aiSessions.searchPlaceholder': '按问题内容搜索',
+  'userCenter.aiSessions.filterByStatus': '状态',
+  'userCenter.aiSessions.allStatuses': '全部',
+  'userCenter.aiSessions.empty': '暂无 AI 会话记录。',
+  'userCenter.aiSessions.question': '问题',
+  'userCenter.aiSessions.status': '状态',
+  'userCenter.aiSessions.date': '时间',
+  'userCenter.aiSessions.actions': '操作',
+  'userCenter.aiSessions.contentExpired': '内容已过期',
+  'userCenter.aiSessions.view': '查看',
+  'userCenter.aiSessions.continue': '继续会话',
+  'userCenter.aiSessions.delete': '删除',
+  'userCenter.aiSessions.deleteTitle': '删除此会话?',
+  'userCenter.aiSessions.deleteMessage': '此操作将永久删除问题、回答与引用内容,且无法撤销。',
+  'userCenter.aiSessions.deleteFailed': '删除会话失败。',
+  'userCenter.aiSessions.detailTitle': '会话详情',
+  'userCenter.aiSessions.loading': '加载中…',
 
   // Audit
   'userCenter.audit.title': '审计日志',

@@ -99,6 +99,10 @@ describe('Wiki question worker', () => {
     await runWikiQuestionAction(action.id);
     const events = await db.query.aiActionEvents.findMany({ where: eq(schema.aiActionEvents.actionId, action.id) });
     expect(events).toContainEqual(expect.objectContaining({
+      type: 'question',
+      payload: expect.objectContaining({ text: 'Where is the answer?' }),
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
       type: 'text_delta',
       payload: expect.objectContaining({ text: 'Grounded answer [S1]' }),
     }));

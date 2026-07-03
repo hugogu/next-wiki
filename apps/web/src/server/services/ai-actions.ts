@@ -7,6 +7,7 @@ import type {
   AiActionView,
   AiEventType,
   AiQuestionMode,
+  AiSessionSummary,
   AiUsageStatsView,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -220,6 +221,25 @@ export async function getActionEvents(
   }));
 }
 
+/**
+ * Fetches an action's entire event log, paging past `getActionEvents`'s
+ * per-call limit — a single-shot fetch would silently truncate a long
+ * streamed answer (and could drop the trailing `citations`/`completed`
+ * events entirely), unlike the live SSE path which keeps polling until done.
+ */
+export async function getAllActionEvents(ctx: PermCtx, actionId: string, pageSize = 500): Promise<AiActionEvent[]> {
+  const all: AiActionEvent[] = [];
+  let after = 0;
+  for (;;) {
+    const page = await getActionEvents(ctx, actionId, after, pageSize);
+    if (page.length === 0) break;
+    all.push(...page);
+    after = page[page.length - 1]!.id;
+    if (page.length < pageSize) break;
+  }
+  return all;
+}
+
 export async function requireActionAccess(ctx: PermCtx, actionId: string) {
   const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
   if (!row) throw new DomainError('NOT_FOUND', 'AI action not found');
@@ -341,6 +361,79 @@ export async function listActions(
     db.select({ value: count() }).from(schema.aiActions).where(where),
   ]);
   return { items: await Promise.all(rows.map(toView)), total: totals[0]?.value ?? 0 };
+}
+
+function requireSessionUserId(ctx: PermCtx): string {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to manage your AI sessions');
+  }
+  return ctx.actor.userId;
+}
+
+/**
+ * Lists the signed-in user's own wiki_question sessions for the user-center
+ * history panel — never other actors' sessions, regardless of role. Search
+ * matches against the `question` event text (see runWikiQuestionAction),
+ * which is retained for the same window as the rest of the conversation, so
+ * a session past its retention window simply won't match a search term.
+ */
+export async function listUserSessions(
+  ctx: PermCtx,
+  filters: { search?: string; status?: AiActionStatus; limit?: number; offset?: number } = {},
+): Promise<{ items: AiSessionSummary[]; total: number }> {
+  const userId = requireSessionUserId(ctx);
+  const predicates = [
+    eq(schema.aiActions.actorUserId, userId),
+    eq(schema.aiActions.feature, 'wiki_question' as const),
+  ];
+  if (filters.status) predicates.push(eq(schema.aiActions.status, filters.status));
+  if (filters.search?.trim()) {
+    predicates.push(
+      sql`exists (
+        select 1 from ${schema.aiActionEvents}
+        where ${schema.aiActionEvents.actionId} = ${schema.aiActions.id}
+          and ${schema.aiActionEvents.type} = 'question'
+          and ${schema.aiActionEvents.payload} ->> 'text' ilike ${`%${filters.search.trim()}%`}
+      )`,
+    );
+  }
+  const where = and(...predicates);
+  const limit = Math.min(filters.limit ?? 20, 100);
+  const offset = Math.max(filters.offset ?? 0, 0);
+  const [rows, totals] = await Promise.all([
+    db
+      .select()
+      .from(schema.aiActions)
+      .where(where)
+      .orderBy(desc(schema.aiActions.queuedAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ value: count() }).from(schema.aiActions).where(where),
+  ]);
+  const ids = rows.map((row) => row.id);
+  const questionEvents = ids.length
+    ? await db
+        .select({ actionId: schema.aiActionEvents.actionId, payload: schema.aiActionEvents.payload })
+        .from(schema.aiActionEvents)
+        .where(and(inArray(schema.aiActionEvents.actionId, ids), eq(schema.aiActionEvents.type, 'question')))
+    : [];
+  const questionByAction = new Map(
+    questionEvents.map((row) => [row.actionId, String((row.payload as Record<string, unknown>).text ?? '')]),
+  );
+  const items = await Promise.all(
+    rows.map(async (row) => ({
+      ...(await toView(row)),
+      questionExcerpt: questionByAction.get(row.id)?.slice(0, 200) ?? null,
+    })),
+  );
+  return { items, total: totals[0]?.value ?? 0 };
+}
+
+/** Hard-deletes a session (and its cascaded inputs/events) after an ownership check. */
+export async function deleteSession(ctx: PermCtx, actionId: string): Promise<void> {
+  const row = await requireActionAccess(ctx, actionId);
+  if (row.feature !== 'wiki_question') throw new DomainError('NOT_FOUND', 'AI action not found');
+  await db.delete(schema.aiActions).where(eq(schema.aiActions.id, actionId));
 }
 
 export async function requestActionCancellation(ctx: PermCtx, actionId: string): Promise<AiActionView> {

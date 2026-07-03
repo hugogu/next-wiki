@@ -38,6 +38,12 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
 
+  // Recorded once, up front, so the session history panel can show what was
+  // asked even though the encrypted raw input is purged as soon as the action
+  // finishes — this copy is bounded by the same event retention window as the
+  // rest of the conversation, not kept indefinitely.
+  await appendActionEvent(actionId, 'question', { text: input.question });
+
   let sources: QuestionSource[];
   let retrievalUsage: Record<string, unknown> = {};
   if (input.mode === 'full') {

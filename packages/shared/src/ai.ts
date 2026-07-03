@@ -185,6 +185,7 @@ export const aiEventTypeSchema = z.enum([
   'image_ready',
   'completed',
   'error',
+  'question',
 ]);
 export type AiEventType = z.infer<typeof aiEventTypeSchema>;
 
@@ -363,6 +364,17 @@ export const aiActionViewSchema = z.object({
   expiresAt: z.string(),
 });
 export type AiActionView = z.infer<typeof aiActionViewSchema>;
+
+/** A wiki_question action as shown in the user-facing session history panel. */
+export const aiSessionSummarySchema = aiActionViewSchema.extend({
+  questionExcerpt: z.string().nullable(),
+});
+export type AiSessionSummary = z.infer<typeof aiSessionSummarySchema>;
+export const aiSessionListResponseSchema = z.object({
+  items: z.array(aiSessionSummarySchema),
+  total: z.number().int().nonnegative(),
+});
+export type AiSessionListResponse = z.infer<typeof aiSessionListResponseSchema>;
 
 export const aiUsageCategorySchema = z.object({
   requests: z.number().int().nonnegative(),
