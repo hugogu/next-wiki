@@ -28,7 +28,7 @@ export const GET = withPublicApi(async (request, _context, ctx) => {
  *
  * @openapi
  * @summary Create public wiki page
- * @description Creates a page through the stable Public Wiki Content API.
+ * @description Creates a page through the stable Public Wiki Content API. contentSource is optional and defaults to an empty string, creating an empty draft that can be filled in with a subsequent draft-create call.
  * @tag Pages
  * @auth bearer
  * @queryParams PublicPageIncludeQuery

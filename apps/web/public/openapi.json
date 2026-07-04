@@ -678,14 +678,13 @@
           },
           "contentSource": {
             "type": "string",
-            "minLength": 1,
-            "description": "Markdown source of the initial page revision."
+            "default": "",
+            "description": "Markdown source of the initial page revision. Optional; defaults to an empty draft."
           }
         },
         "required": [
           "path",
-          "title",
-          "contentSource"
+          "title"
         ],
         "description": "Create a public wiki page."
       },
@@ -5521,7 +5520,7 @@
       "post": {
         "operationId": "post-v1-pages",
         "summary": "Create public wiki page",
-        "description": "Creates a page through the stable Public Wiki Content API.",
+        "description": "Creates a page through the stable Public Wiki Content API. contentSource is optional and defaults to an empty string, creating an empty draft that can be filled in with a subsequent draft-create call.",
         "tags": [
           "Pages"
         ],

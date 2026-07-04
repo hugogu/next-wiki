@@ -301,7 +301,7 @@ export const PublicPageCreateInput = z
     path: PublicPagePath,
     locale: z.string().min(1).max(20).optional().describe('Locale of the page content (e.g. "en"). Defaults to the workspace default.'),
     title: z.string().min(1).max(200).describe('Human-readable page title.'),
-    contentSource: z.string().min(1).describe('Markdown source of the initial page revision.'),
+    contentSource: z.string().optional().default('').describe('Markdown source of the initial page revision. Optional; defaults to an empty draft.'),
   })
   .describe('Create a public wiki page.');
 
