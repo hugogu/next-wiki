@@ -1835,13 +1835,6 @@
           "id"
         ],
         "description": "User ID path parameter"
-      },
-      "userViewListSchema": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/userViewSchema"
-        },
-        "description": "List of users"
       }
     },
     "responses": {}
@@ -4785,18 +4778,6 @@
         }
       }
     },
-    "/assets": {
-      "post": {
-        "operationId": "post-assets",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Assets"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
     "/assets/{id}": {
       "get": {
         "operationId": "get-assets-{id}",
@@ -6900,18 +6881,6 @@
         "description": "",
         "tags": [
           "User"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/users": {
-      "get": {
-        "operationId": "get-users",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Users"
         ],
         "parameters": [],
         "responses": {}

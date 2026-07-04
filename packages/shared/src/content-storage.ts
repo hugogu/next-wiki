@@ -54,7 +54,7 @@ export type ImageContentType = z.infer<typeof imageContentTypeSchema>;
 
 export const IMAGE_CONTENT_TYPES: readonly ImageContentType[] = imageContentTypeSchema.options;
 
-/** Result returned by `POST /api/assets` and consumed by the editor. */
+/** Internal result returned after storing an uploaded image asset. */
 export const assetUploadResultSchema = z.object({
   id: z.string(),
   url: z.string(),

@@ -23,7 +23,6 @@ import {
   updatePreferencesInputSchema,
   updateProfileInputSchema,
   userViewSchema,
-  assetUploadResultSchema,
   storageOverviewSchema,
   storageBackendViewSchema,
   storageBackendUpsertSchema,
@@ -68,8 +67,6 @@ export {
   updateProfileInputSchema,
   userViewSchema,
 };
-
-export const userViewListSchema = z.array(userViewSchema).describe('List of users');
 
 export const okResponseSchema = z.object({ ok: z.boolean() }).describe('Simple OK response');
 
@@ -566,7 +563,6 @@ export const PublicAssetUploadResult = z
   })
   .describe('Uploaded public wiki asset metadata.');
 
-export const AssetUploadResult = assetUploadResultSchema;
 export const StorageOverview = storageOverviewSchema;
 export const StorageBackendView = storageBackendViewSchema;
 export const StorageBackendUpsert = storageBackendUpsertSchema;
@@ -591,7 +587,6 @@ export const ApiKeyCreated = apiKeyCreatedSchema;
 export const ApiKeyReveal = apiKeyRevealSchema;
 export const AuditListResponse = auditListResponseSchema;
 
-export const UserViewList = userViewListSchema;
 export const OkResponse = okResponseSchema;
 export const PreviewInput = previewInputSchema;
 export const PreviewOutput = previewOutputSchema;
