@@ -153,9 +153,12 @@ export const publicPageCreateInputSchema = z.object({
   path: pathSchema,
   locale: z.string().min(1).max(20).optional(),
   title: z.string().min(1).max(200),
-  contentSource: z.string().min(1),
+  contentSource: z.string().default(''),
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
+
+export const newPageDialogInputSchema = publicPageCreateInputSchema.pick({ path: true, title: true });
+export type NewPageDialogInput = z.infer<typeof newPageDialogInputSchema>;
 
 export const publicDraftCreateInputSchema = z.object({
   title: z.string().min(1).max(200),

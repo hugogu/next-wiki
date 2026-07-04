@@ -21,9 +21,10 @@ export function publicJson<T>(data: T, init?: ResponseInit): NextResponse<T> {
   return NextResponse.json(data, init);
 }
 
-export async function parsePublicJson<T>(request: NextRequest, schema: ZodSchema<T>): Promise<
-  { ok: true; data: T } | { ok: false; response: Response }
-> {
+export async function parsePublicJson<TOutput, TInput = TOutput>(
+  request: NextRequest,
+  schema: ZodSchema<TOutput, ZodTypeDef, TInput>,
+): Promise<{ ok: true; data: TOutput } | { ok: false; response: Response }> {
   let body: unknown;
   try {
     body = await request.json();

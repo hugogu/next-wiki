@@ -4,6 +4,7 @@ import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
+import { publicPageCreateInputSchema } from '@next-wiki/shared';
 
 async function ensureDefaultSpace() {
   let space = await db.query.spaces.findFirst({
@@ -39,6 +40,31 @@ async function cleanup() {
   await db.delete(schema.sessions);
   await db.delete(schema.users);
 }
+
+describe('publicPageCreateInputSchema', () => {
+  it('defaults contentSource to an empty string when omitted', () => {
+    const result = publicPageCreateInputSchema.parse({ path: 'schema-test-a', title: 'A Title' });
+    expect(result.contentSource).toBe('');
+  });
+
+  it('accepts an explicit empty contentSource', () => {
+    const result = publicPageCreateInputSchema.parse({
+      path: 'schema-test-b',
+      title: 'A Title',
+      contentSource: '',
+    });
+    expect(result.contentSource).toBe('');
+  });
+
+  it('still accepts non-empty contentSource unchanged', () => {
+    const result = publicPageCreateInputSchema.parse({
+      path: 'schema-test-c',
+      title: 'A Title',
+      contentSource: '# Hello',
+    });
+    expect(result.contentSource).toBe('# Hello');
+  });
+});
 
 describe('pageService US3', () => {
   beforeAll(async () => {
