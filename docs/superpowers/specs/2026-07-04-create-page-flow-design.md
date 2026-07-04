@@ -51,24 +51,10 @@ Two problems fall out of this:
 - No change to `EditPageForm`'s save mechanics (`PATCH .../pages/{id}` for
   properties, `POST .../pages/{id}/drafts` for content) — the new flow
   hands off to this unchanged machinery as soon as the page exists.
-- **`apps/web/app/api/pages/route.ts` (the "internal" list/create route,
-  distinct from the public `/api/v1/pages`) is left untouched.** It was
-  initially suspected to be dead code (no frontend helper targets it), but
-  is in fact live: `public-wiki-api-equivalence.spec.ts`,
-  `public-wiki-api-read.spec.ts`, `pagination.spec.ts`,
-  `admin-audit.spec.ts`, and `api-keys.spec.ts` all call it directly via
-  `page.request` (`flows.spec.ts` separately calls `DELETE
-  /api/pages/{path}`, which is the *sibling* `[...path]/route.ts` file,
-  not this one — also left untouched, and also not assumed dead), and
-  `apps/web/src/server/api/openapi-schemas.ts` re-exports
-  `createPageInputSchema` (the schema this route uses) into the OpenAPI
-  generation pipeline. `public-wiki-api-equivalence.spec.ts` specifically
-  exists to assert this route's permission behavior matches the public
-  API's — removing it would delete that safety net, not just a redundant
-  test. Whether the internal and public page-creation APIs should
-  eventually be consolidated into one is a real, separate architectural
-  question (touching audit logging, pagination, and API-key-scope tests
-  beyond this spec's scope) — tracked as a follow-up, not addressed here.
+- The legacy internal page list/create and path-based page routes are not part
+  of the page-creation flow. They were later removed in favor of the stable
+  `/api/v1/pages` content API, with e2e coverage migrated to the public API
+  surface.
 
 ## Design
 

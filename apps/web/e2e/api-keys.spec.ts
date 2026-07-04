@@ -44,38 +44,38 @@ test.describe('api keys', () => {
 
     const viewKey = await createApiKey(page, 'View Only', ['View']);
 
-    const listResponse = await page.request.get('/api/pages', {
+    const listResponse = await page.request.get('/api/v1/pages', {
       headers: { Authorization: `Bearer ${viewKey}` },
     });
     expect(listResponse.status()).toBe(200);
 
-    const createResponse = await page.request.post('/api/pages', {
+    const createResponse = await page.request.post('/api/v1/pages', {
       headers: { Authorization: `Bearer ${viewKey}` },
       data: { path: `api-key-test-${timestamp}`, title: 'Test', contentSource: 'test' },
     });
     expect(createResponse.status()).toBe(403);
 
     const createKey = await createApiKey(page, 'Create as Reader', ['Create']);
-    const readerCreateResponse = await page.request.post('/api/pages', {
+    const readerCreateResponse = await page.request.post('/api/v1/pages', {
       headers: { Authorization: `Bearer ${createKey}` },
       data: { path: `api-key-test-reader-${timestamp}`, title: 'Test', contentSource: 'test' },
     });
     expect(readerCreateResponse.status()).toBe(403);
 
     await revokeApiKey(page, 'View Only');
-    const revokedResponse = await page.request.get('/api/pages', {
+    const revokedResponse = await page.request.get('/api/v1/pages', {
       headers: { Authorization: `Bearer ${viewKey}` },
     });
     expect(revokedResponse.status()).toBe(401);
 
     // Audit log shows the attempts.
     await page.goto('/user-center/audit');
-    await expect(page.locator('tr', { hasText: 'GET' }).filter({ hasText: '/api/pages' }).first()).toBeVisible();
-    await expect(page.locator('tr', { hasText: 'POST' }).filter({ hasText: '/api/pages' }).first()).toBeVisible();
+    await expect(page.locator('tr', { hasText: 'GET' }).filter({ hasText: '/api/v1/pages' }).first()).toBeVisible();
+    await expect(page.locator('tr', { hasText: 'POST' }).filter({ hasText: '/api/v1/pages' }).first()).toBeVisible();
 
     // Filter by error status.
     await page.getByLabel('Status', { exact: true }).selectOption('Error');
     await page.getByRole('button', { name: 'Search' }).click();
-    await expect(page.locator('tr', { hasText: 'POST' }).filter({ hasText: '/api/pages' }).first()).toBeVisible();
+    await expect(page.locator('tr', { hasText: 'POST' }).filter({ hasText: '/api/v1/pages' }).first()).toBeVisible();
   });
 });

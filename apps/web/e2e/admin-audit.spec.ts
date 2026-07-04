@@ -48,11 +48,11 @@ test.describe('admin audit', () => {
     const viewKey = await createApiKey(page, 'Audit View', ['View']);
 
     // Generate audited API key requests.
-    const successResponse = await page.request.get('/api/pages', {
+    const successResponse = await page.request.get('/api/v1/pages', {
       headers: { Authorization: `Bearer ${viewKey}` },
     });
     expect(successResponse.status()).toBe(200);
-    const errorResponse = await page.request.post('/api/pages', {
+    const errorResponse = await page.request.post('/api/v1/pages', {
       headers: { Authorization: `Bearer ${viewKey}` },
       data: { path: `admin-audit-${timestamp}`, title: 'T', contentSource: 'c' },
     });
@@ -82,7 +82,7 @@ test.describe('admin audit', () => {
     await page.getByLabel('Status', { exact: true }).selectOption('Error');
     await page.getByRole('button', { name: 'Search' }).click();
     await expect(page.locator('text=' + userEmail).first()).toBeVisible();
-    await expect(page.locator('text=GET /api/pages').first()).not.toBeVisible();
+    await expect(page.locator('text=GET /api/v1/pages').first()).not.toBeVisible();
 
     // Non-admin is rejected with 404 (no existence leak).
     const readerContext = await page.context().browser()?.newContext();

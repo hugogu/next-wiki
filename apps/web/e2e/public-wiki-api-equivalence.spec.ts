@@ -27,22 +27,17 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
   return secret;
 }
 
-test.describe('Public API and internal API equivalence', () => {
-  test('reader write denial matches existing API behavior', async ({ page }) => {
+test.describe('Public Wiki Content API permissions', () => {
+  test('view-only API key cannot create pages', async ({ page }) => {
     const timestamp = Date.now();
     await login(page);
-    const viewKey = await createApiKey(page, `Public API Equivalence ${timestamp}`, ['View']);
+    const viewKey = await createApiKey(page, `Public API Permission ${timestamp}`, ['View']);
 
-    const internalCreate = await page.request.post('/api/pages', {
-      headers: { Authorization: `Bearer ${viewKey}` },
-      data: { path: `internal-denied-${timestamp}`, title: 'Denied', contentSource: 'Denied' },
-    });
     const publicCreate = await page.request.post('/api/v1/pages', {
       headers: { Authorization: `Bearer ${viewKey}` },
       data: { path: `public-denied-${timestamp}`, title: 'Denied', contentSource: 'Denied' },
     });
 
-    expect(internalCreate.status()).toBe(403);
     expect(publicCreate.status()).toBe(403);
   });
 });

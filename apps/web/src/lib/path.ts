@@ -30,10 +30,6 @@ export function getPropertiesHref(path: string): string {
   return `/properties/${encodePath(path)}`;
 }
 
-export function getApiPagePrefix(path: string): string {
-  return `/api/pages/${encodePath(path)}`;
-}
-
 export function getPublicApiPageUrl(id: string): string {
   return `/api/v1/pages/${encodeURIComponent(id)}`;
 }
@@ -60,22 +56,6 @@ export function getPublicApiPageRevisionUrl(pageId: string, version: number): st
 
 export function getPublicApiPagePublicationUrl(pageId: string, version: number): string {
   return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions/${version}/publication`;
-}
-
-export function getApiPageEditUrl(path: string): string {
-  return `/api/edit/${encodePath(path)}`;
-}
-
-export function getApiPageHistoryUrl(path: string): string {
-  return `/api/history/${encodePath(path)}`;
-}
-
-export function getApiPagePropertiesUrl(path: string): string {
-  return `/api/properties/${encodePath(path)}`;
-}
-
-export function getApiPageRevisionUrl(path: string, version: number): string {
-  return `/api/revisions/${version}/${encodePath(path)}`;
 }
 
 export function leafTitleFromPath(path: string): string {

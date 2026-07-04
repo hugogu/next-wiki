@@ -36,15 +36,17 @@ test.describe('Public Wiki Content API read workflow', () => {
     const editKey = await createApiKey(page, `Public API Edit ${timestamp}`, ['View', 'Create', 'Edit']);
     const readKey = await createApiKey(page, `Public API Read ${timestamp}`, ['View']);
 
-    const createResponse = await page.request.post('/api/pages', {
+    const createResponse = await page.request.post('/api/v1/pages?include=latestRevision', {
       headers: { Authorization: `Bearer ${editKey}` },
       data: { path, title: 'Public API Read', contentSource: '# Public API Read' },
     });
     expect(createResponse.status()).toBe(201);
+    const createdPage = await createResponse.json();
+    expect(createdPage.latestRevision?.version).toBe(1);
 
-    const publishResponse = await page.request.post('/api/revisions/publish', {
+    const publishResponse = await page.request.post(`/api/v1/pages/${createdPage.id}/revisions/1/publication`, {
       headers: { Authorization: `Bearer ${editKey}` },
-      data: { path, version: 1 },
+      data: {},
     });
     expect(publishResponse.status()).toBe(200);
 

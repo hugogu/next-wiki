@@ -110,7 +110,12 @@ test.describe('publish workflow', () => {
     await readerContext.close();
 
     // Clean up the test page so it does not pollute the environment.
-    const deleteResponse = await page.request.delete(`/api/pages/${path}`);
+    const lookupResponse = await page.request.get(`/api/v1/pages?path=${path}`);
+    expect(lookupResponse.ok()).toBe(true);
+    const lookupBody = await lookupResponse.json();
+    const pageId = lookupBody.items[0]?.id;
+    expect(pageId).toBeTruthy();
+    const deleteResponse = await page.request.delete(`/api/v1/pages/${pageId}`);
     expect(deleteResponse.ok()).toBe(true);
   });
 });

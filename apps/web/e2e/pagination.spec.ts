@@ -33,7 +33,7 @@ test.describe('unified pagination', () => {
 
     // Generate more than one page (pageSize is 20) of audited requests.
     for (let i = 0; i < 25; i += 1) {
-      await page.request.get('/api/pages', { headers: { Authorization: `Bearer ${key}` } });
+      await page.request.get('/api/v1/pages', { headers: { Authorization: `Bearer ${key}` } });
     }
 
     await page.goto('/admin/api-audit');
