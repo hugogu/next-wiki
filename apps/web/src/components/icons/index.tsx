@@ -448,3 +448,27 @@ export function SparklesIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function WrapTextIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <path d="M3 12h15a3 3 0 0 1 0 6h-4" />
+      <polyline points="10 16 6 18 10 20" />
+      <line x1="3" y1="18" x2="6" y2="18" />
+    </Icon>
+  );
+}
+
+export function ScrollSyncIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <line x1="3" y1="6" x2="10" y2="6" />
+      <line x1="14" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="18" x2="10" y2="18" />
+      <line x1="14" y1="18" x2="21" y2="18" />
+      <polyline points="9 9 12 6 15 9" />
+      <polyline points="9 15 12 18 15 15" />
+    </Icon>
+  );
+}
