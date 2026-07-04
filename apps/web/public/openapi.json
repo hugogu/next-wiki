@@ -709,7 +709,8 @@
             "enum": [
               "published",
               "draft",
-              "all"
+              "all",
+              "deleted"
             ],
             "default": "published",
             "description": "Filter pages by lifecycle state. Defaults to published."
@@ -5205,7 +5206,8 @@
               "enum": [
                 "published",
                 "draft",
-                "all"
+                "all",
+                "deleted"
               ],
               "default": "published",
               "description": "Filter pages by lifecycle state. Defaults to published."

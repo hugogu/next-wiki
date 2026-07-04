@@ -211,7 +211,7 @@ export const PublicPageResource = z
 export const PublicPageListQuery = z
   .object({
     status: z
-      .enum(['published', 'draft', 'all'])
+      .enum(['published', 'draft', 'all', 'deleted'])
       .optional()
       .default('published')
       .describe('Filter pages by lifecycle state. Defaults to published.'),
