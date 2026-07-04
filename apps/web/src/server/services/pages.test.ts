@@ -153,6 +153,23 @@ describe('pageService US3', () => {
         pageService.create(buildUserCtx(reader.id, 'reader'), { path: 'reader', title: 'T', contentSource: 'c' }),
       ).rejects.toThrow('permission');
     });
+
+    it('creates a page with empty content', async () => {
+      const editor = await createUser('editor-empty-content@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const result = await pageService.create(ctx, {
+        path: 'empty-content-test',
+        title: 'Empty Draft',
+        contentSource: '',
+      });
+
+      const revision = await db.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, result.versionId),
+      });
+      expect(revision?.contentSource).toBe('');
+      expect(revision?.status).toBe('draft');
+    });
   });
 
   describe('newDraft', () => {
