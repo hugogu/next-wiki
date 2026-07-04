@@ -44,11 +44,6 @@ Two problems fall out of this:
    drawer to a modal popup, consistently, everywhere it's used (both the
    new pre-creation flow and the existing mid-edit "toggle properties"
    affordance in `EditPageForm`).
-4. Delete `apps/web/app/api/pages/route.ts` (list/create), confirmed dead:
-   no caller anywhere in the frontend (`getApiPagePrefix()`, the only
-   helper that would target it, is itself unreferenced). Its sibling
-   `apps/web/app/api/pages/[...path]/route.ts` is **not** assumed dead and
-   must be checked independently before touching it.
 
 ## Non-goals
 
@@ -56,8 +51,22 @@ Two problems fall out of this:
 - No change to `EditPageForm`'s save mechanics (`PATCH .../pages/{id}` for
   properties, `POST .../pages/{id}/drafts` for content) — the new flow
   hands off to this unchanged machinery as soon as the page exists.
-- Not fixing/relaxing `createPageInputSchema` (the schema used by the dead
-  `/api/pages` route) — that route is being deleted, not repaired.
+- **`apps/web/app/api/pages/route.ts` (the "internal" list/create route,
+  distinct from the public `/api/v1/pages`) is left untouched.** It was
+  initially suspected to be dead code (no frontend helper targets it), but
+  is in fact live: at least six e2e specs
+  (`public-wiki-api-equivalence.spec.ts`, `public-wiki-api-read.spec.ts`,
+  `pagination.spec.ts`, `admin-audit.spec.ts`, `api-keys.spec.ts`) call it
+  directly via `page.request`, and
+  `apps/web/src/server/api/openapi-schemas.ts` re-exports
+  `createPageInputSchema` (the schema this route uses) into the OpenAPI
+  generation pipeline. `public-wiki-api-equivalence.spec.ts` specifically
+  exists to assert this route's permission behavior matches the public
+  API's — removing it would delete that safety net, not just a redundant
+  test. Whether the internal and public page-creation APIs should
+  eventually be consolidated into one is a real, separate architectural
+  question (touching audit logging, pagination, and API-key-scope tests
+  beyond this spec's scope) — tracked as a follow-up, not addressed here.
 
 ## Design
 
@@ -142,15 +151,6 @@ shape:
   its default (non-editor) chrome during this phase, since `editor` is
   `null` — confirmed this is exactly how `Header` already decides whether
   to show the save/close/properties buttons.
-
-### 4. Delete dead code
-
-Delete `apps/web/app/api/pages/route.ts`. Before deleting, grep the whole
-repo (not just `apps/web/src`) for any remaining reference to it or to
-`createPageInputSchema`/`newDraftInputSchema` it alone might use, and
-independently verify whether `apps/web/app/api/pages/[...path]/route.ts`
-is live (it is a different route and must not be assumed dead by
-association).
 
 ## Error handling & edge cases
 
