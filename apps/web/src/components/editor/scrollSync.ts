@@ -37,19 +37,20 @@ export function buildAnchors(root: HTMLElement): ScrollAnchor[] {
  */
 export function interpolateOffsetForLine(anchors: ScrollAnchor[], line: number): number {
   if (anchors.length === 0) return 0;
-  if (line <= anchors[0].line) return anchors[0].offsetTop;
-  const last = anchors[anchors.length - 1];
+  const first = anchors[0]!;
+  if (line <= first.line) return first.offsetTop;
+  const last = anchors[anchors.length - 1]!;
   if (line >= last.line) return last.offsetTop;
 
   let lo = 0;
   let hi = anchors.length - 1;
   while (hi - lo > 1) {
     const mid = (lo + hi) >> 1;
-    if (anchors[mid].line <= line) lo = mid;
+    if (anchors[mid]!.line <= line) lo = mid;
     else hi = mid;
   }
-  const a = anchors[lo];
-  const b = anchors[hi];
+  const a = anchors[lo]!;
+  const b = anchors[hi]!;
   const span = b.line - a.line || 1;
   return a.offsetTop + ((line - a.line) / span) * (b.offsetTop - a.offsetTop);
 }
@@ -61,19 +62,20 @@ export function interpolateOffsetForLine(anchors: ScrollAnchor[], line: number):
  */
 export function interpolateLineForOffset(anchors: ScrollAnchor[], offset: number): number {
   if (anchors.length === 0) return 1;
-  if (offset <= anchors[0].offsetTop) return anchors[0].line;
-  const last = anchors[anchors.length - 1];
+  const first = anchors[0]!;
+  if (offset <= first.offsetTop) return first.line;
+  const last = anchors[anchors.length - 1]!;
   if (offset >= last.offsetTop) return last.line;
 
   let lo = 0;
   let hi = anchors.length - 1;
   while (hi - lo > 1) {
     const mid = (lo + hi) >> 1;
-    if (anchors[mid].offsetTop <= offset) lo = mid;
+    if (anchors[mid]!.offsetTop <= offset) lo = mid;
     else hi = mid;
   }
-  const a = anchors[lo];
-  const b = anchors[hi];
+  const a = anchors[lo]!;
+  const b = anchors[hi]!;
   const span = b.offsetTop - a.offsetTop || 1;
   return a.line + ((offset - a.offsetTop) / span) * (b.line - a.line);
 }
