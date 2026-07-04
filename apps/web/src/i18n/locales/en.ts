@@ -189,6 +189,8 @@ export const en = {
   'editor.toolbar.undo': 'Undo',
   'editor.toolbar.redo': 'Redo',
   'editor.toolbar.image': 'Insert image',
+  'editor.toolbar.wrap': 'Toggle line wrap',
+  'editor.toolbar.scrollSync': 'Toggle scroll sync',
 
   'editor.image.uploading': 'Uploading image…',
   'editor.image.uploadFailed': 'Image upload failed',

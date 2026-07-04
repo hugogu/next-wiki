@@ -189,6 +189,8 @@ export const zh: Translations = {
   'editor.toolbar.undo': '撤销',
   'editor.toolbar.redo': '重做',
   'editor.toolbar.image': '插入图片',
+  'editor.toolbar.wrap': '切换自动换行',
+  'editor.toolbar.scrollSync': '切换滚动同步',
 
   'editor.image.uploading': '正在上传图片……',
   'editor.image.uploadFailed': '图片上传失败',
