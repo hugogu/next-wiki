@@ -2294,6 +2294,34 @@
         }
       }
     },
+    "/ai/sessions": {
+      "get": {
+        "operationId": "get-ai-sessions",
+        "summary": "List my AI chat sessions @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/actions/{id}": {
       "get": {
         "operationId": "get-ai-actions-{id}",
@@ -2447,6 +2475,75 @@
         "security": [
           {
             "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/sessions/{id}": {
+      "get": {
+        "operationId": "get-ai-sessions-{id}",
+        "summary": "Get one of my AI chat sessions @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-sessions-{id}",
+        "summary": "Permanently delete one of my AI chat sessions @tag AI @auth bearer @response 204",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "bearer @response 204": []
           }
         ],
         "responses": {
