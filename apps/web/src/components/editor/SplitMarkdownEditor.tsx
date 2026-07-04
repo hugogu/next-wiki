@@ -479,11 +479,13 @@ function ToolbarButton({
   label,
   children,
   disabled = false,
+  active,
 }: {
   onClick: () => void;
   label: string;
   children: React.ReactNode;
   disabled?: boolean;
+  active?: boolean;
 }) {
   return (
     <button
@@ -491,8 +493,11 @@ function ToolbarButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      aria-pressed={active}
       title={label}
-      className="inline-flex items-center justify-center w-8 h-8 rounded text-muted hover:text-foreground hover:bg-surface transition-colors disabled:opacity-50 disabled:pointer-events-none"
+      className={`inline-flex items-center justify-center w-8 h-8 rounded transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+        active ? 'bg-surface text-foreground' : 'text-muted hover:text-foreground hover:bg-surface'
+      }`}
     >
       {children}
     </button>
