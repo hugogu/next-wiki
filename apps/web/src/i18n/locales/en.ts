@@ -99,6 +99,7 @@ export const en = {
   'page.create.error.pathExists': 'A page with this path already exists.',
   'page.create.error.forbidden': 'You do not have permission to create pages.',
   'page.create.error.generic': 'Failed to create page.',
+  'page.create.submit': 'Create',
 
   // Page edit
   'page.edit.metadataTitle': 'Edit {{path}}',

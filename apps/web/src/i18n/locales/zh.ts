@@ -99,6 +99,7 @@ export const zh: Translations = {
   'page.create.error.pathExists': '该路径的页面已存在。',
   'page.create.error.forbidden': '你没有权限创建页面。',
   'page.create.error.generic': '创建页面失败。',
+  'page.create.submit': '创建',
 
   // Page edit
   'page.edit.metadataTitle': '编辑 {{path}}',
