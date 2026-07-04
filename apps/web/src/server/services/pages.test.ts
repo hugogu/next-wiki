@@ -76,7 +76,7 @@ describe('pageService US3', () => {
       expect(page?.latestVersionId).toBe(result.versionId);
       expect(revision?.versionNumber).toBe(1);
       expect(revision?.status).toBe('draft');
-      expect(revision?.contentHtml).toContain('<h1>Hello</h1>');
+      expect(revision?.contentHtml).toContain('<h1 data-line="1">Hello</h1>');
       expect(revision?.contentHash).toBeTruthy();
     });
 
@@ -225,7 +225,7 @@ describe('pageService US3', () => {
 
       const rev = await pageService.getRevision(ctx, 'rev-test', 1);
       expect(rev?.contentSource).toBe('# One');
-      expect(rev?.contentHtml).toContain('<h1>One</h1>');
+      expect(rev?.contentHtml).toContain('<h1 data-line="1">One</h1>');
     });
   });
 

@@ -16,6 +16,7 @@ const sanitizeSchema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
+    '*': [...(defaultSchema.attributes?.['*'] ?? []), 'data-line'],
     div: [...(defaultSchema.attributes?.div ?? []), 'className', 'data-code-block', 'data-mermaid-block'],
     span: [...(defaultSchema.attributes?.span ?? []), 'className'],
     button: [...(defaultSchema.attributes?.button ?? []), 'className'],
@@ -24,6 +25,28 @@ const sanitizeSchema = {
 
 function isElement(node: unknown): node is Element {
   return typeof node === 'object' && node !== null && (node as Element).type === 'element';
+}
+
+const LINE_ANCHOR_TAGS = new Set([
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'p', 'li', 'blockquote', 'pre', 'tr', 'hr', 'table',
+]);
+
+/**
+ * Stamp block-level elements with the 1-indexed source line they came from,
+ * so the editor's split-pane preview can scroll-sync by content position
+ * instead of raw scroll percentage. Must run before `wrapCodeBlocks` (which
+ * rebuilds the parent chain around `<pre>`, but shallow-copies its
+ * `properties` onto the nested node, so an attribute set here survives) and
+ * before `rehypeSanitize` (which strips unlisted attributes).
+ */
+function addLineAnchors(tree: Root) {
+  visit(tree, 'element', (node) => {
+    if (!isElement(node) || !LINE_ANCHOR_TAGS.has(node.tagName)) return;
+    const line = node.position?.start.line;
+    if (line === undefined) return;
+    node.properties = { ...node.properties, 'data-line': line };
+  });
 }
 
 /**
@@ -96,6 +119,7 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(remarkMath)
     .use(remarkGfm)
     .use(remarkRehype)
+    .use(() => addLineAnchors)
     .use(rehypeSanitize, sanitizeSchema)
     .use(() => setImageLoading)
     // Render imported/third-party math best-effort without flooding logs with

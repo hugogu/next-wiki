@@ -4,8 +4,8 @@ import { renderMarkdown } from '@/server/pipeline';
 describe('renderMarkdown', () => {
   it('renders headings and paragraphs', () => {
     const { html, hash } = renderMarkdown('# Hello\n\nWorld');
-    expect(html).toContain('<h1>Hello</h1>');
-    expect(html).toContain('<p>World</p>');
+    expect(html).toContain('<h1 data-line="1">Hello</h1>');
+    expect(html).toContain('<p data-line="3">World</p>');
     expect(hash).toHaveLength(64);
   });
 
@@ -16,7 +16,7 @@ describe('renderMarkdown', () => {
 
   it('renders tables from GFM', () => {
     const { html } = renderMarkdown('| A | B |\n|---|---|\n| 1 | 2 |');
-    expect(html).toContain('<table>');
+    expect(html).toContain('<table data-line="1">');
     expect(html).toContain('<th>A</th>');
     expect(html).toContain('<td>2</td>');
   });
@@ -58,5 +58,25 @@ $$`;
     expect(html).toContain('<pre class="mermaid">');
     expect(html).toContain('graph TD;');
     expect(html).not.toContain('language-mermaid');
+  });
+
+  it('marks block-level elements with their 1-indexed source line', () => {
+    const { html } = renderMarkdown('# Title\n\nSome text\n\n- item one\n- item two');
+    expect(html).toContain('<h1 data-line="1">Title</h1>');
+    expect(html).toContain('<p data-line="3">Some text</p>');
+    expect(html).toContain('<li data-line="5">item one</li>');
+    expect(html).toContain('<li data-line="6">item two</li>');
+  });
+
+  it('keeps a data-line attribute on the wrapped <pre> for code blocks', () => {
+    const { html } = renderMarkdown('```js\nconst x = 1;\n```');
+    expect(html).toContain('<div data-code-block="">');
+    expect(html).toMatch(/<pre[^>]*\bdata-line="1"[^>]*>/);
+  });
+
+  it('marks table rows with their source line', () => {
+    const { html } = renderMarkdown('| A | B |\n|---|---|\n| 1 | 2 |');
+    expect(html).toMatch(/<tr[^>]*\bdata-line="1"[^>]*>/); // header row
+    expect(html).toMatch(/<tr[^>]*\bdata-line="3"[^>]*>/); // data row
   });
 });
