@@ -54,10 +54,12 @@ Two problems fall out of this:
 - **`apps/web/app/api/pages/route.ts` (the "internal" list/create route,
   distinct from the public `/api/v1/pages`) is left untouched.** It was
   initially suspected to be dead code (no frontend helper targets it), but
-  is in fact live: at least six e2e specs
-  (`public-wiki-api-equivalence.spec.ts`, `public-wiki-api-read.spec.ts`,
-  `pagination.spec.ts`, `admin-audit.spec.ts`, `api-keys.spec.ts`) call it
-  directly via `page.request`, and
+  is in fact live: `public-wiki-api-equivalence.spec.ts`,
+  `public-wiki-api-read.spec.ts`, `pagination.spec.ts`,
+  `admin-audit.spec.ts`, and `api-keys.spec.ts` all call it directly via
+  `page.request` (`flows.spec.ts` separately calls `DELETE
+  /api/pages/{path}`, which is the *sibling* `[...path]/route.ts` file,
+  not this one — also left untouched, and also not assumed dead), and
   `apps/web/src/server/api/openapi-schemas.ts` re-exports
   `createPageInputSchema` (the schema this route uses) into the OpenAPI
   generation pipeline. `public-wiki-api-equivalence.spec.ts` specifically
@@ -194,4 +196,11 @@ shape:
   test currently assume `/new` is a single-step form (properties +
   content + save all in one). These must be rewritten for the two-phase
   flow: fill the new-page dialog and submit (creates + redirects), *then*
-  type content and save on the resulting edit page.
+  type content and save on the resulting edit page. The "role change is
+  effective mid-session without re-login" test
+  (`flows.spec.ts:110-133`) also visits `/new` after a role promotion and
+  asserts a `Save` button and `.cm-content` become visible
+  (`flows.spec.ts:128-130`) — under the new flow neither exists on `/new`
+  at all (no editor is mounted there anymore), so this assertion must be
+  replaced with a check that the new-page dialog (e.g. its title input)
+  becomes visible instead, to confirm access was granted.
