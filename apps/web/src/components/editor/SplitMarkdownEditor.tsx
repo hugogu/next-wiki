@@ -23,6 +23,7 @@ import {
   UndoIcon,
   RedoIcon,
   WrapTextIcon,
+  ScrollSyncIcon,
 } from '@/components/icons';
 import { useAiAvailability } from '@/components/ai/AiAvailabilityContext';
 import {
@@ -32,12 +33,14 @@ import {
   type EditorSelectionSnapshot,
 } from './AiTextOptimizationDialog';
 import { AiImageGenerationDialog } from './AiImageGenerationDialog';
+import { buildAnchors, interpolateOffsetForLine, interpolateLineForOffset, type ScrollAnchor } from './scrollSync';
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
 const wrapCompartment = new Compartment();
 
 const WRAP_STORAGE_KEY = 'next-wiki:editor:wrap';
+const SCROLL_SYNC_STORAGE_KEY = 'next-wiki:editor:scrollSync';
 
 function readBooleanPreference(key: string, fallback: boolean): boolean {
   if (typeof window === 'undefined') return fallback;
@@ -171,9 +174,14 @@ export function SplitMarkdownEditor({
   const disabledRef = useRef(disabled);
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const anchorsRef = useRef<ScrollAnchor[]>([]);
+  const isSyncingRef = useRef(false);
   const [html, setHtml] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [wrapEnabled, setWrapEnabled] = useState(() => readBooleanPreference(WRAP_STORAGE_KEY, true));
+  // Default to `true` for both on the very first render (server and client
+  // alike) so hydration has nothing to diff; the actual persisted value (if
+  // different) is applied in an effect below, after mount.
+  const [wrapEnabled, setWrapEnabled] = useState(true);
+  const [scrollSyncEnabled, setScrollSyncEnabled] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [optimizationSelection, setOptimizationSelection] = useState<EditorSelectionSnapshot | null>(null);
@@ -305,6 +313,23 @@ export function SplitMarkdownEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reconcile the wrap/scroll-sync toggles with their persisted values after
+  // mount (client-only). Both start at their SSR-safe default (`true`) on
+  // first render so hydration has nothing to diff against; if the stored
+  // preference differs, this applies it once, here.
+  useEffect(() => {
+    const storedWrap = readBooleanPreference(WRAP_STORAGE_KEY, true);
+    if (!storedWrap) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWrapEnabled(false);
+      viewRef.current?.dispatch({ effects: wrapCompartment.reconfigure([]) });
+    }
+    const storedScrollSync = readBooleanPreference(SCROLL_SYNC_STORAGE_KEY, true);
+    if (!storedScrollSync) {
+      setScrollSyncEnabled(false);
+    }
+  }, []);
+
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
@@ -315,23 +340,94 @@ export function SplitMarkdownEditor({
     });
   }, [value]);
 
-  const handleScroll = useCallback(() => {
-    const source = viewRef.current?.scrollDOM;
+  const rebuildAnchors = useCallback(() => {
     const preview = previewRef.current;
-    if (!source || !preview || syncing) return;
+    if (!preview) return;
+    anchorsRef.current = buildAnchors(preview);
+  }, []);
 
-    const ratio = source.scrollTop / (source.scrollHeight - source.clientHeight || 1);
-    setSyncing(true);
-    preview.scrollTop = ratio * (preview.scrollHeight - preview.clientHeight);
-    setTimeout(() => setSyncing(false), 50);
-  }, [syncing]);
+  useEffect(() => {
+    rebuildAnchors();
+  }, [html, rebuildAnchors]);
+
+  useEffect(() => {
+    // Catches async height changes after the initial render (Mermaid
+    // diagrams resolve their dynamic `import('mermaid')` after mount and
+    // change DOM height; late-loading images do too), in addition to the
+    // html-triggered rebuild above.
+    const target = previewRef.current?.firstElementChild;
+    if (!target) return;
+    const observer = new ResizeObserver(() => rebuildAnchors());
+    observer.observe(target);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleEditorScroll = useCallback(() => {
+    if (isSyncingRef.current || !scrollSyncEnabled) return;
+    const view = viewRef.current;
+    const preview = previewRef.current;
+    if (!view || !preview) return;
+
+    const scrollDOM = view.scrollDOM;
+    const anchors = anchorsRef.current;
+    let targetOffset: number;
+
+    if (anchors.length > 0) {
+      const block = view.lineBlockAtHeight(scrollDOM.scrollTop);
+      const fraction = block.height > 0 ? (scrollDOM.scrollTop - block.top) / block.height : 0;
+      const line = view.state.doc.lineAt(block.from).number + fraction;
+      targetOffset = interpolateOffsetForLine(anchors, line);
+    } else {
+      const ratio = scrollDOM.scrollTop / (scrollDOM.scrollHeight - scrollDOM.clientHeight || 1);
+      targetOffset = ratio * (preview.scrollHeight - preview.clientHeight);
+    }
+
+    isSyncingRef.current = true;
+    preview.scrollTop = Math.max(0, Math.min(targetOffset, preview.scrollHeight - preview.clientHeight));
+    requestAnimationFrame(() => {
+      isSyncingRef.current = false;
+    });
+  }, [scrollSyncEnabled]);
+
+  const handlePreviewScroll = useCallback(() => {
+    if (isSyncingRef.current || !scrollSyncEnabled) return;
+    const view = viewRef.current;
+    const preview = previewRef.current;
+    if (!view || !preview) return;
+
+    const scrollDOM = view.scrollDOM;
+    const anchors = anchorsRef.current;
+    let targetScrollTop: number;
+
+    if (anchors.length > 0) {
+      const line = interpolateLineForOffset(anchors, preview.scrollTop);
+      const lineNumber = Math.min(Math.max(Math.floor(line), 1), view.state.doc.lines);
+      const block = view.lineBlockAt(view.state.doc.line(lineNumber).from);
+      targetScrollTop = block.top + (line - lineNumber) * block.height;
+    } else {
+      const ratio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight || 1);
+      targetScrollTop = ratio * (scrollDOM.scrollHeight - scrollDOM.clientHeight);
+    }
+
+    isSyncingRef.current = true;
+    scrollDOM.scrollTop = Math.max(0, Math.min(targetScrollTop, scrollDOM.scrollHeight - scrollDOM.clientHeight));
+    requestAnimationFrame(() => {
+      isSyncingRef.current = false;
+    });
+  }, [scrollSyncEnabled]);
 
   useEffect(() => {
     const scrollDOM = viewRef.current?.scrollDOM;
-    if (!scrollDOM) return;
-    scrollDOM.addEventListener('scroll', handleScroll);
-    return () => scrollDOM.removeEventListener('scroll', handleScroll);
-  }, [handleScroll]);
+    const preview = previewRef.current;
+    if (!scrollDOM || !preview) return;
+    scrollDOM.addEventListener('scroll', handleEditorScroll);
+    preview.addEventListener('scroll', handlePreviewScroll);
+    return () => {
+      scrollDOM.removeEventListener('scroll', handleEditorScroll);
+      preview.removeEventListener('scroll', handlePreviewScroll);
+    };
+  }, [handleEditorScroll, handlePreviewScroll]);
 
   const apply = useCallback((before: string, after: string = '', block = false) => {
     const view = viewRef.current;
@@ -364,6 +460,14 @@ export function SplitMarkdownEditor({
       viewRef.current?.dispatch({
         effects: wrapCompartment.reconfigure(next ? EditorView.lineWrapping : []),
       });
+      return next;
+    });
+  }, []);
+
+  const toggleScrollSync = useCallback(() => {
+    setScrollSyncEnabled((prev) => {
+      const next = !prev;
+      writeBooleanPreference(SCROLL_SYNC_STORAGE_KEY, next);
       return next;
     });
   }, []);
@@ -443,6 +547,13 @@ export function SplitMarkdownEditor({
         <ToolbarButton onClick={toggleWrap} label={t('editor.toolbar.wrap')} active={wrapEnabled}>
           <WrapTextIcon />
         </ToolbarButton>
+        <ToolbarButton
+          onClick={toggleScrollSync}
+          label={t('editor.toolbar.scrollSync')}
+          active={scrollSyncEnabled}
+        >
+          <ScrollSyncIcon />
+        </ToolbarButton>
         {uploading && (
           <span className="ml-xs text-xs text-muted" role="status">
             {t('editor.image.uploading')}
@@ -466,6 +577,7 @@ export function SplitMarkdownEditor({
         />
         <div
           ref={previewRef}
+          data-testid="editor-preview-pane"
           className="w-1/2 h-full overflow-auto p-md bg-background"
         >
           <ContentRenderer html={html} />
