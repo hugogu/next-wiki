@@ -22,6 +22,7 @@ import {
   ImageIcon,
   UndoIcon,
   RedoIcon,
+  WrapTextIcon,
 } from '@/components/icons';
 import { useAiAvailability } from '@/components/ai/AiAvailabilityContext';
 import {
@@ -34,6 +35,20 @@ import { AiImageGenerationDialog } from './AiImageGenerationDialog';
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
+const wrapCompartment = new Compartment();
+
+const WRAP_STORAGE_KEY = 'next-wiki:editor:wrap';
+
+function readBooleanPreference(key: string, fallback: boolean): boolean {
+  if (typeof window === 'undefined') return fallback;
+  const stored = window.localStorage.getItem(key);
+  return stored === null ? fallback : stored === 'true';
+}
+
+function writeBooleanPreference(key: string, value: boolean) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(key, String(value));
+}
 
 function codeMirrorTheme() {
   return EditorView.theme(
@@ -158,6 +173,7 @@ export function SplitMarkdownEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [html, setHtml] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [wrapEnabled, setWrapEnabled] = useState(() => readBooleanPreference(WRAP_STORAGE_KEY, true));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [optimizationSelection, setOptimizationSelection] = useState<EditorSelectionSnapshot | null>(null);
@@ -243,6 +259,7 @@ export function SplitMarkdownEditor({
           }),
           editableCompartment.of(EditorView.editable.of(!disabledRef.current)),
           themeCompartment.of(codeMirrorTheme()),
+          wrapCompartment.of(wrapEnabled ? EditorView.lineWrapping : []),
         ],
       }),
       parent: containerRef.current,
@@ -340,6 +357,17 @@ export function SplitMarkdownEditor({
     view.focus();
   }, []);
 
+  const toggleWrap = useCallback(() => {
+    setWrapEnabled((prev) => {
+      const next = !prev;
+      writeBooleanPreference(WRAP_STORAGE_KEY, next);
+      viewRef.current?.dispatch({
+        effects: wrapCompartment.reconfigure(next ? EditorView.lineWrapping : []),
+      });
+      return next;
+    });
+  }, []);
+
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className}`}>
       <div className="flex items-center gap-xs px-md py-sm border-b border-border bg-surface-elevated">
@@ -410,6 +438,10 @@ export function SplitMarkdownEditor({
         </ToolbarButton>
         <ToolbarButton onClick={handleRedo} label={t('editor.toolbar.redo')}>
           <RedoIcon />
+        </ToolbarButton>
+        <div className="w-px h-5 bg-border mx-xs" />
+        <ToolbarButton onClick={toggleWrap} label={t('editor.toolbar.wrap')} active={wrapEnabled}>
+          <WrapTextIcon />
         </ToolbarButton>
         {uploading && (
           <span className="ml-xs text-xs text-muted" role="status">
