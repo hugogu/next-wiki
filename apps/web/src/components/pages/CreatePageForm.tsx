@@ -118,6 +118,7 @@ export function CreatePageForm() {
             path={path}
             onPathChange={(v) => setValue('path', v, { shouldValidate: true })}
             pathError={errors.path?.message}
+            onClose={toggleProperties}
           />
         )}
       </div>

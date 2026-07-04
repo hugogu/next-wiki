@@ -149,6 +149,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
             path={newPath}
             onPathChange={setNewPath}
             pathError={newPath !== path && !updatePagePropertiesSchema.safeParse({ path: newPath }).success ? t('page.edit.validation.invalidPath') : undefined}
+            onClose={toggleProperties}
           />
         )}
       </div>
