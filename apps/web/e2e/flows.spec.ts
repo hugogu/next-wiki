@@ -23,22 +23,34 @@ function fillEditor(page: Page, content: string) {
   return page.locator('.cm-content').fill(content);
 }
 
-async function openProperties(page: Page) {
-  await page.getByRole('button', { name: 'Page properties' }).click();
+async function createPage(page: Page, path: string, title: string) {
+  await page.goto('/new');
+  await page.getByLabel('Title').fill(title);
+  await page.getByLabel('Path').fill(path);
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.waitForURL(`/edit/${path}`);
 }
 
-async function fillProperties(page: Page, path: string, title: string) {
-  await openProperties(page);
-  await page.getByLabel('Path').fill(path);
-  await page.getByLabel('Title').fill(title);
+async function changeRole(page: Page, email: string, role: 'reader' | 'editor' | 'admin') {
+  const select = page.getByRole('combobox', { name: new RegExp(`Change role for ${email}`) });
+  await Promise.all([
+    page.waitForResponse((response) =>
+      response.url().includes('/api/users/') &&
+      response.url().endsWith('/role') &&
+      response.request().method() === 'POST' &&
+      response.ok(),
+    ),
+    select.selectOption(role),
+  ]);
 }
 
 async function savePage(page: Page) {
   await page.getByRole('button', { name: 'Save' }).click();
 }
 
-async function publishPage(page: Page) {
-  await page.getByRole('button', { name: 'Publish' }).click();
+async function publishPage(page: Page, path: string) {
+  await page.getByRole('button', { name: /publish this revision/i }).first().click();
+  await page.waitForURL(`/${path}`);
 }
 
 test.describe('access control flows', () => {
@@ -66,16 +78,13 @@ test.describe('publish workflow', () => {
     await registerReader(page, editorEmail);
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
-    await page
-      .getByRole('combobox', { name: new RegExp(`Change role for ${editorEmail}`) })
-      .selectOption('editor');
+    await changeRole(page, editorEmail, 'editor');
 
     await login(page, editorEmail, 'Password123!');
-    await page.goto('/new');
-    await fillProperties(page, path, 'Publish Flow Test');
+    await createPage(page, path, 'Publish Flow Test');
     await fillEditor(page, 'draft content');
     await savePage(page);
-    await page.waitForURL(`/${path}`);
+    await page.waitForURL(`/history/${path}`);
 
     const readerContext = await browser.newContext();
     const readerPage = await readerContext.newPage();
@@ -83,7 +92,7 @@ test.describe('publish workflow', () => {
     await readerPage.goto(`/${path}`);
     await expect(readerPage.locator('h1:has-text("404")')).toBeVisible();
 
-    await publishPage(page);
+    await publishPage(page, path);
     await expect(page.locator('text=This page is a draft')).not.toBeVisible();
 
     await readerPage.reload();
@@ -120,14 +129,10 @@ test.describe('admin role change', () => {
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
-    const select = page.getByRole('combobox', { name: new RegExp(`Change role for ${targetEmail}`) });
-    await select.selectOption('editor');
-
-    await page.waitForTimeout(2000);
+    await changeRole(page, targetEmail, 'editor');
 
     await targetPage.goto('/new');
-    await expect(targetPage.getByRole('button', { name: 'Save' })).toBeVisible();
-    await expect(targetPage.locator('.cm-content')).toBeVisible();
+    await expect(targetPage.getByLabel('Title')).toBeVisible();
 
     await targetContext.close();
   });

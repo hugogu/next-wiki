@@ -11,6 +11,18 @@ async function login(page: Page, email: string, password: string) {
   await page.waitForURL('/');
 }
 
+let pageCounter = 0;
+
+async function createPage(page: Page, title: string): Promise<string> {
+  const path = `editor-toolbar-${Date.now()}-${pageCounter++}`;
+  await page.goto('/new');
+  await page.getByLabel('Title').fill(title);
+  await page.getByLabel('Path').fill(path);
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.waitForURL(`/edit/${path}`);
+  return path;
+}
+
 function longMarkdown(paragraphs: number) {
   return Array.from({ length: paragraphs }, (_, i) => `## Section ${i}\n\nParagraph content for section ${i}.`).join(
     '\n\n',
@@ -33,7 +45,7 @@ async function waitForBothPanesScrollable(page: Page) {
 test.describe('editor toolbar toggles', () => {
   test('wrap toggle flips state and persists across reload', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/new');
+    await createPage(page, 'Editor Toolbar Test');
 
     const wrapButton = page.getByRole('button', { name: 'Toggle line wrap' });
     await expect(wrapButton).toHaveAttribute('aria-pressed', 'true');
@@ -50,7 +62,7 @@ test.describe('editor toolbar toggles', () => {
 
   test('scroll sync toggle disables and re-enables cross-pane scrolling', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/new');
+    await createPage(page, 'Editor Toolbar Test');
     await page.locator('.cm-content').fill(longMarkdown(150));
 
     const editorScroller = page.locator('.cm-scroller');
@@ -82,7 +94,7 @@ test.describe('editor toolbar toggles', () => {
 
   test('scrolling the editor moves the preview to a roughly matching position', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/new');
+    await createPage(page, 'Editor Toolbar Test');
     await page.locator('.cm-content').fill(longMarkdown(150));
 
     const editorScroller = page.locator('.cm-scroller');

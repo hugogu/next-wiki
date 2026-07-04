@@ -24,6 +24,14 @@ async function uploadViaToolbar(page: Page) {
   await fileChooser.setFiles({ name: 'pixel.png', mimeType: 'image/png', buffer: PNG_BUFFER });
 }
 
+async function createPage(page: Page, path: string, title: string) {
+  await page.goto('/new');
+  await page.getByLabel('Title').fill(title);
+  await page.getByLabel('Path').fill(path);
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.waitForURL(`/edit/${path}`);
+}
+
 test.describe('in-editor images', () => {
   test('uploads via the toolbar, renders in preview, and persists after publish', async ({
     page,
@@ -31,26 +39,23 @@ test.describe('in-editor images', () => {
     const path = `image-flow-${Date.now()}`;
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    await page.goto('/new');
-    await page.getByRole('button', { name: 'Page properties' }).click();
-    await page.getByLabel('Path').fill(path);
-    await page.getByLabel('Title').fill('Image Flow');
-    // Close properties dialog if it is modal; fall back to pressing Escape.
-    await page.keyboard.press('Escape').catch(() => undefined);
+    await createPage(page, path, 'Image Flow');
 
     await page.locator('.cm-content').click();
     await uploadViaToolbar(page);
 
     // The asset reference is inserted at the cursor and rendered in the preview.
-    await expect(page.locator('.cm-content')).toContainText('/api/assets/', { timeout: 15_000 });
-    await expect(page.locator('img[src*="/api/assets/"]')).toBeVisible();
+    await expect(page.locator('.cm-content')).toContainText('/api/v1/assets/', { timeout: 15_000 });
+    await expect(page.locator('img[src*="/api/v1/assets/"]')).toBeVisible();
 
     await page.getByRole('button', { name: 'Save' }).click();
-    await page.getByRole('button', { name: 'Publish' }).click();
+    await page.waitForURL(`/history/${path}`);
+    await page.getByRole('button', { name: /publish this revision/i }).first().click();
+    await page.waitForURL(`/${path}`);
 
     // Reload the published page and confirm the image still resolves.
-    await page.goto(`/${path}`);
-    const img = page.locator('img[src*="/api/assets/"]').first();
+    await page.reload();
+    const img = page.locator('img[src*="/api/v1/assets/"]').first();
     await expect(img).toBeVisible();
   });
 
