@@ -216,10 +216,18 @@ when sync is off. Default on.
   `interpolateLineForOffset`: empty table, single-anchor table, target
   before first anchor, target after last anchor, exact anchor match,
   interpolation between two anchors.
-- **Component/e2e** (if Playwright coverage exists for the editor):
+- **E2e** (Playwright, `apps/web/e2e/`): confirmed the suite exists
+  (`pnpm test:e2e`) with an established pattern in `flows.spec.ts` —
+  `login`/`registerReader` helpers, `.cm-content` locator to fill the
+  editor, `page.getByRole('button', { name: ... })` for toolbar actions
+  (accessible name comes from `ToolbarButton`'s `aria-label`, so the new
+  wrap/scroll-sync buttons are addressable the same way). Add a new
+  `apps/web/e2e/editor-toolbar.spec.ts` following that pattern, covering:
   wrap toggle changes wrapping and survives reload; scroll-sync toggle
   disables/re-enables cross-pane scrolling; smoke test that scrolling one
   pane moves the other pane's ratio into a sane range (not pixel-exact,
   to avoid a brittle test).
-- `SplitMarkdownEditor` currently has no dedicated test file; this work
-  adds a first one covering the above component-level behavior.
+- `SplitMarkdownEditor` currently has no dedicated component test file;
+  this work adds a first one (Vitest + Testing Library, colocated as
+  `SplitMarkdownEditor.test.tsx`) covering the pure interpolation helpers'
+  integration and the toggle buttons' active-state rendering.
