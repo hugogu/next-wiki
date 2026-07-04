@@ -269,25 +269,6 @@
         ],
         "description": "Simple OK response"
       },
-      "pagePathParamSchema": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ],
-        "description": "Page path parameter"
-      },
-      "pageSummaryListSchema": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/pageSummarySchema"
-        },
-        "description": "List of published page summaries"
-      },
       "paramsSchema": {
         "type": "object",
         "properties": {
@@ -1712,29 +1693,6 @@
           "userId"
         ],
         "description": "Registration response"
-      },
-      "revisionPathParamSchema": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "n": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "n"
-        ],
-        "description": "Revision path and version parameters"
-      },
-      "revisionSummaryListSchema": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/revisionSummarySchema"
-        },
-        "description": "List of revision summaries"
       },
       "SetMyPasswordInput": {},
       "SetupInput": {
@@ -5236,73 +5194,6 @@
         }
       }
     },
-    "/edit/{path}": {
-      "get": {
-        "operationId": "get-edit-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Edit"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
-      },
-      "post": {
-        "operationId": "post-edit-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Edit"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/history/{path}": {
-      "get": {
-        "operationId": "get-history-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "History"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
-      }
-    },
     "/openapi.json": {
       "get": {
         "operationId": "get-openapi.json",
@@ -5793,29 +5684,6 @@
         }
       }
     },
-    "/properties/{path}": {
-      "patch": {
-        "operationId": "patch-properties-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Properties"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
-      }
-    },
     "/public-openapi.json": {
       "get": {
         "operationId": "get-public-openapi.json",
@@ -5837,51 +5705,6 @@
             }
           }
         }
-      }
-    },
-    "/revisions/publish": {
-      "post": {
-        "operationId": "post-revisions-publish",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Revisions"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/revisions/{n}/{path}": {
-      "get": {
-        "operationId": "get-revisions-{n}-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Revisions"
-        ],
-        "parameters": [
-          {
-            "name": "n",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: n"
-          },
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
       }
     },
     "/v1/pages/{id}/revisions": {
@@ -7187,12 +7010,6 @@
       "name": "Auth"
     },
     {
-      "name": "Edit"
-    },
-    {
-      "name": "History"
-    },
-    {
       "name": "Openapi.json"
     },
     {
@@ -7200,9 +7017,6 @@
     },
     {
       "name": "Preview"
-    },
-    {
-      "name": "Properties"
     },
     {
       "name": "Public-openapi.json"

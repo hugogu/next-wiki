@@ -21,34 +21,11 @@ export const pathSchema = z
     message: 'Path cannot contain consecutive slashes',
   });
 
-export const createPageInputSchema = z.object({
-  path: pathSchema,
-  title: z.string().min(1).max(200),
-  contentSource: z.string().min(1),
-});
-export type CreatePageInput = z.infer<typeof createPageInputSchema>;
-
-export const newDraftInputSchema = z.object({
-  path: pathSchema,
-  title: z.string().min(1).max(200),
-  contentSource: z.string().min(1),
-});
-export type NewDraftInput = z.infer<typeof newDraftInputSchema>;
-
 export const newDraftBodySchema = z.object({
   title: z.string().min(1).max(200),
   contentSource: z.string().min(1),
 });
 export type NewDraftBody = z.infer<typeof newDraftBodySchema>;
-
-export const pagePathInputSchema = z.object({
-  path: z.string(),
-});
-
-export const revisionInputSchema = z.object({
-  path: z.string(),
-  version: z.number().int().min(1),
-});
 
 export const updatePagePropertiesSchema = z.object({
   path: pathSchema,
