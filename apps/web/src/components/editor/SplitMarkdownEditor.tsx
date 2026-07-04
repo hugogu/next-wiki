@@ -536,6 +536,11 @@ export function SplitMarkdownEditor({
             void uploadFiles(files);
           }}
         />
+        {uploading && (
+          <span className="ml-xs text-xs text-muted" role="status">
+            {t('editor.image.uploading')}
+          </span>
+        )}
         <div className="w-px h-5 bg-border mx-xs" />
         <ToolbarButton onClick={handleUndo} label={t('editor.toolbar.undo')}>
           <UndoIcon />
@@ -543,7 +548,7 @@ export function SplitMarkdownEditor({
         <ToolbarButton onClick={handleRedo} label={t('editor.toolbar.redo')}>
           <RedoIcon />
         </ToolbarButton>
-        <div className="w-px h-5 bg-border mx-xs" />
+        <div className="w-px h-5 bg-border mx-xs ml-auto" />
         <ToolbarButton onClick={toggleWrap} label={t('editor.toolbar.wrap')} active={wrapEnabled}>
           <WrapTextIcon />
         </ToolbarButton>
@@ -554,11 +559,6 @@ export function SplitMarkdownEditor({
         >
           <ScrollSyncIcon />
         </ToolbarButton>
-        {uploading && (
-          <span className="ml-xs text-xs text-muted" role="status">
-            {t('editor.image.uploading')}
-          </span>
-        )}
       </div>
 
       {uploadError && (
