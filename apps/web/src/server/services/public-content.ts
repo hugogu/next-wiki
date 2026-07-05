@@ -24,6 +24,7 @@ import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagina
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
+import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
@@ -109,6 +110,7 @@ function minimalDeletedPageResource(space: { slug: string }, page: PageRow): Pub
     title: page.title,
     status: 'deleted',
     author: { id: null, displayName: null },
+    frontmatter: null,
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString(),
     links: links(page),
@@ -192,12 +194,16 @@ async function visiblePageResource(
   const wantsLatest = options.include.includes('latestRevision');
   const wantsPublished = options.include.includes('publishedRevision');
 
-  const [contentSource, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
-    options.includeContent ? readMarkdownFromDatabase(current) : Promise.resolve(undefined),
+  // Content is always read server-side so `frontmatter` (FR-011) can be
+  // derived on every response; `options.includeContent` only controls
+  // whether the raw Markdown is included in the returned shape.
+  const [content, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
+    readMarkdownFromDatabase(current),
     author(page.authorId),
     wantsLatest ? revisionSummary(ctx, page, visibleLatest) : Promise.resolve(undefined),
     wantsPublished ? revisionSummary(ctx, page, published) : Promise.resolve(undefined),
   ]);
+  const { frontmatter } = parsePageFrontmatter(content ?? '');
 
   return {
     id: page.id,
@@ -205,7 +211,8 @@ async function visiblePageResource(
     path: page.path,
     locale: page.locale,
     title: page.title,
-    contentSource,
+    contentSource: options.includeContent ? content : undefined,
+    frontmatter,
     status: published ? 'published' : 'draft',
     author: pageAuthor,
     latestRevision,
@@ -259,11 +266,51 @@ async function visibleRevisionResource(
   if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, { isAuthor })) {
     return null;
   }
-  const [summary, contentSource] = await Promise.all([
+  const [summary, content] = await Promise.all([
     revisionSummary(ctx, page, revision),
-    options.includeContent ? readMarkdownFromDatabase(revision) : Promise.resolve(undefined),
+    readMarkdownFromDatabase(revision),
   ]);
-  return { ...summary!, contentSource };
+  const { frontmatter } = parsePageFrontmatter(content ?? '');
+  return { ...summary!, contentSource: options.includeContent ? content : undefined, frontmatter };
+}
+
+type FrontmatterFilters = {
+  tag?: string[];
+  status?: string[];
+  owner?: string[];
+  hasFrontmatter?: boolean;
+};
+
+function frontmatterFieldMatches(value: unknown, filterValues: string[]): boolean {
+  if (value === undefined || value === null) return false;
+  const values = Array.isArray(value) ? value : [value];
+  return values.some((entry) => filterValues.includes(String(entry)));
+}
+
+function matchesFrontmatterFilters(frontmatter: Record<string, unknown> | null, filters: FrontmatterFilters): boolean {
+  if (filters.hasFrontmatter !== undefined && (frontmatter !== null) !== filters.hasFrontmatter) {
+    return false;
+  }
+  if (filters.tag && !frontmatterFieldMatches(frontmatter?.tags, filters.tag)) return false;
+  if (filters.status && !frontmatterFieldMatches(frontmatter?.status, filters.status)) return false;
+  if (filters.owner && !frontmatterFieldMatches(frontmatter?.owner, filters.owner)) return false;
+  return true;
+}
+
+function extractFrontmatterFilters(query: {
+  'filter[tag]'?: string[];
+  'filter[status]'?: string[];
+  'filter[owner]'?: string[];
+  'filter[has_frontmatter]'?: boolean;
+}): FrontmatterFilters | undefined {
+  const filters: FrontmatterFilters = {
+    tag: query['filter[tag]'],
+    status: query['filter[status]'],
+    owner: query['filter[owner]'],
+    hasFrontmatter: query['filter[has_frontmatter]'],
+  };
+  const hasAnyFilter = filters.tag || filters.status || filters.owner || filters.hasFrontmatter !== undefined;
+  return hasAnyFilter ? filters : undefined;
 }
 
 type ListPagesQuery = {
@@ -279,6 +326,7 @@ type ListPagesQuery = {
   createdEnd?: Date;
   updatedStart?: Date;
   updatedEnd?: Date;
+  frontmatterFilters?: FrontmatterFilters;
 };
 
 /**
@@ -376,6 +424,9 @@ async function listPagesInternal(
         continue;
       }
     }
+    if (query.frontmatterFilters && !matchesFrontmatterFilters(item.frontmatter, query.frontmatterFilters)) {
+      continue;
+    }
     items.push(item);
     if (items.length >= query.limit) break;
   }
@@ -389,7 +440,11 @@ async function listPagesInternal(
 export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promise<PublicPageListResponse> {
   // The list endpoint never returns contentSource; only fetch it when a q filter
   // needs it for the JS-level re-check above.
-  const result = await listPagesInternal(ctx, query, { includeContent: Boolean(query.q) });
+  const result = await listPagesInternal(
+    ctx,
+    { ...query, frontmatterFilters: extractFrontmatterFilters(query) },
+    { includeContent: Boolean(query.q) },
+  );
   // The `path` filter is a single-page lookup wearing the list endpoint's clothes
   // (at most one item, no browsing) — keep its contentSource like GET /pages/{id}.
   if (query.path) return result;
@@ -567,6 +622,7 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
       createdEnd: query.createdEnd,
       updatedStart: query.updatedStart,
       updatedEnd: query.updatedEnd,
+      frontmatterFilters: extractFrontmatterFilters(query),
     },
     { includeContent: true },
   );

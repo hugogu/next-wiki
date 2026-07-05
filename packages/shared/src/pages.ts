@@ -21,6 +21,18 @@ export const pathSchema = z
     message: 'Path cannot contain consecutive slashes',
   });
 
+/** Accepts a single query value or repeated occurrences of the same key and
+ * normalizes both to a string array; OR-combined by the caller. */
+export const frontmatterFilterListSchema = z
+  .union([z.string(), z.array(z.string())])
+  .optional()
+  .transform((value) => (value === undefined ? undefined : Array.isArray(value) ? value : [value]));
+
+export const frontmatterHasFlagSchema = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform((value) => (value === undefined ? undefined : value === 'true'));
+
 export const newDraftBodySchema = z.object({
   title: z.string().min(1).max(200),
   contentSource: z.string().min(1),
@@ -60,6 +72,7 @@ export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 
 export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
+  frontmatter: z.record(z.unknown()).nullable(),
 });
 export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
 
@@ -85,6 +98,7 @@ export const publicPageResourceSchema = z.object({
   locale: z.string(),
   title: z.string(),
   contentSource: z.string().optional(),
+  frontmatter: z.record(z.unknown()).nullable(),
   status: publicPageStatusSchema,
   author: publicAuthorSchema,
   latestRevision: publicRevisionSummarySchema.nullable().optional(),
@@ -109,6 +123,10 @@ export const publicPageListQuerySchema = z.object({
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
   include: publicIncludeQuerySchema,
+  'filter[tag]': frontmatterFilterListSchema,
+  'filter[status]': frontmatterFilterListSchema,
+  'filter[owner]': frontmatterFilterListSchema,
+  'filter[has_frontmatter]': frontmatterHasFlagSchema,
 });
 export type PublicPageListQuery = z.infer<typeof publicPageListQuerySchema>;
 
@@ -226,6 +244,10 @@ export const publicPageSearchQuerySchema = z
     createdEnd: z.coerce.date().optional(),
     updatedStart: z.coerce.date().optional(),
     updatedEnd: z.coerce.date().optional(),
+    'filter[tag]': frontmatterFilterListSchema,
+    'filter[status]': frontmatterFilterListSchema,
+    'filter[owner]': frontmatterFilterListSchema,
+    'filter[has_frontmatter]': frontmatterHasFlagSchema,
   })
   .refine((value) => !value.createdStart || !value.createdEnd || value.createdStart <= value.createdEnd, {
     message: 'createdStart must be before or equal to createdEnd',

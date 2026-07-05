@@ -291,4 +291,136 @@ describe('public content read facade', () => {
     }
     expect(result.items.every((item) => item.score !== null && item.score > 0 && item.score <= 1)).toBe(true);
   });
+
+  it('keyword search never leaks an unreadable (draft-only) page even on content match (FR-009/FR-014)', async () => {
+    const editor = await createPublicApiUser('public-leak-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-leak-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, {
+      path: 'docs/secret-plan',
+      title: 'Secret Plan',
+      contentSource: 'CONFIDENTIALTOKEN details here',
+    });
+    // Never published — draft-only, unreadable to a reader.
+
+    const result = await publicContent.searchPages(readerCtx, {
+      q: 'CONFIDENTIALTOKEN',
+      scope: 'all',
+      status: 'all',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+    });
+
+    expect(result.items.map((item) => item.page.path)).not.toContain('docs/secret-plan');
+    expect(JSON.stringify(result)).not.toContain('CONFIDENTIALTOKEN');
+  });
+
+  it('narrows keyword search results with filter[tag] while keeping the response envelope unchanged (US1)', async () => {
+    const editor = await createPublicApiUser('public-fm-search-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-fm-search-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, {
+      path: 'docs/fm-search-architecture',
+      title: 'Architecture Notes',
+      contentSource: '---\ntags: [architecture]\n---\n\n# auth design',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-search-architecture', version: 1 });
+    await pageService.create(editorCtx, {
+      path: 'docs/fm-search-security',
+      title: 'Security Notes',
+      contentSource: '---\ntags: [security]\n---\n\n# auth design',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-search-security', version: 1 });
+
+    const filtered = await publicContent.searchPages(readerCtx, {
+      q: 'auth',
+      scope: 'all',
+      status: 'published',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+      'filter[tag]': ['architecture'],
+    });
+    expect(filtered.items.map((item) => item.page.path)).toEqual(['docs/fm-search-architecture']);
+    expect(Object.keys(filtered).sort()).toEqual(['items', 'nextCursor']);
+
+    const unfiltered = await publicContent.searchPages(readerCtx, {
+      q: 'auth',
+      scope: 'all',
+      status: 'published',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+    });
+    expect(unfiltered.items.map((item) => item.page.path).sort()).toEqual([
+      'docs/fm-search-architecture',
+      'docs/fm-search-security',
+    ]);
+  });
+
+  it('exposes a parsed frontmatter object consistent with the Markdown source (US2)', async () => {
+    const editor = await createPublicApiUser('public-fm-expose-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-fm-expose-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, {
+      path: 'docs/fm-expose',
+      title: 'Frontmatter Expose',
+      contentSource: '---\ntags: [a, b]\nstatus: draft\n---\n\n# Body',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-expose', version: 1 });
+
+    const page = await publicContent.getPageByPath(readerCtx, 'docs/fm-expose');
+    expect(page?.frontmatter).toEqual({ tags: ['a', 'b'], status: 'draft' });
+    expect(page?.contentSource).toContain('---');
+
+    await pageService.create(editorCtx, {
+      path: 'docs/fm-none',
+      title: 'No Frontmatter',
+      contentSource: '# Just a heading',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-none', version: 1 });
+    const plain = await publicContent.getPageByPath(readerCtx, 'docs/fm-none');
+    expect(plain?.frontmatter).toBeNull();
+  });
+
+  it('narrows GET /api/v1/pages with filter[tag] and filter[has_frontmatter] (US2)', async () => {
+    const editor = await createPublicApiUser('public-fm-list-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-fm-list-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, { path: 'docs/fm-list/none', title: 'None', contentSource: '# no frontmatter' });
+    await revisions.publish(editorCtx, { path: 'docs/fm-list/none', version: 1 });
+    await pageService.create(editorCtx, {
+      path: 'docs/fm-list/a',
+      title: 'Tag A',
+      contentSource: '---\ntags: [a]\n---\n\n# body',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-list/a', version: 1 });
+    await pageService.create(editorCtx, {
+      path: 'docs/fm-list/ab',
+      title: 'Tag A and B',
+      contentSource: '---\ntags: [a, b]\n---\n\n# body',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-list/ab', version: 1 });
+
+    const result = await publicContent.listPages(readerCtx, {
+      status: 'published',
+      limit: 20,
+      order: 'path',
+      include: [],
+      pathPrefix: 'docs/fm-list',
+      'filter[tag]': ['a'],
+      'filter[has_frontmatter]': true,
+    });
+
+    expect(result.items.map((item) => item.path).sort()).toEqual(['docs/fm-list/a', 'docs/fm-list/ab']);
+  });
 });

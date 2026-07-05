@@ -680,6 +680,10 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
     .string()
     .optional()
     .describe('Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list.'),
+  frontmatter: z
+    .record(z.unknown())
+    .nullable()
+    .describe('Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed.'),
 }).describe('Public page revision with Markdown source when the caller may read it.');
 
 export const PublicPageIncludeValue = z
@@ -697,6 +701,10 @@ export const PublicPageResource = z
       .string()
       .optional()
       .describe('Markdown source of the current revision. Omitted from list/search results; present on single-page reads and writes.'),
+    frontmatter: z
+      .record(z.unknown())
+      .nullable()
+      .describe('Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed.'),
     status: z
       .enum(['draft', 'published', 'deleted'])
       .describe('Page lifecycle state: an unpublished draft, a published page, or a soft-deleted page.'),
@@ -756,6 +764,22 @@ export const PublicPageListQuery = z
       .describe(
         'Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead.',
       ),
+    'filter[tag]': z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined).'),
+    'filter[status]': z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined).'),
+    'filter[owner]': z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined).'),
+    'filter[has_frontmatter]': z
+      .enum(['true', 'false'])
+      .optional()
+      .describe('Filter to pages with (true) or without (false) any parsed frontmatter.'),
   })
   .describe('Public page list query parameters.');
 
@@ -888,6 +912,22 @@ export const PublicPageSearchQuery = z
     createdEnd: z.coerce.date().optional().describe('Only include pages created at or before this ISO 8601 timestamp.'),
     updatedStart: z.coerce.date().optional().describe('Only include pages last updated at or after this ISO 8601 timestamp.'),
     updatedEnd: z.coerce.date().optional().describe('Only include pages last updated at or before this ISO 8601 timestamp.'),
+    'filter[tag]': z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined).'),
+    'filter[status]': z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined).'),
+    'filter[owner]': z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined).'),
+    'filter[has_frontmatter]': z
+      .enum(['true', 'false'])
+      .optional()
+      .describe('Filter to pages with (true) or without (false) any parsed frontmatter.'),
   })
   .describe('Public page search query parameters.');
 

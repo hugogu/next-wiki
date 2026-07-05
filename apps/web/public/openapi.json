@@ -1554,6 +1554,56 @@
           "include": {
             "type": "string",
             "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+          },
+          "filter[tag]": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+          },
+          "filter[status]": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          "filter[owner]": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          "filter[has_frontmatter]": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
           }
         },
         "description": "Public page list query parameters."
@@ -1640,6 +1690,14 @@
             "type": "string",
             "description": "Markdown source of the current revision. Omitted from list/search results; present on single-page reads and writes."
           },
+          "frontmatter": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {},
+            "description": "Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed."
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -1719,6 +1777,7 @@
           "path",
           "locale",
           "title",
+          "frontmatter",
           "status",
           "author",
           "createdAt",
@@ -1827,6 +1886,56 @@
             "type": "string",
             "format": "date-time",
             "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+          },
+          "filter[tag]": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+          },
+          "filter[status]": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          "filter[owner]": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          "filter[has_frontmatter]": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
           }
         },
         "required": [
@@ -2134,6 +2243,14 @@
           "contentSource": {
             "type": "string",
             "description": "Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list."
+          },
+          "frontmatter": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {},
+            "description": "Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed."
           }
         },
         "required": [
@@ -2146,7 +2263,8 @@
           "author",
           "createdAt",
           "publishedAt",
-          "canPublish"
+          "canPublish",
+          "frontmatter"
         ],
         "description": "Public page revision metadata."
       },
@@ -7313,6 +7431,80 @@
               "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
             },
             "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+          },
+          {
+            "in": "query",
+            "name": "filter[tag]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[status]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[owner]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[has_frontmatter]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
+            },
+            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
           }
         ],
         "security": [
@@ -8106,6 +8298,80 @@
               "description": "Only include pages last updated at or before this ISO 8601 timestamp."
             },
             "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "filter[tag]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[status]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[owner]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[has_frontmatter]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
+            },
+            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
           }
         ],
         "security": [

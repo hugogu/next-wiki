@@ -41,10 +41,14 @@ export function parsePublicQuery<TOutput, TInput = TOutput>(
   request: NextRequest,
   schema: ZodSchema<TOutput, ZodTypeDef, TInput>,
 ): { ok: true; data: TOutput } | { ok: false; response: Response } {
+  const searchParams = new URL(request.url).searchParams;
   const raw: Record<string, unknown> = {};
-  new URL(request.url).searchParams.forEach((value, key) => {
-    raw[key] = value;
-  });
+  for (const key of new Set(searchParams.keys())) {
+    const values = searchParams.getAll(key);
+    // Repeated query keys (e.g. filter[tag]=a&filter[tag]=b) become an array;
+    // a single occurrence stays a plain string for backward compatibility.
+    raw[key] = values.length > 1 ? values : values[0];
+  }
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { ok: false, response: validationError(parsed.error) };

@@ -14,9 +14,9 @@
 
 **Purpose**: Confirm baseline before any change.
 
-- [ ] T001 Verify baseline passes: `pnpm --filter @next-wiki/web typecheck && pnpm --filter @next-wiki/web lint && pnpm --filter @next-wiki/web test` all exit 0 on `010-ai-curation-api` HEAD
-- [ ] T002 [P] Confirm `apps/web/public/openapi.json` is up-to-date by running `pnpm --filter @next-wiki/web openapi:generate` and verifying no diff vs HEAD (baseline artifact)
-- [ ] T003 [P] Read existing test fixtures `apps/web/src/server/services/public-content-read.test.ts:14-63` and `apps/web/src/server/permissions/ai-permissions.test.ts:1-16` to lock in the patterns every new test will follow
+- [X] T001 Verify baseline passes: `pnpm --filter @next-wiki/web typecheck && pnpm --filter @next-wiki/web lint && pnpm --filter @next-wiki/web test` all exit 0 on `010-ai-curation-api` HEAD
+- [X] T002 [P] Confirm `apps/web/public/openapi.json` is up-to-date by running `pnpm --filter @next-wiki/web openapi:generate` and verifying no diff vs HEAD (baseline artifact)
+- [X] T003 [P] Read existing test fixtures `apps/web/src/server/services/public-content-read.test.ts:14-63` and `apps/web/src/server/permissions/ai-permissions.test.ts:1-16` to lock in the patterns every new test will follow
 
 ---
 
@@ -26,19 +26,19 @@
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T004 Add `'ai.read'` to the Zod enum in `packages/shared/src/api-keys.ts:3-13`
-- [ ] T005 Add `'ai.read'` to the `apiKeyScopeEnum` array in `apps/web/src/server/db/schema/enums.ts:7-17`
-- [ ] T006 Run `pnpm db:generate` to produce the migration SQL + snapshot; commit only the generated files (never hand-author, per `AGENTS.md`)
-- [ ] T007 Update `scopeToActions` in `apps/web/src/server/permissions/index.ts:58-68` to add `'ai.read': ['use_ai_search', 'use_ai_qa']`
-- [ ] T008 Update the api-key hard-deny list at `apps/web/src/server/permissions/index.ts:132-144` to remove `use_ai_search` and `use_ai_qa`; replace with a comment citing the new scope gating
-- [ ] T009 [P] Add `'ai.read'` to `SCOPE_ORDER` in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx:11`
-- [ ] T010 [P] Add i18n keys for `ai.read` scope in `apps/web/src/i18n/locales/en.ts:643-660` and `apps/web/src/i18n/locales/zh.ts:625-642`
-- [ ] T011 Extend `apps/web/src/server/permissions/ai-permissions.test.ts` with the full role × scope matrix per `contracts/permission-scope-map.md:177-198` (10 cases; assert that `['ai.read']` api_key at `reader`/`editor`/`admin` returns true for `use_ai_search` and `use_ai_qa`, but false for `use_ai_text_optimization` and `manage_ai`; route-level tests later still require `view + ai.read`)
-- [ ] T012 Refactor `apps/web/src/server/services/ai-retrieval.ts:34` `retrieve()` signature to add `ctx: PermCtx` as first parameter; add post-SQL per-page filter step using `can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false })` (mirror `apps/web/src/server/ai/retrieval/full-context.ts:55-58`); preserve existing 10× over-fetch multiplier (`Math.max(limit * 10, 100)`)
-- [ ] T013 Update the call site in `apps/web/src/server/jobs/ai-question.ts:67` to pass the already-built `ctx` (line 38) into `retrieve(...)`
-- [ ] T014 Extend `apps/web/src/server/services/ai-retrieval.test.ts` with the regression test from `contracts/permission-scope-map.md:204-209`: seed an indexed page the test actor cannot read, submit a query whose vector is nearest to that page, assert `retrieve()` does NOT include the page in results and `citations[]` does NOT include its `chunkId`
-- [ ] T015 Extract `parsePageFrontmatter(markdown: string): { frontmatter: Record<string, unknown> | null; markdown: string }` from `apps/web/src/server/transfers/manifest.ts:40-48` into a new file `apps/web/src/server/transfers/frontmatter.ts`; drop the `nextWikiArchiveVersion: 1` requirement; tolerate missing/malformed YAML by returning `frontmatter: null` with a `console.warn` (per Decision 3)
-- [ ] T016 Add unit test in `apps/web/src/server/transfers/frontmatter.test.ts` covering: (a) round-trip of `{ tags: ['a','b'], status: 'draft' }` via serialize→parse; (b) no `---` block returns `frontmatter: null`; (c) malformed YAML returns `frontmatter: null` (no throw); (d) frontmatter with non-scalar (nested object, array of objects) round-trips losslessly
+- [X] T004 Add `'ai.read'` to the Zod enum in `packages/shared/src/api-keys.ts:3-13`
+- [X] T005 Add `'ai.read'` to the `apiKeyScopeEnum` array in `apps/web/src/server/db/schema/enums.ts:7-17`
+- [X] T006 Run `pnpm db:generate` to produce the migration SQL + snapshot; commit only the generated files (never hand-author, per `AGENTS.md`)
+- [X] T007 Update `scopeToActions` in `apps/web/src/server/permissions/index.ts:58-68` to add `'ai.read': ['use_ai_search', 'use_ai_qa']`
+- [X] T008 Update the api-key hard-deny list at `apps/web/src/server/permissions/index.ts:132-144` to remove `use_ai_search` and `use_ai_qa`; replace with a comment citing the new scope gating
+- [X] T009 [P] Add `'ai.read'` to `SCOPE_ORDER` in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx:11`
+- [X] T010 [P] Add i18n keys for `ai.read` scope in `apps/web/src/i18n/locales/en.ts:643-660` and `apps/web/src/i18n/locales/zh.ts:625-642`
+- [X] T011 Extend `apps/web/src/server/permissions/ai-permissions.test.ts` with the full role × scope matrix per `contracts/permission-scope-map.md:177-198` (10 cases; assert that `['ai.read']` api_key at `reader`/`editor`/`admin` returns true for `use_ai_search` and `use_ai_qa`, but false for `use_ai_text_optimization` and `manage_ai`; route-level tests later still require `view + ai.read`)
+- [X] T012 Refactor `apps/web/src/server/services/ai-retrieval.ts:34` `retrieve()` signature to add `ctx: PermCtx` as first parameter; add post-SQL per-page filter step using `can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false })` (mirror `apps/web/src/server/ai/retrieval/full-context.ts:55-58`); preserve existing 10× over-fetch multiplier (`Math.max(limit * 10, 100)`)
+- [X] T013 Update the call site in `apps/web/src/server/jobs/ai-question.ts:67` to pass the already-built `ctx` (line 38) into `retrieve(...)`
+- [X] T014 Extend `apps/web/src/server/services/ai-retrieval.test.ts` with the regression test from `contracts/permission-scope-map.md:204-209`: seed an indexed page the test actor cannot read, submit a query whose vector is nearest to that page, assert `retrieve()` does NOT include the page in results and `citations[]` does NOT include its `chunkId`
+- [X] T015 Extract `parsePageFrontmatter(markdown: string): { frontmatter: Record<string, unknown> | null; markdown: string }` from `apps/web/src/server/transfers/manifest.ts:40-48` into a new file `apps/web/src/server/transfers/frontmatter.ts`; drop the `nextWikiArchiveVersion: 1` requirement; tolerate missing/malformed YAML by returning `frontmatter: null` with a `console.warn` (per Decision 3)
+- [X] T016 Add unit test in `apps/web/src/server/transfers/frontmatter.test.ts` covering: (a) round-trip of `{ tags: ['a','b'], status: 'draft' }` via serialize→parse; (b) no `---` block returns `frontmatter: null`; (c) malformed YAML returns `frontmatter: null` (no throw); (d) frontmatter with non-scalar (nested object, array of objects) round-trips losslessly
 
 **Checkpoint**: After T016, `pnpm --filter @next-wiki/web typecheck && pnpm --filter @next-wiki/web test` must pass with all 13 new tests green. This is the foundation for every user story below.
 
@@ -52,15 +52,15 @@
 
 ### Tests for User Story 1
 
-- [ ] T017 [P] [US1] Extend `apps/web/app/api/v1/search/public-page-search-routes.test.ts` with a frontmatter-filter case: seed two pages (tag `architecture` and tag `security`), call with `filter[tag]=architecture`, assert only the matching page is returned and the response envelope is unchanged
-- [ ] T018 [P] [US1] Extend `apps/web/src/server/services/public-content-read.test.ts` with a permission-filter regression for keyword search: seed an unreadable page whose content matches the query term, assert it does not appear in results and `excerpt` does not contain its text
+- [X] T017 [P] [US1] Extend `apps/web/app/api/v1/search/public-page-search-routes.test.ts` with a frontmatter-filter case: seed two pages (tag `architecture` and tag `security`), call with `filter[tag]=architecture`, assert only the matching page is returned and the response envelope is unchanged
+- [X] T018 [P] [US1] Extend `apps/web/src/server/services/public-content-read.test.ts` with a permission-filter regression for keyword search: seed an unreadable page whose content matches the query term, assert it does not appear in results and `excerpt` does not contain its text
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Add `filter[tag]`, `filter[status]`, `filter[owner]`, `filter[has_frontmatter]` Zod fields to `publicPageSearchQuerySchema` in `packages/shared/src/pages.ts:175-198` (use the inline pattern; reference `publicLimitSchema` shape from `apps/web/src/server/api/public-pagination.ts:3`)
-- [ ] T020 [US1] Apply the four filters in `searchPages` at `apps/web/src/server/services/public-content.ts:552-591` after the existing DB permission/path/status/date predicates and before response materialization — read the parsed frontmatter from the already-loaded `contentSource` in the page iteration (the markdown is in memory at line 578); AND-combine across keys; OR-combine multiple values within the same key
-- [ ] T021 [P] [US1] Mirror the four new query params with `.describe()` in `apps/web/src/server/api/openapi-schemas.ts` (under the `PublicPageSearchQuery` PascalCase mirror; field-level descriptions matter for `api-docs` UI)
-- [ ] T022 [US1] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `/api/v1/search/pages` in `apps/web/public/openapi.json` lists the four new query parameters
+- [X] T019 [US1] Add `filter[tag]`, `filter[status]`, `filter[owner]`, `filter[has_frontmatter]` Zod fields to `publicPageSearchQuerySchema` in `packages/shared/src/pages.ts:175-198` (use the inline pattern; reference `publicLimitSchema` shape from `apps/web/src/server/api/public-pagination.ts:3`)
+- [X] T020 [US1] Apply the four filters in `searchPages` at `apps/web/src/server/services/public-content.ts:552-591` after the existing DB permission/path/status/date predicates and before response materialization — read the parsed frontmatter from the already-loaded `contentSource` in the page iteration (the markdown is in memory at line 578); AND-combine across keys; OR-combine multiple values within the same key
+- [X] T021 [P] [US1] Mirror the four new query params with `.describe()` in `apps/web/src/server/api/openapi-schemas.ts` (under the `PublicPageSearchQuery` PascalCase mirror; field-level descriptions matter for `api-docs` UI)
+- [X] T022 [US1] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `/api/v1/search/pages` in `apps/web/public/openapi.json` lists the four new query parameters
 
 **Checkpoint**: US1 fully functional and testable independently. A reviewer can verify with the smoke test in `quickstart.md` §3.2.
 
@@ -74,18 +74,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Extend `apps/web/src/server/services/public-content-read.test.ts` with a frontmatter-in-response case: seed a page with `tags: [a, b]`, `status: 'draft'`, GET it, assert `frontmatter` equals the parsed object and `contentSource` includes the `---` block
-- [ ] T024 [P] [US2] Extend `apps/web/src/server/services/public-content-read.test.ts` with a frontmatter-filter on list: seed three pages (no frontmatter, `tag=a`, `tag=a,b`); call list with `filter[tag]=a&filter[has_frontmatter]=true`; assert exactly the two tagged pages return
+- [X] T023 [P] [US2] Extend `apps/web/src/server/services/public-content-read.test.ts` with a frontmatter-in-response case: seed a page with `tags: [a, b]`, `status: 'draft'`, GET it, assert `frontmatter` equals the parsed object and `contentSource` includes the `---` block
+- [X] T024 [P] [US2] Extend `apps/web/src/server/services/public-content-read.test.ts` with a frontmatter-filter on list: seed three pages (no frontmatter, `tag=a`, `tag=a,b`); call list with `filter[tag]=a&filter[has_frontmatter]=true`; assert exactly the two tagged pages return
 
 ### Implementation for User Story 2
 
-- [ ] T025 [P] [US2] Add `frontmatter: z.record(z.unknown()).nullable()` to `publicPageResourceSchema` in `packages/shared/src/pages.ts:81-101` and to `publicRevisionResourceSchema` in `packages/shared/src/pages.ts:61-64`
-- [ ] T026 [P] [US2] Add `filter[tag]`, `filter[status]`, `filter[owner]`, `filter[has_frontmatter]` to `publicPageListQuerySchema` in `packages/shared/src/pages.ts:103-113`
-- [ ] T027 [US2] Inject frontmatter into the returned object of `visiblePageResource` at `apps/web/src/server/services/public-content.ts:161-217` (call `parsePageFrontmatter(current.contentSource ?? '')` and place the result alongside `contentSource` in the returned shape, line 202-216)
-- [ ] T028 [US2] Inject frontmatter into the returned object of `visibleRevisionResource` at `apps/web/src/server/services/public-content.ts:251-267`
-- [ ] T029 [US2] Apply the four frontmatter filters in `listPagesInternal` at `apps/web/src/server/services/public-content.ts:289-387` — keep the existing SQL permission/path/status/date predicates, add the current revision `contentSource` to the candidate read, parse frontmatter in JS, and filter candidates before cursor slicing / response materialization so pagination remains correct; do not invent SQL predicates for derived YAML frontmatter unless a future spec adds stored JSONB
-- [ ] T030 [P] [US2] Mirror the new frontmatter field on both response schemas and the new list filter params in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T031 [US2] Run `pnpm --filter @next-wiki/web openapi:generate` and verify the `PublicPageResource` and `PublicRevisionResource` schemas include `frontmatter` and the `PublicPageListQuery` includes the four filter parameters
+- [X] T025 [P] [US2] Add `frontmatter: z.record(z.unknown()).nullable()` to `publicPageResourceSchema` in `packages/shared/src/pages.ts:81-101` and to `publicRevisionResourceSchema` in `packages/shared/src/pages.ts:61-64`
+- [X] T026 [P] [US2] Add `filter[tag]`, `filter[status]`, `filter[owner]`, `filter[has_frontmatter]` to `publicPageListQuerySchema` in `packages/shared/src/pages.ts:103-113`
+- [X] T027 [US2] Inject frontmatter into the returned object of `visiblePageResource` at `apps/web/src/server/services/public-content.ts:161-217` (call `parsePageFrontmatter(current.contentSource ?? '')` and place the result alongside `contentSource` in the returned shape, line 202-216)
+- [X] T028 [US2] Inject frontmatter into the returned object of `visibleRevisionResource` at `apps/web/src/server/services/public-content.ts:251-267`
+- [X] T029 [US2] Apply the four frontmatter filters in `listPagesInternal` at `apps/web/src/server/services/public-content.ts:289-387` — keep the existing SQL permission/path/status/date predicates, add the current revision `contentSource` to the candidate read, parse frontmatter in JS, and filter candidates before cursor slicing / response materialization so pagination remains correct; do not invent SQL predicates for derived YAML frontmatter unless a future spec adds stored JSONB
+- [X] T030 [P] [US2] Mirror the new frontmatter field on both response schemas and the new list filter params in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T031 [US2] Run `pnpm --filter @next-wiki/web openapi:generate` and verify the `PublicPageResource` and `PublicRevisionResource` schemas include `frontmatter` and the `PublicPageListQuery` includes the four filter parameters
 
 **Checkpoint**: US2 fully functional. The round-trip smoke test from `quickstart.md` §3.2 must pass: create a page with frontmatter, GET it, confirm frontmatter field is populated, filter list by tag, confirm narrowing.
 

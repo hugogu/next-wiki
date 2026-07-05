@@ -42,4 +42,25 @@ describe('Public Wiki page search route', () => {
     );
     expect(response.status).toBe(422);
   });
+
+  it('parses filter[tag] and forwards it while leaving the response envelope unchanged', async () => {
+    publicContent.searchPages.mockResolvedValue({
+      items: [{ page: { id: 'p1', path: 'docs/a', title: 'A' }, matchType: 'content', excerpt: 'x', score: 1 }],
+      nextCursor: null,
+    });
+
+    const response = await searchRoute.GET(
+      new NextRequest('http://localhost/api/v1/search/pages?q=auth&filter%5Btag%5D=architecture'),
+      { params: Promise.resolve({}) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(publicContent.searchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      q: 'auth',
+      'filter[tag]': ['architecture'],
+    }));
+    expect(body).toEqual({ items: expect.any(Array), nextCursor: null });
+    expect(Object.keys(body).sort()).toEqual(['items', 'nextCursor']);
+  });
 });
