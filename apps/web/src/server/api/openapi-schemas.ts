@@ -1167,6 +1167,65 @@ export const PublicBatchCreateResult = z
   })
   .describe('Result of a batch page creation request.');
 
+export const PublicBatchItemResult = z
+  .object({
+    pageId: z.string().uuid().describe('Identifier of the page this result refers to.'),
+    status: z.enum(['success', 'failed']).describe('Outcome of this item.'),
+    revisionId: z.string().uuid().optional().describe('Identifier of the newly created revision, present on a successful non-dry-run update.'),
+    preview: z.record(z.unknown()).optional().describe('Predicted new state, present on a dry_run=true request.'),
+    error: z
+      .object({
+        code: z.string().describe('Public API error code for this item.'),
+        message: z.string().describe('Human-readable error message.'),
+      })
+      .optional()
+      .describe('Present when status is failed.'),
+  })
+  .describe('Per-item outcome of a batch operation.');
+
+export const PublicPageBatchUpdateItemInput = z
+  .object({
+    pageId: z.string().uuid().describe('Identifier of the page to update.'),
+    title: z.string().min(1).max(200).optional().describe('New title.'),
+    path: PublicPagePath.optional().describe('New canonical path.'),
+    frontmatter: z
+      .record(z.unknown().nullable())
+      .optional()
+      .describe('Partial frontmatter patch: keys present are written, null deletes the key, absent keys are preserved.'),
+    baseRevisionId: z.string().uuid().describe('Expected current latest revision id, used for optimistic concurrency control.'),
+  })
+  .describe('A single batch update item.');
+
+export const PublicPageBatchUpdateInput = z
+  .object({
+    items: z.array(PublicPageBatchUpdateItemInput).min(1).max(50).describe('Items to update (1-50). Not transactional across items.'),
+  })
+  .describe('Batch update public wiki pages.');
+
+export const PublicPageBatchUpdateResult = z
+  .object({
+    results: z.array(PublicBatchItemResult).describe('Per-item outcomes, in request order.'),
+    successCount: z.number().int().nonnegative(),
+    failureCount: z.number().int().nonnegative(),
+    dryRun: z.boolean().optional().describe('Present and true when the request was made with ?dry_run=true.'),
+  })
+  .describe('Result of a batch page update request.');
+
+export const PublicPageBatchDeleteInput = z
+  .object({
+    pageIds: z.array(z.string().uuid()).min(1).max(50).describe('Page identifiers to soft-delete (1-50). Not transactional across items.'),
+  })
+  .describe('Batch soft-delete public wiki pages.');
+
+export const PublicPageBatchDeleteResult = z
+  .object({
+    results: z.array(PublicBatchItemResult).describe('Per-item outcomes, in request order.'),
+    successCount: z.number().int().nonnegative(),
+    failureCount: z.number().int().nonnegative(),
+    dryRun: z.boolean().optional().describe('Present and true when the request was made with ?dry_run=true.'),
+  })
+  .describe('Result of a batch page delete request.');
+
 export const PublicBacklink = z
   .object({
     pageId: z.string().uuid().describe('Identifier of the page containing the link.'),

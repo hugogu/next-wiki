@@ -31,30 +31,37 @@ export function validationError(error: ZodError): NextResponse<PublicApiErrorBod
   return publicApiError('VALIDATION_FAILED', message, 422);
 }
 
-export function mapPublicDomainError(error: DomainError): NextResponse<PublicApiErrorBody> {
-  switch (error.code) {
+export function mapPublicDomainErrorCode(code: DomainError['code']): { code: PublicApiErrorCode; status: number } {
+  switch (code) {
     case 'UNAUTHORIZED':
-      return publicApiError('UNAUTHORIZED', error.message, 401);
+      return { code: 'UNAUTHORIZED', status: 401 };
     case 'FORBIDDEN':
-      return publicApiError('FORBIDDEN', error.message, 403);
+      return { code: 'FORBIDDEN', status: 403 };
     case 'NOT_FOUND':
-      return publicApiError('NOT_FOUND', error.message, 404);
+      return { code: 'NOT_FOUND', status: 404 };
     case 'CONFLICT':
-      return publicApiError('CONFLICT', error.message, 409);
+      return { code: 'CONFLICT', status: 409 };
+    case 'PAGE_PATH_CONFLICT':
+      return { code: 'PAGE_PATH_CONFLICT', status: 409 };
     case 'STALE_REVISION':
-      return publicApiError('STALE_REVISION', error.message, 409);
+      return { code: 'STALE_REVISION', status: 409 };
     case 'REVISION_ALREADY_PUBLISHED':
-      return publicApiError('REVISION_ALREADY_PUBLISHED', error.message, 409);
+      return { code: 'REVISION_ALREADY_PUBLISHED', status: 409 };
     case 'INVALID_IMAGE':
-      return publicApiError('UNSUPPORTED_ASSET_TYPE', error.message, 415);
+      return { code: 'UNSUPPORTED_ASSET_TYPE', status: 415 };
     case 'INPUT_TOO_LARGE':
     case 'ARCHIVE_TOO_LARGE':
-      return publicApiError('ASSET_TOO_LARGE', error.message, 413);
+      return { code: 'ASSET_TOO_LARGE', status: 413 };
     case 'RATE_LIMITED':
-      return publicApiError('RATE_LIMITED', error.message, 429);
+      return { code: 'RATE_LIMITED', status: 429 };
     case 'INDEX_NOT_READY':
-      return publicApiError('INDEX_NOT_READY', error.message, 409);
+      return { code: 'INDEX_NOT_READY', status: 409 };
     default:
-      return publicApiError('VALIDATION_FAILED', error.message, 422);
+      return { code: 'VALIDATION_FAILED', status: 422 };
   }
+}
+
+export function mapPublicDomainError(error: DomainError): NextResponse<PublicApiErrorBody> {
+  const { code, status } = mapPublicDomainErrorCode(error.code);
+  return publicApiError(code, error.message, status);
 }

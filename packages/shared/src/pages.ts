@@ -455,3 +455,66 @@ export const publicNeighborhoodResponseSchema = z.object({
   tiers: z.array(z.array(publicNeighborNodeSchema)),
 });
 export type PublicNeighborhoodResponse = z.infer<typeof publicNeighborhoodResponseSchema>;
+
+// ---- 010: AI Curation API — bulk write operations ----
+
+export const publicBatchPreviewSchema = z.record(z.unknown());
+export type PublicBatchPreview = z.infer<typeof publicBatchPreviewSchema>;
+
+export const publicBatchItemResultSchema = z.object({
+  pageId: z.string().uuid(),
+  status: z.enum(['success', 'failed']),
+  revisionId: z.string().uuid().optional(),
+  preview: publicBatchPreviewSchema.optional(),
+  error: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+    })
+    .optional(),
+});
+export type PublicBatchItemResult = z.infer<typeof publicBatchItemResultSchema>;
+
+export const publicPageBatchUpdateItemInputSchema = z.object({
+  pageId: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  path: pathSchema.optional(),
+  /** Partial patch: keys present are written; `null` deletes the key; absent keys are preserved. */
+  frontmatter: z.record(z.unknown().nullable()).optional(),
+  baseRevisionId: z.string().uuid(),
+});
+export type PublicPageBatchUpdateItemInput = z.infer<typeof publicPageBatchUpdateItemInputSchema>;
+
+export const publicPageBatchUpdateInputSchema = z.object({
+  items: z.array(publicPageBatchUpdateItemInputSchema).min(1).max(50),
+});
+export type PublicPageBatchUpdateInput = z.infer<typeof publicPageBatchUpdateInputSchema>;
+
+export const publicPageBatchUpdateResultSchema = z.object({
+  results: z.array(publicBatchItemResultSchema),
+  successCount: z.number().int().nonnegative(),
+  failureCount: z.number().int().nonnegative(),
+  dryRun: z.boolean().optional(),
+});
+export type PublicPageBatchUpdateResult = z.infer<typeof publicPageBatchUpdateResultSchema>;
+
+export const publicPageBatchDeleteInputSchema = z.object({
+  pageIds: z.array(z.string().uuid()).min(1).max(50),
+});
+export type PublicPageBatchDeleteInput = z.infer<typeof publicPageBatchDeleteInputSchema>;
+
+export const publicPageBatchDeleteResultSchema = z.object({
+  results: z.array(publicBatchItemResultSchema),
+  successCount: z.number().int().nonnegative(),
+  failureCount: z.number().int().nonnegative(),
+  dryRun: z.boolean().optional(),
+});
+export type PublicPageBatchDeleteResult = z.infer<typeof publicPageBatchDeleteResultSchema>;
+
+export const publicDryRunQuerySchema = z.object({
+  dry_run: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => value === 'true'),
+});
+export type PublicDryRunQuery = z.infer<typeof publicDryRunQuerySchema>;

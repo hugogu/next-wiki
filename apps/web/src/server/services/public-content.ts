@@ -1,8 +1,11 @@
-import { and, desc, eq, gte, ilike, isNotNull, isNull, lte, or, like, type SQL } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { and, desc, eq, gte, ilike, isNotNull, isNull, lte, max, or, like, type SQL } from 'drizzle-orm';
+import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
+  PublicBatchItemResult,
   PublicDanglingLink,
   PublicDraftCreateInput,
   PublicExternalLink,
@@ -11,6 +14,11 @@ import type {
   PublicNeighborhoodResponse,
   PublicOutboundLink,
   PublicOutboundLinksResponse,
+  PublicPageBatchDeleteInput,
+  PublicPageBatchDeleteResult,
+  PublicPageBatchUpdateInput,
+  PublicPageBatchUpdateItemInput,
+  PublicPageBatchUpdateResult,
   PublicPageCreateInput,
   PublicPageInclude,
   PublicPageListQuery,
@@ -30,7 +38,13 @@ import type {
 import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagination';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { mapPublicDomainErrorCode } from '@/server/api/public-errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
+import { renderMarkdown } from '@/server/pipeline';
+import { syncRevisionAssetRefs } from '@/server/services/content-assets';
+import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
+import { enqueueGitExport } from '@/server/services/git-export';
+import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { parsePageFrontmatter, matchesFrontmatterFilters, type FrontmatterFilters } from '@/server/transfers/frontmatter';
 import { findFrontmatterRelatedPages, findMarkdownLinks } from '@/server/transfers/markdown-links';
 import * as pageService from '@/server/services/pages';
@@ -1051,6 +1065,198 @@ export async function batchCreatePages(
     }
   });
   return { created, count: created.length };
+}
+
+// ---------------------------------------------------------------------------
+// 010: AI Curation API — bulk write operations
+// ---------------------------------------------------------------------------
+
+function leafSlugFromPath(path: string): string {
+  return path.split('/').pop() ?? path;
+}
+
+function toItemError(error: unknown): { code: string; message: string } {
+  if (error instanceof DomainError) {
+    return { code: mapPublicDomainErrorCode(error.code).code, message: error.message };
+  }
+  return { code: 'INTERNAL_ERROR', message: 'Unexpected error' };
+}
+
+async function batchUpdateOneItem(
+  ctx: PermCtx,
+  space: { id: string },
+  item: PublicPageBatchUpdateItemInput,
+  dryRun: boolean,
+): Promise<PublicBatchItemResult> {
+  const page = await db.query.pages.findFirst({
+    where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.id, item.pageId), isNull(schema.pages.deletedAt)),
+  });
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+
+  const userId = getActorUserId(ctx);
+  const isAuthor = userId ? page.authorId === userId : false;
+  if (!userId || !can(ctx, 'edit', { kind: 'page', pageId: page.id }, { isAuthor })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
+  }
+  if (page.latestVersionId !== item.baseRevisionId) {
+    throw new DomainError('STALE_REVISION', 'The page has changed since the supplied base revision');
+  }
+
+  const nextPath = item.path ?? page.path;
+  const hasPathChange = nextPath !== page.path;
+  if (hasPathChange) {
+    const collision = await db.query.pages.findFirst({
+      where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, nextPath), isNull(schema.pages.deletedAt)),
+    });
+    if (collision) throw new DomainError('PAGE_PATH_CONFLICT', 'A page with this path already exists');
+  }
+
+  const latestRevision = page.latestVersionId
+    ? await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.latestVersionId) })
+    : null;
+  const existingContent = latestRevision ? (await readMarkdownFromDatabase(latestRevision)) ?? '' : '';
+  const { frontmatter: existingFrontmatter, markdown: body } = parsePageFrontmatter(existingContent);
+
+  let nextContent = existingContent;
+  let nextFrontmatterPreview: Record<string, unknown> | null = existingFrontmatter;
+  const hasFrontmatterChange = Boolean(item.frontmatter);
+  if (item.frontmatter) {
+    const merged: Record<string, unknown> = { ...(existingFrontmatter ?? {}) };
+    for (const [key, value] of Object.entries(item.frontmatter)) {
+      if (value === null) delete merged[key];
+      else merged[key] = value;
+    }
+    nextFrontmatterPreview = merged;
+    nextContent = Object.keys(merged).length > 0
+      ? `---\n${stringifyYaml(merged, { lineWidth: 0 }).trimEnd()}\n---\n\n${body}`
+      : body;
+  }
+
+  const nextTitle = item.title ?? page.title;
+  const hasTitleChange = item.title !== undefined && item.title !== page.title;
+  if (!hasPathChange && !hasTitleChange && !hasFrontmatterChange) {
+    return { pageId: page.id, status: 'success', revisionId: page.latestVersionId ?? undefined };
+  }
+
+  if (dryRun) {
+    const preview: Record<string, unknown> = {};
+    if (hasTitleChange) preview.title = nextTitle;
+    if (hasPathChange) preview.path = nextPath;
+    if (hasFrontmatterChange) preview.frontmatter = nextFrontmatterPreview;
+    return { pageId: page.id, status: 'success', preview };
+  }
+
+  // Every successful title/path/frontmatter change creates a new revision
+  // (FR-024), unlike the single-page updateProperties endpoint (which only
+  // versions content changes) — the batch API is explicitly all-or-versioned.
+  const { html, hash } = renderMarkdown(nextContent);
+  const versionRows = await db
+    .select({ value: max(schema.pageRevisions.versionNumber) })
+    .from(schema.pageRevisions)
+    .where(eq(schema.pageRevisions.pageId, page.id));
+  const nextVersion = (versionRows[0]?.value ?? 0) + 1;
+  const revisionId = randomUUID();
+
+  await db.transaction(async (tx) => {
+    const [revision] = await tx
+      .insert(schema.pageRevisions)
+      .values({
+        id: revisionId,
+        pageId: page.id,
+        versionNumber: nextVersion,
+        contentType: 'text/markdown',
+        contentSource: nextContent,
+        contentHtml: html,
+        contentHash: hash,
+        authorId: userId,
+        status: 'draft',
+      })
+      .returning();
+    if (!revision) throw new Error('Failed to create revision');
+    await syncRevisionAssetRefs(tx, revision.id, nextContent);
+    await addReplicationTasks(tx, 'markdown', revision.id, hash);
+    await tx
+      .update(schema.pages)
+      .set({
+        path: nextPath,
+        slug: leafSlugFromPath(nextPath),
+        title: nextTitle,
+        latestVersionId: revision.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, page.id));
+  });
+
+  await kickReplication();
+  if (hasPathChange) await enqueueGitExport('publish');
+  await reconcilePageAcrossIndexes(page.id, ctx);
+
+  return { pageId: page.id, status: 'success', revisionId };
+}
+
+export async function batchUpdatePages(ctx: PermCtx, input: PublicPageBatchUpdateInput, options: { dryRun: boolean }): Promise<PublicPageBatchUpdateResult> {
+  if (!can(ctx, 'edit', { kind: 'page_list' })) {
+    throw new DomainError('FORBIDDEN', 'This API key cannot edit pages');
+  }
+  const space = await getDefaultSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+
+  const results: PublicBatchItemResult[] = [];
+  for (const item of input.items) {
+    try {
+      results.push(await batchUpdateOneItem(ctx, space, item, options.dryRun));
+    } catch (error) {
+      results.push({ pageId: item.pageId, status: 'failed', error: toItemError(error) });
+    }
+  }
+  const successCount = results.filter((r) => r.status === 'success').length;
+  return { results, successCount, failureCount: results.length - successCount, dryRun: options.dryRun || undefined };
+}
+
+async function batchSoftDeleteOneItem(ctx: PermCtx, space: { id: string }, pageId: string, dryRun: boolean): Promise<PublicBatchItemResult> {
+  const page = await db.query.pages.findFirst({
+    where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)),
+  });
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+
+  const userId = getActorUserId(ctx);
+  const isAuthor = userId ? page.authorId === userId : false;
+  if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, { isAuthor })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to delete this page');
+  }
+
+  if (dryRun) {
+    return { pageId: page.id, status: 'success', preview: { path: page.path, title: page.title } };
+  }
+
+  await db.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, page.id));
+  await enqueueGitExport('publish');
+  await reconcilePageAcrossIndexes(page.id, ctx);
+  return { pageId: page.id, status: 'success' };
+}
+
+export async function batchSoftDeletePages(ctx: PermCtx, input: PublicPageBatchDeleteInput, options: { dryRun: boolean }): Promise<PublicPageBatchDeleteResult> {
+  // 'delete' is normally isAuthor-gated for non-admins (see roleAllows), but
+  // authorship is only knowable per-page, not at the batch boundary. FR-025
+  // instead requires a flat Editor/Admin + delete-scope gate here (Reader
+  // keys always rejected); per-item authorship is still enforced below.
+  const isReaderOrAnonymous = ctx.actor.kind === 'anonymous' || ctx.actor.role === 'reader';
+  if (isReaderOrAnonymous || !can(ctx, 'delete', { kind: 'page_list' }, { isAuthor: true })) {
+    throw new DomainError('FORBIDDEN', 'This API key cannot delete pages');
+  }
+  const space = await getDefaultSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+
+  const results: PublicBatchItemResult[] = [];
+  for (const pageId of input.pageIds) {
+    try {
+      results.push(await batchSoftDeleteOneItem(ctx, space, pageId, options.dryRun));
+    } catch (error) {
+      results.push({ pageId, status: 'failed', error: toItemError(error) });
+    }
+  }
+  const successCount = results.filter((r) => r.status === 'success').length;
+  return { results, successCount, failureCount: results.length - successCount, dryRun: options.dryRun || undefined };
 }
 
 // ---------------------------------------------------------------------------

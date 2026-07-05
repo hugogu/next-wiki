@@ -1375,6 +1375,57 @@
         ],
         "description": "Result of a batch page creation request."
       },
+      "PublicBatchItemResult": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page this result refers to."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed"
+            ],
+            "description": "Outcome of this item."
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the newly created revision, present on a successful non-dry-run update."
+          },
+          "preview": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Predicted new state, present on a dry_run=true request."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Public API error code for this item."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message."
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "description": "Present when status is failed."
+          }
+        },
+        "required": [
+          "pageId",
+          "status"
+        ],
+        "description": "Per-item outcome of a batch operation."
+      },
       "PublicDanglingLink": {
         "type": "object",
         "properties": {
@@ -1678,6 +1729,149 @@
           "pages"
         ],
         "description": "Batch create public wiki pages."
+      },
+      "PublicPageBatchDeleteInput": {
+        "type": "object",
+        "properties": {
+          "pageIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Page identifiers to soft-delete (1-50). Not transactional across items."
+          }
+        },
+        "required": [
+          "pageIds"
+        ],
+        "description": "Batch soft-delete public wiki pages."
+      },
+      "PublicPageBatchDeleteResult": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicBatchItemResult"
+            },
+            "description": "Per-item outcomes, in request order."
+          },
+          "successCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failureCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Present and true when the request was made with ?dry_run=true."
+          }
+        },
+        "required": [
+          "results",
+          "successCount",
+          "failureCount"
+        ],
+        "description": "Result of a batch page delete request."
+      },
+      "PublicPageBatchUpdateInput": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPageBatchUpdateItemInput"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Items to update (1-50). Not transactional across items."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "Batch update public wiki pages."
+      },
+      "PublicPageBatchUpdateItemInput": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page to update."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "New title."
+          },
+          "path": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "New canonical path."
+          },
+          "frontmatter": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Partial frontmatter patch: keys present are written, null deletes the key, absent keys are preserved."
+          },
+          "baseRevisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Expected current latest revision id, used for optimistic concurrency control."
+          }
+        },
+        "required": [
+          "pageId",
+          "baseRevisionId"
+        ],
+        "description": "A single batch update item."
+      },
+      "PublicPageBatchUpdateResult": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicBatchItemResult"
+            },
+            "description": "Per-item outcomes, in request order."
+          },
+          "successCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failureCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Present and true when the request was made with ?dry_run=true."
+          }
+        },
+        "required": [
+          "results",
+          "successCount",
+          "failureCount"
+        ],
+        "description": "Result of a batch page update request."
       },
       "PublicPageCreateInput": {
         "type": "object",
@@ -8453,6 +8647,80 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicOutboundLinksResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/batch/delete": {
+      "post": {
+        "operationId": "post-v1-pages-batch-delete",
+        "summary": "Batch delete public wiki pages",
+        "description": "Soft-deletes up to 50 pages per request (no hard delete). Each item is",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageBatchDeleteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageBatchDeleteResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/batch/update": {
+      "post": {
+        "operationId": "post-v1-pages-batch-update",
+        "summary": "Batch update public wiki pages",
+        "description": "Updates up to 50 pages per request. Each item is atomic on its own but",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageBatchUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageBatchUpdateResult"
                 }
               }
             }

@@ -153,18 +153,18 @@
 
 ### Tests for User Story 5
 
-- [ ] T054 [P] [US5] Add unit test in `apps/web/src/server/services/public-content-write.test.ts` for `batchUpdatePages`: (a) 20-item happy path, all `success`; (b) one path-collision item among 20 → 19 success + 1 `failed` with `PAGE_PATH_CONFLICT`; (c) one `STALE_REVISION` item among 20 → 19 success + 1 `failed` with `STALE_REVISION`; (d) `dry_run=true` returns preview without DB write; (e) Reader-scoped key rejected at batch boundary
-- [ ] T055 [P] [US5] Add unit test for `batchSoftDeletePages`: (a) 10-item happy path; (b) one unreadable item → 9 success + 1 `failed`; (c) `dry_run=true` returns preview without DB write; (d) Reader-scoped key rejected
+- [X] T054 [P] [US5] Add unit test in `apps/web/src/server/services/public-content-write.test.ts` for `batchUpdatePages`: (a) 20-item happy path, all `success`; (b) one path-collision item among 20 → 19 success + 1 `failed` with `PAGE_PATH_CONFLICT`; (c) one `STALE_REVISION` item among 20 → 19 success + 1 `failed` with `STALE_REVISION`; (d) `dry_run=true` returns preview without DB write; (e) Reader-scoped key rejected at batch boundary
+- [X] T055 [P] [US5] Add unit test for `batchSoftDeletePages`: (a) 10-item happy path; (b) one unreadable item → 9 success + 1 `failed`; (c) `dry_run=true` returns preview without DB write; (d) Reader-scoped key rejected
 
 ### Implementation for User Story 5
 
-- [ ] T056 [P] [US5] Add `publicPageBatchUpdateInputSchema`, `publicPageBatchUpdateResultSchema`, `publicPageBatchDeleteInputSchema`, `publicPageBatchDeleteResultSchema`, `publicBatchItemResultSchema`, `publicBatchPreviewSchema` to `packages/shared/src/pages.ts` per `contracts/v1-routes.md` Routes 6 and 7
-- [ ] T057 [P] [US5] Add the corresponding PascalCase mirrors with `.describe()` to `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T058 [US5] Add `batchUpdatePages(ctx, input)` to `apps/web/src/server/services/public-content.ts` — iterate `input.items` (max 50); for each, call the appropriate per-page function from `pages.ts` (`updateProperties` L432-500, `newDraft` L345-430 for frontmatter patches); catch `DomainError` per item and convert to `BatchItemResult`; branch on the route-parsed dry-run boolean to use a compute-only path that performs all validation (path collision, `STALE_REVISION`, permission) without writing
-- [ ] T059 [US5] Add `batchSoftDeletePages(ctx, input)` to `apps/web/src/server/services/public-content.ts` — same per-item pattern; calls `pages.ts::remove` (L235-265) per item; catches `DomainError`; dry-run path returns the list of pages that would be deleted without writing
-- [ ] T060 [P] [US5] Create `apps/web/app/api/v1/pages/batch/update/route.ts` — pattern matches `apps/web/app/api/v1/pages/batch/route.ts:1-20` but with `parsePublicJson` on the new input schema; returns 200 (not 201 — it's not always a creation)
-- [ ] T061 [P] [US5] Create `apps/web/app/api/v1/pages/batch/delete/route.ts` — same pattern with the delete input schema
-- [ ] T062 [US5] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `/api/v1/pages/batch/update` and `/api/v1/pages/batch/delete` appear with distinct operationIds and the documented per-item response shape
+- [X] T056 [P] [US5] Add `publicPageBatchUpdateInputSchema`, `publicPageBatchUpdateResultSchema`, `publicPageBatchDeleteInputSchema`, `publicPageBatchDeleteResultSchema`, `publicBatchItemResultSchema`, `publicBatchPreviewSchema` to `packages/shared/src/pages.ts` per `contracts/v1-routes.md` Routes 6 and 7
+- [X] T057 [P] [US5] Add the corresponding PascalCase mirrors with `.describe()` to `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T058 [US5] Add `batchUpdatePages(ctx, input)` to `apps/web/src/server/services/public-content.ts` — iterate `input.items` (max 50); for each, call the appropriate per-page function from `pages.ts` (`updateProperties` L432-500, `newDraft` L345-430 for frontmatter patches); catch `DomainError` per item and convert to `BatchItemResult`; branch on the route-parsed dry-run boolean to use a compute-only path that performs all validation (path collision, `STALE_REVISION`, permission) without writing
+- [X] T059 [US5] Add `batchSoftDeletePages(ctx, input)` to `apps/web/src/server/services/public-content.ts` — same per-item pattern; calls `pages.ts::remove` (L235-265) per item; catches `DomainError`; dry-run path returns the list of pages that would be deleted without writing
+- [X] T060 [P] [US5] Create `apps/web/app/api/v1/pages/batch/update/route.ts` — pattern matches `apps/web/app/api/v1/pages/batch/route.ts:1-20` but with `parsePublicJson` on the new input schema; returns 200 (not 201 — it's not always a creation)
+- [X] T061 [P] [US5] Create `apps/web/app/api/v1/pages/batch/delete/route.ts` — same pattern with the delete input schema
+- [X] T062 [US5] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `/api/v1/pages/batch/update` and `/api/v1/pages/batch/delete` appear with distinct operationIds and the documented per-item response shape
 
 **Checkpoint**: US5 fully functional. Smoke tests from `quickstart.md` §5.2 must pass: 3-item batch with one path collision returns 2 success + 1 `failed`; dry-run preview; Reader key 403.
 

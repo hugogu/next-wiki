@@ -13,6 +13,7 @@ export type DomainErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'CONFLICT'
+  | 'PAGE_PATH_CONFLICT' // 409: batch update path collision (010-ai-curation-api)
   | 'STALE_REVISION'
   | 'REVISION_ALREADY_PUBLISHED'
   // Content storage (003).
