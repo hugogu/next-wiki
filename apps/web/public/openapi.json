@@ -3907,6 +3907,33 @@
         }
       }
     },
+    "/admin/pages/{id}": {
+      "delete": {
+        "operationId": "delete-admin-pages-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/ai/actions": {
       "get": {
         "operationId": "get-ai-actions",
