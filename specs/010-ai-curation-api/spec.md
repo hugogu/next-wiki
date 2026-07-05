@@ -13,6 +13,7 @@
 - **2026-07-04 (A) — search split**: keyword and semantic search are modeled as two separate endpoints (`GET /api/v1/search/pages` + `POST /api/v1/search/semantic` + `GET /api/v1/search/semantic/{id}`) rather than one endpoint with a `mode` flag, because their lifecycle, cost, and permission shapes are incompatible. Design rationale recorded in the *Design rationale* subsection below.
 - **2026-07-04 (B) — permission hardening**: FR-009 added as a dedicated cross-endpoint permission-filter requirement (keyword and semantic both filter at query time, no existence disclosure); pre-existing pgvector-without-permission gap in `ai-retrieval.retrieve()` is documented in Assumption 9 and is fixed as part of this spec; SC-004 split into endpoint-level and result-level guarantees; US-1 scenario 3 strengthened and US-3 scenario 7 added.
 - **2026-07-04 (C) — speckit review pass**: frontmatter and Update history aligned with the 007/008 convention; stale cross-references and counts in the requirements checklist updated to match the post-renumber FR map; minor implementation-detail leakage in FR-009 trimmed (file:line references consolidated into Assumption 9).
+- **2026-07-05 (D) — consistency review pass**: semantic search permission clarified as `view + ai.read` (AI capability plus page-read visibility), `INDEX_NOT_READY` retained as a public 409 error, the additive enum migration acknowledged across plan/contracts/tasks, MCP/OpenAPI operation counts corrected, and batch soft-delete aligned with tombstone/no-hard-delete semantics.
 
 ## Summary
 
@@ -22,7 +23,7 @@ Enable AI agents and external automation to **organize and analyze** a next-wiki
 2. **Semantic search (new endpoint)** — a separate `POST /api/v1/search/semantic` + `GET /api/v1/search/semantic/{id}` pair that submits an asynchronous search action and returns grounded citations (chunk-level). Synchronous keyword and asynchronous semantic are deliberately modeled as **two distinct resources**, not as one endpoint with a `mode` flag.
 3. **Structured frontmatter** — page responses surface frontmatter as a queryable JSON object; list/search endpoints accept frontmatter-based filters.
 4. **Link graph traversal** — first-class outbound links (wiki-links, markdown links, frontmatter `related_pages`) and bounded multi-hop neighborhood queries.
-5. **Bulk write operations** — atomic batch update and batch soft-delete, both with `dry_run` support.
+5. **Bulk write operations** — per-item atomic batch update and batch soft-delete, both with `dry_run` support.
 
 ### Design rationale — why keyword and semantic are two endpoints, not one
 
@@ -32,7 +33,7 @@ Keyword and semantic search have fundamentally different shapes:
 |---|---|---|
 | Lifecycle | Synchronous request → response | Submit → poll for action → result |
 | Response envelope | Ranked page list, final | Action resource with status, expires_at, items only on `succeeded` |
-| Permission | `view` scope | `view` + new `ai.read` scope |
+| Permission | `view` scope | `view` + `ai.read` scopes |
 | Cost | Zero (database only) | Embedding API call per query |
 | Failure surface | DB / permission errors | DB / permission / index-not-ready / model / expired |
 | Observability | One-shot | Long-running action with TTL and partial results |
@@ -119,9 +120,9 @@ As an AI agent analyzing the knowledge base, I want first-class outbound links a
 
 As an AI agent reorganizing the knowledge base, I want to apply the same change to many pages in one batch (rename, retag, change path, soft-delete), with a dry-run preview and per-item reporting, so that I can complete large reorganization tasks safely and efficiently.
 
-**Why this priority**: Without batch writes, any large reorganization is an N-step sequential script that is slow, fragile, and audit-hostile. Batch endpoints turn "rename every page under `legacy/` to `archive/`" into one transaction with one audit trail.
+**Why this priority**: Without batch writes, any large reorganization is an N-step sequential script that is slow, fragile, and audit-hostile. Batch endpoints turn "rename every page under `legacy/` to `archive/`" into one bounded request with one audit trail and explicit per-item outcomes.
 
-**Independent Test**: With an Editor or Admin API key, call batch update on 20 pages to add a `tags: [reorganized]` frontmatter key, then call the same batch with `dry_run=true` and confirm a preview is returned without state change. Call batch soft-delete on 10 pages, confirm each is soft-deleted with a new revision (P8), and confirm an attempted batch by a Reader-scoped key is denied at the batch level.
+**Independent Test**: With an Editor or Admin API key, call batch update on 20 pages to add a `tags: [reorganized]` frontmatter key, then call the same batch with `dry_run=true` and confirm a preview is returned without state change. Call batch soft-delete on 10 pages, confirm each is soft-deleted via tombstone (P8 — no hard delete), and confirm an attempted batch by a Reader-scoped key is denied at the batch level.
 
 **Acceptance Scenarios**:
 
@@ -165,7 +166,7 @@ As an AI agent reorganizing the knowledge base, I want to apply the same change 
 
 - **FR-004**: `POST /api/v1/search/semantic` MUST be a separate endpoint that accepts `q`, `limit`, `pathPrefix`, `scope`, and the frontmatter filters. It MUST return synchronously with a search-action resource containing at least `id`, `status` (`queued`), `created_at`, and `expires_at`. It MUST persist the work for asynchronous execution and MUST NOT invoke any model synchronously inside the request handler.
 - **FR-005**: `GET /api/v1/search/semantic/{id}` MUST return the search-action resource with current status (`queued` / `running` / `succeeded` / `failed` / `expired`). When status is `succeeded`, the response MUST include `items[]` where each item carries at least `pageId`, `path`, `title`, `score`, and a `citations[]` array with `chunkId`, `revisionId`, `contentHash` so the agent can ground its answers (Constitution P3).
-- **FR-006**: Both semantic endpoints MUST be gated by a new `ai.read` API-key scope; a key lacking it MUST be rejected with a permission error that does not reveal index state, configuration, or the existence of pages.
+- **FR-006**: Both semantic endpoints MUST require both `view` and `ai.read` API-key scopes. `view` supplies the caller's page-read permission for result filtering; `ai.read` supplies access to AI retrieval. A key lacking either scope MUST be rejected with a permission error that does not reveal index state, configuration, or the existence of pages.
 - **FR-007**: If no active embedding index is available, `POST /api/v1/search/semantic` MUST return a domain error (`INDEX_NOT_READY`); the endpoint MUST NOT silently fall back to the keyword endpoint or return empty results.
 - **FR-008**: Search-action resources MUST expire consistent with existing AI action retention. Once expired, `GET /api/v1/search/semantic/{id}` MUST return `status: expired` with no items; clients MUST NOT be able to extend or reset the TTL.
 - **FR-009 (Permission filtering — applies to both search endpoints)**: Both `GET /api/v1/search/pages` and the semantic-search pair MUST filter their result sets by the caller's read permission at query time (not deferred to the client). Specifically:
@@ -245,7 +246,7 @@ These defaults are documented so the plan stage can challenge them if needed:
 7. **Async semantic results**: the action lifecycle reuses the existing `ai_actions` table internally; the public API shape (`/api/v1/search/semantic` and `/api/v1/search/semantic/{id}`) is a stable contract independent of internal action naming. The `ai_actions` retention setting (`ai_settings.artifact_retention_hours`) governs how long semantic results remain pollable.
 8. **No new tables**: frontmatter is derived, links are derived, batch operations reuse existing revision machinery. If later review finds a need to denormalize (e.g., for performance), it becomes a new spec with a migration.
 9. **Pre-existing semantic-search permission gap (must be fixed by this spec)**: the current pgvector retrieval path in `apps/web/src/server/ai/retrieval/vector-search.ts:32-52` does NOT consult the caller's read permission — its SQL `WHERE` clause only checks `deleted_at`, `current_published_version_id`, and `revision.status='published'`. The function `retrieve()` in `apps/web/src/server/services/ai-retrieval.ts:34` accepts no `PermCtx` and so cannot filter results. In the current default single-space deployment this is benign (every authenticated user can read every page), but it is a real data leak the moment API keys, multi-space, or per-page ACLs are introduced. The full-context path in `full-context.ts:55-58` already does the right thing (`can(ctx, 'read', { kind: 'page_list' }, { anonymousRead })`) and is the reference for the fix. This spec REQUIRES the shared `retrieve` function to take a `PermCtx` and apply a per-page read filter, so that the new public-API semantic endpoint and the existing Q&A flow both ship the corrected behavior together. Regression test: a Q&A question whose top-K matches an unreadable page MUST NOT surface that page in citations.
-10. **`ai.read` API-key scope → permission action mapping**: the new `ai.read` API-key scope (FR-006) maps to the existing `use_ai_search` permission action in `apps/web/src/server/permissions/index.ts`. It is a *new* API-key scope (alongside the existing `view` / `create` / `edit` / `delete` / `storage` / `preferences` / `transfers` / `share` / `run` scopes) and is NOT one of the role-level actions that an API key can never hold (`manage_users` / `manage_ai` / `manage_appearance` / `use_ai_search` / `use_ai_qa` / `use_ai_text_optimization` / `use_ai_image_generation`). When in-app Q&A or other AI features ship their public counterparts in sibling specs, those endpoints will share the same `ai.read` scope so that an external agent granted "AI read" can use all of them without per-endpoint scope grants.
+10. **`ai.read` API-key scope → permission action mapping**: the new `ai.read` API-key scope (FR-006) maps to the existing `use_ai_search` permission action in `apps/web/src/server/permissions/index.ts`. It is a *new* API-key scope (alongside the existing `view` / `create` / `edit` / `delete` / `storage` / `preferences` / `transfers` / `share` / `run` scopes) and is NOT one of the role-level actions that an API key can never hold (`manage_users` / `manage_ai` / `manage_appearance` / `use_ai_search` / `use_ai_qa` / `use_ai_text_optimization` / `use_ai_image_generation`). Semantic search still requires `view` in addition to `ai.read`, because result items are page reads and must pass the same read-permission filter as direct page/list/search APIs. When in-app Q&A or other AI features ship their public counterparts in sibling specs, those endpoints will share the same `view` + `ai.read` scope pair so that an external agent granted "AI read" can use all of them without per-endpoint scope grants.
 
 ## Out of Scope (deferred to sibling specs)
 

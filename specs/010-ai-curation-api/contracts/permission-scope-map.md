@@ -3,7 +3,7 @@
 **Phase 1 output** | **Date**: 2026-07-04
 **Companion to**: [`plan.md`](../plan.md), [`v1-routes.md`](./v1-routes.md), [`mcp-tools.md`](./mcp-tools.md)
 
-This document specifies the exact permission wiring for the new `ai.read` API-key scope, including the four code locations that must change, the public-API error code set, and the test matrix that proves no leaks. Every reference is grounded in the existing permission chokepoint (`apps/web/src/server/permissions/index.ts:123-151`).
+This document specifies the exact permission wiring for the new `ai.read` API-key scope, including the six code locations that must change, the public-API error code set, and the test matrix that proves no leaks. Every reference is grounded in the existing permission chokepoint (`apps/web/src/server/permissions/index.ts:123-151`).
 
 ---
 
@@ -14,7 +14,7 @@ This document specifies the exact permission wiring for the new `ai.read` API-ke
 - `use_ai_search` — the existing action at `apps/web/src/server/permissions/index.ts:39`
 - `use_ai_qa` — the existing action at `apps/web/src/server/permissions/index.ts:40` (no public API uses it today, but the scope reserves access for the future `009-ai-memory-layers` follow-up Q&A endpoint)
 
-### 1.1 Four code locations
+### 1.1 Six code locations
 
 | File:line | Change |
 |---|---|
@@ -28,29 +28,30 @@ This document specifies the exact permission wiring for the new `ai.read` API-ke
 ### 1.2 The migration
 
 - The pgEnum change is a single `ALTER TYPE api_key_scope_enum ADD VALUE 'ai.read';`.
-- Drizzle generates the migration from the schema change via `pnpm db:generate` (per `CLAUDE.md`: never hand-author migrations).
+- Drizzle generates the migration from the schema change via `pnpm db:generate` (per `AGENTS.md`: never hand-author migrations).
 - The migration is **additive**; rolling it back requires dropping the enum value (Drizzle handles this on the down-migration).
 
 ### 1.3 Why a dedicated scope (not reusing `view`)
 
-`view` already maps to `['read', 'read_draft']` (`apps/web/src/server/permissions/index.ts:58-68`). Reusing it would conflate two concerns:
+`view` already maps to `['read', 'read_draft']` (`apps/web/src/server/permissions/index.ts:58-68`). Reusing it as the only semantic-search gate would conflate two concerns:
 
 1. `read_draft` is a stronger capability than `read` — it exposes drafts. AI features should not see drafts (the embedding index is built only from published revisions, so there is no semantic content to expose, but the principle holds).
-2. The scope-grant model is meant to be per-capability. A user with a `view` key should be able to call AI features (semantic search is a read) but should not be able to mutate pages (which `view` doesn't grant anyway, but the principle of separate scopes for separate capabilities is the codebase's pattern).
+2. The scope-grant model is meant to be per-capability. A key with only `view` can read pages directly, but it should not be able to invoke AI retrieval unless `ai.read` is also granted.
 
-A dedicated `ai.read` is the only way to satisfy Constitution P5 ("every API route MUST check permissions") without weakening the `view` scope or the `use_ai_search` / `use_ai_qa` actions.
+A dedicated `ai.read` is the only way to satisfy Constitution P5 ("every API route MUST check permissions") without weakening the `view` scope or the `use_ai_search` / `use_ai_qa` actions. Public semantic search requires both scopes: `ai.read` for the AI capability gate and `view` for result-level page-read filtering.
 
 ## 2. Public-API error code set
 
-The error code set returned in the `{ code, message }` envelope is the same as today (the existing `PublicApiErrorCode` union at `apps/web/src/server/api/public-errors.ts:5-17`), with **no new values**. The new endpoints reuse:
+The error code set returned in the `{ code, message }` envelope extends the existing `PublicApiErrorCode` union at `apps/web/src/server/api/public-errors.ts:5-17` with one new public value, `INDEX_NOT_READY`, because semantic-search clients need to distinguish "embedding index not available yet" from generic conflicts:
 
 ```text
 UNAUTHORIZED | FORBIDDEN | NOT_FOUND | VALIDATION_FAILED | CONFLICT
 | STALE_REVISION | PAGE_PATH_CONFLICT | REVISION_ALREADY_PUBLISHED
-| UNSUPPORTED_ASSET_TYPE | ASSET_TOO_LARGE | RATE_LIMITED | INTERNAL_ERROR
+| UNSUPPORTED_ASSET_TYPE | ASSET_TOO_LARGE | RATE_LIMITED | INDEX_NOT_READY
+| INTERNAL_ERROR
 ```
 
-The `INDEX_NOT_READY` code is **internal** (returned by `createSemanticSearch` at `apps/web/src/server/services/ai-retrieval.ts:16`) and is mapped to `CONFLICT` 409 in the public envelope by `mapPublicDomainError` (`apps/web/src/server/api/public-errors.ts:33-57`). The spec does not introduce a new public error code.
+`INDEX_NOT_READY` is returned by `createSemanticSearch` at `apps/web/src/server/services/ai-retrieval.ts:16` and must be preserved in the public envelope by `mapPublicDomainError` (`apps/web/src/server/api/public-errors.ts:33-57`) with HTTP 409. This is the only new public error code in this spec.
 
 The status code mapping for the relevant `DomainError` codes is unchanged:
 
@@ -60,6 +61,7 @@ The status code mapping for the relevant `DomainError` codes is unchanged:
 | `FORBIDDEN` | 403 | API key lacks the required scope or role |
 | `NOT_FOUND` | 404 | resource doesn't exist OR caller can't see it (existence non-disclosure) |
 | `CONFLICT` | 409 | path collision, etc. |
+| `INDEX_NOT_READY` | 409 | no active embedding index is available for semantic search |
 | `STALE_REVISION` | 409 | optimistic concurrency check failed |
 | `VALIDATION_FAILED` | 422 | Zod schema mismatch (default for unmapped internal codes) |
 | `INTERNAL_ERROR` | 500 | last-resort fallback |
@@ -144,14 +146,14 @@ const readable = matches.filter((m) =>
 | v1 endpoint | `view` | `ai.read` | `edit` | `delete` | Notes |
 |---|---|---|---|---|---|
 | `GET /api/v1/search/pages` | ✓ | — | — | — | unchanged |
-| `POST /api/v1/search/semantic` | — | ✓ | — | — | new |
-| `GET /api/v1/search/semantic/{id}` | — | ✓ | — | — | new; also requires `actorUserId === ctx.actor.userId` |
+| `POST /api/v1/search/semantic` | ✓ | ✓ | — | — | new; `view` feeds result read filtering, `ai.read` gates AI retrieval |
+| `GET /api/v1/search/semantic/{id}` | ✓ | ✓ | — | — | new; also requires `actorUserId === ctx.actor.userId` |
 | `GET /api/v1/pages/{id}/links` | ✓ | — | — | — | new |
 | `GET /api/v1/graph/neighbors` | ✓ | — | — | — | new |
 | `POST /api/v1/pages/batch/update` | — | — | ✓ | — | new; rejected at batch boundary if scope missing |
 | `POST /api/v1/pages/batch/delete` | — | — | — | ✓ | new; same |
 
-A key can have multiple scopes. The matrix above is the **minimum** required scope per endpoint; the codebase's `can()` evaluation is `scope ∩ role`, so a `reader` role + `ai.read` scope is sufficient for the semantic endpoints, but the same key + `edit` scope is rejected on `batch/update` (because `reader` role lacks `edit`).
+A key can have multiple scopes. The matrix above is the **minimum** required scope per endpoint; the codebase's `can()` evaluation is `scope ∩ role`, so a `reader` role + `['view', 'ai.read']` scope set is sufficient for the semantic endpoints, but the same role + `edit` scope is rejected on `batch/update` (because `reader` role lacks `edit`).
 
 ## 6. Test matrix (the regression suite)
 
@@ -171,6 +173,8 @@ For each combination below, assert that `can(apiKeyCtx, action, resource)` retur
 | `api_key` `reader` | `['ai.read']` | `use_ai_text_optimization` | false (still denied) |
 | `api_key` `reader` | `['ai.read']` | `manage_ai` | false (still denied) |
 | `user` `reader` | n/a (no scopes) | `use_ai_search` | true (user roles bypass the deny list) |
+
+Route-level tests must additionally prove that a semantic-search API request with only `ai.read` and no `view` is rejected with `FORBIDDEN`, because `ai.read` alone authorizes the AI capability but not page reads.
 
 ### 6.2 No-leakage integration tests
 

@@ -88,7 +88,7 @@ This document specifies the **MCP contract surface** — tool name, input Zod sh
 }
 ```
 
-**Authorization**: the MCP server passes through `NEXT_WIKI_API_KEY`; the key MUST have the `ai.read` scope (see [`permission-scope-map.md`](./permission-scope-map.md)). Otherwise the underlying v1 endpoint returns 403 and the tool surfaces a `WikiApiClientError` with `code: 'FORBIDDEN'`.
+**Authorization**: the MCP server passes through `NEXT_WIKI_API_KEY`; the key MUST have both `view` and `ai.read` scopes (see [`permission-scope-map.md`](./permission-scope-map.md)). Otherwise the underlying v1 endpoint returns 403 and the tool surfaces a `WikiApiClientError` with `code: 'FORBIDDEN'`.
 
 ---
 
@@ -241,6 +241,8 @@ The LLM can walk the tiers array (each tier is one hop) to reason about the know
 
 **Per-item semantics**: the LLM can iterate `results[]` and decide per result whether to retry (e.g., for `STALE_REVISION`) or surface to the user.
 
+**REST mapping**: the MCP `dryRun` boolean is sent to the REST endpoint as `?dry_run=true`; it is not serialized into the JSON request body.
+
 ---
 
 ## Tool 7: `batch_soft_delete_pages` (new)
@@ -253,6 +255,8 @@ The LLM can walk the tiers array (each tier is one hop) to reason about the know
   dryRun: z.boolean().default(false),
 }
 ```
+
+**REST mapping**: the MCP `dryRun` boolean is sent to the REST endpoint as `?dry_run=true`; it is not serialized into the JSON request body.
 
 **Output** (flattener `batchSoftDeletePagesResponse` — new):
 
@@ -298,6 +302,6 @@ The existing `wiki-page` and `wiki-pages` resources at `packages/mcp-server/src/
 
 The `WikiApiClient` (`packages/mcp-server/src/api-client.ts:283-296`) throws `WikiApiClientError(message, statusCode, code)` on non-2xx. The MCP tool wrapper surfaces the error message verbatim to the LLM. There is no MCP-specific error code set; the LLM sees the same `code` values as a direct v1 caller.
 
-For `submit_semantic_search` specifically, the `403` (no `ai.read` scope) and `409 INDEX_NOT_READY` are the two errors an agent is most likely to see and should handle explicitly. The tool description should mention them:
+For `submit_semantic_search` specifically, the `403` (missing `view` or `ai.read`) and `409 INDEX_NOT_READY` are the two errors an agent is most likely to see and should handle explicitly. The tool description should mention them:
 
-> "Returns 403 if the API key lacks the `ai.read` scope, or 409 if no embedding index is currently active. The latter is normal during initial setup — the agent should retry after the index becomes ready."
+> "Returns 403 if the API key lacks `view` or `ai.read`, or 409 if no embedding index is currently active. The latter is normal during initial setup — the agent should retry after the index becomes ready."

@@ -22,7 +22,7 @@ This spec introduces **no new database tables, no new columns, and no new pgEnum
 
 ## 2. The one DB change: `apiKeyScopeEnum` gains `'ai.read'`
 
-**Migration** (Drizzle-generated, never hand-authored per `CLAUDE.md`):
+**Migration** (Drizzle-generated, never hand-authored per `AGENTS.md`):
 
 - Edit `apps/web/src/server/db/schema/enums.ts:7-17` to add `'ai.read'` to the `apiKeyScopeEnum` array.
 - Run `pnpm db:generate` to produce the migration SQL + snapshot.
@@ -96,8 +96,8 @@ The spec reuses all existing state transitions:
 
 - **Page soft-delete** — `pages.ts::remove` (L235-265) is unchanged. Soft-deleted pages appear in `dangling[]` (link) and as filtered-out (search) per spec FR-019.
 - **Revision creation** — `pages.ts::newDraft` (L345-430) is unchanged. Frontmatter patches go through it with a rebuilt `contentSource` that includes the new `---` block (the parser is the inverse of the extractor, so round-trip is lossless).
-- **Action lifecycle** — `ai_actions` `queued → running → completed | failed | expired` is unchanged. `submit_semantic_search` only adds the `api_key` actor path; the lifecycle itself is reused.
-- **Index generation epochs** — `ai_index_generations` epoch transitions (`building → ready → superseded`) are unchanged. The new `mode=semantic` does not alter how generations are built.
+- **Action lifecycle** — `ai_actions` `queued → running → completed | failed | expired` is unchanged internally, while the public response normalizes completed actions to `status: succeeded`. `submit_semantic_search` only adds the `api_key` actor path; the lifecycle itself is reused.
+- **Index generation epochs** — `ai_index_generations` epoch transitions (`building → ready → superseded`) are unchanged. The new `/api/v1/search/semantic` endpoint does not alter how generations are built.
 
 ## 5. Validation rules added to existing entities
 

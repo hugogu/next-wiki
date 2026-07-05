@@ -76,7 +76,8 @@ curl -X POST http://localhost:3000/api/v1/search/semantic \
   -H "Content-Type: application/json" \
   -d '{"q": "anything"}'
 # Expected: 409 INDEX_NOT_READY (because no index is active yet)
-# Negative check: same call with a `view`-only key returns 403
+# Negative checks: the same call with a `view`-only key returns 403;
+# a key with `ai.read` but no `view` also returns 403 before index-state disclosure.
 ```
 
 ## 2. Close the `retrieve()` permission gap (FR-009)
@@ -202,11 +203,12 @@ $EDITOR apps/web/src/server/api/openapi-schemas.ts
 pnpm --filter @next-wiki/web test -- public-content
 
 # Manual: create a page with all three link types
-curl -X POST http://localhost:3000/api/v1/pages \
+SOURCE_ID=$(curl -s -X POST http://localhost:3000/api/v1/pages \
   -H "Authorization: Bearer $ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{"path": "test/links-source", "title": "Source",
-       "contentSource": "---\nrelated_pages: [\"test/links-target\"]\n---\n# body\n\n[[test/links-target]]\n[ext](https://example.com)\n[local](test/links-target)"}'
+       "contentSource": "---\nrelated_pages: [\"test/links-target\"]\n---\n# body\n\n[[test/links-target]]\n[ext](https://example.com)\n[local](test/links-target)"}' \
+  | jq -r .id)
 
 # Get outbound links
 curl -s "http://localhost:3000/api/v1/pages/$SOURCE_ID/links" \
@@ -234,7 +236,7 @@ curl -s "http://localhost:3000/api/v1/graph/neighbors?node=$SOURCE_ID&depth=4" \
 $EDITOR apps/web/src/server/services/public-content.ts
 # - batchUpdatePages(ctx, input) — per-item, per-item partial success
 # - batchSoftDeletePages(ctx, input) — same
-# - Both branch on input.dryRun and return preview without writing
+# - Both branch on the parsed REST `dry_run` query flag and return preview without writing
 
 # 2. Add the route handlers
 $EDITOR apps/web/app/api/v1/pages/batch/update/route.ts   # new
@@ -258,11 +260,18 @@ $EDITOR apps/web/src/server/api/openapi-schemas.ts
 pnpm --filter @next-wiki/web test -- public-content
 
 # Manual: create 3 pages, then run a batch update with one path collision
-for i in 1 2 3; do
-  curl -X POST http://localhost:3000/api/v1/pages \
-    -H "Authorization: Bearer $ADMIN_KEY" -H "Content-Type: application/json" \
-    -d "{\"path\": \"test/batch-$i\", \"title\": \"Batch $i\", \"contentSource\": \"# B$i\"}" >/dev/null
-done
+P1_JSON=$(curl -s -X POST http://localhost:3000/api/v1/pages \
+  -H "Authorization: Bearer $ADMIN_KEY" -H "Content-Type: application/json" \
+  -d '{"path": "test/batch-1", "title": "Batch 1", "contentSource": "# B1"}')
+P2_JSON=$(curl -s -X POST http://localhost:3000/api/v1/pages \
+  -H "Authorization: Bearer $ADMIN_KEY" -H "Content-Type: application/json" \
+  -d '{"path": "test/batch-2", "title": "Batch 2", "contentSource": "# B2"}')
+P3_JSON=$(curl -s -X POST http://localhost:3000/api/v1/pages \
+  -H "Authorization: Bearer $ADMIN_KEY" -H "Content-Type: application/json" \
+  -d '{"path": "test/batch-3", "title": "Batch 3", "contentSource": "# B3"}')
+P1=$(echo "$P1_JSON" | jq -r .id); R1=$(echo "$P1_JSON" | jq -r .latestVersionId)
+P2=$(echo "$P2_JSON" | jq -r .id); R2=$(echo "$P2_JSON" | jq -r .latestVersionId)
+P3=$(echo "$P3_JSON" | jq -r .id); R3=$(echo "$P3_JSON" | jq -r .latestVersionId)
 
 curl -X POST http://localhost:3000/api/v1/pages/batch/update \
   -H "Authorization: Bearer $ADMIN_KEY" -H "Content-Type: application/json" \
@@ -347,6 +356,13 @@ curl -s -X POST http://localhost:3000/api/v1/search/semantic \
   -d '{"q": "anything"}' -o /dev/null -w "%{http_code}"
 # Expected: 403
 
+# Negative: an ai.read-only key is also rejected because it lacks page-read scope
+AI_ONLY_KEY=...
+curl -s -X POST http://localhost:3000/api/v1/search/semantic \
+  -H "Authorization: Bearer $AI_ONLY_KEY" -H "Content-Type: application/json" \
+  -d '{"q": "anything"}' -o /dev/null -w "%{http_code}"
+# Expected: 403
+
 # Polling a non-existent action returns 404 (existence non-disclosure)
 curl -s "http://localhost:3000/api/v1/search/semantic/00000000-0000-0000-0000-000000000000" \
   -H "Authorization: Bearer $AI_KEY" -o /dev/null -w "%{http_code}"
@@ -405,7 +421,7 @@ pnpm --filter @next-wiki/web openapi:generate
 
 # 2. Verify the doc UI shows the new endpoints
 open http://localhost:3000/api-docs
-# Expected: 7 new entries (search/semantic POST + GET, pages/{id}/links, graph/neighbors, batch/update, batch/delete)
+# Expected: 6 new operations (search/semantic POST + GET, pages/{id}/links, graph/neighbors, batch/update, batch/delete)
 # Expected: search/pages shows the new filter parameters
 
 # 3. Public-only filter
@@ -427,7 +443,7 @@ Walk through the spec's success criteria one by one:
 
 | SC | How to verify |
 |---|---|
-| SC-001 "find pages about X and list their tags in ≤ 3 API calls" | Submit semantic search; read the response's items[].frontmatter.tags |
+| SC-001 "find pages about X and list their tags in ≤ 3 API calls" | Submit keyword or semantic search; if the search response does not already include frontmatter, call filtered list once and read `items[].frontmatter.tags` |
 | SC-002 "batch update 50 pages + verify in ≤ 5s" | `time` the batch + verify round-trip from §5.2 above |
 | SC-003 "2-hop neighborhood ≤ 1s on 10k pages" | Seed 10k pages; time the call from §4.2 above |
 | SC-004 "100% endpoints permission-gated" | Run the matrix from [`permission-scope-map.md` §6](./contracts/permission-scope-map.md) |

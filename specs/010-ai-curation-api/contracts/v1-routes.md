@@ -19,7 +19,7 @@ This document specifies the **contract surface** — request shape, response sha
 - Path params: each handler declares its own `z.object({ id: z.string().uuid() })` schema; the existing pattern is `apps/web/app/api/v1/pages/[id]/drafts/route.ts:7`.
 - Pagination: opaque base64url cursor (`decodePublicCursor` / `encodePublicCursor` at `apps/web/src/server/api/public-pagination.ts`); the response carries `{ items, nextCursor: string | null }`.
 - Per-item partial success: `{ results: BatchItemResult[], successCount: number, failureCount: number }` (new shape introduced by this spec).
-- Dry-run: `?dry_run=true` (snake_case to match existing query params; not `dryRun`).
+- Dry-run: REST endpoints use `?dry_run=true` (snake_case to match existing query params; not `dryRun`). MCP tools expose this as a boolean `dryRun` input and translate it to the REST query parameter.
 
 ---
 
@@ -72,10 +72,10 @@ Submits a semantic search action. Returns the action resource immediately; the a
   "limit": "int 1..50, default 10, optional",
   "pathPrefix": "string, optional",
   "scope": "'path' | 'title' | 'content' | 'all', default 'all', optional",
-  "filter[tag]": "string, repeated, optional",
-  "filter[status]": "string, repeated, optional",
-  "filter[owner]": "string, repeated, optional",
-  "filter[has_frontmatter]": "'true' | 'false', optional"
+  "filterTag": "string | string[], optional",
+  "filterStatus": "string | string[], optional",
+  "filterOwner": "string | string[], optional",
+  "filterHasFrontmatter": "boolean, optional"
 }
 ```
 
@@ -97,7 +97,7 @@ Submits a semantic search action. Returns the action resource immediately; the a
 | Code | When | HTTP |
 |---|---|---|
 | `VALIDATION_FAILED` | bad body | 422 |
-| `FORBIDDEN` | API key lacks `ai.read` scope (the request is rejected with no disclosure of index state per FR-007) | 403 |
+| `FORBIDDEN` | API key lacks `view` or `ai.read` scope (the request is rejected with no disclosure of index state per FR-007) | 403 |
 | `INDEX_NOT_READY` | no active embedding generation exists (or generation status is not `'ready'`) | 409 |
 | `INTERNAL_ERROR` | unhandled | 500 |
 
@@ -105,7 +105,7 @@ Submits a semantic search action. Returns the action resource immediately; the a
 
 **Async behavior**: this endpoint MUST NOT invoke the embedding model synchronously. The semantic-search job runs in the `ai-action` pg-boss queue (`apps/web/src/server/jobs/runtime.ts:10`); the route returns 202 as soon as the row is persisted.
 
-**Timeout**: the worker has up to 4 hours (`expireSecondsForFeature` at `ai-actions.ts:37` defaults to 15 minutes; the override for `index_rebuild` is 4h and is not applied to `semantic_search`).
+**Timeout**: semantic-search actions use the existing AI action retention/expiry policy for the `semantic_search` feature. The `index_rebuild` four-hour override does not apply to these public search actions.
 
 ---
 
@@ -163,6 +163,7 @@ Polls for the status and results of a previously-submitted semantic search.
 | Code | When | HTTP |
 |---|---|---|
 | `NOT_FOUND` | unknown action id, OR the action belongs to a different API key's owner (existence non-disclosure per FR-006) | 404 |
+| `FORBIDDEN` | API key lacks `view` or `ai.read` scope | 403 |
 | `VALIDATION_FAILED` | bad id format | 422 |
 
 **Authorization**: the action's `actor_user_id` must match the API key's `userId`. Otherwise `404` (not `403`) — same no-disclosure rule as the internal `requireActionAccess` (`apps/web/src/server/services/ai-actions.ts:243-254`).
@@ -290,6 +291,8 @@ Returns the multi-hop neighborhood of a page.
 
 `frontmatter` is a **patch** (partial): only the keys present in the patch are written; other keys are preserved from the existing frontmatter. To delete a key, send `null` (Zod-distinct from absence).
 
+`dry_run` is a query parameter, not a body field: `POST /api/v1/pages/batch/update?dry_run=true`.
+
 **Response** (HTTP 200):
 
 ```json
@@ -348,6 +351,8 @@ Returns the multi-hop neighborhood of a page.
   "pageIds": ["uuid", "..."]
 }
 ```
+
+`dry_run` is a query parameter, not a body field: `POST /api/v1/pages/batch/delete?dry_run=true`.
 
 **Response** (HTTP 200):
 

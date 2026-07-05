@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-07-04
-**Updated**: 2026-07-04 (speckit review pass: counts, FR renumber refs, frontmatter convention, FR-009 implementation-detail trim)
+**Updated**: 2026-07-05 (consistency review pass: semantic-search scope, migration wording, error-code contract, MCP/OpenAPI counts, batch semantics)
 **Feature**: [spec.md](./spec.md)
 
 ## Content Quality
@@ -56,3 +56,4 @@
 - 2026-07-04 revision A: design rationale paragraph added, search FRs restructured to model keyword and semantic as two endpoints, User Story 1 split into US-1 (keyword) and US-3 (semantic), SC-008 added to lock in the discoverability requirement.
 - 2026-07-04 revision B: per user follow-up on API-key access scope — FR-009 inserted as a dedicated cross-endpoint permission-filter requirement, US-1 scenario 3 strengthened, US-3 scenario 7 added, two new edge cases added, SC-004 split into endpoint-level and result-level guarantees, Assumption 9 documents the pre-existing pgvector permission gap with file:line references and ties its fix to a Q&A regression test, FR numbering shifted to 30 total.
 - 2026-07-04 revision C: speckit review pass — frontmatter aligned with the 007/008 convention (added `Depends on` line, moved update history to an inline `## Update history` section, dropped the ad-hoc `Updated` frontmatter key); stale FR cross-references in the Constitutional Alignment and Anti-Pattern sections updated to the post-renumber map (FR-029 → FR-030 for "no new dependency"; FR-019–023 → FR-020–025 for batch range; FR-023, FR-020 → FR-024, FR-021 for revision/soft-delete; FR-025, FR-026 → FR-026, FR-027 for openapi/MCP; FR-009 → FR-010 for the "forbid discriminated union" clause); FR-009 sub-bullets trimmed of `visiblePageResource (line ~167 of public-content.ts)` and `full-context.ts:55-58` references (now consolidated in Assumption 9); counts corrected (14 edge cases, 10 assumptions); Assumption 10 added documenting the `ai.read` scope → `use_ai_search` action mapping.
+- 2026-07-05 revision D: consistency review pass — semantic search requires `view + ai.read` so page-read filtering has a scope basis; `INDEX_NOT_READY` remains a public 409 code; plan/data-model/tasks now acknowledge the additive `apiKeyScopeEnum` migration instead of claiming no schema migration; REST `dry_run` vs MCP `dryRun` mapping is explicit; OpenAPI/MCP operation and flattener counts are corrected; batch soft-delete is described as tombstone/no-hard-delete rather than revision creation.
