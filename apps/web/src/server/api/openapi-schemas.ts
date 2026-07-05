@@ -1,72 +1,427 @@
 import { z } from 'zod';
-import {
-  apiKeyCreatedSchema,
-  apiKeyRevealSchema,
-  apiKeyScopeSchema,
-  apiKeyViewSchema,
-  auditEntrySchema,
-  auditListResponseSchema,
-  auditQueryParamsSchema,
-  changeEmailInputSchema,
-  changePasswordInputSchema,
-  createApiKeyInputSchema,
-  loginInputSchema,
-  loginOutputSchema,
-  meOutputSchema,
-  preferencesViewSchema,
-  registerInputSchema,
-  resetPasswordInputSchema,
-  setMyPasswordInputSchema,
-  setRoleInputSchema,
-  setStatusInputSchema,
-  setupInputSchema,
-  updatePreferencesInputSchema,
-  updateProfileInputSchema,
-  userViewSchema,
-  storageOverviewSchema,
-  storageBackendViewSchema,
-  storageBackendUpsertSchema,
-  backendCheckSchema,
-  backendCheckResultSchema,
-  migrationViewSchema,
-  migrationListSchema,
-  migrationStartSchema,
-  cleanupJobViewSchema,
-  cleanupStartSchema,
-  storageBackendDisableSchema,
-  storageBackendEnableSchema,
-  storageReadBackendSchema,
-  replicaSyncStatusSchema,
-  gitExportUpsertSchema,
-  gitSshKeyResultSchema,
-  gitExportRunResultSchema,
-} from '@next-wiki/shared';
+import { apiKeyScopeSchema, auditEntrySchema, auditQueryParamsSchema, userViewSchema } from '@next-wiki/shared';
 
-export {
-  apiKeyCreatedSchema,
-  apiKeyRevealSchema,
-  apiKeyScopeSchema,
-  apiKeyViewSchema,
-  auditEntrySchema,
-  auditListResponseSchema,
-  auditQueryParamsSchema,
-  changeEmailInputSchema,
-  changePasswordInputSchema,
-  createApiKeyInputSchema,
-  loginInputSchema,
-  loginOutputSchema,
-  meOutputSchema,
-  preferencesViewSchema,
-  registerInputSchema,
-  resetPasswordInputSchema,
-  setMyPasswordInputSchema,
-  setRoleInputSchema,
-  setStatusInputSchema,
-  setupInputSchema,
-  updatePreferencesInputSchema,
-  updateProfileInputSchema,
-  userViewSchema,
-};
+export { apiKeyScopeSchema, auditEntrySchema, auditQueryParamsSchema, userViewSchema };
+
+/**
+ * The schemas below are hand-written literal `z.object(...)` copies of
+ * @next-wiki/shared runtime schemas, not re-exports or aliases of them. That
+ * duplication is required, not stylistic: next-openapi-gen's Zod scanner only
+ * recognizes an exported const whose own initializer is a literal
+ * schema-building call. It does not follow a plain `export const X =
+ * importedSchema` alias across a workspace package boundary, so aliasing one
+ * of these back to its @next-wiki/shared counterpart silently drops it from
+ * the generated OpenAPI document instead of erroring. openapi-schemas.test.ts
+ * guards these against drifting from the runtime schemas.
+ */
+
+export const SetupInput = z
+  .object({
+    email: z.string().email().describe('Administrator email address for the initial account.'),
+    password: z.string().min(8).max(128).describe('Administrator password (8-128 characters).'),
+  })
+  .describe('First-run setup input, creating the initial administrator account.');
+
+export const RegisterInput = z
+  .object({
+    email: z.string().email().describe('Email address for the new account.'),
+    password: z.string().min(8).max(128).describe('Account password (8-128 characters).'),
+  })
+  .describe('Registration input.');
+
+export const LoginInput = z
+  .object({
+    email: z.string().email().describe('Account email address.'),
+    password: z.string().min(1).describe('Account password.'),
+  })
+  .describe('Login credentials.');
+
+export const LoginOutput = z
+  .object({
+    userId: z.string().describe('Identifier of the authenticated user.'),
+    mustResetPassword: z.boolean().describe('Whether the user must set a new password before continuing.'),
+  })
+  .describe('Login response.');
+
+export const MeOutput = z
+  .object({
+    id: z.string().describe('Current user identifier.'),
+    email: z.string().describe('Current user email address.'),
+    role: z.enum(['admin', 'editor', 'reader']).describe('Current user role.'),
+    displayName: z.string().nullable().describe('Current user display name, or null when not set.'),
+  })
+  .describe('Currently authenticated user profile.');
+
+export const SetMyPasswordInput = z
+  .object({
+    newPassword: z.string().min(8).max(128).describe('New password (8-128 characters).'),
+  })
+  .describe('Set a new password for the current user (e.g. after a forced reset).');
+
+export const SetRoleInput = z
+  .object({
+    role: z.enum(['admin', 'editor', 'reader']).describe('Role to assign to the target user.'),
+  })
+  .describe('Change a user role.');
+
+export const SetStatusInput = z
+  .object({
+    status: z.enum(['active', 'disabled']).describe('Status to assign to the target user.'),
+  })
+  .describe('Change a user account status.');
+
+export const ResetPasswordInput = z
+  .object({
+    tempPassword: z.string().min(8).max(128).describe('Temporary password issued to the user (8-128 characters).'),
+  })
+  .describe('Administrator-initiated password reset.');
+
+export const UpdateProfileInput = z
+  .object({
+    displayName: z.string().min(1).max(100).nullable().describe('New display name, or null to clear it.'),
+  })
+  .describe('Update the current user profile.');
+
+export const ChangeEmailInput = z
+  .object({
+    email: z.string().email().describe('New email address.'),
+  })
+  .describe('Change the current user email address.');
+
+export const ChangePasswordInput = z
+  .object({
+    currentPassword: z.string().min(1).describe('Current password, required to authorize the change.'),
+    newPassword: z.string().min(8).max(128).describe('New password (8-128 characters).'),
+  })
+  .describe('Change the current user password.');
+
+export const UpdatePreferencesInput = z
+  .object({
+    theme: z
+      .enum(['light', 'dark', 'auto'])
+      .nullable()
+      .optional()
+      .describe('Preferred theme, or null to reset to the default.'),
+    locale: z.enum(['en', 'zh']).nullable().optional().describe('Preferred locale, or null to reset to the default.'),
+  })
+  .describe('Update the current user preferences.');
+
+export const PreferencesView = z
+  .object({
+    theme: z.enum(['light', 'dark', 'auto']).nullable().describe('Preferred theme, or null when using the default.'),
+    locale: z.enum(['en', 'zh']).nullable().describe('Preferred locale, or null when using the default.'),
+  })
+  .describe('Current user preferences.');
+
+export const CreateApiKeyInput = z
+  .object({
+    name: z.string().min(1).max(100).describe('Human-readable name for the API key.'),
+    scopes: z
+      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers']))
+      .min(1)
+      .describe('Permission scopes granted to the key. At least one is required; scopes must be unique.'),
+  })
+  .describe('Create an API key.');
+
+export const ApiKeyViewList = z
+  .array(
+    z.object({
+      id: z.string().describe('API key identifier.'),
+      name: z.string().describe('Human-readable name for the API key.'),
+      scopes: z
+        .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers']))
+        .describe('Permission scopes granted to the key.'),
+      keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
+      createdAt: z.string().describe('Timestamp when the key was created.'),
+      revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
+      lastUsedAt: z.string().nullable().describe('Timestamp when the key was last used, or null if never used.'),
+    }),
+  )
+  .describe('List of API keys.');
+
+export const ApiKeyCreated = z
+  .object({
+    id: z.string().describe('API key identifier.'),
+    name: z.string().describe('Human-readable name for the API key.'),
+    scopes: z
+      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers']))
+      .describe('Permission scopes granted to the key.'),
+    keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
+    createdAt: z.string().describe('Timestamp when the key was created.'),
+    revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
+    lastUsedAt: z.string().nullable().describe('Timestamp when the key was last used, or null if never used.'),
+    keySecret: z.string().describe('Full secret key value. Shown only once, at creation time.'),
+  })
+  .describe('API key creation response, including the one-time secret value.');
+
+export const ApiKeyReveal = z
+  .object({
+    id: z.string().describe('API key identifier.'),
+    keySecret: z.string().describe('Full secret key value.'),
+  })
+  .describe('API key secret reveal response.');
+
+export const AuditListResponse = z
+  .object({
+    entries: z
+      .array(
+        z.object({
+          id: z.string().describe('Audit entry identifier.'),
+          keyId: z.string().nullable().describe('API key identifier used for the request, or null when not applicable.'),
+          keyName: z.string().nullable().describe('API key name used for the request, or null when not applicable.'),
+          userId: z.string().nullable().describe('Identifier of the user tied to the request, or null when not applicable.'),
+          userEmail: z.string().nullable().describe('Email of the user tied to the request, or null when not applicable.'),
+          method: z.string().describe('HTTP method of the request.'),
+          path: z.string().describe('Request path.'),
+          statusCode: z.number().describe('HTTP response status code.'),
+          durationMs: z.number().describe('Request duration in milliseconds.'),
+          authStatus: z
+            .enum(['authenticated', 'invalid_key', 'revoked_key', 'disabled_user', 'malformed_token'])
+            .describe('Outcome of authenticating the request.'),
+          errorMessage: z.string().nullable().describe('Error message, or null when the request succeeded.'),
+          createdAt: z.string().describe('Timestamp when the entry was recorded.'),
+        }),
+      )
+      .describe('Audit entries for the current result window.'),
+    total: z.number().describe('Total number of matching audit entries.'),
+    page: z.number().describe('Current page number.'),
+    pageSize: z.number().describe('Number of entries per page.'),
+  })
+  .describe('Paginated audit log response.');
+
+export const StorageBackendView = z
+  .object({
+    id: z.string().describe('Storage backend identifier.'),
+    type: z.enum(['database', 'local', 's3', 'git']).describe('Backend implementation type.'),
+    purpose: z
+      .enum(['primary', 'git_export'])
+      .describe('Role this backend plays: authoritative content store, or Git export target.'),
+    isActive: z.boolean().describe('Whether this backend is the currently active one for its purpose.'),
+    replicaState: z
+      .enum(['disabled', 'backfilling', 'enabled', 'degraded', 'deleting'])
+      .describe('Replication lifecycle state of this backend.'),
+    isReadPreferred: z.boolean().describe('Whether reads are preferentially served from this backend.'),
+    syncStartedAt: z.string().nullable().describe('Timestamp when the current sync started, or null if none is running.'),
+    syncCompletedAt: z.string().nullable().describe('Timestamp when the last sync completed, or null if never completed.'),
+    lastSyncAt: z.string().nullable().describe('Timestamp of the most recent successful sync, or null if never synced.'),
+    lastError: z.string().nullable().describe('Most recent error message, or null if none.'),
+    config: z.record(z.unknown()).describe('Non-secret backend configuration.'),
+    hasSecret: z.boolean().describe('Whether a secret (e.g. S3 key or Git token) is stored for this backend.'),
+    createdAt: z.string().describe('Timestamp when the backend was created.'),
+    updatedAt: z.string().describe('Timestamp when the backend was last updated.'),
+  })
+  .describe('Storage backend view, as returned to the admin UI. Never includes secrets.');
+
+export const MigrationView = z
+  .object({
+    id: z.string().describe('Migration job identifier.'),
+    status: z
+      .enum(['pending', 'copying', 'verifying', 'completed', 'failed', 'aborted'])
+      .describe('Current migration status.'),
+    abortRequested: z.boolean().describe('Whether an abort has been requested for this migration.'),
+    totalItems: z.number().int().nonnegative().describe('Total number of items to migrate.'),
+    copiedItems: z.number().int().nonnegative().describe('Number of items copied so far.'),
+    verifiedItems: z.number().int().nonnegative().describe('Number of items verified so far.'),
+    errorMessage: z.string().nullable().describe('Error message, or null if none.'),
+    startedAt: z.string().nullable().describe('Timestamp when the migration started, or null if not yet started.'),
+    finishedAt: z.string().nullable().describe('Timestamp when the migration finished, or null if still running.'),
+  })
+  .describe('Content storage migration job status.');
+
+export const StorageOverview = z
+  .object({
+    active: StorageBackendView.describe('Backend currently active for reads and writes.'),
+    authoritative: StorageBackendView.describe('Backend that is the authoritative content store.'),
+    preferredReadBackend: StorageBackendView.nullable().describe(
+      'Backend preferentially used for reads, or null to use the authoritative backend.',
+    ),
+    backends: z.array(StorageBackendView).describe('All configured storage backends.'),
+    gitExport: StorageBackendView.nullable().describe('Git export backend, or null if not configured.'),
+    migration: MigrationView.nullable().describe('In-progress or most recent migration, or null if none.'),
+    deployment: z
+      .object({
+        database: z.object({
+          engine: z.literal('PostgreSQL').describe('Database engine.'),
+          host: z.string().describe('Database host.'),
+          port: z.string().describe('Database port.'),
+          database: z.string().describe('Database name.'),
+          username: z.string().describe('Database username.'),
+          ssl: z.boolean().describe('Whether SSL is enabled for the database connection.'),
+        }),
+        local: z.object({
+          containerPath: z.string().describe('Local storage path inside the container.'),
+          hostPath: z.string().nullable().describe('Local storage path on the host, or null when unknown.'),
+        }),
+      })
+      .describe('Deployment information for the database and local storage backends.'),
+  })
+  .describe('Storage overview, returned by GET /storage.');
+
+export const StorageBackendUpsert = z
+  .discriminatedUnion('type', [
+    z.object({
+      type: z.literal('database').describe('Use the database as the storage backend.'),
+      config: z.object({}).describe('Database backend has no additional configuration.'),
+    }),
+    z.object({
+      type: z.literal('local').describe('Use the local filesystem as the storage backend.'),
+      config: z
+        .object({
+          basePath: z.string().min(1).describe('Base directory path for stored content.'),
+        })
+        .describe('Local backend configuration.'),
+    }),
+    z.object({
+      type: z.literal('s3').describe('Use S3-compatible object storage as the storage backend.'),
+      config: z
+        .object({
+          endpoint: z.string().url().optional().describe('Custom S3-compatible endpoint URL, if not using AWS.'),
+          region: z.string().min(1).describe('S3 region.'),
+          bucket: z.string().min(1).describe('S3 bucket name.'),
+          prefix: z.string().optional().describe('Optional key prefix for stored objects.'),
+          accessKeyId: z.string().min(1).describe('S3 access key ID.'),
+        })
+        .describe('S3 backend configuration. The secret access key is submitted separately via `secret`.'),
+      secret: z.string().min(1).optional().describe('S3 secret access key. Write-only; never echoed back.'),
+    }),
+  ])
+  .describe('Storage backend configuration write. The shape of `config` depends on `type`.');
+
+export const BackendCheckInput = z
+  .object({
+    backendId: z.string().uuid().optional().describe('Identifier of a saved backend to check.'),
+    type: z
+      .enum(['database', 'local', 's3'])
+      .optional()
+      .describe('Backend type to check, when checking an ad-hoc configuration.'),
+    config: z.record(z.unknown()).optional().describe('Ad-hoc backend configuration to check, when not checking a saved backend.'),
+    secret: z.string().optional().describe('Secret for the ad-hoc configuration, if required.'),
+  })
+  .refine((value) => Boolean(value.backendId) || Boolean(value.type && value.config), {
+    message: 'Provide either backendId or type with config',
+  })
+  .describe('Ephemeral storage backend connection check. Provide either a saved backendId or an ad-hoc type/config pair.');
+
+export const BackendCheckResult = z
+  .object({
+    ok: z.boolean().describe('Whether the connection check succeeded.'),
+    detail: z.string().optional().describe('Additional detail, typically present on failure.'),
+  })
+  .describe('Result of a storage backend connection check.');
+
+export const MigrationStartInput = z
+  .object({
+    targetBackendId: z.string().uuid().describe('Identifier of the backend to migrate content into.'),
+    confirmOverwrite: z.boolean().optional().describe('Must be true to proceed when the target backend already has content.'),
+  })
+  .describe('Start a content storage migration.');
+
+export const MigrationList = z
+  .object({
+    items: z.array(MigrationView).describe('Migration jobs, most recent first.'),
+  })
+  .describe('List of content storage migration jobs.');
+
+export const CleanupJobView = z
+  .object({
+    jobId: z.string().describe('Cleanup job identifier.'),
+    backendId: z.string().describe('Identifier of the backend being cleaned up.'),
+    status: z.enum(['pending', 'running', 'completed', 'failed']).describe('Current cleanup job status.'),
+    totalItems: z.number().int().nonnegative().describe('Total number of items to delete.'),
+    deletedItems: z.number().int().nonnegative().describe('Number of items deleted so far.'),
+    errorMessage: z.string().nullable().describe('Error message, or null if none.'),
+    startedAt: z.string().nullable().describe('Timestamp when the cleanup job started, or null if not yet started.'),
+    finishedAt: z.string().nullable().describe('Timestamp when the cleanup job finished, or null if still running.'),
+  })
+  .describe('Storage backend cleanup job status.');
+
+export const CleanupStartInput = z
+  .object({
+    backendId: z.string().uuid().describe('Identifier of the backend to delete migrated-away content from.'),
+    confirm: z.literal(true).describe('Must be true to confirm the destructive cleanup.'),
+  })
+  .describe('Start a storage backend cleanup job.');
+
+export const StorageBackendDisable = z
+  .object({
+    retainData: z.boolean().describe('Whether to keep existing content on the backend instead of deleting it.'),
+  })
+  .describe('Disable a storage backend.');
+
+export const StorageBackendEnable = z
+  .object({
+    syncExisting: z.boolean().describe('Whether to backfill existing content onto the backend.'),
+  })
+  .describe('Enable a storage backend.');
+
+export const StorageReadBackend = z
+  .object({
+    backendId: z.string().uuid().nullable().describe('Backend to prefer for reads, or null to use the authoritative backend.'),
+  })
+  .describe('Set the preferred read backend.');
+
+export const ReplicaSyncStatus = z
+  .object({
+    backendId: z.string().uuid().describe('Storage backend identifier.'),
+    backendType: z.enum(['database', 'local', 's3']).describe('Backend implementation type.'),
+    state: z
+      .enum(['disabled', 'backfilling', 'enabled', 'degraded', 'deleting'])
+      .describe('Replication lifecycle state of this backend.'),
+    totalItems: z.number().int().nonnegative().describe('Total number of items to replicate.'),
+    completedItems: z.number().int().nonnegative().describe('Number of items replicated so far.'),
+    failedItems: z.number().int().nonnegative().describe('Number of items that failed to replicate.'),
+    lastError: z.string().nullable().describe('Most recent error message, or null if none.'),
+  })
+  .describe('Storage backend replication sync progress.');
+
+export const GitExportUpsert = z
+  .object({
+    enabled: z.boolean().describe('Whether Git export is enabled.'),
+    config: z
+      .object({
+        remoteUrl: z.string().min(1).describe('Git remote URL (HTTPS or SSH, without embedded credentials).'),
+        branch: z.string().min(1).describe('Git branch to push exports to.'),
+        assetsDir: z.string().min(1).describe('Relative directory for exported assets.'),
+        username: z.string().optional().describe('Username for HTTPS token authentication.'),
+        authMode: z.enum(['https_token', 'ssh']).describe('Git authentication mode.'),
+        publicKey: z.string().optional().describe('SSH public key, when using SSH authentication.'),
+        fingerprint: z.string().optional().describe('SSH key fingerprint, when using SSH authentication.'),
+        autoSyncOnPublish: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe('Whether to export automatically when a page is published. Defaults to true.'),
+        scheduledSyncEnabled: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe('Whether to export on a schedule. Defaults to false.'),
+        scheduledSyncIntervalMinutes: z
+          .number()
+          .int()
+          .min(5)
+          .max(1440)
+          .optional()
+          .default(60)
+          .describe('Interval in minutes between scheduled exports (5-1440). Defaults to 60.'),
+      })
+      .describe('Git export backend configuration.'),
+    secret: z.string().min(1).optional().describe('Git HTTPS access token. Write-only; never echoed back.'),
+  })
+  .describe('Create or update the Git export backend configuration.');
+
+export const GitSshKeyResult = z
+  .object({
+    publicKey: z.string().describe('Generated SSH public key.'),
+    fingerprint: z.string().describe('SSH key fingerprint.'),
+  })
+  .describe('Generated Git export SSH key pair (public half).');
+
+export const GitExportRunResult = z
+  .object({
+    queued: z.boolean().describe('Whether a Git export run was queued.'),
+  })
+  .describe('Result of manually triggering a Git export run.');
 
 export const okResponseSchema = z.object({ ok: z.boolean() }).describe('Simple OK response');
 
@@ -91,8 +446,6 @@ export const profileViewSchema = z
   .describe('Profile view');
 
 export const userIdParamSchema = z.object({ id: z.string().uuid() }).describe('User ID path parameter');
-
-export const apiKeyViewListSchema = z.array(apiKeyViewSchema).describe('List of API keys');
 
 export const errorResponseSchema = z
   .object({
@@ -562,30 +915,6 @@ export const PublicAssetUploadResult = z
     createdAt: z.string().datetime().describe('Timestamp when the asset was created (ISO 8601).'),
   })
   .describe('Uploaded public wiki asset metadata.');
-
-export const StorageOverview = storageOverviewSchema;
-export const StorageBackendView = storageBackendViewSchema;
-export const StorageBackendUpsert = storageBackendUpsertSchema;
-export const BackendCheckInput = backendCheckSchema;
-export const BackendCheckResult = backendCheckResultSchema;
-export const MigrationView = migrationViewSchema;
-export const MigrationList = migrationListSchema;
-export const MigrationStartInput = migrationStartSchema;
-export const CleanupJobView = cleanupJobViewSchema;
-export const CleanupStartInput = cleanupStartSchema;
-export const StorageBackendDisable = storageBackendDisableSchema;
-export const StorageBackendEnable = storageBackendEnableSchema;
-export const StorageReadBackend = storageReadBackendSchema;
-export const ReplicaSyncStatus = replicaSyncStatusSchema;
-export const GitExportUpsert = gitExportUpsertSchema;
-export const GitSshKeyResult = gitSshKeyResultSchema;
-export const GitExportRunResult = gitExportRunResultSchema;
-
-export const ApiKeyViewList = apiKeyViewListSchema;
-export const CreateApiKeyInput = createApiKeyInputSchema;
-export const ApiKeyCreated = apiKeyCreatedSchema;
-export const ApiKeyReveal = apiKeyRevealSchema;
-export const AuditListResponse = auditListResponseSchema;
 
 export const OkResponse = okResponseSchema;
 export const PreviewInput = previewInputSchema;

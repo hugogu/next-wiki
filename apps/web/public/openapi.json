@@ -170,12 +170,334 @@
           "skipped"
         ]
       },
-      "apiKeyViewListSchema": {
+      "ApiKeyCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "API key identifier."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the API key."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "create",
+                "edit",
+                "delete",
+                "share",
+                "run",
+                "storage",
+                "preferences",
+                "transfers"
+              ]
+            },
+            "description": "Permission scopes granted to the key."
+          },
+          "keyPrefix": {
+            "type": "string",
+            "description": "Non-secret prefix of the key, shown for identification."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Timestamp when the key was created."
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the key was revoked, or null if still active."
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the key was last used, or null if never used."
+          },
+          "keySecret": {
+            "type": "string",
+            "description": "Full secret key value. Shown only once, at creation time."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scopes",
+          "keyPrefix",
+          "createdAt",
+          "revokedAt",
+          "lastUsedAt",
+          "keySecret"
+        ],
+        "description": "API key creation response, including the one-time secret value."
+      },
+      "ApiKeyReveal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "API key identifier."
+          },
+          "keySecret": {
+            "type": "string",
+            "description": "Full secret key value."
+          }
+        },
+        "required": [
+          "id",
+          "keySecret"
+        ],
+        "description": "API key secret reveal response."
+      },
+      "ApiKeyViewList": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/apiKeyViewSchema"
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "API key identifier."
+            },
+            "name": {
+              "type": "string",
+              "description": "Human-readable name for the API key."
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "view",
+                  "create",
+                  "edit",
+                  "delete",
+                  "share",
+                  "run",
+                  "storage",
+                  "preferences",
+                  "transfers"
+                ]
+              },
+              "description": "Permission scopes granted to the key."
+            },
+            "keyPrefix": {
+              "type": "string",
+              "description": "Non-secret prefix of the key, shown for identification."
+            },
+            "createdAt": {
+              "type": "string",
+              "description": "Timestamp when the key was created."
+            },
+            "revokedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Timestamp when the key was revoked, or null if still active."
+            },
+            "lastUsedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Timestamp when the key was last used, or null if never used."
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "scopes",
+            "keyPrefix",
+            "createdAt",
+            "revokedAt",
+            "lastUsedAt"
+          ]
         },
-        "description": "List of API keys"
+        "description": "List of API keys."
+      },
+      "AuditListResponse": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Audit entry identifier."
+                },
+                "keyId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "API key identifier used for the request, or null when not applicable."
+                },
+                "keyName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "API key name used for the request, or null when not applicable."
+                },
+                "userId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Identifier of the user tied to the request, or null when not applicable."
+                },
+                "userEmail": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Email of the user tied to the request, or null when not applicable."
+                },
+                "method": {
+                  "type": "string",
+                  "description": "HTTP method of the request."
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Request path."
+                },
+                "statusCode": {
+                  "type": "number",
+                  "description": "HTTP response status code."
+                },
+                "durationMs": {
+                  "type": "number",
+                  "description": "Request duration in milliseconds."
+                },
+                "authStatus": {
+                  "type": "string",
+                  "enum": [
+                    "authenticated",
+                    "invalid_key",
+                    "revoked_key",
+                    "disabled_user",
+                    "malformed_token"
+                  ],
+                  "description": "Outcome of authenticating the request."
+                },
+                "errorMessage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Error message, or null when the request succeeded."
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "Timestamp when the entry was recorded."
+                }
+              },
+              "required": [
+                "id",
+                "keyId",
+                "keyName",
+                "userId",
+                "userEmail",
+                "method",
+                "path",
+                "statusCode",
+                "durationMs",
+                "authStatus",
+                "errorMessage",
+                "createdAt"
+              ]
+            },
+            "description": "Audit entries for the current result window."
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of matching audit entries."
+          },
+          "page": {
+            "type": "number",
+            "description": "Current page number."
+          },
+          "pageSize": {
+            "type": "number",
+            "description": "Number of entries per page."
+          }
+        },
+        "required": [
+          "entries",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "description": "Paginated audit log response."
+      },
+      "BackendCheckInput": {
+        "type": "object",
+        "properties": {
+          "backendId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of a saved backend to check."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "database",
+              "local",
+              "s3"
+            ],
+            "description": "Backend type to check, when checking an ad-hoc configuration."
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Ad-hoc backend configuration to check, when not checking a saved backend."
+          },
+          "secret": {
+            "type": "string",
+            "description": "Secret for the ad-hoc configuration, if required."
+          }
+        },
+        "description": "Ephemeral storage backend connection check. Provide either a saved backendId or an ad-hoc type/config pair."
+      },
+      "BackendCheckResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the connection check succeeded."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Additional detail, typically present on failure."
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "description": "Result of a storage backend connection check."
+      },
+      "ChangeEmailInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "New email address."
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "description": "Change the current user email address."
       },
       "changeEmailOutputSchema": {
         "type": "object",
@@ -192,6 +514,149 @@
           "email"
         ],
         "description": "Changed email response"
+      },
+      "ChangePasswordInput": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Current password, required to authorize the change."
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "New password (8-128 characters)."
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "description": "Change the current user password."
+      },
+      "CleanupJobView": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "description": "Cleanup job identifier."
+          },
+          "backendId": {
+            "type": "string",
+            "description": "Identifier of the backend being cleaned up."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "description": "Current cleanup job status."
+          },
+          "totalItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of items to delete."
+          },
+          "deletedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items deleted so far."
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error message, or null if none."
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the cleanup job started, or null if not yet started."
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the cleanup job finished, or null if still running."
+          }
+        },
+        "required": [
+          "jobId",
+          "backendId",
+          "status",
+          "totalItems",
+          "deletedItems",
+          "errorMessage",
+          "startedAt",
+          "finishedAt"
+        ],
+        "description": "Storage backend cleanup job status."
+      },
+      "CleanupStartInput": {
+        "type": "object",
+        "properties": {
+          "backendId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the backend to delete migrated-away content from."
+          },
+          "confirm": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Must be true to confirm the destructive cleanup."
+          }
+        },
+        "required": [
+          "backendId",
+          "confirm"
+        ],
+        "description": "Start a storage backend cleanup job."
+      },
+      "CreateApiKeyInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Human-readable name for the API key."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "create",
+                "edit",
+                "delete",
+                "share",
+                "run",
+                "storage",
+                "preferences",
+                "transfers"
+              ]
+            },
+            "minItems": 1,
+            "description": "Permission scopes granted to the key. At least one is required; scopes must be unique."
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ],
+        "description": "Create an API key."
       },
       "CreateSystemThemeInput": {
         "type": "object",
@@ -224,6 +689,120 @@
         ],
         "description": "API error response"
       },
+      "GitExportRunResult": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "boolean",
+            "description": "Whether a Git export run was queued."
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "description": "Result of manually triggering a Git export run."
+      },
+      "GitExportUpsert": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether Git export is enabled."
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "remoteUrl": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Git remote URL (HTTPS or SSH, without embedded credentials)."
+              },
+              "branch": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Git branch to push exports to."
+              },
+              "assetsDir": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Relative directory for exported assets."
+              },
+              "username": {
+                "type": "string",
+                "description": "Username for HTTPS token authentication."
+              },
+              "authMode": {
+                "type": "string",
+                "enum": [
+                  "https_token",
+                  "ssh"
+                ],
+                "description": "Git authentication mode."
+              },
+              "publicKey": {
+                "type": "string",
+                "description": "SSH public key, when using SSH authentication."
+              },
+              "fingerprint": {
+                "type": "string",
+                "description": "SSH key fingerprint, when using SSH authentication."
+              },
+              "autoSyncOnPublish": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether to export automatically when a page is published. Defaults to true."
+              },
+              "scheduledSyncEnabled": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to export on a schedule. Defaults to false."
+              },
+              "scheduledSyncIntervalMinutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 1440,
+                "default": 60,
+                "description": "Interval in minutes between scheduled exports (5-1440). Defaults to 60."
+              }
+            },
+            "required": [
+              "remoteUrl",
+              "branch",
+              "assetsDir",
+              "authMode"
+            ],
+            "description": "Git export backend configuration."
+          },
+          "secret": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Git HTTPS access token. Write-only; never echoed back."
+          }
+        },
+        "required": [
+          "enabled",
+          "config"
+        ],
+        "description": "Create or update the Git export backend configuration."
+      },
+      "GitSshKeyResult": {
+        "type": "object",
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "description": "Generated SSH public key."
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "SSH key fingerprint."
+          }
+        },
+        "required": [
+          "publicKey",
+          "fingerprint"
+        ],
+        "description": "Generated Git export SSH key pair (public half)."
+      },
       "idSchema": {
         "type": "string",
         "format": "uuid"
@@ -232,19 +811,183 @@
         "type": "object",
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "format": "email",
+            "description": "Account email address."
           },
           "password": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "description": "Account password."
           }
         },
         "required": [
           "email",
           "password"
-        ]
+        ],
+        "description": "Login credentials."
       },
-      "LoginOutput": {},
-      "MeOutput": {},
+      "LoginOutput": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "Identifier of the authenticated user."
+          },
+          "mustResetPassword": {
+            "type": "boolean",
+            "description": "Whether the user must set a new password before continuing."
+          }
+        },
+        "required": [
+          "userId",
+          "mustResetPassword"
+        ],
+        "description": "Login response."
+      },
+      "MeOutput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Current user identifier."
+          },
+          "email": {
+            "type": "string",
+            "description": "Current user email address."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reader"
+            ],
+            "description": "Current user role."
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current user display name, or null when not set."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "displayName"
+        ],
+        "description": "Currently authenticated user profile."
+      },
+      "MigrationList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MigrationView"
+            },
+            "description": "Migration jobs, most recent first."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "List of content storage migration jobs."
+      },
+      "MigrationStartInput": {
+        "type": "object",
+        "properties": {
+          "targetBackendId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the backend to migrate content into."
+          },
+          "confirmOverwrite": {
+            "type": "boolean",
+            "description": "Must be true to proceed when the target backend already has content."
+          }
+        },
+        "required": [
+          "targetBackendId"
+        ],
+        "description": "Start a content storage migration."
+      },
+      "MigrationView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Migration job identifier."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "copying",
+              "verifying",
+              "completed",
+              "failed",
+              "aborted"
+            ],
+            "description": "Current migration status."
+          },
+          "abortRequested": {
+            "type": "boolean",
+            "description": "Whether an abort has been requested for this migration."
+          },
+          "totalItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of items to migrate."
+          },
+          "copiedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items copied so far."
+          },
+          "verifiedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items verified so far."
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error message, or null if none."
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the migration started, or null if not yet started."
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the migration finished, or null if still running."
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "abortRequested",
+          "totalItems",
+          "copiedItems",
+          "verifiedItems",
+          "errorMessage",
+          "startedAt",
+          "finishedAt"
+        ],
+        "description": "Content storage migration job status."
+      },
       "OkResponse": {
         "type": "object",
         "properties": {
@@ -280,6 +1023,39 @@
         "required": [
           "id"
         ]
+      },
+      "PreferencesView": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "light",
+              "dark",
+              "auto"
+            ],
+            "description": "Preferred theme, or null when using the default."
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "en",
+              "zh"
+            ],
+            "description": "Preferred locale, or null when using the default."
+          }
+        },
+        "required": [
+          "theme",
+          "locale"
+        ],
+        "description": "Current user preferences."
       },
       "PreviewInput": {
         "type": "object",
@@ -1660,16 +2436,22 @@
         "type": "object",
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "format": "email",
+            "description": "Email address for the new account."
           },
           "password": {
-            "type": "string"
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Account password (8-128 characters)."
           }
         },
         "required": [
           "email",
           "password"
-        ]
+        ],
+        "description": "Registration input."
       },
       "RegisterOutput": {
         "type": "object",
@@ -1695,21 +2477,608 @@
         ],
         "description": "Registration response"
       },
-      "SetMyPasswordInput": {},
+      "ReplicaSyncStatus": {
+        "type": "object",
+        "properties": {
+          "backendId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Storage backend identifier."
+          },
+          "backendType": {
+            "type": "string",
+            "enum": [
+              "database",
+              "local",
+              "s3"
+            ],
+            "description": "Backend implementation type."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "backfilling",
+              "enabled",
+              "degraded",
+              "deleting"
+            ],
+            "description": "Replication lifecycle state of this backend."
+          },
+          "totalItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of items to replicate."
+          },
+          "completedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items replicated so far."
+          },
+          "failedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items that failed to replicate."
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Most recent error message, or null if none."
+          }
+        },
+        "required": [
+          "backendId",
+          "backendType",
+          "state",
+          "totalItems",
+          "completedItems",
+          "failedItems",
+          "lastError"
+        ],
+        "description": "Storage backend replication sync progress."
+      },
+      "ResetPasswordInput": {
+        "type": "object",
+        "properties": {
+          "tempPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Temporary password issued to the user (8-128 characters)."
+          }
+        },
+        "required": [
+          "tempPassword"
+        ],
+        "description": "Administrator-initiated password reset."
+      },
+      "SetMyPasswordInput": {
+        "type": "object",
+        "properties": {
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "New password (8-128 characters)."
+          }
+        },
+        "required": [
+          "newPassword"
+        ],
+        "description": "Set a new password for the current user (e.g. after a forced reset)."
+      },
+      "SetRoleInput": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reader"
+            ],
+            "description": "Role to assign to the target user."
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "description": "Change a user role."
+      },
+      "SetStatusInput": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "description": "Status to assign to the target user."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "description": "Change a user account status."
+      },
       "SetupInput": {
         "type": "object",
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "format": "email",
+            "description": "Administrator email address for the initial account."
           },
           "password": {
-            "type": "string"
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Administrator password (8-128 characters)."
           }
         },
         "required": [
           "email",
           "password"
-        ]
+        ],
+        "description": "First-run setup input, creating the initial administrator account."
+      },
+      "StorageBackendDisable": {
+        "type": "object",
+        "properties": {
+          "retainData": {
+            "type": "boolean",
+            "description": "Whether to keep existing content on the backend instead of deleting it."
+          }
+        },
+        "required": [
+          "retainData"
+        ],
+        "description": "Disable a storage backend."
+      },
+      "StorageBackendEnable": {
+        "type": "object",
+        "properties": {
+          "syncExisting": {
+            "type": "boolean",
+            "description": "Whether to backfill existing content onto the backend."
+          }
+        },
+        "required": [
+          "syncExisting"
+        ],
+        "description": "Enable a storage backend."
+      },
+      "StorageBackendUpsert": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "database"
+                ],
+                "description": "Use the database as the storage backend."
+              },
+              "config": {
+                "type": "object",
+                "properties": {},
+                "description": "Database backend has no additional configuration."
+              }
+            },
+            "required": [
+              "type",
+              "config"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "local"
+                ],
+                "description": "Use the local filesystem as the storage backend."
+              },
+              "config": {
+                "type": "object",
+                "properties": {
+                  "basePath": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Base directory path for stored content."
+                  }
+                },
+                "required": [
+                  "basePath"
+                ],
+                "description": "Local backend configuration."
+              }
+            },
+            "required": [
+              "type",
+              "config"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "s3"
+                ],
+                "description": "Use S3-compatible object storage as the storage backend."
+              },
+              "config": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Custom S3-compatible endpoint URL, if not using AWS."
+                  },
+                  "region": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "S3 region."
+                  },
+                  "bucket": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "S3 bucket name."
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "description": "Optional key prefix for stored objects."
+                  },
+                  "accessKeyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "S3 access key ID."
+                  }
+                },
+                "required": [
+                  "region",
+                  "bucket",
+                  "accessKeyId"
+                ],
+                "description": "S3 backend configuration. The secret access key is submitted separately via `secret`."
+              },
+              "secret": {
+                "type": "string",
+                "minLength": 1,
+                "description": "S3 secret access key. Write-only; never echoed back."
+              }
+            },
+            "required": [
+              "type",
+              "config"
+            ]
+          }
+        ],
+        "description": "Storage backend configuration write. The shape of `config` depends on `type`."
+      },
+      "StorageBackendView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Storage backend identifier."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "database",
+              "local",
+              "s3",
+              "git"
+            ],
+            "description": "Backend implementation type."
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "git_export"
+            ],
+            "description": "Role this backend plays: authoritative content store, or Git export target."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this backend is the currently active one for its purpose."
+          },
+          "replicaState": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "backfilling",
+              "enabled",
+              "degraded",
+              "deleting"
+            ],
+            "description": "Replication lifecycle state of this backend."
+          },
+          "isReadPreferred": {
+            "type": "boolean",
+            "description": "Whether reads are preferentially served from this backend."
+          },
+          "syncStartedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the current sync started, or null if none is running."
+          },
+          "syncCompletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the last sync completed, or null if never completed."
+          },
+          "lastSyncAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp of the most recent successful sync, or null if never synced."
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Most recent error message, or null if none."
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Non-secret backend configuration."
+          },
+          "hasSecret": {
+            "type": "boolean",
+            "description": "Whether a secret (e.g. S3 key or Git token) is stored for this backend."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Timestamp when the backend was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Timestamp when the backend was last updated."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "purpose",
+          "isActive",
+          "replicaState",
+          "isReadPreferred",
+          "syncStartedAt",
+          "syncCompletedAt",
+          "lastSyncAt",
+          "lastError",
+          "config",
+          "hasSecret",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Storage backend view, as returned to the admin UI. Never includes secrets."
+      },
+      "StorageOverview": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageBackendView"
+              }
+            ],
+            "description": "Backend currently active for reads and writes."
+          },
+          "authoritative": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageBackendView"
+              }
+            ],
+            "description": "Backend that is the authoritative content store."
+          },
+          "preferredReadBackend": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StorageBackendView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Backend preferentially used for reads, or null to use the authoritative backend."
+          },
+          "backends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageBackendView"
+            },
+            "description": "All configured storage backends."
+          },
+          "gitExport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StorageBackendView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Git export backend, or null if not configured."
+          },
+          "migration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MigrationView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "In-progress or most recent migration, or null if none."
+          },
+          "deployment": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "object",
+                "properties": {
+                  "engine": {
+                    "type": "string",
+                    "enum": [
+                      "PostgreSQL"
+                    ],
+                    "description": "Database engine."
+                  },
+                  "host": {
+                    "type": "string",
+                    "description": "Database host."
+                  },
+                  "port": {
+                    "type": "string",
+                    "description": "Database port."
+                  },
+                  "database": {
+                    "type": "string",
+                    "description": "Database name."
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Database username."
+                  },
+                  "ssl": {
+                    "type": "boolean",
+                    "description": "Whether SSL is enabled for the database connection."
+                  }
+                },
+                "required": [
+                  "engine",
+                  "host",
+                  "port",
+                  "database",
+                  "username",
+                  "ssl"
+                ]
+              },
+              "local": {
+                "type": "object",
+                "properties": {
+                  "containerPath": {
+                    "type": "string",
+                    "description": "Local storage path inside the container."
+                  },
+                  "hostPath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Local storage path on the host, or null when unknown."
+                  }
+                },
+                "required": [
+                  "containerPath",
+                  "hostPath"
+                ]
+              }
+            },
+            "required": [
+              "database",
+              "local"
+            ],
+            "description": "Deployment information for the database and local storage backends."
+          }
+        },
+        "required": [
+          "active",
+          "authoritative",
+          "preferredReadBackend",
+          "backends",
+          "gitExport",
+          "migration",
+          "deployment"
+        ],
+        "description": "Storage overview, returned by GET /storage."
+      },
+      "StorageReadBackend": {
+        "type": "object",
+        "properties": {
+          "backendId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Backend to prefer for reads, or null to use the authoritative backend."
+          }
+        },
+        "required": [
+          "backendId"
+        ],
+        "description": "Set the preferred read backend."
+      },
+      "UpdatePreferencesInput": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "light",
+              "dark",
+              "auto"
+            ],
+            "description": "Preferred theme, or null to reset to the default."
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "en",
+              "zh"
+            ],
+            "description": "Preferred locale, or null to reset to the default."
+          }
+        },
+        "description": "Update the current user preferences."
+      },
+      "UpdateProfileInput": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "New display name, or null to clear it."
+          }
+        },
+        "required": [
+          "displayName"
+        ],
+        "description": "Update the current user profile."
       },
       "UpdateSiteSettingsInput": {
         "type": "object",
@@ -5011,7 +6380,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/loginOutputSchema"
+                  "$ref": "#/components/schemas/LoginOutput"
                 }
               }
             }
@@ -5039,7 +6408,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/okResponseSchema"
                 }
               }
             }
@@ -5067,7 +6436,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/meOutputSchema"
+                  "$ref": "#/components/schemas/MeOutput"
                 }
               }
             }
@@ -5088,7 +6457,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/registerInputSchema"
+                "$ref": "#/components/schemas/RegisterInput"
               }
             }
           }
@@ -5099,7 +6468,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegisterOutput"
+                  "$ref": "#/components/schemas/registerOutputSchema"
                 }
               }
             }
@@ -5125,7 +6494,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/setMyPasswordInputSchema"
+                "$ref": "#/components/schemas/SetMyPasswordInput"
               }
             }
           }
@@ -5136,7 +6505,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/okResponseSchema"
                 }
               }
             }
@@ -5157,7 +6526,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/setupInputSchema"
+                "$ref": "#/components/schemas/SetupInput"
               }
             }
           }
@@ -5168,7 +6537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/okResponseSchema"
                 }
               }
             }
@@ -5648,7 +7017,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/previewInputSchema"
+                "$ref": "#/components/schemas/PreviewInput"
               }
             }
           }
@@ -5659,7 +7028,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PreviewOutput"
+                  "$ref": "#/components/schemas/previewOutputSchema"
                 }
               }
             }
