@@ -125,21 +125,21 @@
 
 ### Tests for User Story 4
 
-- [ ] T042 [P] [US4] Add unit test in `apps/web/src/server/transfers/markdown-links.test.ts` (extend existing file) for `findMarkdownLinks`: covers standard Markdown links, `[[wikilink]]`, `[[wikilink|alias]]`, external `https://` links (excluded from main result, surfaced via the dedicated `external` bucket)
-- [ ] T043 [P] [US4] Add unit test in `apps/web/src/server/services/public-content-read.test.ts` for `getOutboundLinks`: seed the graph above; assert three entries in `links[]`, one with `source: 'wiki'`, one with `source: 'markdown'`, one with `source: 'frontmatter'`; assert the dangling/external buckets behave as specified
-- [ ] T044 [P] [US4] Add unit test for `getNeighborhood`: same graph; assert depth-2 traversal; assert the cycle (D → A) does NOT re-enter A at tier 2; assert a page unreadable to the caller is silently omitted
+- [X] T042 [P] [US4] Add unit test in `apps/web/src/server/transfers/markdown-links.test.ts` (extend existing file) for `findMarkdownLinks`: covers standard Markdown links, `[[wikilink]]`, `[[wikilink|alias]]`, external `https://` links (excluded from main result, surfaced via the dedicated `external` bucket)
+- [X] T043 [P] [US4] Add unit test in `apps/web/src/server/services/public-content-read.test.ts` for `getOutboundLinks`: seed the graph above; assert three entries in `links[]`, one with `source: 'wiki'`, one with `source: 'markdown'`, one with `source: 'frontmatter'`; assert the dangling/external buckets behave as specified
+- [X] T044 [P] [US4] Add unit test for `getNeighborhood`: same graph; assert depth-2 traversal; assert the cycle (D → A) does NOT re-enter A at tier 2; assert a page unreadable to the caller is silently omitted
 
 ### Implementation for User Story 4
 
-- [ ] T045 [P] [US4] Add `findMarkdownLinks(markdown: string): MarkdownLink[]` to `apps/web/src/server/transfers/markdown-links.ts:1-36` — mirror `findMarkdownImages` shape; use the same `unified().use(remarkParse).parse(markdown)` AST walk but `visit(tree, 'link', ...)`; supplement with a wikilink regex `/\\[\\[([^]|]+)(?:\\|([^]]+))?\\]\\]/g` for `[[wikilink]]` and `[[wikilink|alias]]`
-- [ ] T046 [P] [US4] Add `findFrontmatterRelatedPages(frontmatter: object | null): string[]` in `apps/web/src/server/transfers/markdown-links.ts` — reads the `related_pages` array if present
-- [ ] T047 [US4] Add `getOutboundLinks(ctx, pageId)` to `apps/web/src/server/services/public-content.ts` — reads page via `visiblePageResource`; parses content; merges three sources; for each target, resolves via `getPageByPath`; classifies as `links[]` (readable + resolvable), `dangling[]` (linker readable, target unknown or unreadable), or `external[]` (`https://...`); respects `read_draft` for soft-deleted targets (per FR-019)
-- [ ] T048 [US4] Add `getNeighborhood(ctx, pageId, depth, direction)` to `apps/web/src/server/services/public-content.ts` — recursive BFS up to `depth ∈ [1,3]`; per-request visited set; cycles terminate at depth bound; unreadable targets silently omitted (no `dangling[]` for graph — dangling is a property of a single edge, not a multi-hop path)
-- [ ] T049 [P] [US4] Add `publicOutboundLinksResponseSchema` and `publicNeighborhoodResponseSchema` to `packages/shared/src/pages.ts` per `contracts/v1-routes.md` Routes 4 and 5
-- [ ] T050 [P] [US4] Create `apps/web/app/api/v1/pages/[id]/links/route.ts` — pattern matches `apps/web/app/api/v1/pages/[id]/backlinks/route.ts:1-17`; validates `{ id: uuid }`
-- [ ] T051 [P] [US4] Create `apps/web/app/api/v1/graph/neighbors/route.ts` — pattern matches `apps/web/app/api/v1/search/pages/route.ts:18-22` with `parsePublicQuery`; rejects `depth` outside `[1,3]` with `VALIDATION_FAILED` 422
-- [ ] T052 [P] [US4] Mirror the two new response schemas with `.describe()` in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T053 [US4] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `/api/v1/pages/{id}/links` and `/api/v1/graph/neighbors` appear with distinct operationIds
+- [X] T045 [P] [US4] Add `findMarkdownLinks(markdown: string): MarkdownLink[]` to `apps/web/src/server/transfers/markdown-links.ts:1-36` — mirror `findMarkdownImages` shape; use the same `unified().use(remarkParse).parse(markdown)` AST walk but `visit(tree, 'link', ...)`; supplement with a wikilink regex `/\\[\\[([^]|]+)(?:\\|([^]]+))?\\]\\]/g` for `[[wikilink]]` and `[[wikilink|alias]]`
+- [X] T046 [P] [US4] Add `findFrontmatterRelatedPages(frontmatter: object | null): string[]` in `apps/web/src/server/transfers/markdown-links.ts` — reads the `related_pages` array if present
+- [X] T047 [US4] Add `getOutboundLinks(ctx, pageId)` to `apps/web/src/server/services/public-content.ts` — reads page via `visiblePageResource`; parses content; merges three sources; for each target, resolves via `getPageByPath`; classifies as `links[]` (readable + resolvable), `dangling[]` (linker readable, target unknown or unreadable), or `external[]` (`https://...`); respects `read_draft` for soft-deleted targets (per FR-019)
+- [X] T048 [US4] Add `getNeighborhood(ctx, pageId, depth, direction)` to `apps/web/src/server/services/public-content.ts` — recursive BFS up to `depth ∈ [1,3]`; per-request visited set; cycles terminate at depth bound; unreadable targets silently omitted (no `dangling[]` for graph — dangling is a property of a single edge, not a multi-hop path)
+- [X] T049 [P] [US4] Add `publicOutboundLinksResponseSchema` and `publicNeighborhoodResponseSchema` to `packages/shared/src/pages.ts` per `contracts/v1-routes.md` Routes 4 and 5
+- [X] T050 [P] [US4] Create `apps/web/app/api/v1/pages/[id]/links/route.ts` — pattern matches `apps/web/app/api/v1/pages/[id]/backlinks/route.ts:1-17`; validates `{ id: uuid }`
+- [X] T051 [P] [US4] Create `apps/web/app/api/v1/graph/neighbors/route.ts` — pattern matches `apps/web/app/api/v1/search/pages/route.ts:18-22` with `parsePublicQuery`; rejects `depth` outside `[1,3]` with `VALIDATION_FAILED` 422
+- [X] T052 [P] [US4] Mirror the two new response schemas with `.describe()` in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T053 [US4] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `/api/v1/pages/{id}/links` and `/api/v1/graph/neighbors` appear with distinct operationIds
 
 **Checkpoint**: US4 fully functional. Smoke tests from `quickstart.md` §4.2 must pass: 3 entries in `links[]` (one per source), `external[]` for the https link, depth-2 graph traversal, 422 for depth=4.
 

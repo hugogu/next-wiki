@@ -390,3 +390,68 @@ export const publicSimilarResponseSchema = z.object({
   threshold: z.number().min(0).max(1),
 });
 export type PublicSimilarResponse = z.infer<typeof publicSimilarResponseSchema>;
+
+// ---- 010: AI Curation API — link graph ----
+
+export const publicLinkSourceSchema = z.enum(['markdown', 'wiki', 'frontmatter']);
+export type PublicLinkSource = z.infer<typeof publicLinkSourceSchema>;
+
+export const publicOutboundLinkSchema = z.object({
+  source: publicLinkSourceSchema,
+  targetPath: z.string(),
+  targetPageId: z.string().uuid(),
+  targetStatus: publicPageStatusSchema,
+  linkText: z.string(),
+});
+export type PublicOutboundLink = z.infer<typeof publicOutboundLinkSchema>;
+
+export const publicDanglingLinkSchema = z.object({
+  source: publicLinkSourceSchema,
+  targetPath: z.string(),
+  targetStatus: publicPageStatusSchema.optional(),
+  linkText: z.string(),
+});
+export type PublicDanglingLink = z.infer<typeof publicDanglingLinkSchema>;
+
+export const publicExternalLinkSchema = z.object({
+  source: z.literal('markdown'),
+  href: z.string(),
+  linkText: z.string(),
+});
+export type PublicExternalLink = z.infer<typeof publicExternalLinkSchema>;
+
+export const publicOutboundLinksResponseSchema = z.object({
+  pageId: z.string().uuid(),
+  links: z.array(publicOutboundLinkSchema),
+  dangling: z.array(publicDanglingLinkSchema),
+  external: z.array(publicExternalLinkSchema),
+});
+export type PublicOutboundLinksResponse = z.infer<typeof publicOutboundLinksResponseSchema>;
+
+export const publicNeighborhoodQuerySchema = z.object({
+  node: z.string().uuid(),
+  depth: z.coerce.number().int().min(1).max(3).default(1),
+  direction: z.enum(['out', 'in', 'both']).default('out'),
+});
+export type PublicNeighborhoodQuery = z.infer<typeof publicNeighborhoodQuerySchema>;
+
+export const publicNeighborViaSchema = z.enum(['markdown', 'wiki', 'frontmatter', 'backlink']);
+export type PublicNeighborVia = z.infer<typeof publicNeighborViaSchema>;
+
+export const publicNeighborNodeSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  title: z.string(),
+  viaLinkSource: publicNeighborViaSchema.optional(),
+});
+export type PublicNeighborNode = z.infer<typeof publicNeighborNodeSchema>;
+
+export const publicNeighborhoodResponseSchema = z.object({
+  root: z.object({
+    pageId: z.string().uuid(),
+    path: z.string(),
+    title: z.string(),
+  }),
+  tiers: z.array(z.array(publicNeighborNodeSchema)),
+});
+export type PublicNeighborhoodResponse = z.infer<typeof publicNeighborhoodResponseSchema>;

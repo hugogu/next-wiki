@@ -423,4 +423,87 @@ describe('public content read facade', () => {
 
     expect(result.items.map((item) => item.path).sort()).toEqual(['docs/fm-list/a', 'docs/fm-list/ab']);
   });
+
+  it('classifies outbound links by source (markdown/wiki/frontmatter) and buckets dangling/external separately (US4)', async () => {
+    const editor = await createPublicApiUser('public-links-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-links-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, { path: 'graph/b', title: 'B', contentSource: '# B' });
+    await revisions.publish(editorCtx, { path: 'graph/b', version: 1 });
+    await pageService.create(editorCtx, { path: 'graph/c', title: 'C', contentSource: '# C' });
+    await revisions.publish(editorCtx, { path: 'graph/c', version: 1 });
+    await pageService.create(editorCtx, { path: 'graph/d', title: 'D', contentSource: '# D' });
+    await revisions.publish(editorCtx, { path: 'graph/d', version: 1 });
+    // Draft-only: exists but unreadable to the reader.
+    await pageService.create(editorCtx, { path: 'graph/secret', title: 'Secret', contentSource: '# Secret' });
+
+    await pageService.create(editorCtx, {
+      path: 'graph/a',
+      title: 'A',
+      contentSource:
+        '---\nrelated_pages: [graph/d]\n---\n\n[Markdown Link](graph/b) and [[graph/c]] and [External](https://example.com) and [Missing](graph/missing) and [Secret](graph/secret)',
+    });
+    await revisions.publish(editorCtx, { path: 'graph/a', version: 1 });
+
+    const a = await publicContent.getPageByPath(readerCtx, 'graph/a');
+    const result = await publicContent.getOutboundLinks(readerCtx, a!.id);
+
+    expect(result.pageId).toBe(a!.id);
+    expect(result.links).toHaveLength(3);
+    expect(result.links.map((l) => l.source).sort()).toEqual(['frontmatter', 'markdown', 'wiki']);
+    expect(result.links.find((l) => l.source === 'markdown')).toMatchObject({ targetPath: 'graph/b' });
+    expect(result.links.find((l) => l.source === 'wiki')).toMatchObject({ targetPath: 'graph/c' });
+    expect(result.links.find((l) => l.source === 'frontmatter')).toMatchObject({ targetPath: 'graph/d' });
+
+    expect(result.external).toEqual([{ source: 'markdown', href: 'https://example.com', linkText: 'External' }]);
+
+    expect(result.dangling).toHaveLength(2);
+    expect(result.dangling.find((l) => l.targetPath === 'graph/missing')).toMatchObject({ targetPath: 'graph/missing' });
+    const secretDangling = result.dangling.find((l) => l.targetPath === 'graph/secret');
+    expect(secretDangling).toBeDefined();
+    expect(secretDangling?.targetStatus).toBeUndefined();
+  });
+
+  it('traverses the multi-hop neighborhood, stops cycles, and silently omits unreadable targets (US4)', async () => {
+    const editor = await createPublicApiUser('public-neighbors-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-neighbors-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, { path: 'net/b', title: 'B', contentSource: '# B' });
+    await revisions.publish(editorCtx, { path: 'net/b', version: 1 });
+    await pageService.create(editorCtx, { path: 'net/c', title: 'C', contentSource: '# C' });
+    await revisions.publish(editorCtx, { path: 'net/c', version: 1 });
+    await pageService.create(editorCtx, { path: 'net/e', title: 'E', contentSource: '# E' });
+    await revisions.publish(editorCtx, { path: 'net/e', version: 1 });
+    // Draft-only: exists but unreadable to the reader — must be silently omitted.
+    await pageService.create(editorCtx, { path: 'net/secret', title: 'Secret', contentSource: '# Secret' });
+
+    await pageService.create(editorCtx, {
+      path: 'net/d',
+      title: 'D',
+      contentSource: '[Back to A](net/a) and [To E](net/e) and [To Secret](net/secret)',
+    });
+    await revisions.publish(editorCtx, { path: 'net/d', version: 1 });
+
+    await pageService.create(editorCtx, {
+      path: 'net/a',
+      title: 'A',
+      contentSource: '---\nrelated_pages: [net/d]\n---\n\n[To B](net/b) and [[net/c]]',
+    });
+    await revisions.publish(editorCtx, { path: 'net/a', version: 1 });
+
+    const a = await publicContent.getPageByPath(readerCtx, 'net/a');
+    const result = await publicContent.getNeighborhood(readerCtx, a!.id, 2, 'out');
+
+    expect(result.root).toMatchObject({ path: 'net/a' });
+    expect(result.tiers).toHaveLength(3);
+    expect(result.tiers[0]).toEqual([{ pageId: a!.id, path: 'net/a', title: 'A' }]);
+    expect(result.tiers[1]!.map((n) => n.path).sort()).toEqual(['net/b', 'net/c', 'net/d']);
+    // D -> A is a cycle (must not re-enter A); D -> secret is unreadable (silently
+    // omitted); only D -> E should surface at tier 2.
+    expect(result.tiers[2]!.map((n) => n.path)).toEqual(['net/e']);
+  });
 });

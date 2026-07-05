@@ -3,7 +3,14 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
+  PublicDanglingLink,
   PublicDraftCreateInput,
+  PublicExternalLink,
+  PublicNeighborNode,
+  PublicNeighborVia,
+  PublicNeighborhoodResponse,
+  PublicOutboundLink,
+  PublicOutboundLinksResponse,
   PublicPageCreateInput,
   PublicPageInclude,
   PublicPageListQuery,
@@ -25,6 +32,7 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { parsePageFrontmatter, matchesFrontmatterFilters, type FrontmatterFilters } from '@/server/transfers/frontmatter';
+import { findFrontmatterRelatedPages, findMarkdownLinks } from '@/server/transfers/markdown-links';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
@@ -788,6 +796,189 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
     }
   }
   return { items };
+}
+
+// ---------------------------------------------------------------------------
+// 010: AI Curation API — outbound links & graph traversal
+// ---------------------------------------------------------------------------
+
+type SpaceRow = { id: string; slug: string; anonymousRead: boolean; defaultLocale: string };
+
+async function findPageRowByPathAnyStatus(spaceId: string, targetPath: string): Promise<PageRow | null> {
+  return (
+    (await db.query.pages.findFirst({
+      where: and(eq(schema.pages.spaceId, spaceId), eq(schema.pages.path, targetPath)),
+    })) ?? null
+  );
+}
+
+/** Accepts a bare page path, an absolute path, or an `/api/v1/pages/{path}` URL. */
+function normalizeLinkTarget(rawTarget: string): string {
+  return (rawTarget.split(/[?#]/)[0] ?? '')
+    .replace(/^\//, '')
+    .replace(/^api\/v1\/pages\//, '');
+}
+
+type ResolvedLink =
+  | { kind: 'resolved'; item: PublicOutboundLink }
+  | { kind: 'dangling'; item: PublicDanglingLink }
+  | { kind: 'omit' };
+
+async function resolveLinkTarget(
+  ctx: PermCtx,
+  space: SpaceRow,
+  source: PublicOutboundLink['source'],
+  rawTarget: string,
+  linkText: string,
+): Promise<ResolvedLink> {
+  const targetPath = normalizeLinkTarget(rawTarget);
+  const row = await findPageRowByPathAnyStatus(space.id, targetPath);
+
+  if (!row) {
+    return { kind: 'dangling', item: { source, targetPath, linkText } };
+  }
+
+  if (row.deletedAt) {
+    const userId = getActorUserId(ctx);
+    const isAuthor = userId ? row.authorId === userId : false;
+    const canSeeDeleted =
+      can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, { isAuthor }) ||
+      can(ctx, 'delete', { kind: 'page_list' });
+    if (!canSeeDeleted) return { kind: 'omit' };
+    return { kind: 'dangling', item: { source, targetPath, targetStatus: 'deleted', linkText } };
+  }
+
+  const resolved = await visiblePageResource(ctx, space, row, { includeContent: false, include: [] });
+  if (!resolved) {
+    return { kind: 'dangling', item: { source, targetPath, linkText } };
+  }
+  return {
+    kind: 'resolved',
+    item: { source, targetPath, targetPageId: resolved.id, targetStatus: resolved.status, linkText },
+  };
+}
+
+export async function getOutboundLinks(ctx: PermCtx, pageId: string): Promise<PublicOutboundLinksResponse> {
+  const page = await getPageById(ctx, pageId);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getDefaultSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
+
+  const contentSource = page.contentSource ?? '';
+  const { frontmatter } = parsePageFrontmatter(contentSource);
+  const markdownLinks = findMarkdownLinks(contentSource);
+  const relatedPages = findFrontmatterRelatedPages(frontmatter);
+
+  const links: PublicOutboundLink[] = [];
+  const dangling: PublicDanglingLink[] = [];
+  const external: PublicExternalLink[] = [];
+
+  for (const link of markdownLinks) {
+    if (link.external) {
+      external.push({ source: 'markdown', href: link.target, linkText: link.linkText });
+      continue;
+    }
+    const resolved = await resolveLinkTarget(ctx, space, link.source, link.target, link.linkText);
+    if (resolved.kind === 'resolved') links.push(resolved.item);
+    else if (resolved.kind === 'dangling') dangling.push(resolved.item);
+  }
+
+  for (const relatedPath of relatedPages) {
+    const resolved = await resolveLinkTarget(ctx, space, 'frontmatter', relatedPath, relatedPath);
+    if (resolved.kind === 'resolved') links.push(resolved.item);
+    else if (resolved.kind === 'dangling') dangling.push(resolved.item);
+  }
+
+  return { pageId: page.id, links, dangling, external };
+}
+
+/** Pages (readable to `ctx`) that outbound-link to `pageId`, with the source of the linking edge. */
+async function findInboundNeighbors(ctx: PermCtx, space: SpaceRow, pageId: string, targetPath: string): Promise<Array<{ pageId: string; path: string; title: string }>> {
+  const rows = await db
+    .select({ page: schema.pages })
+    .from(schema.pages)
+    .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
+
+  const neighbors: Array<{ pageId: string; path: string; title: string }> = [];
+  for (const { page: row } of rows) {
+    if (row.id === pageId) continue;
+    const resource = await visiblePageResource(ctx, space, row, { includeContent: true, include: [] });
+    if (!resource?.contentSource) continue;
+    const { frontmatter } = parsePageFrontmatter(resource.contentSource);
+    const targets = [
+      ...findMarkdownLinks(resource.contentSource)
+        .filter((link) => !link.external)
+        .map((link) => normalizeLinkTarget(link.target)),
+      ...findFrontmatterRelatedPages(frontmatter),
+    ];
+    if (targets.includes(targetPath)) {
+      neighbors.push({ pageId: row.id, path: row.path, title: row.title });
+    }
+  }
+  return neighbors;
+}
+
+async function outboundNeighbors(ctx: PermCtx, node: { pageId: string }): Promise<PublicNeighborNode[]> {
+  const outbound = await getOutboundLinks(ctx, node.pageId);
+  const neighbors: PublicNeighborNode[] = [];
+  for (const link of outbound.links) {
+    const target = await getPageById(ctx, link.targetPageId);
+    neighbors.push({
+      pageId: link.targetPageId,
+      path: link.targetPath,
+      title: target?.title ?? link.targetPath,
+      viaLinkSource: link.source as PublicNeighborVia,
+    });
+  }
+  return neighbors;
+}
+
+/**
+ * Bounded multi-hop neighborhood traversal (FR-018). `direction: 'in'`/`'both'`
+ * reuses the same whole-space scan as `getBacklinks` (no link-index table
+ * exists — FR-029 forbids adding one), so it shares that endpoint's O(pages)
+ * cost per hop; `direction: 'out'` (the default) is bounded by fanout only.
+ */
+export async function getNeighborhood(
+  ctx: PermCtx,
+  nodeId: string,
+  depth: number,
+  direction: 'out' | 'in' | 'both',
+): Promise<PublicNeighborhoodResponse> {
+  const rootPage = await getPageById(ctx, nodeId);
+  if (!rootPage) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getDefaultSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
+
+  const root = { pageId: rootPage.id, path: rootPage.path, title: rootPage.title };
+  const visited = new Set<string>([root.pageId]);
+  const tiers: PublicNeighborNode[][] = [[{ pageId: root.pageId, path: root.path, title: root.title }]];
+
+  let frontier: Array<{ pageId: string; path: string }> = [{ pageId: root.pageId, path: root.path }];
+  for (let hop = 0; hop < depth; hop++) {
+    const nextTier: PublicNeighborNode[] = [];
+    for (const node of frontier) {
+      if (direction === 'out' || direction === 'both') {
+        for (const neighbor of await outboundNeighbors(ctx, node)) {
+          if (visited.has(neighbor.pageId)) continue;
+          visited.add(neighbor.pageId);
+          nextTier.push(neighbor);
+        }
+      }
+      if (direction === 'in' || direction === 'both') {
+        for (const neighbor of await findInboundNeighbors(ctx, space, node.pageId, node.path)) {
+          if (visited.has(neighbor.pageId)) continue;
+          visited.add(neighbor.pageId);
+          nextTier.push({ ...neighbor, viaLinkSource: 'backlink' });
+        }
+      }
+    }
+    if (nextTier.length === 0) break;
+    tiers.push(nextTier);
+    frontier = nextTier.map((n) => ({ pageId: n.pageId, path: n.path }));
+  }
+
+  return { root, tiers };
 }
 
 // ---------------------------------------------------------------------------

@@ -63,3 +63,54 @@ export function portableAssetReference(pageEntry: string, assetEntry: string): s
   const relative = path.posix.relative(path.posix.dirname(pageEntry), assetEntry);
   return relative.startsWith('.') ? relative : `./${relative}`;
 }
+
+// ---------------------------------------------------------------------------
+// 010: AI Curation API — outbound link graph
+// ---------------------------------------------------------------------------
+
+type LinkNode = {
+  type: 'link';
+  url: string;
+  children?: Array<{ value?: string }>;
+};
+
+export type MarkdownLink = {
+  /** Obsidian-style `[[wikilink]]` vs a standard Markdown `[text](url)` link. */
+  source: 'wiki' | 'markdown';
+  /** Raw target as written: a relative/absolute page path, an API page URL, or a wikilink target. */
+  target: string;
+  linkText: string;
+  /** `https://...` targets are not subject to the wiki's permission/resolution model. */
+  external: boolean;
+};
+
+const WIKILINK_PATTERN = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+
+/** Finds standard Markdown links and `[[wikilink]]` / `[[wikilink|alias]]` references. */
+export function findMarkdownLinks(markdown: string): MarkdownLink[] {
+  const tree = unified().use(remarkParse).parse(markdown);
+  const results: MarkdownLink[] = [];
+  visit(tree, 'link', (node) => {
+    const link = node as LinkNode;
+    const linkText = (link.children ?? []).map((child) => child.value ?? '').join('');
+    results.push({
+      source: 'markdown',
+      target: link.url,
+      linkText: linkText || link.url,
+      external: /^https?:\/\//i.test(link.url),
+    });
+  });
+  for (const match of markdown.matchAll(WIKILINK_PATTERN)) {
+    const target = match[1]!.trim();
+    const alias = match[2]?.trim();
+    results.push({ source: 'wiki', target, linkText: alias || target, external: false });
+  }
+  return results;
+}
+
+/** Reads the `related_pages` frontmatter key, if present and shaped as a string array. */
+export function findFrontmatterRelatedPages(frontmatter: Record<string, unknown> | null): string[] {
+  const related = frontmatter?.related_pages;
+  if (!Array.isArray(related)) return [];
+  return related.filter((entry): entry is string => typeof entry === 'string');
+}

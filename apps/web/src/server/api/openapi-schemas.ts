@@ -1038,6 +1038,77 @@ export const PublicSemanticSearchAction = z
   })
   .describe('Semantic wiki search action resource, returned on submit and poll.');
 
+export const PublicLinkSource = z.enum(['markdown', 'wiki', 'frontmatter']).describe('How the link was discovered: a Markdown link, an Obsidian-style [[wikilink]], or a frontmatter related_pages entry.');
+
+export const PublicOutboundLink = z
+  .object({
+    source: PublicLinkSource,
+    targetPath: z.string().describe('Canonical path of the linked page.'),
+    targetPageId: z.string().uuid().describe('Identifier of the linked page.'),
+    targetStatus: z.enum(['draft', 'published', 'deleted']).describe('Lifecycle state of the linked page.'),
+    linkText: z.string().describe('Visible label of the link.'),
+  })
+  .describe('An outbound link that resolves to a page the caller can read.');
+
+export const PublicDanglingLink = z
+  .object({
+    source: PublicLinkSource,
+    targetPath: z.string().describe('Path referenced by the link.'),
+    targetStatus: z.enum(['draft', 'published', 'deleted']).optional().describe('Only present (as "deleted") when the target is a soft-deleted page visible to a caller with read_draft or admin access.'),
+    linkText: z.string().describe('Visible label of the link.'),
+  })
+  .describe('A link whose target is unknown or unreadable to the caller.');
+
+export const PublicExternalLink = z
+  .object({
+    source: z.literal('markdown'),
+    href: z.string().describe('The https:// URL as written.'),
+    linkText: z.string().describe('Visible label of the link.'),
+  })
+  .describe('An external (https://) Markdown link, not subject to the read-permission model.');
+
+export const PublicOutboundLinksResponse = z
+  .object({
+    pageId: z.string().uuid().describe('Identifier of the page whose outbound links are returned.'),
+    links: z.array(PublicOutboundLink).describe('Links that resolve to a page the caller can read.'),
+    dangling: z.array(PublicDanglingLink).describe('Links whose target is unknown or unreadable.'),
+    external: z.array(PublicExternalLink).describe('https:// Markdown links.'),
+  })
+  .describe('Outbound link graph for a single page.');
+
+export const PublicNeighborhoodQuery = z
+  .object({
+    node: z.string().uuid().describe('Root page identifier to traverse from.'),
+    depth: z.coerce.number().int().min(1).max(3).optional().default(1).describe('Traversal depth bound (1-3). Defaults to 1.'),
+    direction: z.enum(['out', 'in', 'both']).optional().default('out').describe('Which edges to follow. Defaults to out.'),
+  })
+  .describe('Public page neighborhood query parameters.');
+
+export const PublicNeighborNode = z
+  .object({
+    pageId: z.string().uuid().describe('Identifier of the neighboring page.'),
+    path: PublicPagePath,
+    title: z.string().describe('Title of the neighboring page.'),
+    viaLinkSource: z
+      .enum(['markdown', 'wiki', 'frontmatter', 'backlink'])
+      .optional()
+      .describe('How this page was reached from its parent tier; "backlink" only appears for direction=in|both.'),
+  })
+  .describe('A single node in a neighborhood tier.');
+
+export const PublicNeighborhoodResponse = z
+  .object({
+    root: z
+      .object({
+        pageId: z.string().uuid(),
+        path: z.string(),
+        title: z.string(),
+      })
+      .describe('The root page the traversal started from.'),
+    tiers: z.array(z.array(PublicNeighborNode)).describe('tiers[0] is the root (single-element array); tiers[1..depth] are each successive hop. A page appears at most once per tier.'),
+  })
+  .describe('Multi-hop page link neighborhood.');
+
 export const PublicPageTreeNode: z.ZodType<{
   path: string;
   segment: string;

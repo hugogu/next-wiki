@@ -1375,6 +1375,37 @@
         ],
         "description": "Result of a batch page creation request."
       },
+      "PublicDanglingLink": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/PublicLinkSource"
+          },
+          "targetPath": {
+            "type": "string",
+            "description": "Path referenced by the link."
+          },
+          "targetStatus": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "deleted"
+            ],
+            "description": "Only present (as \"deleted\") when the target is a soft-deleted page visible to a caller with read_draft or admin access."
+          },
+          "linkText": {
+            "type": "string",
+            "description": "Visible label of the link."
+          }
+        },
+        "required": [
+          "source",
+          "targetPath",
+          "linkText"
+        ],
+        "description": "A link whose target is unknown or unreadable to the caller."
+      },
       "PublicDraftCreateInput": {
         "type": "object",
         "properties": {
@@ -1405,6 +1436,31 @@
         ],
         "description": "Create a draft revision for an existing public page."
       },
+      "PublicExternalLink": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "markdown"
+            ]
+          },
+          "href": {
+            "type": "string",
+            "description": "The https:// URL as written."
+          },
+          "linkText": {
+            "type": "string",
+            "description": "Visible label of the link."
+          }
+        },
+        "required": [
+          "source",
+          "href",
+          "linkText"
+        ],
+        "description": "An external (https://) Markdown link, not subject to the read-permission model."
+      },
       "PublicImageContentType": {
         "type": "string",
         "enum": [
@@ -1414,6 +1470,196 @@
           "image/webp",
           "image/svg+xml"
         ]
+      },
+      "PublicLinkSource": {
+        "type": "string",
+        "enum": [
+          "markdown",
+          "wiki",
+          "frontmatter"
+        ],
+        "description": "How the link was discovered: a Markdown link, an Obsidian-style [[wikilink]], or a frontmatter related_pages entry."
+      },
+      "PublicNeighborhoodQuery": {
+        "type": "object",
+        "properties": {
+          "node": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Root page identifier to traverse from."
+          },
+          "depth": {
+            "default": 1,
+            "description": "Traversal depth bound (1-3). Defaults to 1.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "out",
+              "in",
+              "both"
+            ],
+            "default": "out",
+            "description": "Which edges to follow. Defaults to out."
+          }
+        },
+        "required": [
+          "node"
+        ],
+        "description": "Public page neighborhood query parameters."
+      },
+      "PublicNeighborhoodResponse": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "object",
+            "properties": {
+              "pageId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "path": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pageId",
+              "path",
+              "title"
+            ],
+            "description": "The root page the traversal started from."
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PublicNeighborNode"
+              }
+            },
+            "description": "tiers[0] is the root (single-element array); tiers[1..depth] are each successive hop. A page appears at most once per tier."
+          }
+        },
+        "required": [
+          "root",
+          "tiers"
+        ],
+        "description": "Multi-hop page link neighborhood."
+      },
+      "PublicNeighborNode": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the neighboring page."
+          },
+          "path": {
+            "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the neighboring page."
+          },
+          "viaLinkSource": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "wiki",
+              "frontmatter",
+              "backlink"
+            ],
+            "description": "How this page was reached from its parent tier; \"backlink\" only appears for direction=in|both."
+          }
+        },
+        "required": [
+          "pageId",
+          "path",
+          "title"
+        ],
+        "description": "A single node in a neighborhood tier."
+      },
+      "PublicOutboundLink": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/PublicLinkSource"
+          },
+          "targetPath": {
+            "type": "string",
+            "description": "Canonical path of the linked page."
+          },
+          "targetPageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the linked page."
+          },
+          "targetStatus": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "deleted"
+            ],
+            "description": "Lifecycle state of the linked page."
+          },
+          "linkText": {
+            "type": "string",
+            "description": "Visible label of the link."
+          }
+        },
+        "required": [
+          "source",
+          "targetPath",
+          "targetPageId",
+          "targetStatus",
+          "linkText"
+        ],
+        "description": "An outbound link that resolves to a page the caller can read."
+      },
+      "PublicOutboundLinksResponse": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page whose outbound links are returned."
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicOutboundLink"
+            },
+            "description": "Links that resolve to a page the caller can read."
+          },
+          "dangling": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicDanglingLink"
+            },
+            "description": "Links whose target is unknown or unreadable."
+          },
+          "external": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicExternalLink"
+            },
+            "description": "https:// Markdown links."
+          }
+        },
+        "required": [
+          "pageId",
+          "links",
+          "dangling",
+          "external"
+        ],
+        "description": "Outbound link graph for a single page."
       },
       "PublicPageBatchCreateInput": {
         "type": "object",
@@ -7837,6 +8083,75 @@
         }
       }
     },
+    "/v1/graph/neighbors": {
+      "get": {
+        "operationId": "get-v1-graph-neighbors",
+        "summary": "Get public wiki page neighborhood",
+        "description": "Returns the bounded multi-hop link neighborhood of a page (depth 1-3),",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "node",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Root page identifier to traverse from."
+            },
+            "description": "Root page identifier to traverse from."
+          },
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Traversal depth bound (1-3). Defaults to 1.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "description": "Traversal depth bound (1-3). Defaults to 1."
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "out",
+                "in",
+                "both"
+              ],
+              "default": "out",
+              "description": "Which edges to follow. Defaults to out."
+            },
+            "description": "Which edges to follow. Defaults to out."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicNeighborhoodResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/pages/{id}": {
       "get": {
         "operationId": "get-v1-pages-{id}",
@@ -8097,6 +8412,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicRevisionResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/links": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-links",
+        "summary": "Get public wiki page outbound links",
+        "description": "Returns the page's outbound links classified as markdown, wiki (`[[wikilink]]`),",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicOutboundLinksResponse"
                 }
               }
             }
