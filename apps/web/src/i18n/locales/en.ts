@@ -420,6 +420,7 @@ export const en = {
   'admin.storage.replica.state.enabled': 'Enabled',
   'admin.storage.replica.state.degraded': 'Degraded',
   'admin.storage.replica.state.deleting': 'Deleting',
+  'admin.storage.replica.state.unconfigured': 'Unconfigured',
   'admin.storage.active.heading': 'Active backend',
   'admin.storage.active.typeLabel': 'Type',
   'admin.storage.active.statusLabel': 'Status',

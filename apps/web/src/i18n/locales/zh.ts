@@ -412,6 +412,7 @@ export const zh: Translations = {
   'admin.storage.replica.state.enabled': '已启用',
   'admin.storage.replica.state.degraded': '异常',
   'admin.storage.replica.state.deleting': '正在删除',
+  'admin.storage.replica.state.unconfigured': '未配置',
   'admin.storage.active.heading': '当前后端',
   'admin.storage.active.typeLabel': '类型',
   'admin.storage.active.statusLabel': '状态',
