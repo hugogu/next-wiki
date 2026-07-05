@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNull, desc, max, count, asc, ilike, gte, lte, or, sql } from 'drizzle-orm';
+import { eq, and, isNull, desc, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
@@ -32,7 +32,7 @@ const DEFAULT_SPACE_SLUG = 'default';
 const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
 const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
-const MARKDOWN_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+const HTML_LINK_RE = /<a\b[^>]*\bhref=(["'])(.*?)\1/gi;
 
 async function getDefaultSpace() {
   return db.query.spaces.findFirst({
@@ -98,6 +98,20 @@ function normalizeLinkTarget(href: string): string | null {
   const withoutAnchor = href.trim().split('#')[0]?.split('?')[0]?.trim() ?? '';
   if (!withoutAnchor || /^[a-z][a-z0-9+.-]*:/i.test(withoutAnchor)) return null;
   return withoutAnchor.replace(/^\/+/, '');
+}
+
+function countInternalHtmlLinks(html: string, pageIds: Set<string>, pagePaths: Set<string>): number {
+  let total = 0;
+  for (const match of html.matchAll(HTML_LINK_RE)) {
+    const target = normalizeLinkTarget(match[2] ?? '');
+    if (!target) continue;
+    if (target.startsWith('api/v1/pages/')) {
+      if (pageIds.has(target.slice('api/v1/pages/'.length))) total += 1;
+    } else if (pagePaths.has(target)) {
+      total += 1;
+    }
+  }
+  return total;
 }
 
 function orderExpression(sort: AdminPageSortKey) {
@@ -258,35 +272,64 @@ export async function listAdminPages(
   const totalPages = Math.max(1, Math.ceil(totalItems / ADMIN_PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
 
-  const rows = await db
-    .select({
-      id: schema.pages.id,
-      path: schema.pages.path,
-      title: schema.pages.title,
-      currentPublishedVersionId: schema.pages.currentPublishedVersionId,
-      authorDisplayName: schema.users.displayName,
-      authorEmail: schema.users.email,
-      editCount: count(schema.pageRevisions.id),
-      createdAt: schema.pages.createdAt,
-      updatedAt: schema.pages.updatedAt,
-    })
-    .from(schema.pages)
-    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
-    .leftJoin(schema.pageRevisions, eq(schema.pageRevisions.pageId, schema.pages.id))
-    .where(where)
-    .groupBy(
-      schema.pages.id,
-      schema.pages.path,
-      schema.pages.title,
-      schema.pages.currentPublishedVersionId,
-      schema.pages.createdAt,
-      schema.pages.updatedAt,
-      schema.users.displayName,
-      schema.users.email,
-    )
-    .orderBy(direction === 'asc' ? asc(orderExpression(sort)) : desc(orderExpression(sort)))
-    .limit(ADMIN_PAGE_SIZE)
-    .offset((safePage - 1) * ADMIN_PAGE_SIZE);
+  const offset = (safePage - 1) * ADMIN_PAGE_SIZE;
+  const rows = sort === 'edits'
+    ? await db
+        .select({
+          id: schema.pages.id,
+          path: schema.pages.path,
+          title: schema.pages.title,
+          currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+          authorDisplayName: schema.users.displayName,
+          authorEmail: schema.users.email,
+          editCount: count(schema.pageRevisions.id),
+          createdAt: schema.pages.createdAt,
+          updatedAt: schema.pages.updatedAt,
+        })
+        .from(schema.pages)
+        .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+        .leftJoin(schema.pageRevisions, eq(schema.pageRevisions.pageId, schema.pages.id))
+        .where(where)
+        .groupBy(
+          schema.pages.id,
+          schema.pages.path,
+          schema.pages.title,
+          schema.pages.currentPublishedVersionId,
+          schema.pages.createdAt,
+          schema.pages.updatedAt,
+          schema.users.displayName,
+          schema.users.email,
+        )
+        .orderBy(direction === 'asc' ? asc(orderExpression(sort)) : desc(orderExpression(sort)))
+        .limit(ADMIN_PAGE_SIZE)
+        .offset(offset)
+    : await db
+        .select({
+          id: schema.pages.id,
+          path: schema.pages.path,
+          title: schema.pages.title,
+          currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+          authorDisplayName: schema.users.displayName,
+          authorEmail: schema.users.email,
+          createdAt: schema.pages.createdAt,
+          updatedAt: schema.pages.updatedAt,
+        })
+        .from(schema.pages)
+        .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+        .where(where)
+        .orderBy(direction === 'asc' ? asc(orderExpression(sort)) : desc(orderExpression(sort)))
+        .limit(ADMIN_PAGE_SIZE)
+        .offset(offset);
+
+  const rowPageIds = rows.map((row) => row.id);
+  const editCounts = rowPageIds.length && sort !== 'edits'
+    ? await db
+        .select({ pageId: schema.pageRevisions.pageId, value: count() })
+        .from(schema.pageRevisions)
+        .where(inArray(schema.pageRevisions.pageId, rowPageIds))
+        .groupBy(schema.pageRevisions.pageId)
+    : [];
+  const editCountByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.value)]));
 
   return {
     items: rows.map((row) => ({
@@ -296,7 +339,7 @@ export async function listAdminPages(
       status: row.currentPublishedVersionId ? 'published' : 'draft',
       authorDisplayName: row.authorDisplayName,
       authorEmail: row.authorEmail,
-      editCount: Number(row.editCount),
+      editCount: 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     })),
@@ -315,43 +358,30 @@ export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
   const space = await getDefaultSpace();
   if (!space) return { totalPages: 0, totalEdits: 0, totalPageLinks: 0 };
 
-  const activePages = await db
+  const activePagesQuery = db
     .select({
       id: schema.pages.id,
       path: schema.pages.path,
-      revisionId: schema.pageRevisions.id,
-      contentSource: schema.pageRevisions.contentSource,
-      contentHash: schema.pageRevisions.contentHash,
+      contentHtml: schema.pageRevisions.contentHtml,
     })
     .from(schema.pages)
     .leftJoin(schema.pageRevisions, eq(schema.pages.latestVersionId, schema.pageRevisions.id))
     .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
 
-  const pageIds = new Set(activePages.map((page) => page.id));
-  const pagePaths = new Set(activePages.map((page) => page.path));
-  const [editRow] = await db
+  const editsQuery = db
     .select({ value: count() })
     .from(schema.pageRevisions)
     .innerJoin(schema.pages, eq(schema.pageRevisions.pageId, schema.pages.id))
     .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
 
+  const [activePages, editRows] = await Promise.all([activePagesQuery, editsQuery]);
+  const [editRow] = editRows;
+  const pageIds = new Set(activePages.map((page) => page.id));
+  const pagePaths = new Set(activePages.map((page) => page.path));
+
   let totalPageLinks = 0;
   for (const page of activePages) {
-    if (!page.revisionId || !page.contentHash) continue;
-    const markdown = await readRevisionMarkdown({
-      id: page.revisionId,
-      contentSource: page.contentSource,
-      contentHash: page.contentHash,
-    });
-    for (const match of markdown.matchAll(MARKDOWN_LINK_RE)) {
-      const target = normalizeLinkTarget(match[2] ?? '');
-      if (!target) continue;
-      if (target.startsWith('api/v1/pages/')) {
-        if (pageIds.has(target.slice('api/v1/pages/'.length))) totalPageLinks += 1;
-      } else if (pagePaths.has(target)) {
-        totalPageLinks += 1;
-      }
-    }
+    if (page.contentHtml) totalPageLinks += countInternalHtmlLinks(page.contentHtml, pageIds, pagePaths);
   }
 
   return {
