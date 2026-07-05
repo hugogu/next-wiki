@@ -423,6 +423,167 @@ export const GitExportRunResult = z
   })
   .describe('Result of manually triggering a Git export run.');
 
+export const TransferSourceView = z
+  .object({
+    id: z.string().uuid().describe('Transfer source identifier.'),
+    type: z.enum(['wikijs']).describe('Transfer source system type.'),
+    name: z.string().describe('Human-readable name for the source.'),
+    baseUrl: z.string().describe('Base URL of the source instance.'),
+    allowPrivateNetwork: z
+      .boolean()
+      .describe('Whether connecting to a private/internal network address is allowed.'),
+    hasCredentials: z.boolean().describe('Whether an API token is stored for this source.'),
+    status: z
+      .enum(['unverified', 'healthy', 'unavailable', 'disabled'])
+      .describe('Current reachability status of the source.'),
+    lastCheckedAt: z.string().nullable().describe('Timestamp of the last connectivity check, or null if never checked.'),
+    lastErrorCode: z.string().nullable().describe('Error code from the last failed check, or null if none.'),
+    createdAt: z.string().describe('Timestamp when the source was created.'),
+    updatedAt: z.string().describe('Timestamp when the source was last updated.'),
+  })
+  .describe('A configured Wiki.js transfer source.');
+
+export const TransferSourceList = z
+  .object({
+    items: z.array(TransferSourceView).describe('Configured transfer sources.'),
+  })
+  .describe('List of configured Wiki.js transfer sources.');
+
+export const TransferArtifactView = z
+  .object({
+    id: z.string().uuid().describe('Transfer artifact identifier.'),
+    kind: z.enum(['source_archive', 'export_archive', 'run_report']).describe('Kind of artifact.'),
+    status: z
+      .enum(['uploading', 'ready', 'expired', 'deleted', 'failed'])
+      .describe('Current artifact lifecycle status.'),
+    runId: z.string().uuid().nullable().describe('Transfer run that produced this artifact, or null if not run-generated.'),
+    originalFilename: z.string().nullable().describe('Original uploaded filename, or null if unknown.'),
+    contentType: z.string().describe('MIME type of the artifact content.'),
+    sizeBytes: z.number().int().nonnegative().describe('Size of the artifact in bytes.'),
+    contentHash: z.string().nullable().describe('Content hash, or null until the upload completes.'),
+    contentUrl: z.string().nullable().describe('URL to fetch the artifact content, or null when not downloadable.'),
+    expiresAt: z.string().describe('Timestamp when the artifact expires and becomes eligible for cleanup.'),
+    createdAt: z.string().describe('Timestamp when the artifact was created.'),
+    readyAt: z.string().nullable().describe('Timestamp when the artifact became ready, or null if not yet ready.'),
+    deletedAt: z.string().nullable().describe('Timestamp when the artifact was deleted, or null if not deleted.'),
+  })
+  .describe('A transfer artifact (uploaded archive or generated report).');
+
+export const TransferRunView = z
+  .object({
+    id: z.string().uuid().describe('Transfer run identifier.'),
+    kind: z
+      .enum([
+        'site_export',
+        'archive_preview',
+        'archive_import',
+        'wikijs_source_test',
+        'wikijs_preview',
+        'wikijs_import',
+      ])
+      .describe('Kind of transfer run.'),
+    status: z
+      .enum(['queued', 'running', 'completed', 'completed_with_warnings', 'failed', 'cancelled'])
+      .describe('Current run status.'),
+    phase: z
+      .enum([
+        'queued',
+        'discovering',
+        'validating',
+        'planning',
+        'downloading',
+        'writing_assets',
+        'writing_pages',
+        'finalizing',
+        'completed',
+      ])
+      .describe('Current processing phase.'),
+    actorUserId: z.string().uuid().nullable().describe('User who started the run, or null if system-initiated.'),
+    sourceId: z.string().uuid().nullable().describe('Transfer source this run reads from, or null if not source-based.'),
+    sourceArtifactId: z
+      .string()
+      .uuid()
+      .nullable()
+      .describe('Source archive artifact this run reads from, or null if not archive-based.'),
+    previewRunId: z
+      .string()
+      .uuid()
+      .nullable()
+      .describe('Preview run this run was confirmed from, or null if not a confirmation run.'),
+    options: z.record(z.unknown()).describe('Transfer options used for this run.'),
+    sourceFingerprint: z
+      .string()
+      .nullable()
+      .describe('Fingerprint identifying the source content snapshot, or null if not applicable.'),
+    totalItems: z.number().int().nonnegative().describe('Total number of items to process.'),
+    processedItems: z.number().int().nonnegative().describe('Number of items processed so far.'),
+    createdItems: z.number().int().nonnegative().describe('Number of items created.'),
+    replacedItems: z.number().int().nonnegative().describe('Number of items replaced.'),
+    skippedItems: z.number().int().nonnegative().describe('Number of items skipped.'),
+    convertedItems: z.number().int().nonnegative().describe('Number of items converted.'),
+    warningItems: z.number().int().nonnegative().describe('Number of items completed with warnings.'),
+    failedItems: z.number().int().nonnegative().describe('Number of items that failed.'),
+    currentItem: z.string().nullable().describe('Key of the item currently being processed, or null if idle.'),
+    cancelRequested: z.boolean().describe('Whether a cancellation has been requested for this run.'),
+    errorCode: z.string().nullable().describe('Run-level error code, or null if none.'),
+    errorMessage: z.string().nullable().describe('Run-level error message, or null if none.'),
+    errorDetail: z.string().nullable().describe('Additional run-level error detail, or null if none.'),
+    reportArtifactId: z.string().uuid().nullable().describe('Generated report artifact, or null if not yet available.'),
+    queuedAt: z.string().describe('Timestamp when the run was queued.'),
+    startedAt: z.string().nullable().describe('Timestamp when the run started, or null if not yet started.'),
+    finishedAt: z.string().nullable().describe('Timestamp when the run finished, or null if still in progress.'),
+    expiresAt: z.string().describe('Timestamp when the run record expires.'),
+    canCancel: z.boolean().describe('Whether the caller can currently cancel this run.'),
+    canRetry: z.boolean().describe('Whether the caller can currently retry this run.'),
+  })
+  .describe('A content transfer run.');
+
+export const TransferRunList = z
+  .object({
+    items: z.array(TransferRunView).describe('Transfer runs for the current result window.'),
+    total: z.number().int().nonnegative().describe('Total number of matching transfer runs.'),
+  })
+  .describe('Paginated list of content transfer runs.');
+
+export const TransferRunAccepted = z
+  .object({
+    id: z.string().uuid().describe('Identifier of the queued transfer run.'),
+    status: z.literal('queued').describe('The run has been queued for processing.'),
+  })
+  .describe('Response returned when a transfer run is accepted for asynchronous processing.');
+
+export const TransferItemView = z
+  .object({
+    id: z.string().uuid().describe('Transfer item identifier.'),
+    runId: z.string().uuid().describe('Transfer run this item belongs to.'),
+    kind: z.enum(['page', 'asset', 'archive_entry']).describe('Kind of item.'),
+    sourceKey: z.string().describe('Key identifying this item in the source.'),
+    displayName: z.string().describe('Human-readable name for the item.'),
+    targetKey: z.string().nullable().describe('Key identifying this item in the target, or null if not yet written.'),
+    action: z.enum(['create', 'replace', 'skip', 'convert', 'validate']).describe('Action taken for this item.'),
+    status: z
+      .enum(['pending', 'running', 'completed', 'warning', 'failed', 'cancelled'])
+      .describe('Current item status.'),
+    bytesTotal: z.number().int().nonnegative().nullable().describe('Total size in bytes, or null if unknown.'),
+    bytesProcessed: z.number().int().nonnegative().describe('Number of bytes processed so far.'),
+    warningCode: z.string().nullable().describe('Warning code, or null if none.'),
+    warningMessage: z.string().nullable().describe('Warning message, or null if none.'),
+    errorCode: z.string().nullable().describe('Error code, or null if none.'),
+    errorMessage: z.string().nullable().describe('Error message, or null if none.'),
+    metadata: z.record(z.unknown()).describe('Additional item metadata.'),
+    attempts: z.number().int().nonnegative().describe('Number of processing attempts.'),
+    startedAt: z.string().nullable().describe('Timestamp when processing started, or null if not yet started.'),
+    finishedAt: z.string().nullable().describe('Timestamp when processing finished, or null if still in progress.'),
+  })
+  .describe('Outcome of a single item processed within a transfer run.');
+
+export const TransferItemList = z
+  .object({
+    items: z.array(TransferItemView).describe('Transfer items for the current result window.'),
+    total: z.number().int().nonnegative().describe('Total number of matching transfer items.'),
+  })
+  .describe('Paginated list of content transfer item outcomes.');
+
 export const okResponseSchema = z.object({ ok: z.boolean() }).describe('Simple OK response');
 
 export const previewInputSchema = z

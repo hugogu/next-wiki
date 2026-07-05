@@ -22,5 +22,11 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-/** @openapi @summary Reserve a transfer artifact upload @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Reserve a transfer artifact upload
+ * @tag Transfers
+ * @auth bearer
+ * @response 201:TransferArtifactView
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

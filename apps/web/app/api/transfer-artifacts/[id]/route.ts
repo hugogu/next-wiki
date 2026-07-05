@@ -29,7 +29,19 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
   }
 }
 
-/** @openapi @summary Get transfer artifact metadata @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Get transfer artifact metadata
+ * @tag Transfers
+ * @auth bearer
+ * @response TransferArtifactView
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
-/** @openapi @summary Delete a transfer artifact @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Delete a transfer artifact
+ * @tag Transfers
+ * @auth bearer
+ * @response 204
+ */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

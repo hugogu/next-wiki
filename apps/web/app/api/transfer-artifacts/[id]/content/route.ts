@@ -63,7 +63,19 @@ async function handlePUT(request: NextRequest, { params }: { params: Promise<{ i
   }
 }
 
-/** @openapi @summary Download a ready transfer artifact @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Download a ready transfer artifact
+ * @tag Transfers
+ * @auth bearer
+ * @response 200
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
-/** @openapi @summary Upload raw ZIP bytes to a reserved artifact @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Upload raw ZIP bytes to a reserved artifact
+ * @tag Transfers
+ * @auth bearer
+ * @response TransferArtifactView
+ */
 export const PUT = withApiAudit(handlePUT as unknown as RouteHandler);

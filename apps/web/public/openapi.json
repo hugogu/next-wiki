@@ -3051,6 +3051,657 @@
         ],
         "description": "Set the preferred read backend."
       },
+      "TransferArtifactView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer artifact identifier."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "source_archive",
+              "export_archive",
+              "run_report"
+            ],
+            "description": "Kind of artifact."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploading",
+              "ready",
+              "expired",
+              "deleted",
+              "failed"
+            ],
+            "description": "Current artifact lifecycle status."
+          },
+          "runId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Transfer run that produced this artifact, or null if not run-generated."
+          },
+          "originalFilename": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Original uploaded filename, or null if unknown."
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME type of the artifact content."
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Size of the artifact in bytes."
+          },
+          "contentHash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Content hash, or null until the upload completes."
+          },
+          "contentUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL to fetch the artifact content, or null when not downloadable."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "Timestamp when the artifact expires and becomes eligible for cleanup."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Timestamp when the artifact was created."
+          },
+          "readyAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the artifact became ready, or null if not yet ready."
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the artifact was deleted, or null if not deleted."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "runId",
+          "originalFilename",
+          "contentType",
+          "sizeBytes",
+          "contentHash",
+          "contentUrl",
+          "expiresAt",
+          "createdAt",
+          "readyAt",
+          "deletedAt"
+        ],
+        "description": "A transfer artifact (uploaded archive or generated report)."
+      },
+      "TransferItemList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransferItemView"
+            },
+            "description": "Transfer items for the current result window."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of matching transfer items."
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "description": "Paginated list of content transfer item outcomes."
+      },
+      "TransferItemView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer item identifier."
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer run this item belongs to."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "page",
+              "asset",
+              "archive_entry"
+            ],
+            "description": "Kind of item."
+          },
+          "sourceKey": {
+            "type": "string",
+            "description": "Key identifying this item in the source."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Human-readable name for the item."
+          },
+          "targetKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Key identifying this item in the target, or null if not yet written."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "replace",
+              "skip",
+              "convert",
+              "validate"
+            ],
+            "description": "Action taken for this item."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "warning",
+              "failed",
+              "cancelled"
+            ],
+            "description": "Current item status."
+          },
+          "bytesTotal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Total size in bytes, or null if unknown."
+          },
+          "bytesProcessed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of bytes processed so far."
+          },
+          "warningCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Warning code, or null if none."
+          },
+          "warningMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Warning message, or null if none."
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error code, or null if none."
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error message, or null if none."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Additional item metadata."
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of processing attempts."
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when processing started, or null if not yet started."
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when processing finished, or null if still in progress."
+          }
+        },
+        "required": [
+          "id",
+          "runId",
+          "kind",
+          "sourceKey",
+          "displayName",
+          "targetKey",
+          "action",
+          "status",
+          "bytesTotal",
+          "bytesProcessed",
+          "warningCode",
+          "warningMessage",
+          "errorCode",
+          "errorMessage",
+          "metadata",
+          "attempts",
+          "startedAt",
+          "finishedAt"
+        ],
+        "description": "Outcome of a single item processed within a transfer run."
+      },
+      "TransferRunAccepted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the queued transfer run."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued"
+            ],
+            "description": "The run has been queued for processing."
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "description": "Response returned when a transfer run is accepted for asynchronous processing."
+      },
+      "TransferRunList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransferRunView"
+            },
+            "description": "Transfer runs for the current result window."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of matching transfer runs."
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "description": "Paginated list of content transfer runs."
+      },
+      "TransferRunView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer run identifier."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "site_export",
+              "archive_preview",
+              "archive_import",
+              "wikijs_source_test",
+              "wikijs_preview",
+              "wikijs_import"
+            ],
+            "description": "Kind of transfer run."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "completed_with_warnings",
+              "failed",
+              "cancelled"
+            ],
+            "description": "Current run status."
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "discovering",
+              "validating",
+              "planning",
+              "downloading",
+              "writing_assets",
+              "writing_pages",
+              "finalizing",
+              "completed"
+            ],
+            "description": "Current processing phase."
+          },
+          "actorUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "User who started the run, or null if system-initiated."
+          },
+          "sourceId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Transfer source this run reads from, or null if not source-based."
+          },
+          "sourceArtifactId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Source archive artifact this run reads from, or null if not archive-based."
+          },
+          "previewRunId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Preview run this run was confirmed from, or null if not a confirmation run."
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Transfer options used for this run."
+          },
+          "sourceFingerprint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Fingerprint identifying the source content snapshot, or null if not applicable."
+          },
+          "totalItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of items to process."
+          },
+          "processedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items processed so far."
+          },
+          "createdItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items created."
+          },
+          "replacedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items replaced."
+          },
+          "skippedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items skipped."
+          },
+          "convertedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items converted."
+          },
+          "warningItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items completed with warnings."
+          },
+          "failedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items that failed."
+          },
+          "currentItem": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Key of the item currently being processed, or null if idle."
+          },
+          "cancelRequested": {
+            "type": "boolean",
+            "description": "Whether a cancellation has been requested for this run."
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Run-level error code, or null if none."
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Run-level error message, or null if none."
+          },
+          "errorDetail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Additional run-level error detail, or null if none."
+          },
+          "reportArtifactId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Generated report artifact, or null if not yet available."
+          },
+          "queuedAt": {
+            "type": "string",
+            "description": "Timestamp when the run was queued."
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the run started, or null if not yet started."
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the run finished, or null if still in progress."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "Timestamp when the run record expires."
+          },
+          "canCancel": {
+            "type": "boolean",
+            "description": "Whether the caller can currently cancel this run."
+          },
+          "canRetry": {
+            "type": "boolean",
+            "description": "Whether the caller can currently retry this run."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "phase",
+          "actorUserId",
+          "sourceId",
+          "sourceArtifactId",
+          "previewRunId",
+          "options",
+          "sourceFingerprint",
+          "totalItems",
+          "processedItems",
+          "createdItems",
+          "replacedItems",
+          "skippedItems",
+          "convertedItems",
+          "warningItems",
+          "failedItems",
+          "currentItem",
+          "cancelRequested",
+          "errorCode",
+          "errorMessage",
+          "errorDetail",
+          "reportArtifactId",
+          "queuedAt",
+          "startedAt",
+          "finishedAt",
+          "expiresAt",
+          "canCancel",
+          "canRetry"
+        ],
+        "description": "A content transfer run."
+      },
+      "TransferSourceList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransferSourceView"
+            },
+            "description": "Configured transfer sources."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "List of configured Wiki.js transfer sources."
+      },
+      "TransferSourceView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer source identifier."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "wikijs"
+            ],
+            "description": "Transfer source system type."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the source."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "Base URL of the source instance."
+          },
+          "allowPrivateNetwork": {
+            "type": "boolean",
+            "description": "Whether connecting to a private/internal network address is allowed."
+          },
+          "hasCredentials": {
+            "type": "boolean",
+            "description": "Whether an API token is stored for this source."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unverified",
+              "healthy",
+              "unavailable",
+              "disabled"
+            ],
+            "description": "Current reachability status of the source."
+          },
+          "lastCheckedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp of the last connectivity check, or null if never checked."
+          },
+          "lastErrorCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error code from the last failed check, or null if none."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Timestamp when the source was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Timestamp when the source was last updated."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "name",
+          "baseUrl",
+          "allowPrivateNetwork",
+          "hasCredentials",
+          "status",
+          "lastCheckedAt",
+          "lastErrorCode",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "A configured Wiki.js transfer source."
+      },
       "UpdatePreferencesInput": {
         "type": "object",
         "properties": {
@@ -8165,7 +8816,7 @@
     "/transfer-artifacts": {
       "post": {
         "operationId": "post-transfer-artifacts",
-        "summary": "Reserve a transfer artifact upload @tag Transfers @auth bearer",
+        "summary": "Reserve a transfer artifact upload",
         "description": "",
         "tags": [
           "Transfers"
@@ -8176,13 +8827,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferArtifactView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfer-sources": {
       "get": {
         "operationId": "get-transfer-sources",
-        "summary": "List Wiki.js transfer sources @tag Transfers @auth bearer",
+        "summary": "List Wiki.js transfer sources",
         "description": "",
         "tags": [
           "Transfers"
@@ -8193,11 +8855,22 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferSourceList"
+                }
+              }
+            }
+          }
+        }
       },
       "post": {
         "operationId": "post-transfer-sources",
-        "summary": "Create a Wiki.js transfer source @tag Transfers @auth bearer",
+        "summary": "Create a Wiki.js transfer source",
         "description": "",
         "tags": [
           "Transfers"
@@ -8208,13 +8881,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferSourceView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfers": {
       "get": {
         "operationId": "get-transfers",
-        "summary": "List content transfer runs @tag Transfers @auth bearer",
+        "summary": "List content transfer runs",
         "description": "",
         "tags": [
           "Transfers"
@@ -8225,11 +8909,22 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunList"
+                }
+              }
+            }
+          }
+        }
       },
       "post": {
         "operationId": "post-transfers",
-        "summary": "Start a content transfer run @tag Transfers @auth bearer",
+        "summary": "Start a content transfer run",
         "description": "",
         "tags": [
           "Transfers"
@@ -8240,13 +8935,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunAccepted"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfer-artifacts/{id}": {
       "get": {
         "operationId": "get-transfer-artifacts-{id}",
-        "summary": "Get transfer artifact metadata @tag Transfers @auth bearer",
+        "summary": "Get transfer artifact metadata",
         "description": "",
         "tags": [
           "Transfers"
@@ -8268,11 +8974,22 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferArtifactView"
+                }
+              }
+            }
+          }
+        }
       },
       "delete": {
         "operationId": "delete-transfer-artifacts-{id}",
-        "summary": "Delete a transfer artifact @tag Transfers @auth bearer",
+        "summary": "Delete a transfer artifact",
         "description": "",
         "tags": [
           "Transfers"
@@ -8304,7 +9021,7 @@
     "/transfer-sources/{id}": {
       "get": {
         "operationId": "get-transfer-sources-{id}",
-        "summary": "Get a Wiki.js transfer source @tag Transfers @auth bearer",
+        "summary": "Get a Wiki.js transfer source",
         "description": "",
         "tags": [
           "Transfers"
@@ -8326,11 +9043,22 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferSourceView"
+                }
+              }
+            }
+          }
+        }
       },
       "patch": {
         "operationId": "patch-transfer-sources-{id}",
-        "summary": "Update a Wiki.js transfer source @tag Transfers @auth bearer",
+        "summary": "Update a Wiki.js transfer source",
         "description": "",
         "tags": [
           "Transfers"
@@ -8352,11 +9080,22 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferSourceView"
+                }
+              }
+            }
+          }
+        }
       },
       "delete": {
         "operationId": "delete-transfer-sources-{id}",
-        "summary": "Delete a Wiki.js transfer source @tag Transfers @auth bearer",
+        "summary": "Delete a Wiki.js transfer source",
         "description": "",
         "tags": [
           "Transfers"
@@ -8388,7 +9127,7 @@
     "/transfers/{id}": {
       "get": {
         "operationId": "get-transfers-{id}",
-        "summary": "Get a content transfer run @tag Transfers @auth bearer",
+        "summary": "Get a content transfer run",
         "description": "",
         "tags": [
           "Transfers"
@@ -8410,13 +9149,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfer-artifacts/{id}/content": {
       "get": {
         "operationId": "get-transfer-artifacts-{id}-content",
-        "summary": "Download a ready transfer artifact @tag Transfers @auth bearer",
+        "summary": "Download a ready transfer artifact",
         "description": "",
         "tags": [
           "Transfers"
@@ -8438,11 +9188,15 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
       },
       "put": {
         "operationId": "put-transfer-artifacts-{id}-content",
-        "summary": "Upload raw ZIP bytes to a reserved artifact @tag Transfers @auth bearer",
+        "summary": "Upload raw ZIP bytes to a reserved artifact",
         "description": "",
         "tags": [
           "Transfers"
@@ -8464,13 +9218,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferArtifactView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfers/{id}/cancellation": {
       "post": {
         "operationId": "post-transfers-{id}-cancellation",
-        "summary": "Cancel an active transfer run @tag Transfers @auth bearer",
+        "summary": "Cancel an active transfer run",
         "description": "",
         "tags": [
           "Transfers"
@@ -8492,13 +9257,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfers/{id}/items": {
       "get": {
         "operationId": "get-transfers-{id}-items",
-        "summary": "List content transfer item outcomes @tag Transfers @auth bearer",
+        "summary": "List content transfer item outcomes",
         "description": "",
         "tags": [
           "Transfers"
@@ -8520,13 +9296,24 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferItemList"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfers/{id}/retries": {
       "post": {
         "operationId": "post-transfers-{id}-retries",
-        "summary": "Retry an incomplete transfer run @tag Transfers @auth bearer",
+        "summary": "Retry an incomplete transfer run",
         "description": "",
         "tags": [
           "Transfers"
@@ -8548,7 +9335,18 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunAccepted"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/tree": {

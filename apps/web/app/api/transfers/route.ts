@@ -31,7 +31,19 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-/** @openapi @summary List content transfer runs @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary List content transfer runs
+ * @tag Transfers
+ * @auth bearer
+ * @response TransferRunList
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
-/** @openapi @summary Start a content transfer run @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Start a content transfer run
+ * @tag Transfers
+ * @auth bearer
+ * @response 202:TransferRunAccepted
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

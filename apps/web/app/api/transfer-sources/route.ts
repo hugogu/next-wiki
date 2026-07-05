@@ -29,7 +29,19 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-/** @openapi @summary List Wiki.js transfer sources @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary List Wiki.js transfer sources
+ * @tag Transfers
+ * @auth bearer
+ * @response TransferSourceList
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
-/** @openapi @summary Create a Wiki.js transfer source @tag Transfers @auth bearer */
+/**
+ * @openapi
+ * @summary Create a Wiki.js transfer source
+ * @tag Transfers
+ * @auth bearer
+ * @response 201:TransferSourceView
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);
