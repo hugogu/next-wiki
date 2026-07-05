@@ -10,6 +10,12 @@ import { getPageTree } from './get-page-tree';
 import { getStats } from './get-stats';
 import { listPages } from './list-pages';
 import { searchWiki } from './search-wiki';
+import { submitSemanticSearch } from './submit-semantic-search';
+import { getSemanticSearchResults } from './get-semantic-search-results';
+import { getPageOutboundLinks } from './get-page-outbound-links';
+import { getNeighborhood } from './get-neighborhood';
+import { batchUpdatePages } from './batch-update-pages';
+import { batchSoftDeletePages } from './batch-soft-delete-pages';
 
 describe('tools', () => {
   function createClient(overrides: Partial<WikiApiClient> = {}): WikiApiClient {
@@ -31,6 +37,12 @@ describe('tools', () => {
       getRevision: vi.fn(),
       uploadImage: vi.fn(),
       getPageTree: vi.fn(),
+      submitSemanticSearch: vi.fn(),
+      getSemanticSearchResults: vi.fn(),
+      getOutboundLinks: vi.fn(),
+      getNeighborhood: vi.fn(),
+      batchUpdatePages: vi.fn(),
+      batchSoftDeletePages: vi.fn(),
       ...overrides,
     } as unknown as WikiApiClient;
   }
@@ -198,5 +210,88 @@ describe('tools', () => {
     const client = createClient({ findSimilar: findSimilarClient });
     await findSimilar(client, { title: 'payment', threshold: 0.6 });
     expect(findSimilarClient).toHaveBeenCalledWith({ title: 'payment', threshold: 0.6 });
+  });
+
+  it('submit_semantic_search forwards the query and defaults limit to 10', async () => {
+    const submit = vi.fn().mockResolvedValue({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', feature: 'semantic_search', status: 'queued',
+      createdAt: '', expiresAt: '', pollUrl: '/api/v1/search/semantic/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    });
+    const client = createClient({ submitSemanticSearch: submit });
+
+    const result = await submitSemanticSearch(client, { query: 'auth design' });
+
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ q: 'auth design', limit: 10 }));
+    expect(result.status).toBe('queued');
+  });
+
+  it('get_semantic_search_results flattens items, citations, and usage', async () => {
+    const client = createClient({
+      getSemanticSearchResults: vi.fn().mockResolvedValue({
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', feature: 'semantic_search', status: 'succeeded',
+        createdAt: '', startedAt: null, finishedAt: null, expiresAt: '',
+        items: [{
+          pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'docs/a', title: 'A', score: 0.9, excerpt: 'x',
+          citations: [{ chunkId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', revisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', contentHash: 'hash' }],
+        }],
+        usage: { inputTokens: 5 },
+      }),
+    });
+
+    const result = await getSemanticSearchResults(client, { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.citations[0]?.contentHash).toBe('hash');
+    expect(result.usage).toEqual({ inputTokens: 5 });
+  });
+
+  it('get_page_outbound_links forwards pageId and returns classified buckets', async () => {
+    const getOutboundLinksClient = vi.fn().mockResolvedValue({
+      pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      links: [{ source: 'markdown', targetPath: 'docs/b', targetPageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', targetStatus: 'published', linkText: 'B' }],
+      dangling: [],
+      external: [],
+    });
+    const client = createClient({ getOutboundLinks: getOutboundLinksClient });
+
+    const result = await getPageOutboundLinks(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
+
+    expect(getOutboundLinksClient).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(result.links).toHaveLength(1);
+  });
+
+  it('get_neighborhood forwards node/depth/direction', async () => {
+    const getNeighborhoodClient = vi.fn().mockResolvedValue({
+      root: { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'a', title: 'A' },
+      tiers: [[{ pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'a', title: 'A' }]],
+    });
+    const client = createClient({ getNeighborhood: getNeighborhoodClient });
+
+    await getNeighborhood(client, { node: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', depth: 2, direction: 'both' });
+
+    expect(getNeighborhoodClient).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 2, 'both');
+  });
+
+  it('batch_update_pages defaults dryRun to false and forwards items', async () => {
+    const batchUpdatePagesClient = vi.fn().mockResolvedValue({ results: [], successCount: 0, failureCount: 0 });
+    const client = createClient({ batchUpdatePages: batchUpdatePagesClient });
+
+    await batchUpdatePages(client, {
+      items: [{ pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', title: 'New', baseRevisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' }],
+    });
+
+    expect(batchUpdatePagesClient).toHaveBeenCalledWith(
+      { items: [{ pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', title: 'New', baseRevisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' }] },
+      { dryRun: false },
+    );
+  });
+
+  it('batch_soft_delete_pages forwards dryRun and pageIds', async () => {
+    const batchSoftDeletePagesClient = vi.fn().mockResolvedValue({ results: [], successCount: 0, failureCount: 0, dryRun: true });
+    const client = createClient({ batchSoftDeletePages: batchSoftDeletePagesClient });
+
+    await batchSoftDeletePages(client, { pageIds: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'], dryRun: true });
+
+    expect(batchSoftDeletePagesClient).toHaveBeenCalledWith({ pageIds: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'] }, { dryRun: true });
   });
 });

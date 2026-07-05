@@ -21,6 +21,12 @@ describe('createWikiMcpServer integration', () => {
     expect(toolNames).toContain('search_wiki');
     expect(toolNames).toContain('create_page');
     expect(toolNames).toContain('upload_image');
+    expect(toolNames).toContain('submit_semantic_search');
+    expect(toolNames).toContain('get_semantic_search_results');
+    expect(toolNames).toContain('get_page_outbound_links');
+    expect(toolNames).toContain('get_neighborhood');
+    expect(toolNames).toContain('batch_update_pages');
+    expect(toolNames).toContain('batch_soft_delete_pages');
 
     await mcpClient.close();
     await server.close();

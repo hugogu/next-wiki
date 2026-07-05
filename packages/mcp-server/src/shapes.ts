@@ -1,10 +1,15 @@
 import type {
   PublicAssetResource,
+  PublicNeighborhoodResponse,
+  PublicOutboundLinksResponse,
+  PublicPageBatchDeleteResult,
+  PublicPageBatchUpdateResult,
   PublicPageResource,
   PublicPageSearchResponse,
   PublicPageTreeNode,
   PublicPageTreeResponse,
   PublicRevisionResource,
+  PublicSemanticSearchAction,
 } from './api-client';
 
 export type SearchWikiResult = {
@@ -14,6 +19,7 @@ export type SearchWikiResult = {
   matchType: 'path' | 'title' | 'content';
   excerpt: string | null;
   score: number | null;
+  frontmatter: Record<string, unknown> | null;
 };
 
 export function searchWikiResponse(source: PublicPageSearchResponse): {
@@ -28,6 +34,7 @@ export function searchWikiResponse(source: PublicPageSearchResponse): {
       matchType: item.matchType,
       excerpt: item.excerpt,
       score: item.score,
+      frontmatter: item.page.frontmatter ?? null,
     })),
     hasMore: source.nextCursor !== null,
   };
@@ -239,4 +246,73 @@ export function pageTreeResponse(source: PublicPageTreeResponse): {
     root: flattenTree(source.root),
     pageCount: source.pageCount,
   };
+}
+
+// ---- 010: AI Curation API ----
+
+export type SemanticSearchUsage = { inputTokens?: number; requestId?: string };
+
+export function submitSemanticSearchResponse(source: PublicSemanticSearchAction): {
+  id: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string;
+  pollUrl?: string;
+} {
+  return {
+    id: source.id,
+    status: source.status,
+    createdAt: source.createdAt,
+    expiresAt: source.expiresAt,
+    pollUrl: source.pollUrl,
+  };
+}
+
+export type SemanticSearchResultItem = {
+  pageId: string;
+  path: string;
+  title: string;
+  score: number;
+  excerpt: string;
+  citations: Array<{ chunkId: string; revisionId: string; contentHash: string }>;
+};
+
+export function getSemanticSearchResultsResponse(source: PublicSemanticSearchAction): {
+  id: string;
+  status: string;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  expiresAt: string;
+  items: SemanticSearchResultItem[];
+  error: { code?: string; message?: string } | null;
+  usage?: SemanticSearchUsage;
+} {
+  return {
+    id: source.id,
+    status: source.status,
+    createdAt: source.createdAt,
+    startedAt: source.startedAt ?? null,
+    finishedAt: source.finishedAt ?? null,
+    expiresAt: source.expiresAt,
+    items: source.items ?? [],
+    error: source.error ?? null,
+    usage: source.usage,
+  };
+}
+
+export function getOutboundLinksResponse(source: PublicOutboundLinksResponse): PublicOutboundLinksResponse {
+  return source;
+}
+
+export function getNeighborhoodResponse(source: PublicNeighborhoodResponse): PublicNeighborhoodResponse {
+  return source;
+}
+
+export function batchUpdatePagesResponse(source: PublicPageBatchUpdateResult): PublicPageBatchUpdateResult {
+  return source;
+}
+
+export function batchSoftDeletePagesResponse(source: PublicPageBatchDeleteResult): PublicPageBatchDeleteResult {
+  return source;
 }

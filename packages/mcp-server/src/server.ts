@@ -17,6 +17,12 @@ import { updatePageProperties, updatePagePropertiesSchema } from './tools/update
 import { uploadImage, uploadImageSchema } from './tools/upload-image';
 import { batchCreatePages, batchCreatePagesSchema } from './tools/batch-create-pages';
 import { findSimilar, findSimilarSchema } from './tools/find-similar';
+import { submitSemanticSearch, submitSemanticSearchSchema } from './tools/submit-semantic-search';
+import { getSemanticSearchResults, getSemanticSearchResultsSchema } from './tools/get-semantic-search-results';
+import { getPageOutboundLinks, getPageOutboundLinksSchema } from './tools/get-page-outbound-links';
+import { getNeighborhood, getNeighborhoodSchema } from './tools/get-neighborhood';
+import { batchUpdatePages, batchUpdatePagesSchema } from './tools/batch-update-pages';
+import { batchSoftDeletePages, batchSoftDeletePagesSchema } from './tools/batch-soft-delete-pages';
 import { listWikiResources, readWikiResource } from './resources/wiki-page';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
@@ -25,9 +31,34 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     version: '0.1.0',
   });
 
-  server.tool('search_wiki', 'Search wiki pages by keyword.', searchWikiSchema, async (args) => ({
-    content: [{ type: 'text', text: JSON.stringify(await searchWiki(client, args)) }],
-  }));
+  server.tool(
+    'search_wiki',
+    'Search wiki pages by keyword. Results include frontmatter; use filterTag/filterStatus/filterOwner/filterHasFrontmatter to narrow by frontmatter.',
+    searchWikiSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await searchWiki(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'submit_semantic_search',
+    'Submit a natural-language semantic search over the wiki. Returns an action id to poll with get_semantic_search_results. '
+      + 'Requires the view and ai.read API-key scopes. Returns 403 if the key lacks either, or 409 (INDEX_NOT_READY) if no '
+      + 'embedding index is currently active — normal during initial setup; the agent should retry after the index becomes ready.',
+    submitSemanticSearchSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await submitSemanticSearch(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'get_semantic_search_results',
+    'Poll a semantic search action for status and grounded, cited results.',
+    getSemanticSearchResultsSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await getSemanticSearchResults(client, args)) }],
+    }),
+  );
 
   server.tool('list_pages', 'List wiki pages visible to the configured API key.', listPagesSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await listPages(client, args)) }],
@@ -92,6 +123,24 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await getBacklinks(client, args)) }],
   }));
 
+  server.tool(
+    'get_page_outbound_links',
+    'Get a page\'s outbound links, classified as markdown, wiki ([[wikilink]]), or frontmatter (related_pages), with dangling and external buckets.',
+    getPageOutboundLinksSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await getPageOutboundLinks(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'get_neighborhood',
+    'Get the bounded multi-hop link neighborhood of a page (depth 1-3), following outbound links, inbound links, or both.',
+    getNeighborhoodSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await getNeighborhood(client, args)) }],
+    }),
+  );
+
   server.tool('get_diff', 'Get a structured diff between two revisions of a page.', getDiffSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getDiff(client, args)) }],
   }));
@@ -102,6 +151,26 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     batchCreatePagesSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await batchCreatePages(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'batch_update_pages',
+    'Update up to 50 pages (title, path, and/or frontmatter patch) in one request. Each item is atomic on its own but the '
+      + 'batch is not transactional across items. Pass dryRun: true to preview without writing.',
+    batchUpdatePagesSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await batchUpdatePages(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'batch_soft_delete_pages',
+    'Soft-delete up to 50 pages in one request. Each item is atomic on its own but the batch is not transactional across '
+      + 'items. Pass dryRun: true to preview without deleting.',
+    batchSoftDeletePagesSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await batchSoftDeletePages(client, args)) }],
     }),
   );
 

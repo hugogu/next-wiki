@@ -28,6 +28,7 @@ export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 
 export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
+  frontmatter: z.record(z.unknown()).nullable().optional(),
 });
 export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
 
@@ -53,6 +54,7 @@ export const publicPageResourceSchema = z.object({
   title: z.string(),
   // Omitted by the API for list/search results; present for single-page reads and writes.
   contentSource: z.string().optional(),
+  frontmatter: z.record(z.unknown()).nullable().optional(),
   status: publicPageStatusSchema,
   author: publicAuthorSchema,
   // Omitted by the API unless requested via ?include=latestRevision.
@@ -136,6 +138,10 @@ export const publicPageSearchQuerySchema = z.object({
   createdEnd: z.coerce.date().optional(),
   updatedStart: z.coerce.date().optional(),
   updatedEnd: z.coerce.date().optional(),
+  filterTag: z.string().optional(),
+  filterStatus: z.string().optional(),
+  filterOwner: z.string().optional(),
+  filterHasFrontmatter: z.boolean().optional(),
 });
 export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
 
@@ -249,6 +255,130 @@ export const publicAssetResourceSchema = z.object({
 });
 export type PublicAssetResource = z.infer<typeof publicAssetResourceSchema>;
 
+// ---- 010: AI Curation API ----
+
+export const publicSemanticSearchSubmitInputSchema = z.object({
+  q: z.string().trim().min(1).max(8_000),
+  limit: z.number().int().min(1).max(50).default(10),
+  pathPrefix: z.string().optional(),
+  scope: z.enum(['path', 'title', 'content', 'all']).optional(),
+  filterTag: z.union([z.string(), z.array(z.string())]).optional(),
+  filterStatus: z.union([z.string(), z.array(z.string())]).optional(),
+  filterOwner: z.union([z.string(), z.array(z.string())]).optional(),
+  filterHasFrontmatter: z.boolean().optional(),
+});
+export type PublicSemanticSearchSubmitInput = z.infer<typeof publicSemanticSearchSubmitInputSchema>;
+
+export const publicSemanticSearchCitationSchema = z.object({
+  chunkId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  contentHash: z.string(),
+});
+export type PublicSemanticSearchCitation = z.infer<typeof publicSemanticSearchCitationSchema>;
+
+export const publicSemanticSearchResultItemSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  title: z.string(),
+  score: z.number(),
+  excerpt: z.string(),
+  citations: z.array(publicSemanticSearchCitationSchema),
+});
+export type PublicSemanticSearchResultItem = z.infer<typeof publicSemanticSearchResultItemSchema>;
+
+export const publicSemanticSearchActionSchema = z.object({
+  id: z.string().uuid(),
+  feature: z.literal('semantic_search'),
+  status: z.enum(['queued', 'running', 'succeeded', 'failed', 'expired']),
+  createdAt: z.string(),
+  startedAt: z.string().nullable().optional(),
+  finishedAt: z.string().nullable().optional(),
+  expiresAt: z.string(),
+  pollUrl: z.string().optional(),
+  items: z.array(publicSemanticSearchResultItemSchema).optional(),
+  error: z.object({ code: z.string().optional(), message: z.string().optional() }).optional(),
+  usage: z.object({ inputTokens: z.number().optional(), requestId: z.string().optional() }).optional(),
+});
+export type PublicSemanticSearchAction = z.infer<typeof publicSemanticSearchActionSchema>;
+
+export const publicLinkSourceSchema = z.enum(['markdown', 'wiki', 'frontmatter']);
+export type PublicLinkSource = z.infer<typeof publicLinkSourceSchema>;
+
+export const publicOutboundLinkSchema = z.object({
+  source: publicLinkSourceSchema,
+  targetPath: z.string(),
+  targetPageId: z.string().uuid(),
+  targetStatus: publicPageStatusSchema,
+  linkText: z.string(),
+});
+export type PublicOutboundLink = z.infer<typeof publicOutboundLinkSchema>;
+
+export const publicDanglingLinkSchema = z.object({
+  source: publicLinkSourceSchema,
+  targetPath: z.string(),
+  targetStatus: publicPageStatusSchema.optional(),
+  linkText: z.string(),
+});
+export type PublicDanglingLink = z.infer<typeof publicDanglingLinkSchema>;
+
+export const publicExternalLinkSchema = z.object({
+  source: z.literal('markdown'),
+  href: z.string(),
+  linkText: z.string(),
+});
+export type PublicExternalLink = z.infer<typeof publicExternalLinkSchema>;
+
+export const publicOutboundLinksResponseSchema = z.object({
+  pageId: z.string().uuid(),
+  links: z.array(publicOutboundLinkSchema),
+  dangling: z.array(publicDanglingLinkSchema),
+  external: z.array(publicExternalLinkSchema),
+});
+export type PublicOutboundLinksResponse = z.infer<typeof publicOutboundLinksResponseSchema>;
+
+export const publicNeighborNodeSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  title: z.string(),
+  viaLinkSource: z.enum(['markdown', 'wiki', 'frontmatter', 'backlink']).optional(),
+});
+export type PublicNeighborNode = z.infer<typeof publicNeighborNodeSchema>;
+
+export const publicNeighborhoodResponseSchema = z.object({
+  root: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }),
+  tiers: z.array(z.array(publicNeighborNodeSchema)),
+});
+export type PublicNeighborhoodResponse = z.infer<typeof publicNeighborhoodResponseSchema>;
+
+export const publicBatchItemResultSchema = z.object({
+  pageId: z.string().uuid(),
+  status: z.enum(['success', 'failed']),
+  revisionId: z.string().uuid().optional(),
+  preview: z.record(z.unknown()).optional(),
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type PublicBatchItemResult = z.infer<typeof publicBatchItemResultSchema>;
+
+export const publicPageBatchUpdateItemInputSchema = z.object({
+  pageId: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  path: pathSchema.optional(),
+  frontmatter: z.record(z.unknown().nullable()).optional(),
+  baseRevisionId: z.string().uuid(),
+});
+export type PublicPageBatchUpdateItemInput = z.infer<typeof publicPageBatchUpdateItemInputSchema>;
+
+export const publicPageBatchUpdateResultSchema = z.object({
+  results: z.array(publicBatchItemResultSchema),
+  successCount: z.number().int().nonnegative(),
+  failureCount: z.number().int().nonnegative(),
+  dryRun: z.boolean().optional(),
+});
+export type PublicPageBatchUpdateResult = z.infer<typeof publicPageBatchUpdateResultSchema>;
+
+export const publicPageBatchDeleteResultSchema = publicPageBatchUpdateResultSchema;
+export type PublicPageBatchDeleteResult = z.infer<typeof publicPageBatchDeleteResultSchema>;
+
 export type WikiApiError = {
   code: string;
   message: string;
@@ -316,6 +446,10 @@ export class WikiApiClient {
     if (query.createdEnd) params.set('createdEnd', query.createdEnd.toISOString());
     if (query.updatedStart) params.set('updatedStart', query.updatedStart.toISOString());
     if (query.updatedEnd) params.set('updatedEnd', query.updatedEnd.toISOString());
+    if (query.filterTag) params.set('filter[tag]', query.filterTag);
+    if (query.filterStatus) params.set('filter[status]', query.filterStatus);
+    if (query.filterOwner) params.set('filter[owner]', query.filterOwner);
+    if (query.filterHasFrontmatter !== undefined) params.set('filter[has_frontmatter]', String(query.filterHasFrontmatter));
     return this.request<PublicPageSearchResponse>(`/search/pages?${params.toString()}`);
   }
 
@@ -426,6 +560,51 @@ export class WikiApiClient {
     return this.request<PublicAssetResource>('/assets', {
       method: 'POST',
       body: formData,
+    });
+  }
+
+  async submitSemanticSearch(input: PublicSemanticSearchSubmitInput): Promise<PublicSemanticSearchAction> {
+    return this.request<PublicSemanticSearchAction>('/search/semantic', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getSemanticSearchResults(id: string): Promise<PublicSemanticSearchAction> {
+    return this.request<PublicSemanticSearchAction>(`/search/semantic/${id}`);
+  }
+
+  async getOutboundLinks(pageId: string): Promise<PublicOutboundLinksResponse> {
+    return this.request<PublicOutboundLinksResponse>(`/pages/${pageId}/links`);
+  }
+
+  async getNeighborhood(node: string, depth?: number, direction?: 'out' | 'in' | 'both'): Promise<PublicNeighborhoodResponse> {
+    const params = new URLSearchParams();
+    params.set('node', node);
+    if (depth) params.set('depth', String(depth));
+    if (direction) params.set('direction', direction);
+    return this.request<PublicNeighborhoodResponse>(`/graph/neighbors?${params.toString()}`);
+  }
+
+  async batchUpdatePages(
+    input: { items: PublicPageBatchUpdateItemInput[] },
+    options?: { dryRun?: boolean },
+  ): Promise<PublicPageBatchUpdateResult> {
+    const query = options?.dryRun ? '?dry_run=true' : '';
+    return this.request<PublicPageBatchUpdateResult>(`/pages/batch/update${query}`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async batchSoftDeletePages(
+    input: { pageIds: string[] },
+    options?: { dryRun?: boolean },
+  ): Promise<PublicPageBatchDeleteResult> {
+    const query = options?.dryRun ? '?dry_run=true' : '';
+    return this.request<PublicPageBatchDeleteResult>(`/pages/batch/delete${query}`, {
+      method: 'POST',
+      body: JSON.stringify(input),
     });
   }
 }

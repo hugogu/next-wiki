@@ -41,8 +41,39 @@ describe('shape transformers', () => {
       matchType: 'title',
       excerpt: '...',
       score: 0.8,
+      frontmatter: null,
     });
     expect(result.hasMore).toBe(false);
+  });
+
+  it('flattens search response frontmatter when present', () => {
+    const result = searchWikiResponse({
+      items: [
+        {
+          page: {
+            id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+            spaceSlug: 'main',
+            path: 'docs/test',
+            locale: 'en',
+            title: 'Test',
+            frontmatter: { tags: ['a'] },
+            status: 'published',
+            author: { id: null, displayName: null },
+            latestRevision: null,
+            publishedRevision: null,
+            createdAt: '2026-07-01T00:00:00Z',
+            updatedAt: '2026-07-01T00:00:00Z',
+            links: { self: '', byPath: '', revisions: '', drafts: '' },
+          },
+          matchType: 'title',
+          excerpt: '...',
+          score: 0.8,
+        },
+      ],
+      nextCursor: null,
+    });
+
+    expect(result.results[0]?.frontmatter).toEqual({ tags: ['a'] });
   });
 
   it('flattens page list response', () => {

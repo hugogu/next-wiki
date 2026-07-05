@@ -176,19 +176,19 @@
 
 **⚠️ Cannot start until US1-US5 route handlers are implemented and the OpenAPI doc reflects them.**
 
-- [ ] T063 Add six new `WikiApiClient` methods to `packages/mcp-server/src/api-client.ts:1-241` (per the existing one-method-per-endpoint pattern at `:305, :322, :335, :344, :349, :356, :363, :371, :378, :386, :390, :394, :398, :402, :409, :415, :422`): `submitSemanticSearch(input)`, `getSemanticSearchResults(id)`, `getOutboundLinks(pageId)`, `getNeighborhood(node, depth, direction)`, `batchUpdatePages(input)`, `batchSoftDeletePages(input)`
-- [ ] T064 Extend `packages/mcp-server/src/api-client.ts` with the corresponding Zod input types and response schemas (duplicated per the existing pattern, not imported from `@next-wiki/shared`)
-- [ ] T065 Add six new flatteners to `packages/mcp-server/src/shapes.ts:1-241`: `submitSemanticSearchResponse`, `getSemanticSearchResultsResponse`, `getOutboundLinksResponse`, `getNeighborhoodResponse`, `batchUpdatePagesResponse`, `batchSoftDeletePagesResponse` (per `contracts/mcp-tools.md` flattener shapes)
-- [ ] T066 Extend `searchWikiResponse` flattener in `packages/mcp-server/src/shapes.ts:19-34` to include the new `frontmatter` field per `contracts/mcp-tools.md` Tool 1
-- [ ] T067 [P] Create `packages/mcp-server/src/tools/submit-semantic-search.ts` — `submitSemanticSearchSchema` (Zod raw shape with `.describe()`) + `submitSemanticSearch(client, args)` async function per `contracts/mcp-tools.md` Tool 2
-- [ ] T068 [P] Create `packages/mcp-server/src/tools/get-semantic-search-results.ts` per Tool 3
-- [ ] T069 [P] Create `packages/mcp-server/src/tools/get-page-outbound-links.ts` per Tool 4
-- [ ] T070 [P] Create `packages/mcp-server/src/tools/get-neighborhood.ts` per Tool 5
-- [ ] T071 [P] Create `packages/mcp-server/src/tools/batch-update-pages.ts` per Tool 6
-- [ ] T072 [P] Create `packages/mcp-server/src/tools/batch-soft-delete-pages.ts` per Tool 7
-- [ ] T073 Extend the `search_wiki` tool definition in `packages/mcp-server/src/server.ts:28-30` in place: add the four `filter*` input fields and update the description to mention frontmatter
-- [ ] T074 Register the six new tools in `packages/mcp-server/src/server.ts` in the order documented in `contracts/mcp-tools.md` (lines 199-209) — `submit_semantic_search` near line 30, `get_semantic_search_results` near line 32, `get_page_outbound_links` near line 92, `get_neighborhood` near line 94, `batch_update_pages` near line 99, `batch_soft_delete_pages` near line 101
-- [ ] T075 Run `pnpm --filter @next-wiki/mcp-server build && pnpm --filter @next-wiki/mcp-server test` — must pass with no typecheck errors
+- [X] T063 Add six new `WikiApiClient` methods to `packages/mcp-server/src/api-client.ts:1-241` (per the existing one-method-per-endpoint pattern at `:305, :322, :335, :344, :349, :356, :363, :371, :378, :386, :390, :394, :398, :402, :409, :415, :422`): `submitSemanticSearch(input)`, `getSemanticSearchResults(id)`, `getOutboundLinks(pageId)`, `getNeighborhood(node, depth, direction)`, `batchUpdatePages(input)`, `batchSoftDeletePages(input)`
+- [X] T064 Extend `packages/mcp-server/src/api-client.ts` with the corresponding Zod input types and response schemas (duplicated per the existing pattern, not imported from `@next-wiki/shared`)
+- [X] T065 Add six new flatteners to `packages/mcp-server/src/shapes.ts:1-241`: `submitSemanticSearchResponse`, `getSemanticSearchResultsResponse`, `getOutboundLinksResponse`, `getNeighborhoodResponse`, `batchUpdatePagesResponse`, `batchSoftDeletePagesResponse` (per `contracts/mcp-tools.md` flattener shapes)
+- [X] T066 Extend `searchWikiResponse` flattener in `packages/mcp-server/src/shapes.ts:19-34` to include the new `frontmatter` field per `contracts/mcp-tools.md` Tool 1
+- [X] T067 [P] Create `packages/mcp-server/src/tools/submit-semantic-search.ts` — `submitSemanticSearchSchema` (Zod raw shape with `.describe()`) + `submitSemanticSearch(client, args)` async function per `contracts/mcp-tools.md` Tool 2
+- [X] T068 [P] Create `packages/mcp-server/src/tools/get-semantic-search-results.ts` per Tool 3
+- [X] T069 [P] Create `packages/mcp-server/src/tools/get-page-outbound-links.ts` per Tool 4
+- [X] T070 [P] Create `packages/mcp-server/src/tools/get-neighborhood.ts` per Tool 5
+- [X] T071 [P] Create `packages/mcp-server/src/tools/batch-update-pages.ts` per Tool 6
+- [X] T072 [P] Create `packages/mcp-server/src/tools/batch-soft-delete-pages.ts` per Tool 7
+- [X] T073 Extend the `search_wiki` tool definition in `packages/mcp-server/src/server.ts:28-30` in place: add the four `filter*` input fields and update the description to mention frontmatter
+- [X] T074 Register the six new tools in `packages/mcp-server/src/server.ts` in the order documented in `contracts/mcp-tools.md` (lines 199-209) — `submit_semantic_search` near line 30, `get_semantic_search_results` near line 32, `get_page_outbound_links` near line 92, `get_neighborhood` near line 94, `batch_update_pages` near line 99, `batch_soft_delete_pages` near line 101
+- [X] T075 Run `pnpm --filter @next-wiki/mcp-server build && pnpm --filter @next-wiki/mcp-server test` — must pass with no typecheck errors
 
 **Checkpoint**: MCP tool surface mirrors v1 1:1. Manual smoke test: connect to Claude Desktop / OpenCode, verify the six new tools appear in tool discovery, submit a semantic search via the tool, confirm the response shape.
 

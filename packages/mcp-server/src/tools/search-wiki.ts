@@ -18,6 +18,10 @@ export const searchWikiSchema = {
   createdEnd: z.string().datetime().optional().describe('Only include pages created at or before this ISO 8601 timestamp'),
   updatedStart: z.string().datetime().optional().describe('Only include pages last updated at or after this ISO 8601 timestamp'),
   updatedEnd: z.string().datetime().optional().describe('Only include pages last updated at or before this ISO 8601 timestamp'),
+  filterTag: z.string().optional().describe('Frontmatter tag filter (exact match within array)'),
+  filterStatus: z.string().optional().describe('Frontmatter status filter (exact match)'),
+  filterOwner: z.string().optional().describe('Frontmatter owner filter (exact match)'),
+  filterHasFrontmatter: z.boolean().optional().describe('Filter for pages with / without any frontmatter'),
 };
 export type SearchWikiInput = z.infer<z.ZodObject<typeof searchWikiSchema>>;
 
@@ -32,6 +36,10 @@ export async function searchWiki(client: WikiApiClient, args: SearchWikiInput) {
     createdEnd: args.createdEnd ? new Date(args.createdEnd) : undefined,
     updatedStart: args.updatedStart ? new Date(args.updatedStart) : undefined,
     updatedEnd: args.updatedEnd ? new Date(args.updatedEnd) : undefined,
+    filterTag: args.filterTag,
+    filterStatus: args.filterStatus,
+    filterOwner: args.filterOwner,
+    filterHasFrontmatter: args.filterHasFrontmatter,
   });
   return searchWikiResponse(response);
 }
