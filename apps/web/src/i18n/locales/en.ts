@@ -683,6 +683,7 @@ export const en = {
   'userCenter.apiKeys.scope.run': 'Run',
   'userCenter.apiKeys.scope.storage': 'Storage',
   'userCenter.apiKeys.scope.preferences': 'Preferences',
+  'userCenter.apiKeys.scope.ai.read': 'AI read',
   'userCenter.apiKeys.scopeDescriptions.view': 'Read published pages and history',
   'userCenter.apiKeys.scopeDescriptions.create': 'Create new pages',
   'userCenter.apiKeys.scopeDescriptions.edit': 'Create drafts and publish revisions',
@@ -692,6 +693,7 @@ export const en = {
   'userCenter.apiKeys.scopeDescriptions.storage':
     'Manage content storage configuration and migrations (admin only)',
   'userCenter.apiKeys.scopeDescriptions.preferences': 'Update your own theme and language preferences',
+  'userCenter.apiKeys.scopeDescriptions.ai.read': 'Use AI-powered search and semantic retrieval',
   'userCenter.apiKeys.maxKeysExceeded': 'You can have at most {{max}} active keys.',
   'userCenter.apiKeys.atLeastOneScope': 'Select at least one scope.',
   'userCenter.apiKeys.createdWarning': 'Copy this key now. It will remain revealable, but this is the only time it is shown automatically.',

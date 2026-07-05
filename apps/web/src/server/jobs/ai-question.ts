@@ -64,7 +64,7 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
       expectedDimensions: generation.embeddingDimensions,
       abortSignal: new AbortController().signal,
     });
-    sources = searchResultsToSources(await retrieve(generation.id, embedded.vectors[0]!, 8));
+    sources = searchResultsToSources(await retrieve(ctx, generation.id, embedded.vectors[0]!, 8));
     retrievalUsage = embedded.usage ?? {};
   }
 

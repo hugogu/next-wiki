@@ -14,6 +14,7 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'storage',
   'preferences',
   'transfers',
+  'ai.read',
 ]);
 
 // ---- Content storage (003) -------------------------------------------------

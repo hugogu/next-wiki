@@ -65,6 +65,7 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   storage: ['manage_storage'],
   preferences: ['manage_preferences'],
   transfers: ['manage_transfers'],
+  'ai.read': ['use_ai_search', 'use_ai_qa'],
 };
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {
@@ -131,12 +132,12 @@ export function can(
 
   if (actor.kind === 'api_key') {
     // manage_users is never allowed via API key (no scope maps to it).
+    // use_ai_search and use_ai_qa are now permitted when the api_key has the
+    // 'ai.read' scope (see ai-permissions.test.ts for the role ∩ scope matrix).
     if (
       action === 'manage_users' ||
       action === 'manage_ai' ||
       action === 'manage_appearance' ||
-      action === 'use_ai_search' ||
-      action === 'use_ai_qa' ||
       action === 'use_ai_text_optimization' ||
       action === 'use_ai_image_generation'
     ) {

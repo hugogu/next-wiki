@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { XIcon } from '@/components/icons';
 
-const SCOPE_ORDER: ApiKeyScope[] = ['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences'];
+const SCOPE_ORDER: ApiKeyScope[] = ['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'ai.read'];
 
 interface ApiKeyCreateDialogProps {
   onClose: () => void;

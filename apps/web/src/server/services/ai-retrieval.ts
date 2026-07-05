@@ -3,12 +3,21 @@ import type { AiSearchResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
+import { buildUserCtx, can } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { exactCosineSearch, type VectorMatch } from '@/server/ai/retrieval/vector-search';
 import { providerRuntime } from './ai-admin';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction, readActionInput, appendActionEvent, finishAction } from './ai-actions';
+
+const DEFAULT_SPACE_SLUG = 'default';
+
+async function getDefaultSpace() {
+  return db.query.spaces.findFirst({
+    where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
+  });
+}
 
 export async function createSemanticSearch(ctx: PermCtx, input: { query: string; limit: number }) {
   await assertAiFeature(ctx, 'search');
@@ -32,13 +41,17 @@ export async function createSemanticSearch(ctx: PermCtx, input: { query: string;
 }
 
 export async function retrieve(
+  ctx: PermCtx,
   generationId: string,
   queryVector: number[],
   limit: number,
 ): Promise<AiSearchResult[]> {
+  const space = await getDefaultSpace();
   const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
+  const canReadPages = can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false });
+  const readable = canReadPages ? matches : [];
   const chunksByPage = new Map<string, VectorMatch[]>();
-  for (const match of matches) {
+  for (const match of readable) {
     const group = chunksByPage.get(match.pageId) ?? [];
     group.push(match);
     chunksByPage.set(match.pageId, group);
@@ -73,6 +86,10 @@ export async function runSemanticSearchAction(actionId: string): Promise<void> {
   const model = await db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, action.modelId) });
   const generation = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, action.indexGenerationId) });
   if (!model || !generation) throw new Error('Semantic search model or index is unavailable');
+  if (!action.actorUserId) throw new Error('Semantic search action is missing an actor');
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, action.actorUserId) });
+  if (!user) throw new Error('Semantic search actor is no longer available');
+  const ctx = buildUserCtx(user.id, user.role);
   const output = await createAiProviderAdapter(await providerRuntime(action.providerId)).embed({
     actionId,
     modelExternalId: model.externalId,
@@ -80,7 +97,7 @@ export async function runSemanticSearchAction(actionId: string): Promise<void> {
     expectedDimensions: generation.embeddingDimensions,
     abortSignal: new AbortController().signal,
   });
-  const results = await retrieve(generation.id, output.vectors[0]!, input.limit);
+  const results = await retrieve(ctx, generation.id, output.vectors[0]!, input.limit);
   await appendActionEvent(actionId, 'search_results', { results });
   await finishAction(actionId, 'completed', { resultMetadata: { resultCount: results.length }, usageMetadata: output.usage ?? {} });
 }
