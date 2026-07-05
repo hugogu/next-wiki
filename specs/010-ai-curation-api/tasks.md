@@ -198,12 +198,12 @@
 
 **Purpose**: Architectural guard updates, e2e coverage, and the full verification suite from `quickstart.md` §9.
 
-- [ ] T076 [P] Extend `apps/web/app/api/v1/public-route-architecture.test.ts:17-31` to permit `import * as publicAi from '@/server/services/public-ai'` alongside the existing `public-content` allowance (the guard must continue to forbid any other facade pattern)
-- [ ] T077 [P] Add `apps/web/e2e/ai-curation-search.spec.ts` (new) — boots Docker Compose, seeds a wiki, exercises keyword + semantic + frontmatter-filter flows end-to-end per `contracts/permission-scope-map.md:228-229`; asserts response shapes and audit log entries
-- [ ] T078 [P] Add `apps/web/e2e/ai-curation-batch.spec.ts` (new) — exercises batch update and delete flows including the dry-run path and the partial-success path
-- [ ] T079 Run `pnpm --filter @next-wiki/web lint && pnpm --filter @next-wiki/web typecheck && pnpm --filter @next-wiki/web test && pnpm --filter @next-wiki/mcp-server test && pnpm --filter @next-wiki/web test:e2e` — all must pass with 0 failures
-- [ ] T080 Run the full acceptance walkthrough from `quickstart.md` §9 — every SC-001 through SC-008 must pass; sign off in the PR description
-- [ ] T081 Run `pnpm --filter @next-wiki/web openapi:generate` one final time; verify `apps/web/public/openapi.json` contains the 6 new operations (semantic POST + GET, pages/{id}/links, graph/neighbors, batch/update, batch/delete), the extended search/list filter parameters, and no `/v1/*` path uses a `mode=` query parameter (SC-008)
+- [X] T076 [P] Extend `apps/web/app/api/v1/public-route-architecture.test.ts:17-31` to permit `import * as publicAi from '@/server/services/public-ai'` alongside the existing `public-content` allowance (the guard must continue to forbid any other facade pattern)
+- [X] T077 [P] Add `apps/web/e2e/ai-curation-search.spec.ts` (new) — boots Docker Compose, seeds a wiki, exercises keyword + semantic + frontmatter-filter flows end-to-end per `contracts/permission-scope-map.md:228-229`; asserts response shapes and audit log entries
+- [X] T078 [P] Add `apps/web/e2e/ai-curation-batch.spec.ts` (new) — exercises batch update and delete flows including the dry-run path and the partial-success path
+- [X] T079 Run `pnpm --filter @next-wiki/web lint && pnpm --filter @next-wiki/web typecheck && pnpm --filter @next-wiki/web test && pnpm --filter @next-wiki/mcp-server test && pnpm --filter @next-wiki/web test:e2e` — all must pass with 0 failures
+- [X] T080 Run the full acceptance walkthrough from `quickstart.md` §9 — every SC-001 through SC-008 must pass; sign off in the PR description
+- [X] T081 Run `pnpm --filter @next-wiki/web openapi:generate` one final time; verify `apps/web/public/openapi.json` contains the 6 new operations (semantic POST + GET, pages/{id}/links, graph/neighbors, batch/update, batch/delete), the extended search/list filter parameters, and no `/v1/*` path uses a `mode=` query parameter (SC-008)
 
 ---
 
