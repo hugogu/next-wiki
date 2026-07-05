@@ -413,6 +413,9 @@ export const aiCitationSchema = z.object({
   locale: z.string(),
   revisionId: z.string().uuid(),
   revisionHash: z.string(),
+  // Present for chunk-level (vector) retrieval results; absent for
+  // full-context citations, which cite the whole page rather than a chunk.
+  chunkId: z.string().uuid().optional(),
 });
 export type AiCitation = z.infer<typeof aiCitationSchema>;
 export const aiSearchResultSchema = aiCitationSchema.extend({
@@ -420,6 +423,65 @@ export const aiSearchResultSchema = aiCitationSchema.extend({
   score: z.number().min(-1).max(1),
 });
 export type AiSearchResult = z.infer<typeof aiSearchResultSchema>;
+
+// ---- 010: AI Curation API — public semantic search ----
+
+export const publicSemanticSearchSubmitInputSchema = z.object({
+  q: z.string().trim().min(1).max(8_000),
+  limit: z.number().int().min(1).max(50).default(10),
+  pathPrefix: z.string().optional(),
+  scope: z.enum(['path', 'title', 'content', 'all']).default('all').optional(),
+  filterTag: z.union([z.string(), z.array(z.string())]).optional(),
+  filterStatus: z.union([z.string(), z.array(z.string())]).optional(),
+  filterOwner: z.union([z.string(), z.array(z.string())]).optional(),
+  filterHasFrontmatter: z.boolean().optional(),
+});
+export type PublicSemanticSearchSubmitInput = z.infer<typeof publicSemanticSearchSubmitInputSchema>;
+
+export const publicSemanticSearchCitationSchema = z.object({
+  chunkId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  contentHash: z.string(),
+});
+export type PublicSemanticSearchCitation = z.infer<typeof publicSemanticSearchCitationSchema>;
+
+export const publicSemanticSearchResultItemSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  title: z.string(),
+  score: z.number().min(-1).max(1),
+  excerpt: z.string(),
+  citations: z.array(publicSemanticSearchCitationSchema),
+});
+export type PublicSemanticSearchResultItem = z.infer<typeof publicSemanticSearchResultItemSchema>;
+
+export const publicSemanticSearchStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'expired']);
+export type PublicSemanticSearchStatus = z.infer<typeof publicSemanticSearchStatusSchema>;
+
+export const publicSemanticSearchActionSchema = z.object({
+  id: z.string().uuid(),
+  feature: z.literal('semantic_search'),
+  status: publicSemanticSearchStatusSchema,
+  createdAt: z.string(),
+  startedAt: z.string().nullable().optional(),
+  finishedAt: z.string().nullable().optional(),
+  expiresAt: z.string(),
+  pollUrl: z.string().optional(),
+  items: z.array(publicSemanticSearchResultItemSchema).optional(),
+  error: z
+    .object({
+      code: z.string().optional(),
+      message: z.string().optional(),
+    })
+    .optional(),
+  usage: z
+    .object({
+      inputTokens: z.number().optional(),
+      requestId: z.string().optional(),
+    })
+    .optional(),
+});
+export type PublicSemanticSearchAction = z.infer<typeof publicSemanticSearchActionSchema>;
 
 export const aiSearchInputSchema = z.object({
   query: z.string().trim().min(1).max(8_000),

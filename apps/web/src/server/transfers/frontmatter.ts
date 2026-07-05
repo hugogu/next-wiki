@@ -2,6 +2,32 @@ import { parse as parseYaml } from 'yaml';
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n(?:\r?\n)?([\s\S]*)$/;
 
+export type FrontmatterFilters = {
+  tag?: string[];
+  status?: string[];
+  owner?: string[];
+  hasFrontmatter?: boolean;
+};
+
+function frontmatterFieldMatches(value: unknown, filterValues: string[]): boolean {
+  if (value === undefined || value === null) return false;
+  const values = Array.isArray(value) ? value : [value];
+  return values.some((entry) => filterValues.includes(String(entry)));
+}
+
+/** OR within a filter key (`filters.tag`), AND across keys — shared by keyword
+ * search/list (public-content.ts) and semantic search (ai-retrieval.ts) so the
+ * two endpoints stay consistent per FR-009/FR-013. */
+export function matchesFrontmatterFilters(frontmatter: Record<string, unknown> | null, filters: FrontmatterFilters): boolean {
+  if (filters.hasFrontmatter !== undefined && (frontmatter !== null) !== filters.hasFrontmatter) {
+    return false;
+  }
+  if (filters.tag && !frontmatterFieldMatches(frontmatter?.tags, filters.tag)) return false;
+  if (filters.status && !frontmatterFieldMatches(frontmatter?.status, filters.status)) return false;
+  if (filters.owner && !frontmatterFieldMatches(frontmatter?.owner, filters.owner)) return false;
+  return true;
+}
+
 /**
  * Parses the optional leading `---` YAML frontmatter block from page Markdown.
  * Unlike the portable-archive `parsePage`, this tolerates any shape (or none)

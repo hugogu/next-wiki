@@ -2378,6 +2378,271 @@
         ],
         "description": "Public page search result."
       },
+      "PublicSemanticSearchAction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable semantic search action identifier."
+          },
+          "feature": {
+            "type": "string",
+            "enum": [
+              "semantic_search"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "expired"
+            ],
+            "description": "Lifecycle status of the search action."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the action was submitted (ISO 8601)."
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Timestamp when processing started (ISO 8601), or null."
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Timestamp when processing finished (ISO 8601), or null."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when this action and its results expire (ISO 8601)."
+          },
+          "pollUrl": {
+            "type": "string",
+            "description": "API URL to poll for status and results."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSemanticSearchResultItem"
+            },
+            "description": "Result items; empty until status is succeeded."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Machine-readable error code, present when status is failed."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message, present when status is failed."
+              }
+            },
+            "description": "Error detail, present only when status is failed."
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "inputTokens": {
+                "type": "number",
+                "description": "Embedding input tokens consumed by this search, when reported by the provider."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "Provider request identifier, when reported."
+              }
+            },
+            "description": "Usage metadata, present only when status is succeeded."
+          }
+        },
+        "required": [
+          "id",
+          "feature",
+          "status",
+          "createdAt",
+          "expiresAt"
+        ],
+        "description": "Semantic wiki search action resource, returned on submit and poll."
+      },
+      "PublicSemanticSearchCitation": {
+        "type": "object",
+        "properties": {
+          "chunkId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the matched knowledge chunk."
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the page revision the chunk was extracted from."
+          },
+          "contentHash": {
+            "type": "string",
+            "description": "Content hash of the source revision, for grounding verification."
+          }
+        },
+        "required": [
+          "chunkId",
+          "revisionId",
+          "contentHash"
+        ],
+        "description": "Grounded citation for a semantic search result item."
+      },
+      "PublicSemanticSearchIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable semantic search action identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Public semantic search action ID path parameters."
+      },
+      "PublicSemanticSearchResultItem": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the matched page."
+          },
+          "path": {
+            "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the matched page."
+          },
+          "score": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1,
+            "description": "Cosine similarity score for the best-matching chunk on this page."
+          },
+          "excerpt": {
+            "type": "string",
+            "description": "Combined excerpt from the top matching chunks on this page (up to 1200 characters)."
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSemanticSearchCitation"
+            },
+            "description": "Grounded citations backing this result."
+          }
+        },
+        "required": [
+          "pageId",
+          "path",
+          "title",
+          "score",
+          "excerpt",
+          "citations"
+        ],
+        "description": "A single semantic search result."
+      },
+      "PublicSemanticSearchSubmitInput": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000,
+            "description": "Free-text semantic search query."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10,
+            "description": "Maximum number of results to return (1-50). Defaults to 10."
+          },
+          "pathPrefix": {
+            "type": "string",
+            "description": "Directory prefix to restrict matching to pages under a subtree."
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "path",
+              "title",
+              "content",
+              "all"
+            ],
+            "default": "all",
+            "description": "Accepted for request-shape parity with the keyword endpoint; has no effect on semantic (vector) matching."
+          },
+          "filterTag": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Restrict results to pages whose frontmatter tags include any of these values."
+          },
+          "filterStatus": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Restrict results to pages whose frontmatter status matches any of these values."
+          },
+          "filterOwner": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Restrict results to pages whose frontmatter owner matches any of these values."
+          },
+          "filterHasFrontmatter": {
+            "type": "boolean",
+            "description": "Restrict results to pages with (true) or without (false) any parsed frontmatter."
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "description": "Submit a semantic wiki search."
+      },
       "PublicSimilarQuery": {
         "type": "object",
         "properties": {
@@ -8393,6 +8658,43 @@
         }
       }
     },
+    "/v1/search/semantic": {
+      "post": {
+        "operationId": "post-v1-search-semantic",
+        "summary": "Submit a semantic wiki search",
+        "description": "Submits a query for background embedding and vector retrieval. Returns",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicSemanticSearchSubmitInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSemanticSearchAction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/search/similar": {
       "post": {
         "operationId": "post-v1-search-similar",
@@ -8423,6 +8725,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicSimilarResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search/semantic/{id}": {
+      "get": {
+        "operationId": "get-v1-search-semantic-{id}",
+        "summary": "Get semantic wiki search results",
+        "description": "Polls the status and results of a previously submitted semantic search action.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable semantic search action identifier."
+            },
+            "description": "Stable semantic search action identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSemanticSearchAction"
                 }
               }
             }

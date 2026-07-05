@@ -6,6 +6,7 @@ import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/a
 import { exactCosineSearch } from '@/server/ai/retrieval/vector-search';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import { retrieve } from './ai-retrieval';
+import * as publicAi from './public-ai';
 
 describe('AI vector retrieval', () => {
   it('ranks exact cosine matches, groups pages, and excludes unpublished content', async () => {
@@ -103,6 +104,53 @@ describe('AI vector retrieval', () => {
     await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revisionId));
     await db.delete(schema.pages).where(eq(schema.pages.id, pageId));
     await db.delete(schema.spaces).where(eq(schema.spaces.id, spaceId));
+    await removeAiTestUser(userId);
+  });
+});
+
+describe('public-ai semantic search facade (US3)', () => {
+  it('accepts an api_key actor with view + ai.read scopes and returns a queued action', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('editor');
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    const spaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: spaceId, slug: `pub-ai-${spaceId}`, name: 'Public AI' });
+    const [provider] = await db.insert(schema.aiProviders).values({
+      name: 'Public AI fixture', kind: 'openai_compatible', baseUrl: 'https://example.com',
+      credentialsEncrypted: 'encrypted', createdBy: userId, updatedBy: userId,
+    }).returning();
+    const [model] = await db.insert(schema.aiModels).values({
+      providerId: provider!.id, externalId: 'embed', displayName: 'Embed',
+      availability: 'available', embeddingDimensions: 3,
+    }).returning();
+    await db.insert(schema.aiIndexGenerations).values({
+      modelId: model!.id, embeddingDimensions: 3, chunkerVersion: 'test', status: 'ready', isActive: true,
+    });
+
+    const ctx = buildApiKeyCtx(userId, 'editor', ['view', 'ai.read'], 'key');
+    const result = await publicAi.submitSemanticSearch(ctx, { q: 'auth design', limit: 10 });
+
+    expect(result.status).toBe('queued');
+    expect(result.feature).toBe('semantic_search');
+    expect(result.id).toBeTruthy();
+    expect(result.pollUrl).toBe(`/api/v1/search/semantic/${result.id}`);
+
+    await clearAiData();
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, spaceId));
+    await removeAiTestUser(userId);
+  });
+
+  it('rejects an api_key with ai.read but no view scope before any index-state disclosure (FR-006/FR-007)', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('editor');
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    // Deliberately no embedding generation exists — if the scope check ran
+    // after the index-readiness check, this would leak INDEX_NOT_READY
+    // instead of a clean, uninformative FORBIDDEN.
+    const ctx = buildApiKeyCtx(userId, 'editor', ['ai.read'], 'key');
+
+    await expect(publicAi.submitSemanticSearch(ctx, { q: 'auth design', limit: 10 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
     await removeAiTestUser(userId);
   });
 });

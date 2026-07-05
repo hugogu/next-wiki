@@ -24,7 +24,7 @@ import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagina
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
-import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
+import { parsePageFrontmatter, matchesFrontmatterFilters, type FrontmatterFilters } from '@/server/transfers/frontmatter';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
@@ -272,29 +272,6 @@ async function visibleRevisionResource(
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   return { ...summary!, contentSource: options.includeContent ? content : undefined, frontmatter };
-}
-
-type FrontmatterFilters = {
-  tag?: string[];
-  status?: string[];
-  owner?: string[];
-  hasFrontmatter?: boolean;
-};
-
-function frontmatterFieldMatches(value: unknown, filterValues: string[]): boolean {
-  if (value === undefined || value === null) return false;
-  const values = Array.isArray(value) ? value : [value];
-  return values.some((entry) => filterValues.includes(String(entry)));
-}
-
-function matchesFrontmatterFilters(frontmatter: Record<string, unknown> | null, filters: FrontmatterFilters): boolean {
-  if (filters.hasFrontmatter !== undefined && (frontmatter !== null) !== filters.hasFrontmatter) {
-    return false;
-  }
-  if (filters.tag && !frontmatterFieldMatches(frontmatter?.tags, filters.tag)) return false;
-  if (filters.status && !frontmatterFieldMatches(frontmatter?.status, filters.status)) return false;
-  if (filters.owner && !frontmatterFieldMatches(frontmatter?.owner, filters.owner)) return false;
-  return true;
 }
 
 function extractFrontmatterFilters(query: {

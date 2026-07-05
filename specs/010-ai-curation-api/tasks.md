@@ -99,19 +99,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T032 [P] [US3] Extend `apps/web/src/server/services/ai-retrieval.test.ts` with a test for the new public-API facade path: seed an indexed page, build a `buildApiKeyCtx(user.id, 'editor', ['view', 'ai.read'], 'key')`, call the facade's `submitSemanticSearch`, assert it accepts the api_key actor (no `UNAUTHORIZED`) and returns `{ id, status: 'queued', ... }`; add a negative case that `['ai.read']` without `view` is rejected before index-state disclosure
-- [ ] T033 [P] [US3] Add integration test in `apps/web/app/api/v1/search/semantic-routes.test.ts` (new file): mock `publicAi.submitSemanticSearch` and `publicAi.getSemanticSearchResults`, exercise the submit → poll flow, assert response shapes match `contracts/v1-routes.md` Route 2 and Route 3
+- [X] T032 [P] [US3] Extend `apps/web/src/server/services/ai-retrieval.test.ts` with a test for the new public-API facade path: seed an indexed page, build a `buildApiKeyCtx(user.id, 'editor', ['view', 'ai.read'], 'key')`, call the facade's `submitSemanticSearch`, assert it accepts the api_key actor (no `UNAUTHORIZED`) and returns `{ id, status: 'queued', ... }`; add a negative case that `['ai.read']` without `view` is rejected before index-state disclosure
+- [X] T033 [P] [US3] Add integration test in `apps/web/app/api/v1/search/semantic-routes.test.ts` (new file): mock `publicAi.submitSemanticSearch` and `publicAi.getSemanticSearchResults`, exercise the submit → poll flow, assert response shapes match `contracts/v1-routes.md` Route 2 and Route 3
 
 ### Implementation for User Story 3
 
-- [ ] T034 [P] [US3] Add `chunkId: z.string().uuid()` to `aiCitationSchema` in `packages/shared/src/ai.ts:409`; verify `aiCitationSchema.extend({ excerpt, score })` (`packages/shared/src/ai.ts:418`) still compiles
-- [ ] T035 [P] [US3] Add `publicSemanticSearchSubmitInputSchema`, `publicSemanticSearchActionSchema`, `publicSemanticSearchCitationSchema` to `packages/shared/src/ai.ts` (shape per `contracts/v1-routes.md` Route 2)
-- [ ] T036 [US3] Create `apps/web/src/server/services/public-ai.ts` with `submitSemanticSearch(ctx, input)` — wraps the internal `createSemanticSearch` (`apps/web/src/server/services/ai-retrieval.ts:13-32`) but accepts an `api_key` actor; requires `view + ai.read`; maps the internal `UNAUTHORIZED` to `FORBIDDEN`; preserves `INDEX_NOT_READY` as public 409 via `apps/web/src/server/api/public-errors.ts`; returns the `publicSemanticSearchActionSchema` shape
-- [ ] T037 [US3] Add `getSemanticSearchResults(ctx, actionId)` to `public-ai.ts` — reads `ai_actions` row (must belong to the API-key actor's `userId` or 404); reads `ai_action_events` for the `search_results` payload; enriches each item with `citations[]` derived from `chunkId` on `ai_knowledge_chunks`; returns the `publicSemanticSearchActionSchema` shape
-- [ ] T038 [P] [US3] Create `apps/web/app/api/v1/search/semantic/route.ts` (POST submit) — pattern matches `apps/web/app/api/v1/search/pages/route.ts:18-22` with `parsePublicJson`; returns HTTP 202
-- [ ] T039 [P] [US3] Create `apps/web/app/api/v1/search/semantic/[id]/route.ts` (GET poll) — pattern matches `apps/web/app/api/v1/pages/[id]/backlinks/route.ts:1-17`; validates `{ id: uuid }` per `apps/web/app/api/v1/pages/[id]/drafts/route.ts:7`
-- [ ] T040 [P] [US3] Mirror the three new schemas with `.describe()` in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T041 [US3] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `submit_semantic_search` and `get_semantic_search_results` appear in the OpenAPI doc with distinct operationIds
+- [X] T034 [P] [US3] Add `chunkId: z.string().uuid()` to `aiCitationSchema` in `packages/shared/src/ai.ts:409`; verify `aiCitationSchema.extend({ excerpt, score })` (`packages/shared/src/ai.ts:418`) still compiles
+- [X] T035 [P] [US3] Add `publicSemanticSearchSubmitInputSchema`, `publicSemanticSearchActionSchema`, `publicSemanticSearchCitationSchema` to `packages/shared/src/ai.ts` (shape per `contracts/v1-routes.md` Route 2)
+- [X] T036 [US3] Create `apps/web/src/server/services/public-ai.ts` with `submitSemanticSearch(ctx, input)` — wraps the internal `createSemanticSearch` (`apps/web/src/server/services/ai-retrieval.ts:13-32`) but accepts an `api_key` actor; requires `view + ai.read`; maps the internal `UNAUTHORIZED` to `FORBIDDEN`; preserves `INDEX_NOT_READY` as public 409 via `apps/web/src/server/api/public-errors.ts`; returns the `publicSemanticSearchActionSchema` shape
+- [X] T037 [US3] Add `getSemanticSearchResults(ctx, actionId)` to `public-ai.ts` — reads `ai_actions` row (must belong to the API-key actor's `userId` or 404); reads `ai_action_events` for the `search_results` payload; enriches each item with `citations[]` derived from `chunkId` on `ai_knowledge_chunks`; returns the `publicSemanticSearchActionSchema` shape
+- [X] T038 [P] [US3] Create `apps/web/app/api/v1/search/semantic/route.ts` (POST submit) — pattern matches `apps/web/app/api/v1/search/pages/route.ts:18-22` with `parsePublicJson`; returns HTTP 202
+- [X] T039 [P] [US3] Create `apps/web/app/api/v1/search/semantic/[id]/route.ts` (GET poll) — pattern matches `apps/web/app/api/v1/pages/[id]/backlinks/route.ts:1-17`; validates `{ id: uuid }` per `apps/web/app/api/v1/pages/[id]/drafts/route.ts:7`
+- [X] T040 [P] [US3] Mirror the three new schemas with `.describe()` in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T041 [US3] Run `pnpm --filter @next-wiki/web openapi:generate` and verify `submit_semantic_search` and `get_semantic_search_results` appear in the OpenAPI doc with distinct operationIds
 
 **Checkpoint**: US3 fully functional. The integration test from `quickstart.md` §6.2 must pass: submit, poll, get items + citations. A `view`-only key returns 403. A non-existent action id returns 404.
 

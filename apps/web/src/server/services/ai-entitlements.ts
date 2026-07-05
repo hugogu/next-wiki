@@ -82,16 +82,25 @@ export async function updateUserEntitlements(
   return getUserEntitlements(ctx, userId);
 }
 
+/**
+ * Entitlements belong to the underlying user account, not the session type —
+ * an api_key actor is still gated to specific actions by `can()` (see the
+ * api-key hard-deny list in permissions/index.ts), so resolving entitlements
+ * by `getActorUserId` here (rather than requiring `actor.kind === 'user'`) is
+ * safe: it only affects whether the *account* is AI-enabled, not which
+ * actions an api_key is allowed to invoke.
+ */
 export async function getMyEntitlements(ctx: PermCtx): Promise<AiEntitlementView> {
-  if (ctx.actor.kind !== 'user') throw new DomainError('UNAUTHORIZED', 'Sign in to use AI');
-  const user = await db.query.users.findFirst({ where: eq(schema.users.id, ctx.actor.userId) });
+  const userId = getActorUserId(ctx);
+  if (!userId) throw new DomainError('UNAUTHORIZED', 'Sign in to use AI');
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
   if (!user || user.status !== 'active') throw new DomainError('UNAUTHORIZED', 'User is disabled');
   const row = await db.query.userAiEntitlements.findFirst({
-    where: eq(schema.userAiEntitlements.userId, ctx.actor.userId),
+    where: eq(schema.userAiEntitlements.userId, userId),
   });
   const reasons = await availabilityReasons();
   return {
-    userId: ctx.actor.userId,
+    userId,
     ...(row ?? defaultEntitlementsFor(user.role)),
     aiEnabled: !reasons.includes('AI_DISABLED'),
     reasons,

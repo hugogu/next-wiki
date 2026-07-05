@@ -14,6 +14,7 @@ export type PublicApiErrorCode =
   | 'UNSUPPORTED_ASSET_TYPE'
   | 'ASSET_TOO_LARGE'
   | 'RATE_LIMITED'
+  | 'INDEX_NOT_READY'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -51,6 +52,8 @@ export function mapPublicDomainError(error: DomainError): NextResponse<PublicApi
       return publicApiError('ASSET_TOO_LARGE', error.message, 413);
     case 'RATE_LIMITED':
       return publicApiError('RATE_LIMITED', error.message, 429);
+    case 'INDEX_NOT_READY':
+      return publicApiError('INDEX_NOT_READY', error.message, 409);
     default:
       return publicApiError('VALIDATION_FAILED', error.message, 422);
   }

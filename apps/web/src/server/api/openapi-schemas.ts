@@ -641,6 +641,12 @@ export const PublicAssetIdPathParams = z
   })
   .describe('Public asset ID path parameters.');
 
+export const PublicSemanticSearchIdPathParams = z
+  .object({
+    id: z.string().uuid().describe('Stable semantic search action identifier.'),
+  })
+  .describe('Public semantic search action ID path parameters.');
+
 export const PublicImageContentType = z.enum([
   'image/png',
   'image/jpeg',
@@ -956,6 +962,81 @@ export const PublicPageSearchResponse = z
     nextCursor: z.string().nullable().describe('Cursor for the next page of results, or null when there are no more.'),
   })
   .describe('Paginated public page search response.');
+
+export const PublicSemanticSearchSubmitInput = z
+  .object({
+    q: z.string().trim().min(1).max(8_000).describe('Free-text semantic search query.'),
+    limit: z.number().int().min(1).max(50).optional().default(10).describe('Maximum number of results to return (1-50). Defaults to 10.'),
+    pathPrefix: z.string().optional().describe('Directory prefix to restrict matching to pages under a subtree.'),
+    scope: z
+      .enum(['path', 'title', 'content', 'all'])
+      .optional()
+      .default('all')
+      .describe('Accepted for request-shape parity with the keyword endpoint; has no effect on semantic (vector) matching.'),
+    filterTag: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Restrict results to pages whose frontmatter tags include any of these values.'),
+    filterStatus: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Restrict results to pages whose frontmatter status matches any of these values.'),
+    filterOwner: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Restrict results to pages whose frontmatter owner matches any of these values.'),
+    filterHasFrontmatter: z.boolean().optional().describe('Restrict results to pages with (true) or without (false) any parsed frontmatter.'),
+  })
+  .describe('Submit a semantic wiki search.');
+
+export const PublicSemanticSearchCitation = z
+  .object({
+    chunkId: z.string().uuid().describe('Identifier of the matched knowledge chunk.'),
+    revisionId: z.string().uuid().describe('Identifier of the page revision the chunk was extracted from.'),
+    contentHash: z.string().describe('Content hash of the source revision, for grounding verification.'),
+  })
+  .describe('Grounded citation for a semantic search result item.');
+
+export const PublicSemanticSearchResultItem = z
+  .object({
+    pageId: z.string().uuid().describe('Identifier of the matched page.'),
+    path: PublicPagePath,
+    title: z.string().describe('Title of the matched page.'),
+    score: z.number().min(-1).max(1).describe('Cosine similarity score for the best-matching chunk on this page.'),
+    excerpt: z.string().describe('Combined excerpt from the top matching chunks on this page (up to 1200 characters).'),
+    citations: z.array(PublicSemanticSearchCitation).describe('Grounded citations backing this result.'),
+  })
+  .describe('A single semantic search result.');
+
+export const PublicSemanticSearchAction = z
+  .object({
+    id: z.string().uuid().describe('Stable semantic search action identifier.'),
+    feature: z.literal('semantic_search'),
+    status: z
+      .enum(['queued', 'running', 'succeeded', 'failed', 'expired'])
+      .describe('Lifecycle status of the search action.'),
+    createdAt: z.string().datetime().describe('Timestamp when the action was submitted (ISO 8601).'),
+    startedAt: z.string().datetime().nullable().optional().describe('Timestamp when processing started (ISO 8601), or null.'),
+    finishedAt: z.string().datetime().nullable().optional().describe('Timestamp when processing finished (ISO 8601), or null.'),
+    expiresAt: z.string().datetime().describe('Timestamp when this action and its results expire (ISO 8601).'),
+    pollUrl: z.string().optional().describe('API URL to poll for status and results.'),
+    items: z.array(PublicSemanticSearchResultItem).optional().describe('Result items; empty until status is succeeded.'),
+    error: z
+      .object({
+        code: z.string().optional().describe('Machine-readable error code, present when status is failed.'),
+        message: z.string().optional().describe('Human-readable error message, present when status is failed.'),
+      })
+      .optional()
+      .describe('Error detail, present only when status is failed.'),
+    usage: z
+      .object({
+        inputTokens: z.number().optional().describe('Embedding input tokens consumed by this search, when reported by the provider.'),
+        requestId: z.string().optional().describe('Provider request identifier, when reported.'),
+      })
+      .optional()
+      .describe('Usage metadata, present only when status is succeeded.'),
+  })
+  .describe('Semantic wiki search action resource, returned on submit and poll.');
 
 export const PublicPageTreeNode: z.ZodType<{
   path: string;
