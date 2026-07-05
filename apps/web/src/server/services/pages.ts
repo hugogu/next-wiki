@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNull, desc, max, count } from 'drizzle-orm';
+import { eq, and, isNull, desc, max, count, asc, ilike, gte, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
@@ -8,7 +8,18 @@ import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { pathSchema } from '@next-wiki/shared';
-import type { LivePage, PageSummary, EditableView, RevisionSummary, RevisionView } from '@next-wiki/shared';
+import type {
+  AdminPageListFilters,
+  AdminPageListResult,
+  AdminPageSortDirection,
+  AdminPageSortKey,
+  AdminPageStats,
+  LivePage,
+  PageSummary,
+  EditableView,
+  RevisionSummary,
+  RevisionView,
+} from '@next-wiki/shared';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import {
   readMarkdownFromDatabase,
@@ -18,6 +29,10 @@ import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 
 const DEFAULT_SPACE_SLUG = 'default';
+const ADMIN_PAGE_SIZE = 25;
+const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
+const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
+const MARKDOWN_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
 
 async function getDefaultSpace() {
   return db.query.spaces.findFirst({
@@ -31,6 +46,76 @@ function getUserId(ctx: PermCtx): string | null {
 
 function leafSlugFromPath(path: string): string {
   return path.split('/').pop() ?? path;
+}
+
+function assertAdmin(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to manage pages');
+  }
+}
+
+function clampPage(value: number | undefined): number {
+  if (!value || Number.isNaN(value) || value < 1) return 1;
+  return Math.floor(value);
+}
+
+function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilters {
+  return {
+    ...(filters.title?.trim() ? { title: filters.title.trim() } : {}),
+    ...(filters.author?.trim() ? { author: filters.author.trim() } : {}),
+    ...(filters.path?.trim() ? { path: filters.path.trim() } : {}),
+    ...(filters.dateFrom?.trim() ? { dateFrom: filters.dateFrom.trim() } : {}),
+    ...(filters.dateTo?.trim() ? { dateTo: filters.dateTo.trim() } : {}),
+  };
+}
+
+function parseDateBoundary(value: string | undefined, boundary: 'start' | 'end'): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T${boundary === 'start' ? '00:00:00.000' : '23:59:59.999'}Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function adminPageConditions(spaceId: string, filters: AdminPageListFilters) {
+  const dateFrom = parseDateBoundary(filters.dateFrom, 'start');
+  const dateTo = parseDateBoundary(filters.dateTo, 'end');
+  return and(
+    eq(schema.pages.spaceId, spaceId),
+    isNull(schema.pages.deletedAt),
+    filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
+    filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
+    filters.author
+      ? or(
+          ilike(schema.users.displayName, `%${filters.author}%`),
+          ilike(schema.users.email, `%${filters.author}%`),
+        )
+      : undefined,
+    dateFrom ? gte(schema.pages.updatedAt, dateFrom) : undefined,
+    dateTo ? lte(schema.pages.updatedAt, dateTo) : undefined,
+  );
+}
+
+function normalizeLinkTarget(href: string): string | null {
+  const withoutAnchor = href.trim().split('#')[0]?.split('?')[0]?.trim() ?? '';
+  if (!withoutAnchor || /^[a-z][a-z0-9+.-]*:/i.test(withoutAnchor)) return null;
+  return withoutAnchor.replace(/^\/+/, '');
+}
+
+function orderExpression(sort: AdminPageSortKey) {
+  switch (sort) {
+    case 'title':
+      return schema.pages.title;
+    case 'path':
+      return schema.pages.path;
+    case 'author':
+      return sql`lower(coalesce(${schema.users.displayName}, ${schema.users.email}))`;
+    case 'createdAt':
+      return schema.pages.createdAt;
+    case 'edits':
+      return count(schema.pageRevisions.id);
+    case 'updatedAt':
+    default:
+      return schema.pages.updatedAt;
+  }
 }
 
 /**
@@ -127,6 +212,153 @@ export async function countPublished(ctx: PermCtx): Promise<number> {
     );
 
   return row?.value ?? 0;
+}
+
+export async function listAdminPages(
+  ctx: PermCtx,
+  options: {
+    page?: number;
+    sort?: string;
+    direction?: string;
+    filters?: AdminPageListFilters;
+  } = {},
+): Promise<AdminPageListResult> {
+  assertAdmin(ctx);
+  const space = await getDefaultSpace();
+  if (!space) {
+    return {
+      items: [],
+      totalItems: 0,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: ADMIN_PAGE_SIZE,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: {},
+    };
+  }
+
+  const filters = compactFilters(options.filters);
+  const sort = ADMIN_PAGE_SORTS.has(options.sort as AdminPageSortKey)
+    ? (options.sort as AdminPageSortKey)
+    : 'updatedAt';
+  const direction = ADMIN_SORT_DIRECTIONS.has(options.direction as AdminPageSortDirection)
+    ? (options.direction as AdminPageSortDirection)
+    : 'desc';
+  const currentPage = clampPage(options.page);
+  const where = adminPageConditions(space.id, filters);
+
+  const [totalRow] = await db
+    .select({ value: count() })
+    .from(schema.pages)
+    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+    .where(where);
+
+  const totalItems = totalRow?.value ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ADMIN_PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const rows = await db
+    .select({
+      id: schema.pages.id,
+      path: schema.pages.path,
+      title: schema.pages.title,
+      currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+      authorDisplayName: schema.users.displayName,
+      authorEmail: schema.users.email,
+      editCount: count(schema.pageRevisions.id),
+      createdAt: schema.pages.createdAt,
+      updatedAt: schema.pages.updatedAt,
+    })
+    .from(schema.pages)
+    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+    .leftJoin(schema.pageRevisions, eq(schema.pageRevisions.pageId, schema.pages.id))
+    .where(where)
+    .groupBy(
+      schema.pages.id,
+      schema.pages.path,
+      schema.pages.title,
+      schema.pages.currentPublishedVersionId,
+      schema.pages.createdAt,
+      schema.pages.updatedAt,
+      schema.users.displayName,
+      schema.users.email,
+    )
+    .orderBy(direction === 'asc' ? asc(orderExpression(sort)) : desc(orderExpression(sort)))
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((safePage - 1) * ADMIN_PAGE_SIZE);
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      path: row.path,
+      title: row.title,
+      status: row.currentPublishedVersionId ? 'published' : 'draft',
+      authorDisplayName: row.authorDisplayName,
+      authorEmail: row.authorEmail,
+      editCount: Number(row.editCount),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    totalItems,
+    currentPage: safePage,
+    totalPages,
+    pageSize: ADMIN_PAGE_SIZE,
+    sort,
+    direction,
+    filters,
+  };
+}
+
+export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
+  assertAdmin(ctx);
+  const space = await getDefaultSpace();
+  if (!space) return { totalPages: 0, totalEdits: 0, totalPageLinks: 0 };
+
+  const activePages = await db
+    .select({
+      id: schema.pages.id,
+      path: schema.pages.path,
+      revisionId: schema.pageRevisions.id,
+      contentSource: schema.pageRevisions.contentSource,
+      contentHash: schema.pageRevisions.contentHash,
+    })
+    .from(schema.pages)
+    .leftJoin(schema.pageRevisions, eq(schema.pages.latestVersionId, schema.pageRevisions.id))
+    .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
+
+  const pageIds = new Set(activePages.map((page) => page.id));
+  const pagePaths = new Set(activePages.map((page) => page.path));
+  const [editRow] = await db
+    .select({ value: count() })
+    .from(schema.pageRevisions)
+    .innerJoin(schema.pages, eq(schema.pageRevisions.pageId, schema.pages.id))
+    .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
+
+  let totalPageLinks = 0;
+  for (const page of activePages) {
+    if (!page.revisionId || !page.contentHash) continue;
+    const markdown = await readRevisionMarkdown({
+      id: page.revisionId,
+      contentSource: page.contentSource,
+      contentHash: page.contentHash,
+    });
+    for (const match of markdown.matchAll(MARKDOWN_LINK_RE)) {
+      const target = normalizeLinkTarget(match[2] ?? '');
+      if (!target) continue;
+      if (target.startsWith('api/v1/pages/')) {
+        if (pageIds.has(target.slice('api/v1/pages/'.length))) totalPageLinks += 1;
+      } else if (pagePaths.has(target)) {
+        totalPageLinks += 1;
+      }
+    }
+  }
+
+  return {
+    totalPages: activePages.length,
+    totalEdits: editRow?.value ?? 0,
+    totalPageLinks,
+  };
 }
 
 export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | null> {

@@ -152,6 +152,7 @@ export function Navigator({
   const pathname = usePathname();
   const ADMIN_ITEMS: AdminNavItem[] = [
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
+    { href: '/admin/pages', label: t('admin.nav.pages'), icon: <FileTextIcon className="shrink-0" /> },
     { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SettingsIcon className="shrink-0" /> },
     { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
     { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },

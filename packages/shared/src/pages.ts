@@ -126,6 +126,46 @@ export const publicPageListResponseSchema = z.object({
 });
 export type PublicPageListResponse = z.infer<typeof publicPageListResponseSchema>;
 
+export type AdminPageSortKey = 'title' | 'path' | 'author' | 'updatedAt' | 'createdAt' | 'edits';
+export type AdminPageSortDirection = 'asc' | 'desc';
+
+export type AdminPageListItem = {
+  id: string;
+  path: string;
+  title: string;
+  status: 'draft' | 'published';
+  authorDisplayName: string | null;
+  authorEmail: string;
+  editCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminPageListFilters = {
+  title?: string;
+  author?: string;
+  path?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type AdminPageListResult = {
+  items: AdminPageListItem[];
+  totalItems: number;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  sort: AdminPageSortKey;
+  direction: AdminPageSortDirection;
+  filters: AdminPageListFilters;
+};
+
+export type AdminPageStats = {
+  totalPages: number;
+  totalEdits: number;
+  totalPageLinks: number;
+};
+
 export const publicPageCreateInputSchema = z.object({
   path: pathSchema,
   locale: z.string().min(1).max(20).optional(),
