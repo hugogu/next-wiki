@@ -7,7 +7,6 @@ import { formatZodError } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as artifacts from '@/server/services/transfer-artifacts';
 
-/** @openapi @summary Reserve a transfer artifact upload @tag Transfers @auth bearer */
 async function handlePOST(request: NextRequest) {
   const parsed = transferArtifactReserveSchema.safeParse(
     await request.json().catch(() => ({})),
@@ -23,4 +22,5 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+/** @openapi @summary Reserve a transfer artifact upload @tag Transfers @auth bearer */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

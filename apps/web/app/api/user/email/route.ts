@@ -7,17 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userCenterService from '@/server/services/user-center';
 
-/**
- * Change email.
- *
- * @openapi
- * @summary Change email
- * @description Changes the signed-in user's email address.
- * @tag User
- * @auth bearer
- * @body ChangeEmailInput
- * @response ChangeEmailOutputSchema
- */
 async function handlePATCH(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -35,4 +24,15 @@ async function handlePATCH(request: NextRequest) {
   }
 }
 
+/**
+ * Change email.
+ *
+ * @openapi
+ * @summary Change email
+ * @description Changes the signed-in user's email address.
+ * @tag User
+ * @auth bearer
+ * @body ChangeEmailInput
+ * @response ChangeEmailOutputSchema
+ */
 export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);

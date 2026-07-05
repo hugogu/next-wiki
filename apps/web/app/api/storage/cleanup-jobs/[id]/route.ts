@@ -8,16 +8,6 @@ import * as cleanupService from '@/server/services/cleanup';
 
 const idSchema = z.string().uuid();
 
-/**
- * Get cleanup job status.
- *
- * @openapi
- * @summary Get cleanup status
- * @description Returns the progress of a retained-backend cleanup job. Admin only.
- * @tag Storage
- * @auth bearer
- * @response CleanupJobView
- */
 async function handleGET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -32,4 +22,14 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+/**
+ * Get cleanup job status.
+ *
+ * @openapi
+ * @summary Get cleanup status
+ * @description Returns the progress of a retained-backend cleanup job. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @response CleanupJobView
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

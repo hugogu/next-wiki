@@ -10,15 +10,6 @@ import { parseJson, formatZodError } from '@/server/api/validate';
 
 const idSchema = z.string().uuid();
 
-/**
- * @openapi
- * @summary Enable a storage replica
- * @description Health-checks a configured replica and starts an idempotent Database backfill. Admin only.
- * @tag Storage
- * @auth bearer
- * @body StorageBackendEnable
- * @response StorageBackendView
- */
 async function handlePOST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Backend not found', 404);
@@ -38,4 +29,13 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+/**
+ * @openapi
+ * @summary Enable a storage replica
+ * @description Health-checks a configured replica and starts an idempotent Database backfill. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @body StorageBackendEnable
+ * @response StorageBackendView
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

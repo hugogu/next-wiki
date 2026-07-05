@@ -5,14 +5,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { runGitExportNow } from '@/server/services/git-export';
 
-/**
- * @openapi
- * @summary Run Git export
- * @description Queues an asynchronous full reconciliation of published Markdown and referenced assets.
- * @tag Storage
- * @auth bearer
- * @response GitExportRunResult
- */
 async function handlePOST() {
   try {
     return NextResponse.json(await runGitExportNow(await createApiContext()), { status: 202 });
@@ -22,4 +14,12 @@ async function handlePOST() {
   }
 }
 
+/**
+ * @openapi
+ * @summary Run Git export
+ * @description Queues an asynchronous full reconciliation of published Markdown and referenced assets.
+ * @tag Storage
+ * @auth bearer
+ * @response GitExportRunResult
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

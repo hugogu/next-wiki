@@ -8,17 +8,6 @@ import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as migrationService from '@/server/services/migration';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
-/**
- * Start a backend migration.
- *
- * @openapi
- * @summary Start a storage migration
- * @description Starts a safe copy-verify-cutover migration to the target backend and returns immediately with the migration id. Admin only.
- * @tag Storage
- * @auth bearer
- * @body MigrationStartInput
- * @response 202:MigrationView
- */
 async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -37,16 +26,6 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-/**
- * List recent migrations.
- *
- * @openapi
- * @summary List storage migrations
- * @description Returns recent migrations. Admin only.
- * @tag Storage
- * @auth bearer
- * @response MigrationList
- */
 async function handleGET() {
   const ctx = await createApiContext();
   try {
@@ -58,5 +37,26 @@ async function handleGET() {
   }
 }
 
+/**
+ * Start a backend migration.
+ *
+ * @openapi
+ * @summary Start a storage migration
+ * @description Starts a safe copy-verify-cutover migration to the target backend and returns immediately with the migration id. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @body MigrationStartInput
+ * @response 202:MigrationView
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);
+/**
+ * List recent migrations.
+ *
+ * @openapi
+ * @summary List storage migrations
+ * @description Returns recent migrations. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @response MigrationList
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

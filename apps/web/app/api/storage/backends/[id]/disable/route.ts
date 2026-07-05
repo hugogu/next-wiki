@@ -11,15 +11,6 @@ import * as cleanup from '@/server/services/cleanup';
 
 const idSchema = z.string().uuid();
 
-/**
- * @openapi
- * @summary Disable a storage replica
- * @description Removes a replica from read and write routing. Optionally schedules deletion of retained replica data. Admin only.
- * @tag Storage
- * @auth bearer
- * @body StorageBackendDisable
- * @response StorageBackendView
- */
 async function handlePOST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Backend not found', 404);
@@ -42,4 +33,13 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+/**
+ * @openapi
+ * @summary Disable a storage replica
+ * @description Removes a replica from read and write routing. Optionally schedules deletion of retained replica data. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @body StorageBackendDisable
+ * @response StorageBackendView
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

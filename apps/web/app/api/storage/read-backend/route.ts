@@ -7,15 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as storageConfig from '@/server/services/storage-config';
 
-/**
- * @openapi
- * @summary Set preferred storage read backend
- * @description Selects an enabled replica for preferred reads, or Database when backendId is null. Admin only.
- * @tag Storage
- * @auth bearer
- * @body StorageReadBackend
- * @response StorageBackendView
- */
 async function handlePUT(request: NextRequest) {
   const parsed = parseJson(storageReadBackendSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
@@ -29,4 +20,13 @@ async function handlePUT(request: NextRequest) {
   }
 }
 
+/**
+ * @openapi
+ * @summary Set preferred storage read backend
+ * @description Selects an enabled replica for preferred reads, or Database when backendId is null. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @body StorageReadBackend
+ * @response StorageBackendView
+ */
 export const PUT = withApiAudit(handlePUT as unknown as RouteHandler);

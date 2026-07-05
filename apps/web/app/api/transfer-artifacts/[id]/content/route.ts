@@ -16,7 +16,6 @@ function parseRange(value: string | null, size: number) {
   return start <= end && start < size ? { start, end } : null;
 }
 
-/** @openapi @summary Download a ready transfer artifact @tag Transfers @auth bearer */
 async function handleGET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -45,7 +44,6 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
   }
 }
 
-/** @openapi @summary Upload raw ZIP bytes to a reserved artifact @tag Transfers @auth bearer */
 async function handlePUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -65,5 +63,7 @@ async function handlePUT(request: NextRequest, { params }: { params: Promise<{ i
   }
 }
 
+/** @openapi @summary Download a ready transfer artifact @tag Transfers @auth bearer */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+/** @openapi @summary Upload raw ZIP bytes to a reserved artifact @tag Transfers @auth bearer */
 export const PUT = withApiAudit(handlePUT as unknown as RouteHandler);

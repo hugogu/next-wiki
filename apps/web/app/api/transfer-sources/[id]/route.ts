@@ -12,7 +12,6 @@ async function sourceId(params: Promise<{ id: string }>) {
   return uuidSchema.safeParse(id).success ? id : null;
 }
 
-/** @openapi @summary Get a Wiki.js transfer source @tag Transfers @auth bearer */
 async function handleGET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const id = await sourceId(params);
   if (!id) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -25,7 +24,6 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-/** @openapi @summary Update a Wiki.js transfer source @tag Transfers @auth bearer */
 async function handlePATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const id = await sourceId(params);
   if (!id) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -39,7 +37,6 @@ async function handlePATCH(request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-/** @openapi @summary Delete a Wiki.js transfer source @tag Transfers @auth bearer */
 async function handleDELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const id = await sourceId(params);
   if (!id) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -52,6 +49,9 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
   }
 }
 
+/** @openapi @summary Get a Wiki.js transfer source @tag Transfers @auth bearer */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+/** @openapi @summary Update a Wiki.js transfer source @tag Transfers @auth bearer */
 export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
+/** @openapi @summary Delete a Wiki.js transfer source @tag Transfers @auth bearer */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

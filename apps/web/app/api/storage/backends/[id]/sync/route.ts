@@ -8,14 +8,6 @@ import * as storageConfig from '@/server/services/storage-config';
 
 const idSchema = z.string().uuid();
 
-/**
- * @openapi
- * @summary Get storage replica synchronization status
- * @description Returns Database-to-replica backfill progress and errors. Admin only.
- * @tag Storage
- * @auth bearer
- * @response ReplicaSyncStatus
- */
 async function handleGET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Backend not found', 404);
@@ -29,4 +21,12 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+/**
+ * @openapi
+ * @summary Get storage replica synchronization status
+ * @description Returns Database-to-replica backfill progress and errors. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @response ReplicaSyncStatus
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

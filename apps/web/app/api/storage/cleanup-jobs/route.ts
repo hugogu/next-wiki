@@ -8,17 +8,6 @@ import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as cleanupService from '@/server/services/cleanup';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
-/**
- * Start a retained-backend cleanup.
- *
- * @openapi
- * @summary Start storage cleanup
- * @description Starts a confirmed cleanup of an inactive backend's retained data. Admin only.
- * @tag Storage
- * @auth bearer
- * @body CleanupStartInput
- * @response 202:CleanupJobView
- */
 async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -37,4 +26,15 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+/**
+ * Start a retained-backend cleanup.
+ *
+ * @openapi
+ * @summary Start storage cleanup
+ * @description Starts a confirmed cleanup of an inactive backend's retained data. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @body CleanupStartInput
+ * @response 202:CleanupJobView
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

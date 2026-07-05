@@ -7,14 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { configureGitExport, getGitExport } from '@/server/services/git-export';
 
-/**
- * @openapi
- * @summary Get Git sync status
- * @description Returns the current Git sync backend view (masked secrets) for status polling. Admin only.
- * @tag Storage
- * @auth bearer
- * @response StorageBackendView
- */
 async function handleGET() {
   try {
     return NextResponse.json(await getGitExport(await createApiContext()));
@@ -24,17 +16,16 @@ async function handleGET() {
   }
 }
 
-export const GET = withApiAudit(handleGET as unknown as RouteHandler);
-
 /**
  * @openapi
- * @summary Configure Git export
- * @description Configures and enables or disables the one-way published-content Git export. Secrets are write-only. Enabling queues a full snapshot export.
+ * @summary Get Git sync status
+ * @description Returns the current Git sync backend view (masked secrets) for status polling. Admin only.
  * @tag Storage
  * @auth bearer
- * @body GitExportUpsert
  * @response StorageBackendView
  */
+export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+
 async function handlePUT(request: NextRequest) {
   const parsed = parseJson(
     gitExportUpsertSchema,
@@ -52,4 +43,13 @@ async function handlePUT(request: NextRequest) {
   }
 }
 
+/**
+ * @openapi
+ * @summary Configure Git export
+ * @description Configures and enables or disables the one-way published-content Git export. Secrets are write-only. Enabling queues a full snapshot export.
+ * @tag Storage
+ * @auth bearer
+ * @body GitExportUpsert
+ * @response StorageBackendView
+ */
 export const PUT = withApiAudit(handlePUT as unknown as RouteHandler);

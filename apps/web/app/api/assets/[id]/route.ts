@@ -11,15 +11,6 @@ import {
 
 const idSchema = z.string().uuid();
 
-/**
- * Serve an image's bytes, enforcing page-equivalent read permission.
- *
- * @openapi
- * @summary Get an image
- * @description Streams the bytes of an image asset. Requires read access to a page that references it; unreadable or missing assets return 404 with no existence leak.
- * @tag Assets
- * @response 200
- */
 async function handleGET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -78,4 +69,13 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
   }
 }
 
+/**
+ * Serve an image's bytes, enforcing page-equivalent read permission.
+ *
+ * @openapi
+ * @summary Get an image
+ * @description Streams the bytes of an image asset. Requires read access to a page that references it; unreadable or missing assets return 404 with no existence leak.
+ * @tag Assets
+ * @response 200
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

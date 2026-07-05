@@ -8,16 +8,6 @@ import * as migrationService from '@/server/services/migration';
 
 const idSchema = z.string().uuid();
 
-/**
- * Get migration status.
- *
- * @openapi
- * @summary Get migration status
- * @description Returns the progress of a migration for polling. Admin only.
- * @tag Storage
- * @auth bearer
- * @response MigrationView
- */
 async function handleGET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -32,16 +22,6 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-/**
- * Request a migration abort.
- *
- * @openapi
- * @summary Abort a migration
- * @description Requests a cooperative abort; the worker stops at its next checkpoint and never cuts over after the request. Admin only.
- * @tag Storage
- * @auth bearer
- * @response 202:MigrationView
- */
 async function handleDELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -55,5 +35,25 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
   }
 }
 
+/**
+ * Get migration status.
+ *
+ * @openapi
+ * @summary Get migration status
+ * @description Returns the progress of a migration for polling. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @response MigrationView
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+/**
+ * Request a migration abort.
+ *
+ * @openapi
+ * @summary Abort a migration
+ * @description Requests a cooperative abort; the worker stops at its next checkpoint and never cuts over after the request. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @response 202:MigrationView
+ */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

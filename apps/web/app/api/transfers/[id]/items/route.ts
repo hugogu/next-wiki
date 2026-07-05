@@ -7,7 +7,6 @@ import { formatZodError, parseQuery, uuidSchema } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as transfers from '@/server/services/transfers';
 
-/** @openapi @summary List content transfer item outcomes @tag Transfers @auth bearer */
 async function handleGET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -21,4 +20,5 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
   }
 }
 
+/** @openapi @summary List content transfer item outcomes @tag Transfers @auth bearer */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

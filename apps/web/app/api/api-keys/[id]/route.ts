@@ -6,15 +6,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as apiKeyService from '@/server/services/api-keys';
 
-/**
- * Revoke an API key.
- *
- * @openapi
- * @summary Revoke API key
- * @description Revokes one of the user's API keys. Session-only; not callable with a Bearer key.
- * @tag User
- * @response 204
- */
 async function handleDELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -32,4 +23,13 @@ async function handleDELETE(request: Request, { params }: { params: Promise<{ id
   }
 }
 
+/**
+ * Revoke an API key.
+ *
+ * @openapi
+ * @summary Revoke API key
+ * @description Revokes one of the user's API keys. Session-only; not callable with a Bearer key.
+ * @tag User
+ * @response 204
+ */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

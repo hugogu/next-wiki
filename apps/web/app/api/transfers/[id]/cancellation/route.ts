@@ -6,7 +6,6 @@ import { uuidSchema } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as transfers from '@/server/services/transfers';
 
-/** @openapi @summary Cancel an active transfer run @tag Transfers @auth bearer */
 async function handlePOST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -20,4 +19,5 @@ async function handlePOST(_request: NextRequest, { params }: { params: Promise<{
   }
 }
 
+/** @openapi @summary Cancel an active transfer run @tag Transfers @auth bearer */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

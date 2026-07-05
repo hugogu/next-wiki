@@ -6,15 +6,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as apiKeyService from '@/server/services/api-keys';
 
-/**
- * Reveal an API key secret.
- *
- * @openapi
- * @summary Reveal API key secret
- * @description Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.
- * @tag User
- * @response ApiKeyReveal
- */
 async function handleGET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -32,4 +23,13 @@ async function handleGET(request: Request, { params }: { params: Promise<{ id: s
   }
 }
 
+/**
+ * Reveal an API key secret.
+ *
+ * @openapi
+ * @summary Reveal API key secret
+ * @description Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.
+ * @tag User
+ * @response ApiKeyReveal
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

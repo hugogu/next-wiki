@@ -7,17 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userService from '@/server/services/users';
 
-/**
- * Set a user's role.
- *
- * @openapi
- * @summary Set user role
- * @description Changes the role of the specified user. Admin only.
- * @tag Users
- * @auth bearer
- * @body SetRoleInput
- * @response OkResponse
- */
 async function handlePOST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -41,4 +30,15 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+/**
+ * Set a user's role.
+ *
+ * @openapi
+ * @summary Set user role
+ * @description Changes the role of the specified user. Admin only.
+ * @tag Users
+ * @auth bearer
+ * @body SetRoleInput
+ * @response OkResponse
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

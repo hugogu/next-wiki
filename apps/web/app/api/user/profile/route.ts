@@ -7,17 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userCenterService from '@/server/services/user-center';
 
-/**
- * Update profile.
- *
- * @openapi
- * @summary Update profile
- * @description Updates the signed-in user's display name.
- * @tag User
- * @auth bearer
- * @body UpdateProfileInput
- * @response ProfileViewSchema
- */
 async function handlePATCH(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -35,4 +24,15 @@ async function handlePATCH(request: NextRequest) {
   }
 }
 
+/**
+ * Update profile.
+ *
+ * @openapi
+ * @summary Update profile
+ * @description Updates the signed-in user's display name.
+ * @tag User
+ * @auth bearer
+ * @body UpdateProfileInput
+ * @response ProfileViewSchema
+ */
 export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);

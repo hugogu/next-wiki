@@ -5,14 +5,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { generateGitSshKey } from '@/server/services/git-export';
 
-/**
- * @openapi
- * @summary Generate Git export SSH key
- * @description Generates or rotates the server Ed25519 key. The encrypted private key remains server-side; only the public key and fingerprint are returned.
- * @tag Storage
- * @auth bearer
- * @response GitSshKeyResult
- */
 async function handlePOST() {
   try {
     return NextResponse.json(await generateGitSshKey(await createApiContext()));
@@ -22,4 +14,12 @@ async function handlePOST() {
   }
 }
 
+/**
+ * @openapi
+ * @summary Generate Git export SSH key
+ * @description Generates or rotates the server Ed25519 key. The encrypted private key remains server-side; only the public key and fingerprint are returned.
+ * @tag Storage
+ * @auth bearer
+ * @response GitSshKeyResult
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

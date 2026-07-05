@@ -499,6 +499,9 @@
         ],
         "description": "Change the current user email address."
       },
+      "ChangeEmailOutputSchema": {
+        "$ref": "#/components/schemas/changeEmailOutputSchema"
+      },
       "changeEmailOutputSchema": {
         "type": "object",
         "properties": {
@@ -688,6 +691,18 @@
           "code"
         ],
         "description": "API error response"
+      },
+      "formSchema": {
+        "type": "object",
+        "properties": {
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "confirmPassword"
+        ]
       },
       "GitExportRunResult": {
         "type": "object",
@@ -1104,6 +1119,9 @@
           "html"
         ],
         "description": "Rendered HTML output"
+      },
+      "ProfileViewSchema": {
+        "$ref": "#/components/schemas/profileViewSchema"
       },
       "profileViewSchema": {
         "type": "object",
@@ -3210,6 +3228,34 @@
     "responses": {}
   },
   "paths": {
+    "/audit/all": {
+      "get": {
+        "operationId": "get-audit-all",
+        "summary": "List all audit entries",
+        "description": "Returns a paginated list of all API audit entries. Admin only.",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/actions": {
       "get": {
         "operationId": "get-ai-actions",
@@ -5626,78 +5672,6 @@
         }
       }
     },
-    "/api-keys": {
-      "get": {
-        "operationId": "get-api-keys",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Api-keys"
-        ],
-        "parameters": [],
-        "responses": {}
-      },
-      "post": {
-        "operationId": "post-api-keys",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Api-keys"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api-keys/{id}": {
-      "delete": {
-        "operationId": "delete-api-keys-{id}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Api-keys"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          }
-        }
-      }
-    },
-    "/api-keys/{id}/reveal": {
-      "get": {
-        "operationId": "get-api-keys-{id}-reveal",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Api-keys"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {}
-      }
-    },
     "/system-themes": {
       "get": {
         "operationId": "get-system-themes",
@@ -6151,8 +6125,8 @@
     "/assets/{id}": {
       "get": {
         "operationId": "get-assets-{id}",
-        "summary": "",
-        "description": "",
+        "summary": "Get an image",
+        "description": "Streams the bytes of an image asset. Requires read access to a page that references it; unreadable or missing assets return 404 with no existence leak.",
         "tags": [
           "Assets"
         ],
@@ -6168,7 +6142,11 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
       }
     },
     "/v1/assets": {
@@ -6332,30 +6310,6 @@
         }
       }
     },
-    "/audit": {
-      "get": {
-        "operationId": "get-audit",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Audit"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/audit/all": {
-      "get": {
-        "operationId": "get-audit-all",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Audit"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
     "/auth/login": {
       "post": {
         "operationId": "post-auth-login",
@@ -6369,7 +6323,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/loginInputSchema"
+                "$ref": "#/components/schemas/LoginInput"
               }
             }
           }
@@ -6548,13 +6502,24 @@
     "/openapi.json": {
       "get": {
         "operationId": "get-openapi.json",
-        "summary": "",
-        "description": "",
+        "summary": "OpenAPI specification",
+        "description": "Returns the generated OpenAPI 3.1 JSON document describing all public REST endpoints.",
         "tags": [
           "Openapi.json"
         ],
         "parameters": [],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/200 {OpenApiSpec}"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/pages": {
@@ -7566,110 +7531,308 @@
     "/storage": {
       "get": {
         "operationId": "get-storage",
-        "summary": "",
-        "description": "",
+        "summary": "Get storage configuration",
+        "description": "Returns the active backend, all configured primary backends, the Git export target, and any in-progress migration. Admin only; secrets are never included.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageOverview"
+                }
+              }
+            }
+          }
+        }
       },
       "put": {
         "operationId": "put-storage",
-        "summary": "",
-        "description": "",
+        "summary": "Configure a storage backend",
+        "description": "Creates or updates a primary backend's non-secret configuration and optional write-only secret. Does not activate it. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageBackendUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/backend-checks": {
       "post": {
         "operationId": "post-storage-backend-checks",
-        "summary": "",
-        "description": "",
+        "summary": "Check a storage backend",
+        "description": "Validates configuration and runs a health check against a saved backend or an ad-hoc config, without changing any backend state. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackendCheckInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackendCheckResult"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/cleanup-jobs": {
       "post": {
         "operationId": "post-storage-cleanup-jobs",
-        "summary": "",
-        "description": "",
+        "summary": "Start storage cleanup",
+        "description": "Starts a confirmed cleanup of an inactive backend's retained data. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupStartInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupJobView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/git-export": {
       "get": {
         "operationId": "get-storage-git-export",
-        "summary": "",
-        "description": "",
+        "summary": "Get Git sync status",
+        "description": "Returns the current Git sync backend view (masked secrets) for status polling. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       },
       "put": {
         "operationId": "put-storage-git-export",
-        "summary": "",
-        "description": "",
+        "summary": "Configure Git export",
+        "description": "Configures and enables or disables the one-way published-content Git export. Secrets are write-only. Enabling queues a full snapshot export.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitExportUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/migrations": {
       "get": {
         "operationId": "get-storage-migrations",
-        "summary": "",
-        "description": "",
+        "summary": "List storage migrations",
+        "description": "Returns recent migrations. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationList"
+                }
+              }
+            }
+          }
+        }
       },
       "post": {
         "operationId": "post-storage-migrations",
-        "summary": "",
-        "description": "",
+        "summary": "Start a storage migration",
+        "description": "Starts a safe copy-verify-cutover migration to the target backend and returns immediately with the migration id. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationStartInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/read-backend": {
       "put": {
         "operationId": "put-storage-read-backend",
-        "summary": "",
-        "description": "",
+        "summary": "Set preferred storage read backend",
+        "description": "Selects an enabled replica for preferred reads, or Database when backendId is null. Admin only.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageReadBackend"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/cleanup-jobs/{id}": {
       "get": {
         "operationId": "get-storage-cleanup-jobs-{id}",
-        "summary": "",
-        "description": "",
+        "summary": "Get cleanup status",
+        "description": "Returns the progress of a retained-backend cleanup job. Admin only.",
         "tags": [
           "Storage"
         ],
@@ -7685,50 +7848,114 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupJobView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/git-export/reset": {
       "post": {
         "operationId": "post-storage-git-export-reset",
-        "summary": "",
-        "description": "",
+        "summary": "Cancel a stuck Git sync",
+        "description": "Cancels pending git-export jobs and clears a sync stuck in backfilling.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/git-export/run": {
       "post": {
         "operationId": "post-storage-git-export-run",
-        "summary": "",
-        "description": "",
+        "summary": "Run Git export",
+        "description": "Queues an asynchronous full reconciliation of published Markdown and referenced assets.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitExportRunResult"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/git-export/ssh-key": {
       "post": {
         "operationId": "post-storage-git-export-ssh-key",
-        "summary": "",
-        "description": "",
+        "summary": "Generate Git export SSH key",
+        "description": "Generates or rotates the server Ed25519 key. The encrypted private key remains server-side; only the public key and fingerprint are returned.",
         "tags": [
           "Storage"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitSshKeyResult"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/migrations/{id}": {
       "get": {
         "operationId": "get-storage-migrations-{id}",
-        "summary": "",
-        "description": "",
+        "summary": "Get migration status",
+        "description": "Returns the progress of a migration for polling. Admin only.",
         "tags": [
           "Storage"
         ],
@@ -7744,30 +7971,58 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
-      },
-      "delete": {
-        "operationId": "delete-storage-migrations-{id}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Storage"
-        ],
-        "parameters": [
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
+            "BearerAuth": []
           }
         ],
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-storage-migrations-{id}",
+        "summary": "Abort a migration",
+        "description": "Requests a cooperative abort; the worker stops at its next checkpoint and never cuts over after the request. Admin only.",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationView"
+                }
+              }
+            }
           }
         }
       }
@@ -7775,8 +8030,8 @@
     "/storage/backends/{id}/disable": {
       "post": {
         "operationId": "post-storage-backends-{id}-disable",
-        "summary": "",
-        "description": "",
+        "summary": "Disable a storage replica",
+        "description": "Removes a replica from read and write routing. Optionally schedules deletion of retained replica data. Admin only.",
         "tags": [
           "Storage"
         ],
@@ -7792,14 +8047,39 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageBackendDisable"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/backends/{id}/enable": {
       "post": {
         "operationId": "post-storage-backends-{id}-enable",
-        "summary": "",
-        "description": "",
+        "summary": "Enable a storage replica",
+        "description": "Health-checks a configured replica and starts an idempotent Database backfill. Admin only.",
         "tags": [
           "Storage"
         ],
@@ -7815,14 +8095,39 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageBackendEnable"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBackendView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/storage/backends/{id}/sync": {
       "get": {
         "operationId": "get-storage-backends-{id}-sync",
-        "summary": "",
-        "description": "",
+        "summary": "Get storage replica synchronization status",
+        "description": "Returns Database-to-replica backfill progress and errors. Admin only.",
         "tags": [
           "Storage"
         ],
@@ -7838,108 +8143,37 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplicaSyncStatus"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/transfer-artifacts": {
       "post": {
         "operationId": "post-transfer-artifacts",
-        "summary": "",
+        "summary": "Reserve a transfer artifact upload @tag Transfers @auth bearer",
         "description": "",
         "tags": [
-          "Transfer-artifacts"
+          "Transfers"
         ],
         "parameters": [],
-        "responses": {}
-      }
-    },
-    "/transfer-artifacts/{id}": {
-      "get": {
-        "operationId": "get-transfer-artifacts-{id}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfer-artifacts"
-        ],
-        "parameters": [
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {}
-      },
-      "delete": {
-        "operationId": "delete-transfer-artifacts-{id}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfer-artifacts"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          }
-        }
-      }
-    },
-    "/transfer-artifacts/{id}/content": {
-      "get": {
-        "operationId": "get-transfer-artifacts-{id}-content",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfer-artifacts"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {}
-      },
-      "put": {
-        "operationId": "put-transfer-artifacts-{id}-content",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfer-artifacts"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
+            "BearerAuth": []
           }
         ],
         "responses": {}
@@ -7948,32 +8182,74 @@
     "/transfer-sources": {
       "get": {
         "operationId": "get-transfer-sources",
-        "summary": "",
+        "summary": "List Wiki.js transfer sources @tag Transfers @auth bearer",
         "description": "",
         "tags": [
-          "Transfer-sources"
+          "Transfers"
         ],
         "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {}
       },
       "post": {
         "operationId": "post-transfer-sources",
-        "summary": "",
+        "summary": "Create a Wiki.js transfer source @tag Transfers @auth bearer",
         "description": "",
         "tags": [
-          "Transfer-sources"
+          "Transfers"
         ],
         "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {}
       }
     },
-    "/transfer-sources/{id}": {
+    "/transfers": {
       "get": {
-        "operationId": "get-transfer-sources-{id}",
-        "summary": "",
+        "operationId": "get-transfers",
+        "summary": "List content transfer runs @tag Transfers @auth bearer",
         "description": "",
         "tags": [
-          "Transfer-sources"
+          "Transfers"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-transfers",
+        "summary": "Start a content transfer run @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/transfer-artifacts/{id}": {
+      "get": {
+        "operationId": "get-transfer-artifacts-{id}",
+        "summary": "Get transfer artifact metadata @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
         ],
         "parameters": [
           {
@@ -7987,35 +8263,19 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
-      },
-      "patch": {
-        "operationId": "patch-transfer-sources-{id}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfer-sources"
-        ],
-        "parameters": [
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
+            "BearerAuth": []
           }
         ],
         "responses": {}
       },
       "delete": {
-        "operationId": "delete-transfer-sources-{id}",
-        "summary": "",
+        "operationId": "delete-transfer-artifacts-{id}",
+        "summary": "Delete a transfer artifact @tag Transfers @auth bearer",
         "description": "",
         "tags": [
-          "Transfer-sources"
+          "Transfers"
         ],
         "parameters": [
           {
@@ -8027,6 +8287,11 @@
             },
             "example": 123,
             "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -8036,32 +8301,10 @@
         }
       }
     },
-    "/transfers": {
+    "/transfer-sources/{id}": {
       "get": {
-        "operationId": "get-transfers",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfers"
-        ],
-        "parameters": [],
-        "responses": {}
-      },
-      "post": {
-        "operationId": "post-transfers",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Transfers"
-        ],
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/transfers/{id}": {
-      "get": {
-        "operationId": "get-transfers-{id}",
-        "summary": "",
+        "operationId": "get-transfer-sources-{id}",
+        "summary": "Get a Wiki.js transfer source @tag Transfers @auth bearer",
         "description": "",
         "tags": [
           "Transfers"
@@ -8076,6 +8319,149 @@
             },
             "example": 123,
             "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      },
+      "patch": {
+        "operationId": "patch-transfer-sources-{id}",
+        "summary": "Update a Wiki.js transfer source @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      },
+      "delete": {
+        "operationId": "delete-transfer-sources-{id}",
+        "summary": "Delete a Wiki.js transfer source @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/transfers/{id}": {
+      "get": {
+        "operationId": "get-transfers-{id}",
+        "summary": "Get a content transfer run @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/transfer-artifacts/{id}/content": {
+      "get": {
+        "operationId": "get-transfer-artifacts-{id}-content",
+        "summary": "Download a ready transfer artifact @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      },
+      "put": {
+        "operationId": "put-transfer-artifacts-{id}-content",
+        "summary": "Upload raw ZIP bytes to a reserved artifact @tag Transfers @auth bearer",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ],
         "responses": {}
@@ -8084,7 +8470,7 @@
     "/transfers/{id}/cancellation": {
       "post": {
         "operationId": "post-transfers-{id}-cancellation",
-        "summary": "",
+        "summary": "Cancel an active transfer run @tag Transfers @auth bearer",
         "description": "",
         "tags": [
           "Transfers"
@@ -8099,6 +8485,11 @@
             },
             "example": 123,
             "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ],
         "responses": {}
@@ -8107,7 +8498,7 @@
     "/transfers/{id}/items": {
       "get": {
         "operationId": "get-transfers-{id}-items",
-        "summary": "",
+        "summary": "List content transfer item outcomes @tag Transfers @auth bearer",
         "description": "",
         "tags": [
           "Transfers"
@@ -8124,13 +8515,18 @@
             "description": "Path parameter: id"
           }
         ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {}
       }
     },
     "/transfers/{id}/retries": {
       "post": {
         "operationId": "post-transfers-{id}-retries",
-        "summary": "",
+        "summary": "Retry an incomplete transfer run @tag Transfers @auth bearer",
         "description": "",
         "tags": [
           "Transfers"
@@ -8145,6 +8541,11 @@
             },
             "example": 123,
             "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ],
         "responses": {}
@@ -8209,59 +8610,301 @@
         }
       }
     },
-    "/user/email": {
-      "patch": {
-        "operationId": "patch-user-email",
-        "summary": "",
-        "description": "",
+    "/api-keys": {
+      "get": {
+        "operationId": "get-api-keys",
+        "summary": "List API keys",
+        "description": "Returns the current user's API keys without secrets. Session-only; not callable with a Bearer key.",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyViewList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-api-keys",
+        "summary": "Create an API key",
+        "description": "Creates a new API key with the requested scopes. Session-only; not callable with a Bearer key. The full secret is returned only once.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreated"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit": {
+      "get": {
+        "operationId": "get-audit",
+        "summary": "List own audit entries",
+        "description": "Returns a paginated list of API audit entries for the signed-in user.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/{id}": {
+      "delete": {
+        "operationId": "delete-api-keys-{id}",
+        "summary": "Revoke API key",
+        "description": "Revokes one of the user's API keys. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/user/email": {
+      "patch": {
+        "operationId": "patch-user-email",
+        "summary": "Change email",
+        "description": "Changes the signed-in user's email address.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEmailInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeEmailOutputSchema"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/user/password": {
       "post": {
         "operationId": "post-user-password",
-        "summary": "",
-        "description": "",
+        "summary": "Change password",
+        "description": "Changes the signed-in user's password after verifying the current password.",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/okResponseSchema"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/user/preferences": {
       "patch": {
         "operationId": "patch-user-preferences",
-        "summary": "",
-        "description": "",
+        "summary": "Update preferences",
+        "description": "Updates the signed-in user's theme and/or locale preference.",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesView"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/user/profile": {
       "patch": {
         "operationId": "patch-user-profile",
-        "summary": "",
-        "description": "",
+        "summary": "Update profile",
+        "description": "Updates the signed-in user's display name.",
         "tags": [
           "User"
         ],
         "parameters": [],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileViewSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/{id}/reveal": {
+      "get": {
+        "operationId": "get-api-keys-{id}-reveal",
+        "summary": "Reveal API key secret",
+        "description": "Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyReveal"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/users/{id}/reset-password": {
       "post": {
         "operationId": "post-users-{id}-reset-password",
-        "summary": "",
-        "description": "",
+        "summary": "Reset user password",
+        "description": "Resets the password of the specified user and forces a reset on next login. Admin only.",
         "tags": [
           "Users"
         ],
@@ -8277,14 +8920,39 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/okResponseSchema"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/users/{id}/role": {
       "post": {
         "operationId": "post-users-{id}-role",
-        "summary": "",
-        "description": "",
+        "summary": "Set user role",
+        "description": "Changes the role of the specified user. Admin only.",
         "tags": [
           "Users"
         ],
@@ -8300,14 +8968,39 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRoleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/okResponseSchema"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/users/{id}/status": {
       "post": {
         "operationId": "post-users-{id}-status",
-        "summary": "",
-        "description": "",
+        "summary": "Set user status",
+        "description": "Enables or disables the specified user. Admin only.",
         "tags": [
           "Users"
         ],
@@ -8323,11 +9016,39 @@
             "description": "Path parameter: id"
           }
         ],
-        "responses": {}
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetStatusInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/okResponseSchema"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
   "tags": [
+    {
+      "name": "Admin"
+    },
     {
       "name": "AI"
     },
@@ -8335,16 +9056,10 @@
       "name": "AI Admin"
     },
     {
-      "name": "Api-keys"
-    },
-    {
       "name": "Appearance"
     },
     {
       "name": "Assets"
-    },
-    {
-      "name": "Audit"
     },
     {
       "name": "Auth"
@@ -8372,12 +9087,6 @@
     },
     {
       "name": "Storage"
-    },
-    {
-      "name": "Transfer-artifacts"
-    },
-    {
-      "name": "Transfer-sources"
     },
     {
       "name": "Transfers"

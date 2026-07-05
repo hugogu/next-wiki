@@ -7,17 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as storageConfig from '@/server/services/storage-config';
 
-/**
- * Run a storage backend connection check.
- *
- * @openapi
- * @summary Check a storage backend
- * @description Validates configuration and runs a health check against a saved backend or an ad-hoc config, without changing any backend state. Admin only.
- * @tag Storage
- * @auth bearer
- * @body BackendCheckInput
- * @response BackendCheckResult
- */
 async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -35,4 +24,15 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+/**
+ * Run a storage backend connection check.
+ *
+ * @openapi
+ * @summary Check a storage backend
+ * @description Validates configuration and runs a health check against a saved backend or an ad-hoc config, without changing any backend state. Admin only.
+ * @tag Storage
+ * @auth bearer
+ * @body BackendCheckInput
+ * @response BackendCheckResult
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

@@ -7,15 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as apiKeyService from '@/server/services/api-keys';
 
-/**
- * List API keys.
- *
- * @openapi
- * @summary List API keys
- * @description Returns the current user's API keys without secrets. Session-only; not callable with a Bearer key.
- * @tag User
- * @response ApiKeyViewList
- */
 async function handleGET() {
   const ctx = await createApiContext();
   try {
@@ -27,16 +18,6 @@ async function handleGET() {
   }
 }
 
-/**
- * Create an API key.
- *
- * @openapi
- * @summary Create an API key
- * @description Creates a new API key with the requested scopes. Session-only; not callable with a Bearer key. The full secret is returned only once.
- * @tag User
- * @body CreateApiKeyInput
- * @response 201:ApiKeyCreated
- */
 async function handlePOST(request: Request) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -54,5 +35,24 @@ async function handlePOST(request: Request) {
   }
 }
 
+/**
+ * List API keys.
+ *
+ * @openapi
+ * @summary List API keys
+ * @description Returns the current user's API keys without secrets. Session-only; not callable with a Bearer key.
+ * @tag User
+ * @response ApiKeyViewList
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+/**
+ * Create an API key.
+ *
+ * @openapi
+ * @summary Create an API key
+ * @description Creates a new API key with the requested scopes. Session-only; not callable with a Bearer key. The full secret is returned only once.
+ * @tag User
+ * @body CreateApiKeyInput
+ * @response 201:ApiKeyCreated
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

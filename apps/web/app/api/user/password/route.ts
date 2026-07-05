@@ -7,17 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as userCenterService from '@/server/services/user-center';
 
-/**
- * Change password.
- *
- * @openapi
- * @summary Change password
- * @description Changes the signed-in user's password after verifying the current password.
- * @tag User
- * @auth bearer
- * @body ChangePasswordInput
- * @response OkResponse
- */
 async function handlePOST(request: NextRequest) {
   const ctx = await createApiContext();
   const body = await request.json().catch(() => ({}));
@@ -35,4 +24,15 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+/**
+ * Change password.
+ *
+ * @openapi
+ * @summary Change password
+ * @description Changes the signed-in user's password after verifying the current password.
+ * @tag User
+ * @auth bearer
+ * @body ChangePasswordInput
+ * @response OkResponse
+ */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

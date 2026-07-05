@@ -7,16 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as auditService from '@/server/services/audit';
 
-/**
- * List own audit entries.
- *
- * @openapi
- * @summary List own audit entries
- * @description Returns a paginated list of API audit entries for the signed-in user.
- * @tag User
- * @auth bearer
- * @response AuditListResponse
- */
 async function handleGET(request: NextRequest) {
   const ctx = await createApiContext();
   const parsed = parseQuery(auditQueryParamsSchema, request.nextUrl.searchParams);
@@ -33,4 +23,14 @@ async function handleGET(request: NextRequest) {
   }
 }
 
+/**
+ * List own audit entries.
+ *
+ * @openapi
+ * @summary List own audit entries
+ * @description Returns a paginated list of API audit entries for the signed-in user.
+ * @tag User
+ * @auth bearer
+ * @response AuditListResponse
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

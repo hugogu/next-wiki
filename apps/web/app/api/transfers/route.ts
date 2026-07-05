@@ -7,7 +7,6 @@ import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as transfers from '@/server/services/transfers';
 
-/** @openapi @summary List content transfer runs @tag Transfers @auth bearer */
 async function handleGET(request: NextRequest) {
   const parsed = parseQuery(transferRunQuerySchema, request.nextUrl.searchParams);
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
@@ -19,7 +18,6 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-/** @openapi @summary Start a content transfer run @tag Transfers @auth bearer */
 async function handlePOST(request: NextRequest) {
   const parsed = transferRunCreateSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
@@ -33,5 +31,7 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+/** @openapi @summary List content transfer runs @tag Transfers @auth bearer */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+/** @openapi @summary Start a content transfer run @tag Transfers @auth bearer */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

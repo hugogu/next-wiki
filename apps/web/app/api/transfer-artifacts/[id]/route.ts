@@ -6,7 +6,6 @@ import { uuidSchema } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as artifacts from '@/server/services/transfer-artifacts';
 
-/** @openapi @summary Get transfer artifact metadata @tag Transfers @auth bearer */
 async function handleGET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -18,7 +17,6 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-/** @openapi @summary Delete a transfer artifact @tag Transfers @auth bearer */
 async function handleDELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
@@ -31,5 +29,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
   }
 }
 
+/** @openapi @summary Get transfer artifact metadata @tag Transfers @auth bearer */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
+/** @openapi @summary Delete a transfer artifact @tag Transfers @auth bearer */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);
