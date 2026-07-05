@@ -69,8 +69,11 @@ test.describe('user reading theme', () => {
     const body = await del.json();
     expect(body.isCustomized).toBe(false);
 
+    // The #app-reading-theme <style> tag is always rendered in the root layout
+    // (so it can be filled in without a layout shift); reset makes its content
+    // empty rather than removing the element itself.
     await page.goto('/');
-    const styleCount = await page.locator('#app-reading-theme').count();
-    expect(styleCount).toBe(0);
+    const css = await page.locator('#app-reading-theme').innerText();
+    expect(css.trim()).toBe('');
   });
 });

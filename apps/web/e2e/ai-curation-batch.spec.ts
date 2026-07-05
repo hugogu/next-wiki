@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { revokeAllApiKeys } from './test-helpers';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -28,6 +29,10 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
 }
 
 test.describe('AI curation API — batch update/delete (010, US5)', () => {
+  test.afterEach(async ({ page }) => {
+    await revokeAllApiKeys(page);
+  });
+
   test('batch update: dry_run previews then a real batch reports partial success on a path collision', async ({ page }) => {
     const timestamp = Date.now();
     const prefix = `ai-curation-batch-${timestamp}`;

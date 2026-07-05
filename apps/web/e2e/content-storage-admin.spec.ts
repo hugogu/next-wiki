@@ -70,11 +70,11 @@ test.describe('admin content storage', () => {
     await expect(page.getByText(/Connection failed/)).toHaveCount(0);
   });
 
-  test('Git export tab supports URL routing and server SSH key generation', async ({ page }) => {
+  test('Git sync tab supports URL routing and server SSH key generation', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/storage?tab=git');
 
-    await expect(page.getByRole('tab', { name: /Git export/ })).toHaveAttribute(
+    await expect(page.getByRole('tab', { name: /Git sync/ })).toHaveAttribute(
       'aria-selected',
       'true',
     );

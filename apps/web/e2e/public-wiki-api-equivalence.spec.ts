@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { revokeAllApiKeys } from './test-helpers';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -28,6 +29,10 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
 }
 
 test.describe('Public Wiki Content API permissions', () => {
+  test.afterEach(async ({ page }) => {
+    await revokeAllApiKeys(page);
+  });
+
   test('view-only API key cannot create pages', async ({ page }) => {
     const timestamp = Date.now();
     await login(page);

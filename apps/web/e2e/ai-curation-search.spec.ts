@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { revokeAllApiKeys } from './test-helpers';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -28,6 +29,10 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
 }
 
 test.describe('AI curation API — keyword + frontmatter + semantic search (010)', () => {
+  test.afterEach(async ({ page }) => {
+    await revokeAllApiKeys(page);
+  });
+
   test('narrows keyword search by frontmatter filter and exposes frontmatter on page reads', async ({ page }) => {
     const timestamp = Date.now();
     const path = `ai-curation-search-${timestamp}`;

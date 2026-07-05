@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { revokeAllApiKeys } from './test-helpers';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -28,6 +29,10 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
 }
 
 test.describe('Public Wiki Content API read workflow', () => {
+  test.afterEach(async ({ page }) => {
+    await revokeAllApiKeys(page);
+  });
+
   test('API key lists and reads published page source without internal frontend routes', async ({ page }) => {
     const timestamp = Date.now();
     const path = `public-api-read-${timestamp}`;

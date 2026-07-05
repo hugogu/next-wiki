@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { revokeAllApiKeys } from './test-helpers';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -28,6 +29,10 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
 }
 
 test.describe('Public Wiki Content API write workflow', () => {
+  test.afterEach(async ({ page }) => {
+    await revokeAllApiKeys(page);
+  });
+
   test('creates, drafts, publishes, updates, and reads history with an Editor/Admin key', async ({ page }) => {
     const timestamp = Date.now();
     const keyName = `Public API Write ${timestamp}`;

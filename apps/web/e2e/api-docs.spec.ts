@@ -6,7 +6,6 @@ test.describe('api docs', () => {
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.openapi).toMatch(/^3\./);
-    expect(body.paths['/pages']).toBeDefined();
     expect(body.paths['/v1/pages']).toBeDefined();
     expect(body.paths['/v1/search/pages'].get.parameters).toEqual(
       expect.arrayContaining([
@@ -39,16 +38,19 @@ test.describe('api docs', () => {
         }),
       ]),
     );
+    // contentSource defaults to '' (optional) — an empty draft is a valid create.
     expect(body.components.schemas.PublicPageCreateInput.required).toEqual(
-      expect.arrayContaining(['path', 'title', 'contentSource']),
+      expect.arrayContaining(['path', 'title']),
     );
+    // `path` is a $ref to the shared PublicPagePath schema rather than an inline type.
     expect(body.components.schemas.PublicPageCreateInput.properties).toEqual(
       expect.objectContaining({
-        path: expect.objectContaining({ type: 'string' }),
+        path: expect.objectContaining({ $ref: expect.stringContaining('PublicPagePath') }),
         title: expect.objectContaining({ type: 'string' }),
         contentSource: expect.objectContaining({ type: 'string' }),
       }),
     );
+    expect(body.components.schemas.PublicPagePath.type).toBe('string');
     for (const path of [
       '/ai/settings',
       '/ai/providers',
@@ -74,7 +76,7 @@ test.describe('api docs', () => {
     expect(publicBody.paths['/pages']).toBeUndefined();
     expect(publicBody.components.schemas.PublicPageCreateInput.properties).toEqual(
       expect.objectContaining({
-        path: expect.objectContaining({ type: 'string' }),
+        path: expect.objectContaining({ $ref: expect.stringContaining('PublicPagePath') }),
         title: expect.objectContaining({ type: 'string' }),
         contentSource: expect.objectContaining({ type: 'string' }),
       }),

@@ -1,10 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
+import { revokeAllApiKeys } from './test-helpers';
 
-async function register(page: Page, email: string, password: string) {
-  await page.goto('/auth/register');
+const ADMIN_EMAIL = 'admin@example.com';
+const ADMIN_PASSWORD = 'admin123';
+
+async function login(page: Page, email: string, password: string) {
+  await page.goto('/auth/login');
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: /create account/i }).click();
+  await page.getByRole('button', { name: /sign in/i }).click();
   await page.waitForURL('/');
 }
 
@@ -24,14 +28,28 @@ async function createApiKey(page: Page, name: string, scopes: string[]): Promise
   return secret;
 }
 
-test.describe('unified pagination', () => {
-  test('page lives in the URL, clamps invalid input, and disables boundaries', async ({ page }) => {
-    const timestamp = Date.now();
-    // The first registered user is the admin, who can view the global audit log.
-    await register(page, `pagination-${timestamp}@example.com`, 'Password123!');
-    const key = await createApiKey(page, 'Pagination View', ['View']);
+function pageParam(url: string): string | null {
+  return new URL(url, 'http://localhost').searchParams.get('page');
+}
 
-    // Generate more than one page (pageSize is 20) of audited requests.
+test.describe('unified pagination', () => {
+  test.afterEach(async ({ page }) => {
+    await revokeAllApiKeys(page);
+  });
+
+  test('page lives in the URL, clamps invalid input, and disables boundaries', async ({ page }) => {
+    // Logs in as the seeded admin directly — the admin audit log is a global,
+    // admin-only view (GET /admin/api-audit 404s for non-admins), and the
+    // seeded admin@example.com is always created first at server boot (via
+    // NEXT_WIKI_SEED), so a freshly registered account is never admin here.
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const key = await createApiKey(page, `Pagination View ${Date.now()}`, ['View']);
+
+    // Generate more than one page (pageSize is 20) of audited requests. The
+    // admin's audit log also accumulates entries from every other spec in the
+    // suite, so this test does not assume an exact total or a specific "last
+    // page" number — it only asserts internal consistency (the page the UI
+    // itself computes as "last" round-trips through the URL correctly).
     for (let i = 0; i < 25; i += 1) {
       await page.request.get('/api/v1/pages', { headers: { Authorization: `Bearer ${key}` } });
     }
@@ -44,11 +62,14 @@ test.describe('unified pagination', () => {
     await expect(nav.locator('[aria-label="First"]')).toHaveAttribute('aria-disabled', 'true');
     await expect(nav.locator('[aria-label="Previous"]')).toHaveAttribute('aria-disabled', 'true');
 
-    // Jump to the last page → URL carries ?page=2 and it survives a refresh (FR-021).
-    await nav.getByRole('link', { name: 'Last' }).click();
-    await expect(page).toHaveURL(/[?&]page=2\b/);
+    // Jump to the last page → the resulting page number survives a refresh (FR-021).
+    const lastPageLink = nav.getByRole('link', { name: 'Last' });
+    const lastPage = pageParam(await lastPageLink.getAttribute('href') ?? '');
+    expect(lastPage).toBeTruthy();
+    await lastPageLink.click();
+    await expect(page).toHaveURL(new RegExp(`[?&]page=${lastPage}\\b`));
     await page.reload();
-    await expect(page).toHaveURL(/[?&]page=2\b/);
+    await expect(page).toHaveURL(new RegExp(`[?&]page=${lastPage}\\b`));
 
     // On the last page, Next/Last are disabled (FR-022).
     await expect(nav.locator('[aria-label="Next"]')).toHaveAttribute('aria-disabled', 'true');
@@ -60,8 +81,8 @@ test.describe('unified pagination', () => {
       await expect(page.getByRole('navigation', { name: 'Pagination' })).toBeVisible();
     }
 
-    // Beyond the last page clamps down to the last real page (FR-023).
+    // Beyond the last page clamps down to the same last real page (FR-023).
     await page.goto('/admin/api-audit?page=99999');
-    await expect(page).toHaveURL(/[?&]page=2\b/);
+    await expect(page).toHaveURL(new RegExp(`[?&]page=${lastPage}\\b`));
   });
 });
