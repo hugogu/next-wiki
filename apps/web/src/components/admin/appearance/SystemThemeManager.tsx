@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type {
   SystemThemeListView,
@@ -47,6 +47,10 @@ export function SystemThemeManager({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Set right before selectInUrl() when we already have fresh detail in hand
+  // (e.g. after copy()), so the themeParam effect below doesn't re-fetch and
+  // race the user's subsequent edits with stale-looking (but just-slow) data.
+  const skipNextSelectRef = useRef<string | null>(null);
 
   /** The selected theme lives in the URL (?theme=<id>) so it is deep-linkable. */
   const selectInUrl = (id: string | null) => {
@@ -117,6 +121,7 @@ export function SystemThemeManager({
       setDetail(created);
       setDraftName(created.name);
       setDraftCss(created.css);
+      skipNextSelectRef.current = created.id;
       selectInUrl(created.id);
       setNotice(t('admin.appearance.copied'));
     });
@@ -171,7 +176,10 @@ export function SystemThemeManager({
   useEffect(() => {
     // The URL ?theme param is the source of truth for the selection; fetch (or
     // clear) the theme it points to. This is a deliberate URL→state sync.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (skipNextSelectRef.current === themeParam) {
+      skipNextSelectRef.current = null;
+      return;
+    }
     void selectTheme(themeParam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [themeParam]);

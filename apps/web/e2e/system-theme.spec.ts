@@ -13,8 +13,10 @@ async function login(page: Page, email: string, password: string) {
 
 // The stylesheet field is a CodeMirror editor (see CssEditor.tsx), not a plain
 // textarea: `aria-label` lands on the wrapper div, so reading/writing content
-// goes through the CodeMirror content element rather than .toHaveValue()/.fill().
-const SELECT_ALL_MODIFIER = process.platform === 'darwin' ? 'Meta' : 'Control';
+// goes through the CodeMirror content element. Playwright's locator.fill()
+// handles clearing + typing on the contenteditable atomically, unlike a manual
+// click + select-all + keyboard.type() sequence which can race with the app's
+// own async re-sync of the editor value after a "copy to edit" navigation.
 
 test.describe('admin system themes', () => {
   test('admin sees built-ins, copies, edits, and activates a custom theme', async ({ page }) => {
@@ -23,7 +25,9 @@ test.describe('admin system themes', () => {
 
     await expect(page.getByRole('heading', { name: 'Appearance', level: 1 })).toBeVisible();
 
-    await page.getByRole('button', { name: /Wiki.js-inspired/ }).click();
+    // Exact match: a leftover "<name> copy" theme from a previous retry would
+    // otherwise make a substring/regex match on the built-in's name ambiguous.
+    await page.getByRole('button', { name: 'Wiki.js-inspired(built-in)', exact: true }).click();
     await expect(page.getByText('Built-in themes are read-only.')).toBeVisible();
     const stylesheetEditor = page.getByLabel('Theme stylesheet').locator('.cm-content');
     await expect(stylesheetEditor).toContainText('font-size');
@@ -32,9 +36,7 @@ test.describe('admin system themes', () => {
     await expect(page.getByText('Copy created.')).toBeVisible();
 
     await page.getByLabel('Theme name').fill('My System Theme');
-    await stylesheetEditor.click();
-    await page.keyboard.press(`${SELECT_ALL_MODIFIER}+a`);
-    await page.keyboard.type('h1 { font-size: 3rem; }');
+    await stylesheetEditor.fill('h1 { font-size: 3rem; }');
     await expect(stylesheetEditor).toContainText('h1 { font-size: 3rem; }');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Theme saved.')).toBeVisible();
