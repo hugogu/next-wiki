@@ -33,7 +33,7 @@ import {
   type EditorSelectionSnapshot,
 } from './AiTextOptimizationDialog';
 import { AiImageGenerationDialog } from './AiImageGenerationDialog';
-import { buildAnchors, interpolateOffsetForLine, interpolateLineForOffset, type ScrollAnchor } from './scrollSync';
+import { buildAnchors, buildScrollMap, interpolatePaired, type ScrollAnchor, type ScrollPair } from './scrollSync';
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
@@ -175,7 +175,11 @@ export function SplitMarkdownEditor({
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const anchorsRef = useRef<ScrollAnchor[]>([]);
-  const isSyncingRef = useRef(false);
+  // The scrollTop we last set on each pane ourselves. When a pane emits the
+  // resulting 'scroll' event, we recognize it by value and skip it — otherwise
+  // the two handlers would ping-pong. Recognizing the echo by value (instead of
+  // a timer-cleared boolean) keeps rapid, back-to-back user scrolls in sync.
+  const echoRef = useRef<{ editor: number | null; preview: number | null }>({ editor: null, preview: null });
   const [html, setHtml] = useState('');
   // Default to `true` for both on the very first render (server and client
   // alike) so hydration has nothing to diff; the actual persisted value (if
@@ -363,71 +367,103 @@ export function SplitMarkdownEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Build the editor↔preview scroll map fresh on each sync: pair every preview
+  // `[data-line]` anchor's content offset with the editor's own vertical offset
+  // for that source line, then let `buildScrollMap` pin the extremes so both
+  // panes reach top and bottom together despite their differing heights.
+  const buildPairs = useCallback((): ScrollPair[] => {
+    const view = viewRef.current;
+    const preview = previewRef.current;
+    if (!view || !preview) return [];
+    const anchors = anchorsRef.current;
+    if (anchors.length === 0) return [];
+    const doc = view.state.doc;
+    const raw: ScrollPair[] = anchors.map((a) => {
+      const line = Math.min(Math.max(a.line, 1), doc.lines);
+      return { editor: view.lineBlockAt(doc.line(line).from).top, preview: a.offsetTop };
+    });
+    const editorMax = view.scrollDOM.scrollHeight - view.scrollDOM.clientHeight;
+    const previewMax = preview.scrollHeight - preview.clientHeight;
+    return buildScrollMap(raw, editorMax, previewMax);
+  }, []);
+
+  // Set a pane's scrollTop and remember the value so the resulting 'scroll'
+  // event is recognized as our own echo and does not bounce back.
+  const applyScroll = useCallback((el: HTMLElement, key: 'editor' | 'preview', top: number) => {
+    const clamped = Math.max(0, Math.min(top, el.scrollHeight - el.clientHeight));
+    echoRef.current[key] = clamped;
+    el.scrollTop = clamped;
+  }, []);
+
   const handleEditorScroll = useCallback(() => {
-    if (isSyncingRef.current || !scrollSyncEnabled) return;
     const view = viewRef.current;
     const preview = previewRef.current;
     if (!view || !preview) return;
-
     const scrollDOM = view.scrollDOM;
-    const anchors = anchorsRef.current;
-    let targetOffset: number;
-
-    if (anchors.length > 0) {
-      const block = view.lineBlockAtHeight(scrollDOM.scrollTop);
-      const fraction = block.height > 0 ? (scrollDOM.scrollTop - block.top) / block.height : 0;
-      const line = view.state.doc.lineAt(block.from).number + fraction;
-      targetOffset = interpolateOffsetForLine(anchors, line);
-    } else {
-      const ratio = scrollDOM.scrollTop / (scrollDOM.scrollHeight - scrollDOM.clientHeight || 1);
-      targetOffset = ratio * (preview.scrollHeight - preview.clientHeight);
+    if (echoRef.current.editor !== null && Math.abs(scrollDOM.scrollTop - echoRef.current.editor) <= 1) {
+      echoRef.current.editor = null;
+      return;
     }
+    if (!scrollSyncEnabled) return;
 
-    isSyncingRef.current = true;
-    preview.scrollTop = Math.max(0, Math.min(targetOffset, preview.scrollHeight - preview.clientHeight));
-    requestAnimationFrame(() => {
-      isSyncingRef.current = false;
-    });
-  }, [scrollSyncEnabled]);
+    const previewMax = preview.scrollHeight - preview.clientHeight;
+    const pairs = buildPairs();
+    const target = pairs.length
+      ? interpolatePaired(pairs, scrollDOM.scrollTop, 'editor')
+      : (scrollDOM.scrollTop / (scrollDOM.scrollHeight - scrollDOM.clientHeight || 1)) * previewMax;
+    applyScroll(preview, 'preview', target);
+  }, [scrollSyncEnabled, buildPairs, applyScroll]);
 
   const handlePreviewScroll = useCallback(() => {
-    if (isSyncingRef.current || !scrollSyncEnabled) return;
     const view = viewRef.current;
     const preview = previewRef.current;
     if (!view || !preview) return;
+    if (echoRef.current.preview !== null && Math.abs(preview.scrollTop - echoRef.current.preview) <= 1) {
+      echoRef.current.preview = null;
+      return;
+    }
+    if (!scrollSyncEnabled) return;
 
     const scrollDOM = view.scrollDOM;
-    const anchors = anchorsRef.current;
-    let targetScrollTop: number;
+    const editorMax = scrollDOM.scrollHeight - scrollDOM.clientHeight;
+    const pairs = buildPairs();
+    const target = pairs.length
+      ? interpolatePaired(pairs, preview.scrollTop, 'preview')
+      : (preview.scrollTop / (preview.scrollHeight - preview.clientHeight || 1)) * editorMax;
+    applyScroll(scrollDOM, 'editor', target);
+  }, [scrollSyncEnabled, buildPairs, applyScroll]);
 
-    if (anchors.length > 0) {
-      const line = interpolateLineForOffset(anchors, preview.scrollTop);
-      const lineNumber = Math.min(Math.max(Math.floor(line), 1), view.state.doc.lines);
-      const block = view.lineBlockAt(view.state.doc.line(lineNumber).from);
-      targetScrollTop = block.top + (line - lineNumber) * block.height;
-    } else {
-      const ratio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight || 1);
-      targetScrollTop = ratio * (scrollDOM.scrollHeight - scrollDOM.clientHeight);
-    }
+  // Clicking (or moving the caret with the pointer) drives the preview so the
+  // caret's line keeps the same on-screen height in both panes — a lighter
+  // touch than a full scroll so the reader's eye stays on the edited spot.
+  const handleEditorPointerSync = useCallback(() => {
+    if (!scrollSyncEnabled) return;
+    const view = viewRef.current;
+    const preview = previewRef.current;
+    if (!view || !preview) return;
+    const pairs = buildPairs();
+    if (!pairs.length) return;
 
-    isSyncingRef.current = true;
-    scrollDOM.scrollTop = Math.max(0, Math.min(targetScrollTop, scrollDOM.scrollHeight - scrollDOM.clientHeight));
-    requestAnimationFrame(() => {
-      isSyncingRef.current = false;
-    });
-  }, [scrollSyncEnabled]);
+    const caretTop = view.lineBlockAt(view.state.selection.main.head).top;
+    const previewOffset = interpolatePaired(pairs, caretTop, 'editor');
+    const onScreenY = caretTop - view.scrollDOM.scrollTop;
+    applyScroll(preview, 'preview', previewOffset - onScreenY);
+  }, [scrollSyncEnabled, buildPairs, applyScroll]);
 
   useEffect(() => {
-    const scrollDOM = viewRef.current?.scrollDOM;
+    const view = viewRef.current;
+    const scrollDOM = view?.scrollDOM;
     const preview = previewRef.current;
-    if (!scrollDOM || !preview) return;
+    if (!view || !scrollDOM || !preview) return;
     scrollDOM.addEventListener('scroll', handleEditorScroll);
     preview.addEventListener('scroll', handlePreviewScroll);
+    view.dom.addEventListener('mouseup', handleEditorPointerSync);
     return () => {
       scrollDOM.removeEventListener('scroll', handleEditorScroll);
       preview.removeEventListener('scroll', handlePreviewScroll);
+      view.dom.removeEventListener('mouseup', handleEditorPointerSync);
     };
-  }, [handleEditorScroll, handlePreviewScroll]);
+  }, [handleEditorScroll, handlePreviewScroll, handleEditorPointerSync]);
 
   const apply = useCallback((before: string, after: string = '', block = false) => {
     const view = viewRef.current;

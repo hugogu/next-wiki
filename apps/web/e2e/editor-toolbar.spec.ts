@@ -29,6 +29,14 @@ function longMarkdown(paragraphs: number) {
   );
 }
 
+// A GitHub-flavored table: one source line per row, but each row renders as a
+// tall padded block, so the preview ends up much taller than the source.
+function tableMarkdown(rows: number) {
+  const header = '| Column A | Column B |\n| --- | --- |';
+  const body = Array.from({ length: rows }, (_, i) => `| cell ${i}a | cell ${i}b |`).join('\n');
+  return `${header}\n${body}`;
+}
+
 async function waitForBothPanesScrollable(page: Page) {
   await page.waitForFunction(() => {
     const scroller = document.querySelector('.cm-scroller');
@@ -111,5 +119,46 @@ test.describe('editor toolbar toggles', () => {
     const ratio = await preview.evaluate((el) => el.scrollTop / (el.scrollHeight - el.clientHeight));
     expect(ratio).toBeGreaterThan(0.3);
     expect(ratio).toBeLessThan(0.7);
+  });
+
+  test('scrolling the editor to the bottom lands the preview at its bottom too', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await createPage(page, 'Editor Toolbar Test');
+    // Tables render much taller than their source, so the two panes have very
+    // different total heights — the case where naive top-alignment leaves the
+    // (taller) preview short of its bottom when the editor is scrolled to the end.
+    await page.locator('.cm-content').fill(longMarkdown(120) + '\n\n' + tableMarkdown(40));
+
+    const editorScroller = page.locator('.cm-scroller');
+    const preview = page.getByTestId('editor-preview-pane');
+
+    await waitForBothPanesScrollable(page);
+
+    await editorScroller.evaluate((el) => {
+      el.scrollTop = el.scrollHeight - el.clientHeight;
+    });
+    await editorScroller.dispatchEvent('scroll');
+    await page.waitForTimeout(200);
+
+    const distanceFromBottom = await preview.evaluate(
+      (el) => el.scrollHeight - el.clientHeight - el.scrollTop,
+    );
+    expect(distanceFromBottom).toBeLessThan(4);
+  });
+
+  test('clicking a line in the editor drives the preview position', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await createPage(page, 'Editor Toolbar Test');
+    await page.locator('.cm-content').fill(longMarkdown(150));
+
+    const preview = page.getByTestId('editor-preview-pane');
+    await waitForBothPanesScrollable(page);
+
+    // Both panes start at the top; clicking a line well down the visible editor
+    // should pull the preview down to keep that line aligned across panes.
+    expect(await preview.evaluate((el) => el.scrollTop)).toBe(0);
+    await page.locator('.cm-content').click({ position: { x: 40, y: 520 } });
+    await page.waitForTimeout(200);
+    expect(await preview.evaluate((el) => el.scrollTop)).toBeGreaterThan(20);
   });
 });

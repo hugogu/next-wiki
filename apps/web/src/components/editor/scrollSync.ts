@@ -6,6 +6,13 @@
 export type ScrollAnchor = { line: number; offsetTop: number };
 
 /**
+ * A single point in a bidirectional scroll map: the editor and preview scroll
+ * offsets (both measured from the top of their own scrollable content) that
+ * should line up on screen.
+ */
+export type ScrollPair = { editor: number; preview: number };
+
+/**
  * Scan a rendered preview subtree for `[data-line]` elements (stamped by the
  * `addLineAnchors` rehype plugin — see server/pipeline/index.ts) and build a
  * sorted, deduplicated anchor table.
@@ -30,52 +37,65 @@ export function buildAnchors(root: HTMLElement): ScrollAnchor[] {
 }
 
 /**
- * Given a sorted-by-line anchor table, find the offset that corresponds to a
- * (possibly fractional) source line, interpolating between the two
- * bracketing anchors. Clamps to the table's range instead of extrapolating
- * past it.
+ * Turn raw per-anchor (editorOffset, previewOffset) points into a monotonic
+ * scroll map that also pins the two extremes: `(0, 0)` at the very top and
+ * `(editorMax, previewMax)` at the very bottom. Pinning the ends is what makes
+ * "scroll one pane to its bottom" land the other at *its* bottom too, even
+ * though the panes have naturally different total heights — the interior
+ * anchors keep the mapping content-aligned in between.
+ *
+ * Interior points that are out of range or would break strict monotonicity
+ * (rare, e.g. a preview element whose measured order disagrees with source
+ * order) are dropped so the piecewise-linear interpolation stays invertible.
  */
-export function interpolateOffsetForLine(anchors: ScrollAnchor[], line: number): number {
-  if (anchors.length === 0) return 0;
-  const first = anchors[0]!;
-  if (line <= first.line) return first.offsetTop;
-  const last = anchors[anchors.length - 1]!;
-  if (line >= last.line) return last.offsetTop;
-
-  let lo = 0;
-  let hi = anchors.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (anchors[mid]!.line <= line) lo = mid;
-    else hi = mid;
+export function buildScrollMap(
+  rawPairs: ScrollPair[],
+  editorMax: number,
+  previewMax: number,
+): ScrollPair[] {
+  const pairs: ScrollPair[] = [{ editor: 0, preview: 0 }];
+  for (const p of rawPairs) {
+    if (p.editor <= 0 || p.preview <= 0 || p.editor >= editorMax || p.preview >= previewMax) {
+      continue;
+    }
+    const prev = pairs[pairs.length - 1]!;
+    if (p.editor <= prev.editor || p.preview <= prev.preview) continue;
+    pairs.push(p);
   }
-  const a = anchors[lo]!;
-  const b = anchors[hi]!;
-  const span = b.line - a.line || 1;
-  return a.offsetTop + ((line - a.line) / span) * (b.offsetTop - a.offsetTop);
+  const prev = pairs[pairs.length - 1]!;
+  if (editorMax > prev.editor && previewMax > prev.preview) {
+    pairs.push({ editor: editorMax, preview: previewMax });
+  }
+  return pairs;
 }
 
 /**
- * Inverse of `interpolateOffsetForLine`: given a scroll offset, find the
- * corresponding (possibly fractional) source line number (1-indexed, to
- * match both mdast/rehype positions and CodeMirror's `doc.lineAt().number`).
+ * Interpolate one axis of a scroll map from a value on the other axis. `from`
+ * selects the known axis; the other is returned. The table must be sorted and
+ * strictly increasing on both axes (see `buildScrollMap`). Clamps to the
+ * table's range instead of extrapolating past it.
  */
-export function interpolateLineForOffset(anchors: ScrollAnchor[], offset: number): number {
-  if (anchors.length === 0) return 1;
-  const first = anchors[0]!;
-  if (offset <= first.offsetTop) return first.line;
-  const last = anchors[anchors.length - 1]!;
-  if (offset >= last.offsetTop) return last.line;
+export function interpolatePaired(
+  pairs: ScrollPair[],
+  value: number,
+  from: 'editor' | 'preview',
+): number {
+  const to = from === 'editor' ? 'preview' : 'editor';
+  if (pairs.length === 0) return 0;
+  const first = pairs[0]!;
+  if (value <= first[from]) return first[to];
+  const last = pairs[pairs.length - 1]!;
+  if (value >= last[from]) return last[to];
 
   let lo = 0;
-  let hi = anchors.length - 1;
+  let hi = pairs.length - 1;
   while (hi - lo > 1) {
     const mid = (lo + hi) >> 1;
-    if (anchors[mid]!.offsetTop <= offset) lo = mid;
+    if (pairs[mid]![from] <= value) lo = mid;
     else hi = mid;
   }
-  const a = anchors[lo]!;
-  const b = anchors[hi]!;
-  const span = b.offsetTop - a.offsetTop || 1;
-  return a.line + ((offset - a.offsetTop) / span) * (b.line - a.line);
+  const a = pairs[lo]!;
+  const b = pairs[hi]!;
+  const span = b[from] - a[from] || 1;
+  return a[to] + ((value - a[from]) / span) * (b[to] - a[to]);
 }
