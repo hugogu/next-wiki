@@ -57,3 +57,4 @@ AGENTS.md
 .content-data/
 .minio-data/
 .playwright-mcp/
+.claude/workflows
