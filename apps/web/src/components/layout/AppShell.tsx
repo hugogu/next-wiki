@@ -23,9 +23,11 @@ export function AppShell({ user, pages, pageContext, admin = false, userCenter =
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
           />
-          <main className="flex-1 overflow-auto relative flex flex-col">
-            <div className="flex-1 overflow-auto">{children}</div>
-            {footer}
+          <main className="flex-1 overflow-auto relative">
+            <div className="flex min-h-full flex-col">
+              <div className="flex-1">{children}</div>
+              {footer}
+            </div>
           </main>
           {aiEntitlements && !admin && <AiChatPane entitlements={aiEntitlements} pageContext={pageContext} />}
         </div>
