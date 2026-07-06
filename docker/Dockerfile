@@ -1,6 +1,7 @@
 ARG NODE_IMAGE=node:24-alpine
 FROM ${NODE_IMAGE} AS base
-RUN npm config set registry https://registry.npmmirror.com
+ARG NPM_REGISTRY
+RUN if [ -n "${NPM_REGISTRY}" ]; then npm config set registry "${NPM_REGISTRY}"; fi
 RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 
