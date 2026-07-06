@@ -1,1 +1,0 @@
-ALTER TYPE "public"."api_key_scope" ADD VALUE 'ai.read';
