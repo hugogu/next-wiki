@@ -1,0 +1,37 @@
+services:
+  db:
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:0.8.3-pg16}
+    container_name: next-wiki-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wiki}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-wiki}
+    volumes:
+      - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wiki} -d ${POSTGRES_DB:-wiki}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    image: ${WEB_IMAGE}
+    container_name: next-wiki-web
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-wiki}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-wiki}}
+      APP_URL: ${APP_URL}
+      NODE_ENV: production
+      NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
+      CONTENT_LOCAL_BASE_PATH: ${CONTENT_LOCAL_BASE_PATH:-/data/content}
+      TRANSFER_ARTIFACT_BASE_PATH: ${TRANSFER_ARTIFACT_BASE_PATH:-/data/content/transfers}
+      TRANSFER_ARTIFACT_RETENTION_HOURS: ${TRANSFER_ARTIFACT_RETENTION_HOURS:-72}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ${CONTENT_LOCAL_HOST_PATH:-${DATA_DIR:-./data}/content}:${CONTENT_LOCAL_BASE_PATH:-/data/content}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
