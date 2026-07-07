@@ -122,6 +122,18 @@ export function ProviderForm({
                 : {}),
             });
           }
+          // Auto-sync models when the vendor supports discovery, so the admin
+          // doesn't have to manually click "Sync" after creating a provider.
+          if (!manualModel) {
+            try {
+              await apiPost<Record<string, never>, unknown>(
+                `/api/ai/providers/${provider.id}/model-syncs`,
+                {},
+              );
+            } catch {
+              // Sync is best-effort; the provider was created successfully.
+            }
+          }
           onCreated(provider);
         } catch (value) {
           setError((value as ApiError).message ?? t('admin.ai.error.generic'));
