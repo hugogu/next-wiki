@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { fetchRemote } from './remote-fetch';
+import { DomainError } from '@/server/errors';
 
 const inventoryPageSchema = z.object({
   id: z.number().int(),
@@ -15,6 +16,7 @@ const inventoryPageSchema = z.object({
   updatedAt: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
 });
+
 const sourcePageSchema = z.object({
   id: z.number().int(),
   path: z.string(),
@@ -43,6 +45,30 @@ const SOURCE_QUERY = `query NextWikiPageSource($id: Int!) {
   } }
 }`;
 
+type WikiJsPageMetadata = {
+  id: number;
+  path: string;
+  locale: string;
+  title: string;
+  contentType?: string | null;
+  updatedAt?: string | null;
+};
+
+export function computeWikiJsPageFingerprint(page: WikiJsPageMetadata): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        id: page.id,
+        path: page.path,
+        locale: page.locale,
+        title: page.title,
+        contentType: page.contentType,
+        updatedAt: page.updatedAt,
+      }),
+    )
+    .digest('hex');
+}
+
 export class WikiJsClient {
   constructor(
     readonly baseUrl: string,
@@ -52,28 +78,44 @@ export class WikiJsClient {
 
   private async query<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const origin = new URL(this.baseUrl).origin;
-    const response = await fetchRemote({
-      url: `${this.baseUrl.replace(/\/$/, '')}/graphql`,
-      headers: {
-        Authorization: `Bearer ${this.apiToken}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      method: 'POST',
-      body: JSON.stringify({ query, variables }),
-      maxBytes: 20 * 1024 * 1024,
-      allowedPrivateOrigin: this.allowPrivateNetwork ? origin : undefined,
-    });
-    let body: { data?: T; errors?: { message?: string }[] };
-    try {
-      body = JSON.parse(response.bytes.toString('utf8'));
-    } catch {
-      throw new Error('Wiki.js returned invalid JSON');
+    const url = `${this.baseUrl.replace(/\/$/, '')}/graphql`;
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetchRemote({
+          url,
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          method: 'POST',
+          body: JSON.stringify({ query, variables }),
+          maxBytes: 20 * 1024 * 1024,
+          timeoutMs: 60_000,
+          allowedPrivateOrigin: this.allowPrivateNetwork ? origin : undefined,
+        });
+        let body: { data?: T; errors?: { message?: string }[] };
+        try {
+          body = JSON.parse(response.bytes.toString('utf8'));
+        } catch {
+          throw new Error('Wiki.js returned invalid JSON');
+        }
+        if (body.errors?.length || !body.data) {
+          throw new Error(body.errors?.[0]?.message ?? 'Wiki.js response is missing data');
+        }
+        return body.data;
+      } catch (error) {
+        lastError = error;
+        const retryable =
+          error instanceof DomainError &&
+          (error.code === 'SOURCE_TIMEOUT' || error.code === 'SOURCE_UNAVAILABLE');
+        if (!retryable || attempt === 3) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt));
+      }
     }
-    if (body.errors?.length || !body.data) {
-      throw new Error(body.errors?.[0]?.message ?? 'Wiki.js response is missing data');
-    }
-    return body.data;
+    throw lastError;
   }
 
   async listPages() {
@@ -87,7 +129,7 @@ export class WikiJsClient {
     if (page.id !== id) throw new Error('Wiki.js returned an inconsistent page id');
     return {
       ...page,
-      fingerprint: createHash('sha256').update(JSON.stringify(page)).digest('hex'),
+      fingerprint: computeWikiJsPageFingerprint(page),
     };
   }
 }

@@ -6,9 +6,10 @@ import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { parsePage } from '@/server/transfers/manifest';
 import { markRunTerminal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
-import { WikiJsClient } from '@/server/transfers/wikijs-client';
+import { WikiJsClient, computeWikiJsPageFingerprint } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
-import { findMarkdownImages } from '@/server/transfers/markdown-links';
+
+const WIKIJS_PREVIEW_BATCH_SIZE = 50;
 
 async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   const artifact = run.sourceArtifactId
@@ -86,6 +87,22 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   });
 }
 
+async function flushPreviewItems(
+  runId: string,
+  items: (typeof schema.transferItems.$inferInsert)[],
+  progress: {
+    totalItems: number;
+    processedItems: number;
+    currentItem?: string;
+  },
+) {
+  if (items.length) {
+    await db.insert(schema.transferItems).values(items).onConflictDoNothing();
+    items.length = 0;
+  }
+  await db.update(schema.transferRuns).set(progress).where(eq(schema.transferRuns.id, runId));
+}
+
 async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   if (!run.sourceId) throw new Error('Wiki.js source is missing');
   const source = await getRuntimeSource(run.sourceId);
@@ -100,87 +117,101 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   let replaced = 0;
   let skipped = 0;
   let converted = 0;
-  for (const summary of inventory) {
-    const page = await client.getPage(summary.id);
-    const converter = getTransferConverter(page.contentType, page.editor);
+
+  await db.update(schema.transferRuns).set({ totalItems: inventory.length }).where(eq(schema.transferRuns.id, run.id));
+
+  for (let index = 0; index < inventory.length; index += 1) {
+    const summary = inventory[index]!;
+    const fingerprint = computeWikiJsPageFingerprint({
+        id: summary.id,
+        path: summary.path,
+        locale: summary.locale,
+        title: summary.title,
+        contentType: summary.contentType,
+        updatedAt: summary.updatedAt,
+      });
+    fingerprints.push(fingerprint);
+
+    await db.update(schema.transferRuns).set({
+      phase: 'validating',
+      currentItem: `${summary.locale}/${summary.path}`,
+      processedItems: index,
+    }).where(eq(schema.transferRuns.id, run.id));
+
+    const converter = getTransferConverter(summary.contentType, undefined);
     if (!converter) {
       skipped += 1;
       items.push({
         runId: run.id,
         kind: 'page',
-        sourceKey: String(page.id),
-        sourceFingerprint: page.fingerprint,
-        displayName: `${page.locale}/${page.path}`,
-        targetKey: `${page.locale}/${page.path}`,
+        sourceKey: String(summary.id),
+        sourceFingerprint: fingerprint,
+        displayName: `${summary.locale}/${summary.path}`,
+        targetKey: `${summary.locale}/${summary.path}`,
         action: 'skip',
         status: 'warning',
         warningCode: 'UNSUPPORTED_SOURCE_CONTENT',
-        warningMessage: `Unsupported Wiki.js content type: ${page.contentType ?? page.editor ?? 'unknown'}`,
-        metadata: { contentType: page.contentType, editor: page.editor },
+        warningMessage: `Unsupported Wiki.js content type: ${summary.contentType ?? 'unknown'}`,
+        metadata: { contentType: summary.contentType },
         finishedAt: new Date(),
       });
-      continue;
-    }
-    const conversion = converter(page.content);
-    const existing = await db.query.pages.findFirst({
-      where: and(
-        eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.path, page.path),
-        eq(schema.pages.locale, page.locale),
-      ),
-    });
-    const action = conversion.converted
-      ? 'convert'
-      : existing
-        ? strategy === 'replace' ? 'replace' : 'skip'
-        : 'create';
-    if (action === 'create') created += 1;
-    else if (action === 'replace') replaced += 1;
-    else if (action === 'convert') converted += 1;
-    else skipped += 1;
-    items.push({
-      runId: run.id,
-      kind: 'page',
-      sourceKey: String(page.id),
-      sourceFingerprint: page.fingerprint,
-      displayName: `${page.locale}/${page.path}`,
-      targetKey: `${page.locale}/${page.path}`,
-      action,
-      status: 'completed',
-      metadata: {
-        title: page.title,
-        contentType: page.contentType,
-        editor: page.editor,
-        converted: conversion.converted,
-        targetAction: existing ? strategy : 'create',
-      },
-      finishedAt: new Date(),
-    });
-    for (const image of findMarkdownImages(conversion.markdown)) {
+    } else {
+      const isConverted = summary.contentType === 'text/html';
+      if (isConverted) converted += 1;
+      const existing = await db.query.pages.findFirst({
+        where: and(
+          eq(schema.pages.spaceId, space.id),
+          eq(schema.pages.path, summary.path),
+          eq(schema.pages.locale, summary.locale),
+        ),
+      });
+      const action = isConverted
+        ? 'convert'
+        : existing
+          ? strategy === 'replace' ? 'replace' : 'skip'
+          : 'create';
+      if (action === 'create') created += 1;
+      else if (action === 'replace') replaced += 1;
+      else if (action === 'convert') converted += 1;
+      else skipped += 1;
       items.push({
         runId: run.id,
-        kind: 'asset',
-        sourceKey: `${page.id}:${image.url}`,
-        displayName: image.url,
-        action: 'validate',
+        kind: 'page',
+        sourceKey: String(summary.id),
+        sourceFingerprint: fingerprint,
+        displayName: `${summary.locale}/${summary.path}`,
+        targetKey: `${summary.locale}/${summary.path}`,
+        action,
         status: 'completed',
-        metadata: { pageId: page.id, url: image.url },
+        metadata: {
+          title: summary.title,
+          contentType: summary.contentType,
+          editor: undefined,
+          converted: isConverted,
+          targetAction: existing ? strategy : 'create',
+        },
         finishedAt: new Date(),
       });
     }
-    fingerprints.push(page.fingerprint);
+
+    if (items.length >= WIKIJS_PREVIEW_BATCH_SIZE || index === inventory.length - 1) {
+      await flushPreviewItems(run.id, items, {
+        totalItems: inventory.length,
+        processedItems: index + 1,
+      });
+    }
   }
-  if (items.length) await db.insert(schema.transferItems).values(items).onConflictDoNothing();
+
   const fingerprint = (await import('node:crypto')).createHash('sha256').update(fingerprints.sort().join('\n')).digest('hex');
   await markRunTerminal(run.id, skipped > 0 ? 'completed_with_warnings' : 'completed', {
     sourceFingerprint: fingerprint,
-    totalItems: items.length,
-    processedItems: items.length,
+    totalItems: inventory.length,
+    processedItems: inventory.length,
     createdItems: created,
     replacedItems: replaced,
     skippedItems: skipped,
     convertedItems: converted,
-    warningItems: items.filter((item) => item.status === 'warning').length,
+    warningItems: skipped,
   });
 }
 

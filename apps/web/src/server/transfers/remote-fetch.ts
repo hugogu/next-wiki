@@ -22,13 +22,50 @@ function isBlockedAddress(value: string): boolean {
   ].includes(address.range());
 }
 
+const DNS_LOOKUP_ATTEMPTS = 3;
+const DNS_LOOKUP_TIMEOUT_MS = 10_000;
+
+function isTransientDnsError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as Error & { code?: string }).code;
+  return ['EAI_AGAIN', 'ETIMEOUT', 'ECONNREFUSED', 'EBADRESP'].includes(code ?? '');
+}
+
+async function resolveHostnameWithRetry(hostname: string): Promise<{ address: string }[]> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= DNS_LOOKUP_ATTEMPTS; attempt += 1) {
+    try {
+      const lookupPromise = lookup(hostname, { all: true, verbatim: true });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('DNS lookup timed out')), DNS_LOOKUP_TIMEOUT_MS),
+      );
+      const addresses = await Promise.race([lookupPromise, timeoutPromise]);
+      if (addresses.length) return addresses;
+      break;
+    } catch (error) {
+      lastError = error;
+      if (!isTransientDnsError(error) && (error as Error).message !== 'DNS lookup timed out') {
+        break;
+      }
+      if (attempt < DNS_LOOKUP_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
+  }
+  throw lastError ?? new Error('DNS lookup returned no results');
+}
+
 async function validateUrl(url: URL, allowedPrivateOrigin?: string): Promise<void> {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
     throw new DomainError('SOURCE_UNAVAILABLE', 'Remote URL is not allowed');
   }
   const allowPrivate = allowedPrivateOrigin === url.origin;
-  const addresses = await lookup(url.hostname, { all: true, verbatim: true }).catch(() => []);
-  if (addresses.length === 0) throw new DomainError('SOURCE_UNAVAILABLE', 'Remote host cannot be resolved');
+  let addresses: { address: string }[];
+  try {
+    addresses = await resolveHostnameWithRetry(url.hostname);
+  } catch {
+    throw new DomainError('SOURCE_UNAVAILABLE', 'Remote host cannot be resolved');
+  }
   if (!allowPrivate && addresses.some((address) => isBlockedAddress(address.address))) {
     throw new DomainError('SOURCE_UNAVAILABLE', 'Remote host resolves to a disallowed network');
   }
