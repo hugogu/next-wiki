@@ -65,6 +65,75 @@ export function portableAssetReference(pageEntry: string, assetEntry: string): s
 }
 
 // ---------------------------------------------------------------------------
+// 005: Wiki.js import — locale prefix stripping
+// ---------------------------------------------------------------------------
+// Wiki.js emits image (and page) URLs with a leading locale routing segment
+// such as `/zh/...` or `/en-US/...`. next-wiki stores locale as page metadata
+// and never uses URL routing prefixes, so the segment must be removed before
+// the source URL is resolved against the Wiki.js base URL. Only ISO 639-1
+// language codes are recognised so legitimate short top-level paths such as
+// `/go/dashboard` or `/us/...` (a country code, not a language) are preserved.
+
+const ISO_639_1_LANGUAGE_CODES = new Set([
+  'aa', 'ab', 'ae', 'af', 'ak', 'am', 'an', 'ar', 'as', 'av', 'ay', 'az',
+  'ba', 'be', 'bg', 'bi', 'bm', 'bn', 'bo', 'br', 'bs',
+  'ca', 'ce', 'ch', 'co', 'cr', 'cs', 'cu', 'cv', 'cy',
+  'da', 'de', 'dv', 'dz',
+  'ee', 'el', 'en', 'eo', 'es', 'et', 'eu',
+  'fa', 'ff', 'fi', 'fj', 'fo', 'fr', 'fy',
+  'ga', 'gd', 'gl', 'gn', 'gu', 'gv',
+  'ha', 'he', 'hi', 'ho', 'hr', 'ht', 'hu', 'hy', 'hz',
+  'ia', 'id', 'ie', 'ig', 'ii', 'ik', 'io', 'is', 'it', 'iu',
+  'ja', 'jv',
+  'ka', 'kg', 'ki', 'kj', 'kk', 'kl', 'km', 'kn', 'ko', 'kr', 'ks', 'ku', 'kv', 'kw', 'ky',
+  'la', 'lb', 'lg', 'li', 'ln', 'lo', 'lt', 'lu', 'lv',
+  'mg', 'mh', 'mi', 'mk', 'ml', 'mn', 'mr', 'ms', 'mt', 'my',
+  'na', 'nb', 'nd', 'ne', 'ng', 'nl', 'nn', 'no', 'nr', 'nv', 'ny',
+  'oc', 'oj', 'om', 'or', 'os',
+  'pa', 'pi', 'pl', 'ps', 'pt',
+  'qu',
+  'rm', 'rn', 'ro', 'ru', 'rw',
+  'sa', 'sc', 'sd', 'se', 'sg', 'si', 'sk', 'sl', 'sm', 'sn', 'so', 'sq', 'sr', 'ss', 'st', 'su', 'sv', 'sw',
+  'ta', 'te', 'tg', 'th', 'ti', 'tk', 'tl', 'tn', 'to', 'tr', 'ts', 'tt', 'tw', 'ty',
+  'ug', 'uk', 'ur', 'uz',
+  've', 'vi', 'vo',
+  'wa', 'wo',
+  'xh',
+  'yi', 'yo',
+  'za', 'zh', 'zu',
+]);
+
+const LEADING_LOCALE_PATTERN = /^\/([a-z]{2})(?:-[a-z0-9]{2,3})?(?=\/|$)/i;
+
+function stripLeadingLocale(pathname: string): string {
+  const match = pathname.match(LEADING_LOCALE_PATTERN);
+  if (!match) return pathname;
+  if (!ISO_639_1_LANGUAGE_CODES.has(match[1]!.toLowerCase())) return pathname;
+  const tail = pathname.slice(match[0].length);
+  return tail === '' ? '/' : tail;
+}
+
+/**
+ * Removes a leading ISO 639-1 locale routing prefix (optionally followed by a
+ * BCP 47 region subtag) from a path or absolute URL. Absolute URLs are parsed
+ * so the origin, query, and fragment are preserved; only the pathname is
+ * rewritten. Inputs without a recognised locale prefix are returned unchanged.
+ */
+export function stripLocalePrefix(input: string): string {
+  if (input === '') return '';
+  if (/^https?:\/\//i.test(input)) {
+    try {
+      const url = new URL(input);
+      url.pathname = stripLeadingLocale(url.pathname);
+      return url.toString();
+    } catch {
+      return input;
+    }
+  }
+  return stripLeadingLocale(input);
+}
+
+// ---------------------------------------------------------------------------
 // 010: AI Curation API — outbound link graph
 // ---------------------------------------------------------------------------
 

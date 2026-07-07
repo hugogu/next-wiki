@@ -99,17 +99,22 @@ Image references are parsed from the source after conversion:
 - Root-relative `/path`, relative `path`, and absolute HTTP(S) URLs
 - Query strings/fragments are retained for source resolution but removed from
   target identity after bytes are hashed
+- Wiki.js locale routing prefixes (`/zh/`, `/en-US/`, etc.) are stripped from
+  page paths and image URLs before resolution; next-wiki stores locale as page
+  metadata rather than a URL path segment
 
 Resolution:
 
 1. Relative references resolve against the source page public URL and base URL.
 2. Same-origin Wiki.js asset requests receive the Bearer token.
 3. Cross-origin image requests never receive the token.
-4. Every URL/redirect is validated by the safe remote-fetch policy.
-5. Only validated PNG/JPEG/GIF/WebP bytes within the configured maximum are
-   stored.
-6. Target identity is content SHA-256; duplicate bytes reuse one asset.
-7. Source Markdown is rewritten to `/api/assets/{targetAssetId}`.
+4. Locale routing prefixes are stripped from relative and same-origin absolute
+   image URLs; cross-origin absolute URLs are left unchanged.
+5. Every URL/redirect is validated by the safe remote-fetch policy.
+6. Only validated PNG/JPEG/GIF/WebP bytes within the configured maximum are
+    stored.
+7. Target identity is content SHA-256; duplicate bytes reuse one asset.
+8. Source Markdown is rewritten to `/api/assets/{targetAssetId}`.
 
 The GraphQL asset queries may be used to enrich same-origin metadata:
 

@@ -5,6 +5,7 @@ import {
   findMarkdownLinks,
   portableAssetReference,
   rewriteMarkdownImages,
+  stripLocalePrefix,
 } from './markdown-links';
 
 describe('Markdown transfer links', () => {
@@ -59,5 +60,54 @@ describe('findFrontmatterRelatedPages (010-ai-curation-api)', () => {
     expect(findFrontmatterRelatedPages({})).toEqual([]);
     expect(findFrontmatterRelatedPages({ related_pages: 'not-an-array' })).toEqual([]);
     expect(findFrontmatterRelatedPages({ related_pages: [1, 2] })).toEqual([]);
+  });
+});
+
+describe('stripLocalePrefix (005 Wiki.js import)', () => {
+  it('strips a 2-letter locale prefix from a root-relative path', () => {
+    expect(stripLocalePrefix('/zh/docs/foo')).toBe('/docs/foo');
+    expect(stripLocalePrefix('/en/docs/foo')).toBe('/docs/foo');
+  });
+
+  it('strips a locale prefix with a region subtag', () => {
+    expect(stripLocalePrefix('/zh-CN/docs/foo')).toBe('/docs/foo');
+    expect(stripLocalePrefix('/zh-cn/docs/foo')).toBe('/docs/foo');
+    expect(stripLocalePrefix('/pt-BR/docs/foo')).toBe('/docs/foo');
+  });
+
+  it('is case-insensitive on the language code', () => {
+    expect(stripLocalePrefix('/ZH/docs/foo')).toBe('/docs/foo');
+    expect(stripLocalePrefix('/En/docs/foo')).toBe('/docs/foo');
+  });
+
+  it('strips the locale prefix from an absolute URL', () => {
+    expect(stripLocalePrefix('https://wiki.example.com/zh/assets/x.png')).toBe(
+      'https://wiki.example.com/assets/x.png',
+    );
+    expect(stripLocalePrefix('http://wiki.example.com/en/docs/foo?a=1')).toBe(
+      'http://wiki.example.com/docs/foo?a=1',
+    );
+  });
+
+  it('preserves a path with no leading locale', () => {
+    expect(stripLocalePrefix('/docs/foo')).toBe('/docs/foo');
+    expect(stripLocalePrefix('docs/foo')).toBe('docs/foo');
+    expect(stripLocalePrefix('/')).toBe('/');
+    expect(stripLocalePrefix('')).toBe('');
+  });
+
+  it('preserves non-language 2-letter prefixes (false-positive guard)', () => {
+    // "us" is a country code, not ISO 639-1; "go"/"db" are common app paths.
+    expect(stripLocalePrefix('/us/foo')).toBe('/us/foo');
+    expect(stripLocalePrefix('/go/dashboard')).toBe('/go/dashboard');
+    expect(stripLocalePrefix('/db/migrations')).toBe('/db/migrations');
+  });
+
+  it('does not strip a 3-letter path segment', () => {
+    expect(stripLocalePrefix('/abc/rest')).toBe('/abc/rest');
+  });
+
+  it('does not match when the segment is followed by other characters', () => {
+    expect(stripLocalePrefix('/zhost/foo')).toBe('/zhost/foo');
   });
 });
