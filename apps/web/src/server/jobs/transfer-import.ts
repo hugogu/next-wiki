@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { inspectPortableArchive } from '@/server/transfers/archive-reader';
 import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { parsePage } from '@/server/transfers/manifest';
-import { rewriteMarkdownImages } from '@/server/transfers/markdown-links';
+import { rewriteMarkdownImages, rewriteMarkdownLinks } from '@/server/transfers/markdown-links';
 import { writeImportedAsset } from '@/server/services/transfer-asset-writer';
 import { writeImportedPage } from '@/server/services/transfer-page-writer';
 import { markRunTerminal } from '@/server/services/transfers';
@@ -14,6 +14,7 @@ import { WikiJsClient } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
 import { findMarkdownImages } from '@/server/transfers/markdown-links';
 import { localizeWikiJsImage } from '@/server/services/transfer-wikijs-assets';
+import { createWikiJsLinkReplacer } from '@/server/transfers/markdown-links';
 import { enqueueGitExport } from '@/server/services/git-export';
 
 async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
@@ -186,6 +187,11 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     if (!converter) continue;
     const conversion = converter(page.content);
     let markdown = conversion.markdown;
+    // Wiki.js content may contain internal page links with locale routing
+    // prefixes (e.g. `/zh/docs/foo` or `https://wiki.host/zh/docs/foo`).
+    // next-wiki stores locale as page metadata, so strip the prefix from the
+    // same-origin/internal links while leaving external URLs untouched.
+    markdown = rewriteMarkdownLinks(markdown, createWikiJsLinkReplacer(source.baseUrl));
     const images = findMarkdownImages(markdown).sort((a, b) => b.start - a.start);
     for (const image of images) {
       try {

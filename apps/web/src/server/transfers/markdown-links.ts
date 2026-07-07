@@ -141,6 +141,7 @@ type LinkNode = {
   type: 'link';
   url: string;
   children?: Array<{ value?: string }>;
+  position?: { start: { offset?: number }; end: { offset?: number } };
 };
 
 export type MarkdownLink = {
@@ -152,6 +153,62 @@ export type MarkdownLink = {
   /** `https://...` targets are not subject to the wiki's permission/resolution model. */
   external: boolean;
 };
+
+/** Finds standard Markdown links and returns their URL and byte positions. */
+export function findMarkdownLinkReferences(markdown: string): MarkdownImageReference[] {
+  const tree = unified().use(remarkParse).parse(markdown);
+  const results: MarkdownImageReference[] = [];
+  visit(tree, 'link', (node) => {
+    const link = node as LinkNode;
+    const start = link.position?.start.offset;
+    const end = link.position?.end.offset;
+    if (start === undefined || end === undefined) return;
+    const raw = markdown.slice(start, end);
+    const urlIndex = raw.indexOf(link.url);
+    if (urlIndex < 0) return;
+    results.push({
+      url: link.url,
+      start: start + urlIndex,
+      end: start + urlIndex + link.url.length,
+    });
+  });
+  return results;
+}
+
+/** Rewrites standard Markdown `[text](url)` links in place. */
+export function rewriteMarkdownLinks(
+  markdown: string,
+  replacer: (url: string) => string | null,
+): string {
+  const references = findMarkdownLinkReferences(markdown).sort((a, b) => b.start - a.start);
+  let output = markdown;
+  for (const reference of references) {
+    const replacement = replacer(reference.url);
+    if (replacement === null) continue;
+    output = `${output.slice(0, reference.start)}${replacement}${output.slice(reference.end)}`;
+  }
+  return output;
+}
+
+/**
+ * Creates a replacer that strips locale routing prefixes from internal Wiki.js
+ * links. Relative paths are treated as internal; absolute URLs are only
+ * rewritten when they share the configured Wiki.js origin.
+ */
+export function createWikiJsLinkReplacer(baseUrl: string): (url: string) => string | null {
+  const baseUrlOrigin = new URL(baseUrl).origin;
+  return (url) => {
+    if (/^https?:\/\//i.test(url)) {
+      try {
+        if (new URL(url).origin !== baseUrlOrigin) return null;
+      } catch {
+        return null;
+      }
+    }
+    const stripped = stripLocalePrefix(url);
+    return stripped === url ? null : stripped;
+  };
+}
 
 const WIKILINK_PATTERN = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 

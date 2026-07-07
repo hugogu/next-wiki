@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createWikiJsLinkReplacer,
   extractLocalAssetIds,
   findFrontmatterRelatedPages,
   findMarkdownLinks,
+  findMarkdownLinkReferences,
   portableAssetReference,
   rewriteMarkdownImages,
+  rewriteMarkdownLinks,
   stripLocalePrefix,
 } from './markdown-links';
 
@@ -47,6 +50,46 @@ describe('findMarkdownLinks (010-ai-curation-api)', () => {
     expect(links).toHaveLength(3);
     expect(links.map((l) => l.source).sort()).toEqual(['markdown', 'markdown', 'wiki']);
     expect(links.some((l) => l.external)).toBe(true);
+  });
+
+  it('finds Markdown link URL positions without touching images', () => {
+    const markdown = 'See [Other Page](/zh/docs/other) and ![image](/zh/assets/x.png).';
+    const refs = findMarkdownLinkReferences(markdown);
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ url: '/zh/docs/other' });
+    expect(markdown.slice(refs[0]!.start, refs[0]!.end)).toBe('/zh/docs/other');
+  });
+
+  it('rewrites Markdown links from end to start', () => {
+    const markdown = '[A](/zh/a) [B](/zh/b)';
+    expect(rewriteMarkdownLinks(markdown, (url) => url.replace('/zh', ''))).toBe('[A](/a) [B](/b)');
+  });
+
+  it('leaves Markdown links unchanged when replacer returns null', () => {
+    const markdown = '[A](/zh/a) [B](https://example.com/zh/b)';
+    expect(rewriteMarkdownLinks(markdown, () => null)).toBe(markdown);
+  });
+});
+
+describe('createWikiJsLinkReplacer (005 Wiki.js import)', () => {
+  const replace = createWikiJsLinkReplacer('https://wiki.example.com');
+
+  it('strips locale prefix from internal root-relative links', () => {
+    expect(replace('/zh/docs/foo')).toBe('/docs/foo');
+    expect(replace('/en-US/docs/foo')).toBe('/docs/foo');
+  });
+
+  it('strips locale prefix from same-origin absolute links', () => {
+    expect(replace('https://wiki.example.com/zh/docs/foo')).toBe('https://wiki.example.com/docs/foo');
+    expect(replace('https://wiki.example.com/en/docs/foo?x=1')).toBe('https://wiki.example.com/docs/foo?x=1');
+  });
+
+  it('leaves external absolute links untouched', () => {
+    expect(replace('https://other.example.com/zh/docs/foo')).toBeNull();
+  });
+
+  it('leaves internal links without a locale prefix untouched', () => {
+    expect(replace('/docs/foo')).toBeNull();
   });
 });
 
