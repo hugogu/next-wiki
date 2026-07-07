@@ -29,19 +29,29 @@ export function TransferRunDetail({
   const [items, setItems] = useState(initialItems);
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState<TransferItemView['status'] | 'all'>('all');
   const active = !TERMINAL.includes(run.status);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const loadItems = useCallback(
-    async (targetPage: number) => {
+    async (targetPage: number, targetFilter: typeof filter = filter) => {
+      const statusParam = targetFilter === 'all' ? '' : `&status=${targetFilter}`;
       const result = await apiGet<TransferItemList>(
-        `/api/transfers/${initialRun.id}/items?limit=${PAGE_SIZE}&offset=${targetPage * PAGE_SIZE}`,
+        `/api/transfers/${initialRun.id}/items?limit=${PAGE_SIZE}&offset=${targetPage * PAGE_SIZE}${statusParam}`,
       );
       setItems(result.items);
       setTotal(result.total);
       setPage(targetPage);
     },
-    [initialRun.id],
+    [initialRun.id, filter],
+  );
+
+  const applyFilter = useCallback(
+    (next: typeof filter) => {
+      setFilter(next);
+      void loadItems(0, next);
+    },
+    [loadItems],
   );
 
   // While the run is active, poll the run status and the visible item page so
@@ -51,10 +61,10 @@ export function TransferRunDetail({
     const timer = setInterval(async () => {
       const fresh = await apiGet<TransferRunView>(`/api/transfers/${initialRun.id}`).catch(() => null);
       if (fresh) setRun(fresh);
-      await loadItems(page).catch(() => undefined);
+      await loadItems(page, filter).catch(() => undefined);
     }, 2_000);
     return () => clearInterval(timer);
-  }, [active, initialRun.id, loadItems, page]);
+  }, [active, initialRun.id, loadItems, page, filter]);
 
   return (
     <div className="space-y-md">
@@ -79,6 +89,33 @@ export function TransferRunDetail({
         {run.errorDetail && <pre className="mt-sm overflow-auto rounded-md bg-surface-elevated p-sm text-xs">{run.errorDetail}</pre>}
       </section>
       <section className="space-y-xs">
+        <div className="flex flex-wrap items-center gap-sm">
+          {([
+            { key: 'all', count: run.totalItems },
+            { key: 'warning', count: run.warningItems },
+            { key: 'failed', count: run.failedItems },
+          ] as const).map(({ key, count }) => (
+            <Button
+              key={key}
+              type="button"
+              variant={filter === key ? 'secondary' : 'ghost'}
+              onClick={() => void applyFilter(key)}
+            >
+              {t(`admin.transfers.detail.filter.${key}`)}
+              {count > 0 && (
+                <span
+                  className="ml-xs inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-xs text-xs text-white"
+                  style={{
+                    backgroundColor:
+                      key === 'warning' ? 'var(--color-warning)' : key === 'failed' ? 'var(--color-danger)' : 'var(--color-muted)',
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </Button>
+          ))}
+        </div>
         {items.map((item) => (
           <div key={item.id} className="rounded-md border border-border p-sm text-sm">
             <div className="flex justify-between gap-sm">
