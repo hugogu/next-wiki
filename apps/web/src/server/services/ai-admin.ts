@@ -16,6 +16,7 @@ import {
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { env } from '@/server/config';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
@@ -26,6 +27,7 @@ import {
   normalizeProviderError,
   type DiscoveredModel,
   type ProviderHealth,
+  type ProviderCredentials,
   type ProviderRuntimeConfig,
 } from '@/server/ai/types';
 
@@ -517,6 +519,14 @@ export async function assignPurpose(
 export async function providerRuntime(providerId: string): Promise<ProviderRuntimeConfig> {
   const provider = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, providerId) });
   if (!provider) throw new DomainError('NOT_FOUND', 'AI provider not found');
+  const credentials: ProviderCredentials = decryptAiJson(provider.credentialsEncrypted);
+  // Fallback: when a provider's DB credentials omit an apiKey, use the
+  // optional OPENROUTER_API_KEY env var for OpenRouter providers. This lets
+  // personal deployments configure AI via .env without pasting the key
+  // into the admin UI.
+  if (!credentials.apiKey && provider.vendor === 'openrouter' && env.OPENROUTER_API_KEY) {
+    credentials.apiKey = env.OPENROUTER_API_KEY;
+  }
   return {
     providerId: provider.id,
     name: provider.name,
@@ -525,7 +535,7 @@ export async function providerRuntime(providerId: string): Promise<ProviderRunti
     kind: provider.kind,
     baseUrl: provider.baseUrl,
     config: provider.config as Record<string, unknown>,
-    credentials: decryptAiJson(provider.credentialsEncrypted),
+    credentials,
   };
 }
 

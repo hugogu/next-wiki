@@ -38,6 +38,10 @@ const envSchema = z.object({
   TRANSFER_REMOTE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   TRANSFER_REMOTE_MAX_REDIRECTS: z.coerce.number().int().min(0).max(10).default(5),
   TRANSFER_REMOTE_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  // Optional: default OpenRouter API key used when a provider's DB credentials
+  // omit an apiKey. Lets personal deployments configure AI via .env without
+  // pasting the key into the admin UI.
+  OPENROUTER_API_KEY: z.string().optional(),
 });
 
 // Local convenience defaults for dev/test only. In production a missing value
