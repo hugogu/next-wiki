@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ${WEB_IMAGE}
+    image: ${WEB_IMAGE:-hugogu/next-wiki-web:latest}
     container_name: next-wiki-web
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-wiki}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-wiki}}

@@ -8,6 +8,9 @@ Cloudflare Tunnel, Nginx, Caddy) outside of this project.
 
 1. On every push to `main` or a `v*` tag, GitHub Actions builds a
    multi-platform image and pushes it to `ghcr.io/<owner>/next-wiki-web`.
+   On `v*` tags a separate workflow also publishes the release to Docker Hub
+   as `hugogu/next-wiki-web:<semver>` and `hugogu/next-wiki-web:latest` — the
+   latter is what `docker-compose.prod.yml` pulls by default.
 2. The workflow then SSHs into your server and runs
    `scripts/deploy-remote.sh`, which pulls the image, migrates the database,
    and restarts the containers.
@@ -28,12 +31,14 @@ Cloudflare Tunnel, Nginx, Caddy) outside of this project.
 5. Copy `.env.example` to `.env` and fill in at least:
 
    ```ini
-   WEB_IMAGE=ghcr.io/<your-github-username>/next-wiki-web:main
    API_KEY_ENCRYPTION_KEY=<64-char-hex>
    POSTGRES_PASSWORD=<strong-password>
    APP_URL=https://wiki.example.com
    DATA_DIR=/opt/next-wiki/data
    WEB_PORT=3000
+   # Optional: defaults to hugogu/next-wiki-web:latest on Docker Hub.
+   # Override to pin a tag or use your own registry (e.g. GHCR).
+   # WEB_IMAGE=hugogu/next-wiki-web:latest
    ```
 
 6. Create the data directory:
@@ -111,8 +116,11 @@ Backups older than `BACKUP_RETENTION_DAYS` (default 14) are pruned.
 ## Updating
 
 Pushing to `main` automatically deploys the new image. For a more explicit
-release, push a semver tag like `v0.1.0` and the workflow will deploy
-`ghcr.io/<owner>/next-wiki-web:v0.1.0`.
+release, push a semver tag like `v0.1.0`: the workflow deploys
+`ghcr.io/<owner>/next-wiki-web:v0.1.0` and also publishes
+`hugogu/next-wiki-web:v0.1.0` (plus `:latest`) to Docker Hub. To deploy the
+Docker Hub image manually, set `WEB_IMAGE=hugogu/next-wiki-web:latest` (or a
+pinned tag) in `.env` and run `scripts/deploy-remote.sh`.
 
 ## Local development
 
