@@ -117,7 +117,7 @@ export function ModelCatalog({
   // for it on activation instead of blocking the action.
   const onActivate = (model: AiModelView) => {
     if (purpose === 'wiki_embedding' && !model.embeddingDimensions) {
-      setActivateDims('');
+      setActivateDims('1024');
       setActivating(model);
       return;
     }
@@ -400,14 +400,16 @@ export function ModelCatalog({
             {error && <Alert>{error}</Alert>}
             <label className="block space-y-xs">
               <span className="text-sm font-medium">{t('admin.ai.function.embeddingDimensions')}</span>
-              <Input
-                type="number"
-                min={1}
+              <Select
                 value={activateDims}
                 onChange={(event) => setActivateDims(event.target.value)}
                 required
                 autoFocus
-              />
+              >
+                {[384, 512, 768, 1024, 1536, 2048, 3072].map((dim) => (
+                  <option key={dim} value={dim}>{dim.toLocaleString()}</option>
+                ))}
+              </Select>
             </label>
             <div className="flex justify-end gap-sm">
               <Button type="button" variant="ghost" onClick={() => setActivating(null)}>
