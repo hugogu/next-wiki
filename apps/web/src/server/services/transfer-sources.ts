@@ -9,8 +9,30 @@ import * as schema from '@/server/db/schema';
 import { encryptAiJson, decryptAiJson } from '@/server/crypto/ai-encryption';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { WikiJsClient } from '@/server/transfers/wikijs-client';
+
+export type SourceTestResult =
+  | { ok: true; pageCount: number }
+  | { ok: false; errorCode: string; errorMessage: string };
 
 type SourceRow = typeof schema.transferSources.$inferSelect;
+
+export async function test(ctx: PermCtx, input: Omit<TransferSourceCreate, 'name' | 'enabled' | 'type'>): Promise<SourceTestResult> {
+  assertCanManageTransfers(ctx);
+  const baseUrl = normalizeTransferSourceUrl(input.baseUrl);
+  const client = new WikiJsClient(baseUrl, input.apiToken, input.allowPrivateNetwork);
+  try {
+    const pages = await client.listPages();
+    if (pages[0]) await client.getPage(pages[0].id);
+    return { ok: true, pageCount: pages.length };
+  } catch (error) {
+    return {
+      ok: false,
+      errorCode: 'SOURCE_UNAVAILABLE',
+      errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Connection test failed',
+    };
+  }
+}
 
 export function assertCanManageTransfers(ctx: PermCtx): string {
   if (!can(ctx, 'manage_transfers', { kind: 'transfers' })) {

@@ -7,8 +7,8 @@ import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { EyeIcon, LinkIcon, LogInIcon, TrashIcon } from '@/components/icons';
-import { apiDelete, apiPost } from '@/lib/api/client';
+import { EyeIcon, LinkIcon, ImportIcon, TrashIcon } from '@/components/icons';
+import { apiDelete, apiPatch, apiPost } from '@/lib/api/client';
 import { TransferRunList } from './TransferRunList';
 
 export function WikiJsSourcePanel({
@@ -27,6 +27,9 @@ export function WikiJsSourcePanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [testMessage, setTestMessage] = useState<string | null>(null);
+
   async function createSource() {
     setBusy(true);
     setError(null);
@@ -42,9 +45,36 @@ export function WikiJsSourcePanel({
       setName('');
       setBaseUrl('');
       setApiToken('');
+      setTestStatus('idle');
+      setTestMessage(null);
       router.refresh();
     } catch (cause) {
       setError((cause as { message?: string }).message ?? 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function testSource() {
+    setBusy(true);
+    setError(null);
+    setTestStatus('running');
+    setTestMessage(null);
+    try {
+      const result = await apiPatch<Record<string, unknown>, { ok: boolean; pageCount?: number; errorMessage?: string }>(
+        '/api/transfer-sources',
+        { baseUrl, apiToken, allowPrivateNetwork: privateNetwork },
+      );
+      if (result.ok) {
+        setTestStatus('success');
+        setTestMessage(`${t('admin.transfers.wikijs.testSuccess')}: ${result.pageCount ?? 0} pages`);
+      } else {
+        setTestStatus('error');
+        setTestMessage(result.errorMessage ?? t('admin.transfers.wikijs.testFailed'));
+      }
+    } catch (cause) {
+      setTestStatus('error');
+      setTestMessage((cause as { message?: string }).message ?? t('admin.transfers.wikijs.testFailed'));
     } finally {
       setBusy(false);
     }
@@ -86,8 +116,26 @@ export function WikiJsSourcePanel({
             <input type="checkbox" checked={privateNetwork} onChange={(event) => setPrivateNetwork(event.target.checked)} />
             {t('admin.transfers.wikijs.privateNetwork')}
           </label>
-          <div><Button disabled={busy || !name || !baseUrl || !apiToken} onClick={createSource}>{t('admin.transfers.wikijs.add')}</Button></div>
+          <div className="mt-md flex flex-wrap items-center gap-sm">
+            <Button
+              disabled={busy || !baseUrl || !apiToken}
+              variant="secondary"
+              onClick={testSource}
+            >
+              {t('admin.transfers.wikijs.test')}
+            </Button>
+            <Button disabled={busy || !name || !baseUrl || !apiToken} onClick={createSource}>{t('admin.transfers.wikijs.add')}</Button>
+          </div>
         </div>
+        {testStatus !== 'idle' && (
+          <p
+            className={`mt-sm text-sm ${
+              testStatus === 'success' ? 'text-success' : testStatus === 'error' ? 'text-danger' : 'text-muted'
+            }`}
+          >
+            {testStatus === 'running' ? t('admin.transfers.wikijs.testing') : testMessage}
+          </p>
+        )}
         {error && <p className="mt-sm text-sm text-danger">{error}</p>}
       </div>
       {sources.map((source) => {
@@ -110,7 +158,7 @@ export function WikiJsSourcePanel({
                 {preview && (
                   <Tooltip label={t('admin.transfers.wikijs.import')}>
                     <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.import')} disabled={busy} onClick={() => importPreview(preview.id)}>
-                      <LogInIcon className="h-4 w-4" />
+                      <ImportIcon className="h-4 w-4" />
                     </Button>
                   </Tooltip>
                 )}

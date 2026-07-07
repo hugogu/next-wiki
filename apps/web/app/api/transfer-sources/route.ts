@@ -29,6 +29,19 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+async function handleTest(request: NextRequest) {
+  const parsed = transferSourceCreateSchema
+    .omit({ name: true, enabled: true, type: true })
+    .safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
+  try {
+    return NextResponse.json(await sources.test(await createApiContext(), parsed.data));
+  } catch (error) {
+    if (error instanceof DomainError) return mapDomainError(error);
+    return internalError();
+  }
+}
+
 /**
  * @openapi
  * @summary List Wiki.js transfer sources
@@ -45,3 +58,11 @@ export const GET = withApiAudit(handleGET as unknown as RouteHandler);
  * @response 201:TransferSourceView
  */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);
+/**
+ * @openapi
+ * @summary Test Wiki.js source credentials without creating a source
+ * @tag Transfers
+ * @auth bearer
+ * @response SourceTestResult
+ */
+export const PATCH = withApiAudit(handleTest as unknown as RouteHandler);
