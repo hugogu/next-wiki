@@ -10,11 +10,14 @@ import { clearIcon, getIcon, getSiteView, setIcon } from '@/server/services/site
  * @description Serves the configured site icon, or redirects to the shipped default.
  * @tag Appearance
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const icon = await getIcon();
     if (!icon) {
-      return NextResponse.redirect(new URL('/icon.svg', request.url));
+      // Relative redirect so the browser resolves it against the public request
+      // URL. Building an absolute URL from request.url leaks the container's
+      // internal host (e.g. localhost:3000) when behind a reverse proxy.
+      return new NextResponse(null, { status: 307, headers: { location: '/icon.svg' } });
     }
     return new NextResponse(new Uint8Array(icon.data), {
       headers: {
