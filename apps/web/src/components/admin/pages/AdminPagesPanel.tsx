@@ -1,9 +1,5 @@
 import Link from 'next/link';
-import type {
-  AdminPageListResult,
-  AdminPageSortKey,
-  AdminPageStats,
-} from '@next-wiki/shared';
+import type { AdminPageListResult, AdminPageSortKey } from '@next-wiki/shared';
 import type { TranslateFunction, TranslationKey } from '@/i18n/types';
 import {
   DataTable,
@@ -16,6 +12,7 @@ import {
 import { Pagination } from '@/components/ui/Pagination';
 import { EditIcon, EyeIcon } from '@/components/icons';
 import { getEditHref, getPageHref } from '@/lib/path';
+import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
 
 type QueryMap = Record<string, string | undefined>;
@@ -57,15 +54,6 @@ function SortHeader({
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border border-border bg-surface px-md py-sm">
-      <p className="text-xs font-medium uppercase text-muted">{label}</p>
-      <p className="mt-xs text-2xl font-semibold text-foreground">{value.toLocaleString()}</p>
-    </div>
-  );
-}
-
 function IconLink({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
   return (
     <Link
@@ -82,12 +70,10 @@ function IconLink({ href, label, children }: { href: string; label: string; chil
 export function AdminPagesPanel({
   t,
   list,
-  stats,
   query,
 }: {
   t: TranslateFunction;
   list: AdminPageListResult;
-  stats: AdminPageStats;
   query: QueryMap;
 }) {
   return (
@@ -97,11 +83,7 @@ export function AdminPagesPanel({
           <h1 className="font-display text-xl font-semibold">{t('admin.pages.title')}</h1>
           <p className="mt-xs max-w-3xl text-sm text-muted">{t('admin.pages.description')}</p>
         </div>
-        <div className="grid gap-sm sm:grid-cols-3">
-          <StatCard label={t('admin.pages.stats.totalPages')} value={stats.totalPages} />
-          <StatCard label={t('admin.pages.stats.totalEdits')} value={stats.totalEdits} />
-          <StatCard label={t('admin.pages.stats.totalLinks')} value={stats.totalPageLinks} />
-        </div>
+        <AdminPageStats />
       </div>
 
       <form action="/admin/pages" className="rounded-md border border-border bg-surface p-md">

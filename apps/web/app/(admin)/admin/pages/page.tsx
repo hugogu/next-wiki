@@ -47,31 +47,28 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
     dateTo: first(params.dateTo),
   };
 
-  const [list, stats] = await Promise.all([
-    pageService.listAdminPages(
-      { actor },
-      {
-        page: query.page ? Number(query.page) : undefined,
-        sort: query.sort,
-        direction: query.direction,
-        filters: {
-          title: query.title,
-          author: query.author,
-          path: query.path,
-          dateFrom: query.dateFrom,
-          dateTo: query.dateTo,
-        },
+  const list = await pageService.listAdminPages(
+    { actor },
+    {
+      page: query.page ? Number(query.page) : undefined,
+      sort: query.sort,
+      direction: query.direction,
+      filters: {
+        title: query.title,
+        author: query.author,
+        path: query.path,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
       },
-    ),
-    pageService.getAdminPageStats({ actor }),
-  ]);
+    },
+  );
   const locale = await getLocale();
   const t = getDictionary(locale);
 
   return (
     <Layout admin>
       <div className="px-lg py-md">
-        <AdminPagesPanel t={t} list={list} stats={stats} query={query} />
+        <AdminPagesPanel t={t} list={list} query={query} />
       </div>
     </Layout>
   );
