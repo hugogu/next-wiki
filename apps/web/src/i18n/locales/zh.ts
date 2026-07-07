@@ -751,6 +751,7 @@ export const zh: Translations = {
   'admin.ai.providers.baseUrl': '基础 URL',
   'admin.ai.providers.apiKey': 'API 密钥',
   'admin.ai.providers.create': '创建配置',
+  'admin.ai.providers.allCapabilities': '同时配置所有能力 (对话、嵌入、图像)',
   'admin.ai.providers.kind': '能力类型',
   'admin.ai.providers.protocol': 'API 协议',
   'admin.ai.providers.initialModel': '初始模型 ID',

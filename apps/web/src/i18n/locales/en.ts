@@ -770,6 +770,7 @@ export const en = {
   'admin.ai.providers.baseUrl': 'Base URL',
   'admin.ai.providers.apiKey': 'API key',
   'admin.ai.providers.create': 'Create provider',
+  'admin.ai.providers.allCapabilities': 'Configure for all capabilities (chat, embedding, image)',
   'admin.ai.providers.kind': 'Provider type',
   'admin.ai.providers.protocol': 'API protocol',
   'admin.ai.providers.initialModel': 'Initial model ID',
