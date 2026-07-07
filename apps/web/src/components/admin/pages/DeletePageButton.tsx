@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TrashIcon } from '@/components/icons';
 import { apiDelete, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
+import { ADMIN_PAGES_CHANGED_EVENT } from './AdminPageStats';
 
 export function DeletePageButton({ pageId, title }: { pageId: string; title: string }) {
   const { t } = useTranslation();
@@ -20,6 +21,7 @@ export function DeletePageButton({ pageId, title }: { pageId: string; title: str
     try {
       await apiDelete<{ ok: true }>(`/api/admin/pages/${encodeURIComponent(pageId)}`);
       setOpen(false);
+      window.dispatchEvent(new Event(ADMIN_PAGES_CHANGED_EVENT));
       router.refresh();
     } catch (err) {
       const apiError = err as ApiError;
