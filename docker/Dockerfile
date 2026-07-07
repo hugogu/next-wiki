@@ -12,8 +12,10 @@ COPY packages/shared/package.json ./packages/shared/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder
-ARG API_KEY_ENCRYPTION_KEY
-ENV API_KEY_ENCRYPTION_KEY=${API_KEY_ENCRYPTION_KEY}
+# next build evaluates config.ts (Zod-validated env) during page data
+# collection. A placeholder key satisfies validation at build time; the real
+# key is injected at runtime via the API_KEY_ENCRYPTION_KEY env var.
+ENV API_KEY_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://localhost:5432/next_wiki

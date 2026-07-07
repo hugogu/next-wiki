@@ -25,7 +25,6 @@ services:
       args:
         NODE_IMAGE: ${NODE_IMAGE:-node:24-alpine}
         NPM_REGISTRY: ${NPM_REGISTRY:-}
-        API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
     container_name: next-wiki-web
     environment:
       DATABASE_URL: postgresql://wiki:wiki@db:5432/wiki
