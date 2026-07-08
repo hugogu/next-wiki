@@ -30,7 +30,7 @@ export default async function HomePage() {
 
   return (
     <Layout>
-      <div className="h-full flex flex-col items-center justify-center px-lg py-xl">
+      <div className="min-h-full flex flex-col items-center justify-center px-lg py-xl">
         <div className="max-w-2xl w-full text-center">
           <h1 className="font-display text-5xl font-semibold text-foreground mb-md">
             {t('common.brand')}
