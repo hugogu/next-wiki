@@ -174,11 +174,31 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   let converted = 0;
   let warnings = 0;
   let processed = 0;
+
+  await db.update(schema.transferRuns).set({
+    totalItems: plans.length,
+    phase: 'writing_pages',
+  }).where(eq(schema.transferRuns.id, run.id));
+
+  async function reportProgress(currentItem: string) {
+    await db.update(schema.transferRuns).set({
+      phase: 'writing_pages',
+      currentItem,
+      processedItems: processed,
+      createdItems: created,
+      replacedItems: replaced,
+      skippedItems: skipped,
+      convertedItems: converted,
+      warningItems: warnings,
+    }).where(eq(schema.transferRuns.id, run.id));
+  }
+
   for (const plan of plans) {
     if (plan.warningCode === 'UNSUPPORTED_SOURCE_CONTENT') {
       skipped += 1;
       warnings += 1;
       processed += 1;
+      await reportProgress(plan.displayName);
       continue;
     }
     const page = await client.getPage(Number(plan.sourceKey));
@@ -225,6 +245,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     else skipped += 1;
     if (conversion.converted) converted += 1;
     processed += 1;
+    await reportProgress(`${page.locale}/${page.path}`);
     if (result.pageId) {
       await db.insert(schema.transferPageMappings).values({
         sourceType: 'wikijs',
