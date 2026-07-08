@@ -76,8 +76,11 @@ export const zh: Translations = {
   'setup.heading': '欢迎使用 next-wiki',
   'setup.description': '创建第一个管理员账号以开始使用。此界面仅在尚未存在管理员时可用。',
 
+  // Site-wide SEO
+  'site.description': '与 AI 协作，并持续反哺 AI 的个人知识库。',
+
   // Home
-  'home.tagline': '一个宁静、专注的团队知识库。',
+  'home.tagline': '与 AI 协作，并持续反哺 AI 的个人知识库。',
   'home.empty.title': '暂无已发布页面',
   'home.empty.body': '编辑者发布页面后，内容将显示在这里。',
   'home.recentPagesTitle': '最新页面',

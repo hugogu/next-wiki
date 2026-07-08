@@ -76,8 +76,11 @@ export const en = {
   'setup.description':
     'Create the initial admin account to get started. This screen is only available while no admins exist.',
 
+  // Site-wide SEO
+  'site.description': 'A personal knowledge base where you collaborate with AI and continuously feed it better context.',
+
   // Home
-  'home.tagline': 'A calm, focused place for team knowledge.',
+  'home.tagline': 'A personal knowledge base where you collaborate with AI and continuously feed it better context.',
   'home.empty.title': 'No published pages yet',
   'home.empty.body': 'Pages will appear here once an editor publishes them.',
   'home.recentPagesTitle': 'Latest pages',

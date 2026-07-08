@@ -3,22 +3,54 @@ import { HistoryProvider } from '@/lib/history';
 import { EditorProvider } from '@/components/editor/EditorContext';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { I18nProvider } from '@/i18n/client';
-import { getLocale } from '@/i18n/server';
+import { getDictionary, getLocale } from '@/i18n/server';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
 import { getActiveThemeCss } from '@/server/services/system-theme';
 import { getUserAppearance } from '@/server/services/user-appearance';
 import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
+import { env } from '@/server/config';
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const siteName = await getSiteName();
+  const [siteName, locale] = await Promise.all([getSiteName(), getLocale()]);
+  const t = getDictionary(locale);
+  const description = t('site.description');
+  // APP_URL is validated to a URL at boot. Strip a trailing slash so it
+  // composes cleanly with path joins.
+  const siteUrl = env.APP_URL.replace(/\/$/, '');
   return {
     title: { default: siteName, template: `%s · ${siteName}` },
-    icons: { icon: '/api/settings/site/icon' },
+    description,
+    applicationName: siteName,
+    icons: {
+      icon: '/api/settings/site/icon',
+      apple: '/api/settings/site/icon',
+    },
+    alternates: {
+      canonical: `${siteUrl}/`,
+    },
+    openGraph: {
+      type: 'website',
+      url: `${siteUrl}/`,
+      siteName,
+      title: siteName,
+      description,
+      locale: locale === 'zh' ? 'zh_CN' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: siteName,
+      description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true },
+    },
   };
 }
 
