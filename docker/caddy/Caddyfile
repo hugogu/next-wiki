@@ -1,0 +1,12 @@
+{
+	auto_https off
+}
+
+{$CADDY_HOST}:80 {
+	redir https://{host}{uri}
+}
+
+{$CADDY_HOST}:443 {
+	tls {$CADDY_CERT_PATH} {$CADDY_KEY_PATH}
+	reverse_proxy {$UPSTREAM_HOST}:{$UPSTREAM_PORT}
+}

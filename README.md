@@ -67,6 +67,39 @@ first run. PostgreSQL is the only required service; everything else (object
 storage, alternate content backends) is opt-in via Compose profiles, e.g.
 `docker compose --profile storage-s3 up`.
 
+### Production deployment with Caddy + Cloudflare
+
+For public deployments, run Caddy in front of the `web` service so Cloudflare can
+use **Full (strict)** TLS to the origin.
+
+1. Provision a Cloudflare Origin CA certificate for your domain and download the
+   certificate (`*.pem` or `*.crt`) and private key (`*.key` or `*.pem`).
+2. Place the files in `docker/caddy/certs/`.
+3. Edit `.env`:
+   ```bash
+   # Public domain and app URL
+   APP_URL=https://wiki.example.com
+   CADDY_HOST=wiki.example.com
+
+   # Match these paths to the filenames you uploaded
+   CADDY_CERT_PATH=/etc/caddy/certs/wiki.example.com.crt
+   CADDY_KEY_PATH=/etc/caddy/certs/wiki.example.com.key
+
+   # Bind the web container to localhost only; Caddy reaches it through the
+   # Docker network. This prevents direct access to port 3000 from the internet.
+   WEB_PORT=127.0.0.1:3000
+   ```
+4. Start the stack with the Caddy overlay:
+   ```bash
+   # Dev build (builds image locally)
+   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+
+   # Prod build (pulls published image, e.g. hugogu/next-wiki-web:latest)
+   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
+   ```
+5. In Cloudflare, set the SSL/TLS encryption mode to **Full (strict)** and point
+the domain's A record to your server IP.
+
 ### Local development
 
 ```bash

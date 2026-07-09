@@ -1,0 +1,20 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    container_name: next-wiki-caddy
+    restart: unless-stopped
+    environment:
+      CADDY_HOST: ${CADDY_HOST:-}
+      CADDY_CERT_PATH: ${CADDY_CERT_PATH:-/etc/caddy/certs/cert.pem}
+      CADDY_KEY_PATH: ${CADDY_KEY_PATH:-/etc/caddy/certs/key.pem}
+      UPSTREAM_HOST: ${UPSTREAM_HOST:-web}
+      UPSTREAM_PORT: ${UPSTREAM_PORT:-3000}
+    ports:
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CADDY_CERTS_DIR:-./docker/caddy/certs}:/etc/caddy/certs:ro
+    depends_on:
+      web:
+        condition: service_started
