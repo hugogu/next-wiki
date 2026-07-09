@@ -7,6 +7,7 @@ services:
       CADDY_HOST: ${CADDY_HOST:-}
       CADDY_CERT_PATH: ${CADDY_CERT_PATH:-/etc/caddy/certs/cert.pem}
       CADDY_KEY_PATH: ${CADDY_KEY_PATH:-/etc/caddy/certs/key.pem}
+      CADDY_HTTPS_PORT: ${CADDY_HTTPS_PORT:-443}
       UPSTREAM_HOST: ${UPSTREAM_HOST:-web}
       UPSTREAM_PORT: ${UPSTREAM_PORT:-3000}
     ports:

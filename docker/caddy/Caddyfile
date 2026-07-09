@@ -3,7 +3,7 @@
 }
 
 {$CADDY_HOST}:80 {
-	redir https://{host}{uri}
+	redir https://{host}:{$CADDY_HTTPS_PORT}{uri}
 }
 
 {$CADDY_HOST}:443 {

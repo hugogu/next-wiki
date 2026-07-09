@@ -100,6 +100,71 @@ use **Full (strict)** TLS to the origin.
 5. In Cloudflare, set the SSL/TLS encryption mode to **Full (strict)** and point
 the domain's A record to your server IP.
 
+### Local testing with a self-signed certificate
+
+You can test the Caddy overlay locally without Cloudflare by generating a
+self-signed certificate.
+
+1. Generate a certificate with SANs for `wiki.local` and `localhost`:
+   ```bash
+   mkdir -p docker/caddy/certs
+   cat > /tmp/localhost.conf <<'EOF'
+   [req]
+   distinguished_name = req_distinguished_name
+   x509_extensions = v3_req
+   prompt = no
+
+   [req_distinguished_name]
+   CN = wiki.local
+
+   [v3_req]
+   keyUsage = keyEncipherment, dataEncipherment
+   extendedKeyUsage = serverAuth
+   subjectAltName = @alt_names
+
+   [alt_names]
+   DNS.1 = wiki.local
+   DNS.2 = localhost
+   IP.1 = 127.0.0.1
+   IP.2 = ::1
+   EOF
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+     -keyout docker/caddy/certs/localhost.key \
+     -out docker/caddy/certs/localhost.crt \
+     -config /tmp/localhost.conf
+   ```
+   The generated key and certificate are ignored by Git.
+
+2. Configure `.env`:
+   ```bash
+   CADDY_HOST=wiki.local
+   CADDY_CERT_PATH=/etc/caddy/certs/localhost.crt
+   CADDY_KEY_PATH=/etc/caddy/certs/localhost.key
+   CADDY_CERTS_DIR=./docker/caddy/certs
+
+   # Use non-privileged ports if 80/443 are unavailable
+   CADDY_HTTP_PORT=8080
+   CADDY_HTTPS_PORT=8443
+   APP_URL=https://wiki.local:8443
+   ```
+
+3. Start the stack with the Caddy overlay:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+   ```
+
+4. Verify HTTPS and the HTTP→HTTPS redirect:
+   ```bash
+   curl -k --resolve wiki.local:8443:127.0.0.1 https://wiki.local:8443/healthz
+   curl -I --resolve wiki.local:8080:127.0.0.1 http://wiki.local:8080/
+   ```
+
+5. Optionally add `wiki.local` to `/etc/hosts` to use a browser:
+   ```text
+   127.0.0.1 wiki.local
+   ```
+   Then open `https://wiki.local:8443` and accept the self-signed certificate.
+
 ### Local development
 
 ```bash
