@@ -79,9 +79,10 @@ describe('createWikiJsLinkReplacer (005 Wiki.js import)', () => {
     expect(replace('/en-US/docs/foo')).toBe('/docs/foo');
   });
 
-  it('strips locale prefix from same-origin absolute links', () => {
-    expect(replace('https://wiki.example.com/zh/docs/foo')).toBe('https://wiki.example.com/docs/foo');
-    expect(replace('https://wiki.example.com/en/docs/foo?x=1')).toBe('https://wiki.example.com/docs/foo?x=1');
+  it('converts same-origin absolute links to root-relative paths', () => {
+    expect(replace('https://wiki.example.com/zh/docs/foo')).toBe('/docs/foo');
+    expect(replace('https://wiki.example.com/en/docs/foo?x=1')).toBe('/docs/foo?x=1');
+    expect(replace('https://wiki.example.com/docs/bar')).toBe('/docs/bar');
   });
 
   it('leaves external absolute links untouched', () => {

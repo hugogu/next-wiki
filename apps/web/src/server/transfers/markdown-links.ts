@@ -192,15 +192,21 @@ export function rewriteMarkdownLinks(
 
 /**
  * Creates a replacer that strips locale routing prefixes from internal Wiki.js
- * links. Relative paths are treated as internal; absolute URLs are only
- * rewritten when they share the configured Wiki.js origin.
+ * links. Same-origin absolute URLs are converted to root-relative paths so
+ * imported links point to the new wiki rather than the source host. External
+ * URLs and links that already start with `/` but have no locale prefix are left
+ * unchanged.
  */
 export function createWikiJsLinkReplacer(baseUrl: string): (url: string) => string | null {
   const baseUrlOrigin = new URL(baseUrl).origin;
   return (url) => {
     if (/^https?:\/\//i.test(url)) {
       try {
-        if (new URL(url).origin !== baseUrlOrigin) return null;
+        const parsed = new URL(url);
+        if (parsed.origin !== baseUrlOrigin) return null;
+        const pathWithSearch = parsed.pathname + parsed.search + parsed.hash;
+        const stripped = stripLocalePrefix(pathWithSearch);
+        return stripped;
       } catch {
         return null;
       }
