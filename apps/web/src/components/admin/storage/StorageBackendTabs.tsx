@@ -306,13 +306,6 @@ export function StorageBackendTabs({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  useEffect(() => {
-    if (searchParams.get('tab')) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', 'database');
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [pathname, router, searchParams]);
-
   const tabs = TABS.map((type) => {
     const item = type === 'git' ? gitExport : backends.find((candidate) => candidate.type === type);
     const state =

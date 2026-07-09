@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type {
   AiActionView,
@@ -68,13 +68,6 @@ export function AiAdminTabs({
     params.set('tab', tab);
     router.push(`${pathname}?${params.toString()}`);
   };
-
-  useEffect(() => {
-    if (searchParams.get('tab')) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', 'detector');
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [pathname, router, searchParams]);
 
   const tabs = [
     {

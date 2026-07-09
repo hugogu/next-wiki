@@ -8,6 +8,13 @@
       "when": 1783344967914,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783505404376,
+      "tag": "0001_secret_warlock",
+      "breakpoints": true
     }
   ]
 }
