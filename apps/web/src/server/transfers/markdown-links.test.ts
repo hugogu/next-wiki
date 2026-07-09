@@ -85,6 +85,13 @@ describe('createWikiJsLinkReplacer (005 Wiki.js import)', () => {
     expect(replace('https://wiki.example.com/docs/bar')).toBe('/docs/bar');
   });
 
+  it('strips a locale-only pathname followed by query or fragment', () => {
+    expect(replace('https://wiki.example.com/zh')).toBe('/');
+    expect(replace('https://wiki.example.com/zh?x=1')).toBe('/?x=1');
+    expect(replace('https://wiki.example.com/zh#top')).toBe('/#top');
+    expect(replace('https://wiki.example.com/zh?a=1#frag')).toBe('/?a=1#frag');
+  });
+
   it('leaves external absolute links untouched', () => {
     expect(replace('https://other.example.com/zh/docs/foo')).toBeNull();
   });

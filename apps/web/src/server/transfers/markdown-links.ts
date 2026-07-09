@@ -204,9 +204,13 @@ export function createWikiJsLinkReplacer(baseUrl: string): (url: string) => stri
       try {
         const parsed = new URL(url);
         if (parsed.origin !== baseUrlOrigin) return null;
-        const pathWithSearch = parsed.pathname + parsed.search + parsed.hash;
-        const stripped = stripLocalePrefix(pathWithSearch);
-        return stripped;
+        // Strip the locale prefix from the pathname only, then re-append the
+        // query and fragment. Stripping the concatenated `pathname + search +
+        // hash` would miss a locale that is the entire pathname when followed
+        // by `?` or `#` (e.g. `/zh?x=1`), because the leading-locale lookahead
+        // only matches a trailing `/` or end-of-string.
+        const strippedPath = stripLeadingLocale(parsed.pathname);
+        return strippedPath + parsed.search + parsed.hash;
       } catch {
         return null;
       }
