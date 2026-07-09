@@ -1,3 +1,5 @@
+import { after } from 'next/server';
+import { headers } from 'next/headers';
 import { ApiProvider } from '@/lib/api/provider';
 import { HistoryProvider } from '@/lib/history';
 import { EditorProvider } from '@/components/editor/EditorContext';
@@ -10,6 +12,7 @@ import { getActiveThemeCss } from '@/server/services/system-theme';
 import { getUserAppearance } from '@/server/services/user-appearance';
 import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
+import * as audit from '@/server/services/audit';
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
@@ -23,6 +26,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const requestHeaders = await headers();
+  const auditStart = requestHeaders.get('x-audit-start');
+  const auditPath = requestHeaders.get('x-audit-path');
+
   const locale = await getLocale();
   const actor = await getCurrentActor();
   const preferences = actor.kind === 'user'
@@ -40,6 +47,31 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const initialTheme = preferences?.theme ?? undefined;
   const initialLocale = preferences?.locale ?? locale;
+
+  // Log HTML page visits after the response is sent. The proxy sets the audit
+  // headers only for initial page-load requests that accept HTML, so RSC data
+  // requests and static assets are not logged as pages.
+  if (auditStart && auditPath) {
+    after(() => {
+      const proxyStart = Number(auditStart);
+      // after() runs after the response is sent, so Date.now() is safe here.
+      // eslint-disable-next-line react-hooks/purity
+      const durationMs = Number.isFinite(proxyStart) ? Date.now() - proxyStart : 0;
+      void audit.writeEntry({
+        keyId: null,
+        userId: actor.kind === 'user' ? actor.userId : null,
+        entryType: 'page',
+        method: 'GET',
+        path: auditPath,
+        statusCode: 200,
+        durationMs,
+        authStatus: actor.kind === 'user' ? 'authenticated' : 'anonymous',
+        errorMessage: null,
+      }).catch(() => {
+        // Best-effort page audit logging; ignore failures.
+      });
+    });
+  }
 
   const themeScript = `
     (function() {
