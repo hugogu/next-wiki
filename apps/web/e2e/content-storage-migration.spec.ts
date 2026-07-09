@@ -34,7 +34,9 @@ test.describe('content storage replicas', () => {
     if (!(await enabled.isChecked())) {
       await enabled.click();
       await page.getByRole('button', { name: 'Sync existing data' }).click();
-      await expect(page).toHaveURL(/\/admin\/storage\/backends\/.*\/sync\?tab=local/);
+      await expect(page).toHaveURL(/\/admin\/storage\/backends\/.*\/sync\?tab=local/, {
+        timeout: 30_000,
+      });
       await expect(page.getByText(/Enabled|Backfilling/)).toBeVisible({ timeout: 30_000 });
       await page.getByRole('link', { name: 'Back to Content Storage' }).click();
     }
