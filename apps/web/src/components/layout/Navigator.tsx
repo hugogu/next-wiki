@@ -78,7 +78,7 @@ function TreeItem({
   onNavigate,
   expanded,
   onToggle,
-  loadState,
+  getLoadState,
   onLoad,
 }: {
   node: LazyPublicPageTreeNode;
@@ -87,9 +87,15 @@ function TreeItem({
   onNavigate: () => void;
   expanded: Set<string>;
   onToggle: (path: string) => void;
-  loadState: LoadState;
+  /**
+   * Resolves the lazy-load state for any node by path. Each recursion level
+   * needs this so nested folders can render their own fetched children,
+   * loading spinner, and retry button — not just the top-level nodes.
+   */
+  getLoadState: (node: LazyPublicPageTreeNode) => LoadState;
   onLoad: (path: string) => void;
 }) {
+  const loadState = getLoadState(node);
   const active = node.pageId !== null && node.path === currentPath;
   const isOpen = expanded.has(node.path);
   // Children we can render right now: pre-expanded ones from SSR, or ones
@@ -147,7 +153,7 @@ function TreeItem({
                 onNavigate={onNavigate}
                 expanded={expanded}
                 onToggle={onToggle}
-                loadState={{ status: 'idle' }}
+                getLoadState={getLoadState}
                 onLoad={onLoad}
               />
             ))
@@ -213,6 +219,29 @@ export function Navigator({
   // Tracks paths we've already kicked off a fetch for in this lifetime so we
   // don't fire duplicate requests when the user double-clicks a chevron.
   const inflight = useRef<Set<string>>(new Set());
+
+  /**
+   * Resolve lazy-load state for any tree node by its path. Used at every
+   * recursion depth (top-level AND nested folders) so that expanding
+   * `ai/applications` after `ai/` was already lazy-loaded correctly shows
+   * its own cached children / loading / error state. Stable identity matters
+   * here — TreeItem recomputes `loadState` on every render, so we memoise
+   * against branchCache + branchLoad + t to avoid pointless re-renders.
+   */
+  const getLoadState = useCallback(
+    (target: LazyPublicPageTreeNode): LoadState => {
+      const needsLazy = target.hasChildren && target.children.length === 0;
+      if (!needsLazy) return { status: 'idle' };
+      const cached = branchCache[target.path];
+      if (cached) return { status: 'ok', children: cached };
+      if (branchLoad[target.path] === 'loading') return { status: 'loading' };
+      if (branchLoad[target.path] === 'error') {
+        return { status: 'error', message: t('layout.nav.loadError') };
+      }
+      return { status: 'idle' };
+    },
+    [branchCache, branchLoad, t],
+  );
 
   const toggle = (path: string) => {
     setExpanded((prev) => {
@@ -365,33 +394,19 @@ export function Navigator({
             <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
           ) : (
             <ul className="space-y-0.5">
-              {tree.map((node) => {
-                const isOpen = expanded.has(node.path);
-                const cached = branchCache[node.path];
-                const loadKey = node.hasChildren && node.children.length === 0;
-                const loadState: LoadState = !loadKey
-                  ? { status: 'idle' }
-                  : cached
-                    ? { status: 'ok', children: cached }
-                    : branchLoad[node.path] === 'loading'
-                      ? { status: 'loading' }
-                      : branchLoad[node.path] === 'error'
-                        ? { status: 'error', message: t('layout.nav.loadError') }
-                        : { status: 'idle' };
-                return (
-                  <TreeItem
-                    key={node.path}
-                    node={node}
-                    currentPath={currentPath}
-                    depth={0}
-                    onNavigate={onClose}
-                    expanded={expanded}
-                    onToggle={toggle}
-                    loadState={loadState}
-                    onLoad={loadBranch}
-                  />
-                );
-              })}
+              {tree.map((node) => (
+                <TreeItem
+                  key={node.path}
+                  node={node}
+                  currentPath={currentPath}
+                  depth={0}
+                  onNavigate={onClose}
+                  expanded={expanded}
+                  onToggle={toggle}
+                  getLoadState={getLoadState}
+                  onLoad={loadBranch}
+                />
+              ))}
             </ul>
           )}
         </nav>
