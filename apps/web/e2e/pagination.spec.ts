@@ -48,8 +48,7 @@ test.describe('unified pagination', () => {
     // Generate more than one page (pageSize is 20) of audited requests. The
     // admin's audit log also accumulates entries from every other spec in the
     // suite, so this test does not assume an exact total or a specific "last
-    // page" number — it only asserts internal consistency (the page the UI
-    // itself computes as "last" round-trips through the URL correctly).
+    // page" number.
     for (let i = 0; i < 25; i += 1) {
       await page.request.get('/api/v1/pages', { headers: { Authorization: `Bearer ${key}` } });
     }
@@ -62,7 +61,15 @@ test.describe('unified pagination', () => {
     await expect(nav.locator('[aria-label="First"]')).toHaveAttribute('aria-disabled', 'true');
     await expect(nav.locator('[aria-label="Previous"]')).toHaveAttribute('aria-disabled', 'true');
 
-    // Jump to the last page → the resulting page number survives a refresh (FR-021).
+    // proxy.ts now records every page visit as an audit entry, so the total
+    // count (and thus the "last page" number) grows with each navigation in
+    // this test. Every assertion below is internally consistent — compared
+    // against the UI's current notion of "last page" rather than a number
+    // captured earlier.
+
+    // The Last link's page param round-trips through the URL and survives a
+    // refresh (FR-021). A growing total can only add pages, so the captured
+    // page number stays valid across reload.
     const lastPageLink = nav.getByRole('link', { name: 'Last' });
     const lastPage = pageParam(await lastPageLink.getAttribute('href') ?? '');
     expect(lastPage).toBeTruthy();
@@ -71,7 +78,11 @@ test.describe('unified pagination', () => {
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`[?&]page=${lastPage}\\b`));
 
-    // On the last page, Next/Last are disabled (FR-022).
+    // On the last page, Next/Last are disabled (FR-022). Reach it via the
+    // clamp path (?page=99999) so the rendered response is the server's
+    // current last page regardless of prior count growth — the page-visit
+    // entry for this very navigation is written only after the response.
+    await page.goto('/admin/api-audit?page=99999');
     await expect(nav.locator('[aria-label="Next"]')).toHaveAttribute('aria-disabled', 'true');
     await expect(nav.locator('[aria-label="Last"]')).toHaveAttribute('aria-disabled', 'true');
 
@@ -81,8 +92,14 @@ test.describe('unified pagination', () => {
       await expect(page.getByRole('navigation', { name: 'Pagination' })).toBeVisible();
     }
 
-    // Beyond the last page clamps down to the same last real page (FR-023).
+    // Beyond the last page clamps down to the current last real page (FR-023).
+    // Re-read the expected last page from the resulting render so the
+    // assertion holds even though the total grew during the navigations above.
     await page.goto('/admin/api-audit?page=99999');
-    await expect(page).toHaveURL(new RegExp(`[?&]page=${lastPage}\\b`));
+    const clampedLast = pageParam(
+      await nav.getByRole('link', { name: 'Last' }).getAttribute('href') ?? '',
+    );
+    expect(clampedLast).toBeTruthy();
+    await expect(page).toHaveURL(new RegExp(`[?&]page=${clampedLast}\\b`));
   });
 });
