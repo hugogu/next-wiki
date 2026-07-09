@@ -1,23 +1,50 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextFetchEvent } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { resolveActorFromSession, SESSION_COOKIE } from '@/server/services/auth';
+import * as audit from '@/server/services/audit';
 
-const AUDIT_START_HEADER = 'x-audit-start';
-const AUDIT_PATH_HEADER = 'x-audit-path';
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (request.method !== 'GET') {
     return NextResponse.next();
   }
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(AUDIT_START_HEADER, String(Date.now()));
-  requestHeaders.set(AUDIT_PATH_HEADER, request.nextUrl.pathname);
+  const start = Date.now();
+  const path = request.nextUrl.pathname;
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  // Best-effort page audit logging via waitUntil so it runs after the response
+  // is sent without blocking it. This catches both full page loads (HTML) and
+  // client-side navigations (RSC data requests).
+  event.waitUntil(
+    (async () => {
+      const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
+      let userId: string | null = null;
+      let authStatus: 'authenticated' | 'anonymous' = 'anonymous';
+
+      if (sessionCookie) {
+        const actor = await resolveActorFromSession(sessionCookie);
+        if (actor?.kind === 'user') {
+          userId = actor.userId;
+          authStatus = 'authenticated';
+        }
+      }
+
+      await audit.writeEntry({
+        keyId: null,
+        userId,
+        entryType: 'page',
+        method: 'GET',
+        path,
+        statusCode: 200,
+        durationMs: Date.now() - start,
+        authStatus,
+        errorMessage: null,
+      });
+    })().catch(() => {
+      // Ignore audit logging failures so a logging problem never breaks pages.
+    }),
+  );
+
+  return NextResponse.next();
 }
 
 export const config = {
