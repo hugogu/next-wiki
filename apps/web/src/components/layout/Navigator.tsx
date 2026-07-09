@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { PageSummary } from '@next-wiki/shared';
+import type { PublicPageTreeNode } from '@next-wiki/shared';
 import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
+import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
 
@@ -27,39 +28,47 @@ type AdminNavItem = {
   icon: React.ReactNode;
 };
 
-type TreeNode = {
-  name: string;
-  path: string;
-  page?: PageSummary;
-  children: TreeNode[];
-};
+type LoadState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; children: LazyPublicPageTreeNode[] }
+  | { status: 'error'; message: string };
 
-function buildPageTree(pages: PageSummary[]): TreeNode[] {
-const root: TreeNode = { name: '', path: '', children: [] };
-
-for (const page of pages) {
-  const segments = page.path.split('/');
-  let current = root;
-  let builtPath = '';
-
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i]!;
-    builtPath = builtPath ? `${builtPath}/${segment}` : segment;
-
-  const existing = current.children.find((c) => c.name === segment);
-    if (existing) {
-      current = existing;
-    } else {
-      const created: TreeNode = { name: segment, path: builtPath, children: [] };
-  current.children.push(created);
-current = created;
-}
+/**
+ * Recursively attach a `hasChildren` flag to each node based on its nested
+ * `children` length. The server-rendered `LazyPublicPageTreeNode` carries the
+ * same flag already, but the public tree API returns plain
+ * `PublicPageTreeNode` and we need the flag locally to decide whether to
+ * render the expand chevron in the sidebar.
+ */
+function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNode[] {
+  return nodes.map((node) => ({
+    path: node.path,
+    segment: node.segment,
+    title: node.title,
+    pageId: node.pageId,
+    status: node.status,
+    hasChildren: node.children.length > 0,
+    children: withHasChildrenFlag(node.children),
+  }));
 }
 
-current.page = page;
+/**
+ * Fetch the children of a sidebar branch from the public tree API. Returns
+ * the same shape as the server-rendered payload so callers can splice the
+ * result into the existing tree without conversion.
+ */
+async function fetchBranchChildren(pathPrefix: string): Promise<LazyPublicPageTreeNode[]> {
+  const params = new URLSearchParams({ pathPrefix });
+  const response = await fetch(`/api/v1/tree?${params.toString()}`, {
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    throw new Error(`tree fetch failed: ${response.status}`);
   }
-
-return root.children;
+  const body = (await response.json()) as { root: PublicPageTreeNode };
+  return withHasChildrenFlag(body.root.children);
 }
 
 function TreeItem({
@@ -69,24 +78,36 @@ function TreeItem({
   onNavigate,
   expanded,
   onToggle,
+  loadState,
+  onLoad,
 }: {
-  node: TreeNode;
+  node: LazyPublicPageTreeNode;
   currentPath?: string;
   depth: number;
   onNavigate: () => void;
   expanded: Set<string>;
   onToggle: (path: string) => void;
+  loadState: LoadState;
+  onLoad: (path: string) => void;
 }) {
-  const active = node.page && node.page.path === currentPath;
-  const hasChildren = node.children.length > 0;
+  const active = node.pageId !== null && node.path === currentPath;
   const isOpen = expanded.has(node.path);
+  // Children we can render right now: pre-expanded ones from SSR, or ones
+  // the client has loaded lazily. Otherwise `node.children` stays empty.
+  const visibleChildren =
+    node.children.length > 0
+      ? node.children
+      : loadState.status === 'ok'
+        ? loadState.children
+        : [];
+  const hasVisibleChildren = visibleChildren.length > 0;
   const indent = { paddingLeft: `${depth * 0.6 + 0.25}rem` };
 
   return (
     <li>
-      {node.page ? (
+      {node.pageId ? (
         <Link
-          href={getPageHref(node.page.path)}
+          href={getPageHref(node.path)}
           onClick={onNavigate}
           className={`flex items-center gap-xs rounded-md px-sm py-1 text-sm min-w-0 transition-colors ${
             active
@@ -94,10 +115,10 @@ function TreeItem({
               : 'text-muted hover:text-foreground hover:bg-surface-elevated'
           }`}
           style={indent}
-          title={node.page.title}
+          title={node.title ?? undefined}
         >
           <FileTextIcon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{node.page.title || leafTitleFromPath(node.path)}</span>
+          <span className="truncate">{node.title || leafTitleFromPath(node.path)}</span>
         </Link>
       ) : (
         <button
@@ -106,27 +127,46 @@ function TreeItem({
           className="flex w-full items-center gap-xs rounded-md px-sm py-1 text-sm text-muted min-w-0 transition-colors hover:text-foreground hover:bg-surface-elevated"
           style={indent}
           aria-expanded={isOpen}
-          title={node.name}
+          title={node.segment}
         >
           <ChevronRightIcon className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
           <FolderIcon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{node.name}</span>
+          <span className="truncate">{node.segment}</span>
         </button>
       )}
 
-      {hasChildren && isOpen && (
+      {node.pageId === null && node.hasChildren && isOpen && (
         <ul>
-          {node.children.map((child) => (
-            <TreeItem
-              key={child.path}
-              node={child}
-              currentPath={currentPath}
-              depth={depth + 1}
-              onNavigate={onNavigate}
-              expanded={expanded}
-              onToggle={onToggle}
-            />
-          ))}
+          {hasVisibleChildren ? (
+            visibleChildren.map((child) => (
+              <TreeItem
+                key={child.path}
+                node={child}
+                currentPath={currentPath}
+                depth={depth + 1}
+                onNavigate={onNavigate}
+                expanded={expanded}
+                onToggle={onToggle}
+                loadState={{ status: 'idle' }}
+                onLoad={onLoad}
+              />
+            ))
+          ) : loadState.status === 'loading' ? (
+            <li style={indent} className="text-xs text-muted py-1" aria-busy="true">
+              {`…`}
+            </li>
+          ) : loadState.status === 'error' ? (
+            <li style={indent} className="text-xs text-danger py-1">
+              <button
+                type="button"
+                onClick={() => onLoad(node.path)}
+                className="hover:underline"
+                title={loadState.message}
+              >
+                retry
+              </button>
+            </li>
+          ) : null}
         </ul>
       )}
     </li>
@@ -134,14 +174,14 @@ function TreeItem({
 }
 
 export function Navigator({
-  pages,
+  tree,
   admin,
   userCenter,
   currentPath,
   isOpen,
   onClose,
 }: {
-  pages: PageSummary[];
+  tree: LazyPublicPageTreeNode[];
   admin?: boolean;
   userCenter?: boolean;
   currentPath?: string;
@@ -167,15 +207,67 @@ export function Navigator({
     { href: '/user-center/ai-sessions', label: t('userCenter.nav.aiSessions'), icon: <SparklesIcon className="shrink-0" /> },
     { href: '/user-center/audit', label: t('userCenter.nav.audit'), icon: <ClipboardListIcon className="shrink-0" /> },
   ];
-  const tree = buildPageTree(pages);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(ancestorPaths(currentPath)));
-  const toggle = (path: string) =>
+  const [branchCache, setBranchCache] = useState<Record<string, LazyPublicPageTreeNode[]>>({});
+  const [branchLoad, setBranchLoad] = useState<Record<string, 'loading' | 'error'>>({});
+  // Tracks paths we've already kicked off a fetch for in this lifetime so we
+  // don't fire duplicate requests when the user double-clicks a chevron.
+  const inflight = useRef<Set<string>>(new Set());
+
+  const toggle = (path: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
     });
+  };
+
+  const loadBranch = useCallback((path: string) => {
+    if (branchCache[path] || inflight.current.has(path)) return;
+    inflight.current.add(path);
+    setBranchLoad((prev) => ({ ...prev, [path]: 'loading' }));
+    fetchBranchChildren(path)
+      .then((children) => {
+        setBranchCache((prev) => ({ ...prev, [path]: children }));
+        setBranchLoad((prev) => {
+          const next = { ...prev };
+          delete next[path];
+          return next;
+        });
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'load failed';
+        setBranchLoad((prev) => ({ ...prev, [path]: 'error' }));
+        // Surface the underlying message in the console for debugging without
+        // breaking the UI; the chevron retry button keeps the sidebar usable.
+        // eslint-disable-next-line no-console
+        console.error('[Navigator] branch load failed', path, message);
+      })
+      .finally(() => {
+        inflight.current.delete(path);
+      });
+  }, [branchCache]);
+
+  // Whenever a new branch is expanded for the first time, fire a fetch.
+  // Collapsing does not drop the cache so re-expanding is instant.
+  useEffect(() => {
+    function findNode(nodes: LazyPublicPageTreeNode[], target: string): LazyPublicPageTreeNode | undefined {
+      for (const node of nodes) {
+        if (node.path === target) return node;
+        const found = findNode(node.children, target);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    for (const path of expanded) {
+      const node = findNode(tree, path);
+      if (!node) continue;
+      if (node.hasChildren && node.children.length === 0 && !branchCache[path] && !branchLoad[path]) {
+        loadBranch(path);
+      }
+    }
+  }, [expanded, tree, branchCache, branchLoad, loadBranch]);
 
   // Keep the page-tree scroll position across navigations (the nav remounts on
   // each page load, which would otherwise jump it back to the top).
@@ -269,21 +361,37 @@ export function Navigator({
                 );
               })}
             </ul>
-          ) : pages.length === 0 ? (
+          ) : tree.length === 0 ? (
             <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
           ) : (
             <ul className="space-y-0.5">
-              {tree.map((node) => (
-                <TreeItem
-                  key={node.path}
-                  node={node}
-                  currentPath={currentPath}
-                  depth={0}
-                  onNavigate={onClose}
-                  expanded={expanded}
-                  onToggle={toggle}
-                />
-              ))}
+              {tree.map((node) => {
+                const isOpen = expanded.has(node.path);
+                const cached = branchCache[node.path];
+                const loadKey = node.hasChildren && node.children.length === 0;
+                const loadState: LoadState = !loadKey
+                  ? { status: 'idle' }
+                  : cached
+                    ? { status: 'ok', children: cached }
+                    : branchLoad[node.path] === 'loading'
+                      ? { status: 'loading' }
+                      : branchLoad[node.path] === 'error'
+                        ? { status: 'error', message: t('layout.nav.loadError') }
+                        : { status: 'idle' };
+                return (
+                  <TreeItem
+                    key={node.path}
+                    node={node}
+                    currentPath={currentPath}
+                    depth={0}
+                    onNavigate={onClose}
+                    expanded={expanded}
+                    onToggle={toggle}
+                    loadState={loadState}
+                    onLoad={loadBranch}
+                  />
+                );
+              })}
             </ul>
           )}
         </nav>

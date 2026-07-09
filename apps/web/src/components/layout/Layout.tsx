@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import * as authService from '@/server/services/auth';
-import * as pageService from '@/server/services/pages';
+import * as publicContent from '@/server/services/public-content';
 import { buildAnonymousCtx } from '@/server/permissions';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
 import { getMyEntitlements } from '@/server/services/ai-entitlements';
 import { getSiteView } from '@/server/services/site-settings';
 import { Footer } from '@/components/ui/Footer';
+import { sparsifyTree } from '@/lib/page-tree';
 
 export async function Layout({
   children,
@@ -31,7 +32,15 @@ export async function Layout({
     }
   }
 
-  const pages = await pageService.listPublished(buildAnonymousCtx());
+  // Sidebar page tree: ship only top-level nodes plus the full subtree of
+  // every node that lies on the current page's ancestor chain. Other branches
+  // start collapsed with a `hasChildren` flag so the client can lazy-load them
+  // on expand via `/api/v1/tree?pathPrefix=…`. This keeps the initial HTML
+  // payload proportional to sidebar depth instead of wiki size.
+  const treeResult = await publicContent.getPageTree(buildAnonymousCtx(), {
+    status: 'published',
+  });
+  const tree = sparsifyTree(treeResult.root, pageContext?.path);
   const aiEntitlements =
     actor.kind === 'user'
       ? await getMyEntitlements({ actor }).catch(() => null)
@@ -41,7 +50,7 @@ export async function Layout({
   return (
     <AppShell
       user={actor}
-      pages={pages}
+      tree={tree}
       pageContext={pageContext}
       admin={admin}
       userCenter={userCenter}

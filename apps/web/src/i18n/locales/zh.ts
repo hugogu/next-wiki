@@ -225,6 +225,7 @@ export const zh: Translations = {
   'layout.nav.adminTitle': '管理',
   'layout.nav.closeButton': '关闭导航',
   'layout.nav.empty': '暂无已发布页面。',
+  'layout.nav.loadError': '加载失败，点击重试。',
 
   // Admin
   'admin.title': '管理',

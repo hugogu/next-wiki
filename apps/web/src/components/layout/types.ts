@@ -1,5 +1,6 @@
 import type { Actor } from '@/server/permissions';
-import type { AiEntitlementView, PageSummary } from '@next-wiki/shared';
+import type { AiEntitlementView } from '@next-wiki/shared';
+import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 
 export type PageContext = {
   pageId?: string;
@@ -14,7 +15,13 @@ export type PageContext = {
 
 export type AppShellProps = {
   user: Actor;
-  pages: PageSummary[];
+  /**
+   * Top-level sidebar entries, each carrying `hasChildren` to indicate
+   * whether the node has descendants on the server. The current page's
+   * ancestor chain is pre-expanded; other branches are empty arrays that the
+   * Navigator hydrates lazily via `/api/v1/tree?pathPrefix=…`.
+   */
+  tree: LazyPublicPageTreeNode[];
   pageContext?: PageContext;
   admin?: boolean;
   userCenter?: boolean;
