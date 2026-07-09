@@ -78,11 +78,16 @@ test.describe('unified pagination', () => {
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`[?&]page=${lastPage}\\b`));
 
-    // On the last page, Next/Last are disabled (FR-022). Reach it via the
-    // clamp path (?page=99999) so the rendered response is the server's
-    // current last page regardless of prior count growth — the page-visit
-    // entry for this very navigation is written only after the response.
+    // On the last page, Next/Last are disabled (FR-022) and a page beyond the
+    // last clamps down to it (FR-023). Reach the last page via the clamp path
+    // (?page=99999): the server response is its current last page, and that
+    // navigation's own audit entry is written only after the response — so the
+    // rendered page is guaranteed to be the last page regardless of prior count
+    // growth. On the last page the Next/Last controls render as disabled
+    // <span>s (not links), so match them by aria-label and assert the URL no
+    // longer holds the out-of-range value.
     await page.goto('/admin/api-audit?page=99999');
+    await expect(page).not.toHaveURL(/[?&]page=99999/);
     await expect(nav.locator('[aria-label="Next"]')).toHaveAttribute('aria-disabled', 'true');
     await expect(nav.locator('[aria-label="Last"]')).toHaveAttribute('aria-disabled', 'true');
 
@@ -91,15 +96,5 @@ test.describe('unified pagination', () => {
       await page.goto(`/admin/api-audit?page=${bad}`);
       await expect(page.getByRole('navigation', { name: 'Pagination' })).toBeVisible();
     }
-
-    // Beyond the last page clamps down to the current last real page (FR-023).
-    // Re-read the expected last page from the resulting render so the
-    // assertion holds even though the total grew during the navigations above.
-    await page.goto('/admin/api-audit?page=99999');
-    const clampedLast = pageParam(
-      await nav.getByRole('link', { name: 'Last' }).getAttribute('href') ?? '',
-    );
-    expect(clampedLast).toBeTruthy();
-    await expect(page).toHaveURL(new RegExp(`[?&]page=${clampedLast}\\b`));
   });
 });
