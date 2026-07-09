@@ -228,7 +228,7 @@ export const en = {
   'admin.nav.users': 'Users',
   'admin.nav.pages': 'Pages',
   'admin.nav.storage': 'Content Storage',
-  'admin.nav.apiAudit': 'API Audit',
+  'admin.nav.apiAudit': 'Access Log',
   'admin.nav.transfers': 'Import / Export',
   'admin.nav.appearance': 'Appearance',
 
@@ -640,8 +640,8 @@ export const en = {
   'userCenter.audit.allKeys': 'All keys',
 
   // Admin Audit
-  'admin.apiAudit.metadataTitle': 'API Audit',
-  'admin.apiAudit.title': 'API Audit',
+  'admin.apiAudit.metadataTitle': 'Access Log',
+  'admin.apiAudit.title': 'Access Log',
   'admin.apiAudit.user': 'User',
   'admin.apiAudit.keyName': 'Key',
   'admin.apiAudit.method': 'Method',

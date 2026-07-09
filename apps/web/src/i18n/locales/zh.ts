@@ -228,7 +228,7 @@ export const zh: Translations = {
   'admin.nav.users': '用户',
   'admin.nav.pages': '页面',
   'admin.nav.storage': '内容存储',
-  'admin.nav.apiAudit': 'API 审计',
+  'admin.nav.apiAudit': '访问日志',
   'admin.nav.transfers': '导入 / 导出',
   'admin.nav.appearance': '外观',
 
@@ -622,8 +622,8 @@ export const zh: Translations = {
   'userCenter.audit.allKeys': '全部密钥',
 
   // Admin Audit
-  'admin.apiAudit.metadataTitle': 'API 审计',
-  'admin.apiAudit.title': 'API 审计',
+  'admin.apiAudit.metadataTitle': '访问日志',
+  'admin.apiAudit.title': '访问日志',
   'admin.apiAudit.user': '用户',
   'admin.apiAudit.keyName': '密钥',
   'admin.apiAudit.method': '方法',

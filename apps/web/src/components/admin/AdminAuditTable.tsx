@@ -192,6 +192,13 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Dropdown filters apply immediately (page reset to 1).
+  const applyFilter = (key: keyof typeof filters, value: string) => {
+    const nextFilters = { ...filters, [key]: value };
+    setFilters(nextFilters);
+    router.push(`${pathname}?${buildAuditParams(nextFilters, 1, data.pageSize).toString()}`);
+  };
+
   // Applying filters writes them to the URL (page reset to 1) and triggers the
   // fetch effect, making filters shareable via the address bar.
   const handleApply = () => {
@@ -217,7 +224,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           <Select
               id={statusId}
               value={filters.status}
-              onChange={(e) => updateFilter('status', e.target.value)}
+              onChange={(e) => applyFilter('status', e.target.value)}
             >
               <option value="">{t('userCenter.audit.all')}</option>
               <option value="success">{t('userCenter.audit.success')}</option>
@@ -229,7 +236,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           <Select
               id={methodId}
               value={filters.method}
-              onChange={(e) => updateFilter('method', e.target.value)}
+              onChange={(e) => applyFilter('method', e.target.value)}
             >
               {METHOD_OPTIONS.map((method) => (
                 <option key={method || 'all'} value={method}>
@@ -243,7 +250,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           <Select
               id={entryTypeId}
               value={filters.entryType}
-              onChange={(e) => updateFilter('entryType', e.target.value)}
+              onChange={(e) => applyFilter('entryType', e.target.value)}
             >
               {ENTRY_TYPE_OPTIONS.map((option) => (
                 <option key={option.value || 'all'} value={option.value}>
