@@ -9,7 +9,7 @@ import type { Actor, PermCtx } from '@/server/permissions';
 import * as apiKeys from '@/server/services/api-keys';
 import { hasAnyAdmin } from '@/server/services/users';
 
-const SESSION_COOKIE = 'next-wiki-session';
+export const SESSION_COOKIE = 'next-wiki-session';
 const SESSION_MAX_AGE_DAYS = 30;
 
 export type ResolvedActor = {

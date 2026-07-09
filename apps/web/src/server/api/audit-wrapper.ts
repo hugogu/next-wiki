@@ -65,6 +65,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
         await audit.writeEntry({
           keyId: null,
           userId: null,
+          entryType: 'api',
           method,
           path,
           statusCode: status,
@@ -100,6 +101,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
         await audit.writeEntry({
           keyId: resolved.apiKeyInfo?.keyId ?? null,
           userId: resolved.apiKeyInfo?.userId ?? (resolved.actor?.kind === 'user' ? resolved.actor.userId : null),
+          entryType: 'api',
           method,
           path,
           statusCode: status,

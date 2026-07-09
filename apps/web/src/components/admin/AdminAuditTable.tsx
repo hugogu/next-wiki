@@ -25,6 +25,11 @@ function parsePage(raw: string | null): number {
 }
 
 const METHOD_OPTIONS = ['', 'GET', 'POST', 'PATCH', 'PUT', 'DELETE'];
+const ENTRY_TYPE_OPTIONS: { value: '' | 'page' | 'api'; key: 'admin.apiAudit.all' | 'admin.apiAudit.page' | 'admin.apiAudit.api' }[] = [
+  { value: '', key: 'admin.apiAudit.all' },
+  { value: 'page', key: 'admin.apiAudit.page' },
+  { value: 'api', key: 'admin.apiAudit.api' },
+];
 
 const STATUS_COLORS: Record<number, string> = {
   2: 'text-success',
@@ -46,6 +51,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
   const userIdId = useId();
   const statusId = useId();
   const methodId = useId();
+  const entryTypeId = useId();
   const pathId = useId();
   const startTimeId = useId();
   const endTimeId = useId();
@@ -61,6 +67,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
     userId: '',
     status: '',
     method: '',
+    entryType: '',
     path: '',
     startTime: '',
     endTime: '',
@@ -74,6 +81,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
       if (filters.userId) params.set('userId', filters.userId);
       if (filters.status) params.set('status', filters.status);
       if (filters.method) params.set('method', filters.method);
+      if (filters.entryType) params.set('entryType', filters.entryType);
       if (filters.path) params.set('path', filters.path);
       if (filters.startTime) params.set('startTime', new Date(filters.startTime).toISOString());
       if (filters.endTime) params.set('endTime', new Date(filters.endTime).toISOString());
@@ -136,7 +144,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
 
   return (
     <div className="space-y-md">
-      <div className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.15fr)_9rem_8rem_minmax(0,1.25fr)_11rem_11rem_auto]">
+      <div className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.15fr)_9rem_8rem_8rem_minmax(0,1.25fr)_11rem_11rem_auto]">
         <div>
           <label htmlFor={userIdId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.filterByUser')}</label>
           <input
@@ -170,6 +178,20 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
               {METHOD_OPTIONS.map((method) => (
                 <option key={method || 'all'} value={method}>
                   {method || t('userCenter.audit.all')}
+                </option>
+              ))}
+          </Select>
+        </div>
+        <div>
+          <label htmlFor={entryTypeId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.entryType')}</label>
+          <Select
+              id={entryTypeId}
+              value={filters.entryType}
+              onChange={(e) => updateFilter('entryType', e.target.value)}
+            >
+              {ENTRY_TYPE_OPTIONS.map((option) => (
+                <option key={option.value || 'all'} value={option.value}>
+                  {t(option.key)}
                 </option>
               ))}
           </Select>

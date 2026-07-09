@@ -1,0 +1,2 @@
+ALTER TABLE "api_audit_entries" ADD COLUMN "entry_type" text DEFAULT 'api' NOT NULL;--> statement-breakpoint
+CREATE INDEX "api_audit_entries_entry_type_created_at_index" ON "api_audit_entries" USING btree ("entry_type","created_at");

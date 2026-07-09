@@ -657,6 +657,10 @@ export const en = {
   'admin.apiAudit.to': 'To',
   'admin.apiAudit.allUsers': 'All users',
   'admin.apiAudit.noEntries': 'No audit entries match the filters.',
+  'admin.apiAudit.entryType': 'Type',
+  'admin.apiAudit.all': 'All',
+  'admin.apiAudit.page': 'Page',
+  'admin.apiAudit.api': 'API',
 
   'userCenter.apiKeys.title': 'API Keys',
   'userCenter.apiKeys.createButton': 'Create API key',

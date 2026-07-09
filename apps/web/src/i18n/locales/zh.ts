@@ -639,6 +639,10 @@ export const zh: Translations = {
   'admin.apiAudit.to': '结束',
   'admin.apiAudit.allUsers': '全部用户',
   'admin.apiAudit.noEntries': '没有符合筛选条件的审计记录。',
+  'admin.apiAudit.entryType': '类型',
+  'admin.apiAudit.all': '全部',
+  'admin.apiAudit.page': '页面',
+  'admin.apiAudit.api': 'API',
 
   'userCenter.apiKeys.title': 'API 密钥',
   'userCenter.apiKeys.createButton': '创建 API 密钥',

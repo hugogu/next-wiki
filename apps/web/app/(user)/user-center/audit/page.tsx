@@ -32,7 +32,7 @@ export default async function AuditPage() {
 
   return (
     <div className="w-full min-w-0">
-      <AuditLogTable initialData={initialData} fetchUrl="/api/audit" keys={keys.map((k) => ({ id: k.id, name: k.name }))} />
+      <AuditLogTable initialData={initialData} fetchUrl="/api/audit" entryType="api" keys={keys.map((k) => ({ id: k.id, name: k.name }))} />
     </div>
   );
 }

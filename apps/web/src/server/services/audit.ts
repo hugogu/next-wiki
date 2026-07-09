@@ -3,11 +3,12 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { can, type PermCtx } from '@/server/permissions';
-import type { AuditQueryParams, AuditListResponse, AuthStatus } from '@next-wiki/shared';
+import type { AuditQueryParams, AuditListResponse, AuthStatus, AuditEntryType } from '@next-wiki/shared';
 
 export type AuditEntryInput = {
   keyId: string | null;
   userId: string | null;
+  entryType: AuditEntryType;
   method: string;
   path: string;
   statusCode: number;
@@ -20,6 +21,7 @@ export async function writeEntry(input: AuditEntryInput): Promise<void> {
   await db.insert(schema.apiAuditEntries).values({
     keyId: input.keyId,
     userId: input.userId,
+    entryType: input.entryType,
     method: input.method,
     path: input.path,
     statusCode: input.statusCode,
@@ -47,6 +49,7 @@ function mapEntry(row: {
   id: string;
   keyId: string | null;
   userId: string | null;
+  entryType: string;
   method: string;
   path: string;
   statusCode: number;
@@ -63,6 +66,7 @@ function mapEntry(row: {
     keyName: row.key?.name ?? null,
     userId: row.userId,
     userEmail: row.user?.email ?? null,
+    entryType: row.entryType as AuditEntryType,
     method: row.method,
     path: row.path,
     statusCode: row.statusCode,
@@ -86,6 +90,7 @@ export async function listOwn(
 
   const conditions: SQL[] = [eq(schema.apiAuditEntries.userId, userId)];
   if (params.keyId) conditions.push(eq(schema.apiAuditEntries.keyId, params.keyId));
+  if (params.entryType) conditions.push(eq(schema.apiAuditEntries.entryType, params.entryType));
   const statusFilter = mapStatusFilter(params.status);
 
   const where = statusFilter ? and(...conditions, statusFilter) : and(...conditions);
@@ -126,6 +131,7 @@ export async function listAll(
   if (params.path) conditions.push(sql`${schema.apiAuditEntries.path} LIKE ${`${params.path}%`}`);
   if (params.startTime) conditions.push(gte(schema.apiAuditEntries.createdAt, params.startTime));
   if (params.endTime) conditions.push(lte(schema.apiAuditEntries.createdAt, params.endTime));
+  if (params.entryType) conditions.push(eq(schema.apiAuditEntries.entryType, params.entryType));
 
   const statusFilter = mapStatusFilter(params.status);
   if (statusFilter) conditions.push(statusFilter);

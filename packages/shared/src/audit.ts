@@ -6,8 +6,12 @@ export const authStatusSchema = z.enum([
   'revoked_key',
   'disabled_user',
   'malformed_token',
+  'anonymous',
 ]);
 export type AuthStatus = z.infer<typeof authStatusSchema>;
+
+export const auditEntryTypeSchema = z.enum(['api', 'page']);
+export type AuditEntryType = z.infer<typeof auditEntryTypeSchema>;
 
 export const auditEntrySchema = z.object({
   id: z.string(),
@@ -15,6 +19,7 @@ export const auditEntrySchema = z.object({
   keyName: z.string().nullable(),
   userId: z.string().nullable(),
   userEmail: z.string().nullable(),
+  entryType: auditEntryTypeSchema,
   method: z.string(),
   path: z.string(),
   statusCode: z.number(),
@@ -35,6 +40,7 @@ export const auditQueryParamsSchema = z.object({
   path: z.string().optional(),
   startTime: z.coerce.date().optional(),
   endTime: z.coerce.date().optional(),
+  entryType: auditEntryTypeSchema.optional(),
 });
 export type AuditQueryParams = z.infer<typeof auditQueryParamsSchema>;
 

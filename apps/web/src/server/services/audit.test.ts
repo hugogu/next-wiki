@@ -40,6 +40,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: userA.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -50,6 +51,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: userB.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -74,6 +76,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: keyA.id,
         userId: user.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -84,6 +87,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: keyB.id,
         userId: user.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -106,6 +110,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: user.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -116,6 +121,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: user.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/missing',
         statusCode: 404,
@@ -126,6 +132,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: user.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/boom',
         statusCode: 500,
@@ -137,6 +144,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: user.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/early',
         statusCode: 102,
@@ -160,6 +168,7 @@ describe('audit service', () => {
         await auditService.writeEntry({
           keyId: null,
           userId: user.id,
+          entryType: 'api',
           method: 'GET',
           path: `/api/s${statusCode}`,
           statusCode,
@@ -176,6 +185,48 @@ describe('audit service', () => {
       });
       expect(result.entries).toHaveLength(2);
       expect(result.entries.every((e) => e.statusCode >= 200 && e.statusCode < 400)).toBe(true);
+    });
+
+    it('filters by entryType', async () => {
+      const user = await createTestUser('audit-type@example.com');
+      await auditService.writeEntry({
+        keyId: null,
+        userId: user.id,
+        entryType: 'api',
+        method: 'GET',
+        path: '/api/v1/pages',
+        statusCode: 200,
+        durationMs: 10,
+        authStatus: 'authenticated',
+        errorMessage: null,
+      });
+      await auditService.writeEntry({
+        keyId: null,
+        userId: user.id,
+        entryType: 'page',
+        method: 'GET',
+        path: '/docs',
+        statusCode: 200,
+        durationMs: 0,
+        authStatus: 'authenticated',
+        errorMessage: null,
+      });
+
+      const apiOnly = await auditService.listOwn(buildUserCtx(user.id, user.role), {
+        page: 1,
+        pageSize: 20,
+        entryType: 'api',
+      });
+      expect(apiOnly.entries).toHaveLength(1);
+      expect(apiOnly.entries[0]!.entryType).toBe('api');
+
+      const pageOnly = await auditService.listOwn(buildUserCtx(user.id, user.role), {
+        page: 1,
+        pageSize: 20,
+        entryType: 'page',
+      });
+      expect(pageOnly.entries).toHaveLength(1);
+      expect(pageOnly.entries[0]!.entryType).toBe('page');
     });
   });
 
@@ -195,6 +246,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: userA.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -205,6 +257,7 @@ describe('audit service', () => {
       await auditService.writeEntry({
         keyId: null,
         userId: userB.id,
+        entryType: 'api',
         method: 'GET',
         path: '/api/v1/pages',
         statusCode: 200,
@@ -225,6 +278,56 @@ describe('audit service', () => {
         userId: userA.id,
       });
       expect(filtered.entries.every((e) => e.userId === userA.id)).toBe(true);
+    });
+
+    it('filters by entryType', async () => {
+      const admin = await createTestUser('audit-all-type@example.com', 'admin');
+      const user = await createTestUser('audit-all-type-user@example.com');
+      await auditService.writeEntry({
+        keyId: null,
+        userId: user.id,
+        entryType: 'api',
+        method: 'GET',
+        path: '/api/v1/pages',
+        statusCode: 200,
+        durationMs: 10,
+        authStatus: 'authenticated',
+        errorMessage: null,
+      });
+      await auditService.writeEntry({
+        keyId: null,
+        userId: user.id,
+        entryType: 'page',
+        method: 'GET',
+        path: '/docs',
+        statusCode: 200,
+        durationMs: 0,
+        authStatus: 'authenticated',
+        errorMessage: null,
+      });
+
+      const all = await auditService.listAll(buildUserCtx(admin.id, admin.role), {
+        page: 1,
+        pageSize: 20,
+      });
+      const userEntries = all.entries.filter((e) => e.userId === user.id);
+      expect(userEntries.length).toBeGreaterThanOrEqual(2);
+
+      const apiOnly = await auditService.listAll(buildUserCtx(admin.id, admin.role), {
+        page: 1,
+        pageSize: 20,
+        entryType: 'api',
+      });
+      expect(apiOnly.entries.some((e) => e.userId === user.id && e.entryType === 'api')).toBe(true);
+      expect(apiOnly.entries.every((e) => e.entryType === 'api')).toBe(true);
+
+      const pageOnly = await auditService.listAll(buildUserCtx(admin.id, admin.role), {
+        page: 1,
+        pageSize: 20,
+        entryType: 'page',
+      });
+      expect(pageOnly.entries.some((e) => e.userId === user.id && e.entryType === 'page')).toBe(true);
+      expect(pageOnly.entries.every((e) => e.entryType === 'page')).toBe(true);
     });
 
     it('filters by time range', async () => {

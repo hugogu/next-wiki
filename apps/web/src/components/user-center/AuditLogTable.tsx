@@ -31,9 +31,10 @@ interface AuditLogTableProps {
   initialData: AuditListResponse;
   fetchUrl: string;
   keys?: { id: string; name: string }[];
+  entryType?: string;
 }
 
-export function AuditLogTable({ initialData, fetchUrl, keys }: AuditLogTableProps) {
+export function AuditLogTable({ initialData, fetchUrl, keys, entryType }: AuditLogTableProps) {
   const { t, locale } = useTranslation();
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
@@ -48,9 +49,10 @@ export function AuditLogTable({ initialData, fetchUrl, keys }: AuditLogTableProp
       params.set('pageSize', String(data.pageSize));
       if (keyId) params.set('keyId', keyId);
       if (status) params.set('status', status);
+      if (entryType) params.set('entryType', entryType);
       return params;
     },
-    [keyId, status, data.pageSize],
+    [keyId, status, entryType, data.pageSize],
   );
 
   const fetchPage = useCallback(

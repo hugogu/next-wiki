@@ -216,6 +216,7 @@ export const apiAuditEntries = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     keyId: uuid('key_id').references(() => apiKeys.id, { onDelete: 'cascade' }),
     userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    entryType: text('entry_type').notNull().default('api'),
     method: text('method').notNull(),
     path: text('path').notNull(),
     statusCode: integer('status_code').notNull(),
@@ -229,6 +230,7 @@ export const apiAuditEntries = pgTable(
     createdAtIdx: index().on(t.createdAt),
     keyCreatedIdx: index().on(t.keyId, t.createdAt),
     statusCodeIdx: index().on(t.statusCode),
+    entryTypeCreatedIdx: index().on(t.entryType, t.createdAt),
   }),
 );
 
