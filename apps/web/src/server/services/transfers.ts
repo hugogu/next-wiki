@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, type SQL } from 'drizzle-orm';
 import type {
   TransferCleanupResult,
   TransferItemList,
@@ -71,11 +71,12 @@ function runView(row: RunRow): TransferRunView {
       ACTIVE.includes(row.status as (typeof ACTIVE)[number]) &&
       PAUSABLE_KINDS.includes(row.kind as (typeof PAUSABLE_KINDS)[number]),
     canResume: row.status === 'paused',
-    // Offer cleanup only for a finished import that actually created pages.
+    // Offer cleanup for a finished import that wrote any pages (created or
+    // replaced; converted is a subset of those, so it needs no separate term).
     canCleanup:
       CLEANABLE_KINDS.includes(row.kind as (typeof CLEANABLE_KINDS)[number]) &&
       TERMINAL.includes(row.status as (typeof TERMINAL)[number]) &&
-      row.createdItems > 0,
+      row.createdItems + row.replacedItems > 0,
   };
 }
 
@@ -309,9 +310,10 @@ export async function cleanupRun(ctx: PermCtx, id: string): Promise<TransferClea
   if (!TERMINAL.includes(row.status as (typeof TERMINAL)[number])) {
     throw new DomainError('RUN_NOT_CLEANABLE', 'Only a finished transfer run can be cleaned up');
   }
-  // Pages this run created. `action` shows 'convert' for converted pages, so
-  // also consult the create/replace value persisted in item metadata.
-  const created = await db
+  // Every page this run wrote — created, replaced, or converted. Skips are
+  // excluded: the import deliberately left those pages untouched, so cleanup
+  // must not delete them.
+  const written = await db
     .select({ pageId: schema.transferItems.targetKey })
     .from(schema.transferItems)
     .where(
@@ -319,13 +321,10 @@ export async function cleanupRun(ctx: PermCtx, id: string): Promise<TransferClea
         eq(schema.transferItems.runId, id),
         eq(schema.transferItems.kind, 'page'),
         isNotNull(schema.transferItems.targetKey),
-        or(
-          eq(schema.transferItems.action, 'create'),
-          sql`${schema.transferItems.metadata} ->> 'importAction' = 'create'`,
-        ),
+        inArray(schema.transferItems.action, ['create', 'replace', 'convert']),
       ),
     );
-  const pageIds = created.map((item) => item.pageId).filter((value): value is string => Boolean(value));
+  const pageIds = written.map((item) => item.pageId).filter((value): value is string => Boolean(value));
   if (!pageIds.length) return { id, deletedPages: 0 };
   // Only touch pages that still exist so a re-run is a no-op.
   const existing = await db

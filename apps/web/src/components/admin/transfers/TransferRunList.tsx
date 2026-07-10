@@ -89,7 +89,7 @@ function RunActions({ run }: { run: TransferRunView }) {
       {confirmingCleanup && (
         <ConfirmDialog
           title={t('admin.transfers.actions.cleanup')}
-          message={t('admin.transfers.detail.cleanupConfirm', { count: run.createdItems })}
+          message={t('admin.transfers.detail.cleanupConfirm', { count: run.createdItems + run.replacedItems })}
           confirmLabel={t('admin.transfers.actions.cleanup')}
           confirmVariant="danger"
           pending={cleanup.isPending}

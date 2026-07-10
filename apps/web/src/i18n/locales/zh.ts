@@ -358,7 +358,7 @@ export const zh: Translations = {
   'admin.transfers.history.empty': '暂无导入导出运行记录。',
   'admin.transfers.detail.warningCount': '{{count}} 项警告',
   'admin.transfers.detail.noItems': '暂无明细项。',
-  'admin.transfers.detail.cleanupConfirm': '删除本次导入创建的 {{count}} 个页面并从 AI 索引中移除？仅被替换的既有页面不受影响。此操作不可撤销。',
+  'admin.transfers.detail.cleanupConfirm': '删除本次导入创建或替换的 {{count}} 个页面并从 AI 索引中移除？被跳过的页面不受影响。此操作不可撤销。',
   'admin.transfers.detail.cleanupDone': '已删除 {{count}} 个导入的页面。',
   'admin.transfers.detail.filter.all': '全部',
   'admin.transfers.detail.filter.warning': '警告',

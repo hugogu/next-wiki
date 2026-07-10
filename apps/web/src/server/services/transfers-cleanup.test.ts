@@ -23,6 +23,10 @@ async function seedRun(status: 'completed' | 'running', kind: 'wikijs_import' | 
     .insert(schema.pages)
     .values({ spaceId: space!.id, slug: 'replaced', path: 'imp/replaced', title: 'Replaced', authorId: admin!.id })
     .returning();
+  const [skippedPage] = await db
+    .insert(schema.pages)
+    .values({ spaceId: space!.id, slug: 'skipped', path: 'imp/skipped', title: 'Skipped', authorId: admin!.id })
+    .returning();
   const [run] = await db
     .insert(schema.transferRuns)
     .values({
@@ -30,23 +34,25 @@ async function seedRun(status: 'completed' | 'running', kind: 'wikijs_import' | 
       status,
       actorUserId: admin!.id,
       createdItems: 1,
+      replacedItems: 1,
+      skippedItems: 1,
       options: {},
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
   await db.insert(schema.transferItems).values([
-    {
-      runId: run!.id, kind: 'page', sourceKey: '1', displayName: 'created',
-      targetKey: createdPage!.id, action: 'create', status: 'completed',
-      metadata: { importAction: 'create' },
-    },
-    {
-      runId: run!.id, kind: 'page', sourceKey: '2', displayName: 'replaced',
-      targetKey: replacedPage!.id, action: 'replace', status: 'completed',
-      metadata: { importAction: 'replace' },
-    },
+    { runId: run!.id, kind: 'page', sourceKey: '1', displayName: 'created', targetKey: createdPage!.id, action: 'create', status: 'completed', metadata: {} },
+    { runId: run!.id, kind: 'page', sourceKey: '2', displayName: 'replaced', targetKey: replacedPage!.id, action: 'replace', status: 'completed', metadata: {} },
+    // Skips point at an existing page the import deliberately left alone.
+    { runId: run!.id, kind: 'page', sourceKey: '3', displayName: 'skipped', targetKey: skippedPage!.id, action: 'skip', status: 'completed', metadata: {} },
   ]);
-  return { adminId: admin!.id, runId: run!.id, createdPageId: createdPage!.id, replacedPageId: replacedPage!.id };
+  return {
+    adminId: admin!.id,
+    runId: run!.id,
+    createdPageId: createdPage!.id,
+    replacedPageId: replacedPage!.id,
+    skippedPageId: skippedPage!.id,
+  };
 }
 
 describe('transfer run cleanup', () => {
@@ -58,17 +64,19 @@ describe('transfer run cleanup', () => {
     await closeDb();
   });
 
-  it('soft-deletes only the pages the run created, and is idempotent', async () => {
-    const { adminId, runId, createdPageId, replacedPageId } = await seedRun('completed');
+  it('soft-deletes the pages the run wrote (not skips), and is idempotent', async () => {
+    const { adminId, runId, createdPageId, replacedPageId, skippedPageId } = await seedRun('completed');
     const ctx = buildUserCtx(adminId, 'admin');
 
     const result = await cleanupRun(ctx, runId);
-    expect(result.deletedPages).toBe(1);
+    expect(result.deletedPages).toBe(2);
 
     const created = await db.query.pages.findFirst({ where: eq(schema.pages.id, createdPageId) });
     const replaced = await db.query.pages.findFirst({ where: eq(schema.pages.id, replacedPageId) });
+    const skipped = await db.query.pages.findFirst({ where: eq(schema.pages.id, skippedPageId) });
     expect(created?.deletedAt).not.toBeNull(); // created page removed
-    expect(replaced?.deletedAt).toBeNull(); // replaced (pre-existing) page kept
+    expect(replaced?.deletedAt).not.toBeNull(); // replaced page removed too
+    expect(skipped?.deletedAt).toBeNull(); // skipped page left untouched
 
     // Re-running deletes nothing more.
     expect((await cleanupRun(ctx, runId)).deletedPages).toBe(0);
