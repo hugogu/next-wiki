@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Select } from '@/components/ui/Select';
-import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
@@ -52,7 +51,6 @@ export function ProviderForm({
   const [apiKey, setApiKey] = useState('');
   const [manualModelId, setManualModelId] = useState('');
   const [embeddingDimensions, setEmbeddingDimensions] = useState('');
-  const [allCapabilities, setAllCapabilities] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -106,45 +104,36 @@ export function ProviderForm({
         setSaving(true);
         setError(null);
         try {
-          const typesToCreate: AiProviderType[] =
-            allCapabilities && vendor === 'openrouter'
-              ? ['chat', 'embedding', 'image']
-              : [type];
-          let lastProvider: AiProviderView | null = null;
-          for (const createType of typesToCreate) {
-            const provider = await apiPost<unknown, AiProviderView>('/api/ai/providers', {
-              name: effectiveName,
-              type: createType,
-              vendor,
-              baseUrl,
-              config: {},
-              credentials: { apiKey },
-              enabled: true,
+          const provider = await apiPost<unknown, AiProviderView>('/api/ai/providers', {
+            name: effectiveName,
+            type,
+            vendor,
+            baseUrl,
+            config: {},
+            credentials: { apiKey },
+            enabled: true,
+          });
+          if (manualModel && manualModelId) {
+            await apiPost(`/api/ai/providers/${provider.id}/models`, {
+              externalId: manualModelId,
+              displayName: manualModelId,
+              ...(type === 'embedding'
+                ? { embeddingDimensions: Number(embeddingDimensions) }
+                : {}),
             });
-            lastProvider = provider;
-            if (manualModel && manualModelId) {
-              await apiPost(`/api/ai/providers/${provider.id}/models`, {
-                externalId: manualModelId,
-                displayName: manualModelId,
-                ...(createType === 'embedding'
-                  ? { embeddingDimensions: Number(embeddingDimensions) }
-                  : {}),
-              });
-            }
+          } else if (!manualModel) {
             // Auto-sync models when the vendor supports discovery, so the admin
             // doesn't have to manually click "Sync" after creating a provider.
-            if (!manualModel) {
-              try {
-                await apiPost<Record<string, never>, unknown>(
-                  `/api/ai/providers/${provider.id}/model-syncs`,
-                  {},
-                );
-              } catch {
-                // Sync is best-effort; the provider was created successfully.
-              }
+            try {
+              await apiPost<Record<string, never>, unknown>(
+                `/api/ai/providers/${provider.id}/model-syncs`,
+                {},
+              );
+            } catch {
+              // Sync is best-effort; the provider was created successfully.
             }
           }
-          onCreated(lastProvider!);
+          onCreated(provider);
         } catch (value) {
           setError((value as ApiError).message ?? t('admin.ai.error.generic'));
           setSaving(false);
@@ -211,15 +200,6 @@ export function ProviderForm({
         <span className="text-sm font-medium">{t('admin.ai.providers.apiKey')}</span>
         <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} required />
       </label>
-      {vendor === 'openrouter' && (
-        <label className="flex items-center gap-sm">
-          <Switch
-            checked={allCapabilities}
-            onClick={() => setAllCapabilities((prev) => !prev)}
-          />
-          <span className="text-sm text-muted">{t('admin.ai.providers.allCapabilities')}</span>
-        </label>
-      )}
       {testResult && (
         <p className={`text-sm ${testResult.ok ? 'text-success' : 'text-danger'}`}>{testResult.text}</p>
       )}

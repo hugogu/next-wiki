@@ -127,7 +127,55 @@ export async function updateSettings(ctx: PermCtx, input: AiSettingsUpdate) {
     .values({ id: 'default', ...values })
     .onConflictDoUpdate({ target: schema.aiSettings.id, set: values })
     .returning();
+  // The detector key is an OpenRouter key, so it can double as the credential
+  // for a full set of OpenRouter providers when the admin opts in.
+  if (input.registerOpenRouterProviders && input.modelDetectorApiKey) {
+    await registerOpenRouterProviders(ctx, input.modelDetectorApiKey);
+  }
   return row!;
+}
+
+// OpenRouter exposes every capability behind one key, but provider names are
+// globally unique, so each capability gets its own distinctly-named provider.
+const OPENROUTER_PROVIDER_NAMES: Record<AiProviderType, string> = {
+  chat: 'OpenRouter Chat',
+  embedding: 'OpenRouter Embedding',
+  image: 'OpenRouter Image',
+};
+
+/**
+ * Register (or reuse) one OpenRouter provider per capability using the shared
+ * detector key, then best-effort sync each so their model catalogs populate
+ * immediately. Existing providers whose name already exists are left untouched.
+ */
+export async function registerOpenRouterProviders(
+  ctx: PermCtx,
+  apiKey: string,
+): Promise<string[]> {
+  assertCanManageAi(ctx);
+  const definition = getAiProviderVendor('openrouter');
+  const created: string[] = [];
+  for (const type of definition.capabilities) {
+    const baseUrl = definition.baseUrls[type];
+    if (!baseUrl) continue;
+    let provider: AiProviderView;
+    try {
+      provider = await createProvider(ctx, {
+        name: OPENROUTER_PROVIDER_NAMES[type],
+        type,
+        vendor: 'openrouter',
+        baseUrl,
+        credentials: { apiKey },
+      });
+    } catch (error) {
+      // A provider with this name already exists — leave it as configured.
+      if (error instanceof DomainError && error.code === 'CONFLICT') continue;
+      throw error;
+    }
+    created.push(provider.id);
+    await syncProviderModels(provider.id).catch(() => undefined);
+  }
+  return created;
 }
 
 export async function listProviders(ctx: PermCtx): Promise<AiProviderView[]> {

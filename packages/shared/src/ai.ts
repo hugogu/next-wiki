@@ -196,6 +196,10 @@ export const aiSettingsUpdateSchema = z.object({
   eventRetentionHours: z.number().int().min(1).max(168).optional(),
   artifactRetentionHours: z.number().int().min(1).max(168).optional(),
   modelDetectorApiKey: z.string().min(1).max(8_192).optional(),
+  // When saving the detector key, optionally register OpenRouter providers for
+  // every capability (chat, embedding, image) using that same key. Each is
+  // created under a distinct name because provider names are globally unique.
+  registerOpenRouterProviders: z.boolean().optional(),
 });
 export type AiSettingsUpdate = z.infer<typeof aiSettingsUpdateSchema>;
 

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Switch } from '@/components/ui/Switch';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTranslation } from '@/i18n/client';
 
@@ -12,7 +14,9 @@ export function ModelDetectorPanel({
   hasModelDetectorApiKey: boolean;
 }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const [detectorKey, setDetectorKey] = useState('');
+  const [registerProviders, setRegisterProviders] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -38,11 +42,15 @@ export function ModelDetectorPanel({
           const response = await fetch('/api/ai/settings', {
             method: 'PATCH',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ modelDetectorApiKey: detectorKey }),
+            body: JSON.stringify({
+              modelDetectorApiKey: detectorKey,
+              registerOpenRouterProviders: registerProviders,
+            }),
           });
           if (response.ok) {
             setDetectorKey('');
             setMessage(t('admin.ai.modelDetector.saved'));
+            if (registerProviders) router.refresh();
           } else {
             setMessage(t('admin.ai.error.generic'));
           }
@@ -57,6 +65,16 @@ export function ModelDetectorPanel({
             onChange={(event) => setDetectorKey(event.target.value)}
             placeholder={hasModelDetectorApiKey ? t('admin.ai.modelDetector.replaceHint') : ''}
           />
+        </label>
+        <label className="flex items-start gap-sm">
+          <Switch
+            checked={registerProviders}
+            onClick={() => setRegisterProviders((prev) => !prev)}
+          />
+          <span className="space-y-xs">
+            <span className="block text-sm font-medium">{t('admin.ai.modelDetector.registerProviders')}</span>
+            <span className="block text-sm text-muted">{t('admin.ai.modelDetector.registerProvidersHint')}</span>
+          </span>
         </label>
         <div className="flex items-center justify-between gap-sm">
           {message ? <p className="text-sm text-muted">{message}</p> : <span />}
