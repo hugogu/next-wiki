@@ -83,6 +83,26 @@ describe('Public Wiki page search route', () => {
     expect(publicContent.hybridSearchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ q: 'auth', limit: 20 }));
   });
 
+  it.each(['unavailable', 'failed'] as const)('returns generic %s semantic coverage on the existing search resource', async (semanticState) => {
+    const payload = {
+      searchRecordId: '11111111-1111-4111-8111-111111111111',
+      semanticState,
+      items: [{ page: { id: 'p1', path: 'docs/auth', title: 'Auth' }, excerpt: 'auth', score: 0.1, matchSources: ['keyword'] }],
+    };
+    publicContent.hybridSearchPages.mockResolvedValue(payload);
+
+    const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'query', searchRecordId: payload.searchRecordId, searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'auth' }),
+    }), { params: Promise.resolve({}) });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.semanticState).toBe(semanticState);
+    expect(body).not.toHaveProperty('error');
+    expect(Object.keys(body).sort()).toEqual(['items', 'searchRecordId', 'semanticState']);
+  });
+
   it('records an Escape behavior exactly through the existing search resource', async () => {
     const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
       method: 'POST', headers: { 'content-type': 'application/json' },

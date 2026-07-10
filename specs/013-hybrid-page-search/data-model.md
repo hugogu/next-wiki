@@ -39,7 +39,7 @@ One row represents one processed, qualified query attempt. Its client-created ID
 | `semantic_result_count` | integer, required, nonnegative, default `0` | Updated when semantic retrieval completes. |
 | `result_count` | integer, required, nonnegative | Current count in the merged response. |
 | `semantic_state` | text/enum, required | `pending`, `ready`, `unavailable`, `failed`, or `skipped`; never exposes provider internals. |
-| `semantic_action_id` | UUID, nullable FK to `ai_actions`, `ON DELETE SET NULL` | Associates a signed-in eligible search with the existing async action. |
+| `semantic_action_id` | UUID, nullable correlation key to `ai_actions` | Associates a signed-in eligible search with the existing async action. The current Drizzle migration does not enforce this as a database FK because `ai_actions` is declared later in the schema module. |
 | `created_at` | timestamp with time zone, required default now | Query acceptance time. |
 | `updated_at` | timestamp with time zone, required default now | Last merged-result/semantic-state update. |
 
@@ -79,7 +79,7 @@ users  0..1 ── * search_records
 search_records 1 ── * search_behaviors
 users  0..1 ── * search_behaviors
 pages  0..1 ── * search_behaviors (only result_open)
-ai_actions 0..1 ── * search_records (semantic_action_id)
+ai_actions 0..1 ── * search_records (semantic_action_id correlation key)
 ```
 
 `search_records.semantic_state` transitions are:

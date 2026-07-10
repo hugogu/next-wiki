@@ -49,12 +49,12 @@
 ### Tests for User Story 1
 
 - [X] T010 [P] [US1] Extend keyword/public hybrid contract tests for POST query validation, idempotent search-record reuse, and unchanged GET `{items,nextCursor}` behavior in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
-- [ ] T011 [P] [US1] Add hybrid candidate merge tests for RRF ordering, page-ID de-duplication, keyword/semantic excerpt selection, zero results, and semantic reduced-coverage fallback in `apps/web/src/server/services/public-content-read.test.ts`.
-- [ ] T012 [P] [US1] Add vector-candidate permission and action-lifecycle regression tests in `apps/web/src/server/services/ai-retrieval.test.ts`.
+- [X] T011 [P] [US1] Add hybrid candidate merge tests for RRF ordering, page-ID de-duplication, keyword/semantic excerpt selection, zero results, and semantic reduced-coverage fallback in `apps/web/src/server/services/public-content-read.test.ts`.
+- [X] T012 [P] [US1] Add vector-candidate permission and action-lifecycle regression tests in `apps/web/src/server/services/ai-retrieval.test.ts`.
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Extract a reusable permission-filtered vector candidate/result reader from the existing action flow in `apps/web/src/server/services/ai-retrieval.ts` without changing existing semantic-search semantics.
+- [X] T013 [US1] Extract a reusable permission-filtered vector candidate/result reader from the existing action flow in `apps/web/src/server/services/ai-retrieval.ts` without changing existing semantic-search semantics.
 - [X] T014 [US1] Extend keyword search and add the hybrid query orchestration, RRF merge, deterministic tie breaking, visibility filtering, semantic-state update, and best-effort search-record write in `apps/web/src/server/services/public-content.ts`.
 - [X] T015 [US1] Implement the idempotent `kind: "query"` POST adapter on the existing resource, retaining the current GET adapter and OpenAPI annotations in `apps/web/app/api/v1/search/pages/route.ts`.
 - [X] T016 [P] [US1] Add localized Header search placeholder, two-character prompt, searching, no-results, reduced-coverage, and generic-error text in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`.
@@ -118,7 +118,7 @@
 ### Tests for User Story 4
 
 - [X] T031 [P] [US4] Add no-disclosure tests for unreadable keyword/vector candidates, result counts, excerpts, and semantic state in `apps/web/src/server/services/public-content-read.test.ts` and `apps/web/src/server/services/ai-retrieval.test.ts`.
-- [ ] T032 [P] [US4] Add route-level compatibility tests for legacy GET callers, unauthorized semantic enrichment, and generic unavailable/failed coverage states in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
+- [X] T032 [P] [US4] Add route-level compatibility tests for legacy GET callers, unauthorized semantic enrichment, and generic unavailable/failed coverage states in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
 
 ### Implementation for User Story 4
 
@@ -136,9 +136,9 @@
 - [X] T035 Regenerate the public API specification from schemas and annotations with `apps/web/package.json` command `openapi:generate`, then review generated `apps/web/public/openapi.json`.
 - [X] T036 [P] Run targeted service and route suites for the feature from `apps/web/src/server/services/search-analytics.test.ts`, `apps/web/src/server/services/public-content-read.test.ts`, `apps/web/src/server/services/ai-retrieval.test.ts`, and `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
 - [X] T037 [P] Run the Header/browser journeys in `apps/web/e2e/header-hybrid-search.spec.ts` and `apps/web/e2e/navigation.spec.ts`.
-- [ ] T038 Run repository lint, typecheck, unit tests, and build via `package.json` and `apps/web/package.json` scripts.
-- [ ] T039 Build the deployment image using `docker/Dockerfile` and verify the feature introduces no extra runtime service in `docker-compose.yml`.
-- [ ] T040 Reconcile implemented behavior with [quickstart.md](./quickstart.md), [contracts/page-search.md](./contracts/page-search.md), and [spec.md](./spec.md), updating those feature documents only for verified implementation-level deviations.
+- [X] T038 Run repository lint, typecheck, unit tests, and build via `package.json` and `apps/web/package.json` scripts.
+- [X] T039 Build the deployment image using `docker/Dockerfile` and verify the feature introduces no extra runtime service in `docker-compose.yml`.
+- [X] T040 Reconcile implemented behavior with [quickstart.md](./quickstart.md), [contracts/page-search.md](./contracts/page-search.md), and [spec.md](./spec.md), updating those feature documents only for verified implementation-level deviations.
 
 ---
 

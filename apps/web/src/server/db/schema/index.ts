@@ -255,8 +255,8 @@ export const searchRecords = pgTable(
     semanticResultCount: integer('semantic_result_count').notNull().default(0),
     resultCount: integer('result_count').notNull().default(0),
     semanticState: text('semantic_state').notNull().default('skipped'),
-    // ai_actions is declared later in this module; the application keeps this
-    // relation explicit and the migration adds the foreign key after both tables.
+    // Correlation key for the semantic-search action. Drizzle does not attach a
+    // DB-level FK here because ai_actions is declared later in this module.
     semanticActionId: uuid('semantic_action_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

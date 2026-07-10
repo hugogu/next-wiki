@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { exactCosineSearch } from '@/server/ai/retrieval/vector-search';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
-import { retrieve } from './ai-retrieval';
+import { readPermissionFilteredVectorCandidates, retrieve } from './ai-retrieval';
 import * as publicAi from './public-ai';
 
 describe('AI vector retrieval', () => {
@@ -95,8 +95,11 @@ describe('AI vector retrieval', () => {
 
     // Actor whose api_key scopes do not include 'view' cannot read any page,
     // so retrieve() must filter this chunk's page out entirely (FR-009).
-    const results = await retrieve(buildApiKeyCtx(userId, 'reader', ['ai.read'], 'key'), generation!.id, [1, 0, 0], 10);
+    const unreadableCtx = buildApiKeyCtx(userId, 'reader', ['ai.read'], 'key');
+    const candidates = await readPermissionFilteredVectorCandidates(unreadableCtx, generation!.id, [1, 0, 0], 10);
+    const results = await retrieve(unreadableCtx, generation!.id, [1, 0, 0], 10);
 
+    expect(candidates).toHaveLength(0);
     expect(results).toHaveLength(0);
     expect(JSON.stringify(results)).not.toContain('secret content');
 
@@ -134,6 +137,16 @@ describe('public-ai semantic search facade (US3)', () => {
     expect(result.feature).toBe('semantic_search');
     expect(result.id).toBeTruthy();
     expect(result.pollUrl).toBe(`/api/v1/search/semantic/${result.id}`);
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, result.id) });
+    const input = await db.query.aiActionInputs.findFirst({ where: eq(schema.aiActionInputs.actionId, result.id) });
+    expect(action).toMatchObject({
+      actorUserId: userId,
+      feature: 'semantic_search',
+      status: 'queued',
+      indexGenerationId: expect.any(String),
+    });
+    expect(action?.requestMetadata).toMatchObject({ queryBytes: Buffer.byteLength('auth design'), limit: 10 });
+    expect(input).toBeTruthy();
 
     await clearAiData();
     await db.delete(schema.spaces).where(eq(schema.spaces.id, spaceId));

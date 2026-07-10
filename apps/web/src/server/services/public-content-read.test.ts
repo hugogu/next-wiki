@@ -400,6 +400,63 @@ describe('public content read facade', () => {
     }));
   });
 
+  it('returns zero results with generic reduced coverage when semantic search cannot start', async () => {
+    const reader = await createPublicApiUser('public-hybrid-zero-reader@example.com', 'reader');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+    });
+    semanticSearch.submitSemanticSearch.mockRejectedValueOnce(new Error('semantic unavailable'));
+
+    const result = await publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'nomatchtoken', limit: 20,
+    });
+
+    expect(result).toEqual({
+      searchRecordId: '11111111-1111-4111-8111-111111111111',
+      semanticState: 'unavailable',
+      items: [],
+    });
+    expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      keywordResultCount: 0, semanticResultCount: 0, resultCount: 0, semanticState: 'unavailable',
+    }));
+  });
+
+  it('keeps safe keyword results when semantic coverage fails generically', async () => {
+    const editor = await createPublicApiUser('public-hybrid-failed-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-hybrid-failed-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    await pageService.create(editorCtx, {
+      path: 'docs/hybrid-fallback', title: 'Fallback', contentSource: 'fallbacktoken keyword result',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/hybrid-fallback', version: 1 });
+
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'pending', semanticActionId: 'action-failed',
+    });
+    semanticSearch.getSemanticSearchResults.mockResolvedValue({
+      status: 'failed',
+      items: [],
+      error: { code: 'PROVIDER_ERROR', message: 'internal detail' },
+    });
+
+    const result = await publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'fallbacktoken', limit: 20,
+    });
+
+    expect(result.semanticState).toBe('failed');
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({ matchSources: ['keyword'] });
+    expect(JSON.stringify(result)).not.toContain('PROVIDER_ERROR');
+    expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      keywordResultCount: 1, semanticResultCount: 0, resultCount: 1, semanticState: 'failed',
+    }));
+  });
+
   it('narrows keyword search results with filter[tag] while keeping the response envelope unchanged (US1)', async () => {
     const editor = await createPublicApiUser('public-fm-search-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-fm-search-reader@example.com', 'reader');
