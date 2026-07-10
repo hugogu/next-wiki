@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { TransferCleanupResult, TransferItemList, TransferItemView, TransferRunView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, RedoIcon, TrashIcon, XIcon } from '@/components/icons';
 import { apiGet, useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -85,12 +86,42 @@ export function TransferRunDetail({
               )}
             </p>
           </div>
-          <div className="flex gap-sm">
-            {run.canPause && !run.pauseRequested && <Button variant="secondary" onClick={() => pause.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.pause')}</Button>}
-            {run.canResume && <Button onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.resume')}</Button>}
-            {run.canCancel && <Button variant="secondary" onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.cancel')}</Button>}
-            {run.canRetry && <Button onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.retry')}</Button>}
-            {run.canCleanup && <Button variant="danger" onClick={() => setConfirmingCleanup(true)}>{t('admin.transfers.actions.cleanup')}</Button>}
+          <div className="flex items-center gap-xs">
+            {run.canPause && !run.pauseRequested && (
+              <Tooltip label={t('admin.transfers.actions.pause')}>
+                <Button size="icon" variant="ghost" aria-label={t('admin.transfers.actions.pause')} disabled={pause.isPending} onClick={() => pause.mutate(undefined, { onSuccess: () => router.refresh() })}>
+                  <PauseIcon className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            )}
+            {run.canResume && (
+              <Tooltip label={t('admin.transfers.actions.resume')}>
+                <Button size="icon" variant="ghost" aria-label={t('admin.transfers.actions.resume')} disabled={resume.isPending} onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}>
+                  <PlayIcon className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            )}
+            {run.canCancel && (
+              <Tooltip label={t('admin.transfers.actions.cancel')}>
+                <Button size="icon" variant="ghost" aria-label={t('admin.transfers.actions.cancel')} disabled={cancel.isPending} onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}>
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            )}
+            {run.canRetry && (
+              <Tooltip label={t('admin.transfers.actions.retry')}>
+                <Button size="icon" variant="ghost" aria-label={t('admin.transfers.actions.retry')} disabled={retry.isPending} onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}>
+                  <RedoIcon className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            )}
+            {run.canCleanup && (
+              <Tooltip label={t('admin.transfers.actions.cleanup')}>
+                <Button size="icon" variant="ghost" aria-label={t('admin.transfers.actions.cleanup')} disabled={cleanup.isPending} onClick={() => setConfirmingCleanup(true)}>
+                  <TrashIcon className="h-4 w-4 text-danger" />
+                </Button>
+              </Tooltip>
+            )}
             {run.reportArtifactId && <a className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text" href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}>{t('admin.transfers.actions.download')}</a>}
           </div>
         </div>

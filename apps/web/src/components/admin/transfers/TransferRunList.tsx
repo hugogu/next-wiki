@@ -15,6 +15,8 @@ import {
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { PauseIcon, PlayIcon, RedoIcon, TrashIcon, XIcon } from '@/components/icons';
 import { useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -44,47 +46,69 @@ function RunActions({ run }: { run: TransferRunView }) {
   return (
     <div className="flex items-center gap-xs">
       {run.canPause && !run.pauseRequested && (
-        <Button
-          variant="secondary"
-          disabled={pause.isPending}
-          onClick={() => pause.mutate(undefined, { onSuccess: () => router.refresh() })}
-        >
-          {t('admin.transfers.actions.pause')}
-        </Button>
+        <Tooltip label={t('admin.transfers.actions.pause')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('admin.transfers.actions.pause')}
+            disabled={pause.isPending}
+            onClick={() => pause.mutate(undefined, { onSuccess: () => router.refresh() })}
+          >
+            <PauseIcon className="h-4 w-4" />
+          </Button>
+        </Tooltip>
       )}
       {run.canResume && (
-        <Button
-          disabled={resume.isPending}
-          onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}
-        >
-          {t('admin.transfers.actions.resume')}
-        </Button>
+        <Tooltip label={t('admin.transfers.actions.resume')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('admin.transfers.actions.resume')}
+            disabled={resume.isPending}
+            onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}
+          >
+            <PlayIcon className="h-4 w-4" />
+          </Button>
+        </Tooltip>
       )}
       {run.canCancel && (
-        <Button
-          variant="secondary"
-          disabled={cancel.isPending}
-          onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}
-        >
-          {t('admin.transfers.actions.cancel')}
-        </Button>
+        <Tooltip label={t('admin.transfers.actions.cancel')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('admin.transfers.actions.cancel')}
+            disabled={cancel.isPending}
+            onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}
+          >
+            <XIcon className="h-4 w-4" />
+          </Button>
+        </Tooltip>
       )}
       {run.canRetry && (
-        <Button
-          disabled={retry.isPending}
-          onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}
-        >
-          {t('admin.transfers.actions.retry')}
-        </Button>
+        <Tooltip label={t('admin.transfers.actions.retry')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('admin.transfers.actions.retry')}
+            disabled={retry.isPending}
+            onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}
+          >
+            <RedoIcon className="h-4 w-4" />
+          </Button>
+        </Tooltip>
       )}
       {run.canCleanup && (
-        <Button
-          variant="danger"
-          disabled={cleanup.isPending}
-          onClick={() => setConfirmingCleanup(true)}
-        >
-          {t('admin.transfers.actions.cleanup')}
-        </Button>
+        <Tooltip label={t('admin.transfers.actions.cleanup')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('admin.transfers.actions.cleanup')}
+            disabled={cleanup.isPending}
+            onClick={() => setConfirmingCleanup(true)}
+          >
+            <TrashIcon className="h-4 w-4 text-danger" />
+          </Button>
+        </Tooltip>
       )}
       {confirmingCleanup && (
         <ConfirmDialog

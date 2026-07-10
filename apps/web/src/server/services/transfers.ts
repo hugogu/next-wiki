@@ -71,12 +71,12 @@ function runView(row: RunRow): TransferRunView {
       ACTIVE.includes(row.status as (typeof ACTIVE)[number]) &&
       PAUSABLE_KINDS.includes(row.kind as (typeof PAUSABLE_KINDS)[number]),
     canResume: row.status === 'paused',
-    // Offer cleanup for a finished import that wrote any pages (created or
-    // replaced; converted is a subset of those, so it needs no separate term).
+    // Offer cleanup for any finished import — including a cancelled one, which
+    // may still have written pages before it stopped. The action itself deletes
+    // whatever pages the run wrote (0 if none), so it is safe to always show.
     canCleanup:
       CLEANABLE_KINDS.includes(row.kind as (typeof CLEANABLE_KINDS)[number]) &&
-      TERMINAL.includes(row.status as (typeof TERMINAL)[number]) &&
-      row.createdItems + row.replacedItems > 0,
+      TERMINAL.includes(row.status as (typeof TERMINAL)[number]),
   };
 }
 

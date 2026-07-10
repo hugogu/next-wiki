@@ -152,6 +152,23 @@ export function XIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function PauseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+    </Icon>
+  );
+}
+
+export function PlayIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <polygon points="6 3 20 12 6 21 6 3" />
+    </Icon>
+  );
+}
+
 export function ChevronRightIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
