@@ -54,6 +54,18 @@ function matchesPathPrefix(path: string, pathPrefix: string | undefined): boolea
   return path === pathPrefix || path.startsWith(`${pathPrefix}/`);
 }
 
+/** Shared, permission-gated vector candidate reader for semantic actions. */
+export async function readPermissionFilteredVectorCandidates(
+  ctx: PermCtx,
+  generationId: string,
+  queryVector: number[],
+  limit: number,
+): Promise<VectorMatch[]> {
+  const space = await getDefaultSpace();
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false })) return [];
+  return exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
+}
+
 export async function retrieve(
   ctx: PermCtx,
   generationId: string,
@@ -61,10 +73,7 @@ export async function retrieve(
   limit: number,
   filters?: { pathPrefix?: string; frontmatter?: FrontmatterFilters },
 ): Promise<AiSearchResult[]> {
-  const space = await getDefaultSpace();
-  const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
-  const canReadPages = can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false });
-  const readable = canReadPages ? matches : [];
+  const readable = await readPermissionFilteredVectorCandidates(ctx, generationId, queryVector, limit);
   const chunksByPage = new Map<string, VectorMatch[]>();
   for (const match of readable) {
     if (!matchesPathPrefix(match.path, filters?.pathPrefix)) continue;
