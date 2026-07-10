@@ -246,6 +246,34 @@ describe('runTransferImport wikijs_import', () => {
     expect(updated?.skippedItems).toBe(0);
   });
 
+  it('stops promptly and marks the run cancelled when cancellation is requested mid-run', async () => {
+    const pages: PageDef[] = [
+      { id: 20, path: 'docs/cancel-one', locale: 'en', title: 'One', content: '# One', fingerprint: 'fp20' },
+      { id: 21, path: 'docs/cancel-two', locale: 'en', title: 'Two', content: '# Two', fingerprint: 'fp21' },
+    ];
+    const { runId, pageIds } = await seedImport({ pages });
+    mocks.enqueueGitExport.mockClear();
+
+    // Simulate the operator clicking "Cancel Run" right after the first page
+    // lands; the loop must notice the live flag and stop before the second.
+    mocks.writeImportedPage.mockImplementation(async (input: { path: string; locale: string; action: 'create' | 'replace' | 'skip' }) => {
+      await db.update(schema.transferRuns).set({ cancelRequested: true }).where(eq(schema.transferRuns.id, runId));
+      return {
+        pageId: pageIds.get(`${input.locale}/${input.path}`) ?? null,
+        revisionId: randomUUID(),
+        action: input.action,
+      };
+    });
+
+    await runTransferImport(runId);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(updated?.status).toBe('cancelled');
+    expect(updated?.processedItems).toBe(1);
+    // A cancelled partial import must not trigger a git snapshot export.
+    expect(mocks.enqueueGitExport).not.toHaveBeenCalled();
+  });
+
   it('counts unsupported preview items as skipped progress', async () => {
     const pages: PageDef[] = [
       { id: 4, path: 'docs/unsupported-one', locale: 'en', title: 'One', content: '# One', fingerprint: 'fp4' },

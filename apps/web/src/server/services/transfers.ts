@@ -217,6 +217,21 @@ export async function requestCancellation(ctx: PermCtx, id: string): Promise<Tra
   return runView(updated!);
 }
 
+/**
+ * Read the live cancellation flag for a run straight from the DB. Import
+ * workers hold a row snapshot captured when the job started, so they must poll
+ * this — not their in-memory `run.cancelRequested` — to notice a cancellation
+ * requested after they began.
+ */
+export async function isRunCancelRequested(id: string): Promise<boolean> {
+  const row = await db
+    .select({ cancelRequested: schema.transferRuns.cancelRequested })
+    .from(schema.transferRuns)
+    .where(eq(schema.transferRuns.id, id))
+    .limit(1);
+  return row[0]?.cancelRequested ?? false;
+}
+
 export async function retry(ctx: PermCtx, id: string): Promise<TransferRunAccepted> {
   assertCanManageTransfers(ctx);
   const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });

@@ -8,7 +8,7 @@ import { parsePage } from '@/server/transfers/manifest';
 import { rewriteMarkdownImages, rewriteMarkdownLinks } from '@/server/transfers/markdown-links';
 import { writeImportedAsset } from '@/server/services/transfer-asset-writer';
 import { writeImportedPage } from '@/server/services/transfer-page-writer';
-import { markRunTerminal } from '@/server/services/transfers';
+import { isRunCancelRequested, markRunTerminal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import { WikiJsClient } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
@@ -76,7 +76,9 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
   for (const page of inspected.manifest.pages) {
     const plan = previewItems.find((item) => item.sourceKey === page.id);
     const action = (plan?.action ?? 'skip') as 'create' | 'replace' | 'skip';
-    if (run.cancelRequested) break;
+    // `run` is a snapshot from job start; poll the live flag so cancelling
+    // mid-import actually stops it rather than only fixing the final status.
+    if (await isRunCancelRequested(run.id)) break;
     const bytes = await inspected.readEntry(page.entry);
     const parsed = parsePage(bytes.toString('utf8'));
     const markdown = rewriteMarkdownImages(parsed.markdown, (url) => {
@@ -174,6 +176,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   let converted = 0;
   let warnings = 0;
   let processed = 0;
+  let cancelled = false;
 
   await db.update(schema.transferRuns).set({
     totalItems: plans.length,
@@ -194,6 +197,12 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   }
 
   for (const plan of plans) {
+    // Poll the live cancel flag before touching the network or writing a page,
+    // so "Cancel Run" stops the import promptly instead of running to the end.
+    if (await isRunCancelRequested(run.id)) {
+      cancelled = true;
+      break;
+    }
     if (plan.warningCode === 'UNSUPPORTED_SOURCE_CONTENT') {
       skipped += 1;
       warnings += 1;
@@ -285,17 +294,22 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       finishedAt: new Date(),
     }).onConflictDoNothing();
   }
-  await markRunTerminal(run.id, warnings ? 'completed_with_warnings' : 'completed', {
-    totalItems: plans.length,
-    processedItems: processed,
-    createdItems: created,
-    replacedItems: replaced,
-    skippedItems: skipped,
-    convertedItems: converted,
-    warningItems: warnings,
-  });
+  await markRunTerminal(
+    run.id,
+    cancelled ? 'cancelled' : warnings ? 'completed_with_warnings' : 'completed',
+    {
+      totalItems: plans.length,
+      processedItems: processed,
+      createdItems: created,
+      replacedItems: replaced,
+      skippedItems: skipped,
+      convertedItems: converted,
+      warningItems: warnings,
+    },
+  );
   // One full snapshot sync at the end is enough; do not enqueue per page.
-  if (processed > 0) {
+  // Skip it on cancellation — a partial import shouldn't trigger a git commit.
+  if (processed > 0 && !cancelled) {
     await enqueueGitExport('manual');
   }
 }
