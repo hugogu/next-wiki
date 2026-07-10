@@ -259,11 +259,17 @@ export async function requireActionAccess(ctx: PermCtx, actionId: string) {
 }
 
 async function toView(row: typeof schema.aiActions.$inferSelect): Promise<AiActionView> {
-  const [provider, model] = await Promise.all([
+  const [provider, model, page] = await Promise.all([
     row.providerId
       ? db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, row.providerId) })
       : null,
     row.modelId ? db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, row.modelId) }) : null,
+    row.pageId
+      ? db.query.pages.findFirst({
+          where: eq(schema.pages.id, row.pageId),
+          columns: { path: true },
+        })
+      : null,
   ]);
   return {
     id: row.id,
@@ -276,6 +282,7 @@ async function toView(row: typeof schema.aiActions.$inferSelect): Promise<AiActi
     modelName: model?.displayName ?? null,
     indexGenerationId: row.indexGenerationId,
     pageId: row.pageId,
+    pagePath: page?.path ?? null,
     questionMode: row.questionMode,
     requestMetadata: row.requestMetadata as Record<string, unknown>,
     resultMetadata: row.resultMetadata as Record<string, unknown>,

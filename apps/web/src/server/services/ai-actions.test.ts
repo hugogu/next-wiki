@@ -47,6 +47,27 @@ describe('AI actions', () => {
     expect((await getAction(ctx, action.id)).id).toBe(action.id);
   });
 
+  it('resolves the page path for actions tied to a page', async () => {
+    const ctx = buildUserCtx(userId, 'admin');
+    const [space] = await db.insert(schema.spaces).values({ slug: `aa-${userId}`, name: 'AA' }).returning();
+    const [page] = await db
+      .insert(schema.pages)
+      .values({ spaceId: space!.id, slug: 'doc', path: 'docs/doc', title: 'Doc', authorId: userId })
+      .returning();
+    const action = await createAction(ctx, {
+      feature: 'index_rebuild',
+      input: { generationId: 'gen' },
+      pageId: page!.id,
+    });
+
+    const view = await getAction(ctx, action.id);
+    expect(view.pageId).toBe(page!.id);
+    expect(view.pagePath).toBe('docs/doc');
+
+    await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
+  });
+
   it('paginates the audit listing with limit/offset and a total count', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
     await db.insert(schema.aiActions).values(

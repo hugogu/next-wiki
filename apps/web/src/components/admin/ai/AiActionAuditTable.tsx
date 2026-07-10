@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import Link from 'next/link';
 import type {
   AiActionFeature,
   AiActionStatus,
@@ -29,10 +30,19 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
+import { getPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
 const PAGE_SIZE = 20;
+
+/** Total billable tokens for a run, or null when no usage was recorded. */
+function totalTokens(usage: Record<string, unknown>): number | null {
+  const input = typeof usage.inputTokens === 'number' ? usage.inputTokens : undefined;
+  const output = typeof usage.outputTokens === 'number' ? usage.outputTokens : undefined;
+  if (input === undefined && output === undefined) return null;
+  return (input ?? 0) + (output ?? 0);
+}
 
 const FEATURE_LABELS: Record<AiActionFeature, TranslationKey> = {
   provider_test: 'admin.ai.actionFeature.provider_test',
@@ -157,7 +167,7 @@ export function AiActionAuditTable({
           <DataTableHeader>{t('admin.ai.actions.table.queued')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.feature')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.status')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.actions.table.user')}</DataTableHeader>
+          <DataTableHeader align="right">{t('admin.ai.actions.table.tokens')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.providerModel')}</DataTableHeader>
           <DataTableHeader align="right">{t('admin.ai.actions.table.detail')}</DataTableHeader>
         </DataTableRow></DataTableHead>
@@ -176,7 +186,22 @@ export function AiActionAuditTable({
                   </span>
                 </Tooltip>
               </DataTableCell>
-              <DataTableCell className="font-mono text-xs">{action.actorUserId ?? t('admin.ai.actions.system')}</DataTableCell>
+              <DataTableCell align="right" className="text-xs tabular-nums">
+                {(() => {
+                  const total = totalTokens(action.usageMetadata);
+                  if (total === null) return <span className="text-muted">—</span>;
+                  const breakdown = TOKEN_FIELDS.filter(
+                    (field) => typeof action.usageMetadata[field.key] === 'number',
+                  )
+                    .map((field) => `${t(field.label)}: ${(action.usageMetadata[field.key] as number).toLocaleString()}`)
+                    .join(' · ');
+                  return (
+                    <Tooltip label={breakdown}>
+                      <span>{total.toLocaleString()}</span>
+                    </Tooltip>
+                  );
+                })()}
+              </DataTableCell>
               <DataTableCell>{[action.providerName, action.modelName].filter(Boolean).join(' / ') || '—'}</DataTableCell>
               <DataTableCell align="right">
                 <button
@@ -222,6 +247,23 @@ export function AiActionAuditTable({
         >
           <div className="space-y-sm">
             {viewing.errorMessage && <p className="text-sm text-danger">{viewing.errorMessage}</p>}
+            {viewing.pageId && (
+              <section className="space-y-xs">
+                <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.page')}</h3>
+                {viewing.pagePath ? (
+                  <Link
+                    href={getPageHref(viewing.pagePath)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline break-all"
+                  >
+                    {viewing.pagePath}
+                  </Link>
+                ) : (
+                  <p className="font-mono text-xs text-muted break-all">{viewing.pageId}</p>
+                )}
+              </section>
+            )}
             {TOKEN_FIELDS.some((field) => typeof viewing.usageMetadata[field.key] === 'number') && (
               <section className="space-y-xs">
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.usage')}</h3>

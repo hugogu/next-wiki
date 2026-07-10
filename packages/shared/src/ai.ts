@@ -355,6 +355,7 @@ export const aiActionViewSchema = z.object({
   modelName: z.string().nullable(),
   indexGenerationId: z.string().uuid().nullable(),
   pageId: z.string().uuid().nullable(),
+  pagePath: z.string().nullable(),
   questionMode: aiQuestionModeSchema.nullable(),
   requestMetadata: jsonObjectSchema,
   resultMetadata: jsonObjectSchema,
