@@ -19,6 +19,9 @@ import { assertCanManageTransfers } from './transfer-sources';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
 const ACTIVE = ['queued', 'running'] as const;
+// Only the long-running Wiki.js import supports pause/resume; other kinds either
+// finish quickly (preview, source test) or have a non-resumable asset phase.
+const PAUSABLE_KINDS = ['wikijs_import'] as const;
 
 type RunRow = typeof schema.transferRuns.$inferSelect;
 type ItemRow = typeof schema.transferItems.$inferSelect;
@@ -45,6 +48,7 @@ function runView(row: RunRow): TransferRunView {
     failedItems: row.failedItems,
     currentItem: row.currentItem,
     cancelRequested: row.cancelRequested,
+    pauseRequested: row.pauseRequested,
     errorCode: row.errorCode,
     errorMessage: row.errorMessage,
     errorDetail: row.errorDetail,
@@ -53,8 +57,13 @@ function runView(row: RunRow): TransferRunView {
     startedAt: row.startedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,
     expiresAt: row.expiresAt.toISOString(),
-    canCancel: ACTIVE.includes(row.status as (typeof ACTIVE)[number]),
+    // A paused run can still be cancelled, so it counts as cancellable too.
+    canCancel: ACTIVE.includes(row.status as (typeof ACTIVE)[number]) || row.status === 'paused',
     canRetry: ['failed', 'cancelled'].includes(row.status),
+    canPause:
+      ACTIVE.includes(row.status as (typeof ACTIVE)[number]) &&
+      PAUSABLE_KINDS.includes(row.kind as (typeof PAUSABLE_KINDS)[number]),
+    canResume: row.status === 'paused',
   };
 }
 
@@ -206,6 +215,14 @@ export async function requestCancellation(ctx: PermCtx, id: string): Promise<Tra
   assertCanManageTransfers(ctx);
   const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
   if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer run not found');
+  // A paused run has no live worker to observe the cancel flag, so terminate it
+  // directly and release its mutation slot. An active run is flagged and stops
+  // itself at the next loop iteration.
+  if (row.status === 'paused') {
+    await markRunTerminal(id, 'cancelled');
+    const done = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
+    return runView(done!);
+  }
   if (!ACTIVE.includes(row.status as (typeof ACTIVE)[number])) {
     throw new DomainError('RUN_NOT_ACTIVE', 'Transfer run is not active');
   }
@@ -217,19 +234,80 @@ export async function requestCancellation(ctx: PermCtx, id: string): Promise<Tra
   return runView(updated!);
 }
 
+export async function requestPause(ctx: PermCtx, id: string): Promise<TransferRunView> {
+  assertCanManageTransfers(ctx);
+  const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
+  if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer run not found');
+  if (!PAUSABLE_KINDS.includes(row.kind as (typeof PAUSABLE_KINDS)[number])) {
+    throw new DomainError('RUN_NOT_PAUSABLE', 'This transfer run type cannot be paused');
+  }
+  if (!ACTIVE.includes(row.status as (typeof ACTIVE)[number])) {
+    throw new DomainError('RUN_NOT_ACTIVE', 'Transfer run is not active');
+  }
+  const [updated] = await db
+    .update(schema.transferRuns)
+    .set({ pauseRequested: true })
+    .where(eq(schema.transferRuns.id, id))
+    .returning();
+  return runView(updated!);
+}
+
+export async function resume(ctx: PermCtx, id: string): Promise<TransferRunAccepted> {
+  assertCanManageTransfers(ctx);
+  const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
+  if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer run not found');
+  if (row.status !== 'paused') {
+    throw new DomainError('RUN_NOT_PAUSED', 'Only a paused transfer run can be resumed');
+  }
+  // Requeue the same run; the worker re-hydrates progress and skips finished
+  // items. The mutation slot was held throughout the pause, so no competing
+  // import can have started meanwhile.
+  await db
+    .update(schema.transferRuns)
+    .set({ status: 'queued', pauseRequested: false })
+    .where(eq(schema.transferRuns.id, id));
+  await enqueue(queueFor(row.kind), { runId: id });
+  return { id, status: 'queued' };
+}
+
 /**
- * Read the live cancellation flag for a run straight from the DB. Import
- * workers hold a row snapshot captured when the job started, so they must poll
- * this — not their in-memory `run.cancelRequested` — to notice a cancellation
- * requested after they began.
+ * Mark a run paused: stop it without releasing its mutation slot, so it can be
+ * resumed later. Progress counters are already persisted incrementally by the
+ * worker, so only the status is flipped here.
  */
-export async function isRunCancelRequested(id: string): Promise<boolean> {
+export async function markRunPaused(id: string): Promise<void> {
+  await db
+    .update(schema.transferRuns)
+    .set({ status: 'paused', pauseRequested: false, phase: 'writing_pages' })
+    .where(eq(schema.transferRuns.id, id));
+}
+
+/**
+ * Read the live control signal for a run straight from the DB. Import workers
+ * hold a row snapshot captured when the job started, so they must poll this —
+ * not their in-memory flags — to notice a cancel/pause requested after they
+ * began. Cancellation takes priority over a pause requested at the same time.
+ */
+export async function readRunControlSignal(id: string): Promise<'cancel' | 'pause' | null> {
   const row = await db
-    .select({ cancelRequested: schema.transferRuns.cancelRequested })
+    .select({
+      cancelRequested: schema.transferRuns.cancelRequested,
+      pauseRequested: schema.transferRuns.pauseRequested,
+    })
     .from(schema.transferRuns)
     .where(eq(schema.transferRuns.id, id))
     .limit(1);
-  return row[0]?.cancelRequested ?? false;
+  if (row[0]?.cancelRequested) return 'cancel';
+  if (row[0]?.pauseRequested) return 'pause';
+  return null;
+}
+
+/**
+ * Read the live cancellation flag for a run straight from the DB, used by the
+ * archive import loop which supports cancel but not pause.
+ */
+export async function isRunCancelRequested(id: string): Promise<boolean> {
+  return (await readRunControlSignal(id)) === 'cancel';
 }
 
 export async function retry(ctx: PermCtx, id: string): Promise<TransferRunAccepted> {

@@ -274,6 +274,48 @@ describe('runTransferImport wikijs_import', () => {
     expect(mocks.enqueueGitExport).not.toHaveBeenCalled();
   });
 
+  it('pauses mid-run and resumes to finish only the remaining pages', async () => {
+    const pages: PageDef[] = [
+      { id: 30, path: 'docs/pause-one', locale: 'en', title: 'One', content: '# One', fingerprint: 'fp30' },
+      { id: 31, path: 'docs/pause-two', locale: 'en', title: 'Two', content: '# Two', fingerprint: 'fp31' },
+    ];
+    const { runId, pageIds } = await seedImport({ pages });
+    mocks.enqueueGitExport.mockClear();
+
+    // First segment: request a pause right after the first page lands.
+    let writes = 0;
+    mocks.writeImportedPage.mockImplementation(async (input: { path: string; locale: string; action: 'create' | 'replace' | 'skip' }) => {
+      writes += 1;
+      await db.update(schema.transferRuns).set({ pauseRequested: true }).where(eq(schema.transferRuns.id, runId));
+      return { pageId: pageIds.get(`${input.locale}/${input.path}`) ?? null, revisionId: randomUUID(), action: input.action };
+    });
+
+    await runTransferImport(runId);
+
+    let run = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(run?.status).toBe('paused');
+    expect(run?.processedItems).toBe(1);
+    expect(run?.pauseRequested).toBe(false); // honored request is cleared
+    expect(writes).toBe(1);
+    expect(mocks.enqueueGitExport).not.toHaveBeenCalled();
+
+    // Second segment: emulate resume (requeue) and re-run the worker.
+    mocks.writeImportedPage.mockImplementation(async (input: { path: string; locale: string; action: 'create' | 'replace' | 'skip' }) => {
+      writes += 1;
+      return { pageId: pageIds.get(`${input.locale}/${input.path}`) ?? null, revisionId: randomUUID(), action: input.action };
+    });
+    await db.update(schema.transferRuns).set({ status: 'queued', pauseRequested: false }).where(eq(schema.transferRuns.id, runId));
+
+    await runTransferImport(runId);
+
+    run = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(run?.status).toBe('completed');
+    expect(run?.processedItems).toBe(2);
+    // The already-imported first page is skipped on resume — only page two is written.
+    expect(writes).toBe(2);
+    expect(mocks.enqueueGitExport).toHaveBeenCalledTimes(1);
+  });
+
   it('counts unsupported preview items as skipped progress', async () => {
     const pages: PageDef[] = [
       { id: 4, path: 'docs/unsupported-one', locale: 'en', title: 'One', content: '# One', fingerprint: 'fp4' },

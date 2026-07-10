@@ -18,6 +18,7 @@ export const transferRunKindSchema = z.enum([
 export const transferRunStatusSchema = z.enum([
   'queued',
   'running',
+  'paused',
   'completed',
   'completed_with_warnings',
   'failed',
@@ -176,6 +177,7 @@ export const transferRunViewSchema = z.object({
   failedItems: nonNegativeInt,
   currentItem: z.string().nullable(),
   cancelRequested: z.boolean(),
+  pauseRequested: z.boolean(),
   errorCode: z.string().nullable(),
   errorMessage: z.string().nullable(),
   errorDetail: z.string().nullable(),
@@ -186,6 +188,8 @@ export const transferRunViewSchema = z.object({
   expiresAt: isoDateSchema,
   canCancel: z.boolean(),
   canRetry: z.boolean(),
+  canPause: z.boolean(),
+  canResume: z.boolean(),
 });
 export type TransferRunView = z.infer<typeof transferRunViewSchema>;
 

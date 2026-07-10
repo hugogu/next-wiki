@@ -483,7 +483,7 @@ export const TransferRunView = z
       ])
       .describe('Kind of transfer run.'),
     status: z
-      .enum(['queued', 'running', 'completed', 'completed_with_warnings', 'failed', 'cancelled'])
+      .enum(['queued', 'running', 'paused', 'completed', 'completed_with_warnings', 'failed', 'cancelled'])
       .describe('Current run status.'),
     phase: z
       .enum([
@@ -525,6 +525,7 @@ export const TransferRunView = z
     failedItems: z.number().int().nonnegative().describe('Number of items that failed.'),
     currentItem: z.string().nullable().describe('Key of the item currently being processed, or null if idle.'),
     cancelRequested: z.boolean().describe('Whether a cancellation has been requested for this run.'),
+    pauseRequested: z.boolean().describe('Whether a pause has been requested for this run.'),
     errorCode: z.string().nullable().describe('Run-level error code, or null if none.'),
     errorMessage: z.string().nullable().describe('Run-level error message, or null if none.'),
     errorDetail: z.string().nullable().describe('Additional run-level error detail, or null if none.'),
@@ -535,6 +536,8 @@ export const TransferRunView = z
     expiresAt: z.string().describe('Timestamp when the run record expires.'),
     canCancel: z.boolean().describe('Whether the caller can currently cancel this run.'),
     canRetry: z.boolean().describe('Whether the caller can currently retry this run.'),
+    canPause: z.boolean().describe('Whether the caller can currently pause this run.'),
+    canResume: z.boolean().describe('Whether the caller can currently resume this run.'),
   })
   .describe('A content transfer run.');
 

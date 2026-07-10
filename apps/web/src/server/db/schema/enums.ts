@@ -183,6 +183,7 @@ export const transferRunKindEnum = pgEnum('transfer_run_kind', [
 export const transferRunStatusEnum = pgEnum('transfer_run_status', [
   'queued',
   'running',
+  'paused',
   'completed',
   'completed_with_warnings',
   'failed',

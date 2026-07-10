@@ -56,7 +56,9 @@ export type DomainErrorCode =
   | 'SOURCE_UNAVAILABLE'
   | 'SOURCE_INVALID_RESPONSE'
   | 'SOURCE_TIMEOUT'
-  | 'RUN_NOT_ACTIVE';
+  | 'RUN_NOT_ACTIVE'
+  | 'RUN_NOT_PAUSED'
+  | 'RUN_NOT_PAUSABLE';
 
 export class DomainError extends Error {
   constructor(

@@ -8,7 +8,7 @@ import { parsePage } from '@/server/transfers/manifest';
 import { rewriteMarkdownImages, rewriteMarkdownLinks } from '@/server/transfers/markdown-links';
 import { writeImportedAsset } from '@/server/services/transfer-asset-writer';
 import { writeImportedPage } from '@/server/services/transfer-page-writer';
-import { isRunCancelRequested, markRunTerminal } from '@/server/services/transfers';
+import { isRunCancelRequested, markRunPaused, markRunTerminal, readRunControlSignal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import { WikiJsClient } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
@@ -170,13 +170,24 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   const plans = await db.query.transferItems.findMany({
     where: and(eq(schema.transferItems.runId, preview.id), eq(schema.transferItems.kind, 'page')),
   });
-  let created = 0;
-  let replaced = 0;
-  let skipped = 0;
-  let converted = 0;
-  let warnings = 0;
-  let processed = 0;
+  // Resume support: continue counters from the run's persisted progress and
+  // skip pages already imported in an earlier (paused) segment of this run.
+  let created = run.createdItems;
+  let replaced = run.replacedItems;
+  let skipped = run.skippedItems;
+  let converted = run.convertedItems;
+  let warnings = run.warningItems;
+  let processed = run.processedItems;
   let cancelled = false;
+  let paused = false;
+  const doneKeys = new Set(
+    (
+      await db.query.transferItems.findMany({
+        where: and(eq(schema.transferItems.runId, run.id), eq(schema.transferItems.kind, 'page')),
+        columns: { sourceKey: true },
+      })
+    ).map((item) => item.sourceKey),
+  );
 
   await db.update(schema.transferRuns).set({
     totalItems: plans.length,
@@ -197,16 +208,38 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   }
 
   for (const plan of plans) {
-    // Poll the live cancel flag before touching the network or writing a page,
-    // so "Cancel Run" stops the import promptly instead of running to the end.
-    if (await isRunCancelRequested(run.id)) {
+    // Already imported in an earlier segment of this (resumed) run — skip in
+    // memory before any DB/network work so counters are never double-counted.
+    if (doneKeys.has(plan.sourceKey)) continue;
+    // Poll the live control flag before touching the network or writing a page,
+    // so Cancel/Pause take effect promptly instead of running to the end.
+    const control = await readRunControlSignal(run.id);
+    if (control === 'cancel') {
       cancelled = true;
+      break;
+    }
+    if (control === 'pause') {
+      paused = true;
       break;
     }
     if (plan.warningCode === 'UNSUPPORTED_SOURCE_CONTENT') {
       skipped += 1;
       warnings += 1;
       processed += 1;
+      // Record the skip as an item so a later resume does not re-count it.
+      await db.insert(schema.transferItems).values({
+        runId: run.id,
+        kind: 'page',
+        sourceKey: plan.sourceKey,
+        sourceFingerprint: plan.sourceFingerprint,
+        displayName: plan.displayName,
+        action: 'skip',
+        status: 'warning',
+        warningCode: 'UNSUPPORTED_SOURCE_CONTENT',
+        metadata: {},
+        finishedAt: new Date(),
+      }).onConflictDoNothing();
+      doneKeys.add(plan.sourceKey);
       await reportProgress(plan.displayName);
       continue;
     }
@@ -293,6 +326,12 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       metadata: { converted: conversion.converted },
       finishedAt: new Date(),
     }).onConflictDoNothing();
+  }
+  if (paused) {
+    // Progress counters were persisted incrementally; just flip to paused and
+    // keep the mutation slot so the run can be resumed later.
+    await markRunPaused(run.id);
+    return;
   }
   await markRunTerminal(
     run.id,

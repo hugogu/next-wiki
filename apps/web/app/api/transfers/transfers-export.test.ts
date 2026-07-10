@@ -106,6 +106,7 @@ describe('transfer export REST routes', () => {
       failedItems: 0,
       currentItem: null,
       cancelRequested: false,
+      pauseRequested: false,
       errorCode: null,
       errorMessage: null,
       errorDetail: null,
@@ -116,6 +117,8 @@ describe('transfer export REST routes', () => {
       expiresAt: '2026-06-24T00:00:00.000Z',
       canCancel: false,
       canRetry: false,
+      canPause: false,
+      canResume: false,
     });
 
     const response = await detailRoute.GET(

@@ -70,6 +70,8 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'ARTIFACT_IN_USE':
     case 'ARTIFACT_NOT_UPLOADABLE':
     case 'RUN_NOT_ACTIVE':
+    case 'RUN_NOT_PAUSED':
+    case 'RUN_NOT_PAUSABLE':
       return apiError(code, message, 409);
     case 'TRANSFER_NOT_FOUND':
       return apiError(code, message, 404);

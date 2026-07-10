@@ -15,6 +15,13 @@
       "when": 1783505404376,
       "tag": "0001_secret_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783675285559,
+      "tag": "0002_normal_power_man",
+      "breakpoints": true
     }
   ]
 }

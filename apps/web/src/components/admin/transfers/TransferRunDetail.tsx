@@ -24,6 +24,8 @@ export function TransferRunDetail({
   const { t } = useTranslation();
   const cancel = useApiMutation(`/api/transfers/${initialRun.id}/cancellation`);
   const retry = useApiMutation(`/api/transfers/${initialRun.id}/retries`);
+  const pause = useApiMutation(`/api/transfers/${initialRun.id}/pause`);
+  const resume = useApiMutation(`/api/transfers/${initialRun.id}/resume`);
 
   const [run, setRun] = useState(initialRun);
   const [items, setItems] = useState(initialItems);
@@ -80,6 +82,8 @@ export function TransferRunDetail({
             </p>
           </div>
           <div className="flex gap-sm">
+            {run.canPause && !run.pauseRequested && <Button variant="secondary" onClick={() => pause.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.pause')}</Button>}
+            {run.canResume && <Button onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.resume')}</Button>}
             {run.canCancel && <Button variant="secondary" onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.cancel')}</Button>}
             {run.canRetry && <Button onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.retry')}</Button>}
             {run.reportArtifactId && <a className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text" href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}>{t('admin.transfers.actions.download')}</a>}

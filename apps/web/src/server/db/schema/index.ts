@@ -479,6 +479,7 @@ export const transferRuns = pgTable(
     failedItems: integer('failed_items').notNull().default(0),
     currentItem: text('current_item'),
     cancelRequested: boolean('cancel_requested').notNull().default(false),
+    pauseRequested: boolean('pause_requested').notNull().default(false),
     errorCode: text('error_code'),
     errorMessage: text('error_message'),
     errorDetail: text('error_detail'),
