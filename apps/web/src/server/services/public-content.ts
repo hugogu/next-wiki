@@ -735,7 +735,27 @@ function buildTree(pages: { id: string; path: string; title: string; status: 'dr
       current = child;
     }
   }
+  sortTreeChildren(root);
   return root;
+}
+
+/**
+ * Order every node's children so the sidebar lists folders before pages, and
+ * sorts each group alphabetically by display label (numeric-aware, so "2"
+ * precedes "10"). A node with no page of its own is a pure folder; a node that
+ * carries a `pageId` is a page even if it also nests children.
+ */
+function sortTreeChildren(node: PublicPageTreeNode): void {
+  node.children.sort((a, b) => {
+    const aIsFolder = a.pageId === null;
+    const bIsFolder = b.pageId === null;
+    if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
+    return (a.title ?? a.segment).localeCompare(b.title ?? b.segment, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+  for (const child of node.children) sortTreeChildren(child);
 }
 
 // ---------------------------------------------------------------------------

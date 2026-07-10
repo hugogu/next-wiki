@@ -62,6 +62,25 @@ describe('public content read facade', () => {
     expect(withRevision?.publishedRevision?.version).toBe(1);
   });
 
+  it('orders the page tree with folders before files, alphabetical within each group', async () => {
+    const editor = await createPublicApiUser('public-tree-editor@example.com', 'editor');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    // Insertion order deliberately mixes files and folders so a stable path
+    // sort alone would interleave them (apple, beta, mango, zebra).
+    for (const path of ['library/mango', 'library/zebra/child', 'library/apple', 'library/beta/child']) {
+      await pageService.create(editorCtx, { path, title: path, contentSource: path });
+    }
+
+    const { root } = await publicContent.getPageTree(editorCtx, {
+      status: 'all',
+      pathPrefix: 'library',
+    });
+
+    // Folders (beta, zebra) sort ahead of files (apple, mango); each group A→Z.
+    expect(root.children.map((child) => child.segment)).toEqual(['beta', 'zebra', 'apple', 'mango']);
+    expect(root.children.map((child) => child.pageId === null)).toEqual([true, true, false, false]);
+  });
+
   it('hides draft-only pages from reader API keys', async () => {
     const editor = await createPublicApiUser('public-draft-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-draft-reader@example.com', 'reader');
