@@ -92,6 +92,15 @@ describe('Public Wiki page search route', () => {
     expect(searchAnalytics.recordSearchBehavior).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: 'escape' }));
   });
 
+  it('rejects invalid behavior shapes before they reach analytics', async () => {
+    const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'behavior', eventId: '77777777-7777-4777-8777-777777777777', searchRecordId: '11111111-1111-4111-8111-111111111111', searchSessionId: '22222222-2222-4222-8222-222222222222', action: 'result_open' }),
+    }), { params: Promise.resolve({}) });
+
+    expect(response.status).toBe(422);
+  });
+
   it('accepts a behavior when best-effort analytics persistence fails', async () => {
     searchAnalytics.recordSearchBehavior.mockRejectedValueOnce(new Error('database unavailable'));
     const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
@@ -111,5 +120,20 @@ describe('Public Wiki page search route', () => {
 
     expect(response.status).toBe(204);
     expect(searchAnalytics.recordSearchBehavior).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventId: '55555555-5555-4555-8555-555555555555' }));
+  });
+
+  it('revalidates readable result opens while allowing idempotent retries', async () => {
+    publicContent.getPageById.mockResolvedValue({ id: '66666666-6666-4666-8666-666666666666' });
+    const body = { kind: 'behavior', eventId: '88888888-8888-4888-8888-888888888888', searchRecordId: '11111111-1111-4111-8111-111111111111', searchSessionId: '22222222-2222-4222-8222-222222222222', action: 'result_open', pageId: '66666666-6666-4666-8666-666666666666' };
+    const first = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    }), { params: Promise.resolve({}) });
+    const retry = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    }), { params: Promise.resolve({}) });
+
+    expect(first.status).toBe(204);
+    expect(retry.status).toBe(204);
+    expect(searchAnalytics.recordSearchBehavior).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: 'result_open', pageId: body.pageId }));
   });
 });
