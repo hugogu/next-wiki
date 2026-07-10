@@ -190,6 +190,7 @@ export const transferRunViewSchema = z.object({
   canRetry: z.boolean(),
   canPause: z.boolean(),
   canResume: z.boolean(),
+  canCleanup: z.boolean(),
 });
 export type TransferRunView = z.infer<typeof transferRunViewSchema>;
 
@@ -198,6 +199,12 @@ export const transferRunAcceptedSchema = z.object({
   status: z.literal('queued'),
 });
 export type TransferRunAccepted = z.infer<typeof transferRunAcceptedSchema>;
+
+export const transferCleanupResultSchema = z.object({
+  id: z.string().uuid(),
+  deletedPages: nonNegativeInt,
+});
+export type TransferCleanupResult = z.infer<typeof transferCleanupResultSchema>;
 
 export const transferItemViewSchema = z.object({
   id: z.string().uuid(),

@@ -538,6 +538,7 @@ export const TransferRunView = z
     canRetry: z.boolean().describe('Whether the caller can currently retry this run.'),
     canPause: z.boolean().describe('Whether the caller can currently pause this run.'),
     canResume: z.boolean().describe('Whether the caller can currently resume this run.'),
+    canCleanup: z.boolean().describe('Whether the caller can currently delete the pages this run imported.'),
   })
   .describe('A content transfer run.');
 
@@ -554,6 +555,13 @@ export const TransferRunAccepted = z
     status: z.literal('queued').describe('The run has been queued for processing.'),
   })
   .describe('Response returned when a transfer run is accepted for asynchronous processing.');
+
+export const TransferCleanupResult = z
+  .object({
+    id: z.string().uuid().describe('Identifier of the cleaned-up transfer run.'),
+    deletedPages: z.number().int().nonnegative().describe('Number of imported pages that were deleted.'),
+  })
+  .describe('Result of deleting the pages a transfer run imported.');
 
 export const TransferItemView = z
   .object({

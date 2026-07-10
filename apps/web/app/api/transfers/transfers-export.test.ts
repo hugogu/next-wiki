@@ -119,6 +119,7 @@ describe('transfer export REST routes', () => {
       canRetry: false,
       canPause: false,
       canResume: false,
+      canCleanup: false,
     });
 
     const response = await detailRoute.GET(

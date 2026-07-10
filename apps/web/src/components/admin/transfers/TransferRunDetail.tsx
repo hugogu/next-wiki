@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { TransferItemList, TransferItemView, TransferRunView } from '@next-wiki/shared';
+import type { TransferCleanupResult, TransferItemList, TransferItemView, TransferRunView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import { apiGet, useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
@@ -26,8 +27,11 @@ export function TransferRunDetail({
   const retry = useApiMutation(`/api/transfers/${initialRun.id}/retries`);
   const pause = useApiMutation(`/api/transfers/${initialRun.id}/pause`);
   const resume = useApiMutation(`/api/transfers/${initialRun.id}/resume`);
+  const cleanup = useApiMutation<void, TransferCleanupResult>(`/api/transfers/${initialRun.id}/cleanup`);
 
   const [run, setRun] = useState(initialRun);
+  const [confirmingCleanup, setConfirmingCleanup] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [items, setItems] = useState(initialItems);
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(0);
@@ -86,9 +90,11 @@ export function TransferRunDetail({
             {run.canResume && <Button onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.resume')}</Button>}
             {run.canCancel && <Button variant="secondary" onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.cancel')}</Button>}
             {run.canRetry && <Button onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}>{t('admin.transfers.actions.retry')}</Button>}
+            {run.canCleanup && <Button variant="danger" onClick={() => setConfirmingCleanup(true)}>{t('admin.transfers.actions.cleanup')}</Button>}
             {run.reportArtifactId && <a className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text" href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}>{t('admin.transfers.actions.download')}</a>}
           </div>
         </div>
+        {cleanupMessage && <p className="mt-md text-sm text-success">{cleanupMessage}</p>}
         {run.errorMessage && <p className="mt-md text-sm text-danger">{run.errorMessage}</p>}
         {run.errorDetail && <pre className="mt-sm overflow-auto rounded-md bg-surface-elevated p-sm text-xs">{run.errorDetail}</pre>}
       </section>
@@ -154,6 +160,26 @@ export function TransferRunDetail({
             <span className="mr-2">{t('userCenter.audit.next')}</span><ChevronRightIcon />
           </Button>
         </div>
+      )}
+      {confirmingCleanup && (
+        <ConfirmDialog
+          title={t('admin.transfers.actions.cleanup')}
+          message={t('admin.transfers.detail.cleanupConfirm', { count: run.createdItems })}
+          confirmLabel={t('admin.transfers.actions.cleanup')}
+          confirmVariant="danger"
+          pending={cleanup.isPending}
+          error={cleanup.error?.message}
+          onCancel={() => setConfirmingCleanup(false)}
+          onConfirm={() =>
+            cleanup.mutate(undefined, {
+              onSuccess: (result) => {
+                setConfirmingCleanup(false);
+                setCleanupMessage(t('admin.transfers.detail.cleanupDone', { count: result.deletedPages }));
+                router.refresh();
+              },
+            })
+          }
+        />
       )}
     </div>
   );

@@ -323,7 +323,10 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       targetKey: result.pageId,
       action: conversion.converted ? 'convert' : result.action,
       status: warnings ? 'warning' : 'completed',
-      metadata: { converted: conversion.converted },
+      // Persist the real create/replace action too: `action` shows 'convert'
+      // for converted pages, which would otherwise hide whether the page was
+      // newly created — cleanup only removes pages this run created.
+      metadata: { converted: conversion.converted, importAction: result.action },
       finishedAt: new Date(),
     }).onConflictDoNothing();
   }

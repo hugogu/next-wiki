@@ -1,5 +1,6 @@
-import { and, count, desc, eq, inArray, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type {
+  TransferCleanupResult,
   TransferItemList,
   TransferItemQuery,
   TransferItemView,
@@ -16,12 +17,18 @@ import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import { isMigrationActive } from './migration';
 import { assertCanManageTransfers } from './transfer-sources';
+import { reconcilePageAcrossIndexes } from './ai-index';
+import { enqueueGitExport } from './git-export';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
 const ACTIVE = ['queued', 'running'] as const;
+const TERMINAL = ['completed', 'completed_with_warnings', 'failed', 'cancelled'] as const;
 // Only the long-running Wiki.js import supports pause/resume; other kinds either
 // finish quickly (preview, source test) or have a non-resumable asset phase.
 const PAUSABLE_KINDS = ['wikijs_import'] as const;
+// Cleanup deletes the pages a run created; only the Wiki.js import records the
+// create/replace distinction its cleanup relies on.
+const CLEANABLE_KINDS = ['wikijs_import'] as const;
 
 type RunRow = typeof schema.transferRuns.$inferSelect;
 type ItemRow = typeof schema.transferItems.$inferSelect;
@@ -64,6 +71,11 @@ function runView(row: RunRow): TransferRunView {
       ACTIVE.includes(row.status as (typeof ACTIVE)[number]) &&
       PAUSABLE_KINDS.includes(row.kind as (typeof PAUSABLE_KINDS)[number]),
     canResume: row.status === 'paused',
+    // Offer cleanup only for a finished import that actually created pages.
+    canCleanup:
+      CLEANABLE_KINDS.includes(row.kind as (typeof CLEANABLE_KINDS)[number]) &&
+      TERMINAL.includes(row.status as (typeof TERMINAL)[number]) &&
+      row.createdItems > 0,
   };
 }
 
@@ -280,6 +292,57 @@ export async function markRunPaused(id: string): Promise<void> {
     .update(schema.transferRuns)
     .set({ status: 'paused', pauseRequested: false, phase: 'writing_pages' })
     .where(eq(schema.transferRuns.id, id));
+}
+
+/**
+ * Undo an import: soft-delete every page this run created (not the ones it
+ * merely replaced) and drop them from the AI indexes. Idempotent — pages
+ * already gone are skipped, so it can be run again safely.
+ */
+export async function cleanupRun(ctx: PermCtx, id: string): Promise<TransferCleanupResult> {
+  assertCanManageTransfers(ctx);
+  const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
+  if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer run not found');
+  if (!CLEANABLE_KINDS.includes(row.kind as (typeof CLEANABLE_KINDS)[number])) {
+    throw new DomainError('RUN_NOT_CLEANABLE', 'This transfer run type cannot be cleaned up');
+  }
+  if (!TERMINAL.includes(row.status as (typeof TERMINAL)[number])) {
+    throw new DomainError('RUN_NOT_CLEANABLE', 'Only a finished transfer run can be cleaned up');
+  }
+  // Pages this run created. `action` shows 'convert' for converted pages, so
+  // also consult the create/replace value persisted in item metadata.
+  const created = await db
+    .select({ pageId: schema.transferItems.targetKey })
+    .from(schema.transferItems)
+    .where(
+      and(
+        eq(schema.transferItems.runId, id),
+        eq(schema.transferItems.kind, 'page'),
+        isNotNull(schema.transferItems.targetKey),
+        or(
+          eq(schema.transferItems.action, 'create'),
+          sql`${schema.transferItems.metadata} ->> 'importAction' = 'create'`,
+        ),
+      ),
+    );
+  const pageIds = created.map((item) => item.pageId).filter((value): value is string => Boolean(value));
+  if (!pageIds.length) return { id, deletedPages: 0 };
+  // Only touch pages that still exist so a re-run is a no-op.
+  const existing = await db
+    .select({ id: schema.pages.id })
+    .from(schema.pages)
+    .where(and(inArray(schema.pages.id, pageIds), isNull(schema.pages.deletedAt)));
+  const toDelete = existing.map((page) => page.id);
+  if (!toDelete.length) return { id, deletedPages: 0 };
+  await db
+    .update(schema.pages)
+    .set({ deletedAt: new Date() })
+    .where(inArray(schema.pages.id, toDelete));
+  // Drop each page from every active index (targetRevision null → chunks removed).
+  for (const pageId of toDelete) await reconcilePageAcrossIndexes(pageId, ctx);
+  // One snapshot export reflects all the deletions.
+  await enqueueGitExport('publish');
+  return { id, deletedPages: toDelete.length };
 }
 
 /**

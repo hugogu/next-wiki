@@ -72,6 +72,7 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'RUN_NOT_ACTIVE':
     case 'RUN_NOT_PAUSED':
     case 'RUN_NOT_PAUSABLE':
+    case 'RUN_NOT_CLEANABLE':
       return apiError(code, message, 409);
     case 'TRANSFER_NOT_FOUND':
       return apiError(code, message, 404);

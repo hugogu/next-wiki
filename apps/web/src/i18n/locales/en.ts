@@ -358,6 +358,8 @@ export const en = {
   'admin.transfers.history.empty': 'No transfer runs yet.',
   'admin.transfers.detail.warningCount': '{{count}} warnings',
   'admin.transfers.detail.noItems': 'No items yet.',
+  'admin.transfers.detail.cleanupConfirm': 'Delete the {{count}} page(s) this import created and remove them from AI indexes? Pages it only replaced are left untouched. This cannot be undone.',
+  'admin.transfers.detail.cleanupDone': 'Deleted {{count}} imported page(s).',
   'admin.transfers.detail.filter.all': 'All',
   'admin.transfers.detail.filter.warning': 'Warnings',
   'admin.transfers.detail.filter.failed': 'Errors',
@@ -383,6 +385,7 @@ export const en = {
   'admin.transfers.actions.pause': 'Pause',
   'admin.transfers.actions.resume': 'Resume',
   'admin.transfers.actions.retry': 'Retry',
+  'admin.transfers.actions.cleanup': 'Clean up',
   'admin.transfers.actions.download': 'Download',
 
   'admin.storage.metadataTitle': 'Content storage',
