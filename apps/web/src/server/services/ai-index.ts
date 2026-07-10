@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { CHUNKER_VERSION } from '@/server/ai/chunking/markdown-chunker';
-import { createAction, requestActionCancellation } from './ai-actions';
+import { createAction, getAiSettings, requestActionCancellation } from './ai-actions';
 
 function assertAdmin(ctx: PermCtx): void {
   if (ctx.actor.kind !== 'user' || !can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
@@ -164,6 +164,13 @@ export async function reconcilePageAcrossIndexes(pageId: string, ctx?: PermCtx):
     .leftJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
     .where(eq(schema.pages.id, pageId))
     .limit(1);
+  // The page-index state is the durable "this page needs (re)indexing" marker,
+  // so it is written whether or not AI is currently enabled. Dispatching the
+  // rebuild worker, however, requires AI to be on — otherwise a content write
+  // (e.g. a Wiki.js import) would fail purely because AI happens to be turned
+  // off. When AI is re-enabled, the next index rebuild drains these pending
+  // states, so no data is lost by deferring the dispatch.
+  const aiEnabled = (await getAiSettings()).enabled;
   for (const generation of generations) {
     const targetRevisionId = page[0]?.deletedAt ? null : page[0]?.revisionId ?? null;
     await db
@@ -187,7 +194,7 @@ export async function reconcilePageAcrossIndexes(pageId: string, ctx?: PermCtx):
           updatedAt: new Date(),
         },
       });
-    if (ctx?.actor.kind === 'user') {
+    if (aiEnabled && ctx?.actor.kind === 'user') {
       await createAction(ctx, {
         feature: 'index_rebuild',
         input: { generationId: generation.id },

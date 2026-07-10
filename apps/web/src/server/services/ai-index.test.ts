@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
-import { createIndexRebuild, cancelIndexGeneration, deleteIndexGeneration, refreshIndexCounters, retryIndexPages } from './ai-index';
+import { createIndexRebuild, cancelIndexGeneration, deleteIndexGeneration, reconcilePageAcrossIndexes, refreshIndexCounters, retryIndexPages } from './ai-index';
 
 describe('AI index lifecycle', () => {
   let adminId: string;
@@ -166,5 +166,29 @@ describe('AI index lifecycle', () => {
 
   it('refuses to cancel a non-existent generation', async () => {
     await expect(cancelIndexGeneration(buildUserCtx(adminId, 'admin'), randomUUID())).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('reconciles pages without dispatching when AI is disabled, preserving pending state for later', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    // Keep the index live, then turn AI off — a content write (e.g. Wiki.js
+    // import) must still succeed, only deferring the rebuild dispatch.
+    await db.update(schema.aiIndexGenerations)
+      .set({ status: 'ready', isActive: true, readyAt: new Date() })
+      .where(eq(schema.aiIndexGenerations.id, generationId));
+    await db.update(schema.aiSettings).set({ enabled: false }).where(eq(schema.aiSettings.id, 'default'));
+    await db.delete(schema.aiActions);
+
+    await expect(reconcilePageAcrossIndexes(pageId, ctx)).resolves.toBeUndefined();
+
+    // The durable "needs indexing" marker is written so a later rebuild picks it up…
+    expect(await db.query.aiPageIndexStates.findFirst({
+      where: eq(schema.aiPageIndexStates.generationId, generationId),
+    })).toMatchObject({ pageId, status: 'pending' });
+    // …but no rebuild worker action is queued while AI is off.
+    expect(await db.query.aiActions.findFirst({
+      where: eq(schema.aiActions.feature, 'index_rebuild'),
+    })).toBeUndefined();
   });
 });
