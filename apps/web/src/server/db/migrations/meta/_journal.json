@@ -29,6 +29,13 @@
       "when": 1783679883312,
       "tag": "0003_known_gertrude_yorkes",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783693200027,
+      "tag": "0004_thin_the_renegades",
+      "breakpoints": true
     }
   ]
 }

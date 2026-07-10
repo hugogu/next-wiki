@@ -163,6 +163,10 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'question',
 ]);
 
+// ---- Header hybrid search (013) -------------------------------------------
+
+export const searchBehaviorActionEnum = pgEnum('search_behavior_action', ['result_open', 'escape']);
+
 // ---- Content transfer (005) -----------------------------------------------
 
 export const transferSourceTypeEnum = pgEnum('transfer_source_type', ['wikijs']);

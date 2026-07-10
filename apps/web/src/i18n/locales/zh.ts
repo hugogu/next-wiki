@@ -10,6 +10,14 @@ export const zh: Translations = {
   'common.actions.confirm': '确认',
   'common.actions.dismiss': '关闭',
   'common.actions.search': '查询',
+  'header.search.label': '搜索 Wiki 页面',
+  'header.search.placeholder': '搜索页面',
+  'header.search.minChars': '请输入至少两个字符以搜索。',
+  'header.search.searching': '搜索中…',
+  'header.search.noResults': '未找到匹配页面。',
+  'header.search.reducedCoverage': '当前仅显示关键词匹配结果。',
+  'header.search.error': '搜索暂时不可用。',
+  'header.search.escapeHint': '按 Escape 退出搜索。',
   'common.actions.edit': '编辑',
 
   // Languages

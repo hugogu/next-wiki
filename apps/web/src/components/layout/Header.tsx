@@ -25,6 +25,7 @@ import {
 import { apiPost } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { getPageHref, getEditHref, getHistoryHref, getPublicApiPagePublicationUrl } from '@/lib/path';
+import { HeaderHybridSearch } from '@/components/search/HeaderHybridSearch';
 
 function IconButton({
   href,
@@ -160,7 +161,8 @@ export function Header({
         </Link>
       </div>
 
-      {title && (
+      {!editor && <HeaderHybridSearch />}
+      {editor && title && (
         <div
           data-testid="page-title"
           className="absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate font-display text-lg font-semibold text-foreground sm:text-xl"

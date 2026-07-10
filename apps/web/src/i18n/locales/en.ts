@@ -8,6 +8,14 @@ export const en = {
   'common.actions.confirm': 'Confirm',
   'common.actions.dismiss': 'Dismiss',
   'common.actions.search': 'Search',
+  'header.search.label': 'Search wiki pages',
+  'header.search.placeholder': 'Search pages',
+  'header.search.minChars': 'Type at least two characters to search.',
+  'header.search.searching': 'Searching…',
+  'header.search.noResults': 'No matching pages found.',
+  'header.search.reducedCoverage': 'Showing keyword matches only.',
+  'header.search.error': 'Search is temporarily unavailable.',
+  'header.search.escapeHint': 'Press Escape to close search.',
   'common.actions.edit': 'Edit',
 
   // Languages

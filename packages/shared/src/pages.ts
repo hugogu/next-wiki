@@ -273,6 +273,48 @@ export const publicPageSearchResponseSchema = z.object({
 });
 export type PublicPageSearchResponse = z.infer<typeof publicPageSearchResponseSchema>;
 
+// ---- 013: Header hybrid page search ---------------------------------------
+
+export const hybridSearchSemanticStateSchema = z.enum(['pending', 'ready', 'unavailable', 'failed', 'skipped']);
+export type HybridSearchSemanticState = z.infer<typeof hybridSearchSemanticStateSchema>;
+
+export const hybridSearchQueryInputSchema = z.object({
+  kind: z.literal('query'),
+  searchRecordId: z.string().uuid(),
+  searchSessionId: z.string().uuid(),
+  q: z.string().trim().min(2).max(200),
+  limit: z.number().int().min(1).max(20).default(20),
+});
+export type HybridSearchQueryInput = z.infer<typeof hybridSearchQueryInputSchema>;
+
+export const hybridSearchBehaviorInputSchema = z.object({
+  kind: z.literal('behavior'),
+  eventId: z.string().uuid(),
+  searchRecordId: z.string().uuid(),
+  searchSessionId: z.string().uuid(),
+  action: z.enum(['result_open', 'escape']),
+  pageId: z.string().uuid().optional(),
+});
+export type HybridSearchBehaviorInput = z.infer<typeof hybridSearchBehaviorInputSchema>;
+
+export const hybridPageSearchInputSchema = z.discriminatedUnion('kind', [hybridSearchQueryInputSchema, hybridSearchBehaviorInputSchema]);
+export type HybridPageSearchInput = z.infer<typeof hybridPageSearchInputSchema>;
+
+export const hybridSearchResultSchema = z.object({
+  page: publicPageResourceSchema,
+  excerpt: z.string().nullable(),
+  score: z.number(),
+  matchSources: z.array(z.enum(['keyword', 'semantic'])).min(1),
+});
+export type HybridSearchResult = z.infer<typeof hybridSearchResultSchema>;
+
+export const hybridPageSearchResponseSchema = z.object({
+  searchRecordId: z.string().uuid(),
+  semanticState: hybridSearchSemanticStateSchema,
+  items: z.array(hybridSearchResultSchema),
+});
+export type HybridPageSearchResponse = z.infer<typeof hybridPageSearchResponseSchema>;
+
 export const publicPageTreeQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   pathPrefix: pathSchema.optional(),

@@ -270,7 +270,6 @@ export function Navigator({
         setBranchLoad((prev) => ({ ...prev, [path]: 'error' }));
         // Surface the underlying message in the console for debugging without
         // breaking the UI; the chevron retry button keeps the sidebar usable.
-        // eslint-disable-next-line no-console
         console.error('[Navigator] branch load failed', path, message);
       })
       .finally(() => {

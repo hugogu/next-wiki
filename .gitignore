@@ -63,3 +63,4 @@ AGENTS.md
 docker/caddy/certs/*.pem
 docker/caddy/certs/*.crt
 docker/caddy/certs/*.key
+workflows

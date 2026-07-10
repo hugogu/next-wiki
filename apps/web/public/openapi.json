@@ -158,16 +158,16 @@
       "AiModelSyncResult": {
         "type": "object",
         "properties": {
-          "count": {
+          "skipped": {
             "type": "number"
           },
-          "skipped": {
+          "count": {
             "type": "number"
           }
         },
         "required": [
-          "count",
-          "skipped"
+          "skipped",
+          "count"
         ]
       },
       "ApiKeyCreated": {
@@ -817,6 +817,36 @@
           "fingerprint"
         ],
         "description": "Generated Git export SSH key pair (public half)."
+      },
+      "HybridPageSearchInput": {},
+      "HybridPageSearchResponse": {
+        "type": "object",
+        "properties": {
+          "semanticState": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "skipped",
+              "pending",
+              "unavailable",
+              "ready"
+            ]
+          },
+          "searchRecordId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "semanticState",
+          "searchRecordId",
+          "items"
+        ]
       },
       "idSchema": {
         "type": "string",
@@ -3466,6 +3496,50 @@
         ],
         "description": "First-run setup input, creating the initial administrator account."
       },
+      "SourceTestResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "pageCount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "ok",
+              "pageCount"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "errorCode": {
+                "type": "string"
+              },
+              "errorMessage": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ok",
+              "errorCode",
+              "errorMessage"
+            ]
+          }
+        ]
+      },
       "StorageBackendDisable": {
         "type": "object",
         "properties": {
@@ -4755,6 +4829,18 @@
             "description": "No Content"
           }
         }
+      }
+    },
+    "/admin/pages/stats": {
+      "get": {
+        "operationId": "get-admin-pages-stats",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "responses": {}
       }
     },
     "/ai/actions": {
@@ -7564,11 +7650,7 @@
           "Appearance"
         ],
         "parameters": [],
-        "responses": {
-          "302": {
-            "description": "Successful response"
-          }
-        }
+        "responses": {}
       },
       "put": {
         "operationId": "put-settings-site-icon",
@@ -9280,6 +9362,41 @@
             }
           }
         }
+      },
+      "post": {
+        "operationId": "post-v1-search-pages",
+        "summary": "Run or resume a Header hybrid page search, or record a search behavior",
+        "description": "Extends the existing page-search resource without changing legacy GET search callers.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HybridPageSearchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HybridPageSearchResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/search/semantic": {
@@ -10148,6 +10265,32 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransferSourceView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-transfer-sources",
+        "summary": "Test Wiki.js source credentials without creating a source",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceTestResult"
                 }
               }
             }

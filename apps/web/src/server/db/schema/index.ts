@@ -42,6 +42,7 @@ import {
   aiActionStatusEnum,
   aiQuestionModeEnum,
   aiEventTypeEnum,
+  searchBehaviorActionEnum,
   transferSourceTypeEnum,
   transferSourceStatusEnum,
   transferRunKindEnum,
@@ -237,6 +238,64 @@ export const apiAuditEntries = pgTable(
 export const apiAuditEntriesRelations = relations(apiAuditEntries, ({ one }) => ({
   key: one(apiKeys, { fields: [apiAuditEntries.keyId], references: [apiKeys.id] }),
   user: one(users, { fields: [apiAuditEntries.userId], references: [users.id] }),
+}));
+
+// ---- Header hybrid search (013) -------------------------------------------
+
+export const searchRecords = pgTable(
+  'search_records',
+  {
+    id: uuid('id').primaryKey(),
+    spaceId: uuid('space_id').notNull().references(() => spaces.id),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    sessionId: uuid('session_id').notNull(),
+    query: text('query').notNull(),
+    keywordResultCount: integer('keyword_result_count').notNull().default(0),
+    semanticResultCount: integer('semantic_result_count').notNull().default(0),
+    resultCount: integer('result_count').notNull().default(0),
+    semanticState: text('semantic_state').notNull().default('skipped'),
+    // ai_actions is declared later in this module; the application keeps this
+    // relation explicit and the migration adds the foreign key after both tables.
+    semanticActionId: uuid('semantic_action_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    sessionCreatedIdx: index().on(t.sessionId, t.createdAt),
+    actorCreatedIdx: index().on(t.actorUserId, t.createdAt),
+    spaceCreatedIdx: index().on(t.spaceId, t.createdAt),
+    createdIdx: index().on(t.createdAt),
+  }),
+);
+
+export const searchBehaviors = pgTable(
+  'search_behaviors',
+  {
+    id: uuid('id').primaryKey(),
+    searchRecordId: uuid('search_record_id').notNull().references(() => searchRecords.id, { onDelete: 'cascade' }),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    action: searchBehaviorActionEnum('action').notNull(),
+    pageId: uuid('page_id').references(() => pages.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    recordCreatedIdx: index().on(t.searchRecordId, t.createdAt),
+    actorCreatedIdx: index().on(t.actorUserId, t.createdAt),
+    actionCreatedIdx: index().on(t.action, t.createdAt),
+    pageCreatedIdx: index().on(t.pageId, t.createdAt),
+  }),
+);
+
+export const searchRecordsRelations = relations(searchRecords, ({ one, many }) => ({
+  space: one(spaces, { fields: [searchRecords.spaceId], references: [spaces.id] }),
+  actor: one(users, { fields: [searchRecords.actorUserId], references: [users.id] }),
+  behaviors: many(searchBehaviors),
+}));
+
+export const searchBehaviorsRelations = relations(searchBehaviors, ({ one }) => ({
+  record: one(searchRecords, { fields: [searchBehaviors.searchRecordId], references: [searchRecords.id] }),
+  actor: one(users, { fields: [searchBehaviors.actorUserId], references: [users.id] }),
+  page: one(pages, { fields: [searchBehaviors.pageId], references: [pages.id] }),
 }));
 
 // ---- Content storage (003) -------------------------------------------------
