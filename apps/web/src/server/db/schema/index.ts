@@ -2,6 +2,7 @@ import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   bigserial,
+  check,
   customType,
   index,
   integer,
@@ -279,6 +280,10 @@ export const searchBehaviors = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
+    actionPageShape: check(
+      'search_behaviors_action_page_shape',
+      sql`(${t.action} = 'result_open' AND ${t.pageId} IS NOT NULL) OR (${t.action} = 'escape' AND ${t.pageId} IS NULL)`,
+    ),
     recordCreatedIdx: index().on(t.searchRecordId, t.createdAt),
     actorCreatedIdx: index().on(t.actorUserId, t.createdAt),
     actionCreatedIdx: index().on(t.action, t.createdAt),

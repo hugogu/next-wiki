@@ -32,9 +32,9 @@
 - [X] T004 [P] Add documented mirrors of the hybrid POST schemas and response fields in `apps/web/src/server/api/openapi-schemas.ts`.
 - [X] T005 [P] Define `search_behavior_action`, `searchRecords`, `searchBehaviors`, relationships, checks, and analysis indexes in `apps/web/src/server/db/schema/enums.ts` and `apps/web/src/server/db/schema/index.ts`.
 - [X] T006 Generate and inspect the additive Drizzle migration and metadata for the new enum/tables under `apps/web/src/server/db/migrations/` and `apps/web/src/server/db/migrations/meta/`; do not run handwritten DDL.
-- [ ] T007 Create failing idempotency, ownership, foreign-key, page/action-shape, and privacy tests for search records and behavior events in `apps/web/src/server/services/search-analytics.test.ts`.
+- [X] T007 Create failing idempotency, ownership, foreign-key, page/action-shape, and privacy tests for search records and behavior events in `apps/web/src/server/services/search-analytics.test.ts`.
 - [X] T008 Implement the focused, best-effort-safe search record and behavior persistence service in `apps/web/src/server/services/search-analytics.ts`, including actor/session ownership validation and conflict-safe event insertion.
-- [ ] T009 Add fixture cleanup for `searchBehaviors` and `searchRecords` in the affected server test setup files under `apps/web/src/server/services/*.test.ts`.
+- [X] T009 Add fixture cleanup for `searchBehaviors` and `searchRecords` in the affected server test setup files under `apps/web/src/server/services/*.test.ts`.
 
 **Checkpoint**: The shared POST contract compiles, the generated migration represents only additive changes, and duplicate persistence requests produce one logical record.
 
@@ -101,7 +101,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Complete behavior-service result-open validation and search-record aggregate/semantic-state update paths in `apps/web/src/server/services/search-analytics.ts`.
+- [X] T028 [US3] Complete behavior-service result-open validation and search-record aggregate/semantic-state update paths in `apps/web/src/server/services/search-analytics.ts`.
 - [X] T029 [US3] Add the `result_open` behavior route branch, selected-page permission recheck, and conflict-safe success response in `apps/web/app/api/v1/search/pages/route.ts`.
 - [X] T030 [US3] Generate per-query and per-event UUIDs, send one best-effort `result_open` event with `keepalive`, and allow native navigation to continue in `apps/web/src/components/search/HeaderHybridSearch.tsx`.
 

@@ -121,7 +121,7 @@ export function HeaderHybridSearch() {
         <label className="sr-only" htmlFor="header-hybrid-search">{t('header.search.label')}</label>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute left-sm top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input id="header-hybrid-search" ref={inputRef} value={query} onFocus={openSearch}
+          <input id="header-hybrid-search" ref={inputRef} value={query} onFocus={openSearch} aria-describedby={open ? resultsId : undefined}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('header.search.placeholder')} className="h-9 w-full rounded-md border border-border bg-surface px-md pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
         </div>

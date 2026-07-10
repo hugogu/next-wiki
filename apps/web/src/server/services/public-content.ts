@@ -670,11 +670,21 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     resultCount: keyword.items.length,
     semanticState: 'skipped' as const,
   };
-  let record = await searchAnalytics.getOrCreateSearchRecord(ctx, input, space.id, baseSummary);
-  let semanticState = record.semanticState as HybridPageSearchResponse['semanticState'];
+  let record: Awaited<ReturnType<typeof searchAnalytics.getOrCreateSearchRecord>> | null = null;
+  try {
+    record = await searchAnalytics.getOrCreateSearchRecord(ctx, input, space.id, baseSummary);
+  } catch (error) {
+    // A telemetry outage must never turn a readable keyword result into a
+    // failed search. Without a durable record semantic polling cannot safely
+    // resume, so report generic reduced coverage instead.
+    console.error('Failed to create hybrid search analytics:', error);
+  }
+  let semanticState: HybridPageSearchResponse['semanticState'] = record
+    ? record.semanticState as HybridPageSearchResponse['semanticState']
+    : 'unavailable';
   let semanticItems: Awaited<ReturnType<typeof publicAi.getSemanticSearchResults>>['items'] = [];
 
-  if (record.semanticActionId) {
+  if (record?.semanticActionId) {
     try {
       const semantic = await publicAi.getSemanticSearchResults(ctx, record.semanticActionId);
       semanticState = semantic.status === 'succeeded' ? 'ready' : semantic.status === 'failed' ? 'failed' : 'pending';
@@ -682,7 +692,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     } catch {
       semanticState = 'unavailable';
     }
-  } else if (semanticState === 'skipped') {
+  } else if (record && semanticState === 'skipped') {
     try {
       const accepted = await publicAi.submitSemanticSearch(ctx, { q: input.q, limit: input.limit, scope: 'all' });
       semanticState = 'pending';
@@ -703,9 +713,11 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
   keyword.items.forEach((item, index) => {
     merged.set(item.page.id, { page: item.page, excerpt: item.excerpt, score: 1 / (RRF_K + index + 1), matchSources: ['keyword'] });
   });
+  let visibleSemanticResultCount = 0;
   for (const [index, item] of semanticItems.entries()) {
     const page = await getPageById(ctx, item.pageId);
     if (!page) continue;
+    visibleSemanticResultCount += 1;
     const score = 1 / (RRF_K + index + 1);
     const current = merged.get(page.id);
     if (current) {
@@ -719,18 +731,20 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
   const items = [...merged.values()]
     .sort((a, b) => b.score - a.score || a.page.path.localeCompare(b.page.path))
     .slice(0, input.limit);
-  try {
-    await searchAnalytics.updateSearchRecord(record.id, {
-      keywordResultCount: keyword.items.length,
-      semanticResultCount: semanticItems.length,
-      resultCount: items.length,
-      semanticState,
-      semanticActionId: record.semanticActionId,
-    });
-  } catch (error) {
-    console.error('Failed to update hybrid search analytics:', error);
+  if (record) {
+    try {
+      await searchAnalytics.updateSearchRecord(record.id, {
+        keywordResultCount: keyword.items.length,
+        semanticResultCount: visibleSemanticResultCount,
+        resultCount: items.length,
+        semanticState,
+        semanticActionId: record.semanticActionId,
+      });
+    } catch (error) {
+      console.error('Failed to update hybrid search analytics:', error);
+    }
   }
-  return { searchRecordId: record.id, semanticState, items };
+  return { searchRecordId: record?.id ?? input.searchRecordId, semanticState, items };
 }
 
 export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Promise<PublicPageTreeResponse> {

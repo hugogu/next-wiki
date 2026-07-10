@@ -36,6 +36,13 @@
       "when": 1783693200027,
       "tag": "0004_thin_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783693474667,
+      "tag": "0005_clean_demogoblin",
+      "breakpoints": true
     }
   ]
 }

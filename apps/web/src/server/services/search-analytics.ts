@@ -19,7 +19,7 @@ function ownsRecord(
   sessionId: string,
 ): boolean {
   const actorUserId = getActorUserId(ctx);
-  return actorUserId ? row.actorUserId === actorUserId : row.actorUserId === null && row.sessionId === sessionId;
+  return row.sessionId === sessionId && (actorUserId ? row.actorUserId === actorUserId : row.actorUserId === null);
 }
 
 export async function getOwnedSearchRecord(ctx: PermCtx, searchRecordId: string, searchSessionId: string) {
@@ -71,6 +71,9 @@ export async function recordSearchBehavior(
   ctx: PermCtx,
   input: HybridSearchBehaviorInput,
 ): Promise<void> {
+  if ((input.action === 'result_open' && !input.pageId) || (input.action === 'escape' && input.pageId)) {
+    throw new DomainError('BAD_REQUEST', 'Invalid search behavior payload');
+  }
   const record = await getOwnedSearchRecord(ctx, input.searchRecordId, input.searchSessionId);
   await db.insert(schema.searchBehaviors).values({
     id: input.eventId,

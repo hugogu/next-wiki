@@ -43,6 +43,12 @@ export const POST = withPublicApi(async (request, _context, ctx) => {
     const page = await publicContent.getPageById(ctx, parsed.data.pageId!);
     if (!page) return new Response(null, { status: 204 });
   }
-  await searchAnalytics.recordSearchBehavior(ctx, parsed.data);
+  try {
+    await searchAnalytics.recordSearchBehavior(ctx, parsed.data);
+  } catch (error) {
+    // Analytics must not delay navigation or make leaving search fail. The
+    // response remains idempotent, and the failure is still visible to ops.
+    console.error('Failed to persist search behavior analytics:', error);
+  }
   return new Response(null, { status: 204 });
 });
