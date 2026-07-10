@@ -1,10 +1,24 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
+
+const semanticSearch = vi.hoisted(() => ({
+  getSemanticSearchResults: vi.fn(),
+  submitSemanticSearch: vi.fn(),
+}));
+const searchAnalytics = vi.hoisted(() => ({
+  getOrCreateSearchRecord: vi.fn(),
+  getOwnedSearchRecord: vi.fn(),
+  updateSearchRecord: vi.fn(),
+}));
+
+vi.mock('@/server/services/public-ai', () => semanticSearch);
+vi.mock('@/server/services/search-analytics', () => searchAnalytics);
+
 import * as publicContent from '@/server/services/public-content';
 import {
   createPublicApiUser,
@@ -15,6 +29,8 @@ async function cleanup() {
   await db.delete(schema.apiAuditEntries);
   await db.delete(schema.apiKeys);
   await db.delete(schema.contentAssetRefs);
+  await db.delete(schema.searchBehaviors);
+  await db.delete(schema.searchRecords);
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
   await db.delete(schema.sessions);
@@ -23,6 +39,7 @@ async function cleanup() {
 
 describe('public content read facade', () => {
   beforeEach(async () => {
+    vi.clearAllMocks();
     await cleanup();
     await ensurePublicApiDefaultSpace();
   });
@@ -335,6 +352,52 @@ describe('public content read facade', () => {
 
     expect(result.items.map((item) => item.page.path)).not.toContain('docs/secret-plan');
     expect(JSON.stringify(result)).not.toContain('CONFIDENTIALTOKEN');
+  });
+
+  it('merges visible semantic candidates with keyword results without duplicate pages or leaked excerpts', async () => {
+    const editor = await createPublicApiUser('public-hybrid-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-hybrid-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    const keyword = await pageService.create(editorCtx, {
+      path: 'docs/hybrid-keyword', title: 'Keyword', contentSource: 'hybridtoken keyword excerpt',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/hybrid-keyword', version: 1 });
+    const semantic = await pageService.create(editorCtx, {
+      path: 'docs/hybrid-semantic', title: 'Semantic', contentSource: 'related document',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/hybrid-semantic', version: 1 });
+    const hidden = await pageService.create(editorCtx, {
+      path: 'docs/hybrid-hidden', title: 'Hidden semantic', contentSource: 'private semantic source',
+    });
+
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'pending', semanticActionId: 'action-1',
+    });
+    semanticSearch.getSemanticSearchResults.mockResolvedValue({
+      status: 'succeeded',
+      items: [
+        { pageId: semantic.pageId, excerpt: 'semantic-only excerpt' },
+        { pageId: keyword.pageId, excerpt: 'semantic duplicate excerpt' },
+        { pageId: hidden.pageId, excerpt: 'hidden semantic excerpt' },
+      ],
+    });
+
+    const result = await publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'hybridtoken', limit: 20,
+    });
+
+    expect(result.semanticState).toBe('ready');
+    expect(result.items.map((item) => item.page.id)).toEqual([keyword.pageId, semantic.pageId]);
+    expect(result.items[0]).toMatchObject({
+      excerpt: expect.stringContaining('hybridtoken'), matchSources: ['keyword', 'semantic'],
+    });
+    expect(result.items[1]).toMatchObject({ excerpt: 'semantic-only excerpt', matchSources: ['semantic'] });
+    expect(JSON.stringify(result)).not.toContain('hidden semantic excerpt');
+    expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      semanticResultCount: 2, resultCount: 2, semanticState: 'ready',
+    }));
   });
 
   it('narrows keyword search results with filter[tag] while keeping the response envelope unchanged (US1)', async () => {

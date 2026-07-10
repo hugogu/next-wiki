@@ -127,7 +127,7 @@ export function HeaderHybridSearch() {
         </div>
       </div>
       {open && <div className="fixed inset-0 z-50 bg-black/50" aria-hidden="true" />}
-      {open && <section className="fixed left-1/2 top-header z-[60] max-h-[min(32rem,calc(100vh-4rem))] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-b-lg border border-border bg-surface p-md shadow-xl">
+      {open && <section data-testid="header-search-results" className="fixed left-1/2 top-header z-[60] max-h-[min(32rem,calc(100vh-4rem))] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-b-lg border border-border bg-surface p-md shadow-xl">
         <p id={resultsId} role="status" aria-live="polite" className="text-sm text-muted">
           {query.trim().length < 2 ? t('header.search.minChars') : status === 'searching' ? t('header.search.searching') : status === 'error' ? t('header.search.error') : results?.semanticState === 'unavailable' || results?.semanticState === 'failed' ? t('header.search.reducedCoverage') : results?.items.length === 0 ? t('header.search.noResults') : t('header.search.escapeHint')}
         </p>

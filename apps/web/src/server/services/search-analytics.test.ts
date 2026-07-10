@@ -4,9 +4,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { HybridSearchQueryInput } from '@next-wiki/shared';
 import { closeDb, db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { createPublicApiUser, ensurePublicApiDefaultSpace } from '../../../test/public-wiki-api-fixtures';
-import { getOrCreateSearchRecord, recordSearchBehavior } from './search-analytics';
+import { getOrCreateSearchRecord, recordSearchBehavior, updateSearchRecord } from './search-analytics';
 
 const summary = {
   keywordResultCount: 1,
@@ -100,14 +100,47 @@ describe('search analytics persistence', () => {
       id: randomUUID(), searchRecordId: randomUUID(), actorUserId: user.id, action: 'escape', pageId: null,
     })).rejects.toThrow();
 
+    await recordSearchBehavior(ctx, {
+      kind: 'behavior', eventId: randomUUID(), searchRecordId: record.id,
+      searchSessionId: input.searchSessionId, action: 'result_open', pageId,
+    });
+    const selection = await db.query.searchBehaviors.findFirst({ where: eq(schema.searchBehaviors.searchRecordId, record.id) });
+    expect(selection).toMatchObject({ action: 'result_open', pageId });
+
     const persisted = await db.query.searchRecords.findFirst({ where: eq(schema.searchRecords.id, record.id) });
     expect(persisted).toBeDefined();
     expect(persisted).not.toHaveProperty('excerpt');
     expect(persisted).not.toHaveProperty('items');
 
+    await db.delete(schema.searchBehaviors).where(eq(schema.searchBehaviors.searchRecordId, record.id));
     await db.delete(schema.pages).where(eq(schema.pages.id, pageId));
     await db.delete(schema.searchRecords).where(eq(schema.searchRecords.id, record.id));
     await db.delete(schema.users).where(eq(schema.users.id, user.id));
+  });
+
+  it('attributes anonymous records to the search session and updates aggregate semantic state', async () => {
+    const space = await ensurePublicApiDefaultSpace();
+    const input = queryInput();
+    const record = await getOrCreateSearchRecord(buildAnonymousCtx(), input, space!.id, summary);
+
+    expect(record.actorUserId).toBeNull();
+    expect(record.sessionId).toBe(input.searchSessionId);
+    await updateSearchRecord(record.id, {
+      keywordResultCount: 2,
+      semanticResultCount: 1,
+      resultCount: 2,
+      semanticState: 'ready',
+    });
+    const updated = await db.query.searchRecords.findFirst({ where: eq(schema.searchRecords.id, record.id) });
+    expect(updated).toMatchObject({
+      keywordResultCount: 2,
+      semanticResultCount: 1,
+      resultCount: 2,
+      semanticState: 'ready',
+      actorUserId: null,
+    });
+
+    await db.delete(schema.searchRecords).where(eq(schema.searchRecords.id, record.id));
   });
 });
 

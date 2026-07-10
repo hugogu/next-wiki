@@ -60,8 +60,8 @@
 - [X] T016 [P] [US1] Add localized Header search placeholder, two-character prompt, searching, no-results, reduced-coverage, and generic-error text in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`.
 - [X] T017 [US1] Create the accessible centered input, overlay, live status/result region, request-abort/current-request guard, bounded same-resource polling, and canonical result links in `apps/web/src/components/search/HeaderHybridSearch.tsx`.
 - [X] T018 [US1] Replace the centered `page-title` rendering with `HeaderHybridSearch` while preserving edge controls and editor behavior in `apps/web/src/components/layout/Header.tsx`.
-- [ ] T019 [US1] Add Header overlay, second-character threshold, latest-response-wins, excerpt, and direct canonical navigation coverage in `apps/web/e2e/header-hybrid-search.spec.ts`.
-- [ ] T020 [US1] Update centered-title assumptions to stable page/header assertions in `apps/web/e2e/navigation.spec.ts`.
+- [X] T019 [US1] Add Header overlay, second-character threshold, latest-response-wins, excerpt, and direct canonical navigation coverage in `apps/web/e2e/header-hybrid-search.spec.ts`.
+- [X] T020 [US1] Update centered-title assumptions to stable page/header assertions in `apps/web/e2e/navigation.spec.ts`.
 
 **Checkpoint**: US1 is independently usable with keyword-only fallback, and an eligible actor receives one merged list without stale or duplicate results.
 
@@ -75,8 +75,8 @@
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Add route tests for `kind: "behavior"` Escape validation, owner/session isolation, idempotent `204`, and non-blocking persistence failures in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
-- [ ] T022 [P] [US2] Add Escape close, focus restoration, current-page preservation, and exactly-once event assertions in `apps/web/e2e/header-hybrid-search.spec.ts`.
+- [X] T021 [P] [US2] Add route tests for `kind: "behavior"` Escape validation, owner/session isolation, idempotent `204`, and non-blocking persistence failures in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
+- [X] T022 [P] [US2] Add Escape close, focus restoration, current-page preservation, and exactly-once event assertions in `apps/web/e2e/header-hybrid-search.spec.ts`.
 
 ### Implementation for User Story 2
 
@@ -95,9 +95,9 @@
 
 ### Tests for User Story 3
 
-- [ ] T025 [P] [US3] Extend `apps/web/src/server/services/search-analytics.test.ts` with query-count/semantic-state updates, anonymous session attribution, selected-page validation, and no-excerpt/no-result-payload assertions.
-- [ ] T026 [P] [US3] Add `result_open` route tests for readable-page revalidation, cross-owner non-disclosure, duplicate event IDs, and analytics-failure non-blocking behavior in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
-- [ ] T027 [P] [US3] Add result-click `keepalive`/exactly-once analytics coverage in `apps/web/e2e/header-hybrid-search.spec.ts`.
+- [X] T025 [P] [US3] Extend `apps/web/src/server/services/search-analytics.test.ts` with query-count/semantic-state updates, anonymous session attribution, selected-page validation, and no-excerpt/no-result-payload assertions.
+- [X] T026 [P] [US3] Add `result_open` route tests for readable-page revalidation, cross-owner non-disclosure, duplicate event IDs, and analytics-failure non-blocking behavior in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
+- [X] T027 [P] [US3] Add result-click `keepalive`/exactly-once analytics coverage in `apps/web/e2e/header-hybrid-search.spec.ts`.
 
 ### Implementation for User Story 3
 
@@ -117,12 +117,12 @@
 
 ### Tests for User Story 4
 
-- [ ] T031 [P] [US4] Add no-disclosure tests for unreadable keyword/vector candidates, result counts, excerpts, and semantic state in `apps/web/src/server/services/public-content-read.test.ts` and `apps/web/src/server/services/ai-retrieval.test.ts`.
+- [X] T031 [P] [US4] Add no-disclosure tests for unreadable keyword/vector candidates, result counts, excerpts, and semantic state in `apps/web/src/server/services/public-content-read.test.ts` and `apps/web/src/server/services/ai-retrieval.test.ts`.
 - [ ] T032 [P] [US4] Add route-level compatibility tests for legacy GET callers, unauthorized semantic enrichment, and generic unavailable/failed coverage states in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
 
 ### Implementation for User Story 4
 
-- [ ] T033 [US4] Apply the canonical page-read visibility filter to every vector candidate before merge and ensure unavailable semantic enrichment returns only safe keyword results in `apps/web/src/server/services/ai-retrieval.ts` and `apps/web/src/server/services/public-content.ts`.
+- [X] T033 [US4] Apply the canonical page-read visibility filter to every vector candidate before merge and ensure unavailable semantic enrichment returns only safe keyword results in `apps/web/src/server/services/ai-retrieval.ts` and `apps/web/src/server/services/public-content.ts`.
 - [X] T034 [US4] Finalize public schema descriptions and route annotations for the existing search resource in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/app/api/v1/search/pages/route.ts`.
 
 **Checkpoint**: Protected pages cannot be inferred through hybrid search, while unchanged GET clients remain fully compatible and keyword search remains useful without AI.
@@ -134,8 +134,8 @@
 **Purpose**: Regenerate public artifacts and prove the finished feature through the repository's required checks.
 
 - [X] T035 Regenerate the public API specification from schemas and annotations with `apps/web/package.json` command `openapi:generate`, then review generated `apps/web/public/openapi.json`.
-- [ ] T036 [P] Run targeted service and route suites for the feature from `apps/web/src/server/services/search-analytics.test.ts`, `apps/web/src/server/services/public-content-read.test.ts`, `apps/web/src/server/services/ai-retrieval.test.ts`, and `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
-- [ ] T037 [P] Run the Header/browser journeys in `apps/web/e2e/header-hybrid-search.spec.ts` and `apps/web/e2e/navigation.spec.ts`.
+- [X] T036 [P] Run targeted service and route suites for the feature from `apps/web/src/server/services/search-analytics.test.ts`, `apps/web/src/server/services/public-content-read.test.ts`, `apps/web/src/server/services/ai-retrieval.test.ts`, and `apps/web/app/api/v1/search/public-page-search-routes.test.ts`.
+- [X] T037 [P] Run the Header/browser journeys in `apps/web/e2e/header-hybrid-search.spec.ts` and `apps/web/e2e/navigation.spec.ts`.
 - [ ] T038 Run repository lint, typecheck, unit tests, and build via `package.json` and `apps/web/package.json` scripts.
 - [ ] T039 Build the deployment image using `docker/Dockerfile` and verify the feature introduces no extra runtime service in `docker-compose.yml`.
 - [ ] T040 Reconcile implemented behavior with [quickstart.md](./quickstart.md), [contracts/page-search.md](./contracts/page-search.md), and [spec.md](./spec.md), updating those feature documents only for verified implementation-level deviations.
