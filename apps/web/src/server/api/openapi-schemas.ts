@@ -530,6 +530,7 @@ export const TransferRunView = z
     errorMessage: z.string().nullable().describe('Run-level error message, or null if none.'),
     errorDetail: z.string().nullable().describe('Additional run-level error detail, or null if none.'),
     reportArtifactId: z.string().uuid().nullable().describe('Generated report artifact, or null if not yet available.'),
+    cleanedAt: z.string().nullable().describe('Timestamp when the imported pages were cleaned up, or null if never.'),
     queuedAt: z.string().describe('Timestamp when the run was queued.'),
     startedAt: z.string().nullable().describe('Timestamp when the run started, or null if not yet started.'),
     finishedAt: z.string().nullable().describe('Timestamp when the run finished, or null if still in progress.'),

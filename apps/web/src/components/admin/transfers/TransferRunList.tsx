@@ -166,7 +166,12 @@ export function TransferRunList({ runs }: { runs: TransferRunView[] }) {
                 {t(`admin.transfers.kind.${run.kind}`)}
               </Link>
             </DataTableCell>
-            <DataTableCell><StatusBadge tone={tone(run.status)}>{t(`admin.transfers.status.${run.status}`)}</StatusBadge></DataTableCell>
+            <DataTableCell>
+              <div className="flex items-center gap-xs">
+                <StatusBadge tone={tone(run.status)}>{t(`admin.transfers.status.${run.status}`)}</StatusBadge>
+                {run.cleanedAt && <StatusBadge tone="neutral">{t('admin.transfers.status.cleaned')}</StatusBadge>}
+              </div>
+            </DataTableCell>
             <DataTableCell>{run.processedItems}/{run.totalItems}</DataTableCell>
             <DataTableCell>{new Date(run.queuedAt).toLocaleString()}</DataTableCell>
             <DataTableCell><RunActions run={run} /></DataTableCell>

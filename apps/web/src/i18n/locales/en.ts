@@ -381,6 +381,7 @@ export const en = {
   'admin.transfers.status.completed_with_warnings': 'Completed with warnings',
   'admin.transfers.status.failed': 'Failed',
   'admin.transfers.status.cancelled': 'Cancelled',
+  'admin.transfers.status.cleaned': 'Cleaned',
   'admin.transfers.actions.cancel': 'Cancel run',
   'admin.transfers.actions.pause': 'Pause',
   'admin.transfers.actions.resume': 'Resume',

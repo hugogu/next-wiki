@@ -81,6 +81,9 @@ export function TransferRunDetail({
             <h1 className="font-display text-xl font-semibold">{t(`admin.transfers.kind.${run.kind}`)}</h1>
             <p className="mt-xs text-sm text-muted">
               {run.processedItems}/{run.totalItems} · {t(`admin.transfers.status.${run.status}`)}
+              {run.cleanedAt && (
+                <span className="text-foreground"> · {t('admin.transfers.status.cleaned')}</span>
+              )}
               {run.warningItems > 0 && (
                 <span className="text-warning"> · {t('admin.transfers.detail.warningCount', { count: run.warningItems })}</span>
               )}

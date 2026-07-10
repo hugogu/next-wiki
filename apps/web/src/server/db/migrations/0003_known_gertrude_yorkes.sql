@@ -1,0 +1,1 @@
+ALTER TABLE "transfer_runs" ADD COLUMN "cleaned_at" timestamp with time zone;

@@ -484,6 +484,7 @@ export const transferRuns = pgTable(
     errorMessage: text('error_message'),
     errorDetail: text('error_detail'),
     reportArtifactId: uuid('report_artifact_id'),
+    cleanedAt: timestamp('cleaned_at', { withTimezone: true }),
     queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),

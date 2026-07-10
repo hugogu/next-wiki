@@ -60,6 +60,7 @@ function runView(row: RunRow): TransferRunView {
     errorMessage: row.errorMessage,
     errorDetail: row.errorDetail,
     reportArtifactId: row.reportArtifactId,
+    cleanedAt: row.cleanedAt?.toISOString() ?? null,
     queuedAt: row.queuedAt.toISOString(),
     startedAt: row.startedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,
@@ -71,12 +72,13 @@ function runView(row: RunRow): TransferRunView {
       ACTIVE.includes(row.status as (typeof ACTIVE)[number]) &&
       PAUSABLE_KINDS.includes(row.kind as (typeof PAUSABLE_KINDS)[number]),
     canResume: row.status === 'paused',
-    // Offer cleanup for any finished import — including a cancelled one, which
-    // may still have written pages before it stopped. The action itself deletes
-    // whatever pages the run wrote (0 if none), so it is safe to always show.
+    // Offer cleanup for any finished import that has not been cleaned yet —
+    // including a cancelled one, which may still have written pages before it
+    // stopped. The action deletes whatever pages the run wrote (0 if none).
     canCleanup:
       CLEANABLE_KINDS.includes(row.kind as (typeof CLEANABLE_KINDS)[number]) &&
-      TERMINAL.includes(row.status as (typeof TERMINAL)[number]),
+      TERMINAL.includes(row.status as (typeof TERMINAL)[number]) &&
+      row.cleanedAt === null,
   };
 }
 
@@ -325,23 +327,32 @@ export async function cleanupRun(ctx: PermCtx, id: string): Promise<TransferClea
       ),
     );
   const pageIds = written.map((item) => item.pageId).filter((value): value is string => Boolean(value));
-  if (!pageIds.length) return { id, deletedPages: 0 };
-  // Only touch pages that still exist so a re-run is a no-op.
-  const existing = await db
-    .select({ id: schema.pages.id })
-    .from(schema.pages)
-    .where(and(inArray(schema.pages.id, pageIds), isNull(schema.pages.deletedAt)));
-  const toDelete = existing.map((page) => page.id);
-  if (!toDelete.length) return { id, deletedPages: 0 };
+  let deletedPages = 0;
+  if (pageIds.length) {
+    // Only touch pages that still exist so a re-run is a no-op.
+    const existing = await db
+      .select({ id: schema.pages.id })
+      .from(schema.pages)
+      .where(and(inArray(schema.pages.id, pageIds), isNull(schema.pages.deletedAt)));
+    const toDelete = existing.map((page) => page.id);
+    if (toDelete.length) {
+      await db
+        .update(schema.pages)
+        .set({ deletedAt: new Date() })
+        .where(inArray(schema.pages.id, toDelete));
+      // Drop each page from every active index (targetRevision null → chunks removed).
+      for (const pageId of toDelete) await reconcilePageAcrossIndexes(pageId, ctx);
+      // One snapshot export reflects all the deletions.
+      await enqueueGitExport('publish');
+      deletedPages = toDelete.length;
+    }
+  }
+  // Stamp the run as cleaned so the UI marks it done and hides the action.
   await db
-    .update(schema.pages)
-    .set({ deletedAt: new Date() })
-    .where(inArray(schema.pages.id, toDelete));
-  // Drop each page from every active index (targetRevision null → chunks removed).
-  for (const pageId of toDelete) await reconcilePageAcrossIndexes(pageId, ctx);
-  // One snapshot export reflects all the deletions.
-  await enqueueGitExport('publish');
-  return { id, deletedPages: toDelete.length };
+    .update(schema.transferRuns)
+    .set({ cleanedAt: new Date() })
+    .where(eq(schema.transferRuns.id, id));
+  return { id, deletedPages };
 }
 
 /**

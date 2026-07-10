@@ -182,6 +182,7 @@ export const transferRunViewSchema = z.object({
   errorMessage: z.string().nullable(),
   errorDetail: z.string().nullable(),
   reportArtifactId: z.string().uuid().nullable(),
+  cleanedAt: nullableIsoDateSchema,
   queuedAt: isoDateSchema,
   startedAt: nullableIsoDateSchema,
   finishedAt: nullableIsoDateSchema,

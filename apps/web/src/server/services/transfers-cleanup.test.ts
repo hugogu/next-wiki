@@ -78,6 +78,10 @@ describe('transfer run cleanup', () => {
     expect(replaced?.deletedAt).not.toBeNull(); // replaced page removed too
     expect(skipped?.deletedAt).toBeNull(); // skipped page left untouched
 
+    // The run is stamped as cleaned so the UI can mark it done.
+    const run = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(run?.cleanedAt).not.toBeNull();
+
     // Re-running deletes nothing more.
     expect((await cleanupRun(ctx, runId)).deletedPages).toBe(0);
   });

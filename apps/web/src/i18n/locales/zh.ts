@@ -381,6 +381,7 @@ export const zh: Translations = {
   'admin.transfers.status.completed_with_warnings': '完成但有警告',
   'admin.transfers.status.failed': '失败',
   'admin.transfers.status.cancelled': '已取消',
+  'admin.transfers.status.cleaned': '已清理',
   'admin.transfers.actions.cancel': '取消运行',
   'admin.transfers.actions.pause': '暂停',
   'admin.transfers.actions.resume': '继续',

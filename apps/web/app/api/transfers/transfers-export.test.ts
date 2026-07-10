@@ -111,6 +111,7 @@ describe('transfer export REST routes', () => {
       errorMessage: null,
       errorDetail: null,
       reportArtifactId: null,
+      cleanedAt: null,
       queuedAt: '2026-06-21T00:00:00.000Z',
       startedAt: null,
       finishedAt: null,
