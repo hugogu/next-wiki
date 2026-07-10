@@ -120,6 +120,17 @@ describe('index rebuild worker', () => {
     expect(chunks).toHaveLength(1);
   });
 
+  it('records accumulated embedding input tokens on the completed action', async () => {
+    embed.mockResolvedValue({ vectors: [[0.1, 0.2, 0.3]], usage: { inputTokens: 42 } });
+
+    await runIndexRebuildAction(actionId);
+
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
+    expect(action?.status).toBe('completed');
+    // The Usage panel sums usageMetadata.inputTokens; leaving it unset showed 0.
+    expect((action?.usageMetadata as { inputTokens?: number }).inputTokens).toBe(42);
+  });
+
   it('marks the page failed when an error is not retryable', async () => {
     embed.mockRejectedValue(
       new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found', false),

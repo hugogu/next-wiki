@@ -3,7 +3,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { chunkMarkdown } from '@/server/ai/chunking/markdown-chunker';
 import { createAiProviderAdapter } from '@/server/ai/registry';
-import { AiProviderError } from '@/server/ai/types';
+import { AiProviderError, type EmbeddingOutput } from '@/server/ai/types';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { readActionInput, finishAction, isCancellationRequested } from '@/server/services/ai-actions';
 import { refreshIndexCounters } from '@/server/services/ai-index';
@@ -89,6 +89,9 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
     .orderBy(asc(schema.aiPageIndexStates.updatedAt));
 
   let cancelled = false;
+  // Embeddings only bill input (prompt) tokens; accumulate across every page so
+  // the run reports its real token usage instead of leaving the Usage panel at 0.
+  let totalInputTokens = 0;
   for (const state of states) {
     // Cheap PK lookup per page — lets an admin cancel a long rebuild without
     // waiting for it to exhaust all 1396 pages.
@@ -106,7 +109,7 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
       const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, state.targetRevisionId) });
       if (!revision?.contentSource || revision.contentHash !== state.targetContentHash) throw new Error('Published revision changed before indexing');
       const chunks = chunkMarkdown(revision.contentSource, revision.contentHash);
-      let embedded: { vectors: number[][] } = { vectors: [] };
+      let embedded: EmbeddingOutput = { vectors: [] };
       if (chunks.length) {
         // Retry transient provider failures (partial embeddings, timeouts,
         // rate limits). Without this, every page touched during a provider
@@ -128,6 +131,7 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
           }
         }
       }
+      totalInputTokens += embedded.usage?.inputTokens ?? 0;
       const latest = await db.query.aiPageIndexStates.findFirst({ where: and(eq(schema.aiPageIndexStates.generationId, generation.id), eq(schema.aiPageIndexStates.pageId, state.pageId)) });
       if (latest?.targetRevisionId !== state.targetRevisionId || latest.targetContentHash !== state.targetContentHash) continue;
       await db.transaction(async (tx) => {
@@ -165,10 +169,14 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
   if (completed?.status === 'failed') {
     await finishAction(actionId, 'failed', {
       resultMetadata: { generationId: generation.id, failedPages: completed.failedPages },
+      usageMetadata: { inputTokens: totalInputTokens },
       errorCode: completed.errorCode ?? 'INDEX_BUILD_FAILED',
       errorMessage: completed.errorMessage ?? 'Knowledge index build failed',
     });
     return;
   }
-  await finishAction(actionId, 'completed', { resultMetadata: { generationId: generation.id } });
+  await finishAction(actionId, 'completed', {
+    resultMetadata: { generationId: generation.id },
+    usageMetadata: { inputTokens: totalInputTokens },
+  });
 }
