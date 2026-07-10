@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { TransferRunView } from '@next-wiki/shared';
+import type { TransferCleanupResult, TransferRunView } from '@next-wiki/shared';
 import {
   DataTable,
   DataTableBody,
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -31,11 +32,34 @@ function RunActions({ run }: { run: TransferRunView }) {
   const router = useRouter();
   const cancel = useApiMutation(`/api/transfers/${run.id}/cancellation`);
   const retry = useApiMutation(`/api/transfers/${run.id}/retries`);
+  const pause = useApiMutation(`/api/transfers/${run.id}/pause`);
+  const resume = useApiMutation(`/api/transfers/${run.id}/resume`);
+  const cleanup = useApiMutation<void, TransferCleanupResult>(`/api/transfers/${run.id}/cleanup`);
+  const [confirmingCleanup, setConfirmingCleanup] = useState(false);
 
-  if (!run.canCancel && !run.canRetry) return null;
+  if (!run.canCancel && !run.canRetry && !run.canPause && !run.canResume && !run.canCleanup) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-xs">
+      {run.canPause && !run.pauseRequested && (
+        <Button
+          variant="secondary"
+          disabled={pause.isPending}
+          onClick={() => pause.mutate(undefined, { onSuccess: () => router.refresh() })}
+        >
+          {t('admin.transfers.actions.pause')}
+        </Button>
+      )}
+      {run.canResume && (
+        <Button
+          disabled={resume.isPending}
+          onClick={() => resume.mutate(undefined, { onSuccess: () => router.refresh() })}
+        >
+          {t('admin.transfers.actions.resume')}
+        </Button>
+      )}
       {run.canCancel && (
         <Button
           variant="secondary"
@@ -52,6 +76,34 @@ function RunActions({ run }: { run: TransferRunView }) {
         >
           {t('admin.transfers.actions.retry')}
         </Button>
+      )}
+      {run.canCleanup && (
+        <Button
+          variant="danger"
+          disabled={cleanup.isPending}
+          onClick={() => setConfirmingCleanup(true)}
+        >
+          {t('admin.transfers.actions.cleanup')}
+        </Button>
+      )}
+      {confirmingCleanup && (
+        <ConfirmDialog
+          title={t('admin.transfers.actions.cleanup')}
+          message={t('admin.transfers.detail.cleanupConfirm', { count: run.createdItems })}
+          confirmLabel={t('admin.transfers.actions.cleanup')}
+          confirmVariant="danger"
+          pending={cleanup.isPending}
+          error={cleanup.error?.message}
+          onCancel={() => setConfirmingCleanup(false)}
+          onConfirm={() =>
+            cleanup.mutate(undefined, {
+              onSuccess: () => {
+                setConfirmingCleanup(false);
+                router.refresh();
+              },
+            })
+          }
+        />
       )}
     </div>
   );
