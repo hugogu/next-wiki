@@ -19,7 +19,9 @@ export const en = {
   'header.search.noResults': 'No matching pages found.',
   'header.search.reducedCoverage': 'Showing keyword matches only.',
   'header.search.error': 'Search is temporarily unavailable.',
-  'header.search.escapeHint': 'Press Escape to close search.',
+  'header.search.escapeHint': 'Press Escape or click outside to close search.',
+  'header.search.source.keyword': 'Keyword',
+  'header.search.source.semantic': 'Vector',
   'common.actions.edit': 'Edit',
 
   // Languages

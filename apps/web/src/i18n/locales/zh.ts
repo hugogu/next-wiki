@@ -21,7 +21,9 @@ export const zh: Translations = {
   'header.search.noResults': '未找到匹配页面。',
   'header.search.reducedCoverage': '当前仅显示关键词匹配结果。',
   'header.search.error': '搜索暂时不可用。',
-  'header.search.escapeHint': '按 Escape 退出搜索。',
+  'header.search.escapeHint': '按 Escape 或点击灰色区域退出搜索。',
+  'header.search.source.keyword': '关键字',
+  'header.search.source.semantic': '向量',
   'common.actions.edit': '编辑',
 
   // Languages

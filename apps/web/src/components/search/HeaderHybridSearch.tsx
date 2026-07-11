@@ -8,6 +8,8 @@ import { useTranslation } from '@/i18n/client';
 
 type SearchStatus = 'idle' | 'searching' | 'error';
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 function getSearchTerms(query: string): string[] {
   const normalized = query.trim();
   if (!normalized) return [];
@@ -34,6 +36,12 @@ function renderHighlightedText(text: string, terms: string[]) {
 function formatRelevance(score: number | undefined): string | null {
   if (score === undefined || Number.isNaN(score)) return null;
   return `${Math.round(score * 100)}%`;
+}
+
+function sourceLabelClass(source: 'keyword' | 'semantic'): string {
+  return source === 'keyword'
+    ? 'border-primary/30 bg-primary/10 text-primary'
+    : 'border-warning/30 bg-warning/10 text-warning';
 }
 
 export function HeaderHybridSearch() {
@@ -116,9 +124,21 @@ export function HeaderHybridSearch() {
       return;
     }
     const id = crypto.randomUUID();
-    searchRecordRef.current = id;
     const attempt = ++requestRef.current;
-    void runSearch(normalized, id, attempt);
+    abortRef.current?.abort();
+    searchRecordRef.current = null;
+    queueMicrotask(() => {
+      setResults(null);
+      setStatus('searching');
+    });
+    const timeout = window.setTimeout(() => {
+      searchRecordRef.current = id;
+      void runSearch(normalized, id, attempt);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      window.clearTimeout(timeout);
+      abortRef.current?.abort();
+    };
   }, [open, query, runSearch]);
 
   useEffect(() => {
@@ -200,6 +220,13 @@ export function HeaderHybridSearch() {
                     {formatRelevance(result.relevanceScore)}
                   </span>
                 )}
+              </span>
+              <span className="mt-1 flex flex-wrap items-center gap-xs">
+                {result.matchSources.map((source) => (
+                  <span key={source} data-testid={`header-search-source-${source}`} className={`rounded-full border px-xs py-0.5 text-[11px] leading-tight ${sourceLabelClass(source)}`}>
+                    {source === 'keyword' ? t('header.search.source.keyword') : t('header.search.source.semantic')}
+                  </span>
+                ))}
               </span>
               <span className="block text-xs text-muted">{renderHighlightedText(result.page.path, terms)}</span>
               {result.excerpt && <span className="mt-1 block text-sm text-muted">{renderHighlightedText(result.excerpt, terms)}</span>}

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, ilike, isNotNull, isNull, lte, max, or, like, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -124,6 +124,32 @@ function scoreSearchMatch(matchType: 'path' | 'title' | 'content', page: PublicP
   if (matchType === 'title') return page.title.toLowerCase() === q ? 0.9 : 0.8;
   const occurrences = page.contentSource ? countOccurrences(page.contentSource.toLowerCase(), q) : 0;
   return Math.min(0.3 + occurrences * 0.05, 0.7);
+}
+
+function authorResource(row: { id: string; displayName: string | null; email: string }): PublicPageResource['author'] {
+  return { id: row.id, displayName: row.displayName ?? row.email };
+}
+
+function publishedSearchPageResource(
+  space: { slug: string },
+  page: PageRow,
+  authorRow: { id: string; displayName: string | null; email: string },
+  contentSource: string | null,
+): PublicPageResource {
+  const { frontmatter } = parsePageFrontmatter(contentSource ?? '');
+  return {
+    id: page.id,
+    spaceSlug: space.slug,
+    path: page.path,
+    locale: page.locale,
+    title: page.title,
+    frontmatter,
+    status: 'published',
+    author: authorResource(authorRow),
+    createdAt: page.createdAt.toISOString(),
+    updatedAt: page.updatedAt.toISOString(),
+    links: links(page),
+  };
 }
 
 function links(page: PageRow) {
@@ -462,6 +488,126 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   return { items: result.items.map(stripPageContent), nextCursor: result.nextCursor };
 }
 
+async function searchPublishedPagesByKeyword(
+  ctx: PermCtx,
+  input: { q: string; limit: number; excerptLength: number },
+): Promise<PublicPageSearchResponse> {
+  const space = await getDefaultSpace();
+  if (!space) return { items: [], nextCursor: null };
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+    return { items: [], nextCursor: null };
+  }
+
+  const pattern = likePattern(input.q);
+  const tsQuery = sql`websearch_to_tsquery('simple', ${input.q})`;
+  const pageDocument = sql`to_tsvector('simple', coalesce(${schema.pages.path}, '') || ' ' || coalesce(${schema.pages.title}, ''))`;
+  const contentDocument = sql`to_tsvector('simple', coalesce(${schema.pageRevisions.contentSource}, ''))`;
+  const matchType = sql<'path' | 'title' | 'content'>`
+    case
+      when ${schema.pages.path} ilike ${pattern} then 'path'
+      when ${schema.pages.title} ilike ${pattern} then 'title'
+      else 'content'
+    end
+  `;
+  const relevanceScore = sql<number>`
+    greatest(
+      case
+        when lower(${schema.pages.path}) = lower(${input.q}) then 1.0
+        when ${schema.pages.path} ilike ${pattern} then 0.95
+        when lower(${schema.pages.title}) = lower(${input.q}) then 0.9
+        when ${schema.pages.title} ilike ${pattern} then 0.8
+        else 0.0
+      end,
+      least(0.8, 0.4 + ts_rank(${pageDocument}, ${tsQuery}) * 0.4),
+      least(0.7, 0.3 + ts_rank(${contentDocument}, ${tsQuery}) * 0.4)
+    )
+  `;
+
+  const rows = await db
+    .select({
+      page: schema.pages,
+      contentSource: schema.pageRevisions.contentSource,
+      author: {
+        id: schema.users.id,
+        displayName: schema.users.displayName,
+        email: schema.users.email,
+      },
+      matchType,
+      relevanceScore,
+    })
+    .from(schema.pages)
+    .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
+    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+    .where(and(
+      eq(schema.pages.spaceId, space.id),
+      isNull(schema.pages.deletedAt),
+      isNotNull(schema.pages.currentPublishedVersionId),
+      or(
+        sql`${pageDocument} @@ ${tsQuery}`,
+        sql`${contentDocument} @@ ${tsQuery}`,
+        ilike(schema.pages.path, pattern),
+        ilike(schema.pages.title, pattern),
+        ilike(schema.pageRevisions.contentSource, pattern),
+      )!,
+    ))
+    .orderBy(sql`${relevanceScore} desc`, schema.pages.path)
+    .limit(input.limit);
+
+  return {
+    nextCursor: null,
+    items: rows.map((row) => {
+      const page = publishedSearchPageResource(space, row.page, row.author, row.contentSource);
+      const excerpt = row.matchType === 'content' && row.contentSource
+        ? buildExcerpt(row.contentSource, input.q, input.excerptLength)
+        : null;
+      return {
+        page,
+        matchType: row.matchType,
+        excerpt,
+        score: Math.round(Number(row.relevanceScore) * 100) / 100,
+      };
+    }),
+  };
+}
+
+async function getPublishedSearchPagesByIds(
+  ctx: PermCtx,
+  pageIds: readonly string[],
+): Promise<Map<string, PublicPageResource>> {
+  const ids = [...new Set(pageIds)];
+  const result = new Map<string, PublicPageResource>();
+  if (ids.length === 0) return result;
+
+  const space = await getDefaultSpace();
+  if (!space) return result;
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) return result;
+
+  const rows = await db
+    .select({
+      page: schema.pages,
+      contentSource: schema.pageRevisions.contentSource,
+      author: {
+        id: schema.users.id,
+        displayName: schema.users.displayName,
+        email: schema.users.email,
+      },
+    })
+    .from(schema.pages)
+    .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
+    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+    .where(and(
+      eq(schema.pages.spaceId, space.id),
+      isNull(schema.pages.deletedAt),
+      isNotNull(schema.pages.currentPublishedVersionId),
+      inArray(schema.pages.id, ids),
+    ));
+
+  for (const row of rows) {
+    result.set(row.page.id, publishedSearchPageResource(space, row.page, row.author, row.contentSource));
+  }
+  return result;
+}
+
 export async function getPageById(ctx: PermCtx, id: string, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
   return getVisiblePage(ctx, eq(schema.pages.id, id), include);
 }
@@ -665,12 +811,9 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   const settings = await getSearchSettings();
 
-  const keyword = await searchPages(ctx, {
+  const keyword = await searchPublishedPagesByKeyword(ctx, {
     q: input.q,
-    scope: 'all',
-    status: 'published',
     limit: input.limit,
-    include: [],
     excerptLength: settings.excerptLength,
   });
   const baseSummary = {
@@ -733,8 +876,9 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     });
   });
   let visibleSemanticResultCount = 0;
+  const semanticPages = await getPublishedSearchPagesByIds(ctx, semanticItems.map((item) => item.pageId));
   for (const [index, item] of semanticItems.entries()) {
-    const page = await getPageById(ctx, item.pageId);
+    const page = semanticPages.get(item.pageId);
     if (!page) continue;
     visibleSemanticResultCount += 1;
     const score = 1 / (RRF_K + index + 1);
@@ -742,7 +886,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     if (current) {
       current.score += score;
       current.relevanceScore = Math.max(current.relevanceScore, item.score);
-      current.matchSources.push('semantic');
+      if (!current.matchSources.includes('semantic')) current.matchSources.push('semantic');
       if (!current.excerpt) current.excerpt = compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts);
     } else {
       merged.set(page.id, {

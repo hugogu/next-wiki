@@ -50,6 +50,13 @@
       "when": 1783736585767,
       "tag": "0006_striped_rumiko_fujikawa",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783750000000,
+      "tag": "0007_fast_keyword_search",
+      "breakpoints": true
     }
   ]
 }

@@ -93,6 +93,7 @@ test.describe('Header hybrid page search', () => {
     await expect(results.locator('mark', { hasText: 'Needle' }).first()).toBeVisible();
     await expect(results.locator('mark', { hasText: 'needle' }).first()).toBeVisible();
     await expect(results.getByText('82%')).toBeVisible();
+    await expect(results.getByTestId('header-search-source-keyword')).toBeVisible();
     await expect(results.getByText(/highlighted with useful nearby text/)).toBeVisible();
     await expect(results.getByRole('link', { name: /Alpha result/ })).toBeHidden();
     await results.getByRole('link', { name: /Needle result/ }).click();
@@ -129,7 +130,7 @@ test.describe('Header hybrid page search', () => {
     await search.fill('re');
     const results = page.getByTestId('header-search-results');
     await expect(results.getByRole('link', { name: /Reading result/ })).toBeVisible();
-    await expect(page.getByText('Press Escape to close search.')).toBeVisible();
+    await expect(page.getByText('Press Escape or click outside to close search.')).toBeVisible();
     await expect(page.getByText('Loading additional vector matches…')).toBeVisible();
     await expect(page.getByText('Searching…')).toBeHidden();
     await expect(page.getByTestId('header-search-progress')).toBeVisible();
