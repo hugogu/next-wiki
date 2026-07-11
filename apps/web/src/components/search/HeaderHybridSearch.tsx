@@ -175,8 +175,8 @@ export function HeaderHybridSearch() {
           {statusText}
         </p>
         {normalizedQuery.length >= 2 && isFetchingMore && (
-          <div data-testid="header-search-progress" className="mt-sm h-1 overflow-hidden rounded-full bg-surface-elevated" aria-label={t('header.search.searching')}>
-            <div className="header-search-progress-bar h-full w-1/3 rounded-full bg-primary/70" />
+          <div data-testid="header-search-progress" className="mt-sm h-2 overflow-hidden rounded-full bg-surface-elevated" aria-label={t('header.search.searching')}>
+            <div className="header-search-progress-bar h-full w-1/3 rounded-full bg-primary" />
           </div>
         )}
         <ul className="mt-sm space-y-xs">
