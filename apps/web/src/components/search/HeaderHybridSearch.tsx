@@ -215,18 +215,18 @@ export function HeaderHybridSearch() {
               }}>
               <span className="flex items-start justify-between gap-md">
                 <span className="min-w-0 font-medium">{renderHighlightedText(result.page.title, terms)}</span>
-                {formatRelevance(result.relevanceScore) && (
-                  <span className="shrink-0 rounded-full bg-surface-elevated px-sm py-0.5 text-xs text-muted">
-                    {formatRelevance(result.relevanceScore)}
-                  </span>
-                )}
-              </span>
-              <span className="mt-1 flex flex-wrap items-center gap-xs">
-                {result.matchSources.map((source) => (
-                  <span key={source} data-testid={`header-search-source-${source}`} className={`rounded-full border px-xs py-0.5 text-[11px] leading-tight ${sourceLabelClass(source)}`}>
-                    {source === 'keyword' ? t('header.search.source.keyword') : t('header.search.source.semantic')}
-                  </span>
-                ))}
+                <span className="flex shrink-0 items-center gap-xs">
+                  {result.matchSources.map((source) => (
+                    <span key={source} data-testid={`header-search-source-${source}`} className={`rounded-full border px-xs py-0.5 text-[11px] leading-tight ${sourceLabelClass(source)}`}>
+                      {source === 'keyword' ? t('header.search.source.keyword') : t('header.search.source.semantic')}
+                    </span>
+                  ))}
+                  {formatRelevance(result.relevanceScore) && (
+                    <span className="rounded-full bg-surface-elevated px-sm py-0.5 text-xs text-muted">
+                      {formatRelevance(result.relevanceScore)}
+                    </span>
+                  )}
+                </span>
               </span>
               <span className="block text-xs text-muted">{renderHighlightedText(result.page.path, terms)}</span>
               {result.excerpt && <span className="mt-1 block text-sm text-muted">{renderHighlightedText(result.excerpt, terms)}</span>}
