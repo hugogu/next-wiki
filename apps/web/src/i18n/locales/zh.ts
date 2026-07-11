@@ -16,6 +16,8 @@ export const zh: Translations = {
   'header.search.placeholder': '搜索页面',
   'header.search.minChars': '请输入至少两个字符以搜索。',
   'header.search.searching': '搜索中…',
+  'header.search.loadingHybrid': '正在检索关键词和向量匹配…',
+  'header.search.loadingSemantic': '正在补充向量匹配结果…',
   'header.search.noResults': '未找到匹配页面。',
   'header.search.reducedCoverage': '当前仅显示关键词匹配结果。',
   'header.search.error': '搜索暂时不可用。',

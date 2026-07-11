@@ -130,6 +130,7 @@ test.describe('Header hybrid page search', () => {
     const results = page.getByTestId('header-search-results');
     await expect(results.getByRole('link', { name: /Reading result/ })).toBeVisible();
     await expect(page.getByText('Press Escape to close search.')).toBeVisible();
+    await expect(page.getByText('Loading additional vector matches…')).toBeVisible();
     await expect(page.getByText('Searching…')).toBeHidden();
     await expect(page.getByTestId('header-search-progress')).toBeVisible();
     await expect.poll(() => queryCalls).toBeGreaterThan(1);

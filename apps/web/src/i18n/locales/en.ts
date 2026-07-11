@@ -14,6 +14,8 @@ export const en = {
   'header.search.placeholder': 'Search pages',
   'header.search.minChars': 'Type at least two characters to search.',
   'header.search.searching': 'Searching…',
+  'header.search.loadingHybrid': 'Loading keyword and vector matches…',
+  'header.search.loadingSemantic': 'Loading additional vector matches…',
   'header.search.noResults': 'No matching pages found.',
   'header.search.reducedCoverage': 'Showing keyword matches only.',
   'header.search.error': 'Search is temporarily unavailable.',

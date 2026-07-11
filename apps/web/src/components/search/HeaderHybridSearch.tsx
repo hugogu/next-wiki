@@ -146,6 +146,11 @@ export function HeaderHybridSearch() {
   const normalizedQuery = query.trim();
   const hasResults = Boolean(results?.items.length);
   const isFetchingMore = status === 'searching' || results?.semanticState === 'pending';
+  const loadingHint = normalizedQuery.length >= 2 && isFetchingMore
+    ? results?.semanticState === 'pending' && hasResults
+      ? t('header.search.loadingSemantic')
+      : t('header.search.loadingHybrid')
+    : null;
   const statusText = normalizedQuery.length < 2
     ? t('header.search.minChars')
     : status === 'error'
@@ -171,8 +176,9 @@ export function HeaderHybridSearch() {
       </div>
       {open && <div data-testid="header-search-backdrop" onClick={() => close(true)} className="fixed inset-0 z-[55] bg-black/50" aria-hidden="true" />}
       {open && <section data-testid="header-search-results" className="fixed left-1/2 top-[calc(var(--header-height)+var(--space-sm))] z-[70] max-h-[calc(100vh-var(--header-height)-1rem)] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-lg border border-border bg-surface p-md shadow-xl">
-        <p id={resultsId} role="status" aria-live="polite" className="text-sm text-muted">
-          {statusText}
+        <p id={resultsId} role="status" aria-live="polite" className="flex flex-wrap items-center justify-between gap-x-md gap-y-xs text-sm text-muted">
+          <span>{statusText}</span>
+          {loadingHint && <span className="text-xs text-muted">{loadingHint}</span>}
         </p>
         {normalizedQuery.length >= 2 && isFetchingMore && (
           <div data-testid="header-search-progress" className="mt-sm h-2 overflow-hidden rounded-full bg-surface-elevated" aria-label={t('header.search.searching')}>
