@@ -291,6 +291,23 @@ export const searchBehaviors = pgTable(
   }),
 );
 
+export const searchSettings = pgTable(
+  'search_settings',
+  {
+    id: text('id').primaryKey().default('default'),
+    semanticSearchEnabled: boolean('semantic_search_enabled').notNull().default(true),
+    minRelevanceScore: integer('min_relevance_score').notNull().default(0),
+    showExcerpts: boolean('show_excerpts').notNull().default(true),
+    excerptLength: integer('excerpt_length').notNull().default(120),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    singletonId: check('search_settings_singleton_id', sql`${t.id} = 'default'`),
+    relevanceRange: check('search_settings_min_relevance_score_range', sql`${t.minRelevanceScore} >= -100 and ${t.minRelevanceScore} <= 100`),
+    excerptLengthRange: check('search_settings_excerpt_length_range', sql`${t.excerptLength} >= 20 and ${t.excerptLength} <= 500`),
+  }),
+);
+
 export const searchRecordsRelations = relations(searchRecords, ({ one, many }) => ({
   space: one(spaces, { fields: [searchRecords.spaceId], references: [spaces.id] }),
   actor: one(users, { fields: [searchRecords.actorUserId], references: [users.id] }),

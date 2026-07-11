@@ -136,6 +136,8 @@ export function Header({
               ? t('admin.nav.users')
             : pathname === '/admin/pages'
               ? t('admin.nav.pages')
+              : pathname === '/admin/search'
+                ? t('admin.nav.search')
               : pathname.startsWith('/admin/ai')
                 ? t('admin.nav.ai')
               : pathname === '/admin/api-audit'

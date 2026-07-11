@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { PublicPageTreeNode } from '@next-wiki/shared';
-import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon } from '@/components/icons';
+import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon, SearchIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
@@ -199,6 +199,7 @@ export function Navigator({
   const ADMIN_ITEMS: AdminNavItem[] = [
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
     { href: '/admin/pages', label: t('admin.nav.pages'), icon: <FileTextIcon className="shrink-0" /> },
+    { href: '/admin/search', label: t('admin.nav.search'), icon: <SearchIcon className="shrink-0" /> },
     { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SettingsIcon className="shrink-0" /> },
     { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
     { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },

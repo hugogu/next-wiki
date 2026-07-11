@@ -99,6 +99,25 @@ body {
   font-size: var(--font-size-base);
 }
 
+@keyframes header-search-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+.header-search-progress-bar {
+  animation: header-search-progress 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-search-progress-bar {
+    animation: none;
+  }
+}
+
 input[type='date'],
 input[type='datetime-local'],
 input[type='month'],
