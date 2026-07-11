@@ -69,7 +69,7 @@ test.describe('admin audit', () => {
     // Navigate to admin audit page as admin.
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/api-audit');
-    await expect(page.getByTestId('page-title')).toHaveText('Access Log');
+    await expect(page.locator('input[placeholder="All users"]')).toBeVisible();
     await expect(page.locator('text=' + userEmail).first()).toBeVisible();
 
     // Filter by user id.

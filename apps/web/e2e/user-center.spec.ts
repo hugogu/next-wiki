@@ -18,7 +18,7 @@ async function login(page: Page, email: string, password: string) {
 
 async function openUserCenter(page: Page) {
   await page.goto('/user-center/profile');
-  await expect(page.getByTestId('page-title')).toHaveText('Profile');
+  await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 }
 
 async function logout(page: Page) {
