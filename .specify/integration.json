@@ -1,15 +1,19 @@
 {
-  "version": "0.8.19.dev0",
+  "version": "0.10.0",
   "integration_state_schema": 1,
   "installed_integrations": [
-    "opencode"
+    "codex"
   ],
   "integration_settings": {
-    "opencode": {
+    "codex": {
       "script": "sh",
-      "invoke_separator": "."
+      "raw_options": "--skills",
+      "parsed_options": {
+        "skills": true
+      },
+      "invoke_separator": "-"
     }
   },
-  "integration": "opencode",
-  "default_integration": "opencode"
+  "integration": "codex",
+  "default_integration": "codex"
 }
