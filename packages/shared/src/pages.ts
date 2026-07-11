@@ -304,6 +304,7 @@ export const hybridSearchResultSchema = z.object({
   page: publicPageResourceSchema,
   excerpt: z.string().nullable(),
   score: z.number(),
+  relevanceScore: z.number().min(-1).max(1),
   matchSources: z.array(z.enum(['keyword', 'semantic'])).min(1),
 });
 export type HybridSearchResult = z.infer<typeof hybridSearchResultSchema>;

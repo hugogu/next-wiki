@@ -8,8 +8,6 @@ import { useTranslation } from '@/i18n/client';
 
 type SearchStatus = 'idle' | 'searching' | 'error';
 
-const EXCERPT_MAX_CHARS = 180;
-
 function getSearchTerms(query: string): string[] {
   const normalized = query.trim();
   if (!normalized) return [];
@@ -33,22 +31,9 @@ function renderHighlightedText(text: string, terms: string[]) {
   });
 }
 
-function buildDisplayExcerpt(excerpt: string, terms: string[]): string {
-  const normalized = excerpt.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= EXCERPT_MAX_CHARS) return normalized;
-
-  const lower = normalized.toLocaleLowerCase();
-  const match = terms
-    .map((term) => ({ term, index: lower.indexOf(term.toLocaleLowerCase()) }))
-    .filter((item) => item.index >= 0)
-    .sort((a, b) => a.index - b.index)[0];
-  const matchLength = match?.term.length ?? 0;
-  const targetStart = match
-    ? match.index - Math.floor((EXCERPT_MAX_CHARS - matchLength) / 2)
-    : 0;
-  const start = Math.max(0, Math.min(targetStart, normalized.length - EXCERPT_MAX_CHARS));
-  const end = Math.min(normalized.length, start + EXCERPT_MAX_CHARS);
-  return `${start > 0 ? '…' : ''}${normalized.slice(start, end)}${end < normalized.length ? '…' : ''}`;
+function formatRelevance(score: number | undefined): string | null {
+  if (score === undefined || Number.isNaN(score)) return null;
+  return `${Math.round(score * 100)}%`;
 }
 
 export function HeaderHybridSearch() {
@@ -191,7 +176,7 @@ export function HeaderHybridSearch() {
         </p>
         {normalizedQuery.length >= 2 && isFetchingMore && (
           <div data-testid="header-search-progress" className="mt-sm h-1 overflow-hidden rounded-full bg-surface-elevated" aria-label={t('header.search.searching')}>
-            <div className="h-full w-1/3 rounded-full bg-primary/70 motion-safe:animate-pulse" />
+            <div className="header-search-progress-bar h-full w-1/3 rounded-full bg-primary/70" />
           </div>
         )}
         <ul className="mt-sm space-y-xs">
@@ -202,9 +187,16 @@ export function HeaderHybridSearch() {
                 terminalEventRef.current = true;
                 void fetch('/api/v1/search/pages', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'behavior', eventId: crypto.randomUUID(), searchRecordId: searchRecordRef.current, searchSessionId: sessionRef.current, action: 'result_open', pageId: result.page.id }) });
               }}>
-              <span className="block font-medium">{renderHighlightedText(result.page.title, terms)}</span>
+              <span className="flex items-start justify-between gap-md">
+                <span className="min-w-0 font-medium">{renderHighlightedText(result.page.title, terms)}</span>
+                {formatRelevance(result.relevanceScore) && (
+                  <span className="shrink-0 rounded-full bg-surface-elevated px-sm py-0.5 text-xs text-muted">
+                    {formatRelevance(result.relevanceScore)}
+                  </span>
+                )}
+              </span>
               <span className="block text-xs text-muted">{renderHighlightedText(result.page.path, terms)}</span>
-              {result.excerpt && <span className="mt-1 block text-sm text-muted">{renderHighlightedText(buildDisplayExcerpt(result.excerpt, terms), terms)}</span>}
+              {result.excerpt && <span className="mt-1 block text-sm text-muted">{renderHighlightedText(result.excerpt, terms)}</span>}
             </a>
           </li>)}
         </ul>

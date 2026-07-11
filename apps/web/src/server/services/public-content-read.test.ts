@@ -31,6 +31,7 @@ async function cleanup() {
   await db.delete(schema.contentAssetRefs);
   await db.delete(schema.searchBehaviors);
   await db.delete(schema.searchRecords);
+  await db.delete(schema.searchSettings);
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
   await db.delete(schema.sessions);
@@ -377,9 +378,9 @@ describe('public content read facade', () => {
     semanticSearch.getSemanticSearchResults.mockResolvedValue({
       status: 'succeeded',
       items: [
-        { pageId: semantic.pageId, excerpt: 'semantic-only excerpt' },
-        { pageId: keyword.pageId, excerpt: 'semantic duplicate excerpt' },
-        { pageId: hidden.pageId, excerpt: 'hidden semantic excerpt' },
+        { pageId: semantic.pageId, excerpt: 'semantic-only excerpt', score: 0.86 },
+        { pageId: keyword.pageId, excerpt: 'semantic duplicate excerpt', score: 0.84 },
+        { pageId: hidden.pageId, excerpt: 'hidden semantic excerpt', score: 0.9 },
       ],
     });
 
@@ -391,13 +392,49 @@ describe('public content read facade', () => {
     expect(result.semanticState).toBe('ready');
     expect(result.items.map((item) => item.page.id)).toEqual([keyword.pageId, semantic.pageId]);
     expect(result.items[0]).toMatchObject({
-      excerpt: expect.stringContaining('hybridtoken'), matchSources: ['keyword', 'semantic'],
+      excerpt: expect.stringContaining('hybridtoken'), relevanceScore: 0.84, matchSources: ['keyword', 'semantic'],
     });
-    expect(result.items[1]).toMatchObject({ excerpt: 'semantic-only excerpt', matchSources: ['semantic'] });
+    expect(result.items[1]).toMatchObject({ excerpt: 'semantic-only excerpt', relevanceScore: 0.86, matchSources: ['semantic'] });
     expect(JSON.stringify(result)).not.toContain('hidden semantic excerpt');
     expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       semanticResultCount: 2, resultCount: 2, semanticState: 'ready',
     }));
+  });
+
+  it('honors header search settings for semantic enablement, relevance threshold, and excerpts', async () => {
+    const editor = await createPublicApiUser('public-hybrid-settings-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-hybrid-settings-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    await db.insert(schema.searchSettings).values({
+      id: 'default',
+      semanticSearchEnabled: false,
+      minRelevanceScore: 75,
+      showExcerpts: false,
+      excerptLength: 60,
+    });
+    await pageService.create(editorCtx, {
+      path: 'docs/low', title: 'Low', contentSource: 'settings low relevance keyword',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/low', version: 1 });
+    await pageService.create(editorCtx, {
+      path: 'settings-high', title: 'Settings High', contentSource: 'settingshigh visible page',
+    });
+    await revisions.publish(editorCtx, { path: 'settings-high', version: 1 });
+
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+    });
+
+    const result = await publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'settings', limit: 20,
+    });
+
+    expect(result.semanticState).toBe('skipped');
+    expect(semanticSearch.submitSemanticSearch).not.toHaveBeenCalled();
+    expect(result.items.map((item) => item.page.path)).toEqual(['settings-high']);
+    expect(result.items[0]).toMatchObject({ excerpt: null, relevanceScore: 0.95 });
   });
 
   it('returns zero results with generic reduced coverage when semantic search cannot start', async () => {

@@ -43,6 +43,13 @@
       "when": 1783693474667,
       "tag": "0005_clean_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783736585767,
+      "tag": "0006_striped_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

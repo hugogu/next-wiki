@@ -54,6 +54,7 @@ import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
 import * as publicAi from '@/server/services/public-ai';
 import * as searchAnalytics from '@/server/services/search-analytics';
+import { getSearchSettings } from '@/server/services/search-settings';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -90,6 +91,13 @@ function buildExcerpt(content: string, term: string, windowSize: number): string
   const end = Math.min(content.length, start + windowSize);
   const excerpt = content.slice(start, end);
   return `${start > 0 ? '…' : ''}${excerpt}${end < content.length ? '…' : ''}`;
+}
+
+function compactExcerpt(excerpt: string | null, term: string, windowSize: number, show: boolean): string | null {
+  if (!show || !excerpt) return null;
+  const normalized = excerpt.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= windowSize) return normalized;
+  return buildExcerpt(normalized, term, windowSize) ?? `${normalized.slice(0, windowSize)}…`;
 }
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -655,6 +663,7 @@ const RRF_K = 60;
 export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryInput): Promise<HybridPageSearchResponse> {
   const space = await getDefaultSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  const settings = await getSearchSettings();
 
   const keyword = await searchPages(ctx, {
     q: input.q,
@@ -662,7 +671,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     status: 'published',
     limit: input.limit,
     include: [],
-    excerptLength: 160,
+    excerptLength: settings.excerptLength,
   });
   const baseSummary = {
     keywordResultCount: keyword.items.length,
@@ -684,7 +693,9 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     : 'unavailable';
   let semanticItems: Awaited<ReturnType<typeof publicAi.getSemanticSearchResults>>['items'] = [];
 
-  if (record?.semanticActionId) {
+  if (!settings.semanticSearchEnabled) {
+    semanticState = 'skipped';
+  } else if (record?.semanticActionId) {
     try {
       const semantic = await publicAi.getSemanticSearchResults(ctx, record.semanticActionId);
       semanticState = semantic.status === 'succeeded' ? 'ready' : semantic.status === 'failed' ? 'failed' : 'pending';
@@ -708,10 +719,18 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     page: PublicPageResource;
     excerpt: string | null;
     score: number;
+    relevanceScore: number;
     matchSources: Array<'keyword' | 'semantic'>;
   }>();
   keyword.items.forEach((item, index) => {
-    merged.set(item.page.id, { page: item.page, excerpt: item.excerpt, score: 1 / (RRF_K + index + 1), matchSources: ['keyword'] });
+    const relevanceScore = item.score ?? 0;
+    merged.set(item.page.id, {
+      page: item.page,
+      excerpt: compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts),
+      score: 1 / (RRF_K + index + 1),
+      relevanceScore,
+      matchSources: ['keyword'],
+    });
   });
   let visibleSemanticResultCount = 0;
   for (const [index, item] of semanticItems.entries()) {
@@ -722,13 +741,21 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     const current = merged.get(page.id);
     if (current) {
       current.score += score;
+      current.relevanceScore = Math.max(current.relevanceScore, item.score);
       current.matchSources.push('semantic');
-      if (!current.excerpt) current.excerpt = item.excerpt;
+      if (!current.excerpt) current.excerpt = compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts);
     } else {
-      merged.set(page.id, { page, excerpt: item.excerpt, score, matchSources: ['semantic'] });
+      merged.set(page.id, {
+        page,
+        excerpt: compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts),
+        score,
+        relevanceScore: item.score,
+        matchSources: ['semantic'],
+      });
     }
   }
   const items = [...merged.values()]
+    .filter((item) => item.relevanceScore >= settings.minRelevanceScore)
     .sort((a, b) => b.score - a.score || a.page.path.localeCompare(b.page.path))
     .slice(0, input.limit);
   if (record) {

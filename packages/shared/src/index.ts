@@ -12,6 +12,7 @@ export * from './transfers';
 export * from './user-appearance';
 export * from './site';
 export * from './system-theme';
+export * from './search-settings';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

@@ -71,9 +71,10 @@ test.describe('Header hybrid page search', () => {
             items: [{
               page: { id: isLatest ? '22222222-2222-4222-8222-222222222222' : '33333333-3333-4333-8333-333333333333', path: isLatest ? 'welcome' : 'stale', title: isLatest ? 'Needle result' : 'Alpha result', locale: 'en', status: 'published', author: { id: null, displayName: null }, frontmatter: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', links: { self: '', byPath: '', revisions: '', drafts: '' } },
               excerpt: isLatest
-                ? `Leading context ${'before '.repeat(30)} needle highlighted with useful nearby text ${'after '.repeat(30)} hidden tail`
+                ? '…needle highlighted with useful nearby text…'
                 : 'Stale excerpt',
               score: 1,
+              relevanceScore: isLatest ? 0.82 : 0.2,
               matchSources: ['keyword'],
             }],
           }),
@@ -91,8 +92,8 @@ test.describe('Header hybrid page search', () => {
     await expect(results.getByRole('link', { name: /Needle result/ })).toBeVisible();
     await expect(results.locator('mark', { hasText: 'Needle' }).first()).toBeVisible();
     await expect(results.locator('mark', { hasText: 'needle' }).first()).toBeVisible();
+    await expect(results.getByText('82%')).toBeVisible();
     await expect(results.getByText(/highlighted with useful nearby text/)).toBeVisible();
-    await expect(page.getByText('hidden tail')).toBeHidden();
     await expect(results.getByRole('link', { name: /Alpha result/ })).toBeHidden();
     await results.getByRole('link', { name: /Needle result/ }).click();
     await expect.poll(() => resultOpenEvents).toHaveLength(1);
@@ -113,6 +114,7 @@ test.describe('Header hybrid page search', () => {
               page: { id: '22222222-2222-4222-8222-222222222222', path: 'books/reading', title: 'Reading result', locale: 'en', status: 'published', author: { id: null, displayName: null }, frontmatter: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', links: { self: '', byPath: '', revisions: '', drafts: '' } },
               excerpt: 'Reading result excerpt',
               score: 1,
+              relevanceScore: 0.9,
               matchSources: ['keyword'],
             }],
           }),
