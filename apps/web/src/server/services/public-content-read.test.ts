@@ -390,11 +390,13 @@ describe('public content read facade', () => {
     });
 
     expect(result.semanticState).toBe('ready');
-    expect(result.items.map((item) => item.page.id)).toEqual([keyword.pageId, semantic.pageId]);
+    expect(result.items.map((item) => item.page.id)).toEqual([semantic.pageId, keyword.pageId]);
     expect(result.items[0]).toMatchObject({
+      excerpt: 'semantic-only excerpt', relevanceScore: 0.86, matchSources: ['semantic'],
+    });
+    expect(result.items[1]).toMatchObject({
       excerpt: expect.stringContaining('hybridtoken'), relevanceScore: 0.84, matchSources: ['keyword', 'semantic'],
     });
-    expect(result.items[1]).toMatchObject({ excerpt: 'semantic-only excerpt', relevanceScore: 0.86, matchSources: ['semantic'] });
     expect(JSON.stringify(result)).not.toContain('hidden semantic excerpt');
     expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       semanticResultCount: 2, resultCount: 2, semanticState: 'ready',

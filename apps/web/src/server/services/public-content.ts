@@ -756,7 +756,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
   }
   const items = [...merged.values()]
     .filter((item) => item.relevanceScore >= settings.minRelevanceScore)
-    .sort((a, b) => b.score - a.score || a.page.path.localeCompare(b.page.path))
+    .sort((a, b) => b.relevanceScore - a.relevanceScore || a.page.path.localeCompare(b.page.path))
     .slice(0, input.limit);
   if (record) {
     try {
