@@ -169,7 +169,7 @@ export function HeaderHybridSearch() {
             placeholder={t('header.search.placeholder')} className="h-9 w-full rounded-md border border-border bg-surface px-md pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
         </div>
       </div>
-      {open && <div data-testid="header-search-backdrop" className="fixed inset-0 z-[55] bg-black/50" aria-hidden="true" />}
+      {open && <div data-testid="header-search-backdrop" onClick={() => close(true)} className="fixed inset-0 z-[55] bg-black/50" aria-hidden="true" />}
       {open && <section data-testid="header-search-results" className="fixed left-1/2 top-[calc(var(--header-height)+var(--space-sm))] z-[70] max-h-[calc(100vh-var(--header-height)-1rem)] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-lg border border-border bg-surface p-md shadow-xl">
         <p id={resultsId} role="status" aria-live="polite" className="text-sm text-muted">
           {statusText}
