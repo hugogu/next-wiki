@@ -6,6 +6,13 @@ test.describe('Header hybrid page search', () => {
     const search = page.getByLabel('Search wiki pages');
     await search.focus();
     await expect(page.getByText('Type at least two characters to search.')).toBeVisible();
+    await expect(search).toBeFocused();
+    await expect(page.getByTestId('header-search-backdrop')).toBeVisible();
+    const searchBox = await search.boundingBox();
+    const resultsBox = await page.getByTestId('header-search-results').boundingBox();
+    expect(searchBox).not.toBeNull();
+    expect(resultsBox).not.toBeNull();
+    expect(resultsBox!.y).toBeGreaterThan(searchBox!.y + searchBox!.height);
 
     const hybridRequests: string[] = [];
     page.on('request', (request) => {
