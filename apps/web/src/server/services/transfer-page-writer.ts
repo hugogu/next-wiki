@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull, max } from 'drizzle-orm';
+import { and, eq, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
@@ -18,21 +18,28 @@ export async function writeImportedPage(input: {
 }): Promise<{ pageId: string | null; revisionId: string | null; action: typeof input.action }> {
   const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
   if (!space) throw new Error('Default space not found');
+  // Match the database uniqueness contract exactly. The canonical page key is
+  // (space_id, path, locale), and the unique index also includes soft-deleted
+  // rows. Import must therefore reuse a soft-deleted row and restore it instead
+  // of trying to insert a second row for the same canonical key.
   const existing = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.path),
       eq(schema.pages.locale, input.locale),
-      isNull(schema.pages.deletedAt),
     ),
   });
   if (existing && input.action === 'skip') return { pageId: existing.id, revisionId: null, action: 'skip' };
+  if (existing && !existing.deletedAt && input.action === 'create') {
+    return { pageId: existing.id, revisionId: null, action: 'skip' };
+  }
 
   const revisionId = randomUUID();
   const { html, hash } = renderMarkdown(input.markdown);
   const result = await db.transaction(async (tx) => {
     let pageId: string;
     let versionNumber = 1;
+    let restoredDeletedPage = false;
     if (existing) {
       const versions = await tx
         .select({ value: max(schema.pageRevisions.versionNumber) })
@@ -40,6 +47,7 @@ export async function writeImportedPage(input: {
         .where(eq(schema.pageRevisions.pageId, existing.id));
       versionNumber = (versions[0]?.value ?? 0) + 1;
       pageId = existing.id;
+      restoredDeletedPage = Boolean(existing.deletedAt);
     } else {
       const [page] = await tx
         .insert(schema.pages)
@@ -75,12 +83,17 @@ export async function writeImportedPage(input: {
         title: input.title,
         currentPublishedVersionId: revisionId,
         latestVersionId: revisionId,
+        deletedAt: null,
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, pageId));
-    return pageId;
+    return { pageId, restoredDeletedPage };
   });
   await kickReplication();
-  await reconcilePageAcrossIndexes(result, buildUserCtx(input.actorUserId, 'admin'));
-  return { pageId: result, revisionId, action: existing ? 'replace' : 'create' };
+  await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
+  return {
+    pageId: result.pageId,
+    revisionId,
+    action: existing && !(result.restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
+  };
 }
