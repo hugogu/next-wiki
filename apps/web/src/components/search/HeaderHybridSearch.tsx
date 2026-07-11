@@ -8,6 +8,49 @@ import { useTranslation } from '@/i18n/client';
 
 type SearchStatus = 'idle' | 'searching' | 'error';
 
+const EXCERPT_MAX_CHARS = 180;
+
+function getSearchTerms(query: string): string[] {
+  const normalized = query.trim();
+  if (!normalized) return [];
+  return [...new Set(normalized.split(/\s+/).filter(Boolean))].sort((a, b) => b.length - a.length);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderHighlightedText(text: string, terms: string[]) {
+  if (!terms.length) return text;
+  const pattern = terms.map(escapeRegExp).join('|');
+  const matcher = new RegExp(`(${pattern})`, 'gi');
+  const termSet = new Set(terms.map((term) => term.toLocaleLowerCase()));
+  return text.split(matcher).map((part, index) => {
+    if (!part) return null;
+    return termSet.has(part.toLocaleLowerCase())
+      ? <mark key={`${part}-${index}`} className="rounded-sm bg-primary/20 px-0.5 text-foreground">{part}</mark>
+      : part;
+  });
+}
+
+function buildDisplayExcerpt(excerpt: string, terms: string[]): string {
+  const normalized = excerpt.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= EXCERPT_MAX_CHARS) return normalized;
+
+  const lower = normalized.toLocaleLowerCase();
+  const match = terms
+    .map((term) => ({ term, index: lower.indexOf(term.toLocaleLowerCase()) }))
+    .filter((item) => item.index >= 0)
+    .sort((a, b) => a.index - b.index)[0];
+  const matchLength = match?.term.length ?? 0;
+  const targetStart = match
+    ? match.index - Math.floor((EXCERPT_MAX_CHARS - matchLength) / 2)
+    : 0;
+  const start = Math.max(0, Math.min(targetStart, normalized.length - EXCERPT_MAX_CHARS));
+  const end = Math.min(normalized.length, start + EXCERPT_MAX_CHARS);
+  return `${start > 0 ? '…' : ''}${normalized.slice(start, end)}${end < normalized.length ? '…' : ''}`;
+}
+
 export function HeaderHybridSearch() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -114,6 +157,21 @@ export function HeaderHybridSearch() {
       window.setTimeout(() => inputRef.current?.focus());
     }
   };
+  const terms = getSearchTerms(query);
+  const normalizedQuery = query.trim();
+  const hasResults = Boolean(results?.items.length);
+  const isFetchingMore = status === 'searching' || results?.semanticState === 'pending';
+  const statusText = normalizedQuery.length < 2
+    ? t('header.search.minChars')
+    : status === 'error'
+      ? t('header.search.error')
+      : results?.semanticState === 'unavailable' || results?.semanticState === 'failed'
+        ? t('header.search.reducedCoverage')
+        : hasResults
+          ? t('header.search.escapeHint')
+          : isFetchingMore
+            ? t('header.search.searching')
+            : t('header.search.noResults');
 
   return (
     <>
@@ -127,10 +185,15 @@ export function HeaderHybridSearch() {
         </div>
       </div>
       {open && <div data-testid="header-search-backdrop" className="fixed inset-0 z-[55] bg-black/50" aria-hidden="true" />}
-      {open && <section data-testid="header-search-results" className="fixed left-1/2 top-[calc(var(--header-height)+var(--space-sm))] z-[70] max-h-[min(32rem,calc(100vh-var(--header-height)-1rem))] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-lg border border-border bg-surface p-md shadow-xl">
+      {open && <section data-testid="header-search-results" className="fixed left-1/2 top-[calc(var(--header-height)+var(--space-sm))] z-[70] max-h-[calc(100vh-var(--header-height)-1rem)] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-lg border border-border bg-surface p-md shadow-xl">
         <p id={resultsId} role="status" aria-live="polite" className="text-sm text-muted">
-          {query.trim().length < 2 ? t('header.search.minChars') : status === 'searching' ? t('header.search.searching') : status === 'error' ? t('header.search.error') : results?.semanticState === 'unavailable' || results?.semanticState === 'failed' ? t('header.search.reducedCoverage') : results?.items.length === 0 ? t('header.search.noResults') : t('header.search.escapeHint')}
+          {statusText}
         </p>
+        {normalizedQuery.length >= 2 && isFetchingMore && (
+          <div data-testid="header-search-progress" className="mt-sm h-1 overflow-hidden rounded-full bg-surface-elevated" aria-label={t('header.search.searching')}>
+            <div className="h-full w-1/3 rounded-full bg-primary/70 motion-safe:animate-pulse" />
+          </div>
+        )}
         <ul className="mt-sm space-y-xs">
           {results?.items.map((result) => <li key={result.page.id}>
             <a href={getPageHref(result.page.path)} className="block rounded-md p-sm hover:bg-surface-elevated"
@@ -139,9 +202,9 @@ export function HeaderHybridSearch() {
                 terminalEventRef.current = true;
                 void fetch('/api/v1/search/pages', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'behavior', eventId: crypto.randomUUID(), searchRecordId: searchRecordRef.current, searchSessionId: sessionRef.current, action: 'result_open', pageId: result.page.id }) });
               }}>
-              <span className="block font-medium">{result.page.title}</span>
-              <span className="block text-xs text-muted">{result.page.path}</span>
-              {result.excerpt && <span className="mt-1 block text-sm text-muted">{result.excerpt}</span>}
+              <span className="block font-medium">{renderHighlightedText(result.page.title, terms)}</span>
+              <span className="block text-xs text-muted">{renderHighlightedText(result.page.path, terms)}</span>
+              {result.excerpt && <span className="mt-1 block text-sm text-muted">{renderHighlightedText(buildDisplayExcerpt(result.excerpt, terms), terms)}</span>}
             </a>
           </li>)}
         </ul>

@@ -63,14 +63,18 @@ test.describe('Header hybrid page search', () => {
       }
       if (body.kind === 'query') {
         if (body.q === 'al') await new Promise((resolve) => setTimeout(resolve, 150));
-        const isLatest = body.q === 'be';
+        const isLatest = body.q === 'needle';
         await route.fulfill({
           contentType: 'application/json',
           body: JSON.stringify({
             searchRecordId: '11111111-1111-4111-8111-111111111111', semanticState: 'unavailable',
             items: [{
-              page: { id: isLatest ? '22222222-2222-4222-8222-222222222222' : '33333333-3333-4333-8333-333333333333', path: isLatest ? 'welcome' : 'stale', title: isLatest ? 'Beta result' : 'Alpha result', locale: 'en', status: 'published', author: { id: null, displayName: null }, frontmatter: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', links: { self: '', byPath: '', revisions: '', drafts: '' } },
-              excerpt: isLatest ? 'Latest matching excerpt' : 'Stale excerpt', score: 1, matchSources: ['keyword'],
+              page: { id: isLatest ? '22222222-2222-4222-8222-222222222222' : '33333333-3333-4333-8333-333333333333', path: isLatest ? 'welcome' : 'stale', title: isLatest ? 'Needle result' : 'Alpha result', locale: 'en', status: 'published', author: { id: null, displayName: null }, frontmatter: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', links: { self: '', byPath: '', revisions: '', drafts: '' } },
+              excerpt: isLatest
+                ? `Leading context ${'before '.repeat(30)} needle highlighted with useful nearby text ${'after '.repeat(30)} hidden tail`
+                : 'Stale excerpt',
+              score: 1,
+              matchSources: ['keyword'],
             }],
           }),
         });
@@ -82,12 +86,51 @@ test.describe('Header hybrid page search', () => {
     await page.goto('/');
     const search = page.getByLabel('Search wiki pages');
     await search.fill('al');
-    await search.fill('be');
+    await search.fill('needle');
     const results = page.getByTestId('header-search-results');
-    await expect(results.getByRole('link', { name: /Beta result/ })).toBeVisible();
-    await expect(page.getByText('Latest matching excerpt')).toBeVisible();
+    await expect(results.getByRole('link', { name: /Needle result/ })).toBeVisible();
+    await expect(results.locator('mark', { hasText: 'Needle' }).first()).toBeVisible();
+    await expect(results.locator('mark', { hasText: 'needle' }).first()).toBeVisible();
+    await expect(results.getByText(/highlighted with useful nearby text/)).toBeVisible();
+    await expect(page.getByText('hidden tail')).toBeHidden();
     await expect(results.getByRole('link', { name: /Alpha result/ })).toBeHidden();
-    await results.getByRole('link', { name: /Beta result/ }).click();
+    await results.getByRole('link', { name: /Needle result/ }).click();
     await expect.poll(() => resultOpenEvents).toHaveLength(1);
+  });
+
+  test('shows stable results and progress while semantic polling continues', async ({ page }) => {
+    let queryCalls = 0;
+    await page.route('**/api/v1/search/pages', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}') as { kind?: string; q?: string };
+      if (body.kind === 'query') {
+        queryCalls += 1;
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            searchRecordId: '11111111-1111-4111-8111-111111111111',
+            semanticState: queryCalls === 1 ? 'pending' : 'ready',
+            items: [{
+              page: { id: '22222222-2222-4222-8222-222222222222', path: 'books/reading', title: 'Reading result', locale: 'en', status: 'published', author: { id: null, displayName: null }, frontmatter: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', links: { self: '', byPath: '', revisions: '', drafts: '' } },
+              excerpt: 'Reading result excerpt',
+              score: 1,
+              matchSources: ['keyword'],
+            }],
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/');
+    const search = page.getByLabel('Search wiki pages');
+    await search.fill('re');
+    const results = page.getByTestId('header-search-results');
+    await expect(results.getByRole('link', { name: /Reading result/ })).toBeVisible();
+    await expect(page.getByText('Press Escape to close search.')).toBeVisible();
+    await expect(page.getByText('Searching…')).toBeHidden();
+    await expect(page.getByTestId('header-search-progress')).toBeVisible();
+    await expect.poll(() => queryCalls).toBeGreaterThan(1);
+    await expect(page.getByTestId('header-search-progress')).toBeHidden();
   });
 });
