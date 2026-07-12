@@ -266,6 +266,7 @@ export const zh: Translations = {
   'admin.title': '管理',
   'admin.nav.users': '用户',
   'admin.nav.pages': '页面',
+  'admin.nav.tags': '标签',
   'admin.nav.storage': '内容存储',
   'admin.nav.apiAudit': '访问日志',
   'admin.nav.transfers': '导入 / 导出',
@@ -318,6 +319,10 @@ export const zh: Translations = {
   'admin.pages.empty': '没有符合当前筛选条件的页面。',
   'admin.pages.sortBy': '按 {{column}} 排序',
   'admin.pages.pagination.summary': '共 {{total}} 个页面，第 {{page}} / {{pages}} 页',
+
+  'admin.tags.metadataTitle': '标签管理',
+  'admin.tags.title': '标签管理',
+  'admin.tags.description': '统一维护 Wiki 标签，查看标签使用情况并整理重复或不再使用的标签。',
 
   'admin.appearance.title': '外观',
   'admin.appearance.description':

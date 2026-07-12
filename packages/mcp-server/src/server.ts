@@ -28,6 +28,7 @@ import { listTags, listTagsSchema } from './tools/list-tags';
 import { createTag, createTagSchema } from './tools/create-tag';
 import { renameTag, renameTagSchema } from './tools/rename-tag';
 import { deleteTag, deleteTagSchema } from './tools/delete-tag';
+import { mergeTag, mergeTagSchema } from './tools/merge-tag';
 import { getTagMutation, getTagMutationSchema } from './tools/get-tag-mutation';
 import { updatePageMetadata, updatePageMetadataSchema } from './tools/update-page-metadata';
 
@@ -74,7 +75,8 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('create_tag', 'Create a reusable wiki tag. Requires manage_tags.', createTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await createTag(client, args)) }] }));
   server.tool('rename_tag', 'Rename a tag asynchronously. Requires manage_tags.', renameTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await renameTag(client, args)) }] }));
   server.tool('delete_tag', 'Retire a tag asynchronously. Requires manage_tags.', deleteTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await deleteTag(client, args)) }] }));
-  server.tool('get_tag_mutation', 'Get the state of a tag rename or deletion.', getTagMutationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await getTagMutation(client, args)) }] }));
+  server.tool('merge_tag', 'Merge a tag into an existing destination tag asynchronously. Requires manage_tags.', mergeTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await mergeTag(client, args)) }] }));
+  server.tool('get_tag_mutation', 'Get the state of a tag rename, deletion, or merge.', getTagMutationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await getTagMutation(client, args)) }] }));
   server.tool('update_page_metadata', 'Update page title, date, tags, and summary as a new draft revision.', updatePageMetadataSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await updatePageMetadata(client, args)) }] }));
 
   server.tool(

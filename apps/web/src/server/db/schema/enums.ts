@@ -168,7 +168,7 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
 
 export const searchBehaviorActionEnum = pgEnum('search_behavior_action', ['result_open', 'escape']);
 
-export const tagMutationKindEnum = pgEnum('tag_mutation_kind', ['rename', 'delete']);
+export const tagMutationKindEnum = pgEnum('tag_mutation_kind', ['rename', 'delete', 'merge']);
 export const tagMutationStatusEnum = pgEnum('tag_mutation_status', ['queued', 'running', 'succeeded', 'failed']);
 
 // ---- Content transfer (005) -----------------------------------------------

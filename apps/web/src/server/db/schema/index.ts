@@ -236,6 +236,7 @@ export const tagMutations = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tagId: uuid('tag_id').notNull().references(() => tags.id),
+    targetTagId: uuid('target_tag_id').references(() => tags.id),
     kind: tagMutationKindEnum('kind').notNull(),
     status: tagMutationStatusEnum('status').notNull().default('queued'),
     requestedName: text('requested_name'),
