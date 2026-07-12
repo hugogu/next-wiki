@@ -6,6 +6,7 @@ import * as setupService from '@/server/services/setup';
 import { buildAnonymousCtx } from '@/server/permissions';
 import { getPageHref, getPagesHref } from '@/lib/path';
 import { getLocale, getDictionary } from '@/i18n/server';
+import { PageListDescription } from '@/components/pages/PageListDescription';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,7 @@ export default async function HomePage() {
                       className="block p-md bg-surface border border-border rounded-lg hover:border-primary transition-colors group"
                     >
                       <span className="font-display text-xl font-medium group-hover:text-primary transition-colors">{page.title}</span>
+                      <PageListDescription value={page.description} />
                       <p className="text-sm text-muted mt-xs">
                         {page.publishedAt
                           ? t('home.page.publishedOn', { date: new Date(page.publishedAt).toLocaleDateString(locale) })

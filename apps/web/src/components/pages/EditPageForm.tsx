@@ -22,6 +22,7 @@ import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getHistoryHref, getPage
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
+import { readEditorMetadata, writeEditorMetadata } from '@/lib/page-frontmatter';
 
 export function EditPageForm({ path, initial }: { path: string; initial: { pageId: string; revisionId: string; title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
   const { t } = useTranslation();
@@ -31,6 +32,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
   const [isSaving, setIsSaving] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [newPath, setNewPath] = useState(path);
+  const [metadata, setMetadata] = useState(() => readEditorMetadata(initial.contentSource));
 
   const {
     handleSubmit,
@@ -67,6 +69,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
         }
         const draftBody = publicDraftCreateInputSchema.parse({
           ...data,
+          contentSource: writeEditorMetadata(data.contentSource, data.title, metadata),
           baseRevisionId: initial.revisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
@@ -84,7 +87,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
         setIsSaving(false);
       }
     },
-    [path, newPath, initial.revisionId, initial.pageId, t],
+    [path, newPath, initial.revisionId, initial.pageId, metadata, t],
   );
 
   const save = useCallback(() => {
@@ -149,6 +152,12 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
             path={newPath}
             onPathChange={setNewPath}
             pathError={newPath !== path && !updatePagePropertiesSchema.safeParse({ path: newPath }).success ? t('page.edit.validation.invalidPath') : undefined}
+            date={metadata.date}
+            onDateChange={(date) => setMetadata((current) => ({ ...current, date }))}
+            tags={metadata.tags}
+            onTagsChange={(tags) => setMetadata((current) => ({ ...current, tags }))}
+            summary={metadata.summary}
+            onSummaryChange={(summary) => setMetadata((current) => ({ ...current, summary }))}
             onClose={toggleProperties}
           />
         )}

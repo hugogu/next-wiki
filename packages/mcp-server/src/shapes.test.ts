@@ -8,6 +8,14 @@ import {
 } from './shapes';
 
 describe('shape transformers', () => {
+  it('preserves typed metadata on page-list items', () => {
+    const result = listPagesResponse({ items: [{
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', spaceSlug: 'main', path: 'docs/meta', locale: 'en', title: 'Meta', status: 'published',
+      author: { id: null, displayName: null }, latestRevision: null, publishedRevision: null, createdAt: '', updatedAt: '',
+      metadata: { date: '2026-07-10', summary: 'Summary', tags: [] }, links: { self: '', byPath: '', revisions: '', drafts: '' },
+    }], nextCursor: null });
+    expect(result.pages[0]?.metadata?.summary).toBe('Summary');
+  });
   it('flattens search response', () => {
     const result = searchWikiResponse({
       items: [

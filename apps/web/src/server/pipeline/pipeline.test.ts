@@ -79,4 +79,11 @@ $$`;
     expect(html).toMatch(/<tr[^>]*\bdata-line="1"[^>]*>/); // header row
     expect(html).toMatch(/<tr[^>]*\bdata-line="3"[^>]*>/); // data row
   });
+
+  it('does not render valid YAML frontmatter as article content', () => {
+    const { html } = renderMarkdown('---\ntags: [devops]\nsummary: Hello\n---\n\n# Title');
+    expect(html).toContain('Title');
+    expect(html).not.toContain('devops');
+    expect(html).not.toContain('summary:');
+  });
 });

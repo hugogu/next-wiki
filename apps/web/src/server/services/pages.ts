@@ -27,6 +27,8 @@ import {
 } from '@/server/content-store/read-router';
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
+import { getRevisionMetadata, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
+import { buildPageDescription } from '@/lib/seo';
 
 const DEFAULT_SPACE_SLUG = 'default';
 const ADMIN_PAGE_SIZE = 25;
@@ -175,6 +177,8 @@ export async function listPublished(
       path: schema.pages.path,
       title: schema.pages.title,
       authorDisplayName: schema.users.displayName,
+      revisionId: schema.pageRevisions.id,
+      contentHtml: schema.pageRevisions.contentHtml,
       publishedAt: schema.pageRevisions.publishedAt,
       updatedAt: schema.pages.updatedAt,
     })
@@ -195,14 +199,23 @@ export async function listPublished(
   const limited = options.limit != null ? query.limit(options.limit) : query;
   const paged = options.offset != null ? limited.offset(options.offset) : limited;
   const rows = await paged;
+  const revisionIds = rows.map((row) => row.revisionId);
+  const metadataRows = revisionIds.length
+    ? await db
+        .select({ revisionId: schema.pageRevisionMetadata.revisionId, summary: schema.pageRevisionMetadata.summary })
+        .from(schema.pageRevisionMetadata)
+        .where(inArray(schema.pageRevisionMetadata.revisionId, revisionIds))
+    : [];
+  const summaryByRevisionId = new Map(metadataRows.map((row) => [row.revisionId, row.summary]));
 
   return rows.map((r) => ({
-    path: r.path,
-    title: r.title,
-    authorDisplayName: r.authorDisplayName,
-    publishedAt: r.publishedAt?.toISOString() ?? null,
-    updatedAt: r.updatedAt.toISOString(),
-  }));
+      path: r.path,
+      title: r.title,
+      authorDisplayName: r.authorDisplayName,
+      publishedAt: r.publishedAt?.toISOString() ?? null,
+      updatedAt: r.updatedAt.toISOString(),
+      description: summaryByRevisionId.get(r.revisionId) || buildPageDescription(r.contentHtml, ''),
+    }));
 }
 
 /** Total number of published pages in the default space, mirroring `listPublished`'s filter. */
@@ -421,6 +434,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     const author = await db.query.users.findFirst({
       where: eq(schema.users.id, page.authorId),
     });
+    const metadata = await getRevisionMetadata(revision.id);
 
     return {
       pageId: page.id,
@@ -435,6 +449,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
       authorId: page.authorId,
       status: 'published',
       createdAt: page.createdAt.toISOString(),
+      metadata,
     };
   }
 
@@ -453,6 +468,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     where: eq(schema.users.id, page.authorId),
   });
 
+  const metadata = await getRevisionMetadata(draft.id);
   return {
     pageId: page.id,
     revisionId: draft.id,
@@ -466,6 +482,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     authorId: page.authorId,
     status: 'draft',
     createdAt: page.createdAt.toISOString(),
+    metadata,
   };
 }
 
@@ -549,6 +566,7 @@ export async function create(
 
   await assertNotMigrating();
   const revisionId = randomUUID();
+  const sourceMetadata = metadataFromSource(input.contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
@@ -566,7 +584,7 @@ export async function create(
         spaceId: space.id,
         slug: leafSlugFromPath(input.path),
         path: input.path,
-        title: input.title,
+        title: sourceMetadata.title,
         authorId: userId,
       })
       .returning();
@@ -589,6 +607,13 @@ export async function create(
       .returning();
 
     if (!revision) throw new Error('Failed to create revision');
+
+    await persistRevisionMetadata(tx, {
+      revisionId: revision.id,
+      spaceId: space.id,
+      source: input.contentSource,
+      fallbackTitle: sourceMetadata.title,
+    });
 
     await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
     await addReplicationTasks(tx, 'markdown', revision.id, hash);
@@ -619,6 +644,7 @@ export async function newDraft(
 
   await assertNotMigrating();
   const revisionId = randomUUID();
+  const sourceMetadata = metadataFromSource(input.contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
@@ -673,13 +699,20 @@ export async function newDraft(
 
     if (!revision) throw new Error('Failed to create revision');
 
+    await persistRevisionMetadata(tx, {
+      revisionId: revision.id,
+      spaceId: space.id,
+      source: input.contentSource,
+      fallbackTitle: sourceMetadata.title,
+    });
+
     await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
     await addReplicationTasks(tx, 'markdown', revision.id, hash);
 
     await tx
       .update(schema.pages)
       .set({
-        title: input.title,
+        title: sourceMetadata.title,
         latestVersionId: revision.id,
         updatedAt: new Date(),
       })

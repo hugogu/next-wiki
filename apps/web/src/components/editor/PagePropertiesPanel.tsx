@@ -10,6 +10,12 @@ export function PagePropertiesPanel({
   onPathChange,
   pathError,
   pathReadOnly = false,
+  date,
+  onDateChange,
+  tags,
+  onTagsChange,
+  summary,
+  onSummaryChange,
   onClose,
 }: {
   title: string;
@@ -19,6 +25,12 @@ export function PagePropertiesPanel({
   onPathChange: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
+  date?: string;
+  onDateChange?: (value: string) => void;
+  tags?: string;
+  onTagsChange?: (value: string) => void;
+  summary?: string;
+  onSummaryChange?: (value: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -33,6 +45,12 @@ export function PagePropertiesPanel({
         onPathChange={onPathChange}
         pathError={pathError}
         pathReadOnly={pathReadOnly}
+        date={date}
+        onDateChange={onDateChange}
+        tags={tags}
+        onTagsChange={onTagsChange}
+        summary={summary}
+        onSummaryChange={onSummaryChange}
       />
     </ModalDialog>
   );

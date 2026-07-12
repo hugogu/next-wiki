@@ -46,6 +46,12 @@ export const pathSchema = z
 export const publicPageIncludeSchema = z.enum(['latestRevision', 'publishedRevision']);
 export type PublicPageInclude = z.infer<typeof publicPageIncludeSchema>;
 
+export const publicMetadataSchema = z.object({
+  date: z.string().nullable(),
+  summary: z.string().nullable(),
+  tags: z.array(z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() })),
+});
+
 export const publicPageResourceSchema = z.object({
   id: z.string().uuid(),
   spaceSlug: z.string(),
@@ -55,6 +61,7 @@ export const publicPageResourceSchema = z.object({
   // Omitted by the API for list/search results; present for single-page reads and writes.
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable().optional(),
+  metadata: publicMetadataSchema.optional(),
   status: publicPageStatusSchema,
   author: publicAuthorSchema,
   // Omitted by the API unless requested via ?include=latestRevision.
@@ -106,6 +113,25 @@ export const publicPagePropertiesInputSchema = z.object({
   message: 'Provide path or title',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
+
+export const publicPageMetadataInputSchema = z.object({
+  baseRevisionId: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  date: z.string().nullable().optional(),
+  tags: z.array(z.string()).nullable().optional(),
+  summary: z.string().nullable().optional(),
+});
+export type PublicPageMetadataInput = z.infer<typeof publicPageMetadataInputSchema>;
+
+export const publicTagSchema = z.object({
+  id: z.string().uuid(), name: z.string(), normalizedName: z.string(), createdAt: z.string(), updatedAt: z.string(),
+});
+export type PublicTag = z.infer<typeof publicTagSchema>;
+export const publicTagMutationSchema = z.object({
+  id: z.string().uuid(), tagId: z.string().uuid(), kind: z.enum(['rename', 'delete']), status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+  requestedName: z.string().nullable(), affectedPageCount: z.number().int().nullable(), failure: z.string().nullable(), createdAt: z.string(), completedAt: z.string().nullable(),
+});
+export type PublicTagMutation = z.infer<typeof publicTagMutationSchema>;
 
 export const publicRevisionListQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).optional(),
@@ -499,6 +525,34 @@ export class WikiApiClient {
       method: 'PATCH',
       body: JSON.stringify(input),
     });
+  }
+
+  async updatePageMetadata(pageId: string, input: PublicPageMetadataInput): Promise<PublicPageResource> {
+    return this.request<PublicPageResource>(`/pages/${pageId}/metadata`, { method: 'PATCH', body: JSON.stringify(input) });
+  }
+
+  async listTags(query: { q?: string; limit?: number; cursor?: string } = {}): Promise<{ items: PublicTag[]; nextCursor: string | null }> {
+    const params = new URLSearchParams();
+    if (query.q) params.set('q', query.q);
+    if (query.limit) params.set('limit', String(query.limit));
+    if (query.cursor) params.set('cursor', query.cursor);
+    return this.request<{ items: PublicTag[]; nextCursor: string | null }>(`/tags?${params.toString()}`);
+  }
+
+  async createTag(name: string): Promise<PublicTag> {
+    return this.request<PublicTag>('/tags', { method: 'POST', body: JSON.stringify({ name }) });
+  }
+
+  async renameTag(tagId: string, name: string): Promise<PublicTagMutation> {
+    return this.request<PublicTagMutation>(`/tags/${tagId}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+  }
+
+  async deleteTag(tagId: string): Promise<PublicTagMutation> {
+    return this.request<PublicTagMutation>(`/tags/${tagId}`, { method: 'DELETE' });
+  }
+
+  async getTagMutation(id: string): Promise<PublicTagMutation> {
+    return this.request<PublicTagMutation>(`/tag-mutations/${id}`);
   }
 
   // include=publishedRevision so the response carries the new published revision's id/publishedAt.

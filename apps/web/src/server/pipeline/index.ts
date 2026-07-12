@@ -11,6 +11,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
 import { visit } from 'unist-util-visit';
+import { markdownBody } from '@/server/metadata/frontmatter';
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -114,6 +115,7 @@ function wrapCodeBlocks(tree: Root) {
 }
 
 export function renderMarkdown(source: string): { html: string; hash: string } {
+  const body = markdownBody(source);
   const html = unified()
     .use(remarkParse)
     .use(remarkMath)
@@ -128,7 +130,7 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(() => wrapCodeBlocks)
     .use(rehypeHighlight)
     .use(rehypeStringify)
-    .processSync(source)
+    .processSync(body)
     .toString();
 
   const hash = createHash('sha256').update(source).digest('hex');

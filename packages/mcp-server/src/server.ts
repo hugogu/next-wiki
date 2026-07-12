@@ -24,6 +24,12 @@ import { getNeighborhood, getNeighborhoodSchema } from './tools/get-neighborhood
 import { batchUpdatePages, batchUpdatePagesSchema } from './tools/batch-update-pages';
 import { batchSoftDeletePages, batchSoftDeletePagesSchema } from './tools/batch-soft-delete-pages';
 import { listWikiResources, readWikiResource } from './resources/wiki-page';
+import { listTags, listTagsSchema } from './tools/list-tags';
+import { createTag, createTagSchema } from './tools/create-tag';
+import { renameTag, renameTagSchema } from './tools/rename-tag';
+import { deleteTag, deleteTagSchema } from './tools/delete-tag';
+import { getTagMutation, getTagMutationSchema } from './tools/get-tag-mutation';
+import { updatePageMetadata, updatePageMetadataSchema } from './tools/update-page-metadata';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
   const server = new McpServer({
@@ -63,6 +69,13 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('list_pages', 'List wiki pages visible to the configured API key.', listPagesSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await listPages(client, args)) }],
   }));
+
+  server.tool('list_tags', 'List readable active wiki tags.', listTagsSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await listTags(client, args)) }] }));
+  server.tool('create_tag', 'Create a reusable wiki tag. Requires manage_tags.', createTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await createTag(client, args)) }] }));
+  server.tool('rename_tag', 'Rename a tag asynchronously. Requires manage_tags.', renameTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await renameTag(client, args)) }] }));
+  server.tool('delete_tag', 'Retire a tag asynchronously. Requires manage_tags.', deleteTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await deleteTag(client, args)) }] }));
+  server.tool('get_tag_mutation', 'Get the state of a tag rename or deletion.', getTagMutationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await getTagMutation(client, args)) }] }));
+  server.tool('update_page_metadata', 'Update page title, date, tags, and summary as a new draft revision.', updatePageMetadataSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await updatePageMetadata(client, args)) }] }));
 
   server.tool(
     'get_page_tree',

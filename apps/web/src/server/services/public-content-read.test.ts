@@ -25,6 +25,8 @@ import {
   ensurePublicApiDefaultSpace,
 } from '../../../test/public-wiki-api-fixtures';
 
+const metadataMarkdown = '---\ntags: [DevOps]\nsummary: Public summary\n---\n\n# Readable';
+
 async function cleanup() {
   await db.delete(schema.apiAuditEntries);
   await db.delete(schema.apiKeys);
@@ -78,6 +80,17 @@ describe('public content read facade', () => {
       ['publishedRevision'],
     );
     expect(withRevision?.publishedRevision?.version).toBe(1);
+  });
+
+  it('projects frontmatter metadata in read/list responses without removing raw compatibility', async () => {
+    const editor = await createPublicApiUser('public-metadata-editor@example.com', 'editor');
+    const ctx = buildUserCtx(editor.id, 'editor');
+    await pageService.create(ctx, { path: 'public/metadata', title: 'Fallback', contentSource: metadataMarkdown });
+    await revisions.publish(ctx, { path: 'public/metadata', version: 1 });
+    const page = await publicContent.getPageByPath(ctx, 'public/metadata');
+    expect(page?.frontmatter).toMatchObject({ tags: ['DevOps'], summary: 'Public summary' });
+    expect(page?.metadata).toMatchObject({ summary: 'Public summary' });
+    expect(page?.metadata?.tags[0]?.normalizedName).toBe('devops');
   });
 
   it('orders the page tree with folders before files, alphabetical within each group', async () => {

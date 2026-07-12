@@ -702,6 +702,18 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
     .record(z.unknown())
     .nullable()
     .describe('Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed.'),
+  metadata: z
+    .object({
+      date: z.string().nullable().describe('Calendar date from supported frontmatter, or null when absent.'),
+      summary: z.string().nullable().describe('Author-written summary from supported frontmatter, or null when absent.'),
+      tags: z.array(z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        normalizedName: z.string(),
+      })),
+    })
+    .optional()
+    .describe('Typed page metadata projection for this immutable revision.'),
 }).describe('Public page revision with Markdown source when the caller may read it.');
 
 export const PublicPageIncludeValue = z
@@ -723,6 +735,18 @@ export const PublicPageResource = z
       .record(z.unknown())
       .nullable()
       .describe('Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed.'),
+    metadata: z
+      .object({
+        date: z.string().nullable().describe('Calendar date from supported frontmatter, or null when absent.'),
+        summary: z.string().nullable().describe('Author-written summary from supported frontmatter, or null when absent.'),
+        tags: z.array(z.object({
+          id: z.string().uuid(),
+          name: z.string(),
+          normalizedName: z.string(),
+        })),
+      })
+      .optional()
+      .describe('Typed metadata for the revision currently visible to the caller.'),
     status: z
       .enum(['draft', 'published', 'deleted'])
       .describe('Page lifecycle state: an unpublished draft, a published page, or a soft-deleted page.'),
@@ -747,6 +771,50 @@ export const PublicPageResource = z
       .describe('Related API resource URLs for this page.'),
   })
   .describe('Public wiki page resource.');
+
+export const PublicPageMetadataInput = z.object({
+  baseRevisionId: z.string().uuid().describe('Latest revision id the patch was based on.'),
+  title: z.string().min(1).max(200).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  tags: z.array(z.string().min(1).max(100)).max(50).nullable().optional(),
+  summary: z.string().max(2000).nullable().optional(),
+}).describe('Additive patch for the supported page metadata fields.');
+
+export const PublicTag = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  normalizedName: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+}).describe('An active, reusable wiki tag.');
+
+export const PublicTagListQuery = z.object({
+  q: z.string().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  cursor: z.string().optional(),
+}).describe('Tag-directory filter and pagination parameters.');
+
+export const PublicTagCreateInput = z.object({
+  name: z.string().min(1).max(100),
+}).describe('Creates a reusable tag.');
+
+export const PublicTagRenameInput = z.object({
+  name: z.string().min(1).max(100),
+}).describe('New name for a reusable tag.');
+
+export const PublicTagMutation = z.object({
+  id: z.string().uuid(),
+  tagId: z.string().uuid(),
+  kind: z.enum(['rename', 'delete']),
+  status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+  requestedName: z.string().nullable(),
+  affectedPageCount: z.number().int().nullable(),
+  failure: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable(),
+}).describe('Asynchronous tag rename or retirement operation.');
+
+export const PublicTagIdPathParams = z.object({ id: z.string().uuid() });
 
 export const PublicPageListQuery = z
   .object({

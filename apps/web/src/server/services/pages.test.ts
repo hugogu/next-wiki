@@ -6,6 +6,8 @@ import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { publicPageCreateInputSchema } from '@next-wiki/shared';
 
+const taggedMarkdown = '---\ntitle: Canonical\ndate: 2026-07-10\ntags: [DevOps]\nsummary: Authored summary\nowner: docs\n---\n\n# Body';
+
 async function ensureDefaultSpace() {
   let space = await db.query.spaces.findFirst({
     where: eq(schema.spaces.slug, 'default'),
@@ -74,7 +76,6 @@ describe('pageService US3', () => {
 
   afterAll(async () => {
     await cleanup();
-    await closeDb();
   });
 
   describe('create', () => {
@@ -322,5 +323,40 @@ describe('pageService US3', () => {
         'permission',
       );
     });
+  });
+});
+
+describe('page metadata projections', () => {
+  beforeAll(async () => { await cleanup(); await ensureDefaultSpace(); });
+  afterAll(async () => { await cleanup(); await closeDb(); });
+
+  it('synchronizes supported frontmatter into a revision snapshot and rejects stale metadata writes', async () => {
+    const editor = await createUser('metadata-page@example.com', 'editor');
+    const ctx = buildUserCtx(editor.id, 'editor');
+    const created = await pageService.create(ctx, {
+      path: 'metadata-page', title: 'Fallback',
+      contentSource: taggedMarkdown,
+    });
+    const live = await pageService.getLive(ctx, 'metadata-page');
+    expect(live).toMatchObject({ title: 'Canonical', metadata: { date: '2026-07-10', summary: 'Authored summary' } });
+    expect(live?.metadata.tags.map((tag) => tag.normalizedName)).toEqual(['devops']);
+    await expect(pageService.newDraft(ctx, 'metadata-page', {
+      title: 'Canonical', contentSource: '# stale', baseRevisionId: '00000000-0000-0000-0000-000000000000',
+    })).rejects.toThrow('changed');
+    expect(created.versionId).toBe(live?.revisionId);
+  });
+
+  it('uses an authored summary before the generated list fallback', async () => {
+    const editor = await createUser('metadata-summary@example.com', 'editor');
+    const ctx = buildUserCtx(editor.id, 'editor');
+    await pageService.create(ctx, { path: 'with-summary', title: 'With summary', contentSource: '---\nsummary: Preferred text\n---\n\n# Long body' });
+    await pageService.create(ctx, { path: 'without-summary', title: 'Without summary', contentSource: '# Generated fallback body' });
+    const revisions = await db.select().from(schema.pageRevisions);
+    for (const revision of revisions) await db.update(schema.pageRevisions).set({ status: 'published', publishedAt: new Date() }).where(eq(schema.pageRevisions.id, revision.id));
+    const pages = await db.select().from(schema.pages);
+    for (const page of pages) await db.update(schema.pages).set({ currentPublishedVersionId: page.latestVersionId }).where(eq(schema.pages.id, page.id));
+    const summaries = await pageService.listPublished(ctx);
+    expect(summaries.find((item) => item.path === 'with-summary')?.description).toBe('Preferred text');
+    expect(summaries.find((item) => item.path === 'without-summary')?.description).toContain('Generated fallback');
   });
 });

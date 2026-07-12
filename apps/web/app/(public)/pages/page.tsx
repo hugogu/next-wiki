@@ -8,6 +8,7 @@ import { paginate } from '@/server/api/pagination';
 import { buildAnonymousCtx } from '@/server/permissions';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { getPageHref } from '@/lib/path';
+import { PageListDescription } from '@/components/pages/PageListDescription';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,7 @@ export default async function PublishedPagesPage({
                     className="block rounded-lg border border-border bg-surface p-md transition-colors hover:border-primary"
                   >
                     <span className="font-display text-xl font-medium text-foreground">{page.title}</span>
+                    <PageListDescription value={page.description} />
                     <p className="mt-xs text-sm text-muted">
                       {page.publishedAt
                         ? t('home.page.publishedOn', { date: new Date(page.publishedAt).toLocaleDateString(locale) })

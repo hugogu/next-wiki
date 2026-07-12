@@ -4,6 +4,7 @@ import {
   bigserial,
   check,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -54,6 +55,8 @@ import {
   transferItemStatusEnum,
   transferArtifactKindEnum,
   transferArtifactStatusEnum,
+  tagMutationKindEnum,
+  tagMutationStatusEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -186,6 +189,82 @@ export const pageRevisions = pgTable(
     hashIdx: index().on(t.contentHash),
   }),
 );
+
+// ---- Page tags and typed Markdown metadata (014) ------------------------
+
+export const tags = pgTable(
+  'tags',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    spaceId: uuid('space_id').notNull().references(() => spaces.id),
+    name: text('name').notNull(),
+    normalizedName: text('normalized_name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    activeNameUnique: uniqueIndex().on(t.spaceId, t.normalizedName).where(isNull(t.deletedAt)),
+    spaceIdx: index().on(t.spaceId, t.deletedAt),
+  }),
+);
+
+export const pageRevisionMetadata = pgTable('page_revision_metadata', {
+  revisionId: uuid('revision_id').primaryKey().references(() => pageRevisions.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  date: date('metadata_date'),
+  summary: text('summary'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const pageRevisionTags = pgTable(
+  'page_revision_tags',
+  {
+    revisionId: uuid('revision_id').notNull().references(() => pageRevisions.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id').notNull().references(() => tags.id),
+    tagName: text('tag_name').notNull(),
+    normalizedName: text('normalized_name').notNull(),
+  },
+  (t) => ({
+    identity: uniqueIndex().on(t.revisionId, t.tagId),
+    tagIdx: index().on(t.tagId),
+  }),
+);
+
+export const tagMutations = pgTable(
+  'tag_mutations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tagId: uuid('tag_id').notNull().references(() => tags.id),
+    kind: tagMutationKindEnum('kind').notNull(),
+    status: tagMutationStatusEnum('status').notNull().default('queued'),
+    requestedName: text('requested_name'),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    affectedPageCount: integer('affected_page_count'),
+    failure: text('failure'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    tagStatusIdx: index().on(t.tagId, t.status),
+    requesterIdx: index().on(t.requestedBy, t.createdAt),
+  }),
+);
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  revisionTags: many(pageRevisionTags),
+  mutations: many(tagMutations),
+}));
+
+export const pageRevisionMetadataRelations = relations(pageRevisionMetadata, ({ one }) => ({
+  revision: one(pageRevisions, { fields: [pageRevisionMetadata.revisionId], references: [pageRevisions.id] }),
+}));
+
+export const pageRevisionTagsRelations = relations(pageRevisionTags, ({ one }) => ({
+  revision: one(pageRevisions, { fields: [pageRevisionTags.revisionId], references: [pageRevisions.id] }),
+  tag: one(tags, { fields: [pageRevisionTags.tagId], references: [tags.id] }),
+}));
 
 export const apiKeys = pgTable(
   'api_keys',

@@ -36,6 +36,7 @@ export type Action =
   | 'manage_ai'
   | 'manage_transfers'
   | 'manage_appearance'
+  | 'manage_tags'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -53,7 +54,8 @@ export type Resource =
   | { kind: 'ai_index'; generationId?: string }
   | { kind: 'ai_page'; pageId?: string }
   | { kind: 'transfers' }
-  | { kind: 'appearance' };
+  | { kind: 'appearance' }
+  | { kind: 'tags' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -65,6 +67,7 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   storage: ['manage_storage'],
   preferences: ['manage_preferences'],
   transfers: ['manage_transfers'],
+  manage_tags: ['manage_tags'],
   'ai.read': ['use_ai_search', 'use_ai_qa'],
 };
 
@@ -103,6 +106,11 @@ function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anony
     case 'manage_transfers':
     case 'manage_appearance':
       return role === 'admin';
+    case 'manage_tags':
+      // Tags are shared editorial vocabulary. Editors may curate it when a
+      // session/API key carries the explicit manage_tags capability; readers
+      // remain read-only and other administrative surfaces remain admin-only.
+      return role === 'editor' || role === 'admin';
     case 'use_ai_search':
     case 'use_ai_qa':
       return role !== 'anonymous';

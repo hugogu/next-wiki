@@ -57,6 +57,13 @@
       "when": 1783750000000,
       "tag": "0007_fast_keyword_search",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783770686813,
+      "tag": "0008_complex_alice",
+      "breakpoints": true
     }
   ]
 }

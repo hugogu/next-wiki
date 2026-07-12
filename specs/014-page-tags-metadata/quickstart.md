@@ -46,3 +46,16 @@ commands before running a tag rename/delete.
 - REST/OpenAPI authorization and backward compatibility.
 - MCP legacy `filterTag` plus new tool behavior.
 - Reader/list UI and E2E summary/metadata behavior.
+
+## Validation record (2026-07-11)
+
+- `pnpm --filter @next-wiki/web typecheck` — passed.
+- `pnpm --filter @next-wiki/web test` — passed with the local PostgreSQL test service.
+- `pnpm --filter @next-wiki/mcp-server typecheck` and `pnpm --filter @next-wiki/mcp-server test` — passed.
+- `pnpm --filter @next-wiki/web openapi:generate` — regenerated `apps/web/public/openapi.json`.
+- `pnpm --filter @next-wiki/web build` — passed.
+
+Operational note: tag rename/delete is asynchronous. The worker marks the
+operation `succeeded` only after replacement page revisions, frontmatter,
+metadata snapshots, replication handoff, Git export trigger, and index
+reconciliation have been scheduled.

@@ -14,6 +14,7 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'storage',
   'preferences',
   'transfers',
+  'manage_tags',
   'ai.read',
 ]);
 
@@ -166,6 +167,9 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
 // ---- Header hybrid search (013) -------------------------------------------
 
 export const searchBehaviorActionEnum = pgEnum('search_behavior_action', ['result_open', 'escape']);
+
+export const tagMutationKindEnum = pgEnum('tag_mutation_kind', ['rename', 'delete']);
+export const tagMutationStatusEnum = pgEnum('tag_mutation_status', ['queued', 'running', 'succeeded', 'failed']);
 
 // ---- Content transfer (005) -----------------------------------------------
 

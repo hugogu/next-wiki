@@ -24,6 +24,7 @@ import type {
   PublicPageListQuery,
   PublicPageListResponse,
   PublicPagePropertiesInput,
+  PublicPageMetadataInput,
   PublicPageResource,
   PublicPageSearchQuery,
   PublicPageSearchResponse,
@@ -55,6 +56,7 @@ import * as contentAssets from '@/server/services/content-assets';
 import * as publicAi from '@/server/services/public-ai';
 import * as searchAnalytics from '@/server/services/search-analytics';
 import { getSearchSettings } from '@/server/services/search-settings';
+import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -130,12 +132,12 @@ function authorResource(row: { id: string; displayName: string | null; email: st
   return { id: row.id, displayName: row.displayName ?? row.email };
 }
 
-function publishedSearchPageResource(
+async function publishedSearchPageResource(
   space: { slug: string },
   page: PageRow,
   authorRow: { id: string; displayName: string | null; email: string },
   contentSource: string | null,
-): PublicPageResource {
+): Promise<PublicPageResource> {
   const { frontmatter } = parsePageFrontmatter(contentSource ?? '');
   return {
     id: page.id,
@@ -144,6 +146,7 @@ function publishedSearchPageResource(
     locale: page.locale,
     title: page.title,
     frontmatter,
+    metadata: page.currentPublishedVersionId ? await getRevisionMetadata(page.currentPublishedVersionId) : undefined,
     status: 'published',
     author: authorResource(authorRow),
     createdAt: page.createdAt.toISOString(),
@@ -264,6 +267,7 @@ async function visiblePageResource(
     wantsPublished ? revisionSummary(ctx, page, published) : Promise.resolve(undefined),
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
+  const metadata = await getRevisionMetadata(current.id);
 
   return {
     id: page.id,
@@ -273,6 +277,7 @@ async function visiblePageResource(
     title: page.title,
     contentSource: options.includeContent ? content : undefined,
     frontmatter,
+    metadata,
     status: published ? 'published' : 'draft',
     author: pageAuthor,
     latestRevision,
@@ -331,7 +336,8 @@ async function visibleRevisionResource(
     readMarkdownFromDatabase(revision),
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
-  return { ...summary!, contentSource: options.includeContent ? content : undefined, frontmatter };
+  const metadata = await getRevisionMetadata(revision.id);
+  return { ...summary!, contentSource: options.includeContent ? content : undefined, frontmatter, metadata };
 }
 
 function extractFrontmatterFilters(query: {
@@ -555,8 +561,8 @@ async function searchPublishedPagesByKeyword(
 
   return {
     nextCursor: null,
-    items: rows.map((row) => {
-      const page = publishedSearchPageResource(space, row.page, row.author, row.contentSource);
+    items: await Promise.all(rows.map(async (row) => {
+      const page = await publishedSearchPageResource(space, row.page, row.author, row.contentSource);
       const excerpt = row.matchType === 'content' && row.contentSource
         ? buildExcerpt(row.contentSource, input.q, input.excerptLength)
         : null;
@@ -566,7 +572,7 @@ async function searchPublishedPagesByKeyword(
         excerpt,
         score: Math.round(Number(row.relevanceScore) * 100) / 100,
       };
-    }),
+    })),
   };
 }
 
@@ -603,7 +609,7 @@ async function getPublishedSearchPagesByIds(
     ));
 
   for (const row of rows) {
-    result.set(row.page.id, publishedSearchPageResource(space, row.page, row.author, row.contentSource));
+    result.set(row.page.id, await publishedSearchPageResource(space, row.page, row.author, row.contentSource));
   }
   return result;
 }
@@ -648,7 +654,18 @@ export async function updateProperties(
 ): Promise<PublicPageResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const updated = await pageService.updateProperties(ctx, page.path, input);
+  const metadataUpdated = input.title
+    ? await updatePageMetadata(ctx, pageId, {
+        baseRevisionId: input.baseRevisionId ?? page.latestVersionId!,
+        title: input.title,
+      })
+    : null;
+  const updated = input.path
+    ? await pageService.updateProperties(ctx, metadataUpdated?.path ?? page.path, {
+        path: input.path,
+        baseRevisionId: metadataUpdated?.latestRevision?.id ?? input.baseRevisionId,
+      })
+    : { pageId, newPath: metadataUpdated?.path ?? page.path };
   const view = await getPageById(ctx, updated.pageId, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Updated page is not visible');
   return view;
@@ -1426,6 +1443,7 @@ async function batchUpdateOneItem(
   }
 
   const nextTitle = item.title ?? page.title;
+  const nextMetadata = metadataFromSource(nextContent, nextTitle);
   const hasTitleChange = item.title !== undefined && item.title !== page.title;
   if (!hasPathChange && !hasTitleChange && !hasFrontmatterChange) {
     return { pageId: page.id, status: 'success', revisionId: page.latestVersionId ?? undefined };
@@ -1466,6 +1484,12 @@ async function batchUpdateOneItem(
       })
       .returning();
     if (!revision) throw new Error('Failed to create revision');
+    await persistRevisionMetadata(tx, {
+      revisionId: revision.id,
+      spaceId: space.id,
+      source: nextContent,
+      fallbackTitle: nextMetadata.title,
+    });
     await syncRevisionAssetRefs(tx, revision.id, nextContent);
     await addReplicationTasks(tx, 'markdown', revision.id, hash);
     await tx
@@ -1473,7 +1497,7 @@ async function batchUpdateOneItem(
       .set({
         path: nextPath,
         slug: leafSlugFromPath(nextPath),
-        title: nextTitle,
+        title: nextMetadata.title,
         latestVersionId: revision.id,
         updatedAt: new Date(),
       })
@@ -1741,4 +1765,27 @@ export async function findSimilar(
   }
   results.sort((a, b) => b.score - a.score);
   return { results, threshold };
+}
+
+/** Create a normal draft revision from an additive typed metadata patch. */
+export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: PublicPageMetadataInput): Promise<PublicPageResource> {
+  const page = await getPageRowById(pageId);
+  if (!page || !page.latestVersionId) throw new DomainError('NOT_FOUND', 'Page not found');
+  const userId = getActorUserId(ctx);
+  const isAuthor = userId ? page.authorId === userId : false;
+  if (!userId || !can(ctx, 'edit', { kind: 'page', pageId }, { isAuthor })) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
+  }
+  const latest = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.latestVersionId) });
+  if (!latest) throw new DomainError('NOT_FOUND', 'Latest revision not found');
+  const source = (await readMarkdownFromDatabase(latest)) ?? '';
+  const patched = patchMetadata(source, input, page.title);
+  await pageService.newDraft(ctx, page.path, {
+    title: patched.metadata.title,
+    contentSource: patched.source,
+    baseRevisionId: input.baseRevisionId,
+  });
+  const result = await getPageById(ctx, pageId, ['latestRevision']);
+  if (!result) throw new DomainError('NOT_FOUND', 'Page not found');
+  return result;
 }

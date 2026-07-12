@@ -16,6 +16,10 @@ import { getPageOutboundLinks } from './get-page-outbound-links';
 import { getNeighborhood } from './get-neighborhood';
 import { batchUpdatePages } from './batch-update-pages';
 import { batchSoftDeletePages } from './batch-soft-delete-pages';
+import { listTags } from './list-tags';
+import { updatePageMetadata } from './update-page-metadata';
+
+const metadataFixture = { date: '2026-07-10', summary: 'Summary', tags: [] };
 
 describe('tools', () => {
   function createClient(overrides: Partial<WikiApiClient> = {}): WikiApiClient {
@@ -43,6 +47,7 @@ describe('tools', () => {
       getNeighborhood: vi.fn(),
       batchUpdatePages: vi.fn(),
       batchSoftDeletePages: vi.fn(),
+      listTags: vi.fn(), createTag: vi.fn(), renameTag: vi.fn(), deleteTag: vi.fn(), getTagMutation: vi.fn(), updatePageMetadata: vi.fn(),
       ...overrides,
     } as unknown as WikiApiClient;
   }
@@ -293,5 +298,15 @@ describe('tools', () => {
     await batchSoftDeletePages(client, { pageIds: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'], dryRun: true });
 
     expect(batchSoftDeletePagesClient).toHaveBeenCalledWith({ pageIds: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'] }, { dryRun: true });
+  });
+
+  it('forwards typed tag and metadata operations', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const update = vi.fn().mockResolvedValue({ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'docs/a', title: 'A', locale: 'en', status: 'draft', author: { id: null, displayName: null }, createdAt: '', updatedAt: '', links: { self: '', byPath: '', revisions: '', drafts: '' }, metadata: metadataFixture });
+    const client = createClient({ listTags: list, updatePageMetadata: update });
+    await listTags(client, { limit: 10 });
+    await updatePageMetadata(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', baseRevisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', tags: ['devops'] });
+    expect(list).toHaveBeenCalledWith({ limit: 10 });
+    expect(update).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', expect.objectContaining({ tags: ['devops'] }));
   });
 });

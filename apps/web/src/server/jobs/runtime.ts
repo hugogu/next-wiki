@@ -18,6 +18,7 @@ export const QUEUES = {
   transferImport: 'transfer-import',
   transferSourceTest: 'transfer-source-test',
   transferCleanup: 'transfer-cleanup',
+  tagMutation: 'tag-mutation',
 } as const;
 
 /**

@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/Input';
 import { useTranslation } from '@/i18n/client';
+import { TagPicker } from '@/components/pages/TagPicker';
 
 export function PagePropertiesFields({
   title,
@@ -9,6 +10,12 @@ export function PagePropertiesFields({
   onPathChange,
   pathError,
   pathReadOnly = false,
+  date,
+  onDateChange,
+  tags,
+  onTagsChange,
+  summary,
+  onSummaryChange,
 }: {
   title: string;
   onTitleChange: (value: string) => void;
@@ -17,6 +24,12 @@ export function PagePropertiesFields({
   onPathChange: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
+  date?: string;
+  onDateChange?: (value: string) => void;
+  tags?: string;
+  onTagsChange?: (value: string) => void;
+  summary?: string;
+  onSummaryChange?: (value: string) => void;
 }) {
   const { t } = useTranslation();
 
@@ -35,6 +48,26 @@ export function PagePropertiesFields({
         />
         {titleError && <p className="text-danger text-xs mt-xs">{titleError}</p>}
       </div>
+
+      {onDateChange && (
+        <div>
+          <label htmlFor="prop-date" className="block text-sm font-medium mb-xs">{t('editor.properties.fields.dateLabel')}</label>
+          <Input id="prop-date" type="date" value={date ?? ''} onChange={(e) => onDateChange(e.target.value)} aria-label={t('editor.properties.fields.dateLabel')} />
+        </div>
+      )}
+      {onTagsChange && (
+        <div>
+          <label htmlFor="prop-tags" className="block text-sm font-medium mb-xs">{t('editor.properties.fields.tagsLabel')}</label>
+          <TagPicker value={tags ?? ''} onChange={onTagsChange} />
+          <p className="text-xs text-muted mt-xs">{t('editor.properties.fields.tagsHint')}</p>
+        </div>
+      )}
+      {onSummaryChange && (
+        <div>
+          <label htmlFor="prop-summary" className="block text-sm font-medium mb-xs">{t('editor.properties.fields.summaryLabel')}</label>
+          <textarea id="prop-summary" value={summary ?? ''} onChange={(e) => onSummaryChange(e.target.value)} aria-label={t('editor.properties.fields.summaryLabel')} className="min-h-24 w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground" />
+        </div>
+      )}
 
       <div>
         <label htmlFor="prop-path" className="block text-sm font-medium mb-xs">

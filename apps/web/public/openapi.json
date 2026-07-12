@@ -87,6 +87,9 @@
           "pageId": {
             "type": "object"
           },
+          "pagePath": {
+            "type": "object"
+          },
           "questionMode": {
             "type": [
               "string",
@@ -142,6 +145,7 @@
           "modelName",
           "indexGenerationId",
           "pageId",
+          "pagePath",
           "questionMode",
           "requestMetadata",
           "resultMetadata",
@@ -2102,6 +2106,51 @@
         ],
         "description": "Paginated public page list."
       },
+      "PublicPageMetadataInput": {
+        "type": "object",
+        "properties": {
+          "baseRevisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Latest revision id the patch was based on."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "baseRevisionId"
+        ],
+        "description": "Additive patch for the supported page metadata fields."
+      },
       "PublicPagePath": {
         "type": "string",
         "minLength": 1,
@@ -2167,6 +2216,54 @@
             ],
             "additionalProperties": {},
             "description": "Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed."
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Calendar date from supported frontmatter, or null when absent."
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Author-written summary from supported frontmatter, or null when absent."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "normalizedName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "normalizedName"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "date",
+              "summary",
+              "tags"
+            ],
+            "description": "Typed metadata for the revision currently visible to the caller."
           },
           "status": {
             "type": "string",
@@ -2721,6 +2818,54 @@
             ],
             "additionalProperties": {},
             "description": "Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed."
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Calendar date from supported frontmatter, or null when absent."
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Author-written summary from supported frontmatter, or null when absent."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "normalizedName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "normalizedName"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "date",
+              "summary",
+              "tags"
+            ],
+            "description": "Typed page metadata projection for this immutable revision."
           }
         },
         "required": [
@@ -3302,6 +3447,166 @@
           "directories"
         ],
         "description": "Aggregate wiki statistics."
+      },
+      "PublicTag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "normalizedName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "normalizedName",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "An active, reusable wiki tag."
+      },
+      "PublicTagCreateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "Creates a reusable tag."
+      },
+      "PublicTagIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "PublicTagListQuery": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "description": "Tag-directory filter and pagination parameters."
+      },
+      "PublicTagMutation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tagId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rename",
+              "delete"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "requestedName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "affectedPageCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tagId",
+          "kind",
+          "status",
+          "requestedName",
+          "affectedPageCount",
+          "failure",
+          "createdAt",
+          "completedAt"
+        ],
+        "description": "Asynchronous tag rename or retirement operation."
+      },
+      "PublicTagRenameInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "New name for a reusable tag."
       },
       "RegisterInput": {
         "type": "object",
@@ -4054,6 +4359,26 @@
         ],
         "description": "A transfer artifact (uploaded archive or generated report)."
       },
+      "TransferCleanupResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the cleaned-up transfer run."
+          },
+          "deletedPages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of imported pages that were deleted."
+          }
+        },
+        "required": [
+          "id",
+          "deletedPages"
+        ],
+        "description": "Result of deleting the pages a transfer run imported."
+      },
       "TransferItemList": {
         "type": "object",
         "properties": {
@@ -4293,6 +4618,7 @@
             "enum": [
               "queued",
               "running",
+              "paused",
               "completed",
               "completed_with_warnings",
               "failed",
@@ -4410,6 +4736,10 @@
             "type": "boolean",
             "description": "Whether a cancellation has been requested for this run."
           },
+          "pauseRequested": {
+            "type": "boolean",
+            "description": "Whether a pause has been requested for this run."
+          },
           "errorCode": {
             "type": [
               "string",
@@ -4438,6 +4768,13 @@
             ],
             "format": "uuid",
             "description": "Generated report artifact, or null if not yet available."
+          },
+          "cleanedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the imported pages were cleaned up, or null if never."
           },
           "queuedAt": {
             "type": "string",
@@ -4468,6 +4805,18 @@
           "canRetry": {
             "type": "boolean",
             "description": "Whether the caller can currently retry this run."
+          },
+          "canPause": {
+            "type": "boolean",
+            "description": "Whether the caller can currently pause this run."
+          },
+          "canResume": {
+            "type": "boolean",
+            "description": "Whether the caller can currently resume this run."
+          },
+          "canCleanup": {
+            "type": "boolean",
+            "description": "Whether the caller can currently delete the pages this run imported."
           }
         },
         "required": [
@@ -4491,16 +4840,21 @@
           "failedItems",
           "currentItem",
           "cancelRequested",
+          "pauseRequested",
           "errorCode",
           "errorMessage",
           "errorDetail",
           "reportArtifactId",
+          "cleanedAt",
           "queuedAt",
           "startedAt",
           "finishedAt",
           "expiresAt",
           "canCancel",
-          "canRetry"
+          "canRetry",
+          "canPause",
+          "canResume",
+          "canCleanup"
         ],
         "description": "A content transfer run."
       },
@@ -5960,15 +6314,6 @@
                     "updatedAt": {
                       "type": "string"
                     },
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "config": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "object"
-                      }
-                    },
                     "kind": {
                       "oneOf": [
                         {
@@ -6002,6 +6347,15 @@
                           ]
                         }
                       ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "config": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object"
+                      }
                     },
                     "baseUrl": {
                       "type": "string"
@@ -6081,9 +6435,9 @@
                     "name",
                     "createdAt",
                     "updatedAt",
+                    "kind",
                     "enabled",
                     "config",
-                    "kind",
                     "baseUrl",
                     "lastCheckedAt",
                     "lastErrorCode",
@@ -8736,6 +9090,54 @@
         }
       }
     },
+    "/v1/pages/{id}/metadata": {
+      "patch": {
+        "operationId": "patch-v1-pages-{id}-metadata",
+        "summary": "Update typed page metadata",
+        "description": "Creates a draft revision while synchronizing title, date, tags, summary, and Markdown frontmatter.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageMetadataInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/pages/batch/delete": {
       "post": {
         "operationId": "post-v1-pages-batch-delete",
@@ -9514,6 +9916,60 @@
         }
       }
     },
+    "/settings/search": {
+      "get": {
+        "operationId": "get-settings-search",
+        "summary": "Get search settings @tag Search Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "Search Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-settings-search",
+        "summary": "Update search settings @tag Search Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "Search Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/stats": {
       "get": {
         "operationId": "get-v1-stats",
@@ -10190,6 +10646,211 @@
         }
       }
     },
+    "/v1/tags": {
+      "get": {
+        "operationId": "get-v1-tags",
+        "summary": "List tags",
+        "description": "",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-v1-tags",
+        "summary": "Create tag",
+        "description": "",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicTagCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTag"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tag-mutations/{id}": {
+      "get": {
+        "operationId": "get-v1-tag-mutations-{id}",
+        "summary": "Get tag mutation",
+        "description": "",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTagMutation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tags/{id}": {
+      "patch": {
+        "operationId": "patch-v1-tags-{id}",
+        "summary": "Rename tag",
+        "description": "",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicTagRenameInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTagMutation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-v1-tags-{id}",
+        "summary": "Retire tag",
+        "description": "",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTagMutation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/transfer-artifacts": {
       "post": {
         "operationId": "post-transfer-artifacts",
@@ -10674,6 +11335,45 @@
         }
       }
     },
+    "/transfers/{id}/cleanup": {
+      "post": {
+        "operationId": "post-transfers-{id}-cleanup",
+        "summary": "Delete the pages a transfer run imported",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferCleanupResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/transfers/{id}/items": {
       "get": {
         "operationId": "get-transfers-{id}-items",
@@ -10706,6 +11406,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransferItemList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transfers/{id}/pause": {
+      "post": {
+        "operationId": "post-transfers-{id}-pause",
+        "summary": "Pause an active transfer run",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transfers/{id}/resume": {
+      "post": {
+        "operationId": "post-transfers-{id}-resume",
+        "summary": "Resume a paused transfer run",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRunAccepted"
                 }
               }
             }
@@ -11284,10 +12062,16 @@
       "name": "Search"
     },
     {
+      "name": "Search Admin"
+    },
+    {
       "name": "Stats"
     },
     {
       "name": "Storage"
+    },
+    {
+      "name": "Tags"
     },
     {
       "name": "Transfers"

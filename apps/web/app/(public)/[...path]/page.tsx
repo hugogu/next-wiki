@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
+import { PageMetadata } from '@/components/pages/PageMetadata';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { buildAnonymousCtx } from '@/server/permissions';
@@ -123,6 +124,14 @@ export default async function PageRead({ params }: { params: PageParams }) {
           </div>
         )}
         <article className="flex-1 px-lg py-md max-w-none">
+          <PageMetadata
+            {...page.metadata}
+            labels={{
+              date: t('page.metadata.date'),
+              summary: t('page.metadata.summary'),
+              tags: t('page.metadata.tags'),
+            }}
+          />
           <ContentRenderer html={page.contentHtml} />
           <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
             {t('page.read.createdOn', { date: createdAt.toLocaleDateString(locale) })}

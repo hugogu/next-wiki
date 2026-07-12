@@ -79,6 +79,21 @@ describe('Git export materialization', () => {
     await closeDb();
   });
 
+  it('preserves synchronized metadata frontmatter verbatim in exported Markdown', async () => {
+    const source = '---\ntitle: Guide\ntags: [devops]\nsummary: Exported summary\n---\n\n# Guide';
+    await db.update(schema.pageRevisions).set({ contentSource: source, contentHtml: '<h1>Guide</h1>' }).where(eq(schema.pageRevisions.id, ids.revision));
+    const directory = await mkdtemp(join(tmpdir(), 'next-wiki-export-metadata-'));
+    try {
+      await materializeGitExport(directory, { assetsDir: 'assets' });
+      expect(await readFile(join(directory, 'docs/guide.md'), 'utf8')).toContain('summary: Exported summary');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+      await db.update(schema.pageRevisions).set({
+        contentSource: `# Guide\n\n![image](/api/assets/${ids.asset})`, contentHtml: '<h1>Guide</h1>',
+      }).where(eq(schema.pageRevisions.id, ids.revision));
+    }
+  });
+
   it('writes standard Markdown frontmatter and referenced image files', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'next-wiki-export-test-'));
     try {

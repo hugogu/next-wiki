@@ -30,6 +30,7 @@ export const pageSummarySchema = z.object({
   authorDisplayName: z.string().nullable(),
   publishedAt: z.string().nullable(),
   updatedAt: z.string(),
+  description: z.string().nullable().optional(),
 });
 export type PageSummary = z.infer<typeof pageSummarySchema>;
 
@@ -46,6 +47,11 @@ export const livePageSchema = z.object({
   authorId: z.string(),
   status: revisionStatusSchema,
   createdAt: z.string(),
+  metadata: z.object({
+    date: z.string().nullable(),
+    summary: z.string().nullable(),
+    tags: z.array(z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() })),
+  }),
 });
 export type LivePage = z.infer<typeof livePageSchema>;
 

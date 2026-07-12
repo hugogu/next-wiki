@@ -46,6 +46,7 @@ export type PageListItem = {
   title: string;
   status: string;
   locale: string;
+  metadata?: PublicPageResource['metadata'];
 };
 
 export function listPagesResponse(source: { items: PublicPageResource[]; nextCursor: string | null }): {
@@ -60,6 +61,7 @@ export function listPagesResponse(source: { items: PublicPageResource[]; nextCur
       title: page.title,
       status: page.status,
       locale: page.locale,
+      metadata: page.metadata,
     })),
     hasMore: source.nextCursor !== null,
     nextCursor: source.nextCursor,
@@ -76,6 +78,7 @@ export function getPageResponse(source: PublicPageResource): {
   latestRevisionId?: string;
   publishedRevisionId?: string;
   updatedAt: string;
+  metadata?: PublicPageResource['metadata'];
 } {
   return {
     id: source.id,
@@ -87,6 +90,7 @@ export function getPageResponse(source: PublicPageResource): {
     latestRevisionId: source.latestRevision?.id,
     publishedRevisionId: source.publishedRevision?.id,
     updatedAt: source.updatedAt,
+    metadata: source.metadata,
   };
 }
 

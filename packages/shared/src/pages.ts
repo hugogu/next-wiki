@@ -73,6 +73,11 @@ export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
+  metadata: z.object({
+    date: z.string().nullable(),
+    summary: z.string().nullable(),
+    tags: z.array(z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() })),
+  }).optional(),
 });
 export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
 
@@ -99,6 +104,11 @@ export const publicPageResourceSchema = z.object({
   title: z.string(),
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
+  metadata: z.object({
+    date: z.string().nullable(),
+    summary: z.string().nullable(),
+    tags: z.array(z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() })),
+  }).optional(),
   status: publicPageStatusSchema,
   author: publicAuthorSchema,
   latestRevision: publicRevisionSummarySchema.nullable().optional(),
@@ -113,6 +123,43 @@ export const publicPageResourceSchema = z.object({
   }),
 });
 export type PublicPageResource = z.infer<typeof publicPageResourceSchema>;
+
+export const publicPageMetadataInputSchema = z.object({
+  baseRevisionId: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  tags: z.array(z.string().min(1).max(100)).max(50).nullable().optional(),
+  summary: z.string().max(2000).nullable().optional(),
+});
+export type PublicPageMetadataInput = z.infer<typeof publicPageMetadataInputSchema>;
+
+export const publicTagSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  normalizedName: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type PublicTag = z.infer<typeof publicTagSchema>;
+
+export const publicTagListQuerySchema = z.object({
+  q: z.string().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+});
+export const publicTagCreateInputSchema = z.object({ name: z.string().min(1).max(100) });
+export const publicTagRenameInputSchema = z.object({ name: z.string().min(1).max(100) });
+export const publicTagMutationSchema = z.object({
+  id: z.string().uuid(),
+  tagId: z.string().uuid(),
+  kind: z.enum(['rename', 'delete']),
+  status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+  requestedName: z.string().nullable(),
+  affectedPageCount: z.number().int().nullable(),
+  failure: z.string().nullable(),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+});
 
 export const publicPageListQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all', 'deleted']).default('published'),

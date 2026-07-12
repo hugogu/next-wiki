@@ -26,6 +26,8 @@ import { runTransferImport } from './transfer-import';
 import { runTransferSourceTest } from './transfer-source-test';
 import { runTransferCleanup } from './transfer-cleanup';
 import { findRecoverableTransferRunIds } from '@/server/services/transfers';
+import { runTagMutation } from './tag-mutations';
+import { runPageMetadataBackfill } from './page-metadata-backfill';
 
 type JobBatch = { data: unknown }[];
 
@@ -112,6 +114,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.transferCleanup, async () => {
     await runTransferCleanup();
   });
+  await boss.work(QUEUES.tagMutation, async (jobs: JobBatch) => {
+    for (const job of jobs) await runTagMutation((job.data as { mutationId: string }).mutationId);
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
   await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});
@@ -157,5 +162,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
             : QUEUES.transferImport;
     await boss.send(queue, { runId });
     logger.info('re-enqueued interrupted transfer run', { runId, kind: run.kind });
+  }
+  const metadataBackfill = await runPageMetadataBackfill();
+  if (metadataBackfill.scanned > 0) {
+    logger.info('page metadata backfill progress', metadataBackfill);
   }
 }
