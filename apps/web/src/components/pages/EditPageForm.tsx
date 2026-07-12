@@ -32,7 +32,8 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
   const [isSaving, setIsSaving] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [newPath, setNewPath] = useState(path);
-  const [metadata, setMetadata] = useState(() => readEditorMetadata(initial.contentSource));
+  const [initialMetadata] = useState(() => readEditorMetadata(initial.contentSource));
+  const [metadata, setMetadata] = useState(initialMetadata);
 
   const {
     handleSubmit,
@@ -69,7 +70,10 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
         }
         const draftBody = publicDraftCreateInputSchema.parse({
           ...data,
-          contentSource: writeEditorMetadata(data.contentSource, data.title, metadata),
+          contentSource: writeEditorMetadata(data.contentSource, data.title, metadata, {
+            title: initial.title,
+            metadata: initialMetadata,
+          }),
           baseRevisionId: initial.revisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
@@ -87,7 +91,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
         setIsSaving(false);
       }
     },
-    [path, newPath, initial.revisionId, initial.pageId, metadata, t],
+    [path, newPath, initial.revisionId, initial.pageId, initial.title, initialMetadata, metadata, t],
   );
 
   const save = useCallback(() => {
