@@ -14,7 +14,7 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
     <AiAvailabilityProvider value={aiEntitlements ?? null}>
       <div className="h-screen flex flex-col overflow-hidden bg-background">
         <Header user={user} pageContext={pageContext} onMenuClick={() => setNavOpen(true)} siteName={siteName} />
-        <div className="flex-1 flex overflow-hidden">
+        <div className="min-h-0 flex-1 flex overflow-hidden">
           <Navigator
             tree={tree}
             admin={admin}
@@ -23,8 +23,12 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
           />
-          <main className="flex-1 overflow-auto relative flex flex-col">
-            <div className="flex-1 overflow-auto">
+          {/* Keep exactly one vertical scroll container.  Previously both this
+              main element and its child used overflow-auto, which produced
+              nested scrollbars; a min-height page could then leave the footer
+              in a second, apparently blank scroll area. */}
+          <main className="min-h-0 flex-1 relative flex flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {children}
               {footer}
             </div>
