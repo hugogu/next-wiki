@@ -63,14 +63,35 @@ export function buildTranslationInput(params: {
 }
 
 /**
- * Strip a single wrapping code fence the model may have added around the whole
- * document despite instructions, and reject empty output. Keeps fences that are
- * genuinely part of the content untouched.
+ * A leading moderation/safety annotation some routed models emit before (or
+ * instead of) their answer, e.g. `User Safety: safe`. It is never part of a
+ * real translation, so strip it from the top of the output.
+ */
+const SAFETY_PREAMBLE_RE = /^\s*(?:user\s+safety|safety|moderation|content\s+safety)\s*:\s*\w+\s*\n?/i;
+
+/**
+ * Normalize a model's raw output into publishable Markdown, or `null` when it is
+ * empty/unusable. Strips a single wrapping code fence the model may have added
+ * around the whole document, and a leading safety/moderation preamble line.
+ * Keeps fences that are genuinely part of the content untouched.
  */
 export function normalizeGeneratedMarkdown(raw: string): string | null {
   let text = raw.trim();
+  // A safety label can appear before an optional code fence, so strip it first.
+  text = text.replace(SAFETY_PREAMBLE_RE, '').trim();
   const fence = /^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/;
   const match = text.match(fence);
   if (match) text = match[1]!.trim();
   return text.length > 0 ? text : null;
+}
+
+/**
+ * Reject output that is implausibly short for its source — a translation of a
+ * non-trivial page cannot collapse to a few characters (a routed model that
+ * emitted only a safety label or a truncated answer). This is deliberately
+ * conservative: it only fires when the source is substantial and the output is
+ * tiny in absolute terms, so genuinely short translations are never rejected.
+ */
+export function isImplausiblyShortTranslation(sourceMarkdown: string, output: string): boolean {
+  return sourceMarkdown.trim().length >= 200 && output.trim().length < 40;
 }

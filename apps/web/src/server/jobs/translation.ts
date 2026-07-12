@@ -9,7 +9,11 @@ import {
   normalizeProviderError,
   sanitizeProviderMessage,
 } from '@/server/ai/types';
-import { buildTranslationInput, normalizeGeneratedMarkdown } from '@/server/ai/prompts/translation';
+import {
+  buildTranslationInput,
+  isImplausiblyShortTranslation,
+  normalizeGeneratedMarkdown,
+} from '@/server/ai/prompts/translation';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { writeTranslation } from '@/server/services/translation-writer';
 import {
@@ -163,6 +167,15 @@ async function processItem(run: RunRow, item: ItemRow): Promise<void> {
       await markItem(run.id, item.id, 'failed', {
         errorCode: 'INVALID_RESPONSE',
         errorMessage: 'The model returned empty or unusable output',
+      });
+      return;
+    }
+    if (isImplausiblyShortTranslation(sourceMarkdown, markdown)) {
+      // Guard against a routed model emitting only a safety label or a
+      // truncated answer — publishing that would overwrite the page with junk.
+      await markItem(run.id, item.id, 'failed', {
+        errorCode: 'INVALID_RESPONSE',
+        errorMessage: 'The model returned an implausibly short translation',
       });
       return;
     }
