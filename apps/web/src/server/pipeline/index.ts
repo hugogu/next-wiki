@@ -8,9 +8,12 @@ import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
 import { visit } from 'unist-util-visit';
+import { env } from '@/server/config';
+import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
 
 const sanitizeSchema = {
@@ -59,6 +62,59 @@ function setImageLoading(tree: Root) {
   visit(tree, 'element', (node) => {
     if (!isElement(node) || node.tagName !== 'img') return;
     node.properties = { ...node.properties, loading: 'lazy', decoding: 'async' };
+  });
+}
+
+/**
+ * Decode a standard, padded Base64 value without allowing Buffer's permissive
+ * decoder to turn arbitrary text into bytes. Diagram exports are commonly
+ * wrapped across lines, so whitespace is ignored before validation.
+ */
+function decodeBase64(value: string): Buffer | null {
+  const normalized = value.replace(/\s/g, '');
+  if (
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(normalized)
+  ) {
+    return null;
+  }
+  return Buffer.from(normalized, 'base64');
+}
+
+/**
+ * Render draw.io-style `diagram` fences, whose body is a Base64 SVG export,
+ * as a safe inline image. The SVG goes through the same type validation and
+ * sanitization as uploaded assets before it reaches the HTML output. Invalid
+ * fences deliberately remain ordinary code blocks so Markdown never gains a
+ * general-purpose `data:` image escape hatch.
+ */
+function renderEncodedDiagrams(tree: Root) {
+  visit(tree, 'element', (node) => {
+    if (!isElement(node) || node.tagName !== 'pre' || node.children.length !== 1) return;
+
+    const code = node.children[0];
+    if (!isElement(code) || code.tagName !== 'code') return;
+
+    const className = code.properties.className;
+    const isDiagram = Array.isArray(className) && className.includes('language-diagram');
+    if (!isDiagram) return;
+
+    const encoded = (code.children ?? [])
+      .filter((child): child is Text => child.type === 'text')
+      .map((child) => child.value)
+      .join('');
+    const bytes = decodeBase64(encoded);
+    if (!bytes) return;
+
+    const image = validateImage(bytes, env.CONTENT_ASSET_MAX_BYTES);
+    if (!image.ok || image.contentType !== 'image/svg+xml') return;
+
+    node.tagName = 'img';
+    node.properties = {
+      ...node.properties,
+      src: `data:image/svg+xml;base64,${image.bytes.toString('base64')}`,
+      alt: 'Diagram',
+    };
+    node.children = [];
   });
 }
 
@@ -120,9 +176,14 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
-    .use(remarkRehype)
+    // Parse raw HTML so imported Markdown can retain safe elements such as
+    // `<img>`. rehypeSanitize immediately following this step is the security
+    // boundary: scripts, event handlers, and unsafe URL protocols are removed.
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
     .use(() => addLineAnchors)
     .use(rehypeSanitize, sanitizeSchema)
+    .use(() => renderEncodedDiagrams)
     .use(() => setImageLoading)
     // Render imported/third-party math best-effort without flooding logs with
     // KaTeX strict-mode warnings (Unicode in math, comments, etc.).
