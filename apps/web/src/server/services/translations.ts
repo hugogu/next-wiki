@@ -1,5 +1,8 @@
 import { and, count, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type {
+  TranslationDocumentList,
+  TranslationDocumentQuery,
+  TranslationDocumentView,
   TranslationRunAccepted,
   TranslationRunCreate,
   TranslationRunItemList,
@@ -12,12 +15,14 @@ import type {
   TranslationUsageQuery,
   TranslationUsageList,
   TranslationUsageRow,
+  TranslationVersionView,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import { enqueue, getBoss, QUEUES } from '@/server/jobs/runtime';
+import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { assertAiEnabled } from './ai-actions';
 import { assertCanManageTranslations } from './translation-config';
 
@@ -577,6 +582,86 @@ export async function markRunTerminal(
       currentItem: null,
     })
     .where(eq(schema.translationRuns.id, id));
+}
+
+// ---- Documents & versions --------------------------------------------------
+
+export async function listDocuments(
+  ctx: PermCtx,
+  query: TranslationDocumentQuery,
+): Promise<TranslationDocumentList> {
+  assertCanManageTranslations(ctx);
+  const conditions: SQL[] = [];
+  if (query.sourcePageId) {
+    conditions.push(eq(schema.pageTranslationStates.sourcePageId, query.sourcePageId));
+  }
+  if (query.targetLocale) {
+    conditions.push(eq(schema.pageTranslationStates.targetLocale, query.targetLocale));
+  }
+  if (query.freshness) {
+    conditions.push(eq(schema.pageTranslationStates.freshnessStatus, query.freshness));
+  }
+  const where = conditions.length ? and(...conditions) : undefined;
+  const sourcePages = schema.pages;
+  const [rows, totals] = await Promise.all([
+    db
+      .select({
+        state: schema.pageTranslationStates,
+        sourcePath: sourcePages.path,
+      })
+      .from(schema.pageTranslationStates)
+      .innerJoin(sourcePages, eq(sourcePages.id, schema.pageTranslationStates.sourcePageId))
+      .where(where)
+      .orderBy(desc(schema.pageTranslationStates.updatedAt))
+      .limit(query.limit)
+      .offset(query.offset),
+    db.select({ value: count() }).from(schema.pageTranslationStates).where(where),
+  ]);
+  const items: TranslationDocumentView[] = rows.map(({ state, sourcePath }) => ({
+    translationPageId: state.translationPageId,
+    sourcePageId: state.sourcePageId,
+    sourcePath,
+    targetLocale: state.targetLocale,
+    sourceUrl: getPageHref(sourcePath),
+    translationUrl: getTranslatedPageHref(state.targetLocale, sourcePath),
+    freshness: state.freshnessStatus,
+    currentTranslatedRevisionId: state.currentTranslatedRevisionId,
+    lastRunId: state.latestRunId,
+    updatedAt: state.updatedAt.toISOString(),
+  }));
+  return { items, total: totals[0]?.value ?? 0 };
+}
+
+export async function listVersions(
+  ctx: PermCtx,
+  translationPageId: string,
+): Promise<TranslationVersionView[]> {
+  assertCanManageTranslations(ctx);
+  const rows = await db
+    .select({
+      provenance: schema.translationRevisionProvenance,
+      versionNumber: schema.pageRevisions.versionNumber,
+    })
+    .from(schema.translationRevisionProvenance)
+    .innerJoin(
+      schema.pageRevisions,
+      eq(schema.pageRevisions.id, schema.translationRevisionProvenance.translationRevisionId),
+    )
+    .where(eq(schema.pageRevisions.pageId, translationPageId))
+    .orderBy(desc(schema.pageRevisions.versionNumber));
+  return rows.map(({ provenance, versionNumber }) => ({
+    revisionId: provenance.translationRevisionId,
+    versionNumber,
+    sourceRevisionId: provenance.sourceRevisionId,
+    modelId: provenance.modelId,
+    modelName: provenance.modelDisplayName,
+    promptVersionId: provenance.promptVersionId,
+    runId: provenance.runId,
+    itemId: provenance.itemId,
+    usage: usageTotals(provenance),
+    durationMs: provenance.durationMs,
+    generatedAt: provenance.generatedAt.toISOString(),
+  }));
 }
 
 // ---- Usage analytics -------------------------------------------------------

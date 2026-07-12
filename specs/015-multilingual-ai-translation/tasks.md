@@ -69,7 +69,7 @@
 - [ ] T024 [P] [US2] Add administrator language/style/model selection Playwright coverage in `apps/web/e2e/translation-admin-config.spec.ts`
 - [ ] T025 [US2] Implement target-language lifecycle and immutable prompt-template/version services in `apps/web/src/server/services/translation-config.ts`
 - [ ] T026 [US2] Implement configured-text-model capability/availability validation and frozen input snapshots in `apps/web/src/server/services/translations.ts`
-- [ ] T027 [US2] Implement language and prompt REST endpoints with OpenAPI annotations in `apps/web/app/api/translations/languages/route.ts`, `apps/web/app/api/translations/languages/[code]/route.ts`, `apps/web/app/api/translations/prompts/route.ts`, and `apps/web/app/api/translations/prompts/[id]/route.ts`
+- [X] T027 [US2] Implement language and prompt REST endpoints with OpenAPI annotations in `apps/web/app/api/translations/languages/route.ts`, `apps/web/app/api/translations/languages/[code]/route.ts`, `apps/web/app/api/translations/prompts/route.ts`, and `apps/web/app/api/translations/prompts/[id]/route.ts`
 - [ ] T028 [US2] Build the admin translation configuration page using existing admin layout/UI primitives in `apps/web/app/(admin)/admin/translations/page.tsx` and `apps/web/src/components/admin/translations/TranslationSettingsPanel.tsx`
 - [ ] T029 [US2] Build target-language management and prompt-version forms in `apps/web/src/components/admin/translations/TranslationLanguageManager.tsx` and `apps/web/src/components/admin/translations/TranslationPromptManager.tsx`
 - [ ] T030 [US2] Register translation route schemas in generated OpenAPI inputs and regenerate `apps/web/public/openapi.json` via `apps/web/openapi-gen.config.ts`
@@ -134,7 +134,7 @@
 - [ ] T056 [US5] Implement source publish hooks that invalidate translation state and upsert latest-language refresh work without translated-page loops in `apps/web/src/server/services/revisions.ts` and `apps/web/src/server/services/translations.ts`
 - [ ] T057 [US5] Reconcile translated state and cache tags on source path change, deletion, and visibility changes in `apps/web/src/server/services/pages.ts` and `apps/web/src/server/services/translations.ts`
 - [ ] T058 [US5] Implement item/run duration and reported/estimated/unavailable usage aggregation in `apps/web/src/server/services/translations.ts`
-- [ ] T059 [US5] Implement translation document, version, and usage query endpoints in `apps/web/app/api/translations/documents/route.ts`, `apps/web/app/api/translations/documents/[id]/versions/route.ts`, and `apps/web/app/api/translations/usage/route.ts`
+- [X] T059 [US5] Implement translation document, version, and usage query endpoints in `apps/web/app/api/translations/documents/route.ts`, `apps/web/app/api/translations/documents/[id]/versions/route.ts`, and `apps/web/app/api/translations/usage/route.ts`
 - [ ] T060 [US5] Build translation document freshness and usage analytics panels in `apps/web/src/components/admin/translations/TranslationDocumentList.tsx` and `apps/web/src/components/admin/translations/TranslationUsagePanel.tsx`
 - [ ] T061 [US5] Add source/translation cache-tag invalidation and visible-content cache regression tests in `apps/web/src/server/cache/page-content.test.ts`
 

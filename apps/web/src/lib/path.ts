@@ -10,6 +10,15 @@ export function getPageHref(path: string): string {
   return `/${encodePath(path)}`;
 }
 
+/**
+ * Language-prefixed reader URL for a translated page (015). The unprefixed
+ * `getPageHref` remains the canonical source/original address; a translation is
+ * served at `/{language}/{path}` where `language` is a lowercase ISO 639-1 code.
+ */
+export function getTranslatedPageHref(locale: string, path: string): string {
+  return `/${encodeURIComponent(locale)}/${encodePath(path)}`;
+}
+
 export function getPagesHref(): string {
   return '/pages';
 }
