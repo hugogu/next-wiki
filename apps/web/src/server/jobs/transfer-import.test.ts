@@ -10,11 +10,13 @@ const mocks = vi.hoisted(() => ({
   getRuntimeSource: vi.fn(),
   getTransferConverter: vi.fn(),
   writeImportedPage: vi.fn(),
+  writeImportedAsset: vi.fn(),
   localizeWikiJsImage: vi.fn(),
   enqueueGitExport: vi.fn(),
 }));
 
-vi.mock('@/server/transfers/wikijs-client', () => ({
+vi.mock('@/server/transfers/wikijs-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/transfers/wikijs-client')>()),
   WikiJsClient: mocks.WikiJsClient,
 }));
 
@@ -28,6 +30,10 @@ vi.mock('@/server/transfers/registry', () => ({
 
 vi.mock('@/server/services/transfer-page-writer', () => ({
   writeImportedPage: mocks.writeImportedPage,
+}));
+
+vi.mock('@/server/services/transfer-asset-writer', () => ({
+  writeImportedAsset: mocks.writeImportedAsset,
 }));
 
 vi.mock('@/server/services/transfer-wikijs-assets', () => ({
@@ -50,6 +56,7 @@ type PageDef = {
   editor?: string;
   content: string;
   fingerprint: string;
+  tags?: Array<string | { tag: string; title?: string }>;
   action?: 'create' | 'replace' | 'skip';
   unsupported?: boolean;
 };
@@ -175,6 +182,7 @@ async function seedImport(opts: { pages: PageDef[] }) {
         contentType: page.contentType ?? 'text/markdown',
         editor: page.editor ?? 'markdown',
         content: page.content,
+        tags: page.tags,
         fingerprint: page.fingerprint,
       };
     }),
@@ -198,6 +206,32 @@ async function seedImport(opts: { pages: PageDef[] }) {
 }
 
 describe('runTransferImport wikijs_import', () => {
+  it('writes Wiki.js tags into synchronized Markdown frontmatter', async () => {
+    const pages: PageDef[] = [{
+      id: 9,
+      path: 'docs/tagged',
+      locale: 'en',
+      title: 'Tagged',
+      content: '# Tagged',
+      fingerprint: 'fp9',
+      tags: [
+        { tag: 'devops', title: 'DevOps' },
+        { tag: 'docker', title: 'Docker' },
+        { tag: 'DEVOPS', title: ' devops ' },
+      ],
+    }];
+    const { runId } = await seedImport({ pages });
+
+    await runTransferImport(runId);
+
+    const completed = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(completed?.status, completed?.errorMessage ?? undefined).toBe('completed');
+    expect(mocks.writeImportedPage).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Tagged',
+      markdown: expect.stringContaining('tags:\n  - DevOps\n  - Docker'),
+    }));
+  });
+
   it('sets totalItems before processing and advances processedItems during the loop', async () => {
     const pages: PageDef[] = [
       { id: 10, path: 'docs/progress-one', locale: 'en', title: 'One', content: '# One', fingerprint: 'fp10' },

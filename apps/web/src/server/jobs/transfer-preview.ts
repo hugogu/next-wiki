@@ -129,6 +129,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
         title: summary.title,
         contentType: summary.contentType,
         updatedAt: summary.updatedAt,
+        tags: summary.tags,
       });
     fingerprints.push(fingerprint);
 

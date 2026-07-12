@@ -7,6 +7,7 @@ import { syncRevisionAssetRefs } from './content-assets';
 import { addReplicationTasks, kickReplication } from './storage-replication';
 import { reconcilePageAcrossIndexes } from './ai-index';
 import { buildUserCtx } from '@/server/permissions';
+import { persistRevisionMetadata } from './page-metadata';
 
 export async function writeImportedPage(input: {
   actorUserId: string;
@@ -75,12 +76,18 @@ export async function writeImportedPage(input: {
       status: 'published',
       publishedAt: new Date(),
     });
+    const metadata = await persistRevisionMetadata(tx, {
+      revisionId,
+      spaceId: space.id,
+      source: input.markdown,
+      fallbackTitle: input.title,
+    });
     await syncRevisionAssetRefs(tx, revisionId, input.markdown);
     await addReplicationTasks(tx, 'markdown', revisionId, hash);
     await tx
       .update(schema.pages)
       .set({
-        title: input.title,
+        title: metadata.title,
         currentPublishedVersionId: revisionId,
         latestVersionId: revisionId,
         deletedAt: null,
