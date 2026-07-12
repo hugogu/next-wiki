@@ -16,6 +16,8 @@ export function PagePropertiesPanel({
   onTagsChange,
   summary,
   onSummaryChange,
+  writeMetadataToFrontmatter,
+  onWriteMetadataToFrontmatterChange,
   onClose,
 }: {
   title: string;
@@ -31,6 +33,8 @@ export function PagePropertiesPanel({
   onTagsChange?: (value: string) => void;
   summary?: string;
   onSummaryChange?: (value: string) => void;
+  writeMetadataToFrontmatter?: boolean;
+  onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -51,6 +55,8 @@ export function PagePropertiesPanel({
         onTagsChange={onTagsChange}
         summary={summary}
         onSummaryChange={onSummaryChange}
+        writeMetadataToFrontmatter={writeMetadataToFrontmatter}
+        onWriteMetadataToFrontmatterChange={onWriteMetadataToFrontmatterChange}
       />
     </ModalDialog>
   );

@@ -63,6 +63,26 @@ describe('Public Wiki write routes', () => {
     expect(properties.status).toBe(409);
   });
 
+  it('accepts a database-only metadata override when creating a draft', async () => {
+    const id = randomUUID();
+    const baseRevisionId = randomUUID();
+    const input = {
+      title: 'Database metadata',
+      contentSource: '# Body',
+      baseRevisionId,
+      metadata: { date: '2026-07-12', summary: 'Summary', tags: ['devops'] },
+    };
+    publicContent.createDraft.mockResolvedValue({ id: randomUUID() });
+
+    const response = await draftsRoute.POST(
+      request('POST', `http://localhost/api/v1/pages/${id}/drafts`, input),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(201);
+    expect(publicContent.createDraft).toHaveBeenCalledWith(expect.anything(), id, input);
+  });
+
   it('revision list, detail, and publication routes delegate with parsed params', async () => {
     const id = randomUUID();
     publicContent.listRevisions.mockResolvedValue({ items: [], nextCursor: null });

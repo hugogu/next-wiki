@@ -22,9 +22,19 @@ import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getHistoryHref, getPage
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
-import { readEditorMetadata, writeEditorMetadata } from '@/lib/page-frontmatter';
+import { hasEditorFrontmatter, writeEditorMetadata } from '@/lib/page-frontmatter';
 
-export function EditPageForm({ path, initial }: { path: string; initial: { pageId: string; revisionId: string; title: string; contentSource: string; canPublish: boolean; latestVersion: number } }) {
+type EditPageInitial = {
+  pageId: string;
+  revisionId: string;
+  title: string;
+  contentSource: string;
+  canPublish: boolean;
+  latestVersion: number;
+  metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
+};
+
+export function EditPageForm({ path, initial }: { path: string; initial: EditPageInitial }) {
   const { t } = useTranslation();
   const setEditor = useSetEditor();
   const { goBack } = useHistory();
@@ -32,7 +42,14 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
   const [isSaving, setIsSaving] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [newPath, setNewPath] = useState(path);
-  const [metadata, setMetadata] = useState(() => readEditorMetadata(initial.contentSource));
+  const [initialMetadata] = useState(() => ({
+    date: initial.metadata.date ?? '',
+    summary: initial.metadata.summary ?? '',
+    tags: initial.metadata.tags.map((tag) => tag.name).join(', '),
+  }));
+  const [metadata, setMetadata] = useState(initialMetadata);
+  const [writeMetadataToFrontmatter, setWriteMetadataToFrontmatter] = useState(() => hasEditorFrontmatter(initial.contentSource));
+  const [frontmatterPreferenceTouched, setFrontmatterPreferenceTouched] = useState(false);
 
   const {
     handleSubmit,
@@ -67,9 +84,20 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
           const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPageUrl(initial.pageId), body);
           editPath = res.path;
         }
+        const contentSource = writeMetadataToFrontmatter
+          ? writeEditorMetadata(data.contentSource, data.title, metadata, {
+              title: initial.title,
+              metadata: initialMetadata,
+            }, { forceFrontmatter: !hasEditorFrontmatter(data.contentSource) })
+          : data.contentSource;
         const draftBody = publicDraftCreateInputSchema.parse({
           ...data,
-          contentSource: writeEditorMetadata(data.contentSource, data.title, metadata),
+          contentSource,
+          metadata: writeMetadataToFrontmatter ? undefined : {
+            date: metadata.date.trim() || null,
+            summary: metadata.summary.trim() || null,
+            tags: metadata.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+          },
           baseRevisionId: initial.revisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
@@ -87,7 +115,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
         setIsSaving(false);
       }
     },
-    [path, newPath, initial.revisionId, initial.pageId, metadata, t],
+    [path, newPath, initial.revisionId, initial.pageId, initial.title, initialMetadata, metadata, t, writeMetadataToFrontmatter],
   );
 
   const save = useCallback(() => {
@@ -140,7 +168,10 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
           pageId={initial.pageId}
           revisionId={initial.revisionId}
           value={contentSource}
-          onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
+          onChange={(v) => {
+            setValue('contentSource', v, { shouldValidate: true });
+            if (!frontmatterPreferenceTouched) setWriteMetadataToFrontmatter(hasEditorFrontmatter(v));
+          }}
           disabled={isSaving}
         />
 
@@ -158,6 +189,11 @@ export function EditPageForm({ path, initial }: { path: string; initial: { pageI
             onTagsChange={(tags) => setMetadata((current) => ({ ...current, tags }))}
             summary={metadata.summary}
             onSummaryChange={(summary) => setMetadata((current) => ({ ...current, summary }))}
+            writeMetadataToFrontmatter={writeMetadataToFrontmatter}
+            onWriteMetadataToFrontmatterChange={(value) => {
+              setFrontmatterPreferenceTouched(true);
+              setWriteMetadataToFrontmatter(value);
+            }}
             onClose={toggleProperties}
           />
         )}

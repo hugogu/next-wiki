@@ -858,7 +858,7 @@ export const PublicPageListQuery = z
     'filter[tag]': z
       .union([z.string(), z.array(z.string())])
       .optional()
-      .describe('Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined).'),
+      .describe('Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined).'),
     'filter[status]': z
       .union([z.string(), z.array(z.string())])
       .optional()
@@ -912,6 +912,11 @@ export const PublicDraftCreateInput = z
       .string()
       .optional()
       .describe('Expected content hash of the base revision, used for optimistic concurrency control.'),
+    metadata: z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      tags: z.array(z.string().min(1).max(100)).max(50),
+      summary: z.string().max(2000).nullable(),
+    }).optional().describe('Optional structured metadata override. When present, metadata is stored on the revision without requiring equivalent Markdown frontmatter.'),
   })
   .describe('Create a draft revision for an existing public page.');
 
@@ -1006,7 +1011,7 @@ export const PublicPageSearchQuery = z
     'filter[tag]': z
       .union([z.string(), z.array(z.string())])
       .optional()
-      .describe('Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined).'),
+      .describe('Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined).'),
     'filter[status]': z
       .union([z.string(), z.array(z.string())])
       .optional()

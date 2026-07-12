@@ -7,7 +7,7 @@
 
 ## Summary
 
-Give wiki owners and editors a consistent tag system and a small, page-level metadata model. A page can have a title, date, tags, and summary; people can view and maintain these values with the page, manage the available tags, and perform the same work through the public API and MCP. The wiki's page-reading view presents the metadata as structured page information instead of requiring readers to interpret raw source. For Markdown pages that use YAML frontmatter, the four values remain synchronized with the corresponding `title`, `date`, `tags`, and `summary` fields in the source.
+Give wiki owners and editors a consistent tag system and a small, page-level metadata model. A page can have a title, date, tags, and summary; people can view and maintain these values with the page, manage the available tags, and perform the same work through the public API and MCP. The wiki's page-reading view presents the metadata as structured page information instead of requiring readers to interpret raw source. Page metadata exists independently of Markdown. For pages that use YAML frontmatter, editors can keep the four values synchronized with the corresponding `title`, `date`, `tags`, and `summary` fields in the source.
 
 Page lists use a non-empty `summary` as the page description when it is available. They retain the current generated/truncated description as the fallback when no usable summary exists.
 
@@ -42,7 +42,7 @@ As a page author, I want page title, date, tags, and summary to remain consisten
 **Acceptance Scenarios**:
 
 1. **Given** a Markdown page begins with valid frontmatter containing any of `title`, `date`, `tags`, or `summary`, **When** the page is read or listed, **Then** those values are exposed as the corresponding page metadata.
-2. **Given** an editor changes a page's title, date, tags, or summary through a page-metadata operation, **When** the change is saved, **Then** the corresponding frontmatter value is created, updated, or removed in the Markdown source so the two representations agree.
+2. **Given** a page contains valid frontmatter, **When** the properties editor opens, **Then** frontmatter synchronization is enabled by default and saved property changes update the corresponding supported fields.
 3. **Given** an editor saves Markdown whose valid frontmatter changes one of the supported metadata values, **When** the save completes, **Then** the page metadata and tag assignments reflect the new frontmatter value.
 4. **Given** a page has a title in both its page identity and frontmatter, **When** either supported metadata workflow changes that title, **Then** the two title values converge to the saved title and the page remains reachable at its existing path unless the editor separately changes the path.
 5. **Given** a page has a valid `date`, **When** it is displayed to a reader, **Then** it represents a calendar date without an implied time or timezone; an invalid date is rejected with a clear, actionable validation message.
@@ -51,6 +51,9 @@ As a page author, I want page title, date, tags, and summary to remain consisten
 8. **Given** a reader opens a Markdown page with supported metadata, **When** the wiki renders the page for reading, **Then** the page title, date, tags, and summary are presented as labelled, structured page information where present, rather than requiring the reader to inspect raw YAML frontmatter.
 9. **Given** a supported metadata value is absent, **When** the page is rendered for reading, **Then** its label and empty placeholder are omitted, while the available metadata remains easy to scan.
 10. **Given** the wiki renders supported metadata structurally, **When** it presents the Markdown body, **Then** the frontmatter delimiters and the supported metadata declarations are not repeated as visible body content.
+11. **Given** a page has no valid frontmatter, **When** an editor changes Page Properties without enabling frontmatter synchronization, **Then** the metadata is stored on the new revision while the Markdown source remains byte-for-byte unchanged.
+12. **Given** the Page Properties editor is open, **When** it displays the frontmatter synchronization checkbox, **Then** its initial state reflects whether the current Markdown contains valid frontmatter, and the editor may explicitly change it for the save.
+13. **Given** frontmatter synchronization is enabled for a page without frontmatter, **When** the editor saves, **Then** the supported metadata is written into a new frontmatter block without changing the Markdown body.
 
 ---
 
@@ -95,8 +98,8 @@ As an automation or MCP client with appropriate permissions, I want to discover,
 - A frontmatter `tags` value conflicts only in letter case or surrounding whitespace with an existing tag: it resolves to the existing normalized tag.
 - A simultaneous page-content save and metadata save would overwrite the same metadata field: one save succeeds and the stale writer receives a conflict outcome; no partial mismatch between tag assignment and frontmatter is exposed.
 - Renaming a tag to an already-existing normalized tag is rejected rather than merging its assignments implicitly.
-- A tag deletion is requested while pages use the tag: deletion removes the assignment from all affected pages and synchronizes their frontmatter; the outcome reports how many readable-to-manager pages were affected without exposing inaccessible page details to an unauthorized caller.
-- A page has no Markdown frontmatter: saving any supported metadata creates only the needed frontmatter while retaining its body content.
+- A tag deletion is requested while pages use the tag: deletion removes the assignment from all affected revisions and synchronizes frontmatter only for pages already using it; the outcome reports how many readable-to-manager pages were affected without exposing inaccessible page details to an unauthorized caller.
+- A page has no Markdown frontmatter: saving supported metadata keeps the source unchanged unless the editor explicitly enables frontmatter synchronization.
 - A page uses frontmatter that contains only unsupported keys: the page reader does not show an empty metadata section or raw YAML as a substitute for supported metadata.
 - A page list does not render a description today: this feature does not add a new description region solely to display summary.
 - A readable page becomes unavailable between list retrieval and an API/MCP metadata action: the action follows the normal unavailable/permission result and makes no change.
@@ -110,9 +113,9 @@ As an automation or MCP client with appropriate permissions, I want to discover,
 - **FR-003**: Authorized users MUST be able to add and remove tags while maintaining a page. A page MUST not contain the same normalized tag more than once.
 - **FR-004**: Renaming a tag MUST preserve its associations with all pages that use it. Deleting a tag MUST remove its associations from all affected pages.
 - **FR-005**: Each page MUST support the following metadata values: title, date, tags, and summary. Title remains the page's canonical display title; date is a calendar date; tags are zero or more reusable tags; summary is an optional author-written page description.
-- **FR-006**: For Markdown pages, the supported metadata values MUST be synchronized bidirectionally with YAML frontmatter keys of the same names: `title`, `date`, `tags`, and `summary`.
-- **FR-007**: Any successful page-metadata or tag-assignment change MUST save a consistent page revision: its visible metadata, tag assignments, and supported frontmatter values MUST agree when the operation completes.
-- **FR-008**: Saving valid Markdown frontmatter that changes one of the supported fields MUST update the corresponding structured page metadata and tag assignments. Saving structured metadata MUST update the associated Markdown frontmatter without discarding unrelated valid frontmatter fields or Markdown body content.
+- **FR-006**: Page metadata MUST be stored on the revision independently of whether its Markdown source contains YAML frontmatter.
+- **FR-007**: Any successful page-metadata or tag-assignment change MUST save a consistent page revision whose visible metadata and tag assignments agree; when frontmatter synchronization is enabled, its supported frontmatter values MUST agree as well.
+- **FR-008**: Saving valid Markdown frontmatter that changes one of the supported fields MUST update the corresponding structured page metadata and tag assignments. Saving structured metadata MUST update frontmatter only when synchronization is enabled, without discarding unrelated valid frontmatter fields or Markdown body content.
 - **FR-009**: The system MUST reject invalid supported metadata with clear validation feedback, including malformed dates, non-list tag values, duplicate normalized tags, and non-text summaries. It MUST not silently persist an ambiguous value.
 - **FR-010**: Every standard page-list view that already displays a page description MUST display a non-empty page summary in preference to its generated/truncated description. When no usable summary exists, it MUST preserve the existing fallback description behavior.
 - **FR-011**: Page-list descriptions MUST reflect the current saved summary and safely render it as descriptive text; summaries MUST not alter list layout, execute instructions, or expose restricted page content.
@@ -125,6 +128,7 @@ As an automation or MCP client with appropriate permissions, I want to discover,
 - **FR-018**: New browser-visible labels, validation messages, empty states, and descriptions for tags and metadata MUST be localizable consistently with the rest of the product.
 - **FR-019**: The wiki page-reading view MUST display present supported metadata as structured, labelled information: title through the page heading, and date, tags, and summary in a readable metadata presentation. It MUST omit absent values rather than show empty labels or placeholders.
 - **FR-020**: When structured metadata is presented on a Markdown page, the rendered page body MUST NOT repeat the YAML frontmatter delimiters or the supported metadata declarations as visible body text. Unrelated Markdown content and supported frontmatter values MUST remain available through their appropriate page view or source view.
+- **FR-021**: Page Properties MUST expose a frontmatter synchronization checkbox whose initial value is derived from the presence of valid frontmatter in the current Markdown source. When disabled, property changes MUST NOT rewrite the Markdown source.
 
 ### Key Entities
 
@@ -138,7 +142,7 @@ As an automation or MCP client with appropriate permissions, I want to discover,
 
 ### Measurable Outcomes
 
-- **SC-001**: In acceptance testing, 100% of tag additions, removals, renames, and deletions leave every affected page with matching displayed tags and supported Markdown frontmatter.
+- **SC-001**: In acceptance testing, 100% of tag additions, removals, renames, and deletions leave every affected page with matching displayed tags and, for pages using frontmatter synchronization, matching supported Markdown frontmatter.
 - **SC-002**: In acceptance testing, 100% of supported metadata changes made from the browser, public API, MCP, or valid Markdown frontmatter are observable through the other three surfaces after the change completes.
 - **SC-003**: In a page-list test set containing pages with and without summaries, 100% of list entries with a non-empty summary display that summary rather than a generated/truncated description, while 100% of entries without one retain the fallback description.
 - **SC-004**: An authorized editor can create a tag, assign it with a page summary and date, and verify the final page state through API or MCP in no more than three write/read operations.
@@ -151,7 +155,7 @@ As an automation or MCP client with appropriate permissions, I want to discover,
 
 - Tags are wiki-wide rather than private to one user or confined to a particular page tree, because their purpose is shared organization and API/MCP curation.
 - Existing page editing permissions govern changing a page's metadata and assignments. The project will use its established elevated authorization model for tag lifecycle operations.
-- The supported frontmatter form is YAML at the beginning of a Markdown page. Markdown pages without frontmatter can gain the supported fields when metadata is saved.
+- The supported frontmatter form is YAML at the beginning of a Markdown page. Markdown pages without frontmatter gain it only when the editor enables frontmatter synchronization.
 - `date` follows the calendar-date form illustrated by the request (for example, `2026-07-10`) and has no time-of-day semantics.
 - A summary is plain descriptive text; formatting, automatic summary generation, and a user-facing summary-length policy are not introduced by this feature.
 - The existing page title remains the primary page heading; the structured metadata presentation does not create a second competing title heading.

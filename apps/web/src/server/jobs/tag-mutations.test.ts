@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { closeDb, db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -6,6 +6,14 @@ import { buildUserCtx } from '@/server/permissions';
 import * as pages from '@/server/services/pages';
 import * as tags from '@/server/services/tags';
 import { runTagMutation } from './tag-mutations';
+
+vi.mock('@/server/pipeline', () => ({
+  renderMarkdown: (source: string) => ({ html: `<p>${source}</p>`, hash: `hash-${source.length}` }),
+}));
+vi.mock('@/server/services/content-assets', () => ({ syncRevisionAssetRefs: vi.fn() }));
+vi.mock('@/server/services/storage-replication', () => ({ addReplicationTasks: vi.fn(), kickReplication: vi.fn() }));
+vi.mock('@/server/services/git-export', () => ({ enqueueGitExport: vi.fn() }));
+vi.mock('@/server/services/ai-index', () => ({ reconcilePageAcrossIndexes: vi.fn() }));
 
 async function reset() {
   await db.delete(schema.pageRevisions); await db.delete(schema.pages);
@@ -64,5 +72,28 @@ describe('tag mutation worker', () => {
     const page = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'merge-target') });
     const tagsOnPage = await db.select().from(schema.pageRevisionTags).where(eq(schema.pageRevisionTags.revisionId, page!.latestVersionId!));
     expect(tagsOnPage.map((item) => item.normalizedName)).toEqual(['canonical']);
+  });
+
+  it('renames database-only tags without adding frontmatter to Markdown', async () => {
+    const { ctx } = await reset();
+    const tag = await tags.createTag(ctx, 'database-only');
+    const created = await pages.create(ctx, {
+      path: 'database-only-tag', title: 'Database only tag', contentSource: '# Body',
+    });
+    await pages.newDraft(ctx, 'database-only-tag', {
+      title: 'Database only tag',
+      contentSource: '# Body',
+      baseRevisionId: created.versionId,
+      metadata: { date: null, summary: 'No YAML', tags: ['database-only'] },
+    });
+    const operation = await tags.requestTagMutation(ctx, tag.id, 'rename', 'renamed-only');
+
+    await runTagMutation(operation.id);
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'database-only-tag') });
+    const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page!.latestVersionId!) });
+    const assignments = await db.query.pageRevisionTags.findMany({ where: eq(schema.pageRevisionTags.revisionId, revision!.id) });
+    expect(revision?.contentSource).toBe('# Body');
+    expect(assignments.map((item) => item.normalizedName)).toEqual(['renamed-only']);
   });
 });
