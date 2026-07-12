@@ -78,6 +78,13 @@
       "when": 1783821537623,
       "tag": "0010_fearless_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783840311136,
+      "tag": "0011_sticky_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }

@@ -35,6 +35,7 @@ export type Action =
   | 'manage_preferences'
   | 'manage_ai'
   | 'manage_transfers'
+  | 'manage_translations'
   | 'manage_appearance'
   | 'manage_tags'
   | 'use_ai_search'
@@ -54,6 +55,7 @@ export type Resource =
   | { kind: 'ai_index'; generationId?: string }
   | { kind: 'ai_page'; pageId?: string }
   | { kind: 'transfers' }
+  | { kind: 'translations' }
   | { kind: 'appearance' }
   | { kind: 'tags' };
 
@@ -104,6 +106,7 @@ function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anony
       return role !== 'anonymous';
     case 'manage_ai':
     case 'manage_transfers':
+    case 'manage_translations':
     case 'manage_appearance':
       return role === 'admin';
     case 'manage_tags':
@@ -145,6 +148,7 @@ export function can(
     if (
       action === 'manage_users' ||
       action === 'manage_ai' ||
+      action === 'manage_translations' ||
       action === 'manage_appearance' ||
       action === 'use_ai_text_optimization' ||
       action === 'use_ai_image_generation'

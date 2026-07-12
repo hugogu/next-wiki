@@ -240,3 +240,43 @@ export const transferArtifactStatusEnum = pgEnum('transfer_artifact_status', [
   'deleted',
   'failed',
 ]);
+
+// ---- AI page translation (015) --------------------------------------------
+
+export const translationRunKindEnum = pgEnum('translation_run_kind', [
+  'initial',
+  'resume',
+  'replacement',
+  'refresh',
+]);
+export const translationRunStatusEnum = pgEnum('translation_run_status', [
+  'queued',
+  'running',
+  'paused',
+  'completed',
+  'completed_with_warnings',
+  'failed',
+  'cancelled',
+]);
+export const translationItemStatusEnum = pgEnum('translation_item_status', [
+  'pending',
+  'running',
+  'completed',
+  'skipped',
+  'failed',
+  'cancelled',
+  'superseded',
+]);
+export const translationFreshnessStatusEnum = pgEnum('translation_freshness_status', [
+  'fresh',
+  'stale',
+  'queued',
+  'running',
+  'failed',
+  'unavailable',
+]);
+export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
+  'provider_reported',
+  'estimated',
+  'unavailable',
+]);

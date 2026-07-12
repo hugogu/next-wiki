@@ -9,6 +9,7 @@ export * from './audit';
 export * from './content-storage';
 export * from './ai';
 export * from './transfers';
+export * from './translations';
 export * from './user-appearance';
 export * from './site';
 export * from './system-theme';

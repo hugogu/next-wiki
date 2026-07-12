@@ -19,6 +19,9 @@ export const QUEUES = {
   transferSourceTest: 'transfer-source-test',
   transferCleanup: 'transfer-cleanup',
   tagMutation: 'tag-mutation',
+  // Dedicated long-running queue for AI page translation so a bulk one-language
+  // run cannot starve interactive AI actions (questions, optimization, images).
+  translation: 'translation',
 } as const;
 
 /**
@@ -37,6 +40,7 @@ export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
   [QUEUES.transferImport]: 4 * 60 * 60,
   [QUEUES.migration]: 4 * 60 * 60,
   [QUEUES.gitExport]: 60 * 60,
+  [QUEUES.translation]: 4 * 60 * 60,
 };
 
 /**

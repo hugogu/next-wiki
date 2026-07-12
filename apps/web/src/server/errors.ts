@@ -59,7 +59,13 @@ export type DomainErrorCode =
   | 'RUN_NOT_ACTIVE'
   | 'RUN_NOT_PAUSED'
   | 'RUN_NOT_PAUSABLE'
-  | 'RUN_NOT_CLEANABLE';
+  | 'RUN_NOT_CLEANABLE'
+  // AI page translation (015).
+  | 'INVALID_TRANSLATION_INPUT'
+  | 'TRANSLATION_NOT_FOUND'
+  | 'TRANSLATION_ALREADY_RUNNING'
+  | 'SOURCE_NOT_TRANSLATABLE'
+  | 'JOB_QUEUE_UNAVAILABLE';
 
 export class DomainError extends Error {
   constructor(

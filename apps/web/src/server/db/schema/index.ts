@@ -57,6 +57,11 @@ import {
   transferArtifactStatusEnum,
   tagMutationKindEnum,
   tagMutationStatusEnum,
+  translationRunKindEnum,
+  translationRunStatusEnum,
+  translationItemStatusEnum,
+  translationFreshnessStatusEnum,
+  translationUsageSourceEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -150,6 +155,12 @@ export const pages = pgTable(
     // MVP slice and enforce the invariant in application code.
     currentPublishedVersionId: uuid('current_published_version_id'),
     latestVersionId: uuid('latest_version_id'),
+    // 015: translation linkage. Both null for a source/original page; both set
+    // for a translated page, where source_page_id equals the group's source.
+    // FK to translation_groups omitted here (declared later, eager evaluation);
+    // the invariant is enforced in application code and by the partial unique.
+    translationGroupId: uuid('translation_group_id'),
+    sourcePageId: uuid('source_page_id'),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -158,6 +169,12 @@ export const pages = pgTable(
     canonical: uniqueIndex().on(t.spaceId, t.path, t.locale),
     spaceIdx: index().on(t.spaceId),
     publishedListIdx: index().on(t.spaceId, t.currentPublishedVersionId).where(isNull(t.deletedAt)),
+    // At most one translated page per (group, locale). Source pages have a null
+    // group and are excluded from this constraint.
+    translationGroupLocaleUnique: uniqueIndex('pages_translation_group_locale_unique')
+      .on(t.translationGroupId, t.locale)
+      .where(sql`${t.translationGroupId} is not null`),
+    sourcePageIdx: index('pages_source_page_idx').on(t.sourcePageId),
   }),
 );
 
@@ -1095,5 +1112,277 @@ export const aiGeneratedArtifacts = pgTable(
   (t) => ({
     actionUnique: uniqueIndex('ai_generated_artifacts_action_unique').on(t.actionId),
     expiresIdx: index('ai_generated_artifacts_expires_idx').on(t.expiresAt),
+  }),
+);
+
+// ---- AI page translation (015) --------------------------------------------
+
+/** One group per source/original page; translated pages link back via
+ * `pages.translation_group_id`. Makes parentage explicit so unrelated same-path
+ * locale pages are never mistaken for a translation. */
+export const translationGroups = pgTable(
+  'translation_groups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourcePageId: uuid('source_page_id')
+      .notNull()
+      .unique()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+/** Immutable, named translation-style templates. Editing a template creates a
+ * new version row; used versions are never mutated. */
+export const translationPromptTemplates = pgTable(
+  'translation_prompt_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull().unique(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+export const translationPromptVersions = pgTable(
+  'translation_prompt_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    templateId: uuid('template_id')
+      .notNull()
+      .references(() => translationPromptTemplates.id, { onDelete: 'cascade' }),
+    versionNumber: integer('version_number').notNull(),
+    body: text('body').notNull(),
+    contentHash: text('content_hash').notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    templateVersionUnique: uniqueIndex('translation_prompt_versions_unique').on(
+      t.templateId,
+      t.versionNumber,
+    ),
+  }),
+);
+
+/** Administrator-managed target-language configuration keyed by a normalized
+ * lowercase ISO 639-1 code. A retired/disabled language cannot start new work
+ * and its language-prefixed reader URLs resolve as unavailable. */
+export const translationLanguages = pgTable('translation_languages', {
+  code: text('code').primaryKey(),
+  enabled: boolean('enabled').notNull().default(true),
+  defaultPromptVersionId: uuid('default_prompt_version_id').references(
+    () => translationPromptVersions.id,
+    { onDelete: 'set null' },
+  ),
+  defaultModelId: uuid('default_model_id').references(() => aiModels.id, { onDelete: 'set null' }),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  retiredAt: timestamp('retired_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Durable work for exactly one target language. Frozen inputs make a displayed
+ * translation reproducible after model/prompt configuration changes. */
+export const translationRuns = pgTable(
+  'translation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    targetLocale: text('target_locale').notNull(),
+    kind: translationRunKindEnum('kind').notNull().default('initial'),
+    status: translationRunStatusEnum('status').notNull().default('queued'),
+    predecessorRunId: uuid('predecessor_run_id'),
+    triggerRunId: uuid('trigger_run_id'),
+    // Frozen inputs (snapshots). model_id may be nulled if a model is later
+    // deleted, but the external-id/name snapshots remain for provenance.
+    providerId: uuid('provider_id').references(() => aiProviders.id, { onDelete: 'set null' }),
+    modelId: uuid('model_id').references(() => aiModels.id, { onDelete: 'set null' }),
+    modelExternalId: text('model_external_id'),
+    modelDisplayName: text('model_display_name'),
+    promptVersionId: uuid('prompt_version_id').references(() => translationPromptVersions.id, {
+      onDelete: 'set null',
+    }),
+    promptContentHash: text('prompt_content_hash'),
+    scopeSnapshot: jsonb('scope_snapshot').notNull().default({}),
+    // Control
+    pauseRequested: boolean('pause_requested').notNull().default(false),
+    cancelRequested: boolean('cancel_requested').notNull().default(false),
+    // Holds the target locale while this run is the active mutator of that
+    // language; null otherwise. A plain unique index (multiple nulls allowed)
+    // enforces at most one active run per language.
+    activeLanguageSlot: text('active_language_slot'),
+    // Progress
+    totalItems: integer('total_items').notNull().default(0),
+    processedItems: integer('processed_items').notNull().default(0),
+    completedItems: integer('completed_items').notNull().default(0),
+    skippedItems: integer('skipped_items').notNull().default(0),
+    failedItems: integer('failed_items').notNull().default(0),
+    supersededItems: integer('superseded_items').notNull().default(0),
+    currentItem: text('current_item'),
+    // Analytics
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    cachedTokens: integer('cached_tokens'),
+    usageSource: translationUsageSourceEnum('usage_source').notNull().default('unavailable'),
+    totalDurationMs: integer('total_duration_ms').notNull().default(0),
+    // Audit
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    errorDetail: text('error_detail'),
+    queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => ({
+    localeQueuedIdx: index('translation_runs_locale_queued_idx').on(t.targetLocale, t.queuedAt),
+    statusQueuedIdx: index('translation_runs_status_queued_idx').on(t.status, t.queuedAt),
+    actorQueuedIdx: index('translation_runs_actor_queued_idx').on(t.actorUserId, t.queuedAt),
+    modelQueuedIdx: index('translation_runs_model_queued_idx').on(t.modelId, t.queuedAt),
+    activeLanguageUnique: uniqueIndex('translation_runs_active_language_unique').on(
+      t.activeLanguageSlot,
+    ),
+  }),
+);
+
+/** One durable item per source page per run. */
+export const translationRunItems = pgTable(
+  'translation_run_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => translationRuns.id, { onDelete: 'cascade' }),
+    // Source snapshot
+    sourcePageId: uuid('source_page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    sourceRevisionId: uuid('source_revision_id').references(() => pageRevisions.id, {
+      onDelete: 'set null',
+    }),
+    sourceContentHash: text('source_content_hash'),
+    // Target (null until success)
+    translationPageId: uuid('translation_page_id').references(() => pages.id, {
+      onDelete: 'set null',
+    }),
+    translationRevisionId: uuid('translation_revision_id').references(() => pageRevisions.id, {
+      onDelete: 'set null',
+    }),
+    targetLocale: text('target_locale').notNull(),
+    targetPath: text('target_path'),
+    // Lifecycle
+    status: translationItemStatusEnum('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    retryAvailable: boolean('retry_available').notNull().default(false),
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    // Frozen provenance refs
+    providerId: uuid('provider_id').references(() => aiProviders.id, { onDelete: 'set null' }),
+    modelId: uuid('model_id').references(() => aiModels.id, { onDelete: 'set null' }),
+    promptVersionId: uuid('prompt_version_id').references(() => translationPromptVersions.id, {
+      onDelete: 'set null',
+    }),
+    // Usage
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    cachedTokens: integer('cached_tokens'),
+    usageSource: translationUsageSourceEnum('usage_source').notNull().default('unavailable'),
+    providerRequestId: text('provider_request_id'),
+    durationMs: integer('duration_ms'),
+    // Diagnostics (bounded, sanitized; never source body/credentials/raw body)
+    warningCode: text('warning_code'),
+    warningMessage: text('warning_message'),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    sourceUnique: uniqueIndex('translation_run_items_source_unique').on(t.runId, t.sourcePageId),
+    pendingIdx: index('translation_run_items_pending_idx').on(t.runId, t.status, t.availableAt),
+    sourcePageIdx: index('translation_run_items_source_page_idx').on(t.sourcePageId),
+  }),
+);
+
+/** One immutable row per generated translated page_revisions row, mapping it to
+ * the exact source revision, run item, model, and prompt version (P8). */
+export const translationRevisionProvenance = pgTable('translation_revision_provenance', {
+  translationRevisionId: uuid('translation_revision_id')
+    .primaryKey()
+    .references(() => pageRevisions.id, { onDelete: 'cascade' }),
+  sourceRevisionId: uuid('source_revision_id').references(() => pageRevisions.id, {
+    onDelete: 'set null',
+  }),
+  runId: uuid('run_id').references(() => translationRuns.id, { onDelete: 'set null' }),
+  itemId: uuid('item_id').references(() => translationRunItems.id, { onDelete: 'set null' }),
+  providerId: uuid('provider_id').references(() => aiProviders.id, { onDelete: 'set null' }),
+  modelId: uuid('model_id').references(() => aiModels.id, { onDelete: 'set null' }),
+  modelExternalId: text('model_external_id'),
+  modelDisplayName: text('model_display_name'),
+  promptVersionId: uuid('prompt_version_id').references(() => translationPromptVersions.id, {
+    onDelete: 'set null',
+  }),
+  promptContentHash: text('prompt_content_hash'),
+  providerRequestId: text('provider_request_id'),
+  outputHash: text('output_hash'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  cachedTokens: integer('cached_tokens'),
+  usageSource: translationUsageSourceEnum('usage_source').notNull().default('unavailable'),
+  durationMs: integer('duration_ms'),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One reader/admin freshness projection per translated page. Ordinary page
+ * revisions and provenance remain the historical source of truth. */
+export const pageTranslationStates = pgTable(
+  'page_translation_states',
+  {
+    translationPageId: uuid('translation_page_id')
+      .primaryKey()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    sourcePageId: uuid('source_page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    translationGroupId: uuid('translation_group_id')
+      .notNull()
+      .references(() => translationGroups.id, { onDelete: 'cascade' }),
+    targetLocale: text('target_locale').notNull(),
+    freshnessStatus: translationFreshnessStatusEnum('freshness_status').notNull().default('stale'),
+    latestSourceRevisionId: uuid('latest_source_revision_id').references(() => pageRevisions.id, {
+      onDelete: 'set null',
+    }),
+    latestSourceHash: text('latest_source_hash'),
+    translatedSourceRevisionId: uuid('translated_source_revision_id').references(
+      () => pageRevisions.id,
+      { onDelete: 'set null' },
+    ),
+    translatedSourceHash: text('translated_source_hash'),
+    currentTranslatedRevisionId: uuid('current_translated_revision_id').references(
+      () => pageRevisions.id,
+      { onDelete: 'set null' },
+    ),
+    latestRunId: uuid('latest_run_id').references(() => translationRuns.id, {
+      onDelete: 'set null',
+    }),
+    latestItemId: uuid('latest_item_id').references(() => translationRunItems.id, {
+      onDelete: 'set null',
+    }),
+    lastErrorCode: text('last_error_code'),
+    lastErrorMessage: text('last_error_message'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    sourceLocaleIdx: index('page_translation_states_source_locale_idx').on(
+      t.sourcePageId,
+      t.targetLocale,
+    ),
+    freshnessIdx: index('page_translation_states_freshness_idx').on(t.freshnessStatus),
+    groupIdx: index('page_translation_states_group_idx').on(t.translationGroupId),
   }),
 );

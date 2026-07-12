@@ -91,6 +91,16 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 502);
     case 'SOURCE_TIMEOUT':
       return apiError(code, message, 504);
+    case 'INVALID_TRANSLATION_INPUT':
+      return apiError(code, message, 400);
+    case 'TRANSLATION_NOT_FOUND':
+      return apiError(code, message, 404);
+    case 'TRANSLATION_ALREADY_RUNNING':
+      return apiError(code, message, 409);
+    case 'SOURCE_NOT_TRANSLATABLE':
+      return apiError(code, message, 422);
+    case 'JOB_QUEUE_UNAVAILABLE':
+      return apiError(code, message, 503);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

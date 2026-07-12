@@ -24,15 +24,15 @@
 
 **⚠️ CRITICAL**: Complete this phase before implementing user stories.
 
-- [ ] T004 [P] Add translation run/item/state, language, and prompt enums to `apps/web/src/server/db/schema/enums.ts`
-- [ ] T005 Add translation-group page linkage, target-language, prompt, run, item, provenance, and freshness tables/indexes to `apps/web/src/server/db/schema/index.ts`
-- [ ] T006 Generate and review the Drizzle migration for translation schema changes in `apps/web/src/server/db/migrations/`
-- [ ] T007 [P] Add shared Zod request/response schemas and exported views for languages, prompts, runs, items, documents, and usage in `packages/shared/src/translations.ts` and `packages/shared/src/index.ts`
-- [ ] T008 [P] Add `manage_translations` action/resource and administrator/API-key denial coverage in `apps/web/src/server/permissions/index.ts` and `apps/web/src/server/permissions/translation-permissions.test.ts`
-- [ ] T009 Add the explicit long-running translation queue, expiry policy, and queue test in `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/runtime.test.ts`
-- [ ] T010 Create the translation service lifecycle/query boundary and explicit job registration/recovery hooks in `apps/web/src/server/services/translations.ts` and `apps/web/src/server/jobs/register.ts`
+- [X] T004 [P] Add translation run/item/state, language, and prompt enums to `apps/web/src/server/db/schema/enums.ts`
+- [X] T005 Add translation-group page linkage, target-language, prompt, run, item, provenance, and freshness tables/indexes to `apps/web/src/server/db/schema/index.ts`
+- [X] T006 Generate and review the Drizzle migration for translation schema changes in `apps/web/src/server/db/migrations/`
+- [X] T007 [P] Add shared Zod request/response schemas and exported views for languages, prompts, runs, items, documents, and usage in `packages/shared/src/translations.ts` and `packages/shared/src/index.ts`
+- [X] T008 [P] Add `manage_translations` action/resource and administrator/API-key denial coverage in `apps/web/src/server/permissions/index.ts` and `apps/web/src/server/permissions/translation-permissions.test.ts`
+- [X] T009 Add the explicit long-running translation queue, expiry policy, and queue test in `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/runtime.test.ts`
+- [X] T010 Create the translation service lifecycle/query boundary and explicit job registration/recovery hooks in `apps/web/src/server/services/translations.ts` and `apps/web/src/server/jobs/register.ts`
 - [ ] T011 Add migration, uniqueness, source/translation linkage, and permission regression tests in `apps/web/src/server/db/translation-schema.test.ts`
-- [ ] T012 Add localized shared translation status/error keys in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T012 Add localized shared translation status/error keys in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Durable schema, permission boundary, shared contracts, and queue registration are ready; user-story work may proceed.
 
