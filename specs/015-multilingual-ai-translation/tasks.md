@@ -85,7 +85,7 @@
 **Independent Test**: Start an all-published run for a seeded language, leave the browser, return to its detail URL, and verify completed/skipped/failed page outcomes and a readable translated page.
 
 - [ ] T031 [P] [US3] Add run creation, active-language exclusion, item claim, and durable counter tests in `apps/web/src/server/services/translations-runs.test.ts`
-- [ ] T032 [P] [US3] Add provider-stream, Markdown-validation, render/write, and page-level failure continuation tests in `apps/web/src/server/jobs/translation.test.ts`
+- [X] T032 [P] [US3] Add provider-stream, Markdown-validation, render/write, and page-level failure continuation tests in `apps/web/src/server/jobs/translation.test.ts`
 - [ ] T033 [P] [US3] Add run creation/detail/item REST contract tests in `apps/web/app/api/translations/runs/translation-runs-routes.test.ts`
 - [ ] T034 [P] [US3] Add bulk-run creation/progress/detail Playwright coverage in `apps/web/e2e/translation-runs.spec.ts`
 - [X] T035 [US3] Implement run creation, source eligibility snapshotting, active-language lock, and list/detail/item query services in `apps/web/src/server/services/translations.ts`
