@@ -19,6 +19,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { PauseIcon, PlayIcon, TrashIcon } from '@/components/icons';
 import { useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -150,31 +152,42 @@ export function TranslationLanguageManager({
                 </DataTableCell>
                 <DataTableCell>
                   {!lang.retired && (
-                    <div className="flex gap-xs">
-                      <Button
-                       
-                        variant="ghost"
-                        disabled={update.isPending}
-                        onClick={() =>
-                          update.mutate(
-                            { code: lang.code, enabled: !lang.enabled },
-                            { onSuccess: () => router.refresh() },
-                          )
-                        }
+                    <div className="flex items-center gap-xs">
+                      <Tooltip
+                        label={t(lang.enabled ? 'translation.language.disable' : 'translation.language.enable')}
                       >
-                        {lang.enabled ? t('translation.run.pause') : t('translation.run.resume')}
-                      </Button>
-                      <Button
-                       
-                        variant="ghost"
-                        className="text-danger"
-                        disabled={retire.isPending}
-                        onClick={() =>
-                          retire.mutate({ code: lang.code }, { onSuccess: () => router.refresh() })
-                        }
-                      >
-                        {t('translation.language.retired')}
-                      </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t(lang.enabled ? 'translation.language.disable' : 'translation.language.enable')}
+                          disabled={update.isPending}
+                          onClick={() =>
+                            update.mutate(
+                              { code: lang.code, enabled: !lang.enabled },
+                              { onSuccess: () => router.refresh() },
+                            )
+                          }
+                        >
+                          {lang.enabled ? (
+                            <PauseIcon className="h-4 w-4" />
+                          ) : (
+                            <PlayIcon className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </Tooltip>
+                      <Tooltip label={t('translation.language.retire')}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('translation.language.retire')}
+                          disabled={retire.isPending}
+                          onClick={() =>
+                            retire.mutate({ code: lang.code }, { onSuccess: () => router.refresh() })
+                          }
+                        >
+                          <TrashIcon className="h-4 w-4 text-danger" />
+                        </Button>
+                      </Tooltip>
                     </div>
                   )}
                 </DataTableCell>
