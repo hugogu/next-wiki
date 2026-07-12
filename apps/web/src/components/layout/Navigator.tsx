@@ -235,6 +235,7 @@ export function Navigator({
     { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SettingsIcon className="shrink-0" /> },
     { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
     { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },
+    { href: '/admin/translations', label: t('admin.nav.translations'), icon: <SparklesIcon className="shrink-0" /> },
     { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
     { href: '/admin/appearance', label: t('admin.nav.appearance'), icon: <SlidersIcon className="shrink-0" /> },
   ];

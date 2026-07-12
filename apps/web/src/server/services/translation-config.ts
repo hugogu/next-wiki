@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { desc, eq, max } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, max, or, sql } from 'drizzle-orm';
 import type {
   TranslationLanguageCreate,
   TranslationLanguageUpdate,
@@ -157,6 +157,42 @@ async function assertModelExists(id: string | null | undefined): Promise<void> {
   if (!id) return;
   const model = await db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, id) });
   if (!model) throw new DomainError('INVALID_TRANSLATION_INPUT', 'Model not found');
+}
+
+/**
+ * Available text-generation models the administrator can pick for a language
+ * default or a run. A model qualifies when it is available and advertises the
+ * text-generation capability (or text in/out modalities).
+ */
+export async function listTextModels(
+  ctx: PermCtx,
+): Promise<Array<{ id: string; displayName: string }>> {
+  assertCanManageTranslations(ctx);
+  const rows = await db
+    .selectDistinct({ id: schema.aiModels.id, displayName: schema.aiModels.displayName })
+    .from(schema.aiModels)
+    .leftJoin(
+      schema.aiModelCapabilities,
+      and(
+        eq(schema.aiModelCapabilities.modelId, schema.aiModels.id),
+        eq(schema.aiModelCapabilities.capability, 'text_generation'),
+        eq(schema.aiModelCapabilities.supported, true),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.aiModels.availability, 'available'),
+        or(
+          isNotNull(schema.aiModelCapabilities.modelId),
+          and(
+            sql`'text' = any(${schema.aiModels.inputModalities})`,
+            sql`'text' = any(${schema.aiModels.outputModalities})`,
+          ),
+        ),
+      ),
+    )
+    .orderBy(schema.aiModels.displayName);
+  return rows;
 }
 
 // ---- Prompt styles ---------------------------------------------------------

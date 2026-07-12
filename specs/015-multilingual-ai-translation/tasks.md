@@ -70,8 +70,8 @@
 - [ ] T025 [US2] Implement target-language lifecycle and immutable prompt-template/version services in `apps/web/src/server/services/translation-config.ts`
 - [ ] T026 [US2] Implement configured-text-model capability/availability validation and frozen input snapshots in `apps/web/src/server/services/translations.ts`
 - [X] T027 [US2] Implement language and prompt REST endpoints with OpenAPI annotations in `apps/web/app/api/translations/languages/route.ts`, `apps/web/app/api/translations/languages/[code]/route.ts`, `apps/web/app/api/translations/prompts/route.ts`, and `apps/web/app/api/translations/prompts/[id]/route.ts`
-- [ ] T028 [US2] Build the admin translation configuration page using existing admin layout/UI primitives in `apps/web/app/(admin)/admin/translations/page.tsx` and `apps/web/src/components/admin/translations/TranslationSettingsPanel.tsx`
-- [ ] T029 [US2] Build target-language management and prompt-version forms in `apps/web/src/components/admin/translations/TranslationLanguageManager.tsx` and `apps/web/src/components/admin/translations/TranslationPromptManager.tsx`
+- [X] T028 [US2] Build the admin translation configuration page using existing admin layout/UI primitives in `apps/web/app/(admin)/admin/translations/page.tsx` and `apps/web/src/components/admin/translations/TranslationSettingsPanel.tsx`
+- [X] T029 [US2] Build target-language management and prompt-version forms in `apps/web/src/components/admin/translations/TranslationLanguageManager.tsx` and `apps/web/src/components/admin/translations/TranslationPromptManager.tsx`
 - [ ] T030 [US2] Register translation route schemas in generated OpenAPI inputs and regenerate `apps/web/public/openapi.json` via `apps/web/openapi-gen.config.ts`
 
 **Checkpoint**: An administrator can configure a valid language/style/model combination; all later runs can reference immutable inputs.
@@ -94,8 +94,8 @@
 - [X] T038 [US3] Implement dedicated per-item translation worker with provider streaming, retry/backoff, usage provenance, and compare-before-publish checks in `apps/web/src/server/jobs/translation.ts`
 - [X] T039 [US3] Register the translation worker and boot recovery in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/runtime.ts`
 - [X] T040 [US3] Implement run creation/list and detail/item REST handlers in `apps/web/app/api/translations/runs/route.ts`, `apps/web/app/api/translations/runs/[id]/route.ts`, and `apps/web/app/api/translations/runs/[id]/items/route.ts`
-- [ ] T041 [US3] Build run creation controls and status summary in `apps/web/src/components/admin/translations/TranslationRunCreateForm.tsx` and `apps/web/src/components/admin/translations/TranslationRunList.tsx`
-- [ ] T042 [US3] Build deep-linkable run detail, per-item table, outcomes, and sanitized error views in `apps/web/app/(admin)/admin/translations/[id]/page.tsx` and `apps/web/src/components/admin/translations/TranslationRunDetail.tsx`
+- [X] T041 [US3] Build run creation controls and status summary in `apps/web/src/components/admin/translations/TranslationRunCreateForm.tsx` and `apps/web/src/components/admin/translations/TranslationRunList.tsx`
+- [X] T042 [US3] Build deep-linkable run detail, per-item table, outcomes, and sanitized error views in `apps/web/app/(admin)/admin/translations/[id]/page.tsx` and `apps/web/src/components/admin/translations/TranslationRunDetail.tsx`
 
 **Checkpoint**: A one-language bulk run survives navigation, processes independent page outcomes, and produces normal versioned/rendered translations.
 
@@ -115,8 +115,8 @@
 - [X] T048 [US4] Implement successor retry/replacement creation with selected model/prompt snapshots and immutable predecessor linkage in `apps/web/src/server/services/translations.ts`
 - [ ] T049 [US4] Add pause/cancel polling, terminal state finalization, and stale-running recovery paths in `apps/web/src/server/jobs/translation.ts`
 - [ ] T050 [US4] Implement pause, resume, cancellation, and retry REST subresources in `apps/web/app/api/translations/runs/[id]/pause/route.ts`, `apps/web/app/api/translations/runs/[id]/resume/route.ts`, `apps/web/app/api/translations/runs/[id]/cancellation/route.ts`, and `apps/web/app/api/translations/runs/[id]/retries/route.ts`
-- [ ] T051 [US4] Add run control buttons, replacement input picker, and conflict feedback in `apps/web/src/components/admin/translations/TranslationRunControls.tsx` and `apps/web/src/components/admin/translations/TranslationRunDetail.tsx`
-- [ ] T052 [US4] Show translated revision provenance/history with source, model, prompt, and predecessor links in `apps/web/src/components/admin/translations/TranslationVersionHistory.tsx` and `apps/web/app/api/translations/documents/[id]/versions/route.ts`
+- [X] T051 [US4] Add run control buttons, replacement input picker, and conflict feedback in `apps/web/src/components/admin/translations/TranslationRunControls.tsx` and `apps/web/src/components/admin/translations/TranslationRunDetail.tsx`
+- [X] T052 [US4] Show translated revision provenance/history with source, model, prompt, and predecessor links in `apps/web/src/components/admin/translations/TranslationVersionHistory.tsx` and `apps/web/app/api/translations/documents/[id]/versions/route.ts`
 
 **Checkpoint**: Controls are durable and conflict-safe; resume and replacement preserve completed output and complete historical traceability.
 
@@ -135,7 +135,7 @@
 - [ ] T057 [US5] Reconcile translated state and cache tags on source path change, deletion, and visibility changes in `apps/web/src/server/services/pages.ts` and `apps/web/src/server/services/translations.ts`
 - [X] T058 [US5] Implement item/run duration and reported/estimated/unavailable usage aggregation in `apps/web/src/server/services/translations.ts`
 - [X] T059 [US5] Implement translation document, version, and usage query endpoints in `apps/web/app/api/translations/documents/route.ts`, `apps/web/app/api/translations/documents/[id]/versions/route.ts`, and `apps/web/app/api/translations/usage/route.ts`
-- [ ] T060 [US5] Build translation document freshness and usage analytics panels in `apps/web/src/components/admin/translations/TranslationDocumentList.tsx` and `apps/web/src/components/admin/translations/TranslationUsagePanel.tsx`
+- [X] T060 [US5] Build translation document freshness and usage analytics panels in `apps/web/src/components/admin/translations/TranslationDocumentList.tsx` and `apps/web/src/components/admin/translations/TranslationUsagePanel.tsx`
 - [ ] T061 [US5] Add source/translation cache-tag invalidation and visible-content cache regression tests in `apps/web/src/server/cache/page-content.test.ts`
 
 **Checkpoint**: Published source changes refresh only the latest translation, stale output cannot become current, and administrators can analyze durable usage/time outcomes.
