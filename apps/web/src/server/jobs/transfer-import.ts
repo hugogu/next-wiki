@@ -10,11 +10,12 @@ import { writeImportedAsset } from '@/server/services/transfer-asset-writer';
 import { writeImportedPage } from '@/server/services/transfer-page-writer';
 import { isRunCancelRequested, markRunPaused, markRunTerminal, readRunControlSignal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
-import { WikiJsClient } from '@/server/transfers/wikijs-client';
+import { WikiJsClient, wikiJsTagNames } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
 import { findMarkdownImages } from '@/server/transfers/markdown-links';
 import { localizeWikiJsImage } from '@/server/services/transfer-wikijs-assets';
 import { createWikiJsLinkReplacer } from '@/server/transfers/markdown-links';
+import { patchMetadata } from '@/server/services/page-metadata';
 import { enqueueGitExport } from '@/server/services/git-export';
 
 async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
@@ -271,6 +272,9 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       } catch {
         warnings += 1;
       }
+    }
+    if (page.tags !== undefined) {
+      markdown = patchMetadata(markdown, { tags: wikiJsTagNames(page.tags) }, page.title).source;
     }
     const targetAction = (plan.metadata as { targetAction?: string }).targetAction;
     const action = targetAction === 'replace' ? 'replace' : targetAction === 'skip' ? 'skip' : 'create';

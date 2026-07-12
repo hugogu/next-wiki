@@ -1,9 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { writeImportedPage } from './transfer-page-writer';
+
+vi.mock('@/server/pipeline', () => ({
+  renderMarkdown: (source: string) => ({ html: `<p>${source}</p>`, hash: `hash-${source.length}` }),
+}));
+vi.mock('./content-assets', () => ({ syncRevisionAssetRefs: vi.fn() }));
+vi.mock('./storage-replication', () => ({ addReplicationTasks: vi.fn(), kickReplication: vi.fn() }));
+vi.mock('./ai-index', () => ({ reconcilePageAcrossIndexes: vi.fn() }));
 
 const TRUNCATE =
   'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_actions, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
@@ -112,5 +119,25 @@ describe('writeImportedPage', () => {
     expect(revision?.pageId).toBe(deletedPage!.id);
     expect(revision?.versionNumber).toBe(1);
     expect(revision?.status).toBe('published');
+  });
+
+  it('persists imported frontmatter tags as revision metadata and registry assignments', async () => {
+    const result = await writeImportedPage({
+      actorUserId: adminId,
+      path: 'docs/tagged-import',
+      locale: 'en',
+      title: 'Tagged import',
+      markdown: '---\ntitle: Tagged import\ntags: [DevOps, Docker]\n---\n\n# Tagged',
+      action: 'create',
+    });
+
+    const metadata = await db.query.pageRevisionMetadata.findFirst({
+      where: eq(schema.pageRevisionMetadata.revisionId, result.revisionId!),
+    });
+    const assignments = await db.query.pageRevisionTags.findMany({
+      where: eq(schema.pageRevisionTags.revisionId, result.revisionId!),
+    });
+    expect(metadata?.title).toBe('Tagged import');
+    expect(assignments.map((tag) => tag.normalizedName).sort()).toEqual(['devops', 'docker']);
   });
 });

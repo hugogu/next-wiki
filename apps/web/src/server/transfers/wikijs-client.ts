@@ -52,7 +52,29 @@ type WikiJsPageMetadata = {
   title: string;
   contentType?: string | null;
   updatedAt?: string | null;
+  tags?: WikiJsTagValue[];
 };
+
+type WikiJsTagValue = string | { tag: string; title?: string };
+
+function wikiJsTagIdentifier(value: WikiJsTagValue): string {
+  return (typeof value === 'string' ? value : value.tag).trim();
+}
+
+/** Convert Wiki.js tag resources into the labels next-wiki displays while
+ * preserving the first spelling and removing blank/case-only duplicates. */
+export function wikiJsTagNames(values: WikiJsTagValue[] | undefined): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values ?? []) {
+    const name = (typeof value === 'string' ? value : value.title || value.tag).trim();
+    const normalized = name.toLocaleLowerCase();
+    if (!name || seen.has(normalized)) continue;
+    seen.add(normalized);
+    names.push(name);
+  }
+  return names;
+}
 
 export function computeWikiJsPageFingerprint(page: WikiJsPageMetadata): string {
   return createHash('sha256')
@@ -64,6 +86,7 @@ export function computeWikiJsPageFingerprint(page: WikiJsPageMetadata): string {
         title: page.title,
         contentType: page.contentType,
         updatedAt: page.updatedAt,
+        tags: (page.tags ?? []).map(wikiJsTagIdentifier).filter(Boolean).map((tag) => tag.toLocaleLowerCase()).sort(),
       }),
     )
     .digest('hex');
