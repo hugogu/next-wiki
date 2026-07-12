@@ -206,6 +206,10 @@ async function resolveEligibleSources(
     isNull(schema.pages.deletedAt),
     isNull(schema.pages.translationGroupId),
     sql`${schema.pages.currentPublishedVersionId} is not null`,
+    // A page cannot be translated into its own language — that would collide
+    // with the source on (space, path, locale). Skip sources already in the
+    // target locale.
+    sql`${schema.pages.locale} <> ${input.targetLocale}`,
   ];
   if (input.scope.kind === 'page_ids') {
     conditions.push(inArray(schema.pages.id, input.scope.pageIds));

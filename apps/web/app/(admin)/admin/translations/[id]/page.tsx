@@ -27,7 +27,7 @@ export default async function TranslationRunPage({
   const { id } = await params;
   const [run, items] = await Promise.all([
     translations.getRun(ctx, id),
-    translations.listItems(ctx, id, { limit: 100, offset: 0 }),
+    translations.listItems(ctx, id, { limit: 500, offset: 0 }),
   ]).catch((error) => {
     if (error instanceof DomainError) notFound();
     throw error;

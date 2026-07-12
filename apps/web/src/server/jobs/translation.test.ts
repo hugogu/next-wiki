@@ -28,7 +28,7 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 });
 
 import { runTranslationRun } from './translation';
-import { getLiveTranslation } from '@/server/services/pages';
+import { getLive, getLiveTranslation } from '@/server/services/pages';
 import { getStats } from '@/server/services/translations';
 
 const SOURCE_MD = '# Hello\n\nWorld with a [link](/other).';
@@ -196,6 +196,12 @@ describe('translation worker', () => {
     const read = await getLiveTranslation(buildUserCtx(s.adminId, 'admin'), 'zh', 'guide');
     expect(read.kind).toBe('page');
     if (read.kind === 'page') expect(read.page.contentHtml).toContain('你好');
+
+    // The bare `/guide` address must still resolve the ORIGINAL source page,
+    // never the translation that shares its path (regression: URL takeover).
+    const original = await getLive(buildUserCtx(s.adminId, 'admin'), 'guide');
+    expect(original?.pageId).toBe(s.sourcePageId);
+    expect(original?.contentHtml).not.toContain('你好');
 
     // Per-language stats count the distinct translated page as fresh.
     const stats = await getStats(buildUserCtx(s.adminId, 'admin'));

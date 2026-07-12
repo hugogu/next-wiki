@@ -84,6 +84,9 @@ function adminPageConditions(spaceId: string, filters: AdminPageListFilters) {
   return and(
     eq(schema.pages.spaceId, spaceId),
     isNull(schema.pages.deletedAt),
+    // The admin pages list manages source pages; translations are managed from
+    // the Translations admin, not here (015).
+    isNull(schema.pages.translationGroupId),
     filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
     filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
     filters.author
@@ -190,6 +193,9 @@ export async function listPublished(
       and(
         eq(schema.pages.spaceId, space.id),
         isNull(schema.pages.deletedAt),
+        // Listings and discovery cover source pages only; translations are
+        // surfaced through their language-prefixed URLs (015).
+        isNull(schema.pages.translationGroupId),
       ),
     )
     .orderBy(
@@ -236,6 +242,7 @@ export async function countPublished(ctx: PermCtx): Promise<number> {
       and(
         eq(schema.pages.spaceId, space.id),
         isNull(schema.pages.deletedAt),
+        isNull(schema.pages.translationGroupId),
       ),
     );
 
@@ -418,6 +425,10 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
+      // The bare `/{path}` address always resolves the source/original page.
+      // Translated pages share the source path but are only reachable through
+      // their language-prefixed `/{locale}/{path}` address (015).
+      isNull(schema.pages.translationGroupId),
     ),
   });
 
@@ -718,6 +729,9 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
+      // Path-addressed operations act on the source/original page; translated
+      // pages share the path but are managed via the Translations admin (015).
+      isNull(schema.pages.translationGroupId),
     ),
   });
 
@@ -763,7 +777,11 @@ export async function create(
 
   const created = await db.transaction(async (tx) => {
     const existing = await tx.query.pages.findFirst({
-      where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, input.path)),
+      where: and(
+        eq(schema.pages.spaceId, space.id),
+        eq(schema.pages.path, input.path),
+        isNull(schema.pages.translationGroupId),
+      ),
     });
     if (existing) {
       throw new DomainError('CONFLICT', 'A page with this path already exists');
@@ -947,6 +965,7 @@ export async function updateProperties(
         eq(schema.pages.spaceId, space.id),
         eq(schema.pages.path, currentPath),
         isNull(schema.pages.deletedAt),
+        isNull(schema.pages.translationGroupId),
       ),
     });
 
@@ -963,7 +982,11 @@ export async function updateProperties(
     const nextPath = input.path ?? currentPath;
     if (nextPath !== currentPath) {
       const existing = await tx.query.pages.findFirst({
-        where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, nextPath)),
+        where: and(
+          eq(schema.pages.spaceId, space.id),
+          eq(schema.pages.path, nextPath),
+          isNull(schema.pages.translationGroupId),
+        ),
       });
       if (existing) {
         throw new DomainError('CONFLICT', 'A page with this path already exists');
@@ -997,6 +1020,9 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
+      // Path-addressed operations act on the source/original page; translated
+      // pages share the path but are managed via the Translations admin (015).
+      isNull(schema.pages.translationGroupId),
     ),
   });
 
@@ -1047,6 +1073,9 @@ export async function getHistory(ctx: PermCtx, path: string): Promise<RevisionSu
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
+      // Path-addressed operations act on the source/original page; translated
+      // pages share the path but are managed via the Translations admin (015).
+      isNull(schema.pages.translationGroupId),
     ),
   });
 
@@ -1109,6 +1138,9 @@ export async function getRevision(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
+      // Path-addressed operations act on the source/original page; translated
+      // pages share the path but are managed via the Translations admin (015).
+      isNull(schema.pages.translationGroupId),
     ),
   });
 

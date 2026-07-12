@@ -44,6 +44,19 @@ export async function runTranslationRun(runId: string): Promise<void> {
     .set({ status: 'running', startedAt: run.startedAt ?? new Date() })
     .where(eq(schema.translationRuns.id, runId));
 
+  // Reclaim items orphaned in `running` by a previous crash/restart of this run
+  // (a single worker owns a run at a time, so no item is legitimately running
+  // when a fresh invocation begins). Retryable ones go back to the queue.
+  await db
+    .update(schema.translationRunItems)
+    .set({ status: 'pending', updatedAt: new Date() })
+    .where(
+      and(
+        eq(schema.translationRunItems.runId, runId),
+        eq(schema.translationRunItems.status, 'running'),
+      ),
+    );
+
   try {
     for (;;) {
       const signal = await readRunControlSignal(runId);
