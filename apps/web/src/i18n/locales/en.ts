@@ -270,6 +270,7 @@ export const en = {
   'admin.tags.selectHint': 'Select a tag to review its details and related pages.',
   'admin.tags.relatedSummary': 'Used by {{count}} pages',
   'admin.tags.relatedPages': 'Related pages',
+  'admin.tags.pageTagsLabel': 'Tags on this page',
   'admin.tags.searchPagesPlaceholder': 'Search related pages by title or path',
   'admin.tags.noPages': 'No pages use this tag yet.',
   'admin.tags.noMatchingPages': 'No related pages match the query.',

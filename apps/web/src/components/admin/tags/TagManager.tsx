@@ -367,6 +367,19 @@ export function TagManager() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{page.title}</p>
                           <code className="block truncate text-xs text-muted">/{page.path}</code>
+                          {(page.metadata?.tags?.length ?? 0) > 0 && (
+                            <ul className="mt-xs flex flex-wrap gap-xs" aria-label={t('admin.tags.pageTagsLabel')}>
+                              {page.metadata!.tags.map((tag) => (
+                                <li
+                                  key={tag.id}
+                                  className={`inline-flex items-center gap-xs rounded-full border px-sm py-[2px] text-xs ${tag.normalizedName === selectedTagNormalizedName ? 'border-primary/30 bg-primary/10 font-medium text-primary' : 'border-border text-muted'}`}
+                                >
+                                  <TagIcon className="h-3 w-3" />
+                                  {tag.name}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                         <span className="hidden rounded-full border border-border px-sm py-xs text-xs text-muted sm:inline-block">
                           {t(`admin.pages.status.${page.status}`)}

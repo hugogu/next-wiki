@@ -270,6 +270,7 @@ export const zh: Translations = {
   'admin.tags.selectHint': '选择一个标签以查看详情和相关页面。',
   'admin.tags.relatedSummary': '关联 {{count}} 个页面',
   'admin.tags.relatedPages': '相关页面',
+  'admin.tags.pageTagsLabel': '该页面的标签',
   'admin.tags.searchPagesPlaceholder': '按标题或路径查询相关页面',
   'admin.tags.noPages': '还没有页面使用这个标签。',
   'admin.tags.noMatchingPages': '没有符合查询条件的相关页面。',
