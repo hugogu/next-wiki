@@ -22,6 +22,10 @@
 
 Add nullable `translation_group_id` and `source_page_id` FKs to `pages`. Both are null for a source page; both are required for a translation, and `source_page_id` equals the group's source. Keep unique `(space_id, path, locale)` and add partial unique `(translation_group_id, locale)` for translated pages. A translation shares its source space/path. Resolution always begins from the source path, then group/locale; it never starts from a locale match alone.
 
+## `translation_languages`
+
+Administrator-managed target language configuration: normalized lowercase `code` primary key, enabled/retired state, optional default prompt-version and model references, creator/updater, and timestamps. A disabled or retired language cannot start new work and its language-prefixed reader URLs resolve as unavailable. Existing runs preserve frozen inputs after this configuration changes.
+
 ## Prompt records
 
 `translation_prompt_templates` contains id, unique name, retirement time, creator, and timestamps. `translation_prompt_versions` contains id, template id, increasing version number, bounded instruction body, content hash, creator, and timestamp. A version is immutable; template changes create a new version.

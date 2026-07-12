@@ -2,6 +2,15 @@
 
 All endpoints require an authenticated administrator session, use shared Zod schemas, and are included in generated OpenAPI. They use the usual domain error envelope. Translation management is not exposed to API keys or MCP in this feature.
 
+## Target languages
+
+| Endpoint | Contract |
+|---|---|
+| `GET /api/translations/languages` | Lists configured two-letter target languages, enabled state, and default model/prompt metadata. |
+| `POST /api/translations/languages` | Adds a normalized target language and optional default model/prompt version. |
+| `PATCH /api/translations/languages/{code}` | Enables/disables a language or changes its defaults without altering frozen historical runs. |
+| `DELETE /api/translations/languages/{code}` | Retires a language after active work is absent; historical pages/runs remain auditable. |
+
 ## Prompt styles
 
 | Endpoint | Contract |
