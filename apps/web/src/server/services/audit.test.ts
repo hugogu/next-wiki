@@ -18,6 +18,22 @@ async function createTestUser(email: string, role: 'admin' | 'editor' | 'reader'
   return user;
 }
 
+describe('clientIp', () => {
+  it('takes the first entry of an x-forwarded-for chain', () => {
+    const headers = new Headers({ 'x-forwarded-for': '198.51.100.42, 10.0.0.1' });
+    expect(auditService.clientIp(headers)).toBe('198.51.100.42');
+  });
+
+  it('falls back to x-real-ip when no forwarded header is present', () => {
+    const headers = new Headers({ 'x-real-ip': '203.0.113.9' });
+    expect(auditService.clientIp(headers)).toBe('203.0.113.9');
+  });
+
+  it('returns null when neither header is present', () => {
+    expect(auditService.clientIp(new Headers())).toBeNull();
+  });
+});
+
 describe('audit service', () => {
   beforeAll(async () => {
     await db.delete(schema.apiAuditEntries);

@@ -28,21 +28,6 @@ async function extractErrorMessage(response: Response): Promise<string> {
   return response.statusText || `HTTP ${response.status}`;
 }
 
-/**
- * Resolve the client's source IP from proxy headers. `x-forwarded-for` may
- * carry a comma-separated chain (client, proxy1, proxy2…); the first entry is
- * the originating client. Falls back to `x-real-ip`. Returns null when neither
- * header is present (e.g. direct local requests without a proxy).
- */
-function clientIp(headersList: Headers): string | null {
-  const forwarded = headersList.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return headersList.get('x-real-ip')?.trim() || null;
-}
-
 function formatAuthError(authError: string): string {
   switch (authError) {
     case 'malformed_token':
@@ -66,7 +51,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
     const hasBearerToken = auth?.startsWith('Bearer ') ?? false;
     const method = request.method;
     const path = new URL(request.url).pathname;
-    const ip = clientIp(headersList);
+    const ip = audit.clientIp(headersList);
     const resolved = await resolveActor();
 
     if (!hasBearerToken && resolved.actor?.kind !== 'user') {

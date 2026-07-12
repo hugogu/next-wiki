@@ -19,6 +19,21 @@ export type AuditEntryInput = {
   ip?: string | null;
 };
 
+/**
+ * Resolve the client's source IP from proxy headers. `x-forwarded-for` may
+ * carry a comma-separated chain (client, proxy1, proxy2…); the first entry is
+ * the originating client. Falls back to `x-real-ip`. Returns null when neither
+ * header is present (e.g. direct local requests without a proxy).
+ */
+export function clientIp(headers: Headers): string | null {
+  const forwarded = headers.get('x-forwarded-for');
+  if (forwarded) {
+    const first = forwarded.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  return headers.get('x-real-ip')?.trim() || null;
+}
+
 export async function writeEntry(input: AuditEntryInput): Promise<void> {
   await db.insert(schema.apiAuditEntries).values({
     keyId: input.keyId,

@@ -10,6 +10,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
 
   const start = Date.now();
   const path = request.nextUrl.pathname;
+  const ip = audit.clientIp(request.headers);
 
   // Best-effort page audit logging via waitUntil so it runs after the response
   // is sent without blocking it. This catches both full page loads (HTML) and
@@ -38,6 +39,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
         durationMs: Date.now() - start,
         authStatus,
         errorMessage: null,
+        ip,
       });
     })().catch(() => {
       // Ignore audit logging failures so a logging problem never breaks pages.
