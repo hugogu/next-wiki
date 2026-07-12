@@ -222,6 +222,8 @@ export const zh: Translations = {
   'editor.properties.fields.tagsPlaceholder': 'devops, docker',
   'editor.properties.fields.tagsHint': '使用逗号分隔标签。',
   'editor.properties.fields.summaryLabel': '摘要',
+  'editor.properties.fields.frontmatterLabel': '将页面元数据写入 Markdown frontmatter',
+  'editor.properties.fields.frontmatterHint': '关闭时，标题、日期、标签和摘要仅保存在 Wiki 数据库中，不改写 Markdown 原文。',
   'editor.properties.fields.pathLabel': '路径',
   'editor.properties.fields.pathPlaceholder': 'path/to/page',
   'editor.properties.fields.pathHint': '使用斜杠创建目录，例如 {{example}}。',

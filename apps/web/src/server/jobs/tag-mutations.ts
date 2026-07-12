@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { normalizeTagName } from '@/server/metadata/frontmatter';
+import { normalizeTagName, parseFrontmatter } from '@/server/metadata/frontmatter';
 import { patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { renderMarkdown } from '@/server/pipeline';
@@ -88,7 +88,27 @@ export async function runTagMutation(mutationId: string) {
             : row.tagName)
           .filter((name): name is string => name !== null)
           .filter((name, index, names) => names.findIndex((candidate) => normalizeTagName(candidate) === normalizeTagName(name)) === index);
-        const patched = patchMetadata(target.source, { tags: currentTags }, target.page.title);
+        const storedMetadata = await tx.query.pageRevisionMetadata.findFirst({
+          where: eq(schema.pageRevisionMetadata.revisionId, target.revision.id),
+        });
+        const usesFrontmatter = parseFrontmatter(target.source).hasValidFrontmatter;
+        const patched = usesFrontmatter
+          ? patchMetadata(target.source, { tags: currentTags }, storedMetadata?.title ?? target.page.title)
+          : null;
+        const nextSource = patched?.source ?? target.source;
+        const nextMetadata = usesFrontmatter
+          ? {
+              title: patched!.metadata.title,
+              date: patched!.metadata.date ?? null,
+              summary: patched!.metadata.summary ?? null,
+              tags: currentTags,
+            }
+          : {
+              title: storedMetadata?.title ?? target.page.title,
+              date: storedMetadata?.date ?? null,
+              summary: storedMetadata?.summary ?? null,
+              tags: currentTags,
+            };
         let nextVersion = nextVersionByPage.get(target.page.id);
         if (nextVersion === undefined) {
           const [maximum] = await tx
@@ -99,13 +119,13 @@ export async function runTagMutation(mutationId: string) {
         }
         nextVersionByPage.set(target.page.id, nextVersion + 1);
         const revisionId = randomUUID();
-        const { html, hash } = renderMarkdown(patched.source);
+        const { html, hash } = renderMarkdown(nextSource);
         await tx.insert(schema.pageRevisions).values({
           id: revisionId,
           pageId: target.page.id,
           versionNumber: nextVersion,
           contentType: 'text/markdown',
-          contentSource: patched.source,
+          contentSource: nextSource,
           contentHtml: html,
           contentHash: hash,
           authorId: mutation.requestedBy ?? target.revision.authorId,
@@ -115,10 +135,11 @@ export async function runTagMutation(mutationId: string) {
         await persistRevisionMetadata(tx, {
           revisionId,
           spaceId: target.page.spaceId,
-          source: patched.source,
-          fallbackTitle: patched.metadata.title,
+          source: nextSource,
+          fallbackTitle: nextMetadata.title,
+          metadata: usesFrontmatter ? undefined : nextMetadata,
         });
-        await syncRevisionAssetRefs(tx, revisionId, patched.source);
+        await syncRevisionAssetRefs(tx, revisionId, nextSource);
         await addReplicationTasks(tx, 'markdown', revisionId, hash);
 
         const update = pointerUpdates.get(target.page.id) ?? {
@@ -129,11 +150,11 @@ export async function runTagMutation(mutationId: string) {
         };
         if (target.page.latestVersionId === target.revision.id) {
           update.latestVersionId = revisionId;
-          update.title = patched.metadata.title;
+          update.title = nextMetadata.title;
         }
         if (target.page.currentPublishedVersionId === target.revision.id) {
           update.currentPublishedVersionId = revisionId;
-          if (target.page.latestVersionId === target.revision.id) update.title = patched.metadata.title;
+          if (target.page.latestVersionId === target.revision.id) update.title = nextMetadata.title;
         }
         pointerUpdates.set(target.page.id, update);
         affectedPageIds.add(target.page.id);

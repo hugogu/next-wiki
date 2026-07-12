@@ -16,6 +16,8 @@ export function PagePropertiesFields({
   onTagsChange,
   summary,
   onSummaryChange,
+  writeMetadataToFrontmatter,
+  onWriteMetadataToFrontmatterChange,
 }: {
   title: string;
   onTitleChange: (value: string) => void;
@@ -30,6 +32,8 @@ export function PagePropertiesFields({
   onTagsChange?: (value: string) => void;
   summary?: string;
   onSummaryChange?: (value: string) => void;
+  writeMetadataToFrontmatter?: boolean;
+  onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -67,6 +71,21 @@ export function PagePropertiesFields({
           <label htmlFor="prop-summary" className="block text-sm font-medium mb-xs">{t('editor.properties.fields.summaryLabel')}</label>
           <textarea id="prop-summary" value={summary ?? ''} onChange={(e) => onSummaryChange(e.target.value)} aria-label={t('editor.properties.fields.summaryLabel')} className="min-h-24 w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground" />
         </div>
+      )}
+
+      {onWriteMetadataToFrontmatterChange && (
+        <label className="flex items-start gap-sm rounded-md border border-border bg-background p-sm">
+          <input
+            type="checkbox"
+            checked={writeMetadataToFrontmatter ?? false}
+            onChange={(event) => onWriteMetadataToFrontmatterChange(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary/50"
+          />
+          <span>
+            <span className="block text-sm font-medium">{t('editor.properties.fields.frontmatterLabel')}</span>
+            <span className="mt-xs block text-xs text-muted">{t('editor.properties.fields.frontmatterHint')}</span>
+          </span>
+        </label>
       )}
 
       <div>

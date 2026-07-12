@@ -23,6 +23,19 @@ export function metadataFromSource(source: string, fallbackTitle: string): Resol
   };
 }
 
+export function metadataFromInput(
+  title: string,
+  input: { date: string | null; summary: string | null; tags: string[] },
+): ResolvedPageMetadata {
+  const resolved = mergeSupportedMetadata('', { title, ...input }, title).metadata;
+  return {
+    title: resolved.title,
+    date: resolved.date ?? null,
+    summary: resolved.summary ?? null,
+    tags: resolved.tags ?? [],
+  };
+}
+
 async function resolveTag(tx: Transaction, spaceId: string, name: string) {
   const normalizedName = normalizeTagName(name);
   let tag = await tx.query.tags.findFirst({
@@ -42,13 +55,20 @@ async function resolveTag(tx: Transaction, spaceId: string, name: string) {
 }
 
 /** Persist the typed projection belonging to an immutable revision. Call in the
- * same transaction that creates the revision so source, HTML, and metadata
- * cannot diverge. */
+ * same transaction that creates the revision. When `metadata` is omitted the
+ * projection is derived from frontmatter; an explicit value supports pages
+ * whose properties intentionally live only in the database. */
 export async function persistRevisionMetadata(
   tx: Transaction,
-  args: { revisionId: string; spaceId: string; source: string; fallbackTitle: string },
+  args: {
+    revisionId: string;
+    spaceId: string;
+    source: string;
+    fallbackTitle: string;
+    metadata?: ResolvedPageMetadata;
+  },
 ): Promise<ResolvedPageMetadata> {
-  const metadata = metadataFromSource(args.source, args.fallbackTitle);
+  const metadata = args.metadata ?? metadataFromSource(args.source, args.fallbackTitle);
   await tx.insert(schema.pageRevisionMetadata).values({
     revisionId: args.revisionId,
     title: metadata.title,

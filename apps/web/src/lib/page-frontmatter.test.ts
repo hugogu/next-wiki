@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readEditorMetadata, writeEditorMetadata } from './page-frontmatter';
+import { hasEditorFrontmatter, readEditorMetadata, writeEditorMetadata } from './page-frontmatter';
 
 const authoredFrontmatter = `---
 title: 用官方 actions/runner 跑自托管 GitHub Actions：Docker 化踩坑实录
@@ -41,5 +41,21 @@ describe('editor frontmatter persistence', () => {
     expect(result).toContain('tags:\n  - manual\n  - docker');
     expect(result).toContain('summary: After');
     expect(result).toContain('owner: docs');
+  });
+
+  it('detects valid frontmatter and creates it only when explicitly requested', () => {
+    const metadata = { date: '2026-07-10', summary: 'Summary', tags: 'devops, docker' };
+    const source = '# Body\n';
+    const result = writeEditorMetadata(
+      source,
+      'Guide',
+      metadata,
+      { title: 'Guide', metadata },
+      { forceFrontmatter: true },
+    );
+
+    expect(hasEditorFrontmatter(source)).toBe(false);
+    expect(hasEditorFrontmatter(result)).toBe(true);
+    expect(result).toContain('tags:\n  - devops\n  - docker');
   });
 });

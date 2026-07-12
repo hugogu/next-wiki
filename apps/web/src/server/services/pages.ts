@@ -27,7 +27,7 @@ import {
 } from '@/server/content-store/read-router';
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
-import { getRevisionMetadata, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
+import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { buildPageDescription } from '@/lib/seo';
 
 const DEFAULT_SPACE_SLUG = 'default';
@@ -632,7 +632,13 @@ export async function create(
 export async function newDraft(
   ctx: PermCtx,
   path: string,
-  input: { title: string; contentSource: string; baseRevisionId?: string; baseContentHash?: string },
+  input: {
+    title: string;
+    contentSource: string;
+    baseRevisionId?: string;
+    baseContentHash?: string;
+    metadata?: { date: string | null; summary: string | null; tags: string[] };
+  },
 ): Promise<{ versionId: string; versionNumber: number }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -644,7 +650,9 @@ export async function newDraft(
 
   await assertNotMigrating();
   const revisionId = randomUUID();
-  const sourceMetadata = metadataFromSource(input.contentSource, input.title);
+  const sourceMetadata = input.metadata
+    ? metadataFromInput(input.title, input.metadata)
+    : metadataFromSource(input.contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
     const page = await tx.query.pages.findFirst({
@@ -704,6 +712,7 @@ export async function newDraft(
       spaceId: space.id,
       source: input.contentSource,
       fallbackTitle: sourceMetadata.title,
+      metadata: input.metadata ? sourceMetadata : undefined,
     });
 
     await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
@@ -821,6 +830,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
     : null;
 
   if (!revision) return null;
+  const metadata = await getRevisionMetadata(revision.id);
 
   const isRevisionAuthor = userId ? revision.authorId === userId : false;
   const canPublish = can(
@@ -841,6 +851,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,
+    metadata,
   };
 }
 

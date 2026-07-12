@@ -5,6 +5,17 @@ const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n(?:\r?\n)?([\s\S]*)$/;
 export type EditorMetadata = { date: string; summary: string; tags: string };
 export type EditorMetadataBaseline = { title: string; metadata: EditorMetadata };
 
+export function hasEditorFrontmatter(source: string): boolean {
+  const match = FRONTMATTER.exec(source);
+  if (!match) return false;
+  try {
+    const value: unknown = parseYaml(match[1]!);
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+  } catch {
+    return false;
+  }
+}
+
 export function readEditorMetadata(source: string): EditorMetadata {
   const match = FRONTMATTER.exec(source);
   if (!match) return { date: '', summary: '', tags: '' };
@@ -27,12 +38,13 @@ export function writeEditorMetadata(
   title: string,
   metadata: EditorMetadata,
   baseline: EditorMetadataBaseline,
+  options: { forceFrontmatter?: boolean } = {},
 ): string {
   const titleChanged = title !== baseline.title;
   const dateChanged = metadata.date !== baseline.metadata.date;
   const summaryChanged = metadata.summary !== baseline.metadata.summary;
   const tagsChanged = metadata.tags !== baseline.metadata.tags;
-  if (!titleChanged && !dateChanged && !summaryChanged && !tagsChanged) return source;
+  if (!titleChanged && !dateChanged && !summaryChanged && !tagsChanged && !options.forceFrontmatter) return source;
 
   const match = FRONTMATTER.exec(source);
   let frontmatter: Record<string, unknown> = {};
@@ -49,14 +61,14 @@ export function writeEditorMetadata(
   // A newly-created frontmatter block needs the canonical title. Existing
   // frontmatter keeps the user's current raw value unless the title control
   // was explicitly changed.
-  if (!match || titleChanged) frontmatter.title = title;
-  if (dateChanged) {
+  if (!match || titleChanged || options.forceFrontmatter) frontmatter.title = title;
+  if (dateChanged || options.forceFrontmatter) {
     if (metadata.date.trim()) frontmatter.date = metadata.date.trim(); else delete frontmatter.date;
   }
-  if (summaryChanged) {
+  if (summaryChanged || options.forceFrontmatter) {
     if (metadata.summary.trim()) frontmatter.summary = metadata.summary.trim(); else delete frontmatter.summary;
   }
-  if (tagsChanged) {
+  if (tagsChanged || options.forceFrontmatter) {
     frontmatter.tags = metadata.tags.split(',').map((tag) => tag.trim()).filter(Boolean);
   }
   return `---\n${stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()}\n---\n\n${body}`;
