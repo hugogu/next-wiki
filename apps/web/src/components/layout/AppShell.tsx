@@ -22,6 +22,7 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
             currentPath={pageContext?.path}
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
+            user={user}
           />
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer

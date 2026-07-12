@@ -8,6 +8,8 @@ import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, Clipboard
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
+import type { Actor } from '@/server/permissions';
+import { NavFooterMenu } from './NavFooterMenu';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
 
@@ -186,6 +188,7 @@ export function Navigator({
   currentPath,
   isOpen,
   onClose,
+  user,
 }: {
   tree: LazyPublicPageTreeNode[];
   admin?: boolean;
@@ -193,6 +196,7 @@ export function Navigator({
   currentPath?: string;
   isOpen: boolean;
   onClose: () => void;
+  user: Actor;
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
@@ -411,6 +415,8 @@ export function Navigator({
             </ul>
           )}
         </nav>
+
+        <NavFooterMenu user={user} onNavigate={onClose} />
       </aside>
     </>
   );

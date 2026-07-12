@@ -6,7 +6,6 @@ import { useState } from 'react';
 import type { PageContext } from './types';
 import type { Actor } from '@/server/permissions';
 import { useEditor } from '@/components/editor/EditorContext';
-import { UserDropdown } from './UserDropdown';
 import { useTranslation } from '@/i18n/client';
 import {
   MenuIcon,
@@ -16,10 +15,8 @@ import {
   PublishIcon,
   EyeIcon,
   SettingsIcon,
-  ShieldIcon,
   SaveIcon,
   XIcon,
-  CodeIcon,
   ChevronLeftIcon,
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
@@ -180,7 +177,7 @@ export function Header({
           <EditorHeaderActions editor={editor} />
         ) : (
           <>
-            <div className="flex items-center gap-sm pr-sm border-r border-border">
+            <div className="flex items-center gap-sm">
               {pageContext && pageContext.canEdit && (
                 <IconButton href={getEditHref(pageContext.path)} label={t('page.header.edit')}>
                   <EditIcon />
@@ -217,21 +214,8 @@ export function Header({
                 </IconButton>
               )}
             </div>
-
-            <div className="flex items-center gap-sm">
-        <IconButton href="/api-docs" label={t('layout.header.apiDocs')}>
-          <CodeIcon />
-        </IconButton>
-              {role === 'admin' && (
-                <IconButton href="/admin/users" label={t('page.header.admin')} active={isOnAdmin}>
-                  <ShieldIcon />
-                </IconButton>
-              )}
-            </div>
           </>
         )}
-
-        <UserDropdown user={user} />
       </div>
     </header>
   );
