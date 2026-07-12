@@ -14,7 +14,6 @@ import { EditIcon, EyeIcon } from '@/components/icons';
 import { getEditHref, getPageHref } from '@/lib/path';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
-import { TagManager } from './TagManager';
 
 type QueryMap = Record<string, string | undefined>;
 
@@ -86,8 +85,6 @@ export function AdminPagesPanel({
         </div>
         <AdminPageStats />
       </div>
-
-      <TagManager />
 
       <form action="/admin/pages" className="rounded-md border border-border bg-surface p-md">
         <input type="hidden" name="sort" value={list.sort} />

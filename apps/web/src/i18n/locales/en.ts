@@ -266,6 +266,7 @@ export const en = {
   'admin.title': 'Administration',
   'admin.nav.users': 'Users',
   'admin.nav.pages': 'Pages',
+  'admin.nav.tags': 'Tags',
   'admin.nav.storage': 'Content Storage',
   'admin.nav.apiAudit': 'Access Log',
   'admin.nav.transfers': 'Import / Export',
@@ -318,6 +319,10 @@ export const en = {
   'admin.pages.empty': 'No pages match the current filters.',
   'admin.pages.sortBy': 'Sort by {{column}}',
   'admin.pages.pagination.summary': '{{total}} pages, page {{page}} of {{pages}}',
+
+  'admin.tags.metadataTitle': 'Tag management',
+  'admin.tags.title': 'Tag Management',
+  'admin.tags.description': 'Maintain wiki tags, review where they are used, and clean up duplicate or unused tags.',
 
   'admin.appearance.title': 'Appearance',
   'admin.appearance.description':
