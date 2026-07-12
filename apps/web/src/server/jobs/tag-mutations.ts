@@ -51,6 +51,15 @@ export async function runTagMutation(mutationId: string) {
       });
       if (!tag) throw new Error('Tag no longer exists');
 
+      const targetTag = mutation.kind === 'merge' && mutation.targetTagId
+        ? await tx.query.tags.findFirst({
+            where: and(eq(schema.tags.id, mutation.targetTagId), isNull(schema.tags.deletedAt)),
+          })
+        : null;
+      if (mutation.kind === 'merge' && (!targetTag || targetTag.spaceId !== tag.spaceId)) {
+        throw new Error('Merge target tag no longer exists');
+      }
+
       const replacementName = mutation.kind === 'rename' ? mutation.requestedName?.trim() : undefined;
       if (mutation.kind === 'rename' && !replacementName) throw new Error('Rename mutation has no replacement name');
       if (replacementName) {
@@ -71,13 +80,14 @@ export async function runTagMutation(mutationId: string) {
 
       for (const target of targets) {
         const currentTags = (await tx
-          .select({ tagName: schema.pageRevisionTags.tagName, normalizedName: schema.pageRevisionTags.normalizedName })
+          .select({ tagId: schema.pageRevisionTags.tagId, tagName: schema.pageRevisionTags.tagName, normalizedName: schema.pageRevisionTags.normalizedName })
           .from(schema.pageRevisionTags)
           .where(eq(schema.pageRevisionTags.revisionId, target.revision.id)))
-          .map((row) => row.normalizedName === tag.normalizedName
-            ? replacementName ?? null
+          .map((row) => row.tagId === tag.id
+            ? replacementName ?? targetTag?.name ?? null
             : row.tagName)
-          .filter((name): name is string => name !== null);
+          .filter((name): name is string => name !== null)
+          .filter((name, index, names) => names.findIndex((candidate) => normalizeTagName(candidate) === normalizeTagName(name)) === index);
         const patched = patchMetadata(target.source, { tags: currentTags }, target.page.title);
         let nextVersion = nextVersionByPage.get(target.page.id);
         if (nextVersion === undefined) {
@@ -137,7 +147,7 @@ export async function runTagMutation(mutationId: string) {
           updatedAt: new Date(),
         }).where(eq(schema.pages.id, update.page.id));
       }
-      if (mutation.kind === 'delete') {
+      if (mutation.kind === 'delete' || mutation.kind === 'merge') {
         await tx.update(schema.tags).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(schema.tags.id, tag.id));
       }
       await tx.update(schema.tagMutations).set({

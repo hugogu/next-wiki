@@ -45,4 +45,24 @@ describe('tag mutation worker', () => {
     await runTagMutation(operation.id);
     expect(await tags.getTagMutation(ctx, operation.id)).toMatchObject({ status: 'failed' });
   });
+
+  it('merges assignments into an existing tag without duplicating it', async () => {
+    const { ctx } = await reset();
+    const source = await tags.createTag(ctx, 'old-name');
+    const target = await tags.createTag(ctx, 'canonical');
+    await pages.create(ctx, {
+      path: 'merge-target',
+      title: 'Merge target',
+      contentSource: '---\ntags: [old-name, canonical]\n---\n\n# Merge',
+    });
+    const operation = await tags.requestTagMerge(ctx, source.id, target.id);
+    await runTagMutation(operation.id);
+
+    expect(await tags.getTagMutation(ctx, operation.id)).toMatchObject({
+      kind: 'merge', targetTagId: target.id, status: 'succeeded', affectedPageCount: 1,
+    });
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'merge-target') });
+    const tagsOnPage = await db.select().from(schema.pageRevisionTags).where(eq(schema.pageRevisionTags.revisionId, page!.latestVersionId!));
+    expect(tagsOnPage.map((item) => item.normalizedName)).toEqual(['canonical']);
+  });
 });

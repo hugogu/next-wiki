@@ -802,17 +802,22 @@ export const PublicTagRenameInput = z.object({
   name: z.string().min(1).max(100),
 }).describe('New name for a reusable tag.');
 
+export const PublicTagMergeInput = z.object({
+  targetTagId: z.string().uuid(),
+}).describe('Existing destination tag that receives all assignments from the source tag.');
+
 export const PublicTagMutation = z.object({
   id: z.string().uuid(),
   tagId: z.string().uuid(),
-  kind: z.enum(['rename', 'delete']),
+  targetTagId: z.string().uuid().nullable(),
+  kind: z.enum(['rename', 'delete', 'merge']),
   status: z.enum(['queued', 'running', 'succeeded', 'failed']),
   requestedName: z.string().nullable(),
   affectedPageCount: z.number().int().nullable(),
   failure: z.string().nullable(),
   createdAt: z.string().datetime(),
   completedAt: z.string().datetime().nullable(),
-}).describe('Asynchronous tag rename or retirement operation.');
+}).describe('Asynchronous tag rename, retirement, or merge operation.');
 
 export const PublicTagIdPathParams = z.object({ id: z.string().uuid() });
 

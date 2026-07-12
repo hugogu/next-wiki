@@ -3524,6 +3524,19 @@
         },
         "description": "Tag-directory filter and pagination parameters."
       },
+      "PublicTagMergeInput": {
+        "type": "object",
+        "properties": {
+          "targetTagId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "targetTagId"
+        ],
+        "description": "Existing destination tag that receives all assignments from the source tag."
+      },
       "PublicTagMutation": {
         "type": "object",
         "properties": {
@@ -3535,11 +3548,19 @@
             "type": "string",
             "format": "uuid"
           },
+          "targetTagId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
           "kind": {
             "type": "string",
             "enum": [
               "rename",
-              "delete"
+              "delete",
+              "merge"
             ]
           },
           "status": {
@@ -3584,6 +3605,7 @@
         "required": [
           "id",
           "tagId",
+          "targetTagId",
           "kind",
           "status",
           "requestedName",
@@ -3592,7 +3614,7 @@
           "createdAt",
           "completedAt"
         ],
-        "description": "Asynchronous tag rename or retirement operation."
+        "description": "Asynchronous tag rename, retirement, or merge operation."
       },
       "PublicTagRenameInput": {
         "type": "object",
@@ -10837,6 +10859,54 @@
             "BearerAuth": []
           }
         ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTagMutation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tags/{id}/merge": {
+      "post": {
+        "operationId": "post-v1-tags-{id}-merge",
+        "summary": "Merge tag into another tag",
+        "description": "",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicTagMergeInput"
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
             "description": "Successful response",

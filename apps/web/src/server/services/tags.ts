@@ -81,6 +81,25 @@ export async function requestTagMutation(ctx: PermCtx, tagId: string, kind: 'ren
   return mutationView(mutation);
 }
 
+export async function requestTagMerge(ctx: PermCtx, tagId: string, targetTagId: string) {
+  assertTagManager(ctx);
+  if (tagId === targetTagId) throw new DomainError('BAD_REQUEST', 'A tag cannot be merged into itself');
+  const [tag, target] = await Promise.all([
+    db.query.tags.findFirst({ where: and(eq(schema.tags.id, tagId), isNull(schema.tags.deletedAt)) }),
+    db.query.tags.findFirst({ where: and(eq(schema.tags.id, targetTagId), isNull(schema.tags.deletedAt)) }),
+  ]);
+  if (!tag || !target || tag.spaceId !== target.spaceId) throw new DomainError('NOT_FOUND', 'Tag not found');
+  const [mutation] = await db.insert(schema.tagMutations).values({
+    tagId,
+    targetTagId,
+    kind: 'merge',
+    requestedBy: getActorUserId(ctx),
+  }).returning();
+  if (!mutation) throw new Error('Failed to create tag mutation');
+  await enqueue(QUEUES.tagMutation, { mutationId: mutation.id });
+  return mutationView(mutation);
+}
+
 export async function getTagMutation(ctx: PermCtx, mutationId: string) {
   const mutation = await db.query.tagMutations.findFirst({ where: eq(schema.tagMutations.id, mutationId) });
   if (!mutation) throw new DomainError('NOT_FOUND', 'Tag mutation not found');
@@ -95,6 +114,7 @@ export function mutationView(mutation: typeof schema.tagMutations.$inferSelect) 
   return {
     id: mutation.id,
     tagId: mutation.tagId,
+    targetTagId: mutation.targetTagId,
     kind: mutation.kind,
     status: mutation.status,
     requestedName: mutation.requestedName,

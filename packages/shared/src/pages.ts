@@ -149,10 +149,12 @@ export const publicTagListQuerySchema = z.object({
 });
 export const publicTagCreateInputSchema = z.object({ name: z.string().min(1).max(100) });
 export const publicTagRenameInputSchema = z.object({ name: z.string().min(1).max(100) });
+export const publicTagMergeInputSchema = z.object({ targetTagId: z.string().uuid() });
 export const publicTagMutationSchema = z.object({
   id: z.string().uuid(),
   tagId: z.string().uuid(),
-  kind: z.enum(['rename', 'delete']),
+  targetTagId: z.string().uuid().nullable(),
+  kind: z.enum(['rename', 'delete', 'merge']),
   status: z.enum(['queued', 'running', 'succeeded', 'failed']),
   requestedName: z.string().nullable(),
   affectedPageCount: z.number().int().nullable(),

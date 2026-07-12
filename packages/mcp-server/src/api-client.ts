@@ -128,7 +128,7 @@ export const publicTagSchema = z.object({
 });
 export type PublicTag = z.infer<typeof publicTagSchema>;
 export const publicTagMutationSchema = z.object({
-  id: z.string().uuid(), tagId: z.string().uuid(), kind: z.enum(['rename', 'delete']), status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+  id: z.string().uuid(), tagId: z.string().uuid(), targetTagId: z.string().uuid().nullable(), kind: z.enum(['rename', 'delete', 'merge']), status: z.enum(['queued', 'running', 'succeeded', 'failed']),
   requestedName: z.string().nullable(), affectedPageCount: z.number().int().nullable(), failure: z.string().nullable(), createdAt: z.string(), completedAt: z.string().nullable(),
 });
 export type PublicTagMutation = z.infer<typeof publicTagMutationSchema>;
@@ -549,6 +549,10 @@ export class WikiApiClient {
 
   async deleteTag(tagId: string): Promise<PublicTagMutation> {
     return this.request<PublicTagMutation>(`/tags/${tagId}`, { method: 'DELETE' });
+  }
+
+  async mergeTag(tagId: string, targetTagId: string): Promise<PublicTagMutation> {
+    return this.request<PublicTagMutation>(`/tags/${tagId}/merge`, { method: 'POST', body: JSON.stringify({ targetTagId }) });
   }
 
   async getTagMutation(id: string): Promise<PublicTagMutation> {

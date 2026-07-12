@@ -17,6 +17,7 @@ import { getNeighborhood } from './get-neighborhood';
 import { batchUpdatePages } from './batch-update-pages';
 import { batchSoftDeletePages } from './batch-soft-delete-pages';
 import { listTags } from './list-tags';
+import { mergeTag } from './merge-tag';
 import { updatePageMetadata } from './update-page-metadata';
 
 const metadataFixture = { date: '2026-07-10', summary: 'Summary', tags: [] };
@@ -47,7 +48,7 @@ describe('tools', () => {
       getNeighborhood: vi.fn(),
       batchUpdatePages: vi.fn(),
       batchSoftDeletePages: vi.fn(),
-      listTags: vi.fn(), createTag: vi.fn(), renameTag: vi.fn(), deleteTag: vi.fn(), getTagMutation: vi.fn(), updatePageMetadata: vi.fn(),
+      listTags: vi.fn(), createTag: vi.fn(), renameTag: vi.fn(), deleteTag: vi.fn(), mergeTag: vi.fn(), getTagMutation: vi.fn(), updatePageMetadata: vi.fn(),
       ...overrides,
     } as unknown as WikiApiClient;
   }
@@ -302,11 +303,14 @@ describe('tools', () => {
 
   it('forwards typed tag and metadata operations', async () => {
     const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const merge = vi.fn().mockResolvedValue({ id: 'mutation' });
     const update = vi.fn().mockResolvedValue({ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'docs/a', title: 'A', locale: 'en', status: 'draft', author: { id: null, displayName: null }, createdAt: '', updatedAt: '', links: { self: '', byPath: '', revisions: '', drafts: '' }, metadata: metadataFixture });
-    const client = createClient({ listTags: list, updatePageMetadata: update });
+    const client = createClient({ listTags: list, mergeTag: merge, updatePageMetadata: update });
     await listTags(client, { limit: 10 });
+    await mergeTag(client, { tagId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', targetTagId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22' });
     await updatePageMetadata(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', baseRevisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', tags: ['devops'] });
     expect(list).toHaveBeenCalledWith({ limit: 10 });
+    expect(merge).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22');
     expect(update).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', expect.objectContaining({ tags: ['devops'] }));
   });
 });
