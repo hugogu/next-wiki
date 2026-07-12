@@ -88,12 +88,12 @@
 - [ ] T032 [P] [US3] Add provider-stream, Markdown-validation, render/write, and page-level failure continuation tests in `apps/web/src/server/jobs/translation.test.ts`
 - [ ] T033 [P] [US3] Add run creation/detail/item REST contract tests in `apps/web/app/api/translations/runs/translation-runs-routes.test.ts`
 - [ ] T034 [P] [US3] Add bulk-run creation/progress/detail Playwright coverage in `apps/web/e2e/translation-runs.spec.ts`
-- [ ] T035 [US3] Implement run creation, source eligibility snapshotting, active-language lock, and list/detail/item query services in `apps/web/src/server/services/translations.ts`
-- [ ] T036 [US3] Implement encrypted/sanitized translation prompt assembly and Markdown-only generation rules in `apps/web/src/server/ai/prompts/translation.ts`
-- [ ] T037 [US3] Implement normal page/revision write, metadata/assets/replication, provenance, and freshness-state updates for accepted translation output in `apps/web/src/server/services/translation-writer.ts`
-- [ ] T038 [US3] Implement dedicated per-item translation worker with provider streaming, retry/backoff, usage provenance, and compare-before-publish checks in `apps/web/src/server/jobs/translation.ts`
-- [ ] T039 [US3] Register the translation worker and boot recovery in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/runtime.ts`
-- [ ] T040 [US3] Implement run creation/list and detail/item REST handlers in `apps/web/app/api/translations/runs/route.ts`, `apps/web/app/api/translations/runs/[id]/route.ts`, and `apps/web/app/api/translations/runs/[id]/items/route.ts`
+- [X] T035 [US3] Implement run creation, source eligibility snapshotting, active-language lock, and list/detail/item query services in `apps/web/src/server/services/translations.ts`
+- [X] T036 [US3] Implement encrypted/sanitized translation prompt assembly and Markdown-only generation rules in `apps/web/src/server/ai/prompts/translation.ts`
+- [X] T037 [US3] Implement normal page/revision write, metadata/assets/replication, provenance, and freshness-state updates for accepted translation output in `apps/web/src/server/services/translation-writer.ts`
+- [X] T038 [US3] Implement dedicated per-item translation worker with provider streaming, retry/backoff, usage provenance, and compare-before-publish checks in `apps/web/src/server/jobs/translation.ts`
+- [X] T039 [US3] Register the translation worker and boot recovery in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/runtime.ts`
+- [X] T040 [US3] Implement run creation/list and detail/item REST handlers in `apps/web/app/api/translations/runs/route.ts`, `apps/web/app/api/translations/runs/[id]/route.ts`, and `apps/web/app/api/translations/runs/[id]/items/route.ts`
 - [ ] T041 [US3] Build run creation controls and status summary in `apps/web/src/components/admin/translations/TranslationRunCreateForm.tsx` and `apps/web/src/components/admin/translations/TranslationRunList.tsx`
 - [ ] T042 [US3] Build deep-linkable run detail, per-item table, outcomes, and sanitized error views in `apps/web/app/(admin)/admin/translations/[id]/page.tsx` and `apps/web/src/components/admin/translations/TranslationRunDetail.tsx`
 
@@ -111,8 +111,8 @@
 - [ ] T044 [P] [US4] Add worker polling, in-flight terminal outcome, stale-running reclaim, and restart recovery tests in `apps/web/src/server/jobs/translation-controls.test.ts`
 - [ ] T045 [P] [US4] Add control endpoint contract tests in `apps/web/app/api/translations/runs/translation-controls-routes.test.ts`
 - [ ] T046 [P] [US4] Add pause/resume/replacement Playwright coverage in `apps/web/e2e/translation-run-controls.spec.ts`
-- [ ] T047 [US4] Implement cooperative pause/cancel flags, legal transition validation, and same-run resume services in `apps/web/src/server/services/translations.ts`
-- [ ] T048 [US4] Implement successor retry/replacement creation with selected model/prompt snapshots and immutable predecessor linkage in `apps/web/src/server/services/translations.ts`
+- [X] T047 [US4] Implement cooperative pause/cancel flags, legal transition validation, and same-run resume services in `apps/web/src/server/services/translations.ts`
+- [X] T048 [US4] Implement successor retry/replacement creation with selected model/prompt snapshots and immutable predecessor linkage in `apps/web/src/server/services/translations.ts`
 - [ ] T049 [US4] Add pause/cancel polling, terminal state finalization, and stale-running recovery paths in `apps/web/src/server/jobs/translation.ts`
 - [ ] T050 [US4] Implement pause, resume, cancellation, and retry REST subresources in `apps/web/app/api/translations/runs/[id]/pause/route.ts`, `apps/web/app/api/translations/runs/[id]/resume/route.ts`, `apps/web/app/api/translations/runs/[id]/cancellation/route.ts`, and `apps/web/app/api/translations/runs/[id]/retries/route.ts`
 - [ ] T051 [US4] Add run control buttons, replacement input picker, and conflict feedback in `apps/web/src/components/admin/translations/TranslationRunControls.tsx` and `apps/web/src/components/admin/translations/TranslationRunDetail.tsx`
@@ -133,7 +133,7 @@
 - [ ] T055 [P] [US5] Add automatic-refresh/cache-invalidation Playwright coverage in `apps/web/e2e/translation-refresh.spec.ts`
 - [ ] T056 [US5] Implement source publish hooks that invalidate translation state and upsert latest-language refresh work without translated-page loops in `apps/web/src/server/services/revisions.ts` and `apps/web/src/server/services/translations.ts`
 - [ ] T057 [US5] Reconcile translated state and cache tags on source path change, deletion, and visibility changes in `apps/web/src/server/services/pages.ts` and `apps/web/src/server/services/translations.ts`
-- [ ] T058 [US5] Implement item/run duration and reported/estimated/unavailable usage aggregation in `apps/web/src/server/services/translations.ts`
+- [X] T058 [US5] Implement item/run duration and reported/estimated/unavailable usage aggregation in `apps/web/src/server/services/translations.ts`
 - [X] T059 [US5] Implement translation document, version, and usage query endpoints in `apps/web/app/api/translations/documents/route.ts`, `apps/web/app/api/translations/documents/[id]/versions/route.ts`, and `apps/web/app/api/translations/usage/route.ts`
 - [ ] T060 [US5] Build translation document freshness and usage analytics panels in `apps/web/src/components/admin/translations/TranslationDocumentList.tsx` and `apps/web/src/components/admin/translations/TranslationUsagePanel.tsx`
 - [ ] T061 [US5] Add source/translation cache-tag invalidation and visible-content cache regression tests in `apps/web/src/server/cache/page-content.test.ts`

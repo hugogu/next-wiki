@@ -28,6 +28,8 @@ import { runTransferCleanup } from './transfer-cleanup';
 import { findRecoverableTransferRunIds } from '@/server/services/transfers';
 import { runTagMutation } from './tag-mutations';
 import { runPageMetadataBackfill } from './page-metadata-backfill';
+import { runTranslationRun } from './translation';
+import { findRecoverableTranslationRunIds } from '@/server/services/translations';
 
 type JobBatch = { data: unknown }[];
 
@@ -117,6 +119,11 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.tagMutation, async (jobs: JobBatch) => {
     for (const job of jobs) await runTagMutation((job.data as { mutationId: string }).mutationId);
   });
+  // Dedicated worker so a bulk one-language translation run cannot starve
+  // interactive AI actions on QUEUES.aiAction.
+  await boss.work(QUEUES.translation, async (jobs: JobBatch) => {
+    for (const job of jobs) await runTranslationRun((job.data as { runId: string }).runId);
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
   await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});
@@ -162,6 +169,10 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
             : QUEUES.transferImport;
     await boss.send(queue, { runId });
     logger.info('re-enqueued interrupted transfer run', { runId, kind: run.kind });
+  }
+  for (const runId of await findRecoverableTranslationRunIds()) {
+    await boss.send(QUEUES.translation, { runId });
+    logger.info('re-enqueued interrupted translation run', { runId });
   }
   const metadataBackfill = await runPageMetadataBackfill();
   if (metadataBackfill.scanned > 0) {
