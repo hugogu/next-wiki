@@ -26,8 +26,8 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer
               instead of pushing the footer into a blank second screen. */}
-          <main className="min-h-0 flex-1 relative flex flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
+          <main className="min-h-0 min-w-0 flex-1 relative flex flex-col">
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
               <div className="min-h-0 flex-1">
                 {children}
               </div>
