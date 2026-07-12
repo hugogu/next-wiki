@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeMaxOutputTokens,
   isImplausiblyShortTranslation,
   normalizeGeneratedMarkdown,
 } from './translation';
@@ -40,5 +41,28 @@ describe('isImplausiblyShortTranslation', () => {
 
   it('never rejects when the source itself is short', () => {
     expect(isImplausiblyShortTranslation('# Hi', 'x')).toBe(false);
+  });
+});
+
+describe('computeMaxOutputTokens', () => {
+  it('never lets input + output exceed a window equal to the catalog max output', () => {
+    // Regression: Tencent Hy3 reports maxOutputTokens == contextWindow (262144).
+    // A small page must not request the whole window as output.
+    const source = 'x'.repeat(1000); // ~250 source tokens
+    const maxOut = computeMaxOutputTokens(source, 262144, 262144);
+    const estInput = Math.ceil(source.length / 4) + 800;
+    expect(maxOut).toBeLessThan(262144);
+    expect(estInput + maxOut).toBeLessThanOrEqual(262144);
+  });
+
+  it('scales output with source size but keeps a floor', () => {
+    expect(computeMaxOutputTokens('short', 8192, 4096)).toBeGreaterThanOrEqual(256);
+    const big = computeMaxOutputTokens('y'.repeat(8000), 128000, 16384);
+    expect(big).toBeGreaterThan(256);
+    expect(big).toBeLessThanOrEqual(16384);
+  });
+
+  it('falls back to a sane default when the model reports no limits', () => {
+    expect(computeMaxOutputTokens('y'.repeat(20000), null, null)).toBeLessThanOrEqual(8192);
   });
 });
