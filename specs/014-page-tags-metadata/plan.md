@@ -5,8 +5,9 @@
 ## Summary
 
 Introduce a reusable tag registry and typed page metadata (`title`, `date`,
-`tags`, `summary`) synchronized with Markdown frontmatter. Metadata snapshots
-belong to immutable page revisions; raw Markdown/frontmatter remains portable.
+`tags`, `summary`) stored on immutable page revisions. Markdown frontmatter is
+an optional synchronization target selected per edit; raw Markdown remains
+portable and is never generated unless the editor opts into frontmatter.
 Single-page edits are synchronous revision writes. Tag rename/delete fan-out
 uses pg-boss, so affected pages converge without blocking a request.
 
@@ -30,7 +31,7 @@ preserving raw source. REST and MCP evolve existing page surfaces additively.
 
 **Performance Goals**: Metadata/tag reads and a single metadata save stay within normal interactive budgets; list descriptions have no per-card request; fan-out operations are asynchronous and status-visible.
 
-**Constraints**: No new default service; preserve raw Markdown and unrelated frontmatter; permission checks on every surface; every mutation creates a revision; retain `frontmatter`, `filter[tag]`, generic page PATCH, and MCP `filterTag` compatibility.
+**Constraints**: No new default service; preserve raw Markdown and unrelated frontmatter; keep structured metadata usable without frontmatter; permission checks on every surface; every mutation creates a revision; retain `frontmatter`, `filter[tag]`, generic page PATCH, and MCP `filterTag` compatibility.
 
 **Scale/Scope**: Wiki-wide tag registry, reader, homepage/page lists, editor properties, v1 API and MCP; fan-out acceptance covers at least 100 pages.
 

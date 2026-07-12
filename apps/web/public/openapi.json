@@ -1513,6 +1513,40 @@
           "baseContentHash": {
             "type": "string",
             "description": "Expected content hash of the base revision, used for optimistic concurrency control."
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "maxItems": 50
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "date",
+              "tags",
+              "summary"
+            ],
+            "description": "Optional structured metadata override. When present, metadata is stored on the revision without requiring equivalent Markdown frontmatter."
           }
         },
         "required": [

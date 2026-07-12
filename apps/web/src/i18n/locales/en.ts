@@ -232,6 +232,8 @@ export const en = {
   'editor.properties.fields.tagsPlaceholder': 'devops, docker',
   'editor.properties.fields.tagsHint': 'Separate tags with commas.',
   'editor.properties.fields.summaryLabel': 'Summary',
+  'editor.properties.fields.frontmatterLabel': 'Write page metadata to Markdown frontmatter',
+  'editor.properties.fields.frontmatterHint': 'When off, title, date, tags, and summary are stored only in the wiki database without rewriting the Markdown source.',
   'editor.properties.fields.pathLabel': 'Path',
   'editor.properties.fields.pathPlaceholder': 'path/to/page',
   'editor.properties.fields.pathHint': 'Use slashes to create directories, e.g. {{example}}.',

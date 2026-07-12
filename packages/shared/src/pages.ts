@@ -249,6 +249,11 @@ export const publicDraftCreateInputSchema = z.object({
   contentSource: z.string().min(1),
   baseRevisionId: z.string().uuid().optional(),
   baseContentHash: z.string().optional(),
+  metadata: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    tags: z.array(z.string().min(1).max(100)).max(50),
+    summary: z.string().max(2000).nullable(),
+  }).optional(),
 });
 export type PublicDraftCreateInput = z.infer<typeof publicDraftCreateInputSchema>;
 

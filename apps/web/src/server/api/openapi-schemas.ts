@@ -912,6 +912,11 @@ export const PublicDraftCreateInput = z
       .string()
       .optional()
       .describe('Expected content hash of the base revision, used for optimistic concurrency control.'),
+    metadata: z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      tags: z.array(z.string().min(1).max(100)).max(50),
+      summary: z.string().max(2000).nullable(),
+    }).optional().describe('Optional structured metadata override. When present, metadata is stored on the revision without requiring equivalent Markdown frontmatter.'),
   })
   .describe('Create a draft revision for an existing public page.');
 
