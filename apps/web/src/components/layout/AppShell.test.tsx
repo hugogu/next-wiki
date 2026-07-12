@@ -16,7 +16,8 @@ describe('AppShell scrolling', () => {
       </AppShell>,
     );
     expect(html).toContain('min-h-0 flex-1 relative flex flex-col');
-    expect(html).toContain('min-h-0 flex-1 overflow-y-auto overscroll-contain');
+    expect(html).toContain('min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col');
+    expect(html).toContain('class="min-h-0 flex-1"><div class="min-h-full">Page</div></div><footer>Footer</footer>');
     expect(html).not.toContain('flex-1 overflow-auto relative');
   });
 });

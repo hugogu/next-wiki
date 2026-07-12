@@ -23,13 +23,14 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
           />
-          {/* Keep exactly one vertical scroll container.  Previously both this
-              main element and its child used overflow-auto, which produced
-              nested scrollbars; a min-height page could then leave the footer
-              in a second, apparently blank scroll area. */}
+          {/* Keep exactly one vertical scroll container.  The content wrapper
+              lets min-height pages size against the area above the site footer
+              instead of pushing the footer into a blank second screen. */}
           <main className="min-h-0 flex-1 relative flex flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {children}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
+              <div className="min-h-0 flex-1">
+                {children}
+              </div>
               {footer}
             </div>
           </main>
