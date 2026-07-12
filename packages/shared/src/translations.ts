@@ -53,6 +53,36 @@ export const localeCodeSchema = z
   .regex(/^[a-z]{2}$/, 'Language must be a two-letter ISO 639-1 code');
 export type LocaleCode = z.infer<typeof localeCodeSchema>;
 
+/**
+ * Selectable ISO 639-1 target languages, in a stable display order. Shared by
+ * the admin language picker and the translation prompt's language naming so the
+ * two never drift.
+ */
+export const SUPPORTED_TRANSLATION_LANGUAGES: ReadonlyArray<{ code: string; name: string }> = [
+  { code: 'en', name: 'English' },
+  { code: 'zh', name: 'Chinese (Simplified)' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'it', name: 'Italian' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'pl', name: 'Polish' },
+  { code: 'tr', name: 'Turkish' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'th', name: 'Thai' },
+  { code: 'id', name: 'Indonesian' },
+];
+
+export function translationLanguageName(code: string): string {
+  return SUPPORTED_TRANSLATION_LANGUAGES.find((l) => l.code === code)?.name ?? code;
+}
+
 // ---- Target languages ------------------------------------------------------
 
 export const translationLanguageCreateSchema = z.object({
@@ -288,6 +318,28 @@ export const translationUsageQuerySchema = z.object({
   groupBy: z.enum(['run', 'language', 'model', 'day']).default('language'),
 });
 export type TranslationUsageQuery = z.infer<typeof translationUsageQuerySchema>;
+
+// ---- Per-language stats ----------------------------------------------------
+
+export const translationLanguageStatsSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  enabled: z.boolean(),
+  retired: z.boolean(),
+  totalPages: nonNegativeInt,
+  freshPages: nonNegativeInt,
+  stalePages: nonNegativeInt,
+  failedPages: nonNegativeInt,
+  lastTranslatedAt: nullableIsoDateSchema,
+});
+export type TranslationLanguageStats = z.infer<typeof translationLanguageStatsSchema>;
+
+export const translationStatsSchema = z.object({
+  totalSourcePages: nonNegativeInt,
+  totalTranslatedPages: nonNegativeInt,
+  languages: z.array(translationLanguageStatsSchema),
+});
+export type TranslationStats = z.infer<typeof translationStatsSchema>;
 
 export const translationUsageRowSchema = z.object({
   key: z.string(),

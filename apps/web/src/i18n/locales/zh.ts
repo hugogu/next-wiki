@@ -1097,6 +1097,7 @@ export const zh: Translations = {
   // AI page translation (015)
   'translation.admin.title': '翻译',
   'translation.admin.subtitle': '配置语言与风格，然后翻译已发布的页面。',
+  'translation.admin.overview': '概览',
   'translation.admin.languages': '目标语言',
   'translation.admin.styles': '翻译风格',
   'translation.admin.runs': '翻译任务',
@@ -1154,6 +1155,10 @@ export const zh: Translations = {
   'translation.document.empty': '尚无已翻译文档。',
   'translation.usage.key': '分组',
   'translation.usage.empty': '尚无用量记录。',
+  'translation.stats.sourcePages': '已发布源页面',
+  'translation.stats.translatedPages': '已翻译页面',
+  'translation.stats.languages': '活跃语言',
+  'translation.stats.coverage': '覆盖率',
   'translation.freshness.fresh': '最新',
   'translation.freshness.stale': '需刷新',
   'translation.freshness.queued': '刷新排队中',

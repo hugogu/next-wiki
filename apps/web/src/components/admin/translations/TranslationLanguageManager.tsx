@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type {
-  TranslationLanguageCreate,
-  TranslationLanguageView,
-  TranslationPromptTemplateView,
+import {
+  SUPPORTED_TRANSLATION_LANGUAGES,
+  type TranslationLanguageCreate,
+  type TranslationLanguageView,
+  type TranslationPromptTemplateView,
 } from '@next-wiki/shared';
 import {
   DataTable,
@@ -16,7 +17,6 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useApiMutation } from '@/lib/api/client';
@@ -35,7 +35,10 @@ export function TranslationLanguageManager({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const [code, setCode] = useState('');
+  // Only offer languages that are not already configured.
+  const configured = new Set(languages.map((l) => l.code));
+  const available = SUPPORTED_TRANSLATION_LANGUAGES.filter((l) => !configured.has(l.code));
+  const [code, setCode] = useState(available[0]?.code ?? '');
   const [modelId, setModelId] = useState('');
   const [versionId, setVersionId] = useState('');
 
@@ -72,14 +75,18 @@ export function TranslationLanguageManager({
       >
         <label className="flex flex-col gap-xs text-sm">
           <span className="text-muted">{t('translation.language.code')}</span>
-          <Input
+          <Select
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="zh"
-            maxLength={2}
-            className="w-24"
-            required
-          />
+            className="w-56"
+            disabled={available.length === 0}
+          >
+            {available.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.name} ({l.code.toUpperCase()})
+              </option>
+            ))}
+          </Select>
         </label>
         <label className="flex flex-col gap-xs text-sm">
           <span className="text-muted">{t('translation.language.defaultModel')}</span>

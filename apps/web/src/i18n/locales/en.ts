@@ -1116,6 +1116,7 @@ export const en = {
   // AI page translation (015)
   'translation.admin.title': 'Translations',
   'translation.admin.subtitle': 'Configure languages and styles, then translate published pages.',
+  'translation.admin.overview': 'Overview',
   'translation.admin.languages': 'Target languages',
   'translation.admin.styles': 'Translation styles',
   'translation.admin.runs': 'Translation runs',
@@ -1173,6 +1174,10 @@ export const en = {
   'translation.document.empty': 'No translated documents yet.',
   'translation.usage.key': 'Group',
   'translation.usage.empty': 'No usage recorded yet.',
+  'translation.stats.sourcePages': 'Published source pages',
+  'translation.stats.translatedPages': 'Translated pages',
+  'translation.stats.languages': 'Active languages',
+  'translation.stats.coverage': 'Coverage',
   'translation.freshness.fresh': 'Up to date',
   'translation.freshness.stale': 'Needs refresh',
   'translation.freshness.queued': 'Refresh queued',

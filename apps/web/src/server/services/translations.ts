@@ -12,11 +12,13 @@ import type {
   TranslationRunQuery,
   TranslationRunRetry,
   TranslationRunView,
+  TranslationStats,
   TranslationUsageQuery,
   TranslationUsageList,
   TranslationUsageRow,
   TranslationVersionView,
 } from '@next-wiki/shared';
+import { translationLanguageName } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
@@ -677,6 +679,73 @@ export async function listVersions(
     durationMs: provenance.durationMs,
     generatedAt: provenance.generatedAt.toISOString(),
   }));
+}
+
+// ---- Per-language stats ----------------------------------------------------
+
+/**
+ * Overview of every configured target language and how many pages are currently
+ * translated into it (with fresh/stale/failed breakdown), plus the total count
+ * of translatable published source pages. Counts distinct translated pages via
+ * the per-page freshness projection, not run items.
+ */
+export async function getStats(ctx: PermCtx): Promise<TranslationStats> {
+  assertCanManageTranslations(ctx);
+  const spaceId = await getDefaultSpaceId();
+
+  const languages = await db
+    .select()
+    .from(schema.translationLanguages)
+    .orderBy(schema.translationLanguages.code);
+
+  const agg = await db
+    .select({
+      locale: schema.pageTranslationStates.targetLocale,
+      total: sql<number>`count(*)`,
+      fresh: sql<number>`count(*) filter (where ${schema.pageTranslationStates.freshnessStatus} = 'fresh')`,
+      stale: sql<number>`count(*) filter (where ${schema.pageTranslationStates.freshnessStatus} = 'stale')`,
+      failed: sql<number>`count(*) filter (where ${schema.pageTranslationStates.freshnessStatus} = 'failed')`,
+      last: sql<string | null>`max(${schema.pageTranslationStates.updatedAt})`,
+    })
+    .from(schema.pageTranslationStates)
+    .groupBy(schema.pageTranslationStates.targetLocale);
+  const byLocale = new Map(agg.map((row) => [row.locale, row]));
+
+  const sourceRows = await db
+    .select({ value: count() })
+    .from(schema.pages)
+    .where(
+      and(
+        eq(schema.pages.spaceId, spaceId),
+        isNull(schema.pages.deletedAt),
+        isNull(schema.pages.translationGroupId),
+        sql`${schema.pages.currentPublishedVersionId} is not null`,
+      ),
+    );
+  const totalSourcePages = sourceRows[0]?.value ?? 0;
+
+  const languageStats = languages.map((lang) => {
+    const row = byLocale.get(lang.code);
+    const last = row?.last ? new Date(row.last) : null;
+    return {
+      code: lang.code,
+      name: translationLanguageName(lang.code),
+      enabled: lang.enabled,
+      retired: lang.retiredAt !== null,
+      totalPages: Number(row?.total ?? 0),
+      freshPages: Number(row?.fresh ?? 0),
+      stalePages: Number(row?.stale ?? 0),
+      failedPages: Number(row?.failed ?? 0),
+      lastTranslatedAt: last ? last.toISOString() : null,
+    };
+  });
+
+  const totalTranslatedPages = languageStats.reduce((sum, l) => sum + l.totalPages, 0);
+  return {
+    totalSourcePages,
+    totalTranslatedPages,
+    languages: languageStats,
+  };
 }
 
 // ---- Usage analytics -------------------------------------------------------

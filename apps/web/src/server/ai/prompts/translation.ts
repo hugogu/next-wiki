@@ -1,32 +1,9 @@
+import { translationLanguageName } from '@next-wiki/shared';
 import type { TextGenerationInput } from '@/server/ai/types';
 
-/**
- * Human-readable names for common ISO 639-1 codes, used only to phrase the
- * translation instruction. Unknown codes fall back to the bare code.
- */
-const LANGUAGE_NAMES: Record<string, string> = {
-  en: 'English',
-  zh: 'Chinese (Simplified)',
-  ja: 'Japanese',
-  ko: 'Korean',
-  fr: 'French',
-  de: 'German',
-  es: 'Spanish',
-  pt: 'Portuguese',
-  it: 'Italian',
-  ru: 'Russian',
-  ar: 'Arabic',
-  hi: 'Hindi',
-  nl: 'Dutch',
-  pl: 'Polish',
-  tr: 'Turkish',
-  vi: 'Vietnamese',
-  th: 'Thai',
-  id: 'Indonesian',
-};
-
+/** Human-readable language name for phrasing the translation instruction. */
 export function languageName(code: string): string {
-  return LANGUAGE_NAMES[code] ?? code;
+  return translationLanguageName(code);
 }
 
 /**

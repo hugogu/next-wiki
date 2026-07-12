@@ -6,10 +6,12 @@ import type {
   TranslationLanguageView,
   TranslationPromptTemplateView,
   TranslationRunView,
+  TranslationStats,
   TranslationUsageRow,
 } from '@next-wiki/shared';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { useTranslation } from '@/i18n/client';
+import { TranslationStatsPanel } from './TranslationStatsPanel';
 import { TranslationLanguageManager } from './TranslationLanguageManager';
 import { TranslationPromptManager } from './TranslationPromptManager';
 import { TranslationRunCreateForm } from './TranslationRunCreateForm';
@@ -17,9 +19,9 @@ import { TranslationRunList } from './TranslationRunList';
 import { TranslationDocumentList } from './TranslationDocumentList';
 import { TranslationUsagePanel } from './TranslationUsagePanel';
 
-export type TranslationTab = 'languages' | 'styles' | 'runs' | 'documents' | 'usage';
+export type TranslationTab = 'overview' | 'languages' | 'styles' | 'runs' | 'documents' | 'usage';
 
-const TABS: TranslationTab[] = ['languages', 'styles', 'runs', 'documents', 'usage'];
+const TABS: TranslationTab[] = ['overview', 'languages', 'styles', 'runs', 'documents', 'usage'];
 
 type Model = { id: string; displayName: string };
 
@@ -31,6 +33,7 @@ export function TranslationSettingsPanel({
   runs,
   documents,
   usage,
+  stats,
 }: {
   selected: TranslationTab;
   languages: TranslationLanguageView[];
@@ -39,6 +42,7 @@ export function TranslationSettingsPanel({
   runs: TranslationRunView[];
   documents: TranslationDocumentView[];
   usage: TranslationUsageRow[];
+  stats: TranslationStats;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -46,6 +50,7 @@ export function TranslationSettingsPanel({
   const params = useSearchParams();
 
   const labels: Record<TranslationTab, string> = {
+    overview: t('translation.admin.overview'),
     languages: t('translation.admin.languages'),
     styles: t('translation.admin.styles'),
     runs: t('translation.admin.runs'),
@@ -63,6 +68,7 @@ export function TranslationSettingsPanel({
         router.push(`${pathname}?${next.toString()}`);
       }}
     >
+      {selected === 'overview' && <TranslationStatsPanel stats={stats} />}
       {selected === 'languages' && (
         <TranslationLanguageManager languages={languages} models={models} styles={styles} />
       )}

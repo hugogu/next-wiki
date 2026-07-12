@@ -29,6 +29,7 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 
 import { runTranslationRun } from './translation';
 import { getLiveTranslation } from '@/server/services/pages';
+import { getStats } from '@/server/services/translations';
 
 const SOURCE_MD = '# Hello\n\nWorld with a [link](/other).';
 const sourceHash = createHash('sha256').update(SOURCE_MD).digest('hex');
@@ -195,6 +196,15 @@ describe('translation worker', () => {
     const read = await getLiveTranslation(buildUserCtx(s.adminId, 'admin'), 'zh', 'guide');
     expect(read.kind).toBe('page');
     if (read.kind === 'page') expect(read.page.contentHtml).toContain('你好');
+
+    // Per-language stats count the distinct translated page as fresh.
+    const stats = await getStats(buildUserCtx(s.adminId, 'admin'));
+    expect(stats.totalSourcePages).toBe(1);
+    expect(stats.totalTranslatedPages).toBe(1);
+    const zh = stats.languages.find((l) => l.code === 'zh');
+    expect(zh?.totalPages).toBe(1);
+    expect(zh?.freshPages).toBe(1);
+    expect(zh?.name).toBe('Chinese (Simplified)');
   });
 
   it('marks output superseded (never published) when the source changed mid-run', async () => {

@@ -19,9 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function tab(value?: string): TranslationTab {
-  return ['languages', 'styles', 'runs', 'documents', 'usage'].includes(value ?? '')
+  return ['overview', 'languages', 'styles', 'runs', 'documents', 'usage'].includes(value ?? '')
     ? (value as TranslationTab)
-    : 'languages';
+    : 'overview';
 }
 
 export default async function TranslationsPage({
@@ -34,13 +34,14 @@ export default async function TranslationsPage({
   if (!can(ctx, 'manage_translations', { kind: 'translations' })) notFound();
 
   const selected = tab((await searchParams).tab);
-  const [languages, styles, models, runs, documents, usage] = await Promise.all([
+  const [languages, styles, models, runs, documents, usage, stats] = await Promise.all([
     config.listLanguages(ctx),
     config.listPrompts(ctx),
     config.listTextModels(ctx),
     translations.listRuns(ctx, { limit: 20, offset: 0 }),
     translations.listDocuments(ctx, { limit: 50, offset: 0 }),
     translations.getUsage(ctx, { groupBy: 'language' }),
+    translations.getStats(ctx),
   ]);
   const t = getDictionary(await getLocale());
 
@@ -59,6 +60,7 @@ export default async function TranslationsPage({
           runs={runs.items}
           documents={documents.items}
           usage={usage.rows}
+          stats={stats}
         />
       </div>
     </Layout>
