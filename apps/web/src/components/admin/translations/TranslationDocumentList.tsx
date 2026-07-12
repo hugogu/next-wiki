@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { EyeIcon, HistoryIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 import { TranslationVersionHistory } from './TranslationVersionHistory';
 
@@ -61,23 +63,29 @@ export function TranslationDocumentList({ documents }: { documents: TranslationD
                 </StatusBadge>
               </DataTableCell>
               <DataTableCell>
-                <div className="flex gap-xs">
-                  <Link
-                    className="text-sm text-primary hover:underline"
-                    href={doc.translationUrl}
-                    target="_blank"
-                  >
-                    {t('translation.document.open')}
-                  </Link>
-                  <Button
-                   
-                    variant="ghost"
-                    onClick={() =>
-                      setExpanded((cur) => (cur === doc.translationPageId ? null : doc.translationPageId))
-                    }
-                  >
-                    {t('translation.run.detail.history')}
-                  </Button>
+                <div className="flex items-center gap-xs">
+                  <Tooltip label={t('translation.document.open')}>
+                    <Link
+                      href={doc.translationUrl}
+                      target="_blank"
+                      aria-label={t('translation.document.open')}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-transparent text-muted transition-colors hover:bg-surface hover:text-foreground"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Link>
+                  </Tooltip>
+                  <Tooltip label={t('translation.run.detail.history')}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t('translation.run.detail.history')}
+                      onClick={() =>
+                        setExpanded((cur) => (cur === doc.translationPageId ? null : doc.translationPageId))
+                      }
+                    >
+                      <HistoryIcon className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
                 </div>
               </DataTableCell>
             </DataTableRow>
