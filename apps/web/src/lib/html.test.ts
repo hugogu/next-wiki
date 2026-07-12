@@ -1,19 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { removeFirstH1 } from './html';
+import { extractHeadings, injectHeadingIds } from './html';
 
-describe('removeFirstH1', () => {
-  it('removes the first h1 and leaves the rest intact', () => {
-    const html = '<h1 data-line="1">Hello</h1>\n<p>Body</p>';
-    expect(removeFirstH1(html)).toBe('\n<p>Body</p>');
+describe('extractHeadings', () => {
+  it('collects h2-h6 and ignores h1', () => {
+    const html = '<h1>Title</h1><h2>Section A</h2><p>text</p><h3>Subsection</h3>';
+    expect(extractHeadings(html)).toEqual([
+      { level: 2, text: 'Section A', id: 'section-a' },
+      { level: 3, text: 'Subsection', id: 'subsection' },
+    ]);
   });
 
-  it('returns the original html when no h1 is present', () => {
-    const html = '<p>No heading here</p>';
-    expect(removeFirstH1(html)).toBe(html);
+  it('strips inline html from heading text', () => {
+    const html = '<h2><em>Italic</em> Title</h2>';
+    expect(extractHeadings(html)).toEqual([{ level: 2, text: 'Italic Title', id: 'italic-title' }]);
   });
 
-  it('only removes the first h1', () => {
-    const html = '<h1>One</h1><h1>Two</h1>';
-    expect(removeFirstH1(html)).toBe('<h1>Two</h1>');
+  it('decodes html entities', () => {
+    const html = '<h2>Foo &amp; Bar</h2>';
+    expect(extractHeadings(html)).toEqual([{ level: 2, text: 'Foo & Bar', id: 'foo-bar' }]);
+  });
+
+  it('returns an empty array when no headings exist', () => {
+    expect(extractHeadings('<p>No headings</p>')).toEqual([]);
+  });
+});
+
+describe('injectHeadingIds', () => {
+  it('adds ids to headings without them', () => {
+    const html = '<h2>Section</h2>';
+    expect(injectHeadingIds(html)).toBe('<h2 id="section">Section</h2>');
+  });
+
+  it('preserves existing ids', () => {
+    const html = '<h2 id="custom">Section</h2>';
+    expect(injectHeadingIds(html)).toBe(html);
+  });
+
+  it('ignores h1', () => {
+    const html = '<h1>Title</h1>';
+    expect(injectHeadingIds(html)).toBe(html);
   });
 });

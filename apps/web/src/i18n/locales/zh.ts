@@ -110,6 +110,7 @@ export const zh: Translations = {
   'page.read.draftBanner': '此页面为草稿，尚未发布。',
   'page.read.createdOn': '创建于 {{date}}',
   'page.read.authorSuffix': '，作者 {{name}}',
+  'page.read.outline': '目录',
 
   // Page create
   'page.create.metadataTitle': '新建页面',

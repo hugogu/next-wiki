@@ -110,6 +110,7 @@ export const en = {
   'page.read.draftBanner': 'This page is a draft and not yet published.',
   'page.read.createdOn': 'Created {{date}}',
   'page.read.authorSuffix': ' by {{name}}',
+  'page.read.outline': 'Outline',
 
   // Page create
   'page.create.metadataTitle': 'New page',
