@@ -233,9 +233,10 @@ duration, and final outcome for the refresh.
   MUST NOT silently substitute another language or source content as though it
   were a translation.
 - **FR-006**: A translated page MUST remain subject to the source page's
-  publication state and read permissions. A requester unable to read the source
-  MUST not learn that a translation, task, version, or language association
-  exists.
+  publication state and independently evaluated translation-page access policy.
+  A requester unable to read the source or the translation MUST not learn that
+  a translation, task, version, or language association exists; translation
+  permissions MUST NOT be copied or inherited implicitly from the source.
 - **FR-007**: Administrators MUST be able to define, revise, select, and retire
   reusable translation styles expressed as instructions that control translation
   tone and behavior.
@@ -380,7 +381,8 @@ duration, and final outcome for the refresh.
   translation. Draft content remains excluded until it is published.
 - Administrators control language configuration, translation styles, model
   selection, task control, history, and analytics. Existing page-read
-  permissions continue to determine who can read a translated page.
+  permissions are evaluated for both the source context and the translated
+  page; a translation is not granted a copied or inherited permission policy.
 - Target language codes use the familiar ISO 639-1 two-letter form in lowercase
   (for example, `en` and `zh`). Regional variants and right-to-left language
   presentation are not introduced by this initial slice.
