@@ -40,7 +40,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'search_wiki',
-    'Search wiki pages by keyword. Results include frontmatter; use filterTag/filterStatus/filterOwner/filterHasFrontmatter to narrow by frontmatter.',
+    'Search wiki pages by keyword. Results include frontmatter; use filterTag for structured page tags and filterStatus/filterOwner/filterHasFrontmatter for frontmatter fields.',
     searchWikiSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await searchWiki(client, args)) }],

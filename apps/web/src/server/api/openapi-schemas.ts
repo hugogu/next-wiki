@@ -858,7 +858,7 @@ export const PublicPageListQuery = z
     'filter[tag]': z
       .union([z.string(), z.array(z.string())])
       .optional()
-      .describe('Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined).'),
+      .describe('Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined).'),
     'filter[status]': z
       .union([z.string(), z.array(z.string())])
       .optional()
@@ -1011,7 +1011,7 @@ export const PublicPageSearchQuery = z
     'filter[tag]': z
       .union([z.string(), z.array(z.string())])
       .optional()
-      .describe('Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined).'),
+      .describe('Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined).'),
     'filter[status]': z
       .union([z.string(), z.array(z.string())])
       .optional()

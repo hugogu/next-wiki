@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -57,6 +57,7 @@ import * as publicAi from '@/server/services/public-ai';
 import * as searchAnalytics from '@/server/services/search-analytics';
 import { getSearchSettings } from '@/server/services/search-settings';
 import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
+import { normalizeTagName } from '@/server/metadata/frontmatter';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -341,19 +342,26 @@ async function visibleRevisionResource(
 }
 
 function extractFrontmatterFilters(query: {
-  'filter[tag]'?: string[];
   'filter[status]'?: string[];
   'filter[owner]'?: string[];
   'filter[has_frontmatter]'?: boolean;
 }): FrontmatterFilters | undefined {
   const filters: FrontmatterFilters = {
-    tag: query['filter[tag]'],
     status: query['filter[status]'],
     owner: query['filter[owner]'],
     hasFrontmatter: query['filter[has_frontmatter]'],
   };
-  const hasAnyFilter = filters.tag || filters.status || filters.owner || filters.hasFrontmatter !== undefined;
+  const hasAnyFilter = filters.status || filters.owner || filters.hasFrontmatter !== undefined;
   return hasAnyFilter ? filters : undefined;
+}
+
+function extractTagFilters(query: { 'filter[tag]'?: string[] }): string[] | undefined {
+  const filters = [...new Set((query['filter[tag]'] ?? []).map(normalizeTagName).filter(Boolean))];
+  return filters.length > 0 ? filters : undefined;
+}
+
+function matchesTagFilters(page: PublicPageResource, filters: readonly string[]): boolean {
+  return page.metadata?.tags.some((tag) => filters.includes(tag.normalizedName)) ?? false;
 }
 
 type ListPagesQuery = {
@@ -369,6 +377,7 @@ type ListPagesQuery = {
   createdEnd?: Date;
   updatedStart?: Date;
   updatedEnd?: Date;
+  tagFilters?: string[];
   frontmatterFilters?: FrontmatterFilters;
 };
 
@@ -430,6 +439,52 @@ async function listPagesInternal(
       )!,
     );
   }
+  if (query.tagFilters) {
+    const actorUserId = getActorUserId(ctx);
+    const canSeeEveryDraft = can(
+      ctx,
+      'read_draft',
+      { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 },
+      { isAuthor: false },
+    );
+    const canSeeOwnDraft = actorUserId
+      ? can(
+          ctx,
+          'read_draft',
+          { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 },
+          { isAuthor: true },
+        )
+      : false;
+    if (canSeeEveryDraft) {
+      conditions.push(exists(
+        db
+          .select({ revisionId: schema.pageRevisionTags.revisionId })
+          .from(schema.pageRevisionTags)
+          .where(and(
+            inArray(schema.pageRevisionTags.normalizedName, query.tagFilters),
+            eq(schema.pageRevisionTags.revisionId, schema.pages.latestVersionId),
+          )),
+      ));
+    } else {
+      conditions.push(exists(
+        db
+          .select({ revisionId: schema.pageRevisionTags.revisionId })
+          .from(schema.pageRevisionTags)
+          .where(and(
+            inArray(schema.pageRevisionTags.normalizedName, query.tagFilters),
+            or(
+              eq(schema.pageRevisionTags.revisionId, schema.pages.currentPublishedVersionId),
+              ...(actorUserId && canSeeOwnDraft
+                ? [and(
+                    eq(schema.pages.authorId, actorUserId),
+                    eq(schema.pageRevisionTags.revisionId, schema.pages.latestVersionId),
+                  )!]
+                : []),
+            ),
+          )),
+      ));
+    }
+  }
 
   const rows = await db
     .select({ page: schema.pages })
@@ -470,6 +525,7 @@ async function listPagesInternal(
     if (query.frontmatterFilters && !matchesFrontmatterFilters(item.frontmatter, query.frontmatterFilters)) {
       continue;
     }
+    if (query.tagFilters && !matchesTagFilters(item, query.tagFilters)) continue;
     items.push(item);
     if (items.length >= query.limit) break;
   }
@@ -485,7 +541,7 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   // needs it for the JS-level re-check above.
   const result = await listPagesInternal(
     ctx,
-    { ...query, frontmatterFilters: extractFrontmatterFilters(query) },
+    { ...query, tagFilters: extractTagFilters(query), frontmatterFilters: extractFrontmatterFilters(query) },
     { includeContent: Boolean(query.q) },
   );
   // The `path` filter is a single-page lookup wearing the list endpoint's clothes
@@ -796,6 +852,7 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
       createdEnd: query.createdEnd,
       updatedStart: query.updatedStart,
       updatedEnd: query.updatedEnd,
+      tagFilters: extractTagFilters(query),
       frontmatterFilters: extractFrontmatterFilters(query),
     },
     { includeContent: true },

@@ -581,7 +581,7 @@ describe('public content read facade', () => {
     expect(plain?.frontmatter).toBeNull();
   });
 
-  it('narrows GET /api/v1/pages with filter[tag] and filter[has_frontmatter] (US2)', async () => {
+  it('filters pages by structured tags and combines tag filters with frontmatter-presence filters (US2)', async () => {
     const editor = await createPublicApiUser('public-fm-list-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-fm-list-reader@example.com', 'reader');
     const editorCtx = buildUserCtx(editor.id, 'editor');
@@ -601,6 +601,33 @@ describe('public content read facade', () => {
       contentSource: '---\ntags: [a, b]\n---\n\n# body',
     });
     await revisions.publish(editorCtx, { path: 'docs/fm-list/ab', version: 1 });
+    const databaseOnly = await pageService.create(editorCtx, {
+      path: 'docs/fm-list/database-only',
+      title: 'Database-only Tag A',
+      contentSource: '# body without frontmatter',
+    });
+    const databaseOnlyDraft = await pageService.newDraft(editorCtx, 'docs/fm-list/database-only', {
+      title: 'Database-only Tag A',
+      contentSource: '# body without frontmatter',
+      baseRevisionId: databaseOnly.versionId,
+      metadata: { date: null, summary: null, tags: ['A'] },
+    });
+    await revisions.publish(editorCtx, { path: 'docs/fm-list/database-only', version: databaseOnlyDraft.versionNumber });
+
+    const tagOnly = await publicContent.listPages(readerCtx, {
+      status: 'published',
+      limit: 20,
+      order: 'path',
+      include: [],
+      pathPrefix: 'docs/fm-list',
+      'filter[tag]': ['a'],
+    });
+
+    expect(tagOnly.items.map((item) => item.path).sort()).toEqual([
+      'docs/fm-list/a',
+      'docs/fm-list/ab',
+      'docs/fm-list/database-only',
+    ]);
 
     const result = await publicContent.listPages(readerCtx, {
       status: 'published',

@@ -2075,7 +2075,7 @@
                 }
               }
             ],
-            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
           },
           "filter[status]": {
             "oneOf": [
@@ -2500,7 +2500,7 @@
                 }
               }
             ],
-            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
           },
           "filter[status]": {
             "oneOf": [
@@ -8645,9 +8645,9 @@
                   }
                 }
               ],
-              "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+              "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
             },
-            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
           },
           {
             "in": "query",
@@ -9744,9 +9744,9 @@
                   }
                 }
               ],
-              "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+              "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
             },
-            "description": "Filter to pages whose frontmatter tags include any of these values (repeat the param for multiple, OR-combined)."
+            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
           },
           {
             "in": "query",
