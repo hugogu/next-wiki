@@ -53,6 +53,25 @@ $$`;
     expect(html).toContain('src="/api/assets/abc"');
   });
 
+  it('renders safe raw HTML images from Markdown', () => {
+    const { html } = renderMarkdown(
+      '<img align="middle" src="https://latex.codecogs.com/svg.image?f^n(x)%20%3D%20f(x)" title="f^n(x) = f(x)" />',
+    );
+    expect(html).toContain('<img');
+    expect(html).toContain('align="middle"');
+    expect(html).toContain('src="https://latex.codecogs.com/svg.image?f^n(x)%20%3D%20f(x)"');
+    expect(html).toContain('title="f^n(x) = f(x)"');
+    expect(html).toContain('loading="lazy"');
+  });
+
+  it('sanitizes unsafe raw HTML image content', () => {
+    const { html } = renderMarkdown('<img src="javascript:alert(1)" onerror="alert(2)"><script>alert(3)</script>');
+    expect(html).toContain('<img');
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('<script');
+  });
+
   it('renders Base64-encoded SVG diagram fences as sanitized inline images', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><rect width="10" height="10"/></svg>';
     const source = `\`\`\`diagram\n${Buffer.from(svg).toString('base64')}\n\`\`\``;

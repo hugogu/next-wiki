@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
 import { visit } from 'unist-util-visit';
@@ -175,7 +176,11 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
-    .use(remarkRehype)
+    // Parse raw HTML so imported Markdown can retain safe elements such as
+    // `<img>`. rehypeSanitize immediately following this step is the security
+    // boundary: scripts, event handlers, and unsafe URL protocols are removed.
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
     .use(() => addLineAnchors)
     .use(rehypeSanitize, sanitizeSchema)
     .use(() => renderEncodedDiagrams)
