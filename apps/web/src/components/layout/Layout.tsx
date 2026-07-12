@@ -15,12 +15,14 @@ export async function Layout({
   pageContext,
   admin = false,
   userCenter = false,
+  fitViewport = false,
   skipPasswordGate = false,
 }: {
   children: ReactNode;
   pageContext?: PageContext;
   admin?: boolean;
   userCenter?: boolean;
+  fitViewport?: boolean;
   skipPasswordGate?: boolean;
 }) {
   const actor = await authService.getCurrentActor();
@@ -54,6 +56,7 @@ export async function Layout({
       pageContext={pageContext}
       admin={admin}
       userCenter={userCenter}
+      fitViewport={fitViewport}
       aiEntitlements={aiEntitlements}
       footer={<Footer site={site} />}
       siteName={site.siteName}

@@ -25,6 +25,12 @@ export type AppShellProps = {
   pageContext?: PageContext;
   admin?: boolean;
   userCenter?: boolean;
+  /**
+   * When true, the content region is locked to the viewport height so an
+   * app-like page (e.g. the split editor) can own its internal scrollbars,
+   * instead of the document-style sticky-footer flow used by reader pages.
+   */
+  fitViewport?: boolean;
   aiEntitlements?: AiEntitlementView | null;
   footer?: React.ReactNode;
   siteName: string;

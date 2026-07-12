@@ -7,7 +7,7 @@ import type { AppShellProps } from './types';
 import { AiChatPane } from '@/components/chat/AiChatPane';
 import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
 
-export function AppShell({ user, tree, pageContext, admin = false, userCenter = false, aiEntitlements, footer, siteName, children }: AppShellProps) {
+export function AppShell({ user, tree, pageContext, admin = false, userCenter = false, fitViewport = false, aiEntitlements, footer, siteName, children }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
 
   return (
@@ -29,12 +29,18 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
               instead of pushing the footer into a blank second screen. */}
           <main className="min-h-0 min-w-0 flex-1 relative flex flex-col">
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
-              {/* grow shrink-0 basis-auto (flex: 1 0 auto): grow to push the
-                  footer to the viewport bottom on short pages, but never
-                  shrink below content on long pages, so the footer always
-                  sits at the very bottom of the flow instead of floating
-                  mid-content. */}
-              <div className="grow shrink-0 basis-auto">
+              {/* Two content-region modes:
+                  - fitViewport (e.g. the split editor): h-full shrink-0 gives
+                    the wrapper the full scroll-viewport height (not minus the
+                    footer) so an h-full child fills the screen and owns its
+                    internal scrollbars, while the footer is pushed just below
+                    the fold and only appears when scrolled to the very bottom.
+                  - default (reader/document pages): grow shrink-0 basis-auto
+                    (flex: 1 0 auto) grows to push the footer to the viewport
+                    bottom on short pages but never shrinks below content on
+                    long ones, keeping the footer at the very bottom of the
+                    flow instead of floating mid-content. */}
+              <div className={fitViewport ? 'h-full min-w-0 shrink-0' : 'grow shrink-0 basis-auto'}>
                 {children}
               </div>
               {footer}

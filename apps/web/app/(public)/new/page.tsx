@@ -29,7 +29,7 @@ export default async function NewPage({ searchParams }: { searchParams: Promise<
   const initialPathPrefix = rawPrefix.replace(/^\/+|\/+$/g, '');
 
   return (
-    <Layout>
+    <Layout fitViewport>
       <div className="h-full flex flex-col">
         <CreatePageForm initialPathPrefix={initialPathPrefix} />
       </div>
