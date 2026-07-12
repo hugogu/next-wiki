@@ -192,6 +192,8 @@ export const zh: Translations = {
   'page.share.copied': '链接已复制',
   'page.share.more': '更多…',
   'page.share.weibo': '微博',
+  'page.share.wechat': '微信',
+  'page.share.discord': 'Discord',
 
   // Space errors
   'space.error.defaultNotFound': '默认空间不存在',

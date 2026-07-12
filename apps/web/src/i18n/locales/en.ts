@@ -192,6 +192,8 @@ export const en = {
   'page.share.copied': 'Link copied',
   'page.share.more': 'More…',
   'page.share.weibo': 'Weibo',
+  'page.share.wechat': 'WeChat',
+  'page.share.discord': 'Discord',
 
   // Space errors
   'space.error.defaultNotFound': 'Default space not found',

@@ -124,9 +124,11 @@ export default async function PageRead({ params }: { params: PageParams }) {
             {t('page.read.draftBanner')}
           </div>
         )}
-        <article className="flex-1 px-lg py-md max-w-none">
+        <article className="relative flex-1 px-lg py-md max-w-none">
           {page.status === 'published' && (
-            <div className="flex justify-end">
+            // Anchored to the article's top-right so it rides on the same line
+            // as the first heading instead of consuming its own row.
+            <div className="absolute right-lg top-md z-10">
               <ShareButton pageId={page.pageId} title={page.title} />
             </div>
           )}

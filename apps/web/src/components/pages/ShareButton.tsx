@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '@/i18n/client';
-import { ShareIcon, LinkIcon, CheckIcon } from '@/components/icons';
+import {
+  ShareIcon,
+  LinkIcon,
+  CheckIcon,
+  XBrandIcon,
+  WeiboIcon,
+  TelegramIcon,
+  WeChatIcon,
+  DiscordIcon,
+  MoreHorizontalIcon,
+} from '@/components/icons';
 
 /**
  * Icon button on the page reading view that opens a small popover with the
@@ -60,13 +70,21 @@ export function ShareButton({ pageId, title }: { pageId: string; title: string }
 
   const encodedUrl = encodeURIComponent(shareUrl);
   const encodedTitle = encodeURIComponent(title);
-  const targets = [
-    { key: 'x', label: 'X', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}` },
-    { key: 'weibo', label: t('page.share.weibo'), href: `https://service.weibo.com/share/share.php?url=${encodedUrl}&title=${encodedTitle}` },
-    { key: 'telegram', label: 'Telegram', href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}` },
+  // Platforms with a web share intent open in a new tab; WeChat and Discord
+  // have no such intent, so those copy the link for the user to paste.
+  const linkTargets = [
+    { key: 'x', label: 'X', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`, icon: <XBrandIcon className="h-4 w-4" /> },
+    { key: 'weibo', label: t('page.share.weibo'), href: `https://service.weibo.com/share/share.php?url=${encodedUrl}&title=${encodedTitle}`, icon: <WeiboIcon className="h-4 w-4" /> },
+    { key: 'telegram', label: 'Telegram', href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`, icon: <TelegramIcon className="h-4 w-4" /> },
+  ];
+  const copyTargets = [
+    { key: 'wechat', label: t('page.share.wechat'), icon: <WeChatIcon className="h-4 w-4" /> },
+    { key: 'discord', label: t('page.share.discord'), icon: <DiscordIcon className="h-4 w-4" /> },
   ];
 
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const iconButtonClass =
+    'inline-flex items-center justify-center w-9 h-9 rounded-md border border-border text-muted hover:text-foreground hover:bg-surface-elevated transition-colors';
 
   return (
     <div ref={ref} className="relative inline-block">
@@ -107,26 +125,42 @@ export function ShareButton({ pageId, title }: { pageId: string; title: string }
           {copied && <p className="text-xs text-success">{t('page.share.copied')}</p>}
 
           <div className="flex flex-wrap gap-xs pt-xs">
-            {canNativeShare && (
-              <button
-                type="button"
-                onClick={nativeShare}
-                className="rounded-md border border-border px-sm py-1 text-xs text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
-              >
-                {t('page.share.more')}
-              </button>
-            )}
-            {targets.map((target) => (
+            {linkTargets.map((target) => (
               <a
                 key={target.key}
                 href={target.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md border border-border px-sm py-1 text-xs text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
+                aria-label={target.label}
+                title={target.label}
+                className={iconButtonClass}
               >
-                {target.label}
+                {target.icon}
               </a>
             ))}
+            {copyTargets.map((target) => (
+              <button
+                key={target.key}
+                type="button"
+                onClick={copy}
+                aria-label={target.label}
+                title={`${target.label} · ${t('page.share.copy')}`}
+                className={iconButtonClass}
+              >
+                {target.icon}
+              </button>
+            ))}
+            {canNativeShare && (
+              <button
+                type="button"
+                onClick={nativeShare}
+                aria-label={t('page.share.more')}
+                title={t('page.share.more')}
+                className={iconButtonClass}
+              >
+                <MoreHorizontalIcon className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       )}
