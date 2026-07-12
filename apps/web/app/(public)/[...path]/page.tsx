@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
+import { TagList } from '@/components/pages/TagList';
 import { ShareButton } from '@/components/pages/ShareButton';
 import * as pageService from '@/server/services/pages';
+import { removeFirstH1 } from '@/lib/html';
 import type { LivePage } from '@next-wiki/shared';
 import { getCurrentActor } from '@/server/services/auth';
 import { buildAnonymousCtx, type PermCtx } from '@/server/permissions';
@@ -170,6 +172,9 @@ export default async function PageRead({ params }: { params: PageParams }) {
     version: page.version,
   };
 
+  const bodyHtml = removeFirstH1(page.contentHtml);
+  const showShare = page.status === 'published' && !isTranslation;
+
   return (
     <Layout pageContext={pageContext}>
       <div className="min-h-full flex flex-col">
@@ -179,20 +184,28 @@ export default async function PageRead({ params }: { params: PageParams }) {
           </div>
         )}
         <article className="relative flex-1 px-lg py-md max-w-none">
-          {page.status === 'published' && !isTranslation && (
-            <div className="absolute right-lg top-md z-10">
-              <ShareButton pageId={page.pageId} title={page.title} />
+          <header className="mb-md flex flex-wrap items-start justify-between gap-md">
+            <div className="prose max-w-none min-w-0">
+              <h1>{page.title}</h1>
             </div>
-          )}
+            <div className="flex shrink-0 flex-wrap items-center gap-sm">
+              {page.metadata.tags.length > 0 && (
+                <TagList tags={page.metadata.tags} ariaLabel={t('page.metadata.tags')} />
+              )}
+              {showShare && <ShareButton pageId={page.pageId} title={page.title} />}
+            </div>
+          </header>
           <PageMetadata
-            {...page.metadata}
+            date={page.metadata.date}
+            summary={page.metadata.summary}
+            tags={[]}
             labels={{
               date: t('page.metadata.date'),
               summary: t('page.metadata.summary'),
               tags: t('page.metadata.tags'),
             }}
           />
-          <ContentRenderer html={page.contentHtml} />
+          <ContentRenderer html={bodyHtml} />
           <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
             {t('page.read.createdOn', { date: createdAt.toLocaleDateString(locale) })}
             {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}
