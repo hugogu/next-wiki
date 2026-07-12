@@ -15,17 +15,30 @@ export function PageSidebar({ headings, tags, tagsLabel, outlineLabel }: PageSid
   if (!hasOutline && !hasTags) return null;
 
   return (
-    <aside className="space-y-md lg:sticky lg:top-0 lg:self-start" aria-label={outlineLabel}>
+    <aside
+      className="space-y-md px-lg py-md lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto"
+      aria-label={outlineLabel}
+    >
+      {hasTags && (
+        <div className="rounded-lg border border-border bg-surface p-sm">
+          <p className="mb-sm border-b border-border pb-sm text-sm font-medium text-foreground">{tagsLabel}</p>
+          <TagList
+            tags={tags}
+            ariaLabel={tagsLabel}
+            tagHref={(tag) => `/tags/${encodeURIComponent(tag.normalizedName)}`}
+          />
+        </div>
+      )}
       {hasOutline && (
-        <nav className="rounded-lg border border-border bg-surface p-md">
-          <p className="mb-sm text-sm font-medium text-foreground">{outlineLabel}</p>
-          <ul className="space-y-xs">
+        <nav className="flex max-h-[60vh] flex-col rounded-lg border border-border bg-surface">
+          <p className="border-b border-border p-sm text-sm font-medium text-foreground">{outlineLabel}</p>
+          <ul className="flex-1 overflow-y-auto p-sm">
             {headings.map((heading) => (
               <li key={heading.id}>
                 <a
                   href={`#${heading.id}`}
-                  className="block text-sm text-muted hover:text-foreground hover:underline"
-                  style={{ paddingLeft: `${(heading.level - 2) * 0.75}rem` }}
+                  className="block rounded-md px-sm py-1 text-sm text-muted transition-colors hover:bg-surface-elevated hover:text-foreground"
+                  style={{ paddingLeft: `${(heading.level - 2) * 0.75 + 0.5}rem` }}
                 >
                   {heading.text}
                 </a>
@@ -33,12 +46,6 @@ export function PageSidebar({ headings, tags, tagsLabel, outlineLabel }: PageSid
             ))}
           </ul>
         </nav>
-      )}
-      {hasTags && (
-        <div className="rounded-lg border border-border bg-surface p-md">
-          <p className="mb-sm text-sm font-medium text-foreground">{tagsLabel}</p>
-          <TagList tags={tags} ariaLabel={tagsLabel} />
-        </div>
       )}
     </aside>
   );

@@ -105,6 +105,8 @@ export const zh: Translations = {
   'pages.list.metadataTitle': '全部页面',
   'pages.list.title': '全部页面',
   'pages.list.empty': '暂无已发布页面。',
+  'pages.tag.title': '标签“{{tag}}”的页面',
+  'pages.tag.empty': '暂无标签为“{{tag}}”的已发布页面。',
 
   // Page read
   'page.read.draftBanner': '此页面为草稿，尚未发布。',

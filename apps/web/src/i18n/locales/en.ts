@@ -105,6 +105,8 @@ export const en = {
   'pages.list.metadataTitle': 'All pages',
   'pages.list.title': 'All pages',
   'pages.list.empty': 'No published pages yet.',
+  'pages.tag.title': 'Pages tagged “{{tag}}”',
+  'pages.tag.empty': 'No published pages tagged “{{tag}}”.',
 
   // Page read
   'page.read.draftBanner': 'This page is a draft and not yet published.',
