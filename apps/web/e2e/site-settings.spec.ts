@@ -14,7 +14,7 @@ async function login(page: Page, email: string, password: string) {
 test.describe('admin site settings', () => {
   test('admin sets the site name and footer, and they appear', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/appearance');
+    await page.goto('/admin/site');
 
     await expect(page.getByRole('heading', { name: 'Site information', level: 1 })).toBeVisible();
 
@@ -37,7 +37,7 @@ test.describe('admin site settings', () => {
 
   test('empty filing fields render no compliance text', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/appearance');
+    await page.goto('/admin/site');
     await page.getByLabel('ICP filing number (ICP 备案号)').fill('');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Site information updated.')).toBeVisible();

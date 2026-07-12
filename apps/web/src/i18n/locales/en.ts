@@ -314,6 +314,10 @@ export const en = {
   'admin.nav.translations': 'Translations',
   'admin.nav.appearance': 'Appearance',
   'admin.nav.search': 'Search',
+  'admin.nav.site': 'Site Info',
+  'admin.nav.groups.content': 'Content',
+  'admin.nav.groups.system': 'System',
+  'admin.nav.groups.operations': 'Data & Operations',
 
   'admin.searchSettings.title': 'Search Settings',
   'admin.searchSettings.description': 'Tune header search relevance, semantic retrieval, and result preview display.',
@@ -401,8 +405,6 @@ export const en = {
   'admin.appearance.preview.table.token': 'Token',
   'admin.appearance.preview.table.value': 'Value',
   'admin.appearance.preview.button': 'Primary button',
-  'admin.appearance.tabs.system': 'System theme',
-  'admin.appearance.tabs.site': 'Site info',
 
   'admin.site.title': 'Site information',
   'admin.site.description': 'Configure the site name, icon, footer, and (for China) regulatory filing numbers.',

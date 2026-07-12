@@ -30,6 +30,11 @@ type AdminNavItem = {
   icon: React.ReactNode;
 };
 
+type AdminNavGroup = {
+  label: string;
+  items: AdminNavItem[];
+};
+
 type LoadState =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -227,17 +232,33 @@ export function Navigator({
   const canCreatePages = user.kind === 'user' && (user.role === 'admin' || user.role === 'editor');
   const addChildLabel = t('layout.nav.addChild');
   const pathname = usePathname();
-  const ADMIN_ITEMS: AdminNavItem[] = [
-    { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
-    { href: '/admin/pages', label: t('admin.nav.pages'), icon: <FileTextIcon className="shrink-0" /> },
-    { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
-    { href: '/admin/search', label: t('admin.nav.search'), icon: <SearchIcon className="shrink-0" /> },
-    { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SettingsIcon className="shrink-0" /> },
-    { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
-    { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },
-    { href: '/admin/translations', label: t('admin.nav.translations'), icon: <SparklesIcon className="shrink-0" /> },
-    { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
-    { href: '/admin/appearance', label: t('admin.nav.appearance'), icon: <SlidersIcon className="shrink-0" /> },
+  const ADMIN_GROUPS: AdminNavGroup[] = [
+    {
+      label: t('admin.nav.groups.content'),
+      items: [
+        { href: '/admin/pages', label: t('admin.nav.pages'), icon: <FileTextIcon className="shrink-0" /> },
+        { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
+        { href: '/admin/search', label: t('admin.nav.search'), icon: <SearchIcon className="shrink-0" /> },
+        { href: '/admin/translations', label: t('admin.nav.translations'), icon: <SparklesIcon className="shrink-0" /> },
+      ],
+    },
+    {
+      label: t('admin.nav.groups.system'),
+      items: [
+        { href: '/admin/site', label: t('admin.nav.site'), icon: <SettingsIcon className="shrink-0" /> },
+        { href: '/admin/appearance', label: t('admin.nav.appearance'), icon: <SlidersIcon className="shrink-0" /> },
+        { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SparklesIcon className="shrink-0" /> },
+        { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
+      ],
+    },
+    {
+      label: t('admin.nav.groups.operations'),
+      items: [
+        { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
+        { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },
+        { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
+      ],
+    },
   ];
   const USER_CENTER_ITEMS: AdminNavItem[] = [
     { href: '/user-center/profile', label: t('userCenter.nav.profile'), icon: <UserIcon className="shrink-0" /> },
@@ -402,27 +423,36 @@ export function Navigator({
               })}
             </ul>
           ) : admin ? (
-            <ul className="space-y-xs">
-              {ADMIN_ITEMS.map((item) => {
-                const active = pathname === item.href;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onClose}
-                      className={`flex items-center gap-sm px-md py-sm rounded-md text-sm transition-colors ${
-                        active
-                          ? 'bg-primary text-primary-text'
-                          : 'text-muted hover:text-foreground hover:bg-surface-elevated'
-                      }`}
-                    >
-                      {item.icon}
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="space-y-md">
+              {ADMIN_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <p className="px-md pb-xs pt-sm text-xs font-medium uppercase tracking-wide text-muted">
+                    {group.label}
+                  </p>
+                  <ul className="space-y-xs">
+                    {group.items.map((item) => {
+                      const active = pathname === item.href;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
+                            className={`flex items-center gap-sm px-md py-sm rounded-md text-sm transition-colors ${
+                              active
+                                ? 'bg-primary text-primary-text'
+                                : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+                            }`}
+                          >
+                            {item.icon}
+                            <span className="truncate">{item.label}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
           ) : tree.length === 0 ? (
             <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
           ) : (

@@ -314,6 +314,10 @@ export const zh: Translations = {
   'admin.nav.translations': '翻译',
   'admin.nav.appearance': '外观',
   'admin.nav.search': '搜索',
+  'admin.nav.site': '站点信息',
+  'admin.nav.groups.content': '内容',
+  'admin.nav.groups.system': '系统',
+  'admin.nav.groups.operations': '数据与运维',
 
   'admin.searchSettings.title': '搜索设置',
   'admin.searchSettings.description': '调整头部搜索的相关性阈值、向量检索和结果介绍展示。',
@@ -401,8 +405,6 @@ export const zh: Translations = {
   'admin.appearance.preview.table.token': '名称',
   'admin.appearance.preview.table.value': '取值',
   'admin.appearance.preview.button': '主按钮',
-  'admin.appearance.tabs.system': '系统主题',
-  'admin.appearance.tabs.site': '站点信息',
 
   'admin.site.title': '站点信息',
   'admin.site.description': '配置站点名称、图标、页脚，以及（面向中国大陆的）备案号。',

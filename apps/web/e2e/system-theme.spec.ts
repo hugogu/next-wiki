@@ -21,7 +21,7 @@ async function login(page: Page, email: string, password: string) {
 test.describe('admin system themes', () => {
   test('admin sees built-ins, copies, edits, and activates a custom theme', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/appearance/system');
+    await page.goto('/admin/appearance');
 
     await expect(page.getByRole('heading', { name: 'Appearance', level: 1 })).toBeVisible();
 
