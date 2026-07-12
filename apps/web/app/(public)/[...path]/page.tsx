@@ -173,7 +173,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   };
 
   const bodyHtml = injectHeadingIds(page.contentHtml);
-  const headings = extractHeadings(page.contentHtml);
+  const headings = extractHeadings(bodyHtml);
   const showShare = page.status === 'published' && !isTranslation;
 
   return (

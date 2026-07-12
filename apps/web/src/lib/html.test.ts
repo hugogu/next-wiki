@@ -20,6 +20,33 @@ describe('extractHeadings', () => {
     expect(extractHeadings(html)).toEqual([{ level: 2, text: 'Foo & Bar', id: 'foo-bar' }]);
   });
 
+  it('reuses existing id attributes', () => {
+    const html = '<h2 id="custom-id">Section</h2><h3>Subsection</h3>';
+    expect(extractHeadings(html)).toEqual([
+      { level: 2, text: 'Section', id: 'custom-id' },
+      { level: 3, text: 'Subsection', id: 'subsection' },
+    ]);
+  });
+
+  it('reuses ids injected by injectHeadingIds', () => {
+    const html = '<h2>目录</h2><h3>太阳系</h3>';
+    const injected = injectHeadingIds(html);
+    expect(extractHeadings(injected)).toEqual([
+      { level: 2, text: '目录', id: '目录' },
+      { level: 3, text: '太阳系', id: '太阳系' },
+    ]);
+  });
+
+  it('is not affected by repeated invocations (regex state isolation)', () => {
+    const html = '<h2>First</h2><h2>Second</h2>';
+    extractHeadings(html);
+    extractHeadings(html);
+    expect(extractHeadings(html)).toEqual([
+      { level: 2, text: 'First', id: 'first' },
+      { level: 2, text: 'Second', id: 'second' },
+    ]);
+  });
+
   it('returns an empty array when no headings exist', () => {
     expect(extractHeadings('<p>No headings</p>')).toEqual([]);
   });
@@ -34,6 +61,11 @@ describe('injectHeadingIds', () => {
   it('preserves existing ids', () => {
     const html = '<h2 id="custom">Section</h2>';
     expect(injectHeadingIds(html)).toBe(html);
+  });
+
+  it('regenerates generic fallback ids', () => {
+    const html = '<h2 id="heading">目录</h2>';
+    expect(injectHeadingIds(html)).toBe('<h2 id="目录">目录</h2>');
   });
 
   it('ignores h1', () => {
