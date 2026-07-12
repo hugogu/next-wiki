@@ -128,6 +128,7 @@ export function AuditLogTable({ initialData, fetchUrl, keys, entryType }: AuditL
                   <DataTableHeader>{t('userCenter.audit.path')}</DataTableHeader>
                   <DataTableHeader>{t('userCenter.audit.status')}</DataTableHeader>
                   <DataTableHeader>{t('userCenter.audit.duration')}</DataTableHeader>
+                  <DataTableHeader>{t('userCenter.audit.ip')}</DataTableHeader>
                   <DataTableHeader>{t('userCenter.audit.keyName')}</DataTableHeader>
                   <DataTableHeader>{t('userCenter.audit.timestamp')}</DataTableHeader>
                 </tr>
@@ -139,6 +140,7 @@ export function AuditLogTable({ initialData, fetchUrl, keys, entryType }: AuditL
                     <DataTableCell className="max-w-xs truncate font-mono text-xs">{entry.path}</DataTableCell>
                     <DataTableCell className={`font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</DataTableCell>
                     <DataTableCell>{entry.durationMs}ms</DataTableCell>
+                    <DataTableCell className="font-mono text-xs">{entry.ip ?? '—'}</DataTableCell>
                     <DataTableCell>{entry.keyName ?? '—'}</DataTableCell>
                     <DataTableCell className="text-muted">{new Date(entry.createdAt).toLocaleString(locale)}</DataTableCell>
                   </DataTableRow>

@@ -15,6 +15,8 @@ export type AuditEntryInput = {
   durationMs: number;
   authStatus: AuthStatus;
   errorMessage: string | null;
+  /** Source IP; optional so existing callers/tests need not supply it. */
+  ip?: string | null;
 };
 
 export async function writeEntry(input: AuditEntryInput): Promise<void> {
@@ -28,6 +30,7 @@ export async function writeEntry(input: AuditEntryInput): Promise<void> {
     durationMs: input.durationMs,
     authStatus: input.authStatus,
     errorMessage: input.errorMessage,
+    ip: input.ip ?? null,
   });
 }
 
@@ -56,6 +59,7 @@ function mapEntry(row: {
   durationMs: number;
   authStatus: string;
   errorMessage: string | null;
+  ip: string | null;
   createdAt: Date;
   key: { name: string } | null;
   user: { email: string } | null;
@@ -73,6 +77,7 @@ function mapEntry(row: {
     durationMs: row.durationMs,
     authStatus: row.authStatus as AuthStatus,
     errorMessage: row.errorMessage,
+    ip: row.ip,
     createdAt: row.createdAt.toISOString(),
   };
 }

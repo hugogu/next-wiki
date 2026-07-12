@@ -26,6 +26,7 @@ export const auditEntrySchema = z.object({
   durationMs: z.number(),
   authStatus: authStatusSchema,
   errorMessage: z.string().nullable(),
+  ip: z.string().nullable(),
   createdAt: z.string(),
 });
 export type AuditEntry = z.infer<typeof auditEntrySchema>;

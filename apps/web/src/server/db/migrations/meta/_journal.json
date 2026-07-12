@@ -71,6 +71,13 @@
       "when": 1783820160729,
       "tag": "0009_bizarre_darwin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783821537623,
+      "tag": "0010_fearless_psynapse",
+      "breakpoints": true
     }
   ]
 }

@@ -305,6 +305,9 @@ export const apiAuditEntries = pgTable(
     durationMs: integer('duration_ms').notNull(),
     authStatus: text('auth_status').notNull(),
     errorMessage: text('error_message'),
+    // Source IP of the request, parsed from x-forwarded-for / x-real-ip.
+    // Nullable so historical rows and requests without a proxy header stay valid.
+    ip: text('ip'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

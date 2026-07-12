@@ -68,6 +68,28 @@ describe('audit service', () => {
       expect(result.entries[0]!.userId).toBe(userA.id);
     });
 
+    it('persists and returns the source IP', async () => {
+      const user = await createTestUser('audit-ip@example.com');
+      await auditService.writeEntry({
+        keyId: null,
+        userId: user.id,
+        entryType: 'api',
+        method: 'GET',
+        path: '/api/v1/pages',
+        statusCode: 200,
+        durationMs: 10,
+        authStatus: 'authenticated',
+        errorMessage: null,
+        ip: '203.0.113.7',
+      });
+
+      const result = await auditService.listOwn(buildUserCtx(user.id, user.role), {
+        page: 1,
+        pageSize: 20,
+      });
+      expect(result.entries[0]!.ip).toBe('203.0.113.7');
+    });
+
     it('filters by keyId', async () => {
       const user = await createTestUser('audit-key@example.com');
       const ctx = buildUserCtx(user.id, user.role);
