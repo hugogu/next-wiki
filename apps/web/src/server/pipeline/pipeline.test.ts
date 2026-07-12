@@ -53,6 +53,31 @@ $$`;
     expect(html).toContain('src="/api/assets/abc"');
   });
 
+  it('renders Base64-encoded SVG diagram fences as sanitized inline images', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><rect width="10" height="10"/></svg>';
+    const source = `\`\`\`diagram\n${Buffer.from(svg).toString('base64')}\n\`\`\``;
+    const { html } = renderMarkdown(source);
+    const match = html.match(/src="data:image\/svg\+xml;base64,([^"]+)"/);
+    const encodedSvg = match?.[1];
+
+    expect(encodedSvg).toBeTruthy();
+    expect(html).toContain('alt="Diagram"');
+    expect(html).toContain('loading="lazy"');
+    expect(html).not.toContain('<pre');
+
+    const renderedSvg = Buffer.from(encodedSvg!, 'base64').toString('utf8').toLowerCase();
+    expect(renderedSvg).toContain('<rect');
+    expect(renderedSvg).not.toContain('<script');
+    expect(renderedSvg).not.toContain('onload');
+  });
+
+  it('leaves malformed diagram fences as code blocks', () => {
+    const { html } = renderMarkdown('```diagram\nnot an SVG\n```');
+    expect(html).toContain('<div data-code-block="">');
+    expect(html).toContain('not an SVG');
+    expect(html).not.toContain('data:image/svg+xml');
+  });
+
   it('converts mermaid fenced code blocks into mermaid containers', () => {
     const { html } = renderMarkdown('```mermaid\ngraph TD;\n  A-->B;\n```');
     expect(html).toContain('<pre class="mermaid">');
