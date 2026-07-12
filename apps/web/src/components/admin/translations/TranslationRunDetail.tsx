@@ -13,6 +13,7 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import { TranslationRunControls, runStatusTone } from './TranslationRunControls';
 
@@ -108,12 +109,43 @@ export function TranslationRunDetail({
           <DataTableBody>
             {items.map((item) => (
               <DataTableRow key={item.id}>
-                <DataTableCell className="font-mono text-xs">{item.targetPath ?? item.sourcePageId}</DataTableCell>
+                <DataTableCell className="font-mono text-xs">
+                  {item.targetPath ? (
+                    <span className="flex items-center gap-sm">
+                      <Link
+                        href={getPageHref(item.targetPath)}
+                        target="_blank"
+                        className="text-primary hover:underline"
+                      >
+                        {item.targetPath}
+                      </Link>
+                      {item.status === 'completed' && (
+                        <Link
+                          href={getTranslatedPageHref(run.targetLocale, item.targetPath)}
+                          target="_blank"
+                          className="text-muted hover:underline"
+                        >
+                          /{run.targetLocale}
+                        </Link>
+                      )}
+                    </span>
+                  ) : (
+                    item.sourcePageId
+                  )}
+                </DataTableCell>
                 <DataTableCell>
                   <StatusBadge tone={itemTone(item.status)}>
                     {t(`translation.item.${item.status}`)}
                   </StatusBadge>
-                  {item.errorCode && <span className="ml-xs text-xs text-danger">{item.errorCode}</span>}
+                  {item.errorCode && (
+                    <div
+                      className="mt-xs max-w-md truncate text-xs text-danger"
+                      title={item.errorMessage ?? item.errorCode}
+                    >
+                      {item.errorCode}
+                      {item.errorMessage ? `: ${item.errorMessage}` : ''}
+                    </div>
+                  )}
                 </DataTableCell>
                 <DataTableCell>
                   {item.usage.source === 'unavailable'

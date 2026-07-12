@@ -86,6 +86,29 @@ export function normalizeGeneratedMarkdown(raw: string): string | null {
 }
 
 /**
+ * Choose a safe `max_output_tokens` for translating one page. Some catalog
+ * models report `maxOutputTokens` equal to their full context window; passing
+ * that verbatim makes every request exceed the context limit (input + requested
+ * output > window) and fail. Cap the request to roughly twice the source size
+ * (translations track the source length) and always leave room for the input.
+ */
+export function computeMaxOutputTokens(
+  sourceMarkdown: string,
+  contextWindow: number | null,
+  modelMaxOutput: number | null,
+): number {
+  const estSourceTokens = Math.ceil(sourceMarkdown.length / 4);
+  // System prompt + user wrapper + a safety margin for tokenizer variance.
+  const estInput = estSourceTokens + 800;
+  // Translations rarely exceed ~2x the source; add a floor for short pages.
+  let maxOut = Math.min(modelMaxOutput ?? 8192, estSourceTokens * 2 + 1024);
+  if (contextWindow && contextWindow > 0) {
+    maxOut = Math.min(maxOut, contextWindow - estInput - 256);
+  }
+  return Math.max(256, maxOut);
+}
+
+/**
  * Reject output that is implausibly short for its source — a translation of a
  * non-trivial page cannot collapse to a few characters (a routed model that
  * emitted only a safety label or a truncated answer). This is deliberately

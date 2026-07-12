@@ -11,6 +11,7 @@ import {
 } from '@/server/ai/types';
 import {
   buildTranslationInput,
+  computeMaxOutputTokens,
   isImplausiblyShortTranslation,
   normalizeGeneratedMarkdown,
 } from '@/server/ai/prompts/translation';
@@ -159,8 +160,13 @@ async function processItem(run: RunRow, item: ItemRow): Promise<void> {
     const model = run.modelId
       ? await db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, run.modelId) })
       : null;
+    const maxOutputTokens = computeMaxOutputTokens(
+      sourceMarkdown,
+      model?.contextWindow ?? null,
+      model?.maxOutputTokens ?? null,
+    );
 
-    const generated = await generateWithRetry(run, item, sourceMarkdown, styleBody, model?.maxOutputTokens ?? undefined);
+    const generated = await generateWithRetry(run, item, sourceMarkdown, styleBody, maxOutputTokens);
 
     const markdown = normalizeGeneratedMarkdown(generated.text);
     if (!markdown) {
