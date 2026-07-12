@@ -6,25 +6,25 @@ import { getCurrentActor } from '@/server/services/auth';
 import { listModels, listProviders, readSettings } from '@/server/services/ai-admin';
 import { listIndexes } from '@/server/services/ai-index';
 import { listActions } from '@/server/services/ai-actions';
+import { can } from '@/server/permissions';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminAiPage() {
   const actor = await getCurrentActor();
-  let data;
-  try {
-    data = await Promise.all([
-      readSettings({ actor }),
-      listProviders({ actor }),
-      listModels({ actor }),
-      listIndexes({ actor }),
-      listActions({ actor }, { limit: 20 }),
-    ]);
-  } catch {
+  if (actor.kind !== 'user' || !can({ actor }, 'manage_ai', { kind: 'ai_settings' })) {
     notFound();
   }
-  const [settings, providers, models, indexes, actions] = data;
+
+  const [settings, providers, models, indexes, actions] = await Promise.all([
+    readSettings({ actor }),
+    listProviders({ actor }),
+    listModels({ actor }),
+    listIndexes({ actor }),
+    listActions({ actor }, { limit: 20 }),
+  ]);
+
   const locale = await getLocale();
   const t = getDictionary(locale);
   return (
