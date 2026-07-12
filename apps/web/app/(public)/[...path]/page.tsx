@@ -5,9 +5,10 @@ import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { ShareButton } from '@/components/pages/ShareButton';
 import * as pageService from '@/server/services/pages';
+import type { LivePage } from '@next-wiki/shared';
 import { getCurrentActor } from '@/server/services/auth';
-import { buildAnonymousCtx } from '@/server/permissions';
-import { getPageHref, getPagePathFromParams } from '@/lib/path';
+import { buildAnonymousCtx, type PermCtx } from '@/server/permissions';
+import { getPageHref, getPagePathFromParams, getTranslatedPageHref } from '@/lib/path';
 import { buildPageDescription } from '@/lib/seo';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { env } from '@/server/config';
@@ -16,54 +17,90 @@ export const dynamic = 'force-dynamic';
 
 type PageParams = Promise<{ path: string[] }>;
 
+const LOCALE_PREFIX_RE = /^[a-z]{2}$/;
+
+type Resolved =
+  | { kind: 'original'; page: LivePage; sourcePath: string }
+  | { kind: 'translation'; page: LivePage; locale: string; sourcePath: string }
+  | { kind: 'unavailable'; locale: string; sourcePath: string }
+  | { kind: 'not_found' };
+
+/**
+ * Resolve a catch-all reader address. A leading two-letter segment is tried as
+ * a translation language first; a genuine source page whose first path segment
+ * happens to look like a locale still wins because unmatched translation
+ * attempts fall through to original resolution of the full path (content-routing
+ * contract — originals keep precedence).
+ */
+async function resolve(ctx: PermCtx, rawSegments: string[]): Promise<Resolved> {
+  const segments = rawSegments.map((s) => decodeURIComponent(s));
+  const fullPath = segments.join('/');
+
+  if (segments.length >= 2 && LOCALE_PREFIX_RE.test(segments[0]!)) {
+    const locale = segments[0]!;
+    const sourcePath = segments.slice(1).join('/');
+    const result = await pageService.getLiveTranslation(ctx, locale, sourcePath);
+    if (result.kind === 'page') {
+      return { kind: 'translation', page: result.page, locale, sourcePath };
+    }
+    if (result.kind === 'unavailable') {
+      return { kind: 'unavailable', locale, sourcePath: result.sourcePath };
+    }
+    // not_found → fall through to original resolution below.
+  }
+
+  const original = await pageService.getLive(ctx, fullPath);
+  return original ? { kind: 'original', page: original, sourcePath: fullPath } : { kind: 'not_found' };
+}
+
 export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
   const [raw, locale] = await Promise.all([params, getLocale()]);
-  const path = getPagePathFromParams(raw);
   const t = getDictionary(locale);
-  // Use an anonymous context so crawlers see the same metadata logged-out
-  // visitors would. Private spaces simply get a noindex fallback below.
-  const ctx = buildAnonymousCtx();
-  const page = await pageService.getLive(ctx, path);
   const siteUrl = env.APP_URL.replace(/\/$/, '');
+  // Anonymous context so crawlers see the same metadata logged-out visitors do.
+  const resolved = await resolve(buildAnonymousCtx(), raw.path);
 
-  if (!page) {
-    return {
-      title: path,
-      robots: { index: false, follow: true },
-    };
+  if (resolved.kind === 'not_found' || resolved.kind === 'unavailable') {
+    const path = getPagePathFromParams(raw);
+    return { title: path, robots: { index: false, follow: true } };
   }
 
-  // Draft pages must never be indexed — only the canonical published URL
-  // should show up in search results.
+  const { page } = resolved;
   if (page.status !== 'published') {
-    return {
-      title: page.title,
-      robots: { index: false, follow: true },
-    };
+    return { title: page.title, robots: { index: false, follow: true } };
   }
 
-  const canonicalPath = getPageHref(path);
+  const isTranslation = resolved.kind === 'translation';
+  const canonicalPath = isTranslation
+    ? getTranslatedPageHref(resolved.locale, resolved.sourcePath)
+    : getPageHref(resolved.sourcePath);
   const description = buildPageDescription(page.contentHtml, t('site.description'));
+
+  // hreflang alternates: the original plus every published translation in the
+  // group. Original is the default alternate, never a redirect target.
+  const translatedLocales = await pageService.getPublishedTranslationLocales(resolved.sourcePath);
+  const languages: Record<string, string> = {
+    'x-default': `${siteUrl}${getPageHref(resolved.sourcePath)}`,
+  };
+  for (const loc of translatedLocales) {
+    languages[loc] = `${siteUrl}${getTranslatedPageHref(loc, resolved.sourcePath)}`;
+  }
 
   return {
     title: page.title,
     description,
-    alternates: { canonical: `${siteUrl}${canonicalPath}` },
+    alternates: { canonical: `${siteUrl}${canonicalPath}`, languages },
     openGraph: {
       type: 'article',
       url: `${siteUrl}${canonicalPath}`,
       title: page.title,
       description,
       siteName: t('common.brand'),
-      locale: locale === 'zh' ? 'zh_CN' : 'en_US',
+      locale: isTranslation && resolved.locale === 'zh' ? 'zh_CN' : locale === 'zh' ? 'zh_CN' : 'en_US',
       ...(page.publishedAt ? { publishedTime: page.publishedAt } : {}),
       ...(page.authorDisplayName ? { authors: [page.authorDisplayName] } : {}),
     },
-    twitter: {
-      card: 'summary_large_image',
-      title: page.title,
-      description,
-    },
+    twitter: { card: 'summary_large_image', title: page.title, description },
     robots: { index: true, follow: true },
   };
 }
@@ -72,25 +109,42 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const locale = await getLocale();
   const t = getDictionary(locale);
   const raw = await params;
-  const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
-  const page = await pageService.getLive({ actor }, path);
+  const resolved = await resolve({ actor }, raw.path);
 
-  if (!page) {
-    notFound();
+  if (resolved.kind === 'not_found') notFound();
+
+  if (resolved.kind === 'unavailable') {
+    // Localized empty/in-progress state for an authorized source reader. Never
+    // substitutes another language or the original as translated output.
+    return (
+      <Layout>
+        <article className="flex-1 px-lg py-2xl max-w-none text-center">
+          <h1 className="text-xl font-semibold mb-sm">{t('translation.reader.unavailable.title')}</h1>
+          <p className="text-muted mb-lg">{t('translation.reader.unavailable.body')}</p>
+          <a className="text-primary underline" href={getPageHref(resolved.sourcePath)}>
+            {t('errors.notFound.backHome')}
+          </a>
+        </article>
+      </Layout>
+    );
   }
 
-  const canEdit = await pageService.canCreate({ actor });
+  const { page } = resolved;
+  const isTranslation = resolved.kind === 'translation';
+  // Editing/history controls target the original; a translation is read-only.
+  const canEdit = !isTranslation && (await pageService.canCreate({ actor }));
   const isAuthor = actor.kind === 'user' ? page.authorId === actor.userId : false;
-  const canPublish = page.status === 'draft' && (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
+  const canPublish =
+    !isTranslation &&
+    page.status === 'draft' &&
+    (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
 
   const createdAt = new Date(page.createdAt);
-
-  // Article structured data for search engines. Only published pages get
-  // indexed; draft pages emit no JSON-LD so search engines can’t surface
-  // pre-publication content via the schema endpoint either.
   const siteUrl = env.APP_URL.replace(/\/$/, '');
-  const canonicalPath = getPageHref(path);
+  const canonicalPath = isTranslation
+    ? getTranslatedPageHref(resolved.locale, resolved.sourcePath)
+    : getPageHref(resolved.sourcePath);
   const jsonLd =
     page.status === 'published'
       ? {
@@ -108,7 +162,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const pageContext = {
     pageId: page.pageId,
     revisionId: page.revisionId,
-    path,
+    path: isTranslation ? getTranslatedPageHref(resolved.locale, resolved.sourcePath).slice(1) : resolved.sourcePath,
     title: page.title,
     status: page.status,
     canEdit,
@@ -125,9 +179,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
           </div>
         )}
         <article className="relative flex-1 px-lg py-md max-w-none">
-          {page.status === 'published' && (
-            // Anchored to the article's top-right so it rides on the same line
-            // as the first heading instead of consuming its own row.
+          {page.status === 'published' && !isTranslation && (
             <div className="absolute right-lg top-md z-10">
               <ShareButton pageId={page.pageId} title={page.title} />
             </div>
@@ -149,8 +201,6 @@ export default async function PageRead({ params }: { params: PageParams }) {
         {jsonLd && (
           <script
             type="application/ld+json"
-            // The payload is built from server-side data only, so it is safe
-            // to inject as a literal JSON string.
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           />
         )}

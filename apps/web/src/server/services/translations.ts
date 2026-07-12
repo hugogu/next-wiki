@@ -536,6 +536,21 @@ export async function retry(
   );
 }
 
+// ---- Source publication hooks ---------------------------------------------
+
+/**
+ * Called after a source page publishes (revisions.publish). Marks every
+ * translation of that source stale so readers/admins know it needs a refresh.
+ * A no-op for translated pages (they have no rows keyed by themselves as a
+ * source), so publishing a translated page can never loop back into itself.
+ */
+export async function invalidateTranslationsForSource(sourcePageId: string): Promise<void> {
+  await db
+    .update(schema.pageTranslationStates)
+    .set({ freshnessStatus: 'stale', updatedAt: new Date() })
+    .where(eq(schema.pageTranslationStates.sourcePageId, sourcePageId));
+}
+
 // ---- Worker & recovery helpers --------------------------------------------
 
 export async function readRunControlSignal(id: string): Promise<'cancel' | 'pause' | null> {

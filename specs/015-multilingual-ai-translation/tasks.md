@@ -46,10 +46,10 @@
 
 - [ ] T013 [P] [US1] Add source-versus-translation resolver and independent authorization tests in `apps/web/src/server/services/pages.translation.test.ts`
 - [ ] T014 [P] [US1] Add reader route, canonical metadata, unavailable-state, and no-leak Playwright coverage in `apps/web/e2e/translation-reader.spec.ts`
-- [ ] T015 [US1] Implement source and language-qualified live-page resolution with translation-group validation in `apps/web/src/server/services/pages.ts`
-- [ ] T016 [US1] Extend page URL builders for language-prefixed canonical links while preserving source URLs in `apps/web/src/lib/path.ts`
-- [ ] T017 [US1] Add language-prefixed public reader routes and localized unavailable/in-progress presentation in `apps/web/app/(public)/[language]/page.tsx` and `apps/web/app/(public)/[language]/[...path]/page.tsx`
-- [ ] T018 [US1] Update original reader metadata, translation metadata, alternate-language links, and canonical URL generation in `apps/web/app/(public)/[...path]/page.tsx` and `apps/web/app/(public)/[language]/[...path]/page.tsx`
+- [X] T015 [US1] Implement source and language-qualified live-page resolution with translation-group validation in `apps/web/src/server/services/pages.ts`
+- [X] T016 [US1] Extend page URL builders for language-prefixed canonical links while preserving source URLs in `apps/web/src/lib/path.ts`
+- [X] T017 [US1] Add language-prefixed public reader routes and localized unavailable/in-progress presentation in `apps/web/app/(public)/[language]/page.tsx` and `apps/web/app/(public)/[language]/[...path]/page.tsx`
+- [X] T018 [US1] Update original reader metadata, translation metadata, alternate-language links, and canonical URL generation in `apps/web/app/(public)/[...path]/page.tsx` and `apps/web/app/(public)/[language]/[...path]/page.tsx`
 - [ ] T019 [US1] Add published revision read caching with locale/revision cache tags and permission-safe invalidation hooks in `apps/web/src/server/services/pages.ts` and `apps/web/src/server/cache/page-content.ts`
 - [ ] T020 [P] [US1] Make same-language translated internal links resolve to current translations with original fallback in `apps/web/src/server/pipeline/translation-links.ts` and `apps/web/src/server/pipeline/index.ts`
 - [ ] T021 [US1] Update sitemap and page-list discovery to apply the explicit translation publication policy in `apps/web/app/sitemap.ts` and `apps/web/src/server/services/pages.ts`
@@ -131,7 +131,7 @@
 - [ ] T053 [P] [US5] Add source-publication refresh/coalescing and stale-result suppression tests in `apps/web/src/server/services/translations-refresh.test.ts`
 - [ ] T054 [P] [US5] Add usage aggregation/provenance and analytics endpoint tests in `apps/web/src/server/services/translations-usage.test.ts` and `apps/web/app/api/translations/usage/route.test.ts`
 - [ ] T055 [P] [US5] Add automatic-refresh/cache-invalidation Playwright coverage in `apps/web/e2e/translation-refresh.spec.ts`
-- [ ] T056 [US5] Implement source publish hooks that invalidate translation state and upsert latest-language refresh work without translated-page loops in `apps/web/src/server/services/revisions.ts` and `apps/web/src/server/services/translations.ts`
+- [X] T056 [US5] Implement source publish hooks that invalidate translation state and upsert latest-language refresh work without translated-page loops in `apps/web/src/server/services/revisions.ts` and `apps/web/src/server/services/translations.ts`
 - [ ] T057 [US5] Reconcile translated state and cache tags on source path change, deletion, and visibility changes in `apps/web/src/server/services/pages.ts` and `apps/web/src/server/services/translations.ts`
 - [X] T058 [US5] Implement item/run duration and reported/estimated/unavailable usage aggregation in `apps/web/src/server/services/translations.ts`
 - [X] T059 [US5] Implement translation document, version, and usage query endpoints in `apps/web/app/api/translations/documents/route.ts`, `apps/web/app/api/translations/documents/[id]/versions/route.ts`, and `apps/web/app/api/translations/usage/route.ts`

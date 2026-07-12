@@ -19,6 +19,7 @@ import type {
   EditableView,
   RevisionSummary,
   RevisionView,
+  TranslationFreshnessStatus,
 } from '@next-wiki/shared';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import {
@@ -484,6 +485,150 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     createdAt: page.createdAt.toISOString(),
     metadata,
   };
+}
+
+/**
+ * Result of resolving a language-prefixed reader address (015):
+ * - `page`: a current published translation the reader may see.
+ * - `unavailable`: the source is a readable published page but no current
+ *   translation exists for this enabled language (localized empty/in-progress
+ *   state). Never substitutes another language or the original.
+ * - `not_found`: unknown/disabled language, missing source, or an unauthorized
+ *   context — revealing nothing about hidden source/translation existence.
+ */
+export type TranslationReadResult =
+  | { kind: 'page'; page: LivePage }
+  | { kind: 'unavailable'; sourcePath: string; freshness: TranslationFreshnessStatus | null }
+  | { kind: 'not_found' };
+
+/**
+ * Resolve `/{locale}/{path}` to its translation. Resolution always begins from
+ * the source (unprefixed) path, then the source's translation group and locale;
+ * an unrelated same-path locale page can never qualify (content-routing
+ * contract). Source and translation read permission are evaluated before any
+ * title/revision/HTML is returned.
+ */
+export async function getLiveTranslation(
+  ctx: PermCtx,
+  locale: string,
+  path: string,
+): Promise<TranslationReadResult> {
+  const space = await getDefaultSpace();
+  if (!space) return { kind: 'not_found' };
+
+  // Only an enabled, non-retired target language has reader-visible URLs.
+  const language = await db.query.translationLanguages.findFirst({
+    where: eq(schema.translationLanguages.code, locale),
+  });
+  if (!language || !language.enabled || language.retiredAt) return { kind: 'not_found' };
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+    return { kind: 'not_found' };
+  }
+
+  // Resolve the source/original page by unprefixed path (source pages only).
+  const source = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, path),
+      isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  // A hidden or unpublished source reveals nothing — treated as not found.
+  if (!source || !source.currentPublishedVersionId) return { kind: 'not_found' };
+
+  const group = await db.query.translationGroups.findFirst({
+    where: eq(schema.translationGroups.sourcePageId, source.id),
+  });
+  if (!group) return { kind: 'unavailable', sourcePath: source.path, freshness: null };
+
+  const translation = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.translationGroupId, group.id),
+      eq(schema.pages.locale, locale),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+  const state = await db.query.pageTranslationStates.findFirst({
+    where: and(
+      eq(schema.pageTranslationStates.sourcePageId, source.id),
+      eq(schema.pageTranslationStates.targetLocale, locale),
+    ),
+  });
+  if (!translation || !translation.currentPublishedVersionId) {
+    return { kind: 'unavailable', sourcePath: source.path, freshness: state?.freshnessStatus ?? null };
+  }
+
+  const revision = await db.query.pageRevisions.findFirst({
+    where: eq(schema.pageRevisions.id, translation.currentPublishedVersionId),
+  });
+  if (!revision) {
+    return { kind: 'unavailable', sourcePath: source.path, freshness: state?.freshnessStatus ?? null };
+  }
+  const author = await db.query.users.findFirst({ where: eq(schema.users.id, translation.authorId) });
+  const metadata = await getRevisionMetadata(revision.id);
+
+  return {
+    kind: 'page',
+    page: {
+      pageId: translation.id,
+      revisionId: revision.id,
+      // The reader address keeps the shared source path; the language prefix is
+      // applied by the route/URL builder.
+      path: source.path,
+      title: translation.title,
+      contentHtml: revision.contentHtml,
+      contentHash: revision.contentHash,
+      version: revision.versionNumber,
+      publishedAt: revision.publishedAt?.toISOString() ?? null,
+      authorDisplayName: author?.displayName ?? null,
+      authorId: translation.authorId,
+      status: 'published',
+      createdAt: translation.createdAt.toISOString(),
+      metadata,
+    },
+  };
+}
+
+/**
+ * The enabled target-language codes that have a current published translation
+ * for a source path, used to emit hreflang alternates. Returns [] when the path
+ * is not a published source page.
+ */
+export async function getPublishedTranslationLocales(sourcePath: string): Promise<string[]> {
+  const space = await getDefaultSpace();
+  if (!space) return [];
+  const source = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, sourcePath),
+      isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!source || !source.currentPublishedVersionId) return [];
+  const group = await db.query.translationGroups.findFirst({
+    where: eq(schema.translationGroups.sourcePageId, source.id),
+  });
+  if (!group) return [];
+  const rows = await db
+    .select({ locale: schema.pages.locale })
+    .from(schema.pages)
+    .innerJoin(
+      schema.translationLanguages,
+      eq(schema.translationLanguages.code, schema.pages.locale),
+    )
+    .where(
+      and(
+        eq(schema.pages.translationGroupId, group.id),
+        isNull(schema.pages.deletedAt),
+        sql`${schema.pages.currentPublishedVersionId} is not null`,
+        eq(schema.translationLanguages.enabled, true),
+        isNull(schema.translationLanguages.retiredAt),
+      ),
+    );
+  return rows.map((r) => r.locale);
 }
 
 export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | null> {

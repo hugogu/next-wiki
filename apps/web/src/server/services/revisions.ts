@@ -6,6 +6,7 @@ import { DomainError } from '@/server/errors';
 import { assertNotMigrating } from '@/server/services/migration';
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
+import { invalidateTranslationsForSource } from '@/server/services/translations';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -75,5 +76,8 @@ export async function publish(
   });
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
+  // Publishing a source page invalidates its translations (they now trail the
+  // newest published revision). Safe no-op for translated pages.
+  await invalidateTranslationsForSource(result.pageId);
   return { versionId: result.versionId };
 }
