@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('page.create.metadataTitle') };
 }
 
-export default async function NewPage() {
+export default async function NewPage({ searchParams }: { searchParams: Promise<{ prefix?: string }> }) {
   const actor = await getCurrentActor();
 
   const allowed = await pageService.canCreate({ actor });
@@ -22,10 +22,16 @@ export default async function NewPage() {
     notFound();
   }
 
+  // Strip surrounding slashes so a node path like "ai/apps" becomes the
+  // prefix the dialog pre-fills as "ai/apps/". The path field still validates
+  // the final value on submit, so a malformed prefix simply fails there.
+  const rawPrefix = (await searchParams).prefix ?? '';
+  const initialPathPrefix = rawPrefix.replace(/^\/+|\/+$/g, '');
+
   return (
     <Layout>
       <div className="h-full flex flex-col">
-        <CreatePageForm />
+        <CreatePageForm initialPathPrefix={initialPathPrefix} />
       </div>
     </Layout>
   );

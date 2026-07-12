@@ -5,7 +5,7 @@ import { useHistory } from '@/lib/history';
 import { getEditHref } from '@/lib/path';
 import { NewPageDialog } from './NewPageDialog';
 
-export function CreatePageForm() {
+export function CreatePageForm({ initialPathPrefix }: { initialPathPrefix?: string }) {
   const { goBack } = useHistory();
 
   const handleClose = useCallback(() => {
@@ -16,5 +16,5 @@ export function CreatePageForm() {
     window.location.href = getEditHref(path);
   }, []);
 
-  return <NewPageDialog onClose={handleClose} onCreated={handleCreated} />;
+  return <NewPageDialog onClose={handleClose} onCreated={handleCreated} initialPathPrefix={initialPathPrefix} />;
 }

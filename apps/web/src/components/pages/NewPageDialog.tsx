@@ -15,9 +15,12 @@ import { Button } from '@/components/ui/Button';
 export function NewPageDialog({
   onClose,
   onCreated,
+  initialPathPrefix,
 }: {
   onClose: () => void;
   onCreated: (path: string) => void;
+  /** Optional path prefix to pre-fill, e.g. "ai/apps" → path starts "ai/apps/". */
+  initialPathPrefix?: string;
 }) {
   const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -30,7 +33,7 @@ export function NewPageDialog({
     formState: { errors },
   } = useForm<NewPageDialogInput>({
     resolver: zodResolver(newPageDialogInputSchema),
-    defaultValues: { path: '', title: '' },
+    defaultValues: { path: initialPathPrefix ? `${initialPathPrefix}/` : '', title: '' },
   });
 
   const title = watch('title');

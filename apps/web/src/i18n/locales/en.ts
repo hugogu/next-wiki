@@ -261,6 +261,7 @@ export const en = {
   'layout.nav.closeButton': 'Close navigator',
   'layout.nav.empty': 'No published pages yet.',
   'layout.nav.loadError': 'Failed to load. Click to retry.',
+  'layout.nav.addChild': 'New page here',
 
   // Admin
   'admin.title': 'Administration',

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { PublicPageTreeNode } from '@next-wiki/shared';
-import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon, SearchIcon, TagIcon } from '@/components/icons';
+import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon, SearchIcon, TagIcon, PlusIcon } from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
@@ -82,6 +82,8 @@ function TreeItem({
   onToggle,
   getLoadState,
   onLoad,
+  canCreate,
+  addChildLabel,
 }: {
   node: LazyPublicPageTreeNode;
   currentPath?: string;
@@ -96,6 +98,9 @@ function TreeItem({
    */
   getLoadState: (node: LazyPublicPageTreeNode) => LoadState;
   onLoad: (path: string) => void;
+  /** Whether to show the per-row "new child page" button (editors/admins). */
+  canCreate: boolean;
+  addChildLabel: string;
 }) {
   const loadState = getLoadState(node);
   const active = node.pageId !== null && node.path === currentPath;
@@ -113,35 +118,51 @@ function TreeItem({
 
   return (
     <li>
-      {node.pageId ? (
-        <Link
-          href={getPageHref(node.path)}
-          onClick={onNavigate}
-          className={`flex items-center gap-xs rounded-md px-sm py-1 text-sm min-w-0 transition-colors ${
-            active
-              ? 'bg-surface-elevated text-foreground font-medium'
-              : 'text-muted hover:text-foreground hover:bg-surface-elevated'
-          }`}
-          style={indent}
-          title={node.title ?? undefined}
-        >
-          <FileTextIcon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{node.title || leafTitleFromPath(node.path)}</span>
-        </Link>
-      ) : (
-        <button
-          type="button"
-          onClick={() => onToggle(node.path)}
-          className="flex w-full items-center gap-xs rounded-md px-sm py-1 text-sm text-muted min-w-0 transition-colors hover:text-foreground hover:bg-surface-elevated"
-          style={indent}
-          aria-expanded={isOpen}
-          title={node.segment}
-        >
-          <ChevronRightIcon className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-          <FolderIcon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{node.segment}</span>
-        </button>
-      )}
+      <div className="group flex items-center">
+        {node.pageId ? (
+          <Link
+            href={getPageHref(node.path)}
+            onClick={onNavigate}
+            className={`flex flex-1 min-w-0 items-center gap-xs rounded-md px-sm py-1 text-sm transition-colors ${
+              active
+                ? 'bg-surface-elevated text-foreground font-medium'
+                : 'text-muted hover:text-foreground hover:bg-surface-elevated'
+            }`}
+            style={indent}
+            title={node.title ?? undefined}
+          >
+            <FileTextIcon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{node.title || leafTitleFromPath(node.path)}</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onToggle(node.path)}
+            className="flex flex-1 min-w-0 items-center gap-xs rounded-md px-sm py-1 text-sm text-muted transition-colors hover:text-foreground hover:bg-surface-elevated"
+            style={indent}
+            aria-expanded={isOpen}
+            title={node.segment}
+          >
+            <ChevronRightIcon className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+            <FolderIcon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{node.segment}</span>
+          </button>
+        )}
+
+        {canCreate && (
+          <Link
+            href={`/new?prefix=${encodeURIComponent(node.path)}`}
+            onClick={onNavigate}
+            title={addChildLabel}
+            aria-label={addChildLabel}
+            // Always visible on touch/mobile; on desktop it reveals on row
+            // hover or keyboard focus to keep the tree uncluttered.
+            className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-opacity hover:text-foreground hover:bg-surface-elevated focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+          >
+            <PlusIcon className="h-4 w-4" />
+          </Link>
+        )}
+      </div>
 
       {node.pageId === null && node.hasChildren && isOpen && (
         <ul>
@@ -157,6 +178,8 @@ function TreeItem({
                 onToggle={onToggle}
                 getLoadState={getLoadState}
                 onLoad={onLoad}
+                canCreate={canCreate}
+                addChildLabel={addChildLabel}
               />
             ))
           ) : loadState.status === 'loading' ? (
@@ -199,6 +222,10 @@ export function Navigator({
   user: Actor;
 }) {
   const { t } = useTranslation();
+  // Editors and admins may create pages, so they get the per-row "new child"
+  // button that pre-fills the path prefix from the hovered node.
+  const canCreatePages = user.kind === 'user' && (user.role === 'admin' || user.role === 'editor');
+  const addChildLabel = t('layout.nav.addChild');
   const pathname = usePathname();
   const ADMIN_ITEMS: AdminNavItem[] = [
     { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
@@ -410,6 +437,8 @@ export function Navigator({
                   onToggle={toggle}
                   getLoadState={getLoadState}
                   onLoad={loadBranch}
+                  canCreate={canCreatePages}
+                  addChildLabel={addChildLabel}
                 />
               ))}
             </ul>
