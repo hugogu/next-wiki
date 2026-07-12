@@ -28,7 +28,12 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
               instead of pushing the footer into a blank second screen. */}
           <main className="min-h-0 min-w-0 flex-1 relative flex flex-col">
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
-              <div className="min-h-0 flex-1">
+              {/* grow shrink-0 basis-auto (flex: 1 0 auto): grow to push the
+                  footer to the viewport bottom on short pages, but never
+                  shrink below content on long pages, so the footer always
+                  sits at the very bottom of the flow instead of floating
+                  mid-content. */}
+              <div className="grow shrink-0 basis-auto">
                 {children}
               </div>
               {footer}
