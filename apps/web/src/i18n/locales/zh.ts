@@ -185,6 +185,14 @@ export const zh: Translations = {
   'page.header.newPage': '新建页面',
   'page.header.admin': '管理',
 
+  // Share
+  'page.share.button': '分享',
+  'page.share.title': '分享此页面',
+  'page.share.copy': '复制链接',
+  'page.share.copied': '链接已复制',
+  'page.share.more': '更多…',
+  'page.share.weibo': '微博',
+
   // Space errors
   'space.error.defaultNotFound': '默认空间不存在',
 

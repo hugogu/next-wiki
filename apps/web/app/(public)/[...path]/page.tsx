@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
+import { ShareButton } from '@/components/pages/ShareButton';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { buildAnonymousCtx } from '@/server/permissions';
@@ -124,6 +125,11 @@ export default async function PageRead({ params }: { params: PageParams }) {
           </div>
         )}
         <article className="flex-1 px-lg py-md max-w-none">
+          {page.status === 'published' && (
+            <div className="flex justify-end">
+              <ShareButton pageId={page.pageId} title={page.title} />
+            </div>
+          )}
           <PageMetadata
             {...page.metadata}
             labels={{

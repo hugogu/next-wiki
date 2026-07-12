@@ -503,6 +503,54 @@ export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | 
 }
 
 /**
+ * Fetch a page's *published* revision by id for the public share link, with
+ * NO permission gating. This intentionally bypasses `anonymousRead` so a
+ * shared link is fully public — but only ever exposes the currently published
+ * revision. Drafts, unpublished pages, and soft-deleted pages return null, so
+ * nothing pre-publication or private can leak through the share URL.
+ */
+export async function getPublishedForShare(pageId: string): Promise<LivePage | null> {
+  const space = await getDefaultSpace();
+  if (!space) return null;
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.id, pageId),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+
+  if (!page || !page.currentPublishedVersionId) return null;
+
+  const revision = await db.query.pageRevisions.findFirst({
+    where: eq(schema.pageRevisions.id, page.currentPublishedVersionId),
+  });
+  if (!revision) return null;
+
+  const author = await db.query.users.findFirst({
+    where: eq(schema.users.id, page.authorId),
+  });
+  const metadata = await getRevisionMetadata(revision.id);
+
+  return {
+    pageId: page.id,
+    revisionId: revision.id,
+    path: page.path,
+    title: page.title,
+    contentHtml: revision.contentHtml,
+    contentHash: revision.contentHash,
+    version: revision.versionNumber,
+    publishedAt: revision.publishedAt?.toISOString() ?? null,
+    authorDisplayName: author?.displayName ?? null,
+    authorId: page.authorId,
+    status: 'published',
+    createdAt: page.createdAt.toISOString(),
+    metadata,
+  };
+}
+
+/**
  * Returns true if the caller is allowed to create pages in the default space.
  */
 export async function canCreate(ctx: PermCtx): Promise<boolean> {

@@ -326,6 +326,50 @@ describe('pageService US3', () => {
   });
 });
 
+describe('getPublishedForShare', () => {
+  beforeAll(async () => { await cleanup(); await ensureDefaultSpace(); });
+  afterAll(async () => { await cleanup(); });
+
+  async function publish(ctx: ReturnType<typeof buildUserCtx>, path: string, title: string, source: string) {
+    const created = await pageService.create(ctx, { path, title, contentSource: source });
+    await db.update(schema.pageRevisions)
+      .set({ status: 'published', publishedAt: new Date() })
+      .where(eq(schema.pageRevisions.id, created.versionId));
+    await db.update(schema.pages)
+      .set({ currentPublishedVersionId: created.versionId })
+      .where(eq(schema.pages.id, created.pageId));
+    return created.pageId;
+  }
+
+  it('returns the published revision for any visitor, without a permission ctx', async () => {
+    const editor = await createUser('share-pub@example.com', 'editor');
+    const pageId = await publish(buildUserCtx(editor.id, 'editor'), 'share-published', 'Shared', '# Hello share');
+    const shared = await pageService.getPublishedForShare(pageId);
+    expect(shared?.status).toBe('published');
+    expect(shared?.title).toBe('Shared');
+    expect(shared?.contentHtml).toContain('Hello share');
+  });
+
+  it('returns null for a draft-only (never published) page', async () => {
+    const editor = await createUser('share-draft@example.com', 'editor');
+    const created = await pageService.create(buildUserCtx(editor.id, 'editor'), {
+      path: 'share-draft', title: 'Draft', contentSource: 'draft body',
+    });
+    expect(await pageService.getPublishedForShare(created.pageId)).toBeNull();
+  });
+
+  it('returns null for a soft-deleted page', async () => {
+    const editor = await createUser('share-del@example.com', 'editor');
+    const pageId = await publish(buildUserCtx(editor.id, 'editor'), 'share-deleted', 'Deleted', 'body');
+    await db.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, pageId));
+    expect(await pageService.getPublishedForShare(pageId)).toBeNull();
+  });
+
+  it('returns null for an unknown id', async () => {
+    expect(await pageService.getPublishedForShare('00000000-0000-0000-0000-000000000000')).toBeNull();
+  });
+});
+
 describe('page metadata projections', () => {
   beforeAll(async () => { await cleanup(); await ensureDefaultSpace(); });
   afterAll(async () => { await cleanup(); await closeDb(); });

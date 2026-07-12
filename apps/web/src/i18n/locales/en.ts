@@ -185,6 +185,14 @@ export const en = {
   'page.header.newPage': 'New page',
   'page.header.admin': 'Admin',
 
+  // Share
+  'page.share.button': 'Share',
+  'page.share.title': 'Share this page',
+  'page.share.copy': 'Copy link',
+  'page.share.copied': 'Link copied',
+  'page.share.more': 'More…',
+  'page.share.weibo': 'Weibo',
+
   // Space errors
   'space.error.defaultNotFound': 'Default space not found',
 

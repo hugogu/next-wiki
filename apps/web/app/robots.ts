@@ -15,6 +15,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
+        // Public share links (/s/<id>) are for direct access, not indexing;
+        // they are noindex and canonicalise to the primary page anyway.
+        disallow: '/s/',
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,
