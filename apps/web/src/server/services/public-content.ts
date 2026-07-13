@@ -39,7 +39,7 @@ import type {
   PublicRevisionResource,
 } from '@next-wiki/shared';
 import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagination';
-import { can, getActorUserId, type PermCtx } from '@/server/permissions';
+import { buildAnonymousCtx, can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { mapPublicDomainErrorCode } from '@/server/api/public-errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
@@ -58,6 +58,8 @@ import * as searchAnalytics from '@/server/services/search-analytics';
 import { getSearchSettings } from '@/server/services/search-settings';
 import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { normalizeTagName } from '@/server/metadata/frontmatter';
+import { unstable_cache } from 'next/cache';
+import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -1043,6 +1045,19 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
   }
 
   return { root: buildTree(visible, query.pathPrefix), pageCount: visible.length };
+}
+
+const readCachedPublishedPageTree = unstable_cache(
+  async () => getPageTree(buildAnonymousCtx(), { status: 'published' }),
+  ['published-page-tree'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
+/** Cached tree for the public app shell; authenticated draft visibility is not included. */
+export async function getCachedPublishedPageTree(): Promise<PublicPageTreeResponse> {
+  return shouldUseDataCache()
+    ? readCachedPublishedPageTree()
+    : getPageTree(buildAnonymousCtx(), { status: 'published' });
 }
 
 function emptyNode(path: string): PublicPageTreeNode {

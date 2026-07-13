@@ -86,56 +86,60 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettingsView }) {
   );
 
   return (
-    <div className="max-w-xl space-y-lg">
-      <section className="space-y-sm">
-        {field(t('admin.site.name.label'), siteName, setSiteName)}
-      </section>
+    <div className="max-w-5xl space-y-lg">
+      <div className="grid gap-xl lg:grid-cols-2">
+        <div className="space-y-lg">
+          <section className="space-y-sm">
+            {field(t('admin.site.name.label'), siteName, setSiteName)}
+          </section>
 
-      <section className="space-y-sm">
-        <span className="block text-sm font-medium">{t('admin.site.icon.label')}</span>
-        <div className="flex items-center gap-md">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/settings/site/icon?v=${iconVersion}`}
-            alt={t('admin.site.icon.label')}
-            className="h-12 w-12 rounded-md border border-border bg-surface object-contain p-1"
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/svg+xml,image/png,image/x-icon"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void onUploadIcon(file);
-              e.target.value = '';
-            }}
-          />
-          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
-            {t('admin.site.icon.upload')}
-          </Button>
-          {hasCustomIcon && (
-            <Button variant="ghost" onClick={onRemoveIcon}>
-              {t('admin.site.icon.remove')}
-            </Button>
-          )}
+          <section className="space-y-sm">
+            <span className="block text-sm font-medium">{t('admin.site.icon.label')}</span>
+            <div className="flex items-center gap-md">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/settings/site/icon?v=${iconVersion}`}
+                alt={t('admin.site.icon.label')}
+                className="h-12 w-12 rounded-md border border-border bg-surface object-contain p-1"
+              />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/svg+xml,image/png,image/x-icon"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onUploadIcon(file);
+                  e.target.value = '';
+                }}
+              />
+              <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+                {t('admin.site.icon.upload')}
+              </Button>
+              {hasCustomIcon && (
+                <Button variant="ghost" onClick={onRemoveIcon}>
+                  {t('admin.site.icon.remove')}
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted">{t('admin.site.icon.hint')}</p>
+          </section>
+
+          <section className="space-y-sm">
+            {field(t('admin.site.footer.label'), footerCopyright, setFooterCopyright, '© 2026 Example Org')}
+          </section>
         </div>
-        <p className="text-xs text-muted">{t('admin.site.icon.hint')}</p>
-      </section>
 
-      <section className="space-y-sm">
-        {field(t('admin.site.footer.label'), footerCopyright, setFooterCopyright, '© 2026 Example Org')}
-      </section>
-
-      <section className="space-y-sm">
-        <h2 className="font-display text-lg font-semibold">{t('admin.site.filing.title')}</h2>
-        <div className="grid gap-sm sm:grid-cols-2">
-          {field(t('admin.site.icp.numberLabel'), icpNumber, setIcpNumber, '京ICP备12345678号')}
-          {field(t('admin.site.icp.urlLabel'), icpUrl, setIcpUrl, 'https://beian.miit.gov.cn/')}
-          {field(t('admin.site.ps.numberLabel'), psNumber, setPsNumber)}
-          {field(t('admin.site.ps.urlLabel'), psUrl, setPsUrl, 'https://beian.mps.gov.cn/')}
-        </div>
-      </section>
+        <section className="space-y-sm">
+          <h2 className="font-display text-lg font-semibold">{t('admin.site.filing.title')}</h2>
+          <div className="grid gap-sm sm:grid-cols-2">
+            {field(t('admin.site.icp.numberLabel'), icpNumber, setIcpNumber, '京ICP备12345678号')}
+            {field(t('admin.site.icp.urlLabel'), icpUrl, setIcpUrl, 'https://beian.miit.gov.cn/')}
+            {field(t('admin.site.ps.numberLabel'), psNumber, setPsNumber)}
+            {field(t('admin.site.ps.urlLabel'), psUrl, setPsUrl, 'https://beian.mps.gov.cn/')}
+          </div>
+        </section>
+      </div>
 
       {error && <Alert>{error}</Alert>}
       {saved && (

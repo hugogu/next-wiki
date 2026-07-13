@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import * as authService from '@/server/services/auth';
 import * as publicContent from '@/server/services/public-content';
-import { buildAnonymousCtx } from '@/server/permissions';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
 import { getMyEntitlements } from '@/server/services/ai-entitlements';
@@ -17,6 +16,7 @@ export async function Layout({
   userCenter = false,
   fitViewport = false,
   skipPasswordGate = false,
+  staticPublic = false,
 }: {
   children: ReactNode;
   pageContext?: PageContext;
@@ -24,6 +24,7 @@ export async function Layout({
   userCenter?: boolean;
   fitViewport?: boolean;
   skipPasswordGate?: boolean;
+  staticPublic?: boolean;
 }) {
   const actor = await authService.getCurrentActor();
 
@@ -39,9 +40,7 @@ export async function Layout({
   // start collapsed with a `hasChildren` flag so the client can lazy-load them
   // on expand via `/api/v1/tree?pathPrefix=…`. This keeps the initial HTML
   // payload proportional to sidebar depth instead of wiki size.
-  const treeResult = await publicContent.getPageTree(buildAnonymousCtx(), {
-    status: 'published',
-  });
+  const treeResult = await publicContent.getCachedPublishedPageTree();
   const tree = sparsifyTree(treeResult.root, pageContext?.path);
   const aiEntitlements =
     actor.kind === 'user'
@@ -58,6 +57,7 @@ export async function Layout({
       userCenter={userCenter}
       fitViewport={fitViewport}
       aiEntitlements={aiEntitlements}
+      hydrateSession={staticPublic}
       footer={<Footer site={site} />}
       siteName={site.siteName}
     >

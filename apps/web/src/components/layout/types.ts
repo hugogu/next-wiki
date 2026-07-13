@@ -32,6 +32,12 @@ export type AppShellProps = {
    */
   fitViewport?: boolean;
   aiEntitlements?: AiEntitlementView | null;
+  /**
+   * The document was statically generated for anonymous readers. Resolve the
+   * current session in the browser so private controls do not affect the ISR
+   * document body.
+   */
+  hydrateSession?: boolean;
   footer?: React.ReactNode;
   siteName: string;
   children: React.ReactNode;

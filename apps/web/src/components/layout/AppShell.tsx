@@ -1,25 +1,96 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from './Header';
 import { Navigator } from './Navigator';
 import type { AppShellProps } from './types';
 import { AiChatPane } from '@/components/chat/AiChatPane';
 import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
+import type { Actor } from '@/server/permissions';
+import type { AiEntitlementView } from '@next-wiki/shared';
 
-export function AppShell({ user, tree, pageContext, admin = false, userCenter = false, fitViewport = false, aiEntitlements, footer, siteName, children }: AppShellProps) {
+type SessionUser = {
+  id: string;
+  role: 'admin' | 'editor' | 'reader';
+};
+
+function isSessionUser(value: unknown): value is SessionUser {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { id?: unknown; role?: unknown };
+  return (
+    typeof candidate.id === 'string' &&
+    (candidate.role === 'admin' || candidate.role === 'editor' || candidate.role === 'reader')
+  );
+}
+
+export function AppShell({
+  user: initialUser,
+  tree,
+  pageContext,
+  admin = false,
+  userCenter = false,
+  fitViewport = false,
+  aiEntitlements: initialAiEntitlements,
+  hydrateSession = false,
+  footer,
+  siteName,
+  children,
+}: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
+  const [user, setUser] = useState<Actor>(initialUser);
+  const [aiEntitlements, setAiEntitlements] = useState<AiEntitlementView | null | undefined>(initialAiEntitlements);
+
+  useEffect(() => {
+    if (!hydrateSession) return;
+    let cancelled = false;
+
+    async function hydratePrivateControls() {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (!response.ok || cancelled) return;
+        const sessionUser: unknown = await response.json();
+        if (!isSessionUser(sessionUser) || cancelled) return;
+
+        setUser({ kind: 'user', userId: sessionUser.id, role: sessionUser.role });
+
+        const entitlementResponse = await fetch('/api/ai/entitlements/me', {
+          credentials: 'same-origin',
+        });
+        if (entitlementResponse.ok && !cancelled) {
+          setAiEntitlements((await entitlementResponse.json()) as AiEntitlementView);
+        }
+      } catch {
+        // The public document remains usable when an optional session request
+        // fails; server-side authorization still protects every action.
+      }
+    }
+
+    void hydratePrivateControls();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrateSession]);
+
+  const resolvedPageContext =
+    pageContext && user.kind === 'user'
+      ? {
+          ...pageContext,
+          // The static document cannot know page-specific permissions. This
+          // only controls visibility; the edit route verifies authorization.
+          canEdit: pageContext.canEdit || user.role === 'admin' || user.role === 'editor',
+        }
+      : pageContext;
 
   return (
     <AiAvailabilityProvider value={aiEntitlements ?? null}>
       <div className="h-screen flex flex-col overflow-hidden bg-background">
-        <Header user={user} pageContext={pageContext} onMenuClick={() => setNavOpen(true)} siteName={siteName} />
+        <Header user={user} pageContext={resolvedPageContext} onMenuClick={() => setNavOpen(true)} siteName={siteName} />
         <div className="min-h-0 flex-1 flex overflow-hidden">
           <Navigator
             tree={tree}
             admin={admin}
             userCenter={userCenter}
-            currentPath={pageContext?.path}
+            currentPath={resolvedPageContext?.path}
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
             user={user}
@@ -46,7 +117,7 @@ export function AppShell({ user, tree, pageContext, admin = false, userCenter = 
               {footer}
             </div>
           </main>
-          {aiEntitlements && !admin && <AiChatPane entitlements={aiEntitlements} pageContext={pageContext} />}
+          {aiEntitlements && !admin && <AiChatPane entitlements={aiEntitlements} pageContext={resolvedPageContext} />}
         </div>
       </div>
     </AiAvailabilityProvider>

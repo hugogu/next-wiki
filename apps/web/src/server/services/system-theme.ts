@@ -12,6 +12,8 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { sanitizeSystemThemeCss } from '@/server/appearance/css-sanitize';
 import { BUILTIN_THEMES, DEFAULT_THEME_ID } from '@/server/appearance/builtin-themes';
+import { SITE_SHELL_CACHE_TAG, invalidateSiteShellCache, shouldUseDataCache } from '@/server/cache/public-cache';
+import { unstable_cache } from 'next/cache';
 
 type ThemeRow = typeof schema.systemThemes.$inferSelect;
 
@@ -40,6 +42,17 @@ async function getActiveThemeId(): Promise<string | null> {
   });
   return row?.activeThemeId ?? null;
 }
+
+const getCachedActiveThemeCss = unstable_cache(
+  async () => {
+    const activeId = await getActiveThemeId();
+    if (!activeId) return '';
+    const row = await getRow(activeId);
+    return row?.css ?? '';
+  },
+  ['active-system-theme-css'],
+  { revalidate: 300, tags: [SITE_SHELL_CACHE_TAG] },
+);
 
 export async function listSystemThemes(ctx: PermCtx): Promise<SystemThemeListView> {
   assertCanManage(ctx);
@@ -89,6 +102,7 @@ export async function createSystemTheme(
     })
     .returning();
   if (!created) throw new Error('Failed to create system theme');
+  invalidateSiteShellCache();
   return toView(created);
 }
 
@@ -116,6 +130,7 @@ export async function updateSystemTheme(
     .where(eq(schema.systemThemes.id, id))
     .returning();
   if (!updated) throw new DomainError('NOT_FOUND', 'System theme not found');
+  invalidateSiteShellCache();
   return toView(updated);
 }
 
@@ -137,6 +152,7 @@ export async function deleteSystemTheme(ctx: PermCtx, id: string): Promise<void>
       .set({ activeThemeId: null, updatedBy: getActorUserId(ctx), updatedAt: new Date() })
       .where(eq(schema.systemThemeSettings.id, 'default'));
   }
+  invalidateSiteShellCache();
 }
 
 /** Activate a system theme (or null to clear the active selection). */
@@ -159,12 +175,14 @@ export async function activateSystemTheme(
       target: schema.systemThemeSettings.id,
       set: { activeThemeId: activeId, updatedBy, updatedAt: new Date() },
     });
+  invalidateSiteShellCache();
   return { activeThemeId: activeId };
 }
 
 /** Resolve the active theme's CSS for layout injection. Falls back to empty
  * string when no theme is active. */
 export async function getActiveThemeCss(): Promise<string> {
+  if (shouldUseDataCache()) return getCachedActiveThemeCss();
   const activeId = await getActiveThemeId();
   if (!activeId) return '';
   const row = await getRow(activeId);

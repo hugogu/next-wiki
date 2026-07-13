@@ -3,7 +3,6 @@ import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import * as setupService from '@/server/services/setup';
-import { buildAnonymousCtx } from '@/server/permissions';
 import { getPageHref, getPagesHref } from '@/lib/path';
 import { getLocale, getDictionary } from '@/i18n/server';
 import { PageListDescription } from '@/components/pages/PageListDescription';
@@ -23,11 +22,7 @@ export default async function HomePage() {
 
   const locale = await getLocale();
   const t = getDictionary(locale);
-  const ctx = buildAnonymousCtx();
-  const [pages, totalPublished] = await Promise.all([
-    pageService.listPublished(ctx, { limit: 10, order: 'recent' }),
-    pageService.countPublished(ctx),
-  ]);
+  const { pages, totalPublished } = await pageService.getCachedHomePageSummary();
 
   return (
     <Layout>

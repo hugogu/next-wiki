@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, and, isNull, desc, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, type PermCtx, getActorUserId } from '@/server/permissions';
+import { buildAnonymousCtx, can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
@@ -30,6 +30,8 @@ import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { buildPageDescription } from '@/lib/seo';
+import { unstable_cache } from 'next/cache';
+import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 
 const DEFAULT_SPACE_SLUG = 'default';
 const ADMIN_PAGE_SIZE = 25;
@@ -257,6 +259,30 @@ export async function countPublished(ctx: PermCtx): Promise<number> {
     );
 
   return row?.value ?? 0;
+}
+
+const readCachedHomePageSummary = unstable_cache(
+  async () => {
+    const ctx = buildAnonymousCtx();
+    const [pages, totalPublished] = await Promise.all([
+      listPublished(ctx, { limit: 10, order: 'recent' }),
+      countPublished(ctx),
+    ]);
+    return { pages, totalPublished };
+  },
+  ['public-home-page-summary'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
+/** Cached anonymous data used exclusively by the public homepage. */
+export async function getCachedHomePageSummary() {
+  if (shouldUseDataCache()) return readCachedHomePageSummary();
+  const ctx = buildAnonymousCtx();
+  const [pages, totalPublished] = await Promise.all([
+    listPublished(ctx, { limit: 10, order: 'recent' }),
+    countPublished(ctx),
+  ]);
+  return { pages, totalPublished };
 }
 
 export async function listAdminPages(
@@ -652,6 +678,47 @@ export async function getPublishedTranslationLocales(sourcePath: string): Promis
   return rows.map((r) => r.locale);
 }
 
+const readCachedPublicLivePage = unstable_cache(
+  async (path: string) => getLive(buildAnonymousCtx(), path),
+  ['public-live-page'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
+const readCachedPublicLiveTranslation = unstable_cache(
+  async (locale: string, path: string) => getLiveTranslation(buildAnonymousCtx(), locale, path),
+  ['public-live-translation'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
+const getCachedTranslationLocales = unstable_cache(
+  async (sourcePath: string) => getPublishedTranslationLocales(sourcePath),
+  ['published-translation-locales'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
+/** Cached published source page for anonymous readers and metadata generation. */
+export async function getCachedPublicLivePage(path: string): Promise<LivePage | null> {
+  return shouldUseDataCache()
+    ? readCachedPublicLivePage(path)
+    : getLive(buildAnonymousCtx(), path);
+}
+
+/** Cached published translation lookup for anonymous readers and metadata generation. */
+export async function getCachedPublicLiveTranslation(
+  locale: string,
+  path: string,
+): Promise<TranslationReadResult> {
+  return shouldUseDataCache()
+    ? readCachedPublicLiveTranslation(locale, path)
+    : getLiveTranslation(buildAnonymousCtx(), locale, path);
+}
+
+export async function getCachedPublishedTranslationLocales(sourcePath: string): Promise<string[]> {
+  return shouldUseDataCache()
+    ? getCachedTranslationLocales(sourcePath)
+    : getPublishedTranslationLocales(sourcePath);
+}
+
 export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | null> {
   const space = await getDefaultSpace();
   if (!space) return null;
@@ -756,6 +823,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
     .update(schema.pages)
     .set({ deletedAt: new Date() })
     .where(eq(schema.pages.id, page.id));
+  invalidatePublicContentCache();
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
 }
@@ -1024,6 +1092,7 @@ export async function updateProperties(
 
     return { pageId: page.id, newPath: nextPath };
   });
+  invalidatePublicContentCache();
   if (result.newPath !== currentPath) await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   return result;

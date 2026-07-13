@@ -8,14 +8,27 @@ import { ShareButton } from '@/components/pages/ShareButton';
 import * as pageService from '@/server/services/pages';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import type { LivePage } from '@next-wiki/shared';
-import { getCurrentActor } from '@/server/services/auth';
 import { buildAnonymousCtx, type PermCtx } from '@/server/permissions';
 import { getPageHref, getPagePathFromParams, getTranslatedPageHref } from '@/lib/path';
 import { buildPageDescription } from '@/lib/seo';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { env } from '@/server/config';
 
-export const dynamic = 'force-dynamic';
+// Published reader pages are generated on their first visit and then served as
+// ISR. Session-specific controls hydrate in the shell after the document is
+// delivered, so cookies and headers must not make the document body dynamic.
+export const dynamic = 'force-static';
+export const revalidate = 300;
+export const dynamicParams = true;
+
+/**
+ * Do not enumerate the database at build time: self-hosted image builds do not
+ * have a database connection. `dynamicParams` keeps every published path
+ * eligible for on-demand ISR generation after deployment.
+ */
+export async function generateStaticParams(): Promise<{ path: string[] }[]> {
+  return [];
+}
 
 type PageParams = Promise<{ path: string[] }>;
 
@@ -35,13 +48,16 @@ type Resolved =
  * contract — originals keep precedence).
  */
 async function resolve(ctx: PermCtx, rawSegments: string[]): Promise<Resolved> {
+  const isAnonymous = ctx.actor.kind === 'anonymous';
   const segments = rawSegments.map((s) => decodeURIComponent(s));
   const fullPath = segments.join('/');
 
   if (segments.length >= 2 && LOCALE_PREFIX_RE.test(segments[0]!)) {
     const locale = segments[0]!;
     const sourcePath = segments.slice(1).join('/');
-    const result = await pageService.getLiveTranslation(ctx, locale, sourcePath);
+    const result = isAnonymous
+      ? await pageService.getCachedPublicLiveTranslation(locale, sourcePath)
+      : await pageService.getLiveTranslation(ctx, locale, sourcePath);
     if (result.kind === 'page') {
       return { kind: 'translation', page: result.page, locale, sourcePath };
     }
@@ -51,7 +67,9 @@ async function resolve(ctx: PermCtx, rawSegments: string[]): Promise<Resolved> {
     // not_found → fall through to original resolution below.
   }
 
-  const original = await pageService.getLive(ctx, fullPath);
+  const original = isAnonymous
+    ? await pageService.getCachedPublicLivePage(fullPath)
+    : await pageService.getLive(ctx, fullPath);
   return original ? { kind: 'original', page: original, sourcePath: fullPath } : { kind: 'not_found' };
 }
 
@@ -80,7 +98,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
 
   // hreflang alternates: the original plus every published translation in the
   // group. Original is the default alternate, never a redirect target.
-  const translatedLocales = await pageService.getPublishedTranslationLocales(resolved.sourcePath);
+  const translatedLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath);
   const languages: Record<string, string> = {
     'x-default': `${siteUrl}${getPageHref(resolved.sourcePath)}`,
   };
@@ -111,7 +129,10 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const locale = await getLocale();
   const t = getDictionary(locale);
   const raw = await params;
-  const actor = await getCurrentActor();
+  // This route has a single anonymous published representation. Authenticated
+  // actions are fetched by AppShell after hydration and remain protected by
+  // their server endpoints.
+  const actor = buildAnonymousCtx().actor;
   const resolved = await resolve({ actor }, raw.path);
 
   if (resolved.kind === 'not_found') notFound();
@@ -120,7 +141,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
     // Localized empty/in-progress state for an authorized source reader. Never
     // substitutes another language or the original as translated output.
     return (
-      <Layout>
+      <Layout staticPublic>
         <article className="flex-1 px-lg py-2xl max-w-none text-center">
           <h1 className="text-xl font-semibold mb-sm">{t('translation.reader.unavailable.title')}</h1>
           <p className="text-muted mb-lg">{t('translation.reader.unavailable.body')}</p>
@@ -177,7 +198,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const showShare = page.status === 'published' && !isTranslation;
 
   return (
-    <Layout pageContext={pageContext}>
+    <Layout pageContext={pageContext} staticPublic>
       <div className="min-h-full flex flex-col">
         {page.status === 'draft' && (
           <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-lg py-sm text-sm">

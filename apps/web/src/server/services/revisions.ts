@@ -7,6 +7,7 @@ import { assertNotMigrating } from '@/server/services/migration';
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { invalidateTranslationsForSource } from '@/server/services/translations';
+import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 
 const DEFAULT_SPACE_SLUG = 'default';
 
@@ -74,6 +75,7 @@ export async function publish(
 
     return { versionId: revision.id, pageId: page.id };
   });
+  invalidatePublicContentCache();
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   // Publishing a source page invalidates its translations (they now trail the

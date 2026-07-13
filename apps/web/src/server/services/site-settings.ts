@@ -4,6 +4,8 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { SITE_SHELL_CACHE_TAG, invalidateSiteShellCache, shouldUseDataCache } from '@/server/cache/public-cache';
+import { unstable_cache } from 'next/cache';
 
 const SETTINGS_ID = 'default';
 const ICON_ROUTE = '/api/settings/site/icon';
@@ -53,14 +55,20 @@ function toView(row: SiteRow | null): SiteSettingsView {
   };
 }
 
+const getCachedSiteView = unstable_cache(
+  async () => toView(await getRow()),
+  ['site-settings-view'],
+  { revalidate: 300, tags: [SITE_SHELL_CACHE_TAG] },
+);
+
 /** Public-readable view used by the header, footer, and metadata. */
 export async function getSiteView(): Promise<SiteSettingsView> {
-  return toView(await getRow());
+  return shouldUseDataCache() ? getCachedSiteView() : toView(await getRow());
 }
 
 /** Lightweight name accessor for metadata. */
 export async function getSiteName(): Promise<string> {
-  return (await getRow())?.siteName ?? DEFAULT_SITE_NAME;
+  return (await getSiteView()).siteName;
 }
 
 /** Replace site identity/footer fields (icon handled separately). */
@@ -83,6 +91,7 @@ export async function updateSiteSettings(
     .insert(schema.siteSettings)
     .values({ id: SETTINGS_ID, ...values })
     .onConflictDoUpdate({ target: schema.siteSettings.id, set: values });
+  invalidateSiteShellCache();
   return toView(await getRow());
 }
 
@@ -112,6 +121,7 @@ export async function setIcon(ctx: PermCtx, bytes: Buffer, mime: string): Promis
     .insert(schema.siteSettings)
     .values({ id: SETTINGS_ID, siteName: DEFAULT_SITE_NAME, ...values })
     .onConflictDoUpdate({ target: schema.siteSettings.id, set: values });
+  invalidateSiteShellCache();
 }
 
 /** Clear the custom icon, reverting to the shipped default. Requires manage_appearance. */
@@ -121,4 +131,5 @@ export async function clearIcon(ctx: PermCtx): Promise<void> {
     .update(schema.siteSettings)
     .set({ iconData: null, iconMime: null, updatedBy: getActorUserId(ctx), updatedAt: new Date() })
     .where(eq(schema.siteSettings.id, SETTINGS_ID));
+  invalidateSiteShellCache();
 }
