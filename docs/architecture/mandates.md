@@ -315,3 +315,33 @@ rules are non-negotiable; any PR that violates them is an architecture defect.
 **Canonical entry points:**
 
 - Each resource
+
+## Public Content Delivery
+
+An anonymously readable, published page is a public document, not a
+session-specific application view. Its document body, public metadata, and
+published navigation MUST be delivered from a static or ISR representation at
+the canonical reader URL. The cached representation MUST use only anonymous
+published data; it MUST NOT contain drafts, permission-dependent content, or
+values derived from cookies, request headers, or a session.
+
+Authenticated controls (edit/history actions, AI chat, user appearance, and
+other personal preferences) are dynamic client or server boundaries around the
+public document. They MAY be hydrated after the document has been delivered,
+but MUST NOT turn the document body into a per-request render. Authorization is
+still enforced by every edit, history, AI, and API endpoint; a visible control
+is never authorization.
+
+The cache contract is explicit:
+
+- Published reader routes use ISR with a bounded revalidation interval and
+  support on-demand revalidation.
+- A publish, unpublish, delete, path/title/metadata change, translation state
+  change, language availability change, or public tree change MUST invalidate
+  the affected reader URL(s), the public listing/homepage when relevant, and
+  the public navigation representation.
+- Page content uses a shared public-content cache tag so data and route output
+  are invalidated together. Cache invalidation is performed only after the
+  underlying transaction commits.
+- Private spaces, private pages, previews, and drafts are always dynamic and
+  are excluded from public cache keys and public static output.

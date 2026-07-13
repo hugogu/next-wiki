@@ -156,6 +156,8 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
+- [ ] TXXX Validate public-content ISR/static generation and mutation-driven
+  invalidation when the feature changes anonymously readable published content
 - [ ] TXXX Run quickstart.md validation
 
 ---

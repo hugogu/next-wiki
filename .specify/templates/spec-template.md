@@ -93,6 +93,13 @@
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
+### Public Content Delivery *(required when a feature changes anonymously readable published content)*
+
+- State whether the page body, public metadata, or public navigation changes.
+- Specify the static/ISR cache representation and which mutation invalidates
+  each affected path or cache tag. Personalized controls MUST be outside the
+  cached document body.
+
 *Example of marking unclear requirements:*
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]

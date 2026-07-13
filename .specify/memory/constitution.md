@@ -1,65 +1,38 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 1.4.0 -> 2.0.0
-  Bump rationale: MAJOR — redefines the Mission and redefines three Core
-  Principles (P1, P2, P4/new-P5), plus adds a new Core Principle (P3). Per
-  Versioning Policy, redefinition of a Core Principle requires a MAJOR bump
-  regardless of how much surrounding text is unchanged.
-
-  Mission change:
-    - Repositioned from "open-source, self-hosted wiki for personal and
-      enterprise knowledge management" to "personal, AI-native knowledge base
-      service" — personal use is now the primary story, AI-assisted creation
-      is the default (not merely optional) interaction path, and the wiki is
-      explicitly framed as the user's provider-agnostic AI memory.
+  Version change: 2.0.0 -> 2.1.0
+  Bump rationale: MINOR — adds a Core Principle and an Architectural Mandate
+  that make static/ISR delivery of anonymous published content a binding
+  product requirement.
 
   Modified principles:
-    - P1 "Simple Deployment is a Feature" -> "Simple Deployment is a Feature,
-      Personal by Default": default deployment now MUST be immediately usable
-      by one person with no multi-user/organization setup.
-    - P2 "AI as Optional Enhancement, Chat as First-Class UI" -> "AI-Native
-      Creation, Never Vendor-Locked": AI-assisted conversation is now the
-      default creation path (manual editing is the fallback, not the primary
-      designed experience), while the "fully usable without AI" invariant and
-      vendor-agnostic interface requirement are preserved and sharpened.
-    - P4 "Permissions are First-Class" -> P5 "Permissions are First-Class,
-      Personal by Default": added the single-owner zero-config default while
-      preserving every existing MUST (permission checks on every surface,
-      configurable anonymous read, no bolted-on retrofits).
+    - None.
 
   Added principles:
-    - New P3 "The Knowledge Base is the User's Portable AI Memory": formalizes
-      the MCP-as-AI-memory pattern already documented informally in CLAUDE.md,
-      and elevates the "AI Knowledge Layer" mandate's grounding/citation
-      requirement from an index-table one-liner to a full Core Principle.
+    - New P12 "Public Reading Is Static by Default": published anonymous
+      content and its public navigation must use static/ISR delivery, with
+      explicit revalidation after public-content mutations.
 
-  Renumbered principles (content unchanged): old P3->P4, P5->P6, P6->P7,
-  P7->P8, P8->P9, P9->P10, P10->P11.
+  Added architectural mandates:
+    - Public Content Delivery: public published content is an ISR/static
+      representation and cannot vary its document body by request cookies,
+      headers, or session state.
 
-  Added anti-patterns:
-    - "AI content as second-class": AI-authored content stored, versioned, or
-      permission-checked differently from manually-authored content.
-    - "Vendor-locked AI integration": hard-coding a single AI vendor's
-      proprietary SDK/API as the only integration path.
-
-  Removed sections: none (prior Sync Impact Report history trimmed from this
-  header; full history remains in git blame for this file).
+  Removed sections: none.
 
   Templates requiring updates:
-    - .specify/templates/plan-template.md   — ✅ no change needed (Constitution
-      Check section derives gates generically from this file; no hardcoded
-      principle numbers or mission text found)
-    - .specify/templates/spec-template.md   — ✅ no change needed (generic,
-      no principle/mission references found)
-    - .specify/templates/tasks-template.md  — ✅ no change needed (generic,
-      no principle/mission references found)
-    - docs/architecture/mandates.md         — ✅ no invariant conflict; the
-      existing "AI Knowledge Layer" and "API Architecture" (MCP) sections
-      already match the new P3 wording and need no rewrite, only the new
-      cross-reference added in the Architectural Mandates index below
-    - docs/architecture/project-structure.md, frontend-data-flow.md — ✅ no
-      change needed (structural, not mission/principle text)
+    - .specify/templates/plan-template.md   — ✅ updated with the public
+      content delivery gate.
+    - .specify/templates/spec-template.md   — ✅ updated with public-content
+      delivery requirements for affected features.
+    - .specify/templates/tasks-template.md  — ✅ updated with an ISR and
+      invalidation validation task.
+    - docs/architecture/mandates.md         — ✅ updated with the binding
+      Public Content Delivery rules.
+    - README.md                             — ✅ updated to state the delivery
+      model.
+    - .specify/templates/commands/          — ✅ not present in this project.
 
   Follow-up TODOs: none. This file also restores governance content
   (Authoritative Sources, Compliance Review, Ratifiers) that was truncated by
@@ -69,9 +42,9 @@
 
 # next-wiki Project Constitution
 
-**Version**: 2.0.0
+**Version**: 2.1.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-07-02
+**Last Amended**: 2026-07-13
 
 ---
 
@@ -296,6 +269,27 @@ agents. Unified entry points prevent drift between parallel navigation paths.
 Concrete URL schemes, breadcrumb rules, and canonical-entry-point mechanics
 live in `docs/architecture/mandates.md` (§ Frontend Routing & URL Contract).
 
+### P12: Public Reading Is Static by Default
+
+Every anonymously readable, published wiki page MUST have a static or
+incrementally statically regenerated (ISR) content representation. Its
+document body, public metadata, and public navigation MUST NOT require a
+database query, session lookup, cookie read, or request-header read on every
+visitor request. Private pages, drafts, and permission-dependent data remain
+dynamic and MUST NOT leak into a public representation.
+
+User-specific controls — such as editor actions, AI panes, locale or theme
+preferences — MUST be composed outside the cacheable content or hydrated after
+the public document is delivered. They MUST NOT make the published document
+body vary by session. Publishing, unpublishing, deleting, changing a public
+page's path/title/metadata, or changing public navigation/locale state MUST
+explicitly invalidate the affected ISR paths and public-data tags.
+
+Rationale: A wiki is principally durable published documents. Serving those
+documents as reusable HTML keeps first reads fast across long-distance networks,
+reduces load on the application and database, and preserves the same canonical
+URL for readers and search engines without weakening authenticated editing.
+
 ---
 
 ## Architectural Mandates
@@ -320,6 +314,7 @@ the linked docs) requires a constitution amendment.
 | AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations (see P3). | `docs/architecture/mandates.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
 | Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
+| Public Content Delivery | Anonymous published documents, their metadata, and public navigation are static/ISR; personalized controls are separate; every public-content mutation revalidates the affected paths. | `docs/architecture/mandates.md` |
 | Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; all UI primitives isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
 | Frontend Data Flow | Server state via TanStack Query; UI state via Zustand; never mix; URL state in search params. | `docs/architecture/frontend-data-flow.md` |
 
@@ -355,6 +350,11 @@ These patterns are PROHIBITED. Any PR introducing them MUST be rejected.
 - **Vendor-locked AI integration**: Hard-coding a single AI vendor's
   proprietary SDK or API as the only integration path for a feature, instead
   of going through the provider-agnostic interface required by P2 and P3.
+- **Session-bound public documents**: Marking an anonymous published reader
+  route dynamic, or embedding session-, cookie-, or header-dependent content
+  in its cached document body, merely to render personalized controls. Those
+  controls belong in a dynamic boundary or client hydration, while the document
+  remains static/ISR.
 
 ---
 

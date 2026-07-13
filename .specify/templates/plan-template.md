@@ -42,6 +42,10 @@
 
 [Gates determined based on constitution file]
 
+- If the feature creates or changes anonymously readable published content,
+  document its static/ISR representation, cache lifetime, and exact
+  invalidation paths/tags. Document why it is N/A otherwise.
+
 ## Project Structure
 
 ### Documentation (this feature)

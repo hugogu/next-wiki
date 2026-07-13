@@ -47,6 +47,9 @@ Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
 - **Everything is versioned.** Every save creates an immutable revision;
   deletion is soft by default; diffs between any two revisions are always
   available.
+- **Fast public reading.** Published public documents and navigation use
+  static/ISR delivery; login-specific controls hydrate separately, so readers
+  do not wait on a session or database query for the document body.
 - **Open standards.** A REST + OpenAPI public content API, OAuth2/OIDC for
   federated auth, and Markdown + frontmatter export — no proprietary lock-in
   in the critical path.
