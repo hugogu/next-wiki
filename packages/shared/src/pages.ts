@@ -209,8 +209,13 @@ export type AdminPageListItem = {
 };
 
 export type AdminPageListFilters = {
+  /** Matches a page title, path, or its author's display name/email. */
+  keyword?: string;
+  /** @deprecated Use `keyword` for new admin page searches. */
   title?: string;
+  /** @deprecated Use `keyword` for new admin page searches. */
   author?: string;
+  /** @deprecated Use `keyword` for new admin page searches. */
   path?: string;
   dateFrom?: string;
   dateTo?: string;

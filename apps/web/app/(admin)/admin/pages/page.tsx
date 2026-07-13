@@ -12,6 +12,7 @@ type AdminPagesSearchParams = Promise<{
   page?: string;
   sort?: string;
   direction?: string;
+  keyword?: string;
   title?: string;
   author?: string;
   path?: string;
@@ -40,6 +41,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
     page: first(params.page),
     sort: first(params.sort),
     direction: first(params.direction),
+    keyword: first(params.keyword),
     title: first(params.title),
     author: first(params.author),
     path: first(params.path),
@@ -54,6 +56,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
       sort: query.sort,
       direction: query.direction,
       filters: {
+        keyword: query.keyword,
         title: query.title,
         author: query.author,
         path: query.path,

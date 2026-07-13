@@ -64,6 +64,7 @@ function clampPage(value: number | undefined): number {
 
 function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilters {
   return {
+    ...(filters.keyword?.trim() ? { keyword: filters.keyword.trim() } : {}),
     ...(filters.title?.trim() ? { title: filters.title.trim() } : {}),
     ...(filters.author?.trim() ? { author: filters.author.trim() } : {}),
     ...(filters.path?.trim() ? { path: filters.path.trim() } : {}),
@@ -81,12 +82,21 @@ function parseDateBoundary(value: string | undefined, boundary: 'start' | 'end')
 function adminPageConditions(spaceId: string, filters: AdminPageListFilters) {
   const dateFrom = parseDateBoundary(filters.dateFrom, 'start');
   const dateTo = parseDateBoundary(filters.dateTo, 'end');
+  const keywordCondition = filters.keyword
+    ? or(
+        ilike(schema.pages.title, `%${filters.keyword}%`),
+        ilike(schema.pages.path, `%${filters.keyword}%`),
+        ilike(schema.users.displayName, `%${filters.keyword}%`),
+        ilike(schema.users.email, `%${filters.keyword}%`),
+      )
+    : undefined;
   return and(
     eq(schema.pages.spaceId, spaceId),
     isNull(schema.pages.deletedAt),
     // The admin pages list manages source pages; translations are managed from
     // the Translations admin, not here (015).
     isNull(schema.pages.translationGroupId),
+    keywordCondition,
     filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
     filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
     filters.author

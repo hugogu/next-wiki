@@ -10,8 +10,8 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { EditIcon, EyeIcon } from '@/components/icons';
-import { getEditHref, getPageHref } from '@/lib/path';
+import { EditIcon, EyeIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
+import { getEditHref, getHistoryHref, getPageHref, getPropertiesHref } from '@/lib/path';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
 
@@ -67,6 +67,23 @@ function IconLink({ href, label, children }: { href: string; label: string; chil
   );
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function HighlightedText({ text, keyword }: { text: string; keyword?: string }) {
+  const normalizedKeyword = keyword?.trim();
+  if (!normalizedKeyword) return text;
+
+  const matcher = new RegExp(`(${escapeRegExp(normalizedKeyword)})`, 'gi');
+  return text.split(matcher).map((part, index) => {
+    if (!part) return null;
+    return part.toLocaleLowerCase() === normalizedKeyword.toLocaleLowerCase()
+      ? <mark key={`${part}-${index}`} className="rounded-sm bg-primary/20 px-0.5 text-foreground">{part}</mark>
+      : part;
+  });
+}
+
 export function AdminPagesPanel({
   t,
   list,
@@ -86,31 +103,16 @@ export function AdminPagesPanel({
         <AdminPageStats />
       </div>
 
-      <form action="/admin/pages" className="rounded-md border border-border bg-surface p-md">
+      <form action="/admin/pages">
         <input type="hidden" name="sort" value={list.sort} />
         <input type="hidden" name="direction" value={list.direction} />
-        <div className="grid gap-sm md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid items-end gap-sm md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.7fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_auto_auto]">
           <label className="space-y-xs">
-            <span className="text-xs font-medium text-muted">{t('admin.pages.filters.title')}</span>
+            <span className="text-xs font-medium text-muted">{t('admin.pages.filters.keyword')}</span>
             <input
-              name="title"
-              defaultValue={list.filters.title ?? ''}
-              className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
-            />
-          </label>
-          <label className="space-y-xs">
-            <span className="text-xs font-medium text-muted">{t('admin.pages.filters.author')}</span>
-            <input
-              name="author"
-              defaultValue={list.filters.author ?? ''}
-              className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
-            />
-          </label>
-          <label className="space-y-xs">
-            <span className="text-xs font-medium text-muted">{t('admin.pages.filters.path')}</span>
-            <input
-              name="path"
-              defaultValue={list.filters.path ?? ''}
+              name="keyword"
+              defaultValue={list.filters.keyword ?? ''}
+              placeholder={t('admin.pages.filters.keywordPlaceholder')}
               className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
             />
           </label>
@@ -132,19 +134,21 @@ export function AdminPagesPanel({
               className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
             />
           </label>
-        </div>
-        <div className="mt-md flex justify-end gap-sm">
           <Link
             href="/admin/pages"
-            className="inline-flex h-9 items-center rounded-md px-md text-sm text-muted hover:bg-surface-elevated hover:text-foreground"
+            aria-label={t('admin.pages.filters.reset')}
+            title={t('admin.pages.filters.reset')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            {t('admin.pages.filters.reset')}
+            <XIcon className="h-4 w-4" />
           </Link>
           <button
             type="submit"
-            className="inline-flex h-9 items-center rounded-md bg-primary px-md text-sm font-medium text-primary-text hover:opacity-90"
+            aria-label={t('admin.pages.filters.apply')}
+            title={t('admin.pages.filters.apply')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-text hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            {t('admin.pages.filters.apply')}
+            <SearchIcon className="h-4 w-4" />
           </button>
         </div>
       </form>
@@ -154,9 +158,6 @@ export function AdminPagesPanel({
           <tr>
             <DataTableHeader>
               <SortHeader t={t} query={query} list={list} sort="title">{t('admin.pages.table.title')}</SortHeader>
-            </DataTableHeader>
-            <DataTableHeader>
-              <SortHeader t={t} query={query} list={list} sort="path">{t('admin.pages.table.path')}</SortHeader>
             </DataTableHeader>
             <DataTableHeader>{t('admin.pages.table.status')}</DataTableHeader>
             <DataTableHeader>
@@ -174,18 +175,16 @@ export function AdminPagesPanel({
         <DataTableBody>
           {list.items.length === 0 ? (
             <DataTableRow>
-              <DataTableCell colSpan={7} className="py-lg text-center text-muted">
+              <DataTableCell colSpan={6} className="py-lg text-center text-muted">
                 {t('admin.pages.empty')}
               </DataTableCell>
             </DataTableRow>
           ) : (
             list.items.map((page) => (
               <DataTableRow key={page.id}>
-                <DataTableCell className="max-w-72 font-medium">
-                  <span className="block truncate">{page.title}</span>
-                </DataTableCell>
-                <DataTableCell className="max-w-80 text-muted">
-                  <code className="block truncate text-xs">{page.path}</code>
+                <DataTableCell className="max-w-sm font-medium">
+                  <span className="block truncate"><HighlightedText text={page.title} keyword={list.filters.keyword} /></span>
+                  <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
                 </DataTableCell>
                 <DataTableCell>
                   <span className="rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
@@ -193,7 +192,7 @@ export function AdminPagesPanel({
                   </span>
                 </DataTableCell>
                 <DataTableCell className="text-muted">
-                  {page.authorDisplayName ?? page.authorEmail}
+                  <HighlightedText text={page.authorDisplayName ?? page.authorEmail} keyword={list.filters.keyword} />
                 </DataTableCell>
                 <DataTableCell align="right">{page.editCount}</DataTableCell>
                 <DataTableCell className="text-muted">
@@ -206,6 +205,12 @@ export function AdminPagesPanel({
                     </IconLink>
                     <IconLink href={getEditHref(page.path)} label={t('admin.pages.actions.edit')}>
                       <EditIcon />
+                    </IconLink>
+                    <IconLink href={getHistoryHref(page.path)} label={t('admin.pages.actions.history')}>
+                      <HistoryIcon />
+                    </IconLink>
+                    <IconLink href={getPropertiesHref(page.path)} label={t('admin.pages.actions.properties')}>
+                      <SettingsIcon />
                     </IconLink>
                     <DeletePageButton pageId={page.id} title={page.title} />
                   </div>
