@@ -5,14 +5,14 @@ import { EditPageForm } from '@/components/pages/EditPageForm';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { getPagePathFromParams } from '@/lib/path';
-import { getLocale, getDictionary } from '@/i18n/server';
+import { getStaticLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);

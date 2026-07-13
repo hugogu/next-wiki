@@ -1,0 +1,1568 @@
+{
+  "common": {
+    "brand": "next-wiki",
+    "unknownAuthor": "Unknown",
+    "error": {
+      "internalServerError": "Internal server error"
+    },
+    "actions": {
+      "back": "← Back",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "dismiss": "Dismiss",
+      "search": "Search",
+      "save": "Save",
+      "edit": "Edit"
+    },
+    "status": {
+      "saving": "Saving…",
+      "loading": "Loading…"
+    }
+  },
+  "header": {
+    "search": {
+      "label": "Search wiki pages",
+      "placeholder": "Search pages",
+      "minChars": "Type at least two characters to search.",
+      "searching": "Searching…",
+      "loadingHybrid": "Loading keyword and vector matches…",
+      "loadingSemantic": "Loading additional vector matches…",
+      "noResults": "No matching pages found.",
+      "reducedCoverage": "Showing keyword matches only.",
+      "error": "Search is temporarily unavailable.",
+      "escapeHint": "Press Escape or click outside to close search.",
+      "source": {
+        "keyword": "Keyword",
+        "semantic": "Vector"
+      }
+    }
+  },
+  "language": {
+    "en": "English",
+    "zh": "中文",
+    "switchToEnglish": "Switch to English",
+    "switchToChinese": "Switch to Chinese",
+    "label": "Language"
+  },
+  "theme": {
+    "mode": {
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "Auto",
+      "autoWithResolved": "Auto ({resolved})"
+    },
+    "toggleLabel": "Theme: {mode}",
+    "label": "Theme"
+  },
+  "auth": {
+    "fields": {
+      "emailLabel": "Email",
+      "passwordLabel": "Password"
+    },
+    "login": {
+      "metadataTitle": "Sign in",
+      "heading": "Sign in",
+      "noAccount": "Don't have an account?",
+      "createAccountLink": "Create one",
+      "button": {
+        "submit": "Sign in",
+        "submitting": "Signing in..."
+      },
+      "error": {
+        "invalidCredentials": "Invalid email or password."
+      }
+    },
+    "register": {
+      "metadataTitle": "Register",
+      "heading": "Create an account",
+      "hasAccount": "Already have an account?",
+      "signInLink": "Sign in",
+      "button": {
+        "submit": "Create account",
+        "submitting": "Creating account..."
+      },
+      "error": {
+        "emailExists": "An account with this email already exists.",
+        "generic": "Registration failed. Please try again."
+      }
+    },
+    "logout": {
+      "button": {
+        "submit": "Sign out",
+        "submitting": "Signing out..."
+      }
+    },
+    "setPassword": {
+      "metadataTitle": "Set new password",
+      "heading": "Set a new password",
+      "description": "Your password was reset by an administrator. Choose a new password to continue.",
+      "fields": {
+        "newPasswordLabel": "New password",
+        "confirmPasswordLabel": "Confirm new password"
+      },
+      "validation": {
+        "confirmRequired": "Confirm your password",
+        "passwordsMismatch": "Passwords do not match"
+      },
+      "button": {
+        "submit": "Set new password",
+        "submitting": "Updating..."
+      },
+      "error": {
+        "generic": "Failed to update password."
+      }
+    },
+    "setup": {
+      "error": {
+        "alreadyConfigured": "Setup is no longer available. An admin account already exists.",
+        "generic": "Failed to create admin account."
+      },
+      "fields": {
+        "emailLabel": "Admin email"
+      },
+      "button": {
+        "submitting": "Creating admin...",
+        "submit": "Create admin account"
+      }
+    },
+    "error": {
+      "emailExists": "An account with this email already exists",
+      "invalidCredentials": "Invalid email or password",
+      "signInToChangePassword": "Sign in to change your password",
+      "passwordTooShort": "Password must be at least 8 characters"
+    }
+  },
+  "setup": {
+    "metadataTitle": "First-run setup",
+    "heading": "Welcome to next-wiki",
+    "description": "Create the initial admin account to get started. This screen is only available while no admins exist."
+  },
+  "site": {
+    "description": "A personal knowledge base where you collaborate with AI and continuously feed it better context."
+  },
+  "home": {
+    "tagline": "A personal knowledge base where you collaborate with AI and continuously feed it better context.",
+    "empty": {
+      "title": "No published pages yet",
+      "body": "Pages will appear here once an editor publishes them."
+    },
+    "recentPagesTitle": "Latest pages",
+    "viewAllPages": "View all pages",
+    "page": {
+      "publishedOn": "Published {date}",
+      "updatedRecently": "Updated recently"
+    }
+  },
+  "pages": {
+    "list": {
+      "metadataTitle": "All pages",
+      "title": "All pages",
+      "empty": "No published pages yet."
+    },
+    "tag": {
+      "title": "Pages tagged “{tag}”",
+      "empty": "No published pages tagged “{tag}”."
+    }
+  },
+  "page": {
+    "read": {
+      "draftBanner": "This page is a draft and not yet published.",
+      "createdOn": "Created {date}",
+      "authorSuffix": " by {name}",
+      "outline": "Outline"
+    },
+    "create": {
+      "metadataTitle": "New page",
+      "defaultTitle": "Create a new page",
+      "error": {
+        "pathExists": "A page with this path already exists.",
+        "forbidden": "You do not have permission to create pages.",
+        "generic": "Failed to create page."
+      },
+      "submit": "Create"
+    },
+    "edit": {
+      "metadataTitle": "Edit {path}",
+      "defaultTitle": "Untitled",
+      "validation": {
+        "invalidPath": "Invalid path"
+      },
+      "error": {
+        "invalidPath": "The new path is invalid.",
+        "pathExists": "A page with this path already exists.",
+        "forbidden": "You do not have permission to edit this page.",
+        "generic": "Failed to save changes."
+      }
+    },
+    "properties": {
+      "metadataTitle": "Properties: {path}",
+      "heading": "Page properties",
+      "description": "Configure the URL path and other settings for this page.",
+      "fields": {
+        "pathLabel": "URL path",
+        "pathPlaceholder": "path/to/page",
+        "pathHint": "Use slashes to create directories, e.g. {example}."
+      },
+      "button": {
+        "submitting": "Saving...",
+        "submit": "Save properties"
+      },
+      "error": {
+        "pathExists": "A page with this path already exists.",
+        "forbidden": "You do not have permission to edit page properties.",
+        "generic": "Failed to update properties."
+      }
+    },
+    "history": {
+      "metadataTitle": "History: {path}",
+      "heading": "Version history: {title}",
+      "backToPage": "← {title}",
+      "empty": {
+        "title": "No revisions visible",
+        "forbidden": "You do not have permission to view this page's history."
+      },
+      "versionLink": "Version {version}",
+      "revisionMeta": "{date} by {name}"
+    },
+    "revision": {
+      "metadataTitle": "Revision {version} - {path}",
+      "heading": "Revision {version}",
+      "backToHistory": "← Back to history",
+      "publishedOn": "Published on {date}",
+      "draftOn": "Draft on {date}",
+      "authorSuffix": " by {name}",
+      "error": {
+        "notFound": "Revision not found"
+      }
+    },
+    "publish": {
+      "button": {
+        "submit": "Publish this revision",
+        "submitting": "Publishing..."
+      },
+      "error": {
+        "forbidden": "You do not have permission to publish this revision.",
+        "generic": "Failed to publish revision.",
+        "signInRequired": "Sign in to publish revisions"
+      }
+    },
+    "error": {
+      "notFound": "Page not found",
+      "deleteForbidden": "You do not have permission to delete this page",
+      "signInToCreate": "Sign in to create pages",
+      "createForbidden": "You do not have permission to create pages",
+      "invalidPath": "Invalid path",
+      "pathExists": "A page with this path already exists",
+      "signInToEdit": "Sign in to edit pages",
+      "editForbidden": "You do not have permission to edit this page",
+      "signInToEditProperties": "Sign in to edit page properties"
+    },
+    "header": {
+      "edit": "Edit page",
+      "history": "View history",
+      "publish": "Publish",
+      "publishing": "Publishing...",
+      "properties": "Page properties",
+      "view": "View page",
+      "newPage": "New page",
+      "admin": "Admin"
+    },
+    "share": {
+      "button": "Share",
+      "title": "Share this page",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "more": "More…",
+      "weibo": "Weibo",
+      "wechat": "WeChat",
+      "discord": "Discord"
+    },
+    "metadata": {
+      "date": "Date",
+      "tags": "Tags",
+      "summary": "Summary"
+    }
+  },
+  "space": {
+    "error": {
+      "defaultNotFound": "Default space not found"
+    }
+  },
+  "editor": {
+    "header": {
+      "save": "Save",
+      "close": "Close",
+      "properties": "Page properties"
+    },
+    "toolbar": {
+      "heading": "Heading",
+      "bold": "Bold",
+      "italic": "Italic",
+      "inlineCode": "Inline code",
+      "codeBlock": "Code block",
+      "bulletList": "Bullet list",
+      "quote": "Quote",
+      "link": "Link",
+      "undo": "Undo",
+      "redo": "Redo",
+      "image": "Insert image",
+      "wrap": "Toggle line wrap",
+      "scrollSync": "Toggle scroll sync"
+    },
+    "image": {
+      "uploading": "Uploading image…",
+      "uploadFailed": "Image upload failed"
+    },
+    "properties": {
+      "title": "Page properties",
+      "fields": {
+        "titleLabel": "Title",
+        "titlePlaceholder": "Page title",
+        "dateLabel": "Date",
+        "tagsLabel": "Tags",
+        "tagsPlaceholder": "devops, docker",
+        "tagsHint": "Separate tags with commas.",
+        "summaryLabel": "Summary",
+        "frontmatterLabel": "Write page metadata to Markdown frontmatter",
+        "frontmatterHint": "When off, title, date, tags, and summary are stored only in the wiki database without rewriting the Markdown source.",
+        "pathLabel": "Path",
+        "pathPlaceholder": "path/to/page",
+        "pathHint": "Use slashes to create directories, e.g. {example}."
+      }
+    },
+    "preview": {
+      "error": {
+        "invalidInput": "Invalid input",
+        "renderFailed": "Failed to render preview"
+      }
+    }
+  },
+  "admin": {
+    "tags": {
+      "heading": "Tags",
+      "ariaLabel": "Tag management",
+      "createHeading": "Create a tag",
+      "createDescription": "New tags join the global registry and can be used in any page metadata.",
+      "newPlaceholder": "Enter a tag name",
+      "create": "Create tag",
+      "created": "Tag created.",
+      "rename": "Rename",
+      "renamed": "Tag renamed and synchronized across {count} pages.",
+      "renameTitle": "Rename tag",
+      "renameDescription": "Change the name of “{name}”. Pages using it will be synchronized automatically.",
+      "nameLabel": "Tag name",
+      "merge": "Merge",
+      "merged": "Tags merged and synchronized across {count} pages.",
+      "mergeTitle": "Merge tag",
+      "mergeDescription": "Move every page associated with “{name}” to another tag.",
+      "mergeTarget": "Destination tag",
+      "mergeWarning": "The source tag is removed after the merge. Pages using both tags keep only the destination tag.",
+      "mergeConfirm": "Merge tags",
+      "delete": "Delete",
+      "deleted": "Tag deleted and removed from {count} pages.",
+      "deleteTitle": "Delete tag?",
+      "deleteDescription": "Delete “{name}” and remove it from {count} related pages. This creates new page revisions.",
+      "searchPlaceholder": "Search tags",
+      "tagCount": "{count} tags",
+      "empty": "No tags found.",
+      "selectHint": "Select a tag to review its details and related pages.",
+      "relatedSummary": "Used by {count} pages",
+      "relatedPages": "Related pages",
+      "pageTagsLabel": "Tags on this page",
+      "searchPagesPlaceholder": "Search related pages by title or path",
+      "noPages": "No pages use this tag yet.",
+      "noMatchingPages": "No related pages match the query.",
+      "pagesLoadFailed": "Unable to load related pages",
+      "operationQueued": "The operation is queued and related pages are being synchronized.",
+      "operationPending": "The operation is still running in the background. Its latest state will appear shortly.",
+      "loadFailed": "Unable to load tags",
+      "createFailed": "Unable to create tag",
+      "updateFailed": "Unable to update tag",
+      "metadataTitle": "Tag management",
+      "title": "Tag Management",
+      "description": "Maintain wiki tags, review where they are used, and clean up duplicate or unused tags."
+    },
+    "title": "Administration",
+    "nav": {
+      "users": "Users",
+      "pages": "Pages",
+      "tags": "Tags",
+      "storage": "Content Storage",
+      "apiAudit": "Access Log",
+      "transfers": "Import / Export",
+      "translations": "Translations",
+      "appearance": "Appearance",
+      "search": "Search",
+      "site": "Site Info",
+      "groups": {
+        "content": "Content",
+        "system": "System",
+        "operations": "Data & Operations"
+      },
+      "ai": "AI"
+    },
+    "searchSettings": {
+      "title": "Search Settings",
+      "description": "Tune header search relevance, semantic retrieval, and result preview display.",
+      "semantic": {
+        "title": "Vector search",
+        "description": "When enabled, header search blends keyword matches with semantic vector results. Disable it for keyword-only search."
+      },
+      "minRelevance": {
+        "label": "Minimum relevance score",
+        "help": "Only show results whose keyword or vector relevance score is at least this value. Use 0 for permissive matching; try 0.65+ to hide weak vector matches."
+      },
+      "excerpts": {
+        "title": "Result descriptions",
+        "description": "Show a short excerpt under each search result."
+      },
+      "excerptLength": {
+        "label": "Description length",
+        "help": "Approximate character count for each result description. Valid range: 20–500."
+      },
+      "saved": "Saved.",
+      "saveError": "Failed to save search settings."
+    },
+    "pages": {
+      "metadataTitle": "Page management",
+      "title": "Page Management",
+      "description": "Review wiki pages, filter by page metadata, and open common page actions from one administrative view.",
+      "stats": {
+        "totalPages": "Total pages",
+        "totalEdits": "Total edits",
+        "totalLinks": "Page links"
+      },
+      "filters": {
+        "keyword": "Search",
+        "keywordPlaceholder": "Title, author, or path",
+        "title": "Title",
+        "author": "Author",
+        "path": "Directory path",
+        "dateFrom": "Updated from",
+        "dateTo": "Updated to",
+        "apply": "Apply filters",
+        "reset": "Reset"
+      },
+      "table": {
+        "title": "Title",
+        "path": "Path",
+        "status": "Status",
+        "author": "Author",
+        "edits": "Edits",
+        "updatedAt": "Updated",
+        "actions": "Actions"
+      },
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "deleted": "Deleted"
+      },
+      "actions": {
+        "view": "View page",
+        "edit": "Edit page",
+        "history": "View history",
+        "properties": "Page properties",
+        "delete": "Delete page"
+      },
+      "delete": {
+        "title": "Delete page?",
+        "message": "Delete \"{title}\"? This hides the page and queues index reconciliation.",
+        "confirm": "Delete page",
+        "error": "Could not delete page."
+      },
+      "empty": "No pages match the current filters.",
+      "sortBy": "Sort by {column}",
+      "pagination": {
+        "summary": "{total} pages, page {page} of {pages}"
+      }
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Manage system themes for the app shell. Built-in themes are read-only — copy one to customize. Reading content uses each user's personal reading theme.",
+      "builtin": "built-in",
+      "builtinReadonly": "Built-in themes are read-only.",
+      "active": "Active",
+      "activate": "Activate",
+      "activated": "Theme activated.",
+      "copy": "Copy to edit",
+      "copied": "Copy created.",
+      "save": "Save",
+      "saved": "Theme saved.",
+      "delete": "Delete",
+      "deleteConfirm": {
+        "title": "Delete theme?",
+        "message": "Delete \"{name}\"? This cannot be undone."
+      },
+      "deleted": "Theme deleted.",
+      "selectHint": "Select a theme to view or activate it, or copy a built-in to customize.",
+      "nameLabel": "Theme name",
+      "cssLabel": "Theme stylesheet",
+      "error": {
+        "generic": "Could not save system theme. Check your CSS and try again."
+      },
+      "preview": {
+        "title": "Live preview",
+        "light": "Light",
+        "dark": "Dark",
+        "heading": "Heading level 1",
+        "subheading": "Heading level 2",
+        "h3": "Heading level 3",
+        "body": "Body text shows how paragraphs read with the chosen font and size. Here is a",
+        "link": "sample link",
+        "quote": "Blockquotes use the muted color and a left accent border.",
+        "listItem": "A list item to show spacing and bullets.",
+        "listItemAlt": "A second item for rhythm.",
+        "table": {
+          "token": "Token",
+          "value": "Value"
+        },
+        "button": "Primary button"
+      }
+    },
+    "site": {
+      "title": "Site information",
+      "description": "Configure the site name, icon, footer, and (for China) regulatory filing numbers.",
+      "name": {
+        "label": "Site name"
+      },
+      "icon": {
+        "label": "Site icon",
+        "upload": "Upload icon",
+        "remove": "Remove",
+        "hint": "SVG, PNG, or ICO up to 512 KB. Leave empty to use the default icon."
+      },
+      "footer": {
+        "label": "Footer copyright"
+      },
+      "filing": {
+        "title": "China regulatory filing (optional)"
+      },
+      "icp": {
+        "numberLabel": "ICP filing number (ICP 备案号)",
+        "urlLabel": "ICP filing link"
+      },
+      "ps": {
+        "numberLabel": "Public security filing (公安备案号)",
+        "urlLabel": "Public security filing link"
+      },
+      "save": "Save changes",
+      "saving": "Saving...",
+      "saved": "Site information updated.",
+      "error": {
+        "generic": "Could not save site information. Check your values and try again."
+      }
+    },
+    "transfers": {
+      "metadataTitle": "Content import and export",
+      "title": "Content Import and Export",
+      "description": "Create portable backups, restore archives, and migrate content from Wiki.js.",
+      "tabs": {
+        "exports": "Exports",
+        "archives": "Archive import",
+        "wikijs": "Wiki.js import",
+        "history": "Run history"
+      },
+      "export": {
+        "title": "Portable wiki archive",
+        "description": "Export all published Markdown and referenced local images as a versioned ZIP archive.",
+        "start": "Create export",
+        "starting": "Starting…"
+      },
+      "archive": {
+        "comingSoon": "Upload a portable next-wiki archive to preview and restore its content.",
+        "preview": "Upload and preview",
+        "chooseFile": "Choose a ZIP file…",
+        "previewReady": "The latest archive preview is ready to import.",
+        "import": "Start import"
+      },
+      "conflict": {
+        "skip": "Skip existing pages",
+        "replace": "Replace existing pages"
+      },
+      "wikijs": {
+        "comingSoon": "Configure a Wiki.js source to preview and migrate its accessible pages.",
+        "name": "Source name",
+        "token": "API token",
+        "privateNetwork": "Allow this trusted Wiki.js host on a private network",
+        "add": "Add source",
+        "test": "Test",
+        "testing": "Testing connection…",
+        "testSuccess": "Connection OK",
+        "testFailed": "Connection failed",
+        "preview": "Preview",
+        "import": "Import",
+        "delete": "Delete"
+      },
+      "history": {
+        "empty": "No transfer runs yet."
+      },
+      "detail": {
+        "warningCount": "{count} warnings",
+        "noItems": "No items yet.",
+        "cleanupConfirm": "Delete the {count} page(s) this import created or replaced and remove them from AI indexes? Pages it skipped are left untouched. This cannot be undone.",
+        "cleanupDone": "Deleted {count} imported page(s).",
+        "filter": {
+          "all": "All",
+          "warning": "Warnings",
+          "failed": "Errors"
+        }
+      },
+      "table": {
+        "kind": "Operation",
+        "status": "Status",
+        "progress": "Progress",
+        "started": "Started",
+        "actions": "Actions"
+      },
+      "kind": {
+        "site_export": "Site export",
+        "archive_preview": "Archive preview",
+        "archive_import": "Archive import",
+        "wikijs_source_test": "Wiki.js connection test",
+        "wikijs_preview": "Wiki.js preview",
+        "wikijs_import": "Wiki.js import"
+      },
+      "status": {
+        "queued": "Queued",
+        "running": "Running",
+        "paused": "Paused",
+        "completed": "Completed",
+        "completed_with_warnings": "Completed with warnings",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "cleaned": "Cleaned"
+      },
+      "actions": {
+        "cancel": "Cancel run",
+        "pause": "Pause",
+        "resume": "Resume",
+        "retry": "Retry",
+        "cleanup": "Clean up",
+        "download": "Download"
+      }
+    },
+    "storage": {
+      "metadataTitle": "Content storage",
+      "title": "Content Storage",
+      "description": "Database is the source of truth. Enable one or more replicas for resilient and lower-cost reads.",
+      "database": {
+        "description": "All Markdown and image bytes are committed here first. This backend is always enabled and its configuration is read-only.",
+        "role": "Storage role",
+        "engine": "Database engine",
+        "host": "Host and port",
+        "name": "Database name",
+        "username": "Username",
+        "ssl": "TLS/SSL",
+        "sslEnabled": "Enabled",
+        "sslDisabled": "Not configured"
+      },
+      "replica": {
+        "heading": "Replica",
+        "description": "Enabled replicas receive asynchronous writes from the authoritative Database.",
+        "enabledLabel": "Enabled",
+        "enabledDescription": "Receive new content writes and become available as a read source.",
+        "databaseAlwaysEnabled": "Database is authoritative and cannot be disabled.",
+        "preferredLabel": "Preferred read source",
+        "preferredDescription": "Try this source first and fall back to Database when unavailable.",
+        "preferredToggle": "Preferred read source",
+        "enabledToggle": "Replica enabled",
+        "databaseToggle": "Database enabled",
+        "authoritative": "Authoritative",
+        "unconfigured": "Not configured",
+        "preferred": "Preferred for reads",
+        "makePreferred": "Prefer for reads",
+        "lastSync": "Last synchronized: {time}",
+        "disableTitle": "Disable this replica?",
+        "disableMessage": "The replica will stop receiving writes and will no longer serve reads. Choose whether to retain its existing data.",
+        "disableKeep": "Disable and keep data",
+        "disableDelete": "Disable and delete data",
+        "enableTitle": "Enable this storage source?",
+        "enableMessage": "Choose whether existing Database content should be synchronized before this source is used.",
+        "enableWithoutSync": "Enable without syncing",
+        "enableAndSync": "Sync existing data",
+        "state": {
+          "disabled": "Disabled",
+          "backfilling": "Backfilling",
+          "enabled": "Enabled",
+          "degraded": "Degraded",
+          "deleting": "Deleting",
+          "unconfigured": "Unconfigured"
+        }
+      },
+      "active": {
+        "heading": "Active backend",
+        "typeLabel": "Type",
+        "statusLabel": "Status",
+        "status": {
+          "active": "Active"
+        },
+        "migrating": "A migration is in progress; content writes are paused."
+      },
+      "type": {
+        "database": "Database",
+        "local": "Local filesystem",
+        "s3": "S3-compatible",
+        "git": "Git sync"
+      },
+      "form": {
+        "local": {
+          "title": "Local filesystem",
+          "basePath": "Base directory",
+          "containerPath": "Container path",
+          "hostPath": "Host bind mount",
+          "hostPathUnknown": "Not exposed by the runtime"
+        },
+        "s3": {
+          "title": "S3-compatible storage",
+          "endpoint": "Endpoint (optional)",
+          "region": "Region",
+          "bucket": "Bucket",
+          "prefix": "Prefix (optional)",
+          "accessKeyId": "Access key ID",
+          "secret": "Secret access key",
+          "secretConfigured": "Secret is configured — leave blank to keep it",
+          "secretPlaceholder": "Enter secret access key"
+        }
+      },
+      "git": {
+        "description": "One-way sync of published Markdown and referenced images to a Git remote. Git is never used as a read source.",
+        "enabled": "Git sync enabled",
+        "enabledDescription": "Sync changes asynchronously to the configured system-owned branch.",
+        "configHeading": "Configuration",
+        "remoteUrl": "Remote URL",
+        "branch": "Sync branch",
+        "assetsDir": "Assets directory",
+        "authMode": "Authentication",
+        "authHttps": "HTTPS access token",
+        "authSsh": "SSH key",
+        "username": "HTTPS username (optional)",
+        "token": "Access token",
+        "tokenConfigured": "Token is configured — leave blank to keep it",
+        "tokenPlaceholder": "Enter a GitHub/GitLab access token",
+        "sshPublicKey": "Server SSH public key",
+        "generateKey": "Generate SSH key",
+        "rotateKey": "Rotate SSH key",
+        "sshInstructions": "Add this public key as a write-enabled deploy key in GitHub, GitLab, or your Git server.",
+        "sshMissing": "Generate a key, then add the public key to the remote repository before enabling export.",
+        "keyGenerated": "SSH key generated. Configure the public key on the Git remote.",
+        "saved": "Git sync configuration saved.",
+        "exportNow": "Sync now",
+        "exportQueued": "Full Git sync queued.",
+        "exportNotQueued": "Git sync could not be queued. Please check the server logs.",
+        "syncInProgress": "A full sync is in progress.",
+        "syncInProgressSince": "A full sync has been running since {time}.",
+        "cancelSync": "Cancel sync",
+        "cancellingSync": "Cancelling…",
+        "syncCancelled": "Git sync cancelled.",
+        "enableTitle": "Enable Git sync?",
+        "enableMessage": "The current published state will be synced immediately. Future publish, delete, and path changes will enqueue another reconciliation.",
+        "enableAndExport": "Enable and sync",
+        "autoSync": "Auto-sync on publish",
+        "autoSyncDescription": "Push to Git automatically whenever a new page version is published.",
+        "autoSyncWarning": "Disabling this stops automatic pushes on publish. Newly published versions may be missing from the Git remote until the next manual or scheduled sync.",
+        "scheduledSync": "Scheduled sync",
+        "scheduledSyncDescription": "Periodically reconcile the full published snapshot to Git as a safety net.",
+        "scheduledSyncInterval": "Sync interval (minutes)"
+      },
+      "actions": {
+        "test": "Test connection",
+        "testing": "Testing…",
+        "save": "Save",
+        "saving": "Saving…",
+        "heading": "Switch active backend",
+        "switch": "Switch to this",
+        "cleanup": "Clean up data"
+      },
+      "result": {
+        "ok": "Connection succeeded.",
+        "failed": "Connection failed: {detail}"
+      },
+      "saved": "Configuration saved.",
+      "note": {
+        "activation": "Saving stores the configuration. Switching the active backend runs a safe migration.",
+        "replication": "Save and test the configuration before enabling it. Enabling starts an asynchronous Database backfill."
+      },
+      "switch": {
+        "title": "Switch to {target}?",
+        "message": "This copies and verifies all content to {target}, then activates it. Content is read-only during the migration.",
+        "confirm": "Start migration",
+        "overwriteWarning": "The {target} backend already contains data, which may be overwritten. Continue?",
+        "confirmOverwrite": "Overwrite and migrate"
+      },
+      "cleanup": {
+        "title": "Delete retained data?",
+        "message": "Permanently delete all retained content from the inactive {target} backend. This cannot be undone.",
+        "confirm": "Delete data"
+      },
+      "migration": {
+        "metadataTitle": "Storage migration",
+        "heading": "Migration",
+        "bannerLink": "A storage migration is in progress — view status.",
+        "backToStorage": "Back to Content Storage",
+        "progress": "{done} / {total} items ({percent}%)",
+        "aborting": "aborting…",
+        "abort": "Abort migration",
+        "status": {
+          "pending": "Pending",
+          "copying": "Copying",
+          "verifying": "Verifying",
+          "completed": "Completed",
+          "failed": "Failed",
+          "aborted": "Aborted"
+        }
+      },
+      "sync": {
+        "metadataTitle": "Storage synchronization",
+        "heading": "Synchronizing existing content",
+        "progress": "{done} / {total} items ({percent}%)",
+        "failed": "{count} items could not be synchronized and will be retried.",
+        "back": "Back to Content Storage"
+      }
+    },
+    "apiAudit": {
+      "metadataTitle": "Access Log",
+      "title": "Access Log",
+      "user": "User",
+      "keyName": "Key",
+      "method": "Method",
+      "path": "Path",
+      "status": "Status",
+      "duration": "Duration",
+      "authStatus": "Auth",
+      "ip": "IP",
+      "timestamp": "Timestamp",
+      "errorMessage": "Error",
+      "filterByUser": "User",
+      "filterByTimeRange": "Time range",
+      "from": "From",
+      "to": "To",
+      "allUsers": "All users",
+      "noEntries": "No audit entries match the filters.",
+      "entryType": "Type",
+      "all": "All",
+      "page": "Page",
+      "api": "API"
+    },
+    "users": {
+      "metadataTitle": "User management",
+      "description": "Manage roles, status, and passwords.",
+      "table": {
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "joined": "Joined",
+        "actions": "Actions"
+      },
+      "role": {
+        "reader": "Reader",
+        "editor": "Editor",
+        "admin": "Admin",
+        "selectLabel": "Change role for {email}"
+      },
+      "status": {
+        "enable": "Enable user",
+        "disable": "Disable user"
+      },
+      "resetPassword": {
+        "button": "Reset password",
+        "confirmButton": "Set temporary password",
+        "placeholder": "Temporary password",
+        "successMessage": "Temporary password set for {email}",
+        "securityHint": "Share this password securely. The user must set a new password on next sign-in."
+      },
+      "error": {
+        "manageForbidden": "You do not have permission to manage users",
+        "cannotRemoveOwnAdmin": "You cannot remove your own admin role",
+        "userNotFound": "User not found",
+        "cannotDisableSelf": "You cannot disable your own account",
+        "tempPasswordTooShort": "Temporary password must be at least 8 characters"
+      }
+    },
+    "ai": {
+      "title": "AI configuration",
+      "description": "Configure system providers, model purposes, knowledge indexes, and operational activity.",
+      "tabs": {
+        "chat": "Chat capability",
+        "embedding": "Embedding capability",
+        "image": "Image capability",
+        "detector": "Model detection",
+        "models": "Capability mapping",
+        "indexes": "Indexes",
+        "actions": "Actions",
+        "usage": "Usage"
+      },
+      "usage": {
+        "title": "AI usage",
+        "description": "Completed request counts and token consumption by chat, embedding and image capability.",
+        "loading": "Loading…",
+        "requests": "Requests",
+        "chat": "Chat",
+        "embedding": "Embedding",
+        "image": "Image"
+      },
+      "global": {
+        "title": "Enable AI",
+        "description": "Allow configured providers to process Wiki content."
+      },
+      "modelDetector": {
+        "title": "Model capability detector",
+        "description": "Configure the OpenRouter key used to enrich chat capabilities and discover vendor embedding models.",
+        "configured": "A detector API key is configured.",
+        "configuredShort": "Configured",
+        "unconfigured": "Not configured",
+        "apiKey": "OpenRouter API key",
+        "replaceHint": "Enter a new key to replace the stored one",
+        "save": "Save key",
+        "saved": "Detector key saved.",
+        "registerProviders": "Register OpenRouter providers for all capabilities",
+        "registerProvidersHint": "Create chat, embedding, and image providers from this key. Each is registered under a distinct name."
+      },
+      "providers": {
+        "title": "AI providers",
+        "description": "Manage system-wide provider connections and review the API capabilities exposed by each provider.",
+        "add": "Add provider",
+        "addCapability": "Add configuration",
+        "addTyped": "Add {type}",
+        "addDescription": "Credentials are encrypted and never returned by the API.",
+        "name": "Provider name",
+        "vendor": "Platform",
+        "baseUrl": "Base URL",
+        "apiKey": "API key",
+        "create": "Create provider",
+        "kind": "Provider type",
+        "protocol": "API protocol",
+        "initialModel": "Initial model ID",
+        "status": "Status",
+        "capabilities": "Provider APIs",
+        "capabilitiesUnknown": "Sync models to detect",
+        "models": "Models",
+        "empty": {
+          "__value": "No AI providers are configured.",
+          "chat": "No Chat Provider is configured.",
+          "embedding": "No Embedding Provider is configured.",
+          "image": "No Image Provider is configured."
+        },
+        "test": "Test connection",
+        "testing": "Testing…",
+        "testOk": "Connection succeeded ({latency}ms)",
+        "testFailed": "Connection failed: {detail}",
+        "sync": "Sync models",
+        "syncComplete": "Synchronized {count} models; skipped {skipped}",
+        "delete": "Delete configuration",
+        "deleteConfirm": "Delete {name} and all of its models, assignments, indexes, and run records? This action cannot be undone."
+      },
+      "providerType": {
+        "chat": "Chat capability",
+        "embedding": "Embedding capability",
+        "image": "Image capability",
+        "chatDescription": "Chat and reasoning APIs used for Wiki Q&A and text optimization.",
+        "embeddingDescription": "Dedicated embeddings APIs used for vector indexing and retrieval.",
+        "imageDescription": "Dedicated image generation APIs used to create Wiki illustrations."
+      },
+      "vendor": {
+        "openai": "OpenAI",
+        "openrouter": "OpenRouter",
+        "anthropic": "Anthropic",
+        "kimi": "Kimi",
+        "voyage": "Voyage AI",
+        "minimax": "MiniMax",
+        "zai": "Z.ai",
+        "custom": "Custom OpenAI-compatible"
+      },
+      "providerStatus": {
+        "unverified": "Unverified",
+        "healthy": "Healthy",
+        "unavailable": "Unavailable",
+        "disabled": "Disabled"
+      },
+      "assignments": {
+        "title": "System capability mapping",
+        "description": "Map each system AI capability to one configured platform and model.",
+        "none": "Select a model",
+        "saveAll": "Save all"
+      },
+      "purpose": {
+        "wiki_text": "Wiki text model",
+        "wiki_embedding": "Wiki embedding model",
+        "wiki_image": "Wiki image model"
+      },
+      "capability": {
+        "text_generation": "Text",
+        "embedding": "Embedding",
+        "image_generation": "Image"
+      },
+      "function": {
+        "text": "Text generation",
+        "embedding": "Vector embedding",
+        "image": "Image generation",
+        "textDescription": "Used for Wiki Q&A and selected-text optimization through the Chat API.",
+        "embeddingDescription": "Used to vectorize Wiki content and queries through the Embeddings API.",
+        "imageDescription": "Used to create Wiki illustrations through the Images API or provider image-output API.",
+        "configured": "Configured",
+        "unconfigured": "Not configured",
+        "embeddingDimensions": "Embedding dimensions",
+        "confirmCapability": "Saving confirms that {model} supports this dedicated API.",
+        "save": "Save function"
+      },
+      "models": {
+        "catalogTitle": "Model catalog",
+        "catalogDescription": {
+          "__value": "Review models available to this capability.",
+          "chat": "Review synchronized chat models and their input and reasoning capabilities.",
+          "embedding": "Review embedding models discovered from the OpenRouter embeddings catalog or added manually.",
+          "image": "Review vendor-defined and manually added image-generation models."
+        },
+        "filter": "Filter models",
+        "allProviders": "All providers",
+        "model": "Model",
+        "provider": "Provider",
+        "type": "API type",
+        "context": "Context",
+        "chatCapabilities": "Chat capabilities",
+        "embeddingDimensions": "Embedding dimensions",
+        "multilingualSupport": "Multilingual support",
+        "supported": "Supported",
+        "unsupported": "Not supported",
+        "supportUnknown": "Unknown",
+        "empty": "No models match the current filters.",
+        "add": "Add model",
+        "externalId": "Model ID",
+        "displayName": "Display name",
+        "delete": "Delete model",
+        "active": "Active",
+        "activate": "Activate",
+        "activateDimensionsHint": "Set the embedding dimensions for {name} to activate it. This must match the model's actual output size."
+      },
+      "chatCapability": {
+        "vision": "Vision",
+        "audio": "Audio",
+        "thinking": "Thinking"
+      },
+      "modelType": {
+        "chat": "Chat",
+        "embedding": "Embedding",
+        "image": "Image",
+        "unknown": "Unclassified"
+      },
+      "modelAvailability": {
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "unknown": "Unknown"
+      },
+      "action": {
+        "queued": "Action queued"
+      },
+      "saving": "Saving…",
+      "error": {
+        "generic": "AI configuration failed.",
+        "inUse": "This item is in use and cannot be deleted."
+      },
+      "delete": {
+        "confirm": "Delete {name}? This action cannot be undone."
+      },
+      "entitlement": {
+        "question": "Wiki question answering",
+        "text": "Selected-text optimization",
+        "image": "Page image generation",
+        "dialogTitle": "AI access — {email}",
+        "dialogDescription": "Toggle each capability on or off. Changes save automatically.",
+        "saving": "Saving…",
+        "loading": "Loading…",
+        "loadError": "Could not load AI access settings.",
+        "manage": "Manage AI access"
+      },
+      "index": {
+        "rebuild": "Rebuild knowledge index",
+        "retry": "Retry failed pages",
+        "title": "Knowledge indexes",
+        "description": "Monitor vector-index generations and rebuild after changing the embedding model.",
+        "model": "Embedding model",
+        "dimensions": "Dimensions",
+        "progress": "Progress",
+        "failed": "Failed",
+        "active": "Active",
+        "details": "Details",
+        "delete": "Delete index",
+        "cancel": {
+          "__value": "Cancel build",
+          "confirm": "Stop the in-progress build of \"{name}\"? Partial work is discarded."
+        },
+        "empty": "No knowledge index has been created."
+      },
+      "indexStatus": {
+        "building": "Building",
+        "ready": "Ready",
+        "failed": "Failed",
+        "superseded": "Superseded"
+      },
+      "actions": {
+        "title": "AI actions",
+        "description": "Operational metadata only. Prompts, responses, selections, and image bytes are not retained here.",
+        "filters": {
+          "allFeatures": "All features",
+          "allStatuses": "All statuses",
+          "allProviders": "All capabilities",
+          "allModels": "All models",
+          "user": "User ID",
+          "provider": "Provider",
+          "model": "Model",
+          "from": "From date",
+          "to": "To date"
+        },
+        "table": {
+          "queued": "Queued",
+          "feature": "Feature",
+          "status": "Status",
+          "tokens": "Token usage",
+          "providerModel": "Provider / model",
+          "error": "Error",
+          "detail": "Detail",
+          "actions": "Actions"
+        },
+        "empty": "No AI actions match the current filters.",
+        "view": "View",
+        "errorDetail": "Error detail",
+        "detailTitle": "Action detail",
+        "page": "Page",
+        "usage": "Usage",
+        "inputTokens": "Input tokens",
+        "outputTokens": "Output tokens",
+        "cachedInputTokens": "Cached input tokens",
+        "noDetail": "No further detail.",
+        "request": "Request",
+        "response": "Response",
+        "stack": "Stack / detail"
+      },
+      "actionFeature": {
+        "provider_test": "Provider connection test",
+        "model_sync": "Model synchronization",
+        "index_rebuild": "Knowledge index rebuild",
+        "semantic_search": "Semantic search",
+        "wiki_question": "Wiki question",
+        "text_optimization": "Text optimization",
+        "image_generation": "Image generation"
+      },
+      "actionStatus": {
+        "queued": "Queued",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "providerDetail": {
+        "update": "Update provider",
+        "newApiKey": "New API key (leave blank to preserve)",
+        "save": "Save"
+      },
+      "indexDetail": {
+        "title": "AI knowledge index",
+        "status": "Status",
+        "completed": "Completed",
+        "showFailed": "Show failed pages"
+      }
+    }
+  },
+  "renderer": {
+    "codeBlock": {
+      "copy": "Copy code",
+      "copied": "Copied"
+    },
+    "mermaid": {
+      "diagramButton": "Diagram",
+      "codeButton": "Code"
+    }
+  },
+  "layout": {
+    "header": {
+      "openNav": "Open navigator",
+      "apiDocs": "API Docs"
+    },
+    "nav": {
+      "pagesTitle": "Pages",
+      "adminTitle": "Admin",
+      "closeButton": "Close navigator",
+      "empty": "No published pages yet.",
+      "loadError": "Failed to load. Click to retry.",
+      "addChild": "New page here"
+    }
+  },
+  "apiDocs": {
+    "metadataTitle": "API Documentation"
+  },
+  "userCenter": {
+    "metadataTitle": "User Center",
+    "title": "User Center",
+    "nav": {
+      "profile": "Profile",
+      "password": "Password",
+      "apiKeys": "API Keys",
+      "audit": "Audit Log",
+      "readingTheme": "Reading theme",
+      "aiSessions": "AI Chat History",
+      "settings": "User Settings"
+    },
+    "readingTheme": {
+      "title": "Reading theme",
+      "description": "Choose the colors, fonts, and sizes used when you read Markdown content. Changes apply inside the reader (the rest of the site keeps the admin system theme).",
+      "light": "Light mode colors",
+      "dark": "Dark mode colors",
+      "fonts": "Fonts",
+      "sizes": "Font sizes",
+      "save": "Save changes",
+      "saving": "Saving...",
+      "saved": "Reading theme updated.",
+      "reset": "Reset to default",
+      "customized": "Custom",
+      "default": "Default",
+      "error": {
+        "generic": "Could not save reading theme. Check your values and try again."
+      }
+    },
+    "profile": {
+      "metadataTitle": "Profile",
+      "heading": "Profile",
+      "displayNameLabel": "Display name",
+      "emailLabel": "Email",
+      "saveButton": "Save",
+      "savingButton": "Saving...",
+      "savedMessage": "Profile updated.",
+      "saveFailed": "Could not save profile. Please try again."
+    },
+    "password": {
+      "heading": "Change password",
+      "metadataTitle": "Password",
+      "currentPasswordLabel": "Current password",
+      "newPasswordLabel": "New password",
+      "confirmPasswordLabel": "Confirm new password",
+      "changeButton": "Change password",
+      "changingButton": "Changing...",
+      "successMessage": "Password updated.",
+      "error": {
+        "passwordsMismatch": "Passwords do not match"
+      }
+    },
+    "preferences": {
+      "heading": "Display preferences",
+      "themeLabel": "Theme",
+      "languageLabel": "Language",
+      "saveFailed": "Could not save preferences. Please try again."
+    },
+    "apiKeys": {
+      "metadataTitle": "API Keys",
+      "title": "API Keys",
+      "createButton": "Create API key",
+      "createTitle": "Create new API key",
+      "createdTitle": "API key created",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. CI bot",
+      "scopesLabel": "Scopes",
+      "scopesHint": "Select at least one scope. Scopes cannot be changed later.",
+      "keyPrefix": "Prefix",
+      "createdAt": "Created",
+      "lastUsed": "Last used",
+      "statusHeader": "Status",
+      "actionsHeader": "Actions",
+      "status": {
+        "active": "Active",
+        "revoked": "Revoked"
+      },
+      "reveal": "Reveal",
+      "hide": "Hide",
+      "copy": "Copy",
+      "copied": "Copied",
+      "revoke": "Revoke",
+      "revokeTitle": "Revoke API key",
+      "revokeConfirm": "Are you sure you want to revoke this key?",
+      "revokeWarning": "Revoked keys cannot be used again.",
+      "revokeFailed": "Could not revoke the key. Please try again.",
+      "scope": {
+        "view": "View",
+        "create": "Create",
+        "edit": "Edit",
+        "delete": "Delete",
+        "share": "Share",
+        "run": "Run",
+        "storage": "Storage",
+        "preferences": "Preferences",
+        "ai": {
+          "read": "AI read"
+        }
+      },
+      "scopeDescriptions": {
+        "view": "Read published pages and history",
+        "create": "Create new pages",
+        "edit": "Create drafts and publish revisions",
+        "delete": "Delete pages",
+        "share": "Reserved for future sharing features",
+        "run": "Reserved for future runner features",
+        "storage": "Manage content storage configuration and migrations (admin only)",
+        "preferences": "Update your own theme and language preferences",
+        "ai": {
+          "read": "Use AI-powered search and semantic retrieval"
+        }
+      },
+      "maxKeysExceeded": "You can have at most {max} active keys.",
+      "atLeastOneScope": "Select at least one scope.",
+      "createdWarning": "Copy this key now. It will remain revealable, but this is the only time it is shown automatically.",
+      "createdCopyHint": "The key is stored encrypted and can be revealed later from this page.",
+      "revealTitle": "API key secret",
+      "revealWarning": "Do not share this secret.",
+      "noKeys": "No API keys yet.",
+      "close": "Close"
+    },
+    "audit": {
+      "metadataTitle": "Audit Log",
+      "title": "Audit Log",
+      "method": "Method",
+      "path": "Path",
+      "status": "Status",
+      "duration": "Duration",
+      "ip": "IP",
+      "timestamp": "Timestamp",
+      "keyName": "Key",
+      "errorMessage": "Error",
+      "filterByKey": "Filter by key",
+      "filterByStatus": "Status",
+      "all": "All",
+      "success": "Success",
+      "error": "Error",
+      "noEntries": "No audit entries yet.",
+      "page": "Page",
+      "of": "of",
+      "next": "Next",
+      "prev": "Previous",
+      "allKeys": "All keys"
+    },
+    "aiSessions": {
+      "metadataTitle": "AI Chat History",
+      "title": "AI Chat History",
+      "description": "Search, review, resume, or permanently delete your past Ask AI conversations.",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Search by question text",
+      "filterByStatus": "Status",
+      "allStatuses": "All",
+      "empty": "No AI chat sessions yet.",
+      "question": "Question",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions",
+      "contentExpired": "Content expired",
+      "view": "View",
+      "continue": "Continue",
+      "delete": "Delete",
+      "deleteTitle": "Delete this session?",
+      "deleteMessage": "This permanently deletes the question, answer, and citations. This cannot be undone.",
+      "deleteFailed": "Could not delete this session.",
+      "detailTitle": "Session detail",
+      "loading": "Loading…"
+    }
+  },
+  "ai": {
+    "search": {
+      "placeholder": "Search the Wiki by meaning",
+      "searching": "Searching…",
+      "error": "Semantic search failed."
+    },
+    "chat": {
+      "open": "Ask AI",
+      "title": "Wiki AI",
+      "close": "Close",
+      "collapse": "Collapse",
+      "newSession": "New session",
+      "providerNotice": "Your question and relevant Wiki content may be sent to the configured AI provider.",
+      "empty": "Ask a question grounded in this Wiki.",
+      "streaming": "Generating…",
+      "mode": {
+        "retrieval": "Retrieval mode",
+        "full": "Full Wiki mode"
+      },
+      "placeholder": "Ask about this Wiki",
+      "send": "Send",
+      "retry": "Retry",
+      "insufficient": "The Wiki does not contain enough evidence to answer.",
+      "thinking": "Thinking",
+      "hideThinking": "Hide thinking",
+      "showThinking": "Show thinking",
+      "capacity": "The full Wiki is too large for the selected model. Use retrieval mode.",
+      "citations": "Sources"
+    },
+    "optimize": {
+      "toolbar": "Optimize selected text with AI",
+      "title": "Optimize selected text",
+      "instruction": {
+        "clarity": "Improve clarity",
+        "grammar": "Fix grammar",
+        "shorten": "Shorten",
+        "expand": "Expand"
+      },
+      "original": "Original",
+      "suggestion": "Suggestion",
+      "generating": "Generating…",
+      "stale": "The selected text changed. The suggestion was not applied.",
+      "reject": "Reject",
+      "request": "Generate suggestion",
+      "accept": "Apply to draft"
+    },
+    "image": {
+      "toolbar": "Generate an illustration with AI",
+      "title": "Generate Wiki illustration",
+      "source": {
+        "page": "Use page content",
+        "selection": "Use selected text"
+      },
+      "preview": "Generated illustration preview",
+      "discard": "Discard",
+      "generate": "Generate",
+      "generating": "Generating…",
+      "confirm": "Use image",
+      "confirming": "Saving…",
+      "error": "Could not promote the generated image."
+    }
+  },
+  "translation": {
+    "admin": {
+      "title": "Translations",
+      "subtitle": "Configure languages and styles, then translate published pages.",
+      "overview": "Overview",
+      "languages": "Target languages",
+      "styles": "Translation styles",
+      "runs": "Translation runs",
+      "documents": "Translated documents",
+      "usage": "Usage & cost"
+    },
+    "language": {
+      "add": "Add language",
+      "code": "Language code",
+      "enabled": "Enabled",
+      "retired": "Retired",
+      "defaultModel": "Default model",
+      "defaultStyle": "Default style",
+      "none": "None",
+      "empty": "No target languages configured yet.",
+      "enable": "Enable",
+      "disable": "Disable",
+      "retire": "Retire"
+    },
+    "style": {
+      "add": "Add style",
+      "name": "Name",
+      "body": "Instructions",
+      "version": "Version {n}",
+      "newVersion": "New version",
+      "empty": "No translation styles yet."
+    },
+    "run": {
+      "create": "Start translation",
+      "targetLocale": "Target language",
+      "model": "Model",
+      "style": "Style",
+      "scope": {
+        "__value": "Scope",
+        "allPublished": "All published pages"
+      },
+      "mode": {
+        "__value": "Mode",
+        "missing": "Only missing translations",
+        "all": "Retranslate all"
+      },
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "retry": "Retry / replace",
+      "progress": "{processed} / {total}",
+      "modelDefault": "Use language default",
+      "empty": "No translation runs yet.",
+      "detail": {
+        "items": "Pages",
+        "history": "History"
+      }
+    },
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "paused": "Paused",
+      "completed": "Completed",
+      "completed_with_warnings": "Completed with warnings",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "item": {
+      "pending": "Pending",
+      "running": "Running",
+      "completed": "Completed",
+      "skipped": "Skipped",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "superseded": "Superseded"
+    },
+    "document": {
+      "source": "Source page",
+      "freshness": "Freshness",
+      "open": "Open",
+      "empty": "No translated documents yet."
+    },
+    "usage": {
+      "key": "Group",
+      "empty": "No usage recorded yet.",
+      "reported": "Reported",
+      "estimated": "Estimated",
+      "unavailable": "Unavailable",
+      "duration": "Duration"
+    },
+    "stats": {
+      "sourcePages": "Published source pages",
+      "translatedPages": "Translated pages",
+      "languages": "Active languages",
+      "coverage": "Coverage"
+    },
+    "freshness": {
+      "fresh": "Up to date",
+      "stale": "Needs refresh",
+      "queued": "Refresh queued",
+      "running": "Refreshing",
+      "failed": "Refresh failed",
+      "unavailable": "Unavailable"
+    },
+    "reader": {
+      "unavailable": {
+        "title": "Translation unavailable",
+        "body": "This page has not been translated into this language yet."
+      },
+      "inProgress": {
+        "body": "A translation is being prepared. Please check back soon."
+      }
+    },
+    "error": {
+      "INVALID_TRANSLATION_INPUT": "The translation request is invalid.",
+      "TRANSLATION_NOT_FOUND": "The translation could not be found.",
+      "TRANSLATION_ALREADY_RUNNING": "This language already has an active run.",
+      "RUN_NOT_ACTIVE": "The run is not active.",
+      "RUN_NOT_PAUSED": "The run is not paused.",
+      "MODEL_UNAVAILABLE": "The selected model is unavailable.",
+      "CAPABILITY_MISMATCH": "The selected model cannot generate text.",
+      "SOURCE_NOT_TRANSLATABLE": "The selected page has no eligible published source.",
+      "AI_DISABLED": "AI features are disabled.",
+      "JOB_QUEUE_UNAVAILABLE": "Background work is unavailable right now."
+    }
+  },
+  "pagination": {
+    "label": "Pagination",
+    "first": "First",
+    "previous": "Previous",
+    "next": "Next",
+    "last": "Last"
+  },
+  "errors": {
+    "notFound": {
+      "code": "404",
+      "message": "This page does not exist.",
+      "backHome": "Back to wiki home"
+    },
+    "forbidden": {
+      "code": "403",
+      "message": "You do not have permission to view this page.",
+      "backHome": "Back to wiki home"
+    }
+  }
+}

@@ -7,14 +7,15 @@ import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { PublishButton } from '@/components/pages/PublishButton';
 import { getPagePathFromParams, getPageHref, getRevisionHref } from '@/lib/path';
-import { getLocale, getDictionary } from '@/i18n/server';
+import { getStaticLocale, getDictionary } from '@/i18n/server';
+import { createAppFormatter } from '@/i18n/formatter';
 
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
@@ -22,8 +23,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function HistoryPage({ params }: { params: Params }) {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
@@ -67,7 +69,7 @@ export default async function HistoryPage({ params }: { params: Params }) {
                   </Link>
                   <span className="ml-sm text-sm text-muted capitalize">{r.status}</span>
                   <p className="text-sm text-muted">
-                    {t('page.history.revisionMeta', { date: new Date(r.createdAt).toLocaleDateString(locale), name: r.authorDisplayName ?? t('common.unknownAuthor') })}
+                    {t('page.history.revisionMeta', { date: formatter.dateTime(new Date(r.createdAt), 'short'), name: r.authorDisplayName ?? t('common.unknownAuthor') })}
                   </p>
                 </div>
                 {r.status === 'draft' && r.canPublish && page?.pageId ? (

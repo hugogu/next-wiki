@@ -6,6 +6,7 @@ import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { getPageHref, getPublicApiPagePublicationUrl } from '@/lib/path';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { getLocalizedErrorMessage } from '@/i18n/error-messages';
 
 export function PublishButton({ pageId, path, version }: { pageId: string; path: string; version: number }) {
   const { t } = useTranslation();
@@ -18,7 +19,7 @@ export function PublishButton({ pageId, path, version }: { pageId: string; path:
       if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setError(t('page.publish.error.forbidden'));
       } else {
-        setError(err.message || t('page.publish.error.generic'));
+        setError(getLocalizedErrorMessage(t, err, 'page.publish.error.generic'));
       }
     },
   });

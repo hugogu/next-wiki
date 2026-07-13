@@ -1,16 +1,14 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import {
+  NextIntlClientProvider,
+  useLocale,
+  useTranslations,
+} from 'next-intl';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { localeCookieName, defaultLocale, type Locale, isLocale } from './config';
-import { en } from './locales/en';
-import { zh } from './locales/zh';
-import { interpolate } from './utils';
+import { getMessagePath, type AppMessages, messages } from './catalog';
 import type { TranslationKey, TranslateFunction } from './types';
-
-const dictionaries: Record<Locale, typeof en> = {
-  en,
-  zh,
-};
 
 interface I18nContextValue {
   locale: Locale;
@@ -27,18 +25,49 @@ function setLocaleCookie(locale: Locale) {
   document.cookie = `${localeCookieName}=${locale};path=/;max-age=${ONE_YEAR_SECONDS};SameSite=Lax`;
 }
 
+function LegacyTranslationBridge({
+  setLocale,
+  catalog,
+  children,
+}: {
+  setLocale: (locale: Locale) => void;
+  catalog: AppMessages;
+  children: React.ReactNode;
+}) {
+  const locale = useLocale() as Locale;
+  const nextTranslate = useTranslations();
+
+  const t = useCallback<TranslateFunction>(
+    (key: TranslationKey, params?: Record<string, string | number | undefined>) => {
+      const values = params
+        ? Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined))
+        : undefined;
+      const path = getMessagePath(String(key), catalog);
+      return nextTranslate(path as never, values as never);
+    },
+    [catalog, nextTranslate],
+  );
+
+  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
 export function I18nProvider({
   initialLocale,
+  messages: providedMessages,
   children,
 }: {
   initialLocale: Locale;
+  messages?: AppMessages;
   children: React.ReactNode;
 }) {
   const [locale, setLocaleState] = useState<Locale>(() =>
     isLocale(initialLocale) ? initialLocale : defaultLocale,
   );
 
+  const catalog = providedMessages && locale === initialLocale ? providedMessages : messages[locale];
   const setLocale = useCallback((next: Locale) => {
+    if (!isLocale(next)) return;
     setLocaleState(next);
     setLocaleCookie(next);
     if (typeof document !== 'undefined') {
@@ -46,25 +75,13 @@ export function I18nProvider({
     }
   }, []);
 
-  const t = useCallback<TranslateFunction>(
-    (key: TranslationKey, params?: Record<string, string | number | undefined>) => {
-      const dictionary = dictionaries[locale] ?? dictionaries[defaultLocale];
-      const value = dictionary[key] ?? dictionaries[defaultLocale][key] ?? String(key);
-      return interpolate(value, params);
-    },
-    [locale],
+  return (
+    <NextIntlClientProvider locale={locale} messages={catalog} timeZone="UTC">
+      <LegacyTranslationBridge setLocale={setLocale} catalog={catalog}>
+        {children}
+      </LegacyTranslationBridge>
+    </NextIntlClientProvider>
   );
-
-  const value = useMemo(
-    () => ({
-      locale,
-      setLocale,
-      t,
-    }),
-    [locale, setLocale, t],
-  );
-
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useTranslation() {

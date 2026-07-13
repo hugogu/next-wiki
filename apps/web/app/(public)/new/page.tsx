@@ -4,12 +4,12 @@ import { Layout } from '@/components/ui/Layout';
 import { CreatePageForm } from '@/components/pages/CreatePageForm';
 import { getCurrentActor } from '@/server/services/auth';
 import * as pageService from '@/server/services/pages';
-import { getLocale, getDictionary } from '@/i18n/server';
+import { getStaticLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   return { title: t('page.create.metadataTitle') };
 }

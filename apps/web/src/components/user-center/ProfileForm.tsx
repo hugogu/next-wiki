@@ -94,9 +94,9 @@ export function ProfileForm({
     } catch (err) {
       const error = err as { code?: string; message?: string };
       if (error.code === 'CONFLICT') {
-        setError('email', { message: error.message || 'Email already in use' });
+        setError('email', { message: t('auth.error.emailExists') });
       } else {
-        setError('email', { message: error.message || 'Failed to save profile' });
+        setError('email', { message: t('userCenter.profile.saveFailed') });
       }
     }
   };

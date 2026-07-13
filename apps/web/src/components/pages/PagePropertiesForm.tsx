@@ -10,6 +10,7 @@ import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { getPublicApiPageUrl, getPageHref } from '@/lib/path';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
+import { getLocalizedErrorMessage } from '@/i18n/error-messages';
 
 export function PagePropertiesForm({ pageId, path }: { pageId: string; path: string }) {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ export function PagePropertiesForm({ pageId, path }: { pageId: string; path: str
       } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setServerError(t('page.properties.error.forbidden'));
       } else {
-        setServerError(err.message || t('page.properties.error.generic'));
+        setServerError(getLocalizedErrorMessage(t, err, 'page.properties.error.generic'));
       }
     },
   });

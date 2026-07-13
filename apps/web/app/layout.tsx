@@ -2,8 +2,9 @@ import { ApiProvider } from '@/lib/api/provider';
 import { HistoryProvider } from '@/lib/history';
 import { EditorProvider } from '@/components/editor/EditorContext';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
-import { I18nProvider } from '@/i18n/client';
+import { ApplicationI18nProvider } from '@/components/i18n/ApplicationI18nProvider';
 import { getDictionary, getLocale } from '@/i18n/server';
+import { getMessages } from '@/i18n/catalog';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
 import { getActiveThemeCss } from '@/server/services/system-theme';
@@ -16,7 +17,11 @@ import 'katex/dist/katex.min.css';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [siteName, locale] = await Promise.all([getSiteName(), getLocale()]);
+  const actor = await getCurrentActor();
+  const preferences = actor.kind === 'user'
+    ? await userCenterService.getPreferences({ actor })
+    : null;
+  const [siteName, locale] = await Promise.all([getSiteName(), getLocale(preferences?.locale)]);
   const t = getDictionary(locale);
   const description = t('site.description');
   // APP_URL is validated to a URL at boot. Strip a trailing slash so it
@@ -55,11 +60,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
   const actor = await getCurrentActor();
   const preferences = actor.kind === 'user'
     ? await userCenterService.getPreferences({ actor })
     : null;
+  const locale = await getLocale(preferences?.locale);
 
   const systemCss = await getActiveThemeCss();
   let readingThemeCss = '';
@@ -71,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const initialTheme = preferences?.theme ?? undefined;
-  const initialLocale = preferences?.locale ?? locale;
+  const initialLocale = locale;
 
   const themeScript = `
     (function() {
@@ -98,7 +103,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased" suppressHydrationWarning>
-        <I18nProvider initialLocale={initialLocale}>
+        <ApplicationI18nProvider initialLocale={initialLocale} messages={getMessages(initialLocale)}>
           <ThemeProvider initialMode={initialTheme}>
             <ApiProvider>
               <HistoryProvider>
@@ -106,7 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </HistoryProvider>
             </ApiProvider>
           </ThemeProvider>
-        </I18nProvider>
+        </ApplicationI18nProvider>
       </body>
     </html>
   );

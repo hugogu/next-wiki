@@ -6,9 +6,10 @@ import { Pagination } from '@/components/ui/Pagination';
 import * as pageService from '@/server/services/pages';
 import { paginate } from '@/server/api/pagination';
 import { buildAnonymousCtx } from '@/server/permissions';
-import { getDictionary, getLocale } from '@/i18n/server';
+import { getDictionary, getStaticLocale } from '@/i18n/server';
 import { getPageHref } from '@/lib/path';
 import { PageListDescription } from '@/components/pages/PageListDescription';
+import { createAppFormatter } from '@/i18n/formatter';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ const PAGE_SIZE = 30;
 type PagesSearchParams = Promise<{ page?: string | string[] }>;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   return { title: t('pages.list.metadataTitle') };
 }
@@ -27,8 +28,9 @@ export default async function PublishedPagesPage({
 }: {
   searchParams: PagesSearchParams;
 }) {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
   const params = await searchParams;
   const ctx = buildAnonymousCtx();
   const totalPublished = await pageService.countPublished(ctx);
@@ -65,7 +67,7 @@ export default async function PublishedPagesPage({
                     <PageListDescription value={page.description} />
                     <p className="mt-xs text-sm text-muted">
                       {page.publishedAt
-                        ? t('home.page.publishedOn', { date: new Date(page.publishedAt).toLocaleDateString(locale) })
+                        ? t('home.page.publishedOn', { date: formatter.dateTime(new Date(page.publishedAt), 'short') })
                         : t('home.page.updatedRecently')}
                     </p>
                   </Link>

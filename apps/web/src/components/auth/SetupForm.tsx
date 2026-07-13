@@ -9,6 +9,7 @@ import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
+import { getLocalizedErrorMessage } from '@/i18n/error-messages';
 
 export function SetupForm() {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export function SetupForm() {
       } else if (err.code === 'FORBIDDEN') {
         setServerError(t('auth.setup.error.alreadyConfigured'));
       } else if (err.code === 'BAD_REQUEST') {
-        setServerError(err.message);
+        setServerError(getLocalizedErrorMessage(t, err, 'auth.setup.error.generic'));
       } else {
         setServerError(t('auth.setup.error.generic'));
       }

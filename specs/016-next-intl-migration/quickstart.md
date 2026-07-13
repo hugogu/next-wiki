@@ -83,3 +83,11 @@ Validate in both `en` and `zh`:
 - [Data model](./data-model.md)
 - [UI localization contract](./contracts/ui-localization.md)
 - [Research decisions](./research.md)
+
+## Implementation verification record
+
+The migration's catalog validator, TypeScript check, and focused localization
+suite have been run successfully. The production build also completes the
+next-intl compilation and TypeScript phases; its prerender phase requires the
+project PostgreSQL service for the existing `/search` data loader, so run the
+full build with the documented database container available.

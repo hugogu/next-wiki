@@ -4,9 +4,10 @@ import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as publicContent from '@/server/services/public-content';
 import { buildAnonymousCtx } from '@/server/permissions';
-import { getDictionary, getLocale } from '@/i18n/server';
+import { getDictionary, getStaticLocale } from '@/i18n/server';
 import { getPageHref } from '@/lib/path';
 import { PageListDescription } from '@/components/pages/PageListDescription';
+import { createAppFormatter } from '@/i18n/formatter';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +21,9 @@ export async function generateMetadata({ params }: { params: TagPageParams }): P
 }
 
 export default async function TagPage({ params }: { params: TagPageParams }) {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
   const { name } = await params;
   const tagName = decodeURIComponent(name);
   const ctx = buildAnonymousCtx();
@@ -59,7 +61,7 @@ export default async function TagPage({ params }: { params: TagPageParams }) {
                     <PageListDescription value={page.metadata?.summary} />
                     <p className="mt-xs text-sm text-muted">
                       {publishedAt
-                        ? t('home.page.publishedOn', { date: new Date(publishedAt).toLocaleDateString(locale) })
+                        ? t('home.page.publishedOn', { date: formatter.dateTime(new Date(publishedAt), 'short') })
                         : t('home.page.updatedRecently')}
                     </p>
                   </Link>

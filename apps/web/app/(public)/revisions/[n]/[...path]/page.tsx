@@ -6,14 +6,15 @@ import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { getPagePathFromParams, getHistoryHref } from '@/lib/path';
-import { getLocale, getDictionary } from '@/i18n/server';
+import { getStaticLocale, getDictionary } from '@/i18n/server';
+import { createAppFormatter } from '@/i18n/formatter';
 
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ path: string[]; n: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
@@ -21,8 +22,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function RevisionPage({ params }: { params: Params }) {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
   const version = parseInt(raw.n, 10);
@@ -53,7 +55,7 @@ export default async function RevisionPage({ params }: { params: Params }) {
           </Link>
         </div>
         <p className="text-sm text-muted mb-xl">
-          {revision.status === 'published' ? t('page.revision.publishedOn', { date: createdAt.toLocaleDateString(locale) }) : t('page.revision.draftOn', { date: createdAt.toLocaleDateString(locale) })}
+          {revision.status === 'published' ? t('page.revision.publishedOn', { date: formatter.dateTime(createdAt, 'short') }) : t('page.revision.draftOn', { date: formatter.dateTime(createdAt, 'short') })}
           {revision.authorDisplayName ? t('page.revision.authorSuffix', { name: revision.authorDisplayName }) : t('page.revision.authorSuffix', { name: t('common.unknownAuthor') })}
         </p>
         <article className="bg-surface border border-border rounded-lg p-lg">

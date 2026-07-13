@@ -1,42 +1,50 @@
 import { cookies, headers } from 'next/headers';
-import { localeCookieName, defaultLocale, type Locale, isLocale } from './config';
-import { en } from './locales/en';
-import { zh } from './locales/zh';
-import { interpolate } from './utils';
+import { createTranslator } from 'next-intl';
+import { localeCookieName, defaultLocale, staticPublicLocale, type Locale, isLocale } from './config';
+import { getMessages, getMessagePath, type MessageCatalog } from './catalog';
+import { resolveUiLocale } from './resolve';
 import type { TranslationKey } from './types';
 
-const dictionaries: Record<Locale, typeof en> = {
-  en,
-  zh,
-};
-
-function parseAcceptedLocale(acceptLanguage: string | null): Locale | null {
-  if (!acceptLanguage) return null;
-  const primary = acceptLanguage.split(',')[0]?.split('-')[0]?.trim().toLowerCase();
-  if (primary && isLocale(primary)) return primary;
-  return null;
-}
-
-export async function getLocale(): Promise<Locale> {
+export async function getLocale(persistedPreference?: unknown): Promise<Locale> {
   const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(localeCookieName)?.value;
-  if (cookieValue && isLocale(cookieValue)) {
-    return cookieValue;
-  }
-
   const headersList = await headers();
-  const accepted = parseAcceptedLocale(headersList.get('accept-language'));
-  if (accepted) return accepted;
 
-  return defaultLocale;
+  return resolveUiLocale({
+    persistedPreference,
+    cookieValue: cookieStore.get(localeCookieName)?.value,
+    acceptLanguage: headersList.get('accept-language'),
+  });
 }
 
-export function getDictionary(locale: Locale) {
-  const dictionary = dictionaries[locale] ?? dictionaries[defaultLocale];
+/** Request-independent locale for static/ISR public document rendering. */
+export function getStaticLocale(): Locale {
+  return staticPublicLocale;
+}
 
-  return function t(key: TranslationKey, params?: Record<string, string | number | undefined>): string {
-    const value = dictionary[key] ?? dictionaries[defaultLocale][key] ?? String(key);
-    return interpolate(value, params);
+type LegacyMessageValues = Record<string, string | number | undefined>;
+
+function normalizeValues(values: LegacyMessageValues | undefined): Record<string, string | number> | undefined {
+  if (!values) return undefined;
+  return Object.fromEntries(
+    Object.entries(values).filter(([, value]) => value !== undefined),
+  ) as Record<string, string | number>;
+}
+
+/**
+ * Compatibility surface for server components during the staged migration.
+ * The translator and catalogs are provided by next-intl; only the dotted-key
+ * path adapter remains until all server call sites use getTranslations.
+ */
+export function getDictionary(locale: Locale) {
+  const messages = getMessages(isLocale(locale) ? locale : defaultLocale);
+  const translate = createTranslator({
+    locale,
+    messages,
+  });
+
+  return function t(key: TranslationKey, params?: LegacyMessageValues): string {
+    const path = getMessagePath(String(key), messages as MessageCatalog);
+    return translate(path as never, normalizeValues(params) as never);
   };
 }
 

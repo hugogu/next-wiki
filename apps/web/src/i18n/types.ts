@@ -1,8 +1,20 @@
-import type { en } from './locales/en';
+import type { AppMessages } from './catalog';
+import type { TranslationKey as CatalogTranslationKey } from './keys';
+import type { AppFormats } from './formats';
 
-export type Translations = typeof en;
+export type Translations = AppMessages;
 
-export type TranslationKey = keyof Translations;
+export type TranslationKey = CatalogTranslationKey;
+
+export type UiMessages = AppMessages;
+
+declare module 'next-intl' {
+  interface AppConfig {
+    Locale: 'en' | 'zh';
+    Messages: UiMessages;
+    Formats: AppFormats;
+  }
+}
 
 export type TranslateFunction = (
   key: TranslationKey,

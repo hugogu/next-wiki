@@ -1,12 +1,11 @@
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { I18nProvider } from '@/i18n/client';
+import { renderWithI18n } from '../../../test/i18n-test-utils';
 import { PagePropertiesFields } from './PagePropertiesFields';
 
 describe('PagePropertiesFields', () => {
   it('shows the current frontmatter synchronization preference', () => {
-    const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="en">
+    const html = renderWithI18n(
+      <>
         <PagePropertiesFields
           title="Guide"
           onTitleChange={() => undefined}
@@ -21,7 +20,7 @@ describe('PagePropertiesFields', () => {
           writeMetadataToFrontmatter
           onWriteMetadataToFrontmatterChange={() => undefined}
         />
-      </I18nProvider>,
+      </>,
     );
 
     expect(html).toContain('Write page metadata to Markdown frontmatter');

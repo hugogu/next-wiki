@@ -11,6 +11,7 @@ import type {
   UpdatePreferencesInput,
   PreferencesView,
 } from '@next-wiki/shared';
+import { isLocale } from '@/i18n/config';
 
 function requireUser(ctx: PermCtx): { userId: string } {
   if (ctx.actor.kind !== 'user') {
@@ -123,6 +124,10 @@ export async function updatePreferences(
   input: UpdatePreferencesInput,
 ): Promise<PreferencesView> {
   const { userId } = requirePreferenceActor(ctx);
+
+  if (input.locale !== undefined && input.locale !== null && !isLocale(input.locale)) {
+    throw new DomainError('BAD_REQUEST', 'Unsupported UI locale');
+  }
 
   const updates: Partial<typeof schema.users.$inferInsert> = { updatedAt: new Date() };
   if (input.theme !== undefined) updates.themePreference = input.theme;

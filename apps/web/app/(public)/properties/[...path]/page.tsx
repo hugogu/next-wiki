@@ -6,14 +6,14 @@ import { PagePropertiesForm } from '@/components/pages/PagePropertiesForm';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { getPagePathFromParams, getPageHref } from '@/lib/path';
-import { getLocale, getDictionary } from '@/i18n/server';
+import { getStaticLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ path: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function PageProperties({ params }: { params: Params }) {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);

@@ -196,7 +196,8 @@ apps/web/                # Next.js app (App Router)
   app/                    # routes (RSC) + REST route handlers under app/api/
   src/server/             # db (Drizzle), services, permissions, pipeline, api
   src/components/         # UI; design-system primitives in src/components/ui/
-  src/i18n/               # en.ts (canonical) + zh.ts
+  messages/               # namespaced next-intl UI catalogs (en/zh JSON)
+  src/i18n/               # locale resolver, request config, formats, types
 packages/shared/          # zero-dep shared Zod schemas/types
 packages/editor/          # editor package
 packages/mcp-server/      # @next-wiki/mcp-server — MCP tools for AI clients

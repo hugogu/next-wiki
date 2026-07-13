@@ -345,3 +345,19 @@ The cache contract is explicit:
   underlying transaction commits.
 - Private spaces, private pages, previews, and drafts are always dynamic and
   are excluded from public cache keys and public static output.
+
+### UI locale separation
+
+The interface language is resolved by `apps/web/src/i18n/resolve.ts` and is
+limited to the registered UI locales (`en`, `zh`). It is selected from the
+authenticated preference, the `next-wiki-locale` cookie, weighted
+`Accept-Language`, and finally English. UI locale changes MUST NOT add a URL
+segment, redirect, rewrite a reader path, or invoke public-content
+revalidation.
+
+The content-translation locale in `pages.locale` and the existing `/{locale}`
+reader convention are independent domain data. A leading `zh` in `/zh/guide`
+continues to identify translated page content, never a Chinese UI around
+`/guide`. Public document and SEO output MUST use request-independent locale
+inputs; personalized labels may hydrate through the client boundary after
+delivery.

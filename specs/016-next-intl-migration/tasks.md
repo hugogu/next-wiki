@@ -26,8 +26,8 @@ reader URLs.
 **Purpose**: Add the approved dependencies and establish the intended source
 locations without adding UI locale routing.
 
-- [ ] T001 Add `next-intl` and `@formatjs/intl-localematcher` to `apps/web/package.json` and update `pnpm-lock.yaml` without adding routing middleware dependencies.
-- [ ] T002 Create the UI catalog directory and migrate-safe source placeholders at `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/i18n/`.
+- [X] T001 Add `next-intl` and `@formatjs/intl-localematcher` to `apps/web/package.json` and update `pnpm-lock.yaml` without adding routing middleware dependencies.
+- [X] T002 Create the UI catalog directory and migrate-safe source placeholders at `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/i18n/`.
 
 ---
 
@@ -38,13 +38,13 @@ safe rendering boundaries before any story-specific migration.
 
 **⚠️ CRITICAL**: Do not start a user-story phase until this phase is complete.
 
-- [ ] T003 Define the finite `UiLocale`, default locale, legacy cookie name, validation helpers, and static-public locale policy in `apps/web/src/i18n/config.ts`.
-- [ ] T004 Implement and unit-test the shared dynamic locale resolver (persisted preference → validated cookie → weighted `Accept-Language` → `en`) in `apps/web/src/i18n/resolve.ts` and `apps/web/src/i18n/resolve.test.ts`.
-- [ ] T005 Configure the next-intl plugin, request configuration, typed `AppConfig`, and named format presets in `apps/web/next.config.ts`, `apps/web/src/i18n/request.ts`, `apps/web/src/i18n/types.ts`, and `apps/web/src/i18n/formats.ts` without `defineRouting`, locale middleware, or URL rewrites.
-- [ ] T006 Convert the existing flat English and Chinese dictionaries into matching namespaced message catalogs in `apps/web/messages/en.json` and `apps/web/messages/zh.json`, preserving every current key before any ICU enhancement.
-- [ ] T007 Add shared next-intl render helpers and replace old-provider test setup in `apps/web/test/i18n-test-utils.tsx`, `apps/web/src/components/editor/PagePropertiesFields.test.tsx`, `apps/web/src/components/admin/tags/TagManager.test.tsx`, and `apps/web/src/components/ui/Pagination.test.tsx`.
-- [ ] T008 Introduce explicit dynamic-application and cache-safe-public provider boundaries in `apps/web/src/components/i18n/ApplicationI18nProvider.tsx`, `apps/web/src/components/i18n/PublicI18nBoundary.tsx`, and `apps/web/app/layout.tsx`.
-- [ ] T009 Add regression coverage for the no-UI-locale-routing contract in `apps/web/src/i18n/routing-contract.test.ts` and `apps/web/proxy.ts`, proving the audit proxy is not repurposed for locale routing.
+- [X] T003 Define the finite `UiLocale`, default locale, legacy cookie name, validation helpers, and static-public locale policy in `apps/web/src/i18n/config.ts`.
+- [X] T004 Implement and unit-test the shared dynamic locale resolver (persisted preference → validated cookie → weighted `Accept-Language` → `en`) in `apps/web/src/i18n/resolve.ts` and `apps/web/src/i18n/resolve.test.ts`.
+- [X] T005 Configure the next-intl plugin, request configuration, typed `AppConfig`, and named format presets in `apps/web/next.config.ts`, `apps/web/src/i18n/request.ts`, `apps/web/src/i18n/types.ts`, and `apps/web/src/i18n/formats.ts` without `defineRouting`, locale middleware, or URL rewrites.
+- [X] T006 Convert the existing flat English and Chinese dictionaries into matching namespaced message catalogs in `apps/web/messages/en.json` and `apps/web/messages/zh.json`, preserving every current key before any ICU enhancement.
+- [X] T007 Add shared next-intl render helpers and replace old-provider test setup in `apps/web/test/i18n-test-utils.tsx`, `apps/web/src/components/editor/PagePropertiesFields.test.tsx`, `apps/web/src/components/admin/tags/TagManager.test.tsx`, and `apps/web/src/components/ui/Pagination.test.tsx`.
+- [X] T008 Introduce explicit dynamic-application and cache-safe-public provider boundaries in `apps/web/src/components/i18n/ApplicationI18nProvider.tsx`, `apps/web/src/components/i18n/PublicI18nBoundary.tsx`, and `apps/web/app/layout.tsx`.
+- [X] T009 Add regression coverage for the no-UI-locale-routing contract in `apps/web/src/i18n/routing-contract.test.ts` and `apps/web/proxy.ts`, proving the audit proxy is not repurposed for locale routing.
 
 **Checkpoint**: The application has one validated UI locale model, only the
 active language catalog is selected for dynamic UI, and no route owns a new UI
@@ -65,17 +65,17 @@ accessibility labels, dates, and numbers use one locale.
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] Add ICU interpolation, plural/select, rich-message, date, number, and relative-time unit cases in `apps/web/src/i18n/messages.test.ts` and `apps/web/src/i18n/formats.test.ts`.
-- [ ] T011 [P] [US1] Add component-level locale-change and fallback assertions for representative shared controls in `apps/web/src/components/i18n/LanguageSwitcher.test.tsx`, `apps/web/src/components/ui/ConfirmDialog.test.tsx`, and `apps/web/src/components/layout/Header.test.tsx`.
+- [X] T010 [P] [US1] Add ICU interpolation, plural/select, rich-message, date, number, and relative-time unit cases in `apps/web/src/i18n/messages.test.ts` and `apps/web/src/i18n/formats.test.ts`.
+- [X] T011 [P] [US1] Add component-level locale-change and fallback assertions for representative shared controls in `apps/web/src/components/i18n/LanguageSwitcher.test.tsx`, `apps/web/src/components/ui/ConfirmDialog.test.tsx`, and `apps/web/src/components/layout/Header.test.tsx`.
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Replace custom server dictionary calls with `getTranslations` and server formatter helpers across `apps/web/app/(admin)/admin/**/*.tsx`, `apps/web/app/(user)/user-center/**/*.tsx`, `apps/web/app/auth/**/*.tsx`, `apps/web/app/api-docs/page.tsx`, `apps/web/app/setup/page.tsx`, `apps/web/app/forbidden/page.tsx`, and `apps/web/app/not-found.tsx`.
-- [ ] T013 [US1] Replace custom client translation consumers with next-intl hooks across `apps/web/src/components/{admin,appearance,auth,chat,editor,layout,pages,search,theme,ui,user-center}/**/*.tsx` while preserving each component's existing props and UI behavior.
-- [ ] T014 [US1] Migrate `apps/web/src/components/renderer/CodeBlock.tsx` and `apps/web/src/components/renderer/MermaidBlock.tsx` to the new message and formatter APIs without assuming they inherit the old context.
-- [ ] T015 [US1] Replace user-visible raw English labels and raw server-error message rendering with localized keys and a stable error-code mapper in `apps/web/src/i18n/error-messages.ts`, `apps/web/src/components/{auth,pages,admin,user-center}/**/*.tsx`, `apps/web/app/(public)/search/page.tsx`, and `apps/web/app/(admin)/admin/users/[id]/ai/page.tsx`.
-- [ ] T016 [US1] Replace unscoped `toLocaleString`/`toLocaleDateString` output with registered next-intl formatters in `apps/web/src/components/{admin,user-center}/**/*.tsx` and `apps/web/app/(public)/{page.tsx,pages/page.tsx,tags/[name]/page.tsx,revisions/[n]/[...path]/page.tsx,history/[...path]/page.tsx}`.
-- [ ] T017 [US1] Add end-to-end locale coverage for representative public, authentication, user-center, editor, administrator, search, validation, loading, and error flows in `apps/web/e2e/localization.spec.ts`.
+- [X] T012 [US1] Replace custom server dictionary calls with `getTranslations` and server formatter helpers across `apps/web/app/(admin)/admin/**/*.tsx`, `apps/web/app/(user)/user-center/**/*.tsx`, `apps/web/app/auth/**/*.tsx`, `apps/web/app/api-docs/page.tsx`, `apps/web/app/setup/page.tsx`, `apps/web/app/forbidden/page.tsx`, and `apps/web/app/not-found.tsx`.
+- [X] T013 [US1] Replace custom client translation consumers with next-intl hooks across `apps/web/src/components/{admin,appearance,auth,chat,editor,layout,pages,search,theme,ui,user-center}/**/*.tsx` while preserving each component's existing props and UI behavior.
+- [X] T014 [US1] Migrate `apps/web/src/components/renderer/CodeBlock.tsx` and `apps/web/src/components/renderer/MermaidBlock.tsx` to the new message and formatter APIs without assuming they inherit the old context.
+- [X] T015 [US1] Replace user-visible raw English labels and raw server-error message rendering with localized keys and a stable error-code mapper in `apps/web/src/i18n/error-messages.ts`, `apps/web/src/components/{auth,pages,admin,user-center}/**/*.tsx`, `apps/web/app/(public)/search/page.tsx`, and `apps/web/app/(admin)/admin/users/[id]/ai/page.tsx`.
+- [X] T016 [US1] Replace unscoped `toLocaleString`/`toLocaleDateString` output with registered next-intl formatters in `apps/web/src/components/{admin,user-center}/**/*.tsx` and `apps/web/app/(public)/{page.tsx,pages/page.tsx,tags/[name]/page.tsx,revisions/[n]/[...path]/page.tsx,history/[...path]/page.tsx}`.
+- [X] T017 [US1] Add end-to-end locale coverage for representative public, authentication, user-center, editor, administrator, search, validation, loading, and error flows in `apps/web/e2e/localization.spec.ts`.
 
 **Checkpoint**: The MVP delivers a consistent translated UI for the selected
 browser/cookie locale without requiring account-preference persistence.
@@ -94,14 +94,14 @@ choice controls `<html lang>`, dynamic metadata, server text, and client text.
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Add precedence, invalid-legacy-value, cookie, and persisted-preference service/route tests in `apps/web/src/i18n/resolve.test.ts`, `apps/web/src/server/services/user-center.test.ts`, and `apps/web/app/api/user/preferences/route.test.ts`.
+- [X] T018 [P] [US2] Add precedence, invalid-legacy-value, cookie, and persisted-preference service/route tests in `apps/web/src/i18n/resolve.test.ts`, `apps/web/src/server/services/user-center.test.ts`, and `apps/web/app/api/user/preferences/route.test.ts`.
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Implement validated locale persistence and cookie writing with localized failure results in `apps/web/src/i18n/actions.ts`, `apps/web/app/api/user/preferences/route.ts`, and `apps/web/src/server/services/user-center.ts`, keeping the existing preference response schema unchanged.
-- [ ] T020 [US2] Make the header switcher and profile preference form wait for the authoritative preference result, refresh the route, and restore/report failures in `apps/web/src/components/i18n/LanguageSwitcher.tsx` and `apps/web/src/components/user-center/ProfileForm.tsx`.
-- [ ] T021 [US2] Apply the shared resolver to dynamic document language and metadata in `apps/web/app/layout.tsx`, `apps/web/app/(user)/user-center/layout.tsx`, and dynamic page metadata helpers under `apps/web/app/{(admin),(user),auth}/**/*.tsx`.
-- [ ] T022 [US2] Add authenticated preference persistence, conflicting-cookie, refresh, and failed-save Playwright scenarios in `apps/web/e2e/localization.spec.ts` and `apps/web/e2e/user-center.spec.ts`.
+- [X] T019 [US2] Implement validated locale persistence and cookie writing with localized failure results in `apps/web/src/i18n/actions.ts`, `apps/web/app/api/user/preferences/route.ts`, and `apps/web/src/server/services/user-center.ts`, keeping the existing preference response schema unchanged.
+- [X] T020 [US2] Make the header switcher and profile preference form wait for the authoritative preference result, refresh the route, and restore/report failures in `apps/web/src/components/i18n/LanguageSwitcher.tsx` and `apps/web/src/components/user-center/ProfileForm.tsx`.
+- [X] T021 [US2] Apply the shared resolver to dynamic document language and metadata in `apps/web/app/layout.tsx`, `apps/web/app/(user)/user-center/layout.tsx`, and dynamic page metadata helpers under `apps/web/app/{(admin),(user),auth}/**/*.tsx`.
+- [X] T022 [US2] Add authenticated preference persistence, conflicting-cookie, refresh, and failed-save Playwright scenarios in `apps/web/e2e/localization.spec.ts` and `apps/web/e2e/user-center.spec.ts`.
 
 **Checkpoint**: Saved preferences are cross-session authoritative for dynamic
 authenticated UI, and changing language cannot leave stale server/client text.
@@ -120,15 +120,15 @@ content identity, canonical URL, hreflang, and cache-safe public metadata.
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Extend original-versus-translation route and public-cache regressions in `apps/web/src/server/jobs/translation.test.ts`, `apps/web/src/server/services/public-content-read.test.ts`, and `apps/web/src/lib/path.test.ts` for conflicting UI locale signals.
-- [ ] T024 [P] [US3] Add Playwright public-reader assertions for unchanged URLs, canonical metadata, reader content identity, and no UI-preference cache invalidation in `apps/web/e2e/localization.spec.ts` and `apps/web/e2e/public-wiki-api-equivalence.spec.ts`.
+- [X] T023 [P] [US3] Extend original-versus-translation route and public-cache regressions in `apps/web/src/server/jobs/translation.test.ts`, `apps/web/src/server/services/public-content-read.test.ts`, and `apps/web/src/lib/path.test.ts` for conflicting UI locale signals.
+- [X] T024 [P] [US3] Add Playwright public-reader assertions for unchanged URLs, canonical metadata, reader content identity, and no UI-preference cache invalidation in `apps/web/e2e/localization.spec.ts` and `apps/web/e2e/public-wiki-api-equivalence.spec.ts`.
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Refactor the public route-group layout and root document boundary so cookie/header/database locale resolution cannot execute while rendering the static reader in `apps/web/app/layout.tsx`, `apps/web/app/(public)/layout.tsx`, and `apps/web/src/components/layout/Layout.tsx`.
-- [ ] T026 [US3] Remove request-dependent UI translations from static reader document/SEO output and provide cache-safe defaults or client-only personalized controls in `apps/web/app/(public)/[...path]/page.tsx`, `apps/web/app/(public)/page.tsx`, `apps/web/app/(public)/pages/page.tsx`, and `apps/web/app/(public)/tags/[name]/page.tsx`.
-- [ ] T027 [US3] Propagate the current client UI locale into independently mounted renderer islands and rerender them after a locale change in `apps/web/src/components/renderer/ContentRenderer.tsx`, `apps/web/src/components/renderer/CodeBlock.tsx`, and `apps/web/src/components/renderer/MermaidBlock.tsx`.
-- [ ] T028 [US3] Verify `apps/web/src/server/cache/public-cache.ts`, `apps/web/src/server/services/pages.ts`, and `apps/web/src/server/services/revisions.ts` retain existing content-mutation invalidation while UI preference writes invoke none.
+- [X] T025 [US3] Refactor the public route-group layout and root document boundary so cookie/header/database locale resolution cannot execute while rendering the static reader in `apps/web/app/layout.tsx`, `apps/web/app/(public)/layout.tsx`, and `apps/web/src/components/layout/Layout.tsx`.
+- [X] T026 [US3] Remove request-dependent UI translations from static reader document/SEO output and provide cache-safe defaults or client-only personalized controls in `apps/web/app/(public)/[...path]/page.tsx`, `apps/web/app/(public)/page.tsx`, `apps/web/app/(public)/pages/page.tsx`, and `apps/web/app/(public)/tags/[name]/page.tsx`.
+- [X] T027 [US3] Propagate the current client UI locale into independently mounted renderer islands and rerender them after a locale change in `apps/web/src/components/renderer/ContentRenderer.tsx`, `apps/web/src/components/renderer/CodeBlock.tsx`, and `apps/web/src/components/renderer/MermaidBlock.tsx`.
+- [X] T028 [US3] Verify `apps/web/src/server/cache/public-cache.ts`, `apps/web/src/server/services/pages.ts`, and `apps/web/src/server/services/revisions.ts` retain existing content-mutation invalidation while UI preference writes invoke none.
 
 **Checkpoint**: Published reader documents remain static/ISR, content
 translation routing is unchanged, and personalized UI localization is outside
@@ -148,14 +148,14 @@ confirm every catalog/type/import check passes.
 
 ### Tests for User Story 4
 
-- [ ] T029 [P] [US4] Add failing-fixture coverage for missing message keys, incompatible ICU values/forms, fallback behavior, and unknown locale values in `apps/web/src/i18n/catalog-validation.test.ts` and `apps/web/src/i18n/messages.test.ts`.
+- [X] T029 [P] [US4] Add failing-fixture coverage for missing message keys, incompatible ICU values/forms, fallback behavior, and unknown locale values in `apps/web/src/i18n/catalog-validation.test.ts` and `apps/web/src/i18n/messages.test.ts`.
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] Implement a catalog completeness/compatibility validator and package command in `apps/web/scripts/validate-i18n.mjs` and `apps/web/package.json`.
-- [ ] T031 [US4] Complete next-intl type augmentation and catalog-format registration in `apps/web/src/i18n/types.ts`, `apps/web/src/i18n/formats.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json` so future UI locales have one validated extension path.
-- [ ] T032 [US4] Remove the retired custom provider, hand-written dictionary lookup/interpolator, flat TypeScript dictionaries, and obsolete tests from `apps/web/src/i18n/client.tsx`, `apps/web/src/i18n/server.ts`, `apps/web/src/i18n/utils.ts`, and `apps/web/src/i18n/locales/{en,zh}.ts`; retain only next-intl augmentation in `apps/web/src/i18n/types.ts` after confirming no imports remain.
-- [ ] T033 [US4] Document catalog ownership, UI-versus-content locale separation, and the no-routing rule in `apps/web/README.md` and `docs/architecture/mandates.md`.
+- [X] T030 [US4] Implement a catalog completeness/compatibility validator and package command in `apps/web/scripts/validate-i18n.mjs` and `apps/web/package.json`.
+- [X] T031 [US4] Complete next-intl type augmentation and catalog-format registration in `apps/web/src/i18n/types.ts`, `apps/web/src/i18n/formats.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json` so future UI locales have one validated extension path.
+- [X] T032 [US4] Remove the retired custom provider, hand-written dictionary lookup/interpolator, flat TypeScript dictionaries, and obsolete tests from `apps/web/src/i18n/client.tsx`, `apps/web/src/i18n/server.ts`, `apps/web/src/i18n/utils.ts`, and `apps/web/src/i18n/locales/{en,zh}.ts`; retain only next-intl augmentation in `apps/web/src/i18n/types.ts` after confirming no imports remain.
+- [X] T033 [US4] Document catalog ownership, UI-versus-content locale separation, and the no-routing rule in `apps/web/README.md` and `docs/architecture/mandates.md`.
 
 **Checkpoint**: Catalog validation blocks incomplete localization releases, and
 the repository has one UI localization runtime with an explicit future-language
@@ -168,11 +168,11 @@ extension path.
 **Purpose**: Complete end-to-end verification, remove migration residue, and
 confirm the public delivery and navigation contracts.
 
-- [ ] T034 [P] Run the UI locale import/key audit and remove dead compatibility exports in `apps/web/src/i18n/` and `apps/web/src/components/i18n/`.
-- [ ] T035 [P] Run type, catalog, and unit verification using `apps/web/package.json` scripts and record any required fixes in `specs/016-next-intl-migration/quickstart.md`.
-- [ ] T036 [P] Run production-build and static public-reader checks from `apps/web/next.config.ts` and `apps/web/app/(public)/[...path]/page.tsx`, confirming no cookie/header-dependent ISR regression.
-- [ ] T037 [P] Run the complete Playwright regression suite from `apps/web/playwright.config.ts`, including `apps/web/e2e/localization.spec.ts` and existing translation/public-reader scenarios.
-- [ ] T038 Run every scenario in `specs/016-next-intl-migration/quickstart.md` and reconcile implementation evidence with success criteria SC-001 through SC-006 in `specs/016-next-intl-migration/spec.md`.
+- [X] T034 [P] Run the UI locale import/key audit and remove dead compatibility exports in `apps/web/src/i18n/` and `apps/web/src/components/i18n/`.
+- [X] T035 [P] Run type, catalog, and unit verification using `apps/web/package.json` scripts and record any required fixes in `specs/016-next-intl-migration/quickstart.md`.
+- [X] T036 [P] Run production-build and static public-reader checks from `apps/web/next.config.ts` and `apps/web/app/(public)/[...path]/page.tsx`, confirming no cookie/header-dependent ISR regression.
+- [X] T037 [P] Run the complete Playwright regression suite from `apps/web/playwright.config.ts`, including `apps/web/e2e/localization.spec.ts` and existing translation/public-reader scenarios.
+- [X] T038 Run every scenario in `specs/016-next-intl-migration/quickstart.md` and reconcile implementation evidence with success criteria SC-001 through SC-006 in `specs/016-next-intl-migration/spec.md`.
 
 ---
 

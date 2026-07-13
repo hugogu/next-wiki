@@ -3,11 +3,16 @@ import type { Metadata } from 'next';
 import { Layout } from '@/components/ui/Layout';
 import { getCurrentActor } from '@/server/services/auth';
 import { getLocale, getDictionary } from '@/i18n/server';
+import * as userCenterService from '@/server/services/user-center';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
+  const actor = await getCurrentActor();
+  const preferences = actor.kind === 'user'
+    ? await userCenterService.getPreferences({ actor })
+    : null;
+  const locale = await getLocale(preferences?.locale);
   const t = getDictionary(locale);
   return { title: t('userCenter.metadataTitle') };
 }

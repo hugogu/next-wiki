@@ -4,8 +4,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import * as setupService from '@/server/services/setup';
 import { getPageHref, getPagesHref } from '@/lib/path';
-import { getLocale, getDictionary } from '@/i18n/server';
+import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { PageListDescription } from '@/components/pages/PageListDescription';
+import { createAppFormatter } from '@/i18n/formatter';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +21,9 @@ export default async function HomePage() {
     redirect('/setup');
   }
 
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
   const { pages, totalPublished } = await pageService.getCachedHomePageSummary();
 
   return (
@@ -60,7 +62,7 @@ export default async function HomePage() {
                       <PageListDescription value={page.description} />
                       <p className="text-sm text-muted mt-xs">
                         {page.publishedAt
-                          ? t('home.page.publishedOn', { date: new Date(page.publishedAt).toLocaleDateString(locale) })
+                          ? t('home.page.publishedOn', { date: formatter.dateTime(new Date(page.publishedAt), 'short') })
                           : t('home.page.updatedRecently')}
                       </p>
                     </a>

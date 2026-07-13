@@ -11,7 +11,8 @@ import type { LivePage } from '@next-wiki/shared';
 import { buildAnonymousCtx, type PermCtx } from '@/server/permissions';
 import { getPageHref, getPagePathFromParams, getTranslatedPageHref } from '@/lib/path';
 import { buildPageDescription } from '@/lib/seo';
-import { getDictionary, getLocale } from '@/i18n/server';
+import { getDictionary, getStaticLocale } from '@/i18n/server';
+import { createAppFormatter } from '@/i18n/formatter';
 import { env } from '@/server/config';
 
 // Published reader pages are generated on their first visit and then served as
@@ -74,7 +75,7 @@ async function resolve(ctx: PermCtx, rawSegments: string[]): Promise<Resolved> {
 }
 
 export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
-  const [raw, locale] = await Promise.all([params, getLocale()]);
+  const [raw, locale] = await Promise.all([params, getStaticLocale()]);
   const t = getDictionary(locale);
   const siteUrl = env.APP_URL.replace(/\/$/, '');
   // Anonymous context so crawlers see the same metadata logged-out visitors do.
@@ -126,8 +127,9 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
 }
 
 export default async function PageRead({ params }: { params: PageParams }) {
-  const locale = await getLocale();
+  const locale = await getStaticLocale();
   const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
   const raw = await params;
   // This route has a single anonymous published representation. Authenticated
   // actions are fetched by AppShell after hydration and remain protected by
@@ -224,7 +226,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
             />
             <ContentRenderer html={bodyHtml} />
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
-              {t('page.read.createdOn', { date: createdAt.toLocaleDateString(locale) })}
+              {t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
               {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}
             </footer>
           </article>

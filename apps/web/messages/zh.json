@@ -1,0 +1,1568 @@
+{
+  "common": {
+    "brand": "next-wiki",
+    "unknownAuthor": "未知",
+    "error": {
+      "internalServerError": "服务器内部错误"
+    },
+    "actions": {
+      "back": "← 返回",
+      "cancel": "取消",
+      "confirm": "确认",
+      "dismiss": "关闭",
+      "search": "查询",
+      "save": "保存",
+      "edit": "编辑"
+    },
+    "status": {
+      "saving": "保存中…",
+      "loading": "加载中…"
+    }
+  },
+  "header": {
+    "search": {
+      "label": "搜索 Wiki 页面",
+      "placeholder": "搜索页面",
+      "minChars": "请输入至少两个字符以搜索。",
+      "searching": "搜索中…",
+      "loadingHybrid": "正在检索关键词和向量匹配…",
+      "loadingSemantic": "正在补充向量匹配结果…",
+      "noResults": "未找到匹配页面。",
+      "reducedCoverage": "当前仅显示关键词匹配结果。",
+      "error": "搜索暂时不可用。",
+      "escapeHint": "按 Escape 或点击灰色区域退出搜索。",
+      "source": {
+        "keyword": "关键字",
+        "semantic": "向量"
+      }
+    }
+  },
+  "language": {
+    "en": "English",
+    "zh": "中文",
+    "switchToEnglish": "切换到英文",
+    "switchToChinese": "切换到中文",
+    "label": "语言"
+  },
+  "theme": {
+    "mode": {
+      "light": "浅色",
+      "dark": "深色",
+      "auto": "自动",
+      "autoWithResolved": "自动 ({resolved})"
+    },
+    "toggleLabel": "主题: {mode}",
+    "label": "主题"
+  },
+  "auth": {
+    "fields": {
+      "emailLabel": "邮箱",
+      "passwordLabel": "密码"
+    },
+    "login": {
+      "metadataTitle": "登录",
+      "heading": "登录",
+      "noAccount": "还没有账号？",
+      "createAccountLink": "立即注册",
+      "button": {
+        "submit": "登录",
+        "submitting": "登录中..."
+      },
+      "error": {
+        "invalidCredentials": "邮箱或密码无效。"
+      }
+    },
+    "register": {
+      "metadataTitle": "注册",
+      "heading": "创建账号",
+      "hasAccount": "已有账号？",
+      "signInLink": "登录",
+      "button": {
+        "submit": "创建账号",
+        "submitting": "创建账号中..."
+      },
+      "error": {
+        "emailExists": "该邮箱已被注册。",
+        "generic": "注册失败，请重试。"
+      }
+    },
+    "logout": {
+      "button": {
+        "submit": "退出登录",
+        "submitting": "退出中..."
+      }
+    },
+    "setPassword": {
+      "metadataTitle": "设置新密码",
+      "heading": "设置新密码",
+      "description": "管理员已重置你的密码。请设置新密码以继续。",
+      "fields": {
+        "newPasswordLabel": "新密码",
+        "confirmPasswordLabel": "确认新密码"
+      },
+      "validation": {
+        "confirmRequired": "请确认密码",
+        "passwordsMismatch": "两次输入的密码不一致"
+      },
+      "button": {
+        "submit": "设置新密码",
+        "submitting": "更新中..."
+      },
+      "error": {
+        "generic": "更新密码失败。"
+      }
+    },
+    "setup": {
+      "error": {
+        "alreadyConfigured": "初始化已完成，管理员账号已存在。",
+        "generic": "创建管理员账号失败。"
+      },
+      "fields": {
+        "emailLabel": "管理员邮箱"
+      },
+      "button": {
+        "submitting": "创建管理员...",
+        "submit": "创建管理员账号"
+      }
+    },
+    "error": {
+      "emailExists": "该邮箱已被注册",
+      "invalidCredentials": "邮箱或密码无效",
+      "signInToChangePassword": "请先登录以修改密码",
+      "passwordTooShort": "密码至少需要 8 个字符"
+    }
+  },
+  "setup": {
+    "metadataTitle": "首次设置",
+    "heading": "欢迎使用 next-wiki",
+    "description": "创建第一个管理员账号以开始使用。此界面仅在尚未存在管理员时可用。"
+  },
+  "site": {
+    "description": "与 AI 协作，并持续反哺 AI 的个人知识库。"
+  },
+  "home": {
+    "tagline": "与 AI 协作，并持续反哺 AI 的个人知识库。",
+    "empty": {
+      "title": "暂无已发布页面",
+      "body": "编辑者发布页面后，内容将显示在这里。"
+    },
+    "recentPagesTitle": "最新页面",
+    "viewAllPages": "查看全部页面",
+    "page": {
+      "publishedOn": "发布于 {date}",
+      "updatedRecently": "最近更新"
+    }
+  },
+  "pages": {
+    "list": {
+      "metadataTitle": "全部页面",
+      "title": "全部页面",
+      "empty": "暂无已发布页面。"
+    },
+    "tag": {
+      "title": "标签“{tag}”的页面",
+      "empty": "暂无标签为“{tag}”的已发布页面。"
+    }
+  },
+  "page": {
+    "read": {
+      "draftBanner": "此页面为草稿，尚未发布。",
+      "createdOn": "创建于 {date}",
+      "authorSuffix": "，作者 {name}",
+      "outline": "目录"
+    },
+    "create": {
+      "metadataTitle": "新建页面",
+      "defaultTitle": "创建新页面",
+      "error": {
+        "pathExists": "该路径的页面已存在。",
+        "forbidden": "你没有权限创建页面。",
+        "generic": "创建页面失败。"
+      },
+      "submit": "创建"
+    },
+    "edit": {
+      "metadataTitle": "编辑 {path}",
+      "defaultTitle": "未命名",
+      "validation": {
+        "invalidPath": "路径无效"
+      },
+      "error": {
+        "invalidPath": "新路径无效。",
+        "pathExists": "该路径的页面已存在。",
+        "forbidden": "你没有权限编辑此页面。",
+        "generic": "保存失败。"
+      }
+    },
+    "properties": {
+      "metadataTitle": "属性: {path}",
+      "heading": "页面属性",
+      "description": "配置此页面的 URL 路径和其他设置。",
+      "fields": {
+        "pathLabel": "URL 路径",
+        "pathPlaceholder": "path/to/page",
+        "pathHint": "使用斜杠创建目录，例如 {example}。"
+      },
+      "button": {
+        "submitting": "保存中...",
+        "submit": "保存属性"
+      },
+      "error": {
+        "pathExists": "该路径的页面已存在。",
+        "forbidden": "你没有权限编辑页面属性。",
+        "generic": "更新属性失败。"
+      }
+    },
+    "history": {
+      "metadataTitle": "历史: {path}",
+      "heading": "版本历史: {title}",
+      "backToPage": "← {title}",
+      "empty": {
+        "title": "没有可查看的版本",
+        "forbidden": "你没有权限查看此页面的历史。"
+      },
+      "versionLink": "版本 {version}",
+      "revisionMeta": "{date}，作者 {name}"
+    },
+    "revision": {
+      "metadataTitle": "版本 {version} - {path}",
+      "heading": "版本 {version}",
+      "backToHistory": "← 返回历史",
+      "publishedOn": "发布于 {date}",
+      "draftOn": "草稿于 {date}",
+      "authorSuffix": "，作者 {name}",
+      "error": {
+        "notFound": "版本不存在"
+      }
+    },
+    "publish": {
+      "button": {
+        "submit": "发布此版本",
+        "submitting": "发布中..."
+      },
+      "error": {
+        "forbidden": "你没有权限发布此版本。",
+        "generic": "发布版本失败。",
+        "signInRequired": "请先登录以发布版本"
+      }
+    },
+    "error": {
+      "notFound": "页面不存在",
+      "deleteForbidden": "你没有权限删除此页面",
+      "signInToCreate": "请先登录以创建页面",
+      "createForbidden": "你没有权限创建页面",
+      "invalidPath": "路径无效",
+      "pathExists": "该路径的页面已存在",
+      "signInToEdit": "请先登录以编辑页面",
+      "editForbidden": "你没有权限编辑此页面",
+      "signInToEditProperties": "请先登录以编辑页面属性"
+    },
+    "header": {
+      "edit": "编辑页面",
+      "history": "查看历史",
+      "publish": "发布",
+      "publishing": "发布中...",
+      "properties": "页面属性",
+      "view": "查看页面",
+      "newPage": "新建页面",
+      "admin": "管理"
+    },
+    "share": {
+      "button": "分享",
+      "title": "分享此页面",
+      "copy": "复制链接",
+      "copied": "链接已复制",
+      "more": "更多…",
+      "weibo": "微博",
+      "wechat": "微信",
+      "discord": "Discord"
+    },
+    "metadata": {
+      "date": "日期",
+      "tags": "标签",
+      "summary": "摘要"
+    }
+  },
+  "space": {
+    "error": {
+      "defaultNotFound": "默认空间不存在"
+    }
+  },
+  "editor": {
+    "header": {
+      "save": "保存",
+      "close": "关闭",
+      "properties": "页面属性"
+    },
+    "toolbar": {
+      "heading": "标题",
+      "bold": "加粗",
+      "italic": "斜体",
+      "inlineCode": "行内代码",
+      "codeBlock": "代码块",
+      "bulletList": "无序列表",
+      "quote": "引用",
+      "link": "链接",
+      "undo": "撤销",
+      "redo": "重做",
+      "image": "插入图片",
+      "wrap": "切换自动换行",
+      "scrollSync": "切换滚动同步"
+    },
+    "image": {
+      "uploading": "正在上传图片……",
+      "uploadFailed": "图片上传失败"
+    },
+    "properties": {
+      "title": "页面属性",
+      "fields": {
+        "titleLabel": "标题",
+        "titlePlaceholder": "页面标题",
+        "dateLabel": "日期",
+        "tagsLabel": "标签",
+        "tagsPlaceholder": "devops, docker",
+        "tagsHint": "使用逗号分隔标签。",
+        "summaryLabel": "摘要",
+        "frontmatterLabel": "将页面元数据写入 Markdown frontmatter",
+        "frontmatterHint": "关闭时，标题、日期、标签和摘要仅保存在 Wiki 数据库中，不改写 Markdown 原文。",
+        "pathLabel": "路径",
+        "pathPlaceholder": "path/to/page",
+        "pathHint": "使用斜杠创建目录，例如 {example}。"
+      }
+    },
+    "preview": {
+      "error": {
+        "invalidInput": "输入无效",
+        "renderFailed": "预览渲染失败"
+      }
+    }
+  },
+  "admin": {
+    "tags": {
+      "heading": "标签",
+      "ariaLabel": "标签管理",
+      "createHeading": "创建标签",
+      "createDescription": "新标签会加入全局标签库，可在任意页面的元数据中使用。",
+      "newPlaceholder": "输入标签名称",
+      "create": "创建标签",
+      "created": "标签已创建。",
+      "rename": "重命名",
+      "renamed": "标签已重命名，已同步 {count} 个页面。",
+      "renameTitle": "重命名标签",
+      "renameDescription": "更改“{name}”的名称，使用该标签的页面会自动同步。",
+      "nameLabel": "标签名称",
+      "merge": "合并",
+      "merged": "标签已合并，已同步 {count} 个页面。",
+      "mergeTitle": "合并标签",
+      "mergeDescription": "将“{name}”的页面关联转移到另一个标签。",
+      "mergeTarget": "目标标签",
+      "mergeWarning": "合并完成后，源标签会被移除；同时使用两个标签的页面只保留目标标签。",
+      "mergeConfirm": "确认合并",
+      "delete": "删除",
+      "deleted": "标签已删除，已同步 {count} 个页面。",
+      "deleteTitle": "删除标签？",
+      "deleteDescription": "删除“{name}”并从 {count} 个相关页面移除该标签。此操作会产生新的页面修订。",
+      "searchPlaceholder": "搜索标签",
+      "tagCount": "{count} 个标签",
+      "empty": "没有找到标签。",
+      "selectHint": "选择一个标签以查看详情和相关页面。",
+      "relatedSummary": "关联 {count} 个页面",
+      "relatedPages": "相关页面",
+      "pageTagsLabel": "该页面的标签",
+      "searchPagesPlaceholder": "按标题或路径查询相关页面",
+      "noPages": "还没有页面使用这个标签。",
+      "noMatchingPages": "没有符合查询条件的相关页面。",
+      "pagesLoadFailed": "无法加载相关页面",
+      "operationQueued": "操作已提交，正在同步相关页面。",
+      "operationPending": "操作仍在后台处理中，稍后会自动显示最新状态。",
+      "loadFailed": "无法加载标签",
+      "createFailed": "无法创建标签",
+      "updateFailed": "无法更新标签",
+      "metadataTitle": "标签管理",
+      "title": "标签管理",
+      "description": "统一维护 Wiki 标签，查看标签使用情况并整理重复或不再使用的标签。"
+    },
+    "title": "管理",
+    "nav": {
+      "users": "用户",
+      "pages": "页面",
+      "tags": "标签",
+      "storage": "内容存储",
+      "apiAudit": "访问日志",
+      "transfers": "导入 / 导出",
+      "translations": "翻译",
+      "appearance": "外观",
+      "search": "搜索",
+      "site": "站点信息",
+      "groups": {
+        "content": "内容",
+        "system": "系统",
+        "operations": "数据与运维"
+      },
+      "ai": "AI"
+    },
+    "searchSettings": {
+      "title": "搜索设置",
+      "description": "调整头部搜索的相关性阈值、向量检索和结果介绍展示。",
+      "semantic": {
+        "title": "向量搜索",
+        "description": "启用后，头部搜索会混合关键词匹配和语义向量结果。关闭后只使用关键词全文搜索。"
+      },
+      "minRelevance": {
+        "label": "最小相关性系数",
+        "help": "只展示关键词或向量相关性系数大于等于该值的结果。0 表示较宽松匹配；可尝试 0.65 以上过滤弱向量匹配。"
+      },
+      "excerpts": {
+        "title": "结果介绍",
+        "description": "在每条搜索结果下方显示简短介绍。"
+      },
+      "excerptLength": {
+        "label": "介绍长度",
+        "help": "每条结果介绍的大致字符数。有效范围：20–500。"
+      },
+      "saved": "已保存。",
+      "saveError": "搜索设置保存失败。"
+    },
+    "pages": {
+      "metadataTitle": "页面管理",
+      "title": "页面管理",
+      "description": "集中查看 Wiki 页面，通过页面元数据筛选，并从列表中进入常用页面操作。",
+      "stats": {
+        "totalPages": "总页面数",
+        "totalEdits": "总编辑数",
+        "totalLinks": "页面连接数"
+      },
+      "filters": {
+        "keyword": "搜索",
+        "keywordPlaceholder": "标题、作者或路径",
+        "title": "标题",
+        "author": "作者",
+        "path": "目录路径",
+        "dateFrom": "更新开始日期",
+        "dateTo": "更新结束日期",
+        "apply": "应用筛选",
+        "reset": "重置"
+      },
+      "table": {
+        "title": "标题",
+        "path": "路径",
+        "status": "状态",
+        "author": "作者",
+        "edits": "编辑数",
+        "updatedAt": "最后更新",
+        "actions": "操作"
+      },
+      "status": {
+        "draft": "草稿",
+        "published": "已发布",
+        "deleted": "已删除"
+      },
+      "actions": {
+        "view": "查看页面",
+        "edit": "编辑页面",
+        "history": "查看历史",
+        "properties": "页面属性",
+        "delete": "删除页面"
+      },
+      "delete": {
+        "title": "删除页面?",
+        "message": "确定删除“{title}”吗?页面会被隐藏，并触发索引协调任务。",
+        "confirm": "删除页面",
+        "error": "无法删除页面。"
+      },
+      "empty": "没有符合当前筛选条件的页面。",
+      "sortBy": "按 {column} 排序",
+      "pagination": {
+        "summary": "共 {total} 个页面，第 {page} / {pages} 页"
+      }
+    },
+    "appearance": {
+      "title": "外观",
+      "description": "管理系统主题。内置主题只读 —— 复制后即可自定义。阅读内容的样式由每位用户在「阅读主题」中自行设置。",
+      "builtin": "内置",
+      "builtinReadonly": "内置主题为只读。",
+      "active": "使用中",
+      "activate": "启用",
+      "activated": "已启用该主题。",
+      "copy": "复制以编辑",
+      "copied": "已创建副本。",
+      "save": "保存",
+      "saved": "已保存主题。",
+      "delete": "删除",
+      "deleteConfirm": {
+        "title": "删除主题?",
+        "message": "确定删除“{name}”吗?此操作无法撤销。"
+      },
+      "deleted": "已删除主题。",
+      "selectHint": "选择主题以查看或启用，复制内置主题以自定义。",
+      "nameLabel": "主题名称",
+      "cssLabel": "主题样式表",
+      "error": {
+        "generic": "无法保存系统主题，请检查 CSS 后重试。"
+      },
+      "preview": {
+        "title": "实时预览",
+        "light": "浅色",
+        "dark": "深色",
+        "heading": "一级标题",
+        "subheading": "二级标题",
+        "h3": "三级标题",
+        "body": "正文展示所选字体与字号下段落的阅读效果。这里有一个",
+        "link": "示例链接",
+        "quote": "引用块使用弱化色与左侧强调边框。",
+        "listItem": "列表项,用于展示间距与项目符号。",
+        "listItemAlt": "第二个列表项,用于观察节奏。",
+        "table": {
+          "token": "名称",
+          "value": "取值"
+        },
+        "button": "主按钮"
+      }
+    },
+    "site": {
+      "title": "站点信息",
+      "description": "配置站点名称、图标、页脚，以及（面向中国大陆的）备案号。",
+      "name": {
+        "label": "站点名称"
+      },
+      "icon": {
+        "label": "站点图标",
+        "upload": "上传图标",
+        "remove": "移除",
+        "hint": "支持 SVG、PNG 或 ICO，不超过 512 KB。留空则使用默认图标。"
+      },
+      "footer": {
+        "label": "页脚版权信息"
+      },
+      "filing": {
+        "title": "中国大陆备案（可选）"
+      },
+      "icp": {
+        "numberLabel": "ICP 备案号",
+        "urlLabel": "ICP 备案链接"
+      },
+      "ps": {
+        "numberLabel": "公安备案号",
+        "urlLabel": "公安备案链接"
+      },
+      "save": "保存修改",
+      "saving": "保存中...",
+      "saved": "站点信息已更新。",
+      "error": {
+        "generic": "无法保存站点信息，请检查取值后重试。"
+      }
+    },
+    "transfers": {
+      "metadataTitle": "内容导入与导出",
+      "title": "内容导入与导出",
+      "description": "创建可移植备份、还原归档，或从 Wiki.js 迁移内容。",
+      "tabs": {
+        "exports": "导出",
+        "archives": "归档导入",
+        "wikijs": "Wiki.js 导入",
+        "history": "运行记录"
+      },
+      "export": {
+        "title": "可移植 Wiki 归档",
+        "description": "将所有已发布 Markdown 及其引用的本地图片导出为带版本的 ZIP 归档。",
+        "start": "创建导出",
+        "starting": "正在启动…"
+      },
+      "archive": {
+        "comingSoon": "上传 next-wiki 可移植归档，预览并还原其中的内容。",
+        "preview": "上传并预览",
+        "chooseFile": "选择 ZIP 文件…",
+        "previewReady": "最近一次归档预览已完成，可以开始导入。",
+        "import": "开始导入"
+      },
+      "conflict": {
+        "skip": "跳过已有页面",
+        "replace": "替换已有页面"
+      },
+      "wikijs": {
+        "comingSoon": "配置 Wiki.js 数据源，预览并迁移可访问的页面。",
+        "name": "数据源名称",
+        "token": "API Token",
+        "privateNetwork": "允许访问受信任的私有网络 Wiki.js 主机",
+        "add": "添加数据源",
+        "test": "测试",
+        "testing": "正在测试连接…",
+        "testSuccess": "连接成功",
+        "testFailed": "连接失败",
+        "preview": "预览",
+        "import": "导入",
+        "delete": "删除"
+      },
+      "history": {
+        "empty": "暂无导入导出运行记录。"
+      },
+      "detail": {
+        "warningCount": "{count} 项警告",
+        "noItems": "暂无明细项。",
+        "cleanupConfirm": "删除本次导入创建或替换的 {count} 个页面并从 AI 索引中移除？被跳过的页面不受影响。此操作不可撤销。",
+        "cleanupDone": "已删除 {count} 个导入的页面。",
+        "filter": {
+          "all": "全部",
+          "warning": "警告",
+          "failed": "错误"
+        }
+      },
+      "table": {
+        "kind": "操作",
+        "status": "状态",
+        "progress": "进度",
+        "started": "开始时间",
+        "actions": "操作"
+      },
+      "kind": {
+        "site_export": "站点导出",
+        "archive_preview": "归档预览",
+        "archive_import": "归档导入",
+        "wikijs_source_test": "Wiki.js 连接测试",
+        "wikijs_preview": "Wiki.js 预览",
+        "wikijs_import": "Wiki.js 导入"
+      },
+      "status": {
+        "queued": "排队中",
+        "running": "运行中",
+        "paused": "已暂停",
+        "completed": "已完成",
+        "completed_with_warnings": "完成但有警告",
+        "failed": "失败",
+        "cancelled": "已取消",
+        "cleaned": "已清理"
+      },
+      "actions": {
+        "cancel": "取消运行",
+        "pause": "暂停",
+        "resume": "继续",
+        "retry": "重试",
+        "cleanup": "清理",
+        "download": "下载"
+      }
+    },
+    "storage": {
+      "metadataTitle": "内容存储",
+      "title": "内容存储",
+      "description": "数据库是真相源。可同时启用一个或多个副本，用于容错和降低读取压力。",
+      "database": {
+        "description": "所有 Markdown 和图片都会先提交到数据库。此后端始终启用，配置只读。",
+        "role": "存储角色",
+        "engine": "数据库引擎",
+        "host": "主机和端口",
+        "name": "数据库名称",
+        "username": "用户名",
+        "ssl": "TLS/SSL",
+        "sslEnabled": "已启用",
+        "sslDisabled": "未配置"
+      },
+      "replica": {
+        "heading": "存储副本",
+        "description": "启用的副本会异步接收来自权威数据库的内容写入。",
+        "enabledLabel": "启用状态",
+        "enabledDescription": "接收新增内容写入，并可作为读取源使用。",
+        "databaseAlwaysEnabled": "数据库是权威源，不能禁用。",
+        "preferredLabel": "首选读取源",
+        "preferredDescription": "优先从此数据源读取，不可用时回退到数据库。",
+        "preferredToggle": "首选读取源",
+        "enabledToggle": "启用存储副本",
+        "databaseToggle": "启用数据库",
+        "authoritative": "权威源",
+        "unconfigured": "未配置",
+        "preferred": "首选读取源",
+        "makePreferred": "设为首选读取源",
+        "lastSync": "最后同步：{time}",
+        "disableTitle": "禁用此副本？",
+        "disableMessage": "该副本将停止接收写入且不再提供读取。请选择是否保留已有数据。",
+        "disableKeep": "禁用并保留数据",
+        "disableDelete": "禁用并删除数据",
+        "enableTitle": "启用此存储源？",
+        "enableMessage": "请选择启用前是否从数据库同步已有内容。",
+        "enableWithoutSync": "直接启用",
+        "enableAndSync": "同步已有数据",
+        "state": {
+          "disabled": "已禁用",
+          "backfilling": "正在回填",
+          "enabled": "已启用",
+          "degraded": "异常",
+          "deleting": "正在删除",
+          "unconfigured": "未配置"
+        }
+      },
+      "active": {
+        "heading": "当前后端",
+        "typeLabel": "类型",
+        "statusLabel": "状态",
+        "status": {
+          "active": "使用中"
+        },
+        "migrating": "正在迁移,内容写入已暂停。"
+      },
+      "type": {
+        "database": "数据库",
+        "local": "本地文件系统",
+        "s3": "S3 兼容存储",
+        "git": "Git 导出"
+      },
+      "form": {
+        "local": {
+          "title": "本地文件系统",
+          "basePath": "基础目录",
+          "containerPath": "容器内路径",
+          "hostPath": "宿主机 Bind Mount",
+          "hostPathUnknown": "运行环境未提供"
+        },
+        "s3": {
+          "title": "S3 兼容存储",
+          "endpoint": "端点(可选)",
+          "region": "区域",
+          "bucket": "存储桶",
+          "prefix": "前缀(可选)",
+          "accessKeyId": "Access Key ID",
+          "secret": "Secret Access Key",
+          "secretConfigured": "密钥已配置——留空以保留原值",
+          "secretPlaceholder": "输入 Secret Access Key"
+        }
+      },
+      "git": {
+        "description": "单向同步已发布的 Markdown 和引用图片到 Git 远程仓库。Git 不会作为读取源。",
+        "enabled": "启用 Git 同步",
+        "enabledDescription": "异步同步变更到配置的系统专用分支。",
+        "configHeading": "配置项",
+        "remoteUrl": "远程仓库 URL",
+        "branch": "同步分支",
+        "assetsDir": "图片目录",
+        "authMode": "认证方式",
+        "authHttps": "HTTPS Access Token",
+        "authSsh": "SSH Key",
+        "username": "HTTPS 用户名（可选）",
+        "token": "Access Token",
+        "tokenConfigured": "Token 已配置——留空以保留原值",
+        "tokenPlaceholder": "输入 GitHub/GitLab Access Token",
+        "sshPublicKey": "服务器 SSH 公钥",
+        "generateKey": "生成 SSH Key",
+        "rotateKey": "轮换 SSH Key",
+        "sshInstructions": "请将此公钥配置为 GitHub、GitLab 或 Git 服务器中具有写权限的 Deploy Key。",
+        "sshMissing": "请先生成密钥，再把公钥配置到远程仓库，然后启用同步。",
+        "keyGenerated": "SSH Key 已生成，请将公钥配置到远程 Git 仓库。",
+        "saved": "Git 同步配置已保存。",
+        "exportNow": "立即同步",
+        "exportQueued": "已加入全量 Git 同步队列。",
+        "exportNotQueued": "Git 同步未能加入队列，请检查服务器日志。",
+        "syncInProgress": "正在进行全量同步。",
+        "syncInProgressSince": "全量同步已从 {time} 开始运行。",
+        "cancelSync": "取消同步",
+        "cancellingSync": "正在取消…",
+        "syncCancelled": "Git 同步已取消。",
+        "enableTitle": "启用 Git 同步？",
+        "enableMessage": "系统会立即全量同步当前已发布内容。后续发布、删除和路径修改会再次触发协调。",
+        "enableAndExport": "启用并同步",
+        "autoSync": "发布时自动同步",
+        "autoSyncDescription": "每当有新页面版本发布时自动推送到 Git。",
+        "autoSyncWarning": "禁用后发布时不再自动推送，新发布的版本在下次手动或定时同步前可能在 Git 远程仓库中缺失。",
+        "scheduledSync": "定时同步",
+        "scheduledSyncDescription": "定期将完整的已发布快照协调到 Git，作为兜底机制。",
+        "scheduledSyncInterval": "同步间隔（分钟）"
+      },
+      "actions": {
+        "test": "测试连接",
+        "testing": "测试中……",
+        "save": "保存",
+        "saving": "保存中……",
+        "heading": "切换当前后端",
+        "switch": "切换到此后端",
+        "cleanup": "清理数据"
+      },
+      "result": {
+        "ok": "连接成功。",
+        "failed": "连接失败:{detail}"
+      },
+      "saved": "配置已保存。",
+      "note": {
+        "activation": "保存仅存储配置。切换当前后端会执行安全迁移。",
+        "replication": "请先保存并测试配置。启用后会从数据库异步回填已有内容。"
+      },
+      "switch": {
+        "title": "切换到 {target}?",
+        "message": "这会将全部内容复制并校验到 {target},然后启用它。迁移期间内容为只读。",
+        "confirm": "开始迁移",
+        "overwriteWarning": "{target} 后端已包含数据,可能被覆盖。是否继续?",
+        "confirmOverwrite": "覆盖并迁移"
+      },
+      "cleanup": {
+        "title": "删除保留的数据?",
+        "message": "将永久删除未启用的 {target} 后端中保留的全部内容。此操作不可撤销。",
+        "confirm": "删除数据"
+      },
+      "migration": {
+        "metadataTitle": "存储迁移",
+        "heading": "迁移",
+        "bannerLink": "存储迁移正在进行——查看状态。",
+        "backToStorage": "返回内容存储",
+        "progress": "{done} / {total} 项({percent}%)",
+        "aborting": "正在中止……",
+        "abort": "中止迁移",
+        "status": {
+          "pending": "等待中",
+          "copying": "复制中",
+          "verifying": "校验中",
+          "completed": "已完成",
+          "failed": "失败",
+          "aborted": "已中止"
+        }
+      },
+      "sync": {
+        "metadataTitle": "存储同步",
+        "heading": "正在同步已有内容",
+        "progress": "{done} / {total} 项（{percent}%）",
+        "failed": "{count} 项同步失败，将自动重试。",
+        "back": "返回内容存储"
+      }
+    },
+    "apiAudit": {
+      "metadataTitle": "访问日志",
+      "title": "访问日志",
+      "user": "用户",
+      "keyName": "密钥",
+      "method": "方法",
+      "path": "路径",
+      "status": "状态",
+      "duration": "耗时",
+      "authStatus": "认证",
+      "ip": "IP",
+      "timestamp": "时间",
+      "errorMessage": "错误",
+      "filterByUser": "用户",
+      "filterByTimeRange": "时间范围",
+      "from": "开始",
+      "to": "结束",
+      "allUsers": "全部用户",
+      "noEntries": "没有符合筛选条件的审计记录。",
+      "entryType": "类型",
+      "all": "全部",
+      "page": "页面",
+      "api": "API"
+    },
+    "users": {
+      "metadataTitle": "用户管理",
+      "description": "管理角色、状态和密码。",
+      "table": {
+        "email": "邮箱",
+        "role": "角色",
+        "status": "状态",
+        "joined": "加入时间",
+        "actions": "操作"
+      },
+      "role": {
+        "reader": "读者",
+        "editor": "编辑者",
+        "admin": "管理员",
+        "selectLabel": "修改 {email} 的角色"
+      },
+      "status": {
+        "enable": "启用用户",
+        "disable": "禁用用户"
+      },
+      "resetPassword": {
+        "button": "重置密码",
+        "confirmButton": "设置临时密码",
+        "placeholder": "临时密码",
+        "successMessage": "已为 {email} 设置临时密码",
+        "securityHint": "请安全地分享此密码。该用户下次登录时必须设置新密码。"
+      },
+      "error": {
+        "manageForbidden": "你没有权限管理用户",
+        "cannotRemoveOwnAdmin": "你不能移除自己的管理员角色",
+        "userNotFound": "用户不存在",
+        "cannotDisableSelf": "你不能禁用自己的账号",
+        "tempPasswordTooShort": "临时密码至少需要 8 个字符"
+      }
+    },
+    "ai": {
+      "title": "AI 配置",
+      "description": "统一配置系统 AI 能力、能力映射、知识索引和运行记录。",
+      "tabs": {
+        "chat": "对话能力",
+        "embedding": "向量能力",
+        "image": "生图能力",
+        "detector": "模型探测",
+        "models": "能力映射",
+        "indexes": "索引",
+        "actions": "运行记录",
+        "usage": "用量统计"
+      },
+      "usage": {
+        "title": "AI 用量统计",
+        "description": "按对话、向量和生图能力统计已完成请求的次数与 Token 消耗。",
+        "loading": "加载中…",
+        "requests": "请求次数",
+        "chat": "对话",
+        "embedding": "向量",
+        "image": "生图"
+      },
+      "global": {
+        "title": "启用 AI",
+        "description": "允许已配置的 AI 能力处理 Wiki 内容。"
+      },
+      "modelDetector": {
+        "title": "模型能力探测",
+        "description": "配置 OpenRouter API 密钥，用于补充对话模型能力并发现各平台的向量模型。",
+        "configured": "已配置探测 API 密钥。",
+        "configuredShort": "已配置",
+        "unconfigured": "未配置",
+        "apiKey": "OpenRouter API 密钥",
+        "replaceHint": "输入新密钥以替换已保存的密钥",
+        "save": "保存密钥",
+        "saved": "探测密钥已保存。",
+        "registerProviders": "为所有能力注册 OpenRouter 配置",
+        "registerProvidersHint": "使用该密钥创建对话、嵌入和图像配置，每项以不同名称注册。"
+      },
+      "providers": {
+        "title": "AI 能力",
+        "description": "管理系统级 AI 能力配置。",
+        "add": "添加配置",
+        "addCapability": "添加配置",
+        "addTyped": "添加{type}",
+        "addDescription": "凭据将加密保存，API 不会返回密钥原文。",
+        "name": "配置名称",
+        "vendor": "平台",
+        "baseUrl": "基础 URL",
+        "apiKey": "API 密钥",
+        "create": "创建配置",
+        "kind": "能力类型",
+        "protocol": "API 协议",
+        "initialModel": "初始模型 ID",
+        "status": "状态",
+        "capabilities": "API 能力",
+        "capabilitiesUnknown": "同步模型后识别",
+        "models": "模型数",
+        "empty": {
+          "__value": "尚未配置 AI 能力。",
+          "chat": "尚未配置对话能力。",
+          "embedding": "尚未配置向量能力。",
+          "image": "尚未配置生图能力。"
+        },
+        "test": "测试连接",
+        "testing": "测试中…",
+        "testOk": "连接成功（{latency}ms）",
+        "testFailed": "连接失败：{detail}",
+        "sync": "同步模型",
+        "syncComplete": "已同步 {count} 个模型，跳过 {skipped} 个",
+        "delete": "删除配置",
+        "deleteConfirm": "确定删除 {name} 及其全部模型、能力映射、索引和运行记录？此操作无法撤销。"
+      },
+      "providerType": {
+        "chat": "对话能力",
+        "embedding": "向量能力",
+        "image": "生图能力",
+        "chatDescription": "提供 Wiki 问答、文本优化所需的对话和推理 API。",
+        "embeddingDescription": "提供知识向量化和语义检索所需的独立 Embeddings API。",
+        "imageDescription": "提供生成 Wiki 配图所需的独立图片生成 API。"
+      },
+      "vendor": {
+        "openai": "OpenAI",
+        "openrouter": "OpenRouter",
+        "anthropic": "Anthropic",
+        "kimi": "Kimi",
+        "voyage": "Voyage AI",
+        "minimax": "MiniMax",
+        "zai": "Z.ai 智谱",
+        "custom": "自定义 OpenAI 兼容平台"
+      },
+      "providerStatus": {
+        "unverified": "未验证",
+        "healthy": "正常",
+        "unavailable": "不可用",
+        "disabled": "已禁用"
+      },
+      "assignments": {
+        "title": "系统能力映射",
+        "description": "为系统的每项 AI 能力选择已配置的平台和模型。",
+        "none": "选择模型",
+        "saveAll": "保存全部"
+      },
+      "purpose": {
+        "wiki_text": "Wiki 文本模型",
+        "wiki_embedding": "Wiki 向量模型",
+        "wiki_image": "Wiki 生图模型"
+      },
+      "capability": {
+        "text_generation": "文本",
+        "embedding": "向量",
+        "image_generation": "生图"
+      },
+      "function": {
+        "text": "文本生成",
+        "embedding": "向量生成",
+        "image": "图片生成",
+        "textDescription": "通过 Chat API 用于 Wiki 问答和选中文本优化。",
+        "embeddingDescription": "通过 Embeddings API 对 Wiki 内容和查询进行向量化。",
+        "imageDescription": "通过 Images API 或平台的图片输出 API 生成 Wiki 配图。",
+        "configured": "已配置",
+        "unconfigured": "未配置",
+        "embeddingDimensions": "向量维度",
+        "confirmCapability": "保存即确认 {model} 支持此独立 API。",
+        "save": "保存功能配置"
+      },
+      "models": {
+        "catalogTitle": "模型目录",
+        "catalogDescription": {
+          "__value": "查看当前能力可使用的模型。",
+          "chat": "查看已同步的对话模型及其输入、推理能力。",
+          "embedding": "查看通过 OpenRouter 向量模型目录发现或手工添加的向量模型。",
+          "image": "查看平台内置及手工添加的生图模型。"
+        },
+        "filter": "筛选模型",
+        "allProviders": "全部能力配置",
+        "model": "模型",
+        "provider": "能力配置",
+        "type": "API 类型",
+        "context": "上下文",
+        "chatCapabilities": "Chat 能力",
+        "embeddingDimensions": "向量维度数",
+        "multilingualSupport": "多语言支持",
+        "supported": "支持",
+        "unsupported": "不支持",
+        "supportUnknown": "未知",
+        "empty": "没有符合当前筛选条件的模型。",
+        "add": "添加模型",
+        "externalId": "模型 ID",
+        "displayName": "显示名称",
+        "delete": "删除模型",
+        "active": "已激活",
+        "activate": "激活",
+        "activateDimensionsHint": "为 {name} 设置向量维度后激活。需与该模型实际输出维度一致。"
+      },
+      "chatCapability": {
+        "vision": "视觉理解",
+        "audio": "音频理解",
+        "thinking": "Thinking"
+      },
+      "modelType": {
+        "chat": "Chat",
+        "embedding": "向量",
+        "image": "生图",
+        "unknown": "未分类"
+      },
+      "modelAvailability": {
+        "available": "可用",
+        "unavailable": "不可用",
+        "unknown": "未知"
+      },
+      "action": {
+        "queued": "任务已排队"
+      },
+      "saving": "保存中…",
+      "error": {
+        "generic": "AI 配置失败。",
+        "inUse": "该项目正在使用中，无法删除。"
+      },
+      "delete": {
+        "confirm": "确定删除 {name}？此操作无法撤销。"
+      },
+      "entitlement": {
+        "question": "Wiki 问答",
+        "text": "选中文本优化",
+        "image": "页面配图生成",
+        "dialogTitle": "AI 访问 — {email}",
+        "dialogDescription": "开关各项能力，修改会自动保存。",
+        "saving": "保存中…",
+        "loading": "加载中…",
+        "loadError": "无法加载 AI 访问设置。",
+        "manage": "管理 AI 权限"
+      },
+      "index": {
+        "rebuild": "重建知识索引",
+        "retry": "重试失败页面",
+        "title": "知识索引",
+        "description": "查看向量索引各版本状态，并在更换向量模型后执行重建。",
+        "model": "向量模型",
+        "dimensions": "维度",
+        "progress": "进度",
+        "failed": "失败",
+        "active": "当前使用",
+        "details": "详情",
+        "delete": "删除索引",
+        "cancel": {
+          "__value": "取消构建",
+          "confirm": "停止\"{name}\"的构建?未完成的部分将被丢弃。"
+        },
+        "empty": "尚未创建知识索引。"
+      },
+      "indexStatus": {
+        "building": "构建中",
+        "ready": "就绪",
+        "failed": "失败",
+        "superseded": "已替代"
+      },
+      "actions": {
+        "title": "AI 运行记录",
+        "description": "仅保留运行元数据，不持久化问题、回复、选中文本和图片数据。",
+        "filters": {
+          "allFeatures": "全部功能",
+          "allStatuses": "全部状态",
+          "allProviders": "全部能力配置",
+          "allModels": "全部模型",
+          "user": "用户 ID",
+          "provider": "能力配置",
+          "model": "模型",
+          "from": "开始日期",
+          "to": "结束日期"
+        },
+        "table": {
+          "queued": "排队时间",
+          "feature": "功能",
+          "status": "状态",
+          "tokens": "Token 用量",
+          "providerModel": "能力配置 / 模型",
+          "error": "错误",
+          "detail": "详情",
+          "actions": "操作"
+        },
+        "empty": "没有符合当前筛选条件的 AI 运行记录。",
+        "view": "查看",
+        "errorDetail": "错误详情",
+        "detailTitle": "运行详情",
+        "page": "页面",
+        "usage": "用量",
+        "inputTokens": "输入 Token",
+        "outputTokens": "输出 Token",
+        "cachedInputTokens": "缓存输入 Token",
+        "noDetail": "无更多详情。",
+        "request": "请求",
+        "response": "响应",
+        "stack": "调用栈 / 详情"
+      },
+      "actionFeature": {
+        "provider_test": "能力连接测试",
+        "model_sync": "模型同步",
+        "index_rebuild": "知识索引重建",
+        "semantic_search": "语义检索",
+        "wiki_question": "Wiki 问答",
+        "text_optimization": "文本优化",
+        "image_generation": "图片生成"
+      },
+      "actionStatus": {
+        "queued": "排队中",
+        "running": "运行中",
+        "completed": "已完成",
+        "failed": "失败",
+        "cancelled": "已取消",
+        "expired": "已过期"
+      },
+      "providerDetail": {
+        "update": "更新能力配置",
+        "newApiKey": "新 API 密钥（留空则保持原密钥）",
+        "save": "保存"
+      },
+      "indexDetail": {
+        "title": "AI 知识索引",
+        "status": "状态",
+        "completed": "已完成",
+        "showFailed": "查看失败页面"
+      }
+    }
+  },
+  "renderer": {
+    "codeBlock": {
+      "copy": "复制代码",
+      "copied": "已复制"
+    },
+    "mermaid": {
+      "diagramButton": "图表",
+      "codeButton": "代码"
+    }
+  },
+  "layout": {
+    "header": {
+      "openNav": "打开导航",
+      "apiDocs": "API 文档"
+    },
+    "nav": {
+      "pagesTitle": "页面",
+      "adminTitle": "管理",
+      "closeButton": "关闭导航",
+      "empty": "暂无已发布页面。",
+      "loadError": "加载失败，点击重试。",
+      "addChild": "在此新建页面"
+    }
+  },
+  "apiDocs": {
+    "metadataTitle": "API 文档"
+  },
+  "userCenter": {
+    "metadataTitle": "用户中心",
+    "title": "用户中心",
+    "nav": {
+      "profile": "个人资料",
+      "password": "密码",
+      "apiKeys": "API 密钥",
+      "audit": "审计日志",
+      "readingTheme": "阅读主题",
+      "aiSessions": "AI 会话历史",
+      "settings": "用户设置"
+    },
+    "readingTheme": {
+      "title": "阅读主题",
+      "description": "选择阅读 Markdown 内容时使用的颜色、字体与字号。修改仅作用于阅读器（站点其他部分仍使用管理员设置的系统主题）。",
+      "light": "浅色模式配色",
+      "dark": "深色模式配色",
+      "fonts": "字体",
+      "sizes": "字号",
+      "save": "保存修改",
+      "saving": "保存中...",
+      "saved": "阅读主题已更新。",
+      "reset": "恢复默认",
+      "customized": "自定义",
+      "default": "默认",
+      "error": {
+        "generic": "无法保存阅读主题，请检查取值后重试。"
+      }
+    },
+    "profile": {
+      "metadataTitle": "个人资料",
+      "heading": "个人资料",
+      "displayNameLabel": "显示名称",
+      "emailLabel": "邮箱",
+      "saveButton": "保存",
+      "savingButton": "保存中...",
+      "savedMessage": "个人资料已更新。",
+      "saveFailed": "无法保存个人资料，请重试。"
+    },
+    "password": {
+      "heading": "修改密码",
+      "metadataTitle": "密码",
+      "currentPasswordLabel": "当前密码",
+      "newPasswordLabel": "新密码",
+      "confirmPasswordLabel": "确认新密码",
+      "changeButton": "修改密码",
+      "changingButton": "修改中...",
+      "successMessage": "密码已更新。",
+      "error": {
+        "passwordsMismatch": "两次输入的密码不一致"
+      }
+    },
+    "preferences": {
+      "heading": "显示偏好",
+      "themeLabel": "主题",
+      "languageLabel": "语言",
+      "saveFailed": "无法保存偏好设置，请重试。"
+    },
+    "apiKeys": {
+      "metadataTitle": "API 密钥",
+      "title": "API 密钥",
+      "createButton": "创建 API 密钥",
+      "createTitle": "创建新 API 密钥",
+      "createdTitle": "API 密钥已创建",
+      "nameLabel": "名称",
+      "namePlaceholder": "例如：CI 机器人",
+      "scopesLabel": "权限范围",
+      "scopesHint": "至少选择一个权限范围。创建后无法修改。",
+      "keyPrefix": "前缀",
+      "createdAt": "创建时间",
+      "lastUsed": "最后使用",
+      "statusHeader": "状态",
+      "actionsHeader": "操作",
+      "status": {
+        "active": "有效",
+        "revoked": "已撤销"
+      },
+      "reveal": "显示",
+      "hide": "隐藏",
+      "copy": "复制",
+      "copied": "已复制",
+      "revoke": "撤销",
+      "revokeTitle": "撤销 API 密钥",
+      "revokeConfirm": "确定要撤销此密钥吗？",
+      "revokeWarning": "撤销后的密钥将无法继续使用。",
+      "revokeFailed": "撤销失败，请重试。",
+      "scope": {
+        "view": "查看",
+        "create": "创建",
+        "edit": "编辑",
+        "delete": "删除",
+        "share": "分享",
+        "run": "运行",
+        "storage": "存储",
+        "preferences": "偏好",
+        "ai": {
+          "read": "AI 读取"
+        }
+      },
+      "scopeDescriptions": {
+        "view": "读取已发布页面和历史",
+        "create": "创建新页面",
+        "edit": "创建草稿并发布修订",
+        "delete": "删除页面",
+        "share": "为未来的分享功能预留",
+        "run": "为未来的运行器功能预留",
+        "storage": "管理内容存储配置与迁移(仅管理员)",
+        "preferences": "更新你自己的主题和语言偏好",
+        "ai": {
+          "read": "使用 AI 搜索与语义检索"
+        }
+      },
+      "maxKeysExceeded": "最多只能拥有 {max} 个有效密钥。",
+      "atLeastOneScope": "至少选择一个权限范围。",
+      "createdWarning": "请立即复制此密钥。之后可以在本页面重新显示。",
+      "createdCopyHint": "密钥以加密形式存储，稍后仍可在本页面显示。",
+      "revealTitle": "API 密钥 secret",
+      "revealWarning": "请勿分享此 secret。",
+      "noKeys": "暂无 API 密钥。",
+      "close": "关闭"
+    },
+    "audit": {
+      "metadataTitle": "审计日志",
+      "title": "审计日志",
+      "method": "方法",
+      "path": "路径",
+      "status": "状态",
+      "duration": "耗时",
+      "ip": "IP",
+      "timestamp": "时间",
+      "keyName": "密钥",
+      "errorMessage": "错误",
+      "filterByKey": "按密钥筛选",
+      "filterByStatus": "状态",
+      "all": "全部",
+      "success": "成功",
+      "error": "错误",
+      "noEntries": "暂无审计记录。",
+      "page": "页",
+      "of": "/",
+      "next": "下一页",
+      "prev": "上一页",
+      "allKeys": "全部密钥"
+    },
+    "aiSessions": {
+      "metadataTitle": "AI 会话历史",
+      "title": "AI 会话历史",
+      "description": "搜索、查看、继续或永久删除你过去与 Ask AI 的对话。",
+      "searchLabel": "搜索",
+      "searchPlaceholder": "按问题内容搜索",
+      "filterByStatus": "状态",
+      "allStatuses": "全部",
+      "empty": "暂无 AI 会话记录。",
+      "question": "问题",
+      "status": "状态",
+      "date": "时间",
+      "actions": "操作",
+      "contentExpired": "内容已过期",
+      "view": "查看",
+      "continue": "继续会话",
+      "delete": "删除",
+      "deleteTitle": "删除此会话?",
+      "deleteMessage": "此操作将永久删除问题、回答与引用内容,且无法撤销。",
+      "deleteFailed": "删除会话失败。",
+      "detailTitle": "会话详情",
+      "loading": "加载中…"
+    }
+  },
+  "ai": {
+    "search": {
+      "placeholder": "按语义搜索 Wiki",
+      "searching": "搜索中…",
+      "error": "语义搜索失败。"
+    },
+    "chat": {
+      "open": "询问 AI",
+      "title": "Wiki AI",
+      "close": "关闭",
+      "collapse": "收起",
+      "newSession": "新建会话",
+      "providerNotice": "你的问题和相关 Wiki 内容可能会发送给系统配置的 AI 平台。",
+      "empty": "提出一个基于本 Wiki 内容的问题。",
+      "streaming": "生成中…",
+      "mode": {
+        "retrieval": "检索模式",
+        "full": "全文模式"
+      },
+      "placeholder": "询问关于此 Wiki 的问题",
+      "send": "发送",
+      "retry": "重试",
+      "insufficient": "Wiki 中没有足够依据回答该问题。",
+      "thinking": "思考中",
+      "hideThinking": "隐藏思考",
+      "showThinking": "显示思考",
+      "capacity": "全部 Wiki 内容超出当前模型容量，请使用检索模式。",
+      "citations": "来源"
+    },
+    "optimize": {
+      "toolbar": "使用 AI 优化选中文本",
+      "title": "优化选中文本",
+      "instruction": {
+        "clarity": "提升表达清晰度",
+        "grammar": "修正语法和拼写",
+        "shorten": "精简内容",
+        "expand": "扩写内容"
+      },
+      "original": "原文",
+      "suggestion": "建议内容",
+      "generating": "生成中…",
+      "stale": "选中文本已经变化，建议未应用。",
+      "reject": "拒绝",
+      "request": "生成建议",
+      "accept": "应用到草稿"
+    },
+    "image": {
+      "toolbar": "使用 AI 生成配图",
+      "title": "生成 Wiki 配图",
+      "source": {
+        "page": "使用页面内容",
+        "selection": "使用选中文本"
+      },
+      "preview": "生成配图预览",
+      "discard": "丢弃",
+      "generate": "生成",
+      "generating": "生成中…",
+      "confirm": "使用此图片",
+      "confirming": "保存中…",
+      "error": "无法将生成图片保存为 Wiki 资产。"
+    }
+  },
+  "translation": {
+    "admin": {
+      "title": "翻译",
+      "subtitle": "配置语言与风格，然后翻译已发布的页面。",
+      "overview": "概览",
+      "languages": "目标语言",
+      "styles": "翻译风格",
+      "runs": "翻译任务",
+      "documents": "已翻译文档",
+      "usage": "用量与成本"
+    },
+    "language": {
+      "add": "添加语言",
+      "code": "语言代码",
+      "enabled": "已启用",
+      "retired": "已停用",
+      "defaultModel": "默认模型",
+      "defaultStyle": "默认风格",
+      "none": "无",
+      "empty": "尚未配置目标语言。",
+      "enable": "启用",
+      "disable": "停用",
+      "retire": "退役"
+    },
+    "style": {
+      "add": "添加风格",
+      "name": "名称",
+      "body": "指令",
+      "version": "版本 {n}",
+      "newVersion": "新版本",
+      "empty": "尚无翻译风格。"
+    },
+    "run": {
+      "create": "开始翻译",
+      "targetLocale": "目标语言",
+      "model": "模型",
+      "style": "风格",
+      "scope": {
+        "__value": "范围",
+        "allPublished": "全部已发布页面"
+      },
+      "mode": {
+        "__value": "模式",
+        "missing": "仅缺失的翻译",
+        "all": "全部重新翻译"
+      },
+      "pause": "暂停",
+      "resume": "继续",
+      "cancel": "取消",
+      "retry": "重试 / 替换",
+      "progress": "{processed} / {total}",
+      "modelDefault": "使用语言默认",
+      "empty": "尚无翻译任务。",
+      "detail": {
+        "items": "页面",
+        "history": "历史"
+      }
+    },
+    "status": {
+      "queued": "排队中",
+      "running": "进行中",
+      "paused": "已暂停",
+      "completed": "已完成",
+      "completed_with_warnings": "完成（含警告）",
+      "failed": "失败",
+      "cancelled": "已取消"
+    },
+    "item": {
+      "pending": "待处理",
+      "running": "进行中",
+      "completed": "已完成",
+      "skipped": "已跳过",
+      "failed": "失败",
+      "cancelled": "已取消",
+      "superseded": "已被取代"
+    },
+    "document": {
+      "source": "源页面",
+      "freshness": "新鲜度",
+      "open": "打开",
+      "empty": "尚无已翻译文档。"
+    },
+    "usage": {
+      "key": "分组",
+      "empty": "尚无用量记录。",
+      "reported": "已报告",
+      "estimated": "估算",
+      "unavailable": "不可用",
+      "duration": "耗时"
+    },
+    "stats": {
+      "sourcePages": "已发布源页面",
+      "translatedPages": "已翻译页面",
+      "languages": "活跃语言",
+      "coverage": "覆盖率"
+    },
+    "freshness": {
+      "fresh": "最新",
+      "stale": "需刷新",
+      "queued": "刷新排队中",
+      "running": "刷新中",
+      "failed": "刷新失败",
+      "unavailable": "不可用"
+    },
+    "reader": {
+      "unavailable": {
+        "title": "暂无翻译",
+        "body": "该页面尚未翻译为此语言。"
+      },
+      "inProgress": {
+        "body": "翻译正在准备中，请稍后再来查看。"
+      }
+    },
+    "error": {
+      "INVALID_TRANSLATION_INPUT": "翻译请求无效。",
+      "TRANSLATION_NOT_FOUND": "找不到该翻译。",
+      "TRANSLATION_ALREADY_RUNNING": "该语言已有正在进行的任务。",
+      "RUN_NOT_ACTIVE": "任务未处于活动状态。",
+      "RUN_NOT_PAUSED": "任务未暂停。",
+      "MODEL_UNAVAILABLE": "所选模型不可用。",
+      "CAPABILITY_MISMATCH": "所选模型无法生成文本。",
+      "SOURCE_NOT_TRANSLATABLE": "所选页面没有可翻译的已发布源。",
+      "AI_DISABLED": "AI 功能已禁用。",
+      "JOB_QUEUE_UNAVAILABLE": "后台任务当前不可用。"
+    }
+  },
+  "pagination": {
+    "label": "分页",
+    "first": "首页",
+    "previous": "上一页",
+    "next": "下一页",
+    "last": "末页"
+  },
+  "errors": {
+    "notFound": {
+      "code": "404",
+      "message": "此页面不存在。",
+      "backHome": "返回首页"
+    },
+    "forbidden": {
+      "code": "403",
+      "message": "你没有权限查看此页面。",
+      "backHome": "返回首页"
+    }
+  }
+}
