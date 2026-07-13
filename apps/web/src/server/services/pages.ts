@@ -32,6 +32,8 @@ import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevi
 import { buildPageDescription } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
+import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
+import { getPageHref } from '@/lib/path';
 
 const DEFAULT_SPACE_SLUG = 'default';
 const ADMIN_PAGE_SIZE = 25;
@@ -1090,9 +1092,14 @@ export async function updateProperties(
       })
       .where(eq(schema.pages.id, page.id));
 
-    return { pageId: page.id, newPath: nextPath };
+    return {
+      pageId: page.id,
+      newPath: nextPath,
+      isPublished: page.currentPublishedVersionId !== null,
+    };
   });
   invalidatePublicContentCache();
+  if (result.isPublished) await enqueuePublicPageWarmup(getPageHref(result.newPath));
   if (result.newPath !== currentPath) await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   return result;

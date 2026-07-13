@@ -19,6 +19,9 @@ export const QUEUES = {
   transferSourceTest: 'transfer-source-test',
   transferCleanup: 'transfer-cleanup',
   tagMutation: 'tag-mutation',
+  // Primes the ISR response for a just-published public document. Keeping it
+  // separate prevents an unreachable local app listener from delaying publish.
+  publicPageWarmup: 'public-page-warmup',
   // Dedicated long-running queue for AI page translation so a bulk one-language
   // run cannot starve interactive AI actions (questions, optimization, images).
   translation: 'translation',

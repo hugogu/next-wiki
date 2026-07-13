@@ -21,6 +21,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-wiki}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-wiki}}
       APP_URL: ${APP_URL}
+      APP_INTERNAL_URL: ${APP_INTERNAL_URL:-http://127.0.0.1:3000}
       NODE_ENV: production
       NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}

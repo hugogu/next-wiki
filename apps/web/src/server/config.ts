@@ -3,6 +3,10 @@ import { z } from 'zod';
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   APP_URL: z.string().url().default('http://localhost:3000'),
+  // In-process jobs use this origin to prewarm ISR without making a request
+  // through the public reverse proxy or CDN. Docker's default reaches the
+  // Next.js server through its loopback listener.
+  APP_INTERNAL_URL: z.string().url().default('http://127.0.0.1:3000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   NEXT_WIKI_SEED: z.enum(['true', 'false']).default('false'),
   API_KEY_ENCRYPTION_KEY: z.string().min(64).max(64),

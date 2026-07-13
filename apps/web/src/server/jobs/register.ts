@@ -30,6 +30,7 @@ import { runTagMutation } from './tag-mutations';
 import { runPageMetadataBackfill } from './page-metadata-backfill';
 import { runTranslationRun } from './translation';
 import { findRecoverableTranslationRunIds } from '@/server/services/translations';
+import { runPublicPageWarmup } from './public-page-warmup';
 
 type JobBatch = { data: unknown }[];
 
@@ -118,6 +119,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   });
   await boss.work(QUEUES.tagMutation, async (jobs: JobBatch) => {
     for (const job of jobs) await runTagMutation((job.data as { mutationId: string }).mutationId);
+  });
+  await boss.work(QUEUES.publicPageWarmup, async (jobs: JobBatch) => {
+    for (const job of jobs) await runPublicPageWarmup((job.data as { href: string }).href);
   });
   // Dedicated worker so a bulk one-language translation run cannot starve
   // interactive AI actions on QUEUES.aiAction.
