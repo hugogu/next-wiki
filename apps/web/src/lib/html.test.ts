@@ -72,4 +72,19 @@ describe('injectHeadingIds', () => {
     const html = '<h1>Title</h1>';
     expect(injectHeadingIds(html)).toBe(html);
   });
+
+  it('gives repeated headings unique ids so anchors stay distinct', () => {
+    const html = '<h2>概述</h2><h2>概述</h2><h3>概述</h3>';
+    expect(injectHeadingIds(html)).toBe('<h2 id="概述">概述</h2><h2 id="概述-2">概述</h2><h3 id="概述-3">概述</h3>');
+  });
+
+  it('avoids colliding a generated id with an existing one', () => {
+    const html = '<h2 id="intro">A</h2><h2>Intro</h2>';
+    expect(injectHeadingIds(html)).toBe('<h2 id="intro">A</h2><h2 id="intro-2">Intro</h2>');
+  });
+
+  it('produces outline ids that match the injected DOM ids for duplicates', () => {
+    const injected = injectHeadingIds('<h2>Notes</h2><h2>Notes</h2>');
+    expect(extractHeadings(injected).map((h) => h.id)).toEqual(['notes', 'notes-2']);
+  });
 });

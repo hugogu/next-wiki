@@ -61,17 +61,34 @@ export function extractHeadings(html: string): Heading[] {
 }
 
 /**
- * Add stable `id` attributes to h2-h6 headings so the outline can link to them.
- * Headings that already have a non-generic id are left untouched; ids that are
- * the empty fallback ('heading') are regenerated so duplicated fallbacks don't
- * break navigation.
+ * Return `base` if it has not been used, otherwise the first free
+ * `base-2`, `base-3`, ... variant. Records the chosen id in `seen` so repeated
+ * heading text (e.g. several "概述" sections) yields unique, stable anchors.
+ */
+function uniqueId(base: string, seen: Set<string>): string {
+  let id = base;
+  for (let n = 2; seen.has(id); n += 1) id = `${base}-${n}`;
+  seen.add(id);
+  return id;
+}
+
+/**
+ * Add stable, unique `id` attributes to h2-h6 headings so the outline can link
+ * to them. Headings that already have a non-generic id are left untouched (but
+ * still reserve that id); ids that are the empty fallback ('heading') or that
+ * would collide with an earlier heading are regenerated with a numeric suffix
+ * so duplicated headings don't break navigation.
  */
 export function injectHeadingIds(html: string): string {
+  const seen = new Set<string>();
   return html.replace(headingRegex(), (full, tag, attrs, content) => {
     const existingId = extractExistingId(attrs);
-    if (existingId && existingId !== 'heading') return full;
+    if (existingId && existingId !== 'heading') {
+      seen.add(existingId);
+      return full;
+    }
     const text = decodeHtmlEntities(stripHtmlTags(content)).trim();
-    const id = slugify(text);
+    const id = uniqueId(slugify(text), seen);
     const cleanedAttrs = attrs
       .replace(/\bid\s*=\s*(["'])([^"']*)\1\s*/g, ' ')
       .replace(/\s+/g, ' ')
