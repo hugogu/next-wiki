@@ -43,9 +43,14 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await page.waitForURL(`/history/${path}?compare=2..3`);
   await expect(page.getByText('Comparing v2 to v3')).toBeVisible();
   await expect(page.getByLabel('Later revision source')).toContainText('Changed heading');
-  await expect(
-    page.getByLabel('Later revision source').locator('[data-diff-kind="changed"]').first(),
-  ).toBeVisible();
+  const changedRow = page
+    .getByLabel('Later revision source')
+    .locator('[data-diff-kind="changed"]')
+    .first();
+  await expect(changedRow).toBeVisible();
+  expect(await changedRow.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(
+    'rgba(0, 0, 0, 0)',
+  );
 
   await page.getByRole('button', { name: 'Preview' }).click();
   await expect(page.getByLabel('Later revision preview')).toContainText('Changed heading');
