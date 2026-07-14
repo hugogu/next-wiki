@@ -80,9 +80,9 @@
 - Sort raw scores together: rejected because their scales and meaning differ.
 - Filter permissions in the Header: rejected because protected data would have already crossed the server boundary.
 
-## Decision 6: Retain current PostgreSQL indexes and validate their actual behavior
+## Decision 6: Reuse current PostgreSQL indexes and add one scoped-title index where the planner needs it
 
-**Decision**: Reuse migration `0007_fast_keyword_search.sql`, which already creates `pg_trgm`, `tsvector` GIN expression indexes, and trigram GIN indexes. The full-text adapter uses exactly the indexed `simple` configuration/expression. The fuzzy adapter uses trigram similarity to bound candidates and engine-local ranking. No duplicate search-index migration is created in this slice.
+**Decision**: Reuse migration `0007_fast_keyword_search.sql` for the `simple` `tsvector` expressions and content trigram index. Add migration `0013_scoped_trigram_search.sql` with `btree_gin` and a partial GIN index on `(space_id uuid_ops, title gin_trgm_ops)` for published, non-deleted pages. The full-text adapter uses exactly the indexed `simple` configuration/expression. The fuzzy adapter searches scoped titles and current revision content with bounded trigram predicates and engine-local ranking; path terms remain the full-text capability's responsibility.
 
 **Rationale**:
 
@@ -92,7 +92,8 @@
 
 **Alternatives considered**:
 
-- Add duplicate trgm indexes for the new adapter: rejected because equivalent indexes already exist and impose write/storage cost.
+- Duplicate the existing content trigram index: rejected because it would impose write/storage cost without a new predicate.
+- Keep a standalone title trigram index for the scoped fuzzy query: rejected after `EXPLAIN` showed that the planner did not reliably combine it with the required `space_id` and published predicates. The partial composite GIN index is a different, verified access path.
 - Declare `tsvector('simple')` a Chinese tokenizer: rejected because it is a term-oriented engine; Chinese fuzzy recall is the fuzzy capability's responsibility.
 
 ## Decision 7: Keep pgvector exact until measured scale justifies approximate indexing

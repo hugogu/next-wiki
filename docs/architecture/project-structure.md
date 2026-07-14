@@ -36,7 +36,7 @@ next-wiki/
 |           |   |-- editor/         # Editor components (CodeMirror 6)
 |           |   |-- chat/           # AI chat side pane components
 |           |   `-- common/         # Shared components (navigation, breadcrumbs, layout)
-|           `-- hooks/              # Custom React hooks
+|           `-- hooks/              # Custom React hooks, including useHybridPageSearch for progressive POST polling
 |-- packages/
 |   |-- shared/                     # Zod schemas, types, constants
 |   `-- editor/                     # CodeMirror extensions and editor configs (optional shared package)

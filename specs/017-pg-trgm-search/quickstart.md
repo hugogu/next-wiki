@@ -6,7 +6,7 @@
 ## Prerequisites
 
 - Node.js and pnpm versions supported by the repository.
-- PostgreSQL 16 using the project's default `pgvector/pgvector:0.8.3-pg16` image, with the database migration user allowed to create `pg_trgm`.
+- PostgreSQL 16 using the project's default `pgvector/pgvector:0.8.3-pg16` image, with the database migration user allowed to create `pg_trgm` and `btree_gin`.
 - A seeded/admin-capable local deployment with published English and Chinese pages, plus semantic index data when testing the semantic capability.
 
 Start the local database and application using the repository's normal Docker Compose workflow. Apply the generated 017 migration:
@@ -18,10 +18,10 @@ pnpm db:migrate
 Verify that the existing lexical index migration is present before testing:
 
 ```bash
-docker compose exec db psql -U wiki -d wiki -c "SELECT extname FROM pg_extension WHERE extname IN ('pg_trgm', 'vector');"
+docker compose exec db psql -U wiki -d wiki -c "SELECT extname FROM pg_extension WHERE extname IN ('pg_trgm', 'btree_gin', 'vector');"
 ```
 
-Expected: both `pg_trgm` and `vector` are listed. If a managed PostgreSQL deployment cannot install `pg_trgm`, arrange for an administrator to provision it before applying migrations; do not create extensions from a request handler.
+Expected: `pg_trgm`, `btree_gin`, and `vector` are listed. If a managed PostgreSQL deployment cannot install a required extension, arrange for an administrator to provision it before applying migrations; do not create extensions from a request handler.
 
 ## 1. Verify capability settings and validation
 
@@ -56,7 +56,7 @@ Prepare or identify three readable published pages:
 
 ## 4. Verify index plans with representative data
 
-Run `EXPLAIN (ANALYZE, BUFFERS)` for the final full-text and trigram adapter queries against a realistic local corpus. Confirm that their predicate and `simple` expression match the existing indexes from `0007_fast_keyword_search.sql`. Record query-plan evidence in the PR or test notes; do not assume that an index supports Chinese recall without exercising the actual PostgreSQL locale/image.
+Run `EXPLAIN (ANALYZE, BUFFERS)` for the final full-text and trigram adapter queries against a realistic local corpus. Confirm the `simple` full-text predicates use the indexes from `0007_fast_keyword_search.sql`, title fuzzy retrieval uses `pages_space_title_trgm_idx`, and content fuzzy retrieval uses `page_revisions_content_source_trgm_idx`. Record query-plan evidence in the PR or test notes; do not assume that an index supports Chinese recall without exercising the actual PostgreSQL locale/image.
 
 ## 5. Automated validation
 

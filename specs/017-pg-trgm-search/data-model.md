@@ -105,7 +105,7 @@ For an accepted query, each enabled capability creates or resumes exactly one ru
 
 ## Derived indexes and migration boundary
 
-No new page-content index is planned. Migration `0007_fast_keyword_search.sql` already provides the `simple` `tsvector` and `pg_trgm` GIN expressions used by the lexical adapters, while existing AI migrations provide `pgvector`. The 017 migration adds only settings and search-run persistence, then validates existing index use against the deployed database with realistic Chinese and term-search fixtures.
+Migration `0007_fast_keyword_search.sql` provides the `simple` `tsvector` expressions and the revision-content `pg_trgm` GIN index used by the lexical adapters. Migration `0013_scoped_trigram_search.sql` additionally installs `btree_gin` and a partial composite GIN index on `(pages.space_id, pages.title)` for non-deleted published pages. This is not a duplicate: it makes the required scope and published predicates indexable together with the fuzzy title predicate. Existing AI migrations provide `pgvector`. Query-plan tests validate every final predicate with realistic Chinese and term-search fixtures.
 
 ## Privacy and retention boundary
 

@@ -16,7 +16,7 @@ The stable boundary is the capability contract, not a PostgreSQL extension or AI
 
 **Primary Dependencies**: Next.js 16.2, React 19.2, Drizzle ORM, Zod, PostgreSQL 16+, pg-boss, pgvector, TanStack Query; no new runtime dependency
 
-**Storage**: PostgreSQL 16+ using already-provisioned `tsvector` GIN expression indexes, `pg_trgm` GIN indexes, and derived `pgvector` knowledge chunks; additive search settings columns and capability-run records
+**Storage**: PostgreSQL 16+ using `tsvector` GIN expressions, existing content `pg_trgm` GIN indexes, a scoped partial `btree_gin` + title `pg_trgm` index, and derived `pgvector` knowledge chunks; additive settings and capability-run records
 
 **Testing**: Vitest 3 service/schema/route tests, PostgreSQL integration tests with Chinese fixtures and `EXPLAIN (ANALYZE, BUFFERS)`, Playwright progressive Header search tests
 
@@ -38,7 +38,7 @@ No `NEEDS CLARIFICATION` items remain. Research decisions are recorded in [resea
 
 | Principle / mandate | Status | Design evidence |
 |---|---|---|
-| P1 Simple Deployment | PASS | Reuses PostgreSQL and extensions already installed by migration `0007_fast_keyword_search.sql`; no service, queue, or runtime dependency is added. |
+| P1 Simple Deployment | PASS | Reuses PostgreSQL; migration `0013_scoped_trigram_search.sql` adds only `btree_gin` and a partial scoped title index, with no service, queue, or runtime dependency. |
 | P2 AI-native, vendor-independent | PASS | `semantic` remains optional and uses the existing provider-neutral AI action flow. Full-text and fuzzy search remain usable with AI off. |
 | P3 Portable AI memory | PASS | `pgvector` remains a rebuildable projection of page revisions. A capability adapter can be replaced without changing source content or public result semantics. |
 | P5 Permissions first-class | PASS | Engines return internal candidates only; one coordinator-owned visibility projection filters every candidate before result, excerpt, count, or fusion. |
@@ -84,7 +84,7 @@ apps/web/
 │   └── server/
 │       ├── db/
 │       │   ├── schema/index.ts                       # settings and capability-run relations
-│       │   └── migrations/                           # additive settings/run migration only
+│       │   └── migrations/                           # additive settings/run and scoped-title-index migrations
 │       └── services/
 │           ├── public-content.ts                     # public facade and legacy GET projection
 │           ├── search-analytics.ts                   # record/run persistence and idempotency

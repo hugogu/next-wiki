@@ -27,7 +27,7 @@ violation. If a client component needs server data, it calls the REST route
 handlers through TanStack Query. If it needs shared UI state, it uses Zustand.
 These concerns MUST NOT be mixed.
 
-The Header search overlay's open/focus state, current input, debounce, and stale-request cancellation are transient local UI state. Its result snapshot, capability states, and progressive polling are server state and MUST use a TanStack Query mutation/query lifecycle keyed by the search record and overlay session. Aborting a browser request prevents stale UI updates; it does not cancel an already accepted server-side continuation, which remains resumable through the same idempotent POST resource.
+The Header search overlay's open/focus state and current input are transient local UI state. `useHybridPageSearch` owns the debounce, stale-request cancellation, result snapshot, capability states, and progressive polling as a TanStack Query lifecycle keyed by the search record and overlay session. Aborting a browser request prevents stale UI updates; it does not cancel an already accepted server-side continuation, which remains resumable through the same idempotent POST resource.
 
 Pagination state lives in the URL `page` search param, never in component
 state. Every paginated list uses the shared `src/components/ui/Pagination`
