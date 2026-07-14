@@ -9,6 +9,7 @@ import { buildFeishuAnswerCard } from '@/server/feishu/answer-card';
 import { feishuCopy } from '@/server/feishu/copy';
 import {
   createPendingAnswerDeliveries,
+  getProcessingReaction,
   reconstructAnswer,
 } from '@/server/services/feishu-notifications';
 
@@ -100,6 +101,19 @@ async function markBlocked(id: string, reason: string): Promise<void> {
     .where(eq(schema.feishuNotificationDeliveries.id, id));
 }
 
+async function clearProcessingReaction(transport: FeishuTransport, actionId: string): Promise<void> {
+  const reaction = await getProcessingReaction(actionId);
+  if (!reaction) return;
+  try {
+    await transport.removeProcessingReaction(reaction);
+  } catch (error) {
+    logger.warn('feishu processing reaction could not be removed', {
+      actionId,
+      error: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+}
+
 /** Schedule a retry with exponential backoff, or mark failed after 5 attempts. */
 async function scheduleRetryOrFail(row: DeliveryRow, error: string, now: Date): Promise<void> {
   const attempts = row.attempts + 1;
@@ -167,9 +181,13 @@ async function processDelivery(
       ...message,
       requestUuid: row.id, // deterministic idempotency key
     });
+    await clearProcessingReaction(transport, row.aiActionId);
     await markDelivered(row.id, now);
   } catch (error) {
     await scheduleRetryOrFail(row, error instanceof Error ? error.message : 'send_failed', now);
+    if (row.attempts + 1 >= MAX_ATTEMPTS) {
+      await clearProcessingReaction(transport, row.aiActionId);
+    }
   }
 }
 

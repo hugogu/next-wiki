@@ -53,7 +53,29 @@ export async function processInboundEvent(args: {
   };
 
   try {
-    const disposition = await handleInboundMessage(input);
+    const disposition = await handleInboundMessage(input, {
+      start: async (messageId) => {
+        try {
+          return await args.transport.addProcessingReaction(messageId);
+        } catch (error) {
+          logger.warn('feishu processing reaction could not be added', {
+            correlationId: input.correlationId,
+            error: error instanceof Error ? error.message : 'unknown',
+          });
+          return null;
+        }
+      },
+      stop: async (reaction) => {
+        try {
+          await args.transport.removeProcessingReaction(reaction);
+        } catch (error) {
+          logger.warn('feishu processing reaction could not be removed', {
+            correlationId: input.correlationId,
+            error: error instanceof Error ? error.message : 'unknown',
+          });
+        }
+      },
+    });
     await actOnDisposition(args.transport, input, disposition);
     await markProcessed(record.correlationId);
   } catch (error) {

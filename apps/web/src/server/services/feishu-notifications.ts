@@ -5,6 +5,7 @@ import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { getSessionByActionId } from './feishu-sessions';
+import type { ProcessingReaction } from '@/server/feishu/transport-types';
 
 /** Default retention for delivery rows (hours). Matches config default. */
 const DEFAULT_RETENTION_HOURS = 72;
@@ -14,6 +15,25 @@ export type ReconstructedAnswer = {
   text: string;
   citations: { title: string; url: string }[];
 };
+
+/** Read the persisted reaction that signals a Feishu question is in progress. */
+export async function getProcessingReaction(actionId: string): Promise<ProcessingReaction | null> {
+  const action = await db.query.aiActions.findFirst({
+    where: eq(schema.aiActions.id, actionId),
+    columns: { requestMetadata: true },
+  });
+  const reaction = (action?.requestMetadata as { feishuProcessingReaction?: unknown } | null)
+    ?.feishuProcessingReaction;
+  if (
+    !reaction ||
+    typeof reaction !== 'object' ||
+    typeof (reaction as ProcessingReaction).messageId !== 'string' ||
+    typeof (reaction as ProcessingReaction).reactionId !== 'string'
+  ) {
+    return null;
+  }
+  return reaction as ProcessingReaction;
+}
 
 function citationUrl(citation: AiCitation): string {
   const path = citation.path.replace(/^\/+/, '');

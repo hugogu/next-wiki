@@ -4,6 +4,7 @@ import { DomainError } from '@/server/errors';
 import { createWikiQuestion } from '@/server/services/ai-question';
 import { writeEntry } from '@/server/services/audit';
 import { feishuCopy } from '@/server/feishu/copy';
+import type { ProcessingReaction } from '@/server/feishu/transport-types';
 import { getActiveBinding, issueBindingToken, touchBinding } from './feishu-bindings';
 import { getDecryptedConfig } from './feishu-config';
 import { isWithinRateLimit } from './feishu-inbox';
@@ -18,6 +19,11 @@ import {
 /** DomainError codes that mean AI Q&A is unavailable by configuration/policy. */
 const AI_DISABLED_CODES = new Set(['AI_DISABLED', 'AI_FEATURE_DISABLED', 'AI_NOT_CONFIGURED']);
 
+type ProcessingReactionLifecycle = {
+  start(messageId: string): Promise<ProcessingReaction | null>;
+  stop(reaction: ProcessingReaction): Promise<void>;
+};
+
 /**
  * In-process delegation entry point. The SDK event handler hands a validated,
  * deduplicated inbound message here; this service — not the caller — resolves
@@ -26,6 +32,7 @@ const AI_DISABLED_CODES = new Set(['AI_DISABLED', 'AI_FEATURE_DISABLED', 'AI_NOT
  */
 export async function handleInboundMessage(
   input: FeishuInboundMessage,
+  reactionLifecycle?: ProcessingReactionLifecycle,
 ): Promise<FeishuInboundDisposition> {
   const correlationId = input.correlationId;
   const target = { type: 'direct' as const, openId: input.openId };
@@ -85,13 +92,19 @@ export async function handleInboundMessage(
   const ctx = buildUserCtx(binding.userId, binding.role);
   const session = await getOrCreateActiveSession(binding.id, input.chatId);
   const conversation = await getConversationContext(session.id, binding.userId);
+  const processingReaction = await reactionLifecycle?.start(input.messageId);
 
   try {
     const action = await createWikiQuestion(ctx, {
       question,
       mode: 'retrieval',
       conversation,
-      requestMetadata: { origin: 'feishu', correlationId, feishuSessionId: session.id },
+      requestMetadata: {
+        origin: 'feishu',
+        correlationId,
+        feishuSessionId: session.id,
+        feishuProcessingReaction: processingReaction,
+      },
     });
     await attachActionToSession(session.id, action.id);
     await writeEntry({
@@ -114,6 +127,9 @@ export async function handleInboundMessage(
       correlationId,
     };
   } catch (error) {
+    if (processingReaction && reactionLifecycle) {
+      await reactionLifecycle.stop(processingReaction).catch(() => {});
+    }
     if (error instanceof DomainError && AI_DISABLED_CODES.has(error.code)) {
       return {
         disposition: 'reply',

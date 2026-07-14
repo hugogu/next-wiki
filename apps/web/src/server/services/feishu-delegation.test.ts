@@ -63,6 +63,8 @@ describe('Feishu in-process delegation', () => {
     const action = await makeAction(boundUser.id);
     createWikiQuestion.mockResolvedValue({ id: action.id });
 
+    const start = vi.fn().mockResolvedValue({ messageId: 'om_bound', reactionId: 'reaction_1' });
+    const stop = vi.fn();
     const result = await handleInboundMessage({
       eventKey: 'tenant:message:om_bound',
       messageId: 'om_bound',
@@ -72,7 +74,7 @@ describe('Feishu in-process delegation', () => {
       mentionedBot: true,
       text: 'Where is the deployment guide?',
       correlationId: 'corr-bound',
-    });
+    }, { start, stop });
 
     expect(result).toMatchObject({
       disposition: 'question_queued',
@@ -83,7 +85,11 @@ describe('Feishu in-process delegation', () => {
       { actor: { kind: 'user', userId: boundUser.id, role: 'editor' } },
       expect.objectContaining({
         mode: 'retrieval',
-        requestMetadata: expect.objectContaining({ origin: 'feishu', correlationId: 'corr-bound' }),
+        requestMetadata: expect.objectContaining({
+          origin: 'feishu',
+          correlationId: 'corr-bound',
+          feishuProcessingReaction: { messageId: 'om_bound', reactionId: 'reaction_1' },
+        }),
       }),
     );
 
@@ -93,6 +99,8 @@ describe('Feishu in-process delegation', () => {
       chatId: 'oc_group',
       aiActionId: action.id,
     });
+    expect(start).toHaveBeenCalledWith('om_bound');
+    expect(stop).not.toHaveBeenCalled();
     const [audit] = await db.select().from(schema.apiAuditEntries);
     expect(audit).toMatchObject({
       userId: boundUser.id,

@@ -28,6 +28,13 @@ export interface OutboundMessage {
   requestUuid?: string;
 }
 
+export type ProcessingReaction = {
+  messageId: string;
+  reactionId: string;
+};
+
 export interface FeishuTransport {
   sendMessage(message: OutboundMessage): Promise<{ providerMessageId: string }>;
+  addProcessingReaction(messageId: string): Promise<ProcessingReaction>;
+  removeProcessingReaction(reaction: ProcessingReaction): Promise<void>;
 }

@@ -24,7 +24,12 @@ async function makeBinding(userId: string, openId: string) {
 
 async function makeCompletedQuestion(
   userId: string,
-  opts: { insufficient?: boolean; answer?: string; citations?: unknown[] } = {},
+  opts: {
+    insufficient?: boolean;
+    answer?: string;
+    citations?: unknown[];
+    processingReaction?: { messageId: string; reactionId: string };
+  } = {},
 ) {
   const [action] = await db
     .insert(schema.aiActions)
@@ -33,6 +38,9 @@ async function makeCompletedQuestion(
       status: 'completed',
       actorUserId: userId,
       resultMetadata: { insufficientEvidence: opts.insufficient ?? false },
+      requestMetadata: opts.processingReaction
+        ? { feishuProcessingReaction: opts.processingReaction }
+        : {},
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
@@ -142,6 +150,22 @@ describe('feishu answer delivery worker', () => {
 
     const [row] = await db.select().from(schema.feishuNotificationDeliveries);
     expect(row!.status).toBe('delivered');
+  });
+
+  it('removes the processing reaction after delivering an answer', async () => {
+    const user = await makeUser('deliv-reaction@example.com');
+    const binding = await makeBinding(user.id, 'ou_reaction');
+    const action = await makeCompletedQuestion(user.id, {
+      processingReaction: { messageId: 'om_question', reactionId: 'reaction_1' },
+    });
+    await makeSession(binding.id, 'oc_reaction', action.id);
+
+    const transport = new FakeFeishuTransport();
+    await runFeishuDeliveries(new Date(), transport);
+
+    expect(transport.removedProcessingReactions).toEqual([
+      { messageId: 'om_question', reactionId: 'reaction_1' },
+    ]);
   });
 
   it('delivers an earlier completed turn after a follow-up refreshes the same session', async () => {

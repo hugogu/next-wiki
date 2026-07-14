@@ -1,5 +1,10 @@
 import * as lark from '@larksuiteoapi/node-sdk';
-import type { FeishuTransport, InboundFeishuEvent, OutboundMessage } from './transport-types';
+import type {
+  FeishuTransport,
+  InboundFeishuEvent,
+  OutboundMessage,
+  ProcessingReaction,
+} from './transport-types';
 import { getDecryptedConfig } from '@/server/services/feishu-config';
 
 export type TransportConfig = {
@@ -68,6 +73,22 @@ export function createFeishuTransport(config: TransportConfig): FeishuTransport 
         data: { receive_id: receiveId, msg_type: msgType, content, uuid: message.requestUuid },
       });
       return { providerMessageId: res?.data?.message_id ?? '' };
+    },
+
+    async addProcessingReaction(messageId: string): Promise<ProcessingReaction> {
+      const res = await client.im.messageReaction.create({
+        path: { message_id: messageId },
+        data: { reaction_type: { emoji_type: 'THINKING' } },
+      });
+      const reactionId = res?.data?.reaction_id;
+      if (!reactionId) throw new Error('Feishu did not return a processing reaction id');
+      return { messageId, reactionId };
+    },
+
+    async removeProcessingReaction(reaction: ProcessingReaction): Promise<void> {
+      await client.im.messageReaction.delete({
+        path: { message_id: reaction.messageId, reaction_id: reaction.reactionId },
+      });
     },
   };
 }

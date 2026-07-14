@@ -1,4 +1,4 @@
-import type { FeishuTransport, OutboundMessage } from './transport-types';
+import type { FeishuTransport, OutboundMessage, ProcessingReaction } from './transport-types';
 
 /**
  * Deterministic in-memory `FeishuTransport` for tests. It does not import the
@@ -7,6 +7,8 @@ import type { FeishuTransport, OutboundMessage } from './transport-types';
 export class FakeFeishuTransport implements FeishuTransport {
   /** Every message handed to `sendMessage`, in call order. */
   readonly sent: OutboundMessage[] = [];
+  readonly addedProcessingReactions: ProcessingReaction[] = [];
+  readonly removedProcessingReactions: ProcessingReaction[] = [];
   /** When true, `sendMessage` throws to exercise retry/backoff paths. */
   failSends = false;
   private sendCounter = 0;
@@ -18,8 +20,23 @@ export class FakeFeishuTransport implements FeishuTransport {
     return { providerMessageId: `om_fake_${this.sendCounter}` };
   }
 
+  async addProcessingReaction(messageId: string): Promise<ProcessingReaction> {
+    const reaction = {
+      messageId,
+      reactionId: `reaction_fake_${this.addedProcessingReactions.length + 1}`,
+    };
+    this.addedProcessingReactions.push(reaction);
+    return reaction;
+  }
+
+  async removeProcessingReaction(reaction: ProcessingReaction): Promise<void> {
+    this.removedProcessingReactions.push(reaction);
+  }
+
   reset(): void {
     this.sent.length = 0;
+    this.addedProcessingReactions.length = 0;
+    this.removedProcessingReactions.length = 0;
     this.sendCounter = 0;
     this.failSends = false;
   }
