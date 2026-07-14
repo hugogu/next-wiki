@@ -6,7 +6,7 @@
 
 ## Summary
 
-Add revision-pair selection to page history and a canonical side-by-side comparison route. The route performs the existing permission-checked reads of two revisions and passes their already stored source and rendered HTML to a client component. In the browser, the component uses the existing `diff` package to create an aligned line model, filters whitespace-only changes, collapses unchanged context, coordinates scrolling, and switches between source and rendered-preview presentations. No database change, background work, new HTTP endpoint, or call to the existing server-side Diff operation is involved.
+Add revision-pair selection and the side-by-side comparison to one history page. The canonical history URL carries `compare=a..b`; its route performs the existing permission-checked reads of two revisions and passes their already stored source and rendered HTML to a client component. In the browser, the component uses the existing `diff` package to create an aligned line model, filters whitespace-only changes, collapses unchanged context, coordinates scrolling, and switches between source and rendered-preview presentations. No database change, background work, new HTTP endpoint, or call to the existing server-side Diff operation is involved.
 
 ## Technical Context
 
@@ -26,7 +26,7 @@ Add revision-pair selection to page history and a canonical side-by-side compari
 
 **Constraints**: All comparison computation, whitespace treatment, hunk selection, option changes, and scroll synchronization run in the browser; no new or invoked server-side Diff API; no new default service, job, migration, or client import from `src/server/`; source displays original text and line numbers; all shareable state is URL-derived
 
-**Scale/Scope**: One page, exactly two accessible revisions, source and preview modes, four URL-controlled options, one history-selection surface, and one canonical revision-pair route; this release does not compare pages/locales or persist user settings
+**Scale/Scope**: One history page, exactly two accessible revisions, source and preview modes, four URL-controlled options, and one URL-controlled history selection surface; this release does not compare pages/locales or persist user settings
 
 ## Constitution Check
 
@@ -41,7 +41,7 @@ Add revision-pair selection to page history and a canonical side-by-side compari
 | P7: Async-first | Browser-side comparison is bounded interactive work, not a server operation. There is no request handler computation or background job. | Pass |
 | P8: Version everything | The feature treats revisions as immutable inputs and never creates, changes, publishes, restores, or deletes a revision. | Pass |
 | P10: Explicit registration | A pure revision-diff model, URL parser, preview-line mapper, and synchronized-scroll hook have named imports and testable contracts; individual route shells do not embed the algorithm. | Pass |
-| P11: Navigation and URL contract | History remains the sole revision-pair selection surface. A sorted `/revisions/<a>..<b>/<path>` address is the only comparison route; mode and options are canonical search parameters. | Pass |
+| P11: Navigation and URL contract | History is the sole revision-pair selection and comparison surface. A sorted `/history/<path>?compare=<a>..<b>` address restores the pair; mode and options are canonical search parameters. | Pass |
 | P12: Public content delivery | History and revision comparison remain dynamic, permission-dependent views. Public reader HTML, metadata, navigation, cache tags, and invalidation behavior are unchanged. | Pass, static/ISR N/A |
 
 **Pre-design gate result**: Pass. The key risks are accidentally using the legacy server Diff operation, duplicating the server rendering pipeline in the client, or allowing a partial pair to reveal revision information. Phase 0 selects existing single-revision reads, stored HTML, and all-or-nothing route loading to avoid those outcomes.

@@ -26,18 +26,29 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await page.getByLabel('Path').fill(path);
   await page.getByRole('button', { name: 'Create' }).click();
   await page.waitForURL(`/edit/${path}`);
+  await page.locator('.cm-content').fill('# Initial heading\n\nInitial body');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.waitForURL(`/history/${path}`);
+
+  await page.goto(`/edit/${path}`);
   await page.locator('.cm-content').fill('# Changed heading\n\nChanged body');
   await page.getByRole('button', { name: 'Save' }).click();
   await page.waitForURL(`/history/${path}`);
 
-  await page.getByLabel('Version 1').check();
-  await page.getByLabel('Version 2').check();
-  await page.getByRole('button', { name: 'Compare' }).click();
-  await page.waitForURL(`/revisions/1..2/${path}`);
-  await expect(page.getByRole('heading', { name: 'Revision comparison' })).toBeVisible();
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Compare' })).toHaveCount(0);
+  await page.getByRole('button', { name: /Version 2/ }).click();
+  await page.getByRole('button', { name: /Version 3/ }).click();
+  await page.waitForURL(`/history/${path}?compare=2..3`);
+  await expect(page.getByText('Comparing v2 to v3')).toBeVisible();
   await expect(page.getByLabel('Later revision source')).toContainText('Changed heading');
+  await expect(
+    page.getByLabel('Later revision source').locator('[class~="bg-warning/15"]').first(),
+  ).toBeVisible();
 
   await page.getByRole('button', { name: 'Preview' }).click();
   await expect(page.getByLabel('Later revision preview')).toContainText('Changed heading');
+  await page.goto(`/revisions/3..2/${path}`);
+  await page.waitForURL(`/history/${path}?compare=2..3`);
   expect(diffRequests).toEqual([]);
 });

@@ -17,7 +17,7 @@ A reader who can view a page's history selects any two distinct visible revision
 
 **Acceptance Scenarios**:
 
-1. **Given** a reader can view at least two revisions in a page's history, **When** they select two different revisions and choose Compare, **Then** one canonical comparison view opens for that exact pair.
+1. **Given** a reader can view at least two revisions in a page's history, **When** they select two different revisions from the history list, **Then** the same page displays one canonical side-by-side comparison for that exact pair without a separate Compare action.
 2. **Given** a reader selects the newer revision before the older revision, **When** the comparison opens, **Then** the older revision is displayed in the left pane and the newer revision in the right pane.
 3. **Given** a reader opens a copied or bookmarked comparison link, **When** the link is loaded or browser navigation is used, **Then** the same revision pair and comparison options are restored.
 4. **Given** a reader can browse a page's complete visible history, **When** they choose any two distinct revisions available to them, **Then** their numerical distance and pagination position do not prevent comparison.
@@ -101,7 +101,7 @@ A reader switches the same revision pair from source view to preview view to und
 - **FR-011**: The comparison calculation, whitespace filtering, context selection, linked-scrolling coordination, and mode switching MUST run entirely in the reader's browser. The feature MUST NOT add a server-side comparison interface or invoke an existing server-side diff operation.
 - **FR-012**: The feature MUST obtain only revision data already available to the authenticated reader through existing revision-reading behavior and MUST preserve existing page and revision visibility rules. It MUST NOT make inaccessible revision existence, content, metadata, or comparison statistics observable.
 - **FR-013**: The history page and comparison view MUST provide clear, accessible controls and status messages for selecting revisions, opening a comparison, changing view/options, no-difference results, loading, and recoverable client-side errors without browser alert dialogs.
-- **FR-014**: The feature MUST use the existing history page as the sole selection entry point and the canonical revision-pair comparison address as the sole comparison entry point; it MUST NOT add a duplicate history or comparison route.
+- **FR-014**: The feature MUST use the existing history page as the sole selection and comparison surface. Its canonical address is `/history/<path>?compare=<a>..<b>`; legacy revision-pair addresses redirect to it while existing single-revision addresses remain valid.
 
 ### Public Content Delivery
 

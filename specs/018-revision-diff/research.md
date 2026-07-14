@@ -38,13 +38,13 @@
 
 ## Decision 4: Make the revision-pair route canonical and retain the single revision route
 
-**Decision**: Extend the existing dynamic revision route so its first segment accepts either one positive version (`n`) or an ascending pair (`a..b`). Rename the dynamic parameter from `n` to `revision` rather than adding a conflicting sibling route. The history selector sorts its two choices and navigates to `/revisions/<a>..<b>/<path>`. Reversed pair links redirect to the ascending canonical address.
+**Decision**: Keep history and comparison on the dynamic history route. The history selector sorts its two choices and navigates to `/history/<path>?compare=<a>..<b>`. The existing revision route continues to render a single version; a legacy pair address redirects to the canonical history URL.
 
 **Rationale**: The architecture mandate requires a revision-pair URL and every reader-reachable state must be restorable. Next.js cannot host sibling dynamic segments for a single revision and a pair at the same position. One parser keeps existing single-revision bookmarks working while supplying exactly one comparison address.
 
 **Alternatives considered**:
 
-- Comparison state only on `/history` query parameters: rejected because it conflicts with the explicit revision-pair URL contract and weakens the distinction between selection and the canonical comparison resource.
+- A separate comparison page: rejected because it splits revision selection from inspection and requires a redundant navigation step.
 - A second dynamic route such as `[pair]`: rejected because it conflicts with the existing `[n]` segment.
 - A separate verb-style `/diff` path: rejected by the RESTful URL mandate and because it would create a competing entry point.
 

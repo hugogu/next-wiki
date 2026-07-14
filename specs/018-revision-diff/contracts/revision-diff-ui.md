@@ -8,11 +8,11 @@ This internal UI and route contract defines the client-side comparison of two pa
 
 | Purpose | Address | Contract |
 |---|---|---|
-| History selection | `/history/<path>` | The only interface for choosing two visible revisions. It does not fetch or calculate a diff. |
+| History selection and comparison | `/history/<path>?compare=<a>..<b>` | The sole interface for choosing two visible revisions and presenting their client-side Diff. |
 | Existing single revision | `/revisions/<n>/<path>` | Remains valid and renders one revision as today. |
-| Canonical comparison | `/revisions/<a>..<b>/<path>` | The only comparison entry point. `a` and `b` are distinct positive integers, with `a < b`. |
+| Legacy comparison | `/revisions/<a>..<b>/<path>` | Redirects to the canonical history URL. `a` and `b` are distinct positive integers, with `a < b`. |
 
-The history selector sorts a valid selection before navigation. A direct valid reversed pair is redirected to ascending order while retaining valid option parameters. A pair with an invalid number or identical versions follows the normal invalid-route outcome. The pair route performs the existing permission-checked reads for both revision numbers; it does not call a Diff endpoint.
+The history selector sorts a valid selection before loading the pair into the history URL. A direct valid reversed pair is normalized to ascending order while retaining valid option parameters. A pair with an invalid number or identical versions follows the normal invalid-route outcome. The history route performs the existing permission-checked reads for both revision numbers; it does not call a Diff endpoint.
 
 ## 2. Comparison Search Parameters
 
