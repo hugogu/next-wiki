@@ -207,8 +207,12 @@ export default async function PageRead({ params }: { params: PageParams }) {
             {t('page.read.draftBanner')}
           </div>
         )}
-        <div className="grid flex-1 grid-cols-1 gap-lg lg:grid-cols-[1fr_16rem]">
-          <article className="relative flex-1 px-lg py-md max-w-none">
+        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_14rem]">
+          <article
+            className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md"
+            data-has-share={showShare || undefined}
+            data-testid="page-reader-article"
+          >
             {showShare && (
               <div className="absolute right-lg top-md z-10">
                 <ShareButton pageId={page.pageId} title={page.title} />
