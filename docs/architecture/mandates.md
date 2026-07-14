@@ -53,11 +53,11 @@ Rules:
 - The search coordinator is the only layer that selects enabled capabilities, starts them concurrently, resumes asynchronous work, de-duplicates candidates, fuses rank positions, and formats a public search result.
 - An adapter MAY return only bounded internal candidates, local rank, and safe excerpt evidence. It MUST NOT construct a public page result, bypass the shared visibility projection, or expose raw engine/provider diagnostics.
 - The coordinator MUST apply published-state, space, locale, and read permission checks before a page title, excerpt, count, rank, or source is returned. Failed or unavailable engines expose only non-sensitive lifecycle states and never protected-page existence.
-- Enabled capabilities start independently. Immediate local retrieval may finish in the request; work that can exceed the request budget MUST have a durable resumable lifecycle. One capability's delay or failure MUST NOT hide another capability's usable results.
+- Enabled capabilities start independently. Immediate local retrieval may finish in the request; work that can exceed the request budget MUST have a durable resumable lifecycle. One capability's delay or failure MUST NOT hide another capability's usable results. Immediate PostgreSQL windows MUST use database-enforced cancellation, never a client-only timeout that leaves a query running.
 - Cross-capability order MUST use engine-local rank fusion with deterministic exact path/title/term protection. Raw full-text, trigram, and vector scores MUST NOT be compared as a common scale.
 - The legacy GET page-search operation remains a pure read. The interactive POST lifecycle is the single progressive search resource; it returns capability-level state additively and is never a public-reader cache input.
 
-Page revisions remain the source of truth. All search indexes and engine runs are derived, rebuildable state. Search settings select capabilities for new attempts; each accepted attempt retains its own capability snapshot so a later administrator change cannot alter an in-progress result lifecycle.
+Page revisions remain the source of truth. All search indexes and engine runs are derived, rebuildable state. Search settings select capabilities for new attempts; each accepted attempt retains its own capability snapshot so a later administrator change cannot alter an in-progress result lifecycle. The bounded immediate-keyword timeout is an operational safety setting and applies to the current request; it is not a per-engine ranking control.
 
 ## Rendering Pipeline
 

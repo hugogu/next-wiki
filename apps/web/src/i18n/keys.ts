@@ -263,6 +263,8 @@ export const translationKeys = [
   "admin.searchSettings.fuzzy.description",
   "admin.searchSettings.semantic.title",
   "admin.searchSettings.semantic.description",
+  "admin.searchSettings.immediateTimeout.label",
+  "admin.searchSettings.immediateTimeout.help",
   "admin.searchSettings.minRelevance.label",
   "admin.searchSettings.minRelevance.help",
   "admin.searchSettings.excerpts.title",

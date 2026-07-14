@@ -6,20 +6,10 @@ export class EngineDeadlineExceeded extends Error {
   }
 }
 
-/**
- * Soft deadline: the losing promise is abandoned, not cancelled — acceptable
- * for bounded lexical queries whose cost is already index-limited.
- */
-export async function withDeadline<T>(work: Promise<T>, deadlineMs: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new EngineDeadlineExceeded()), deadlineMs);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
+/** PostgreSQL SQLSTATE for a statement cancelled by `statement_timeout`. */
+export function isDatabaseDeadline(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === '57014';
 }

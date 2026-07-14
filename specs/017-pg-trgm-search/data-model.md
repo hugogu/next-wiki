@@ -39,14 +39,15 @@
 
 ## Changed table: `search_settings`
 
-The singleton row gains two non-null Boolean columns, both defaulting to true:
+The singleton row gains capability controls plus a bounded operational budget:
 
 | Column | Meaning |
 |---|---|
 | `full_text_search_enabled` | Enables the stable `full_text` capability for new search attempts. |
 | `fuzzy_search_enabled` | Enables the stable `fuzzy` capability for new search attempts. |
+| `immediate_search_timeout_ms` | Per-window PostgreSQL statement budget for immediate lexical retrieval. Default `400`; constrained to `100`–`2,000`. It is an operational setting, not a ranking weight. |
 
-`semantic_search_enabled` remains the setting for `semantic`. A database check and shared-schema validation require `full_text_search_enabled OR fuzzy_search_enabled`; semantic retrieval can never become the sole required way to search a wiki.
+`semantic_search_enabled` remains the setting for `semantic`. A database check and shared-schema validation require `full_text_search_enabled OR fuzzy_search_enabled`; semantic retrieval can never become the sole required way to search a wiki. The capability set is snapshotted per accepted attempt; the timeout applies to the current request so an administrator can immediately protect the database from a slow lexical query.
 
 ## Changed table: `search_records`
 
@@ -105,7 +106,9 @@ For an accepted query, each enabled capability creates or resumes exactly one ru
 
 ## Derived indexes and migration boundary
 
-Migration `0007_fast_keyword_search.sql` provides the `simple` `tsvector` expressions and the revision-content `pg_trgm` GIN index used by the lexical adapters. Migration `0013_scoped_trigram_search.sql` additionally installs `btree_gin` and a partial composite GIN index on `(pages.space_id, pages.title)` for non-deleted published pages. This is not a duplicate: it makes the required scope and published predicates indexable together with the fuzzy title predicate. Existing AI migrations provide `pgvector`. Query-plan tests validate every final predicate with realistic Chinese and term-search fixtures.
+Migration `0007_fast_keyword_search.sql` provides the `simple` `tsvector` expressions and the revision-content `pg_trgm` GIN index used by the lexical adapters. Migration `0013_scoped_trigram_search.sql` additionally installs `btree_gin` and a partial composite GIN index on `(pages.space_id, pages.title)` for non-deleted published pages. This is not a duplicate: it makes the required scope and published predicates indexable together with the fuzzy title predicate. Migration `0014_immediate_search_timeout.sql` adds the administrator-controlled, database-enforced lexical request budget. Existing AI migrations provide `pgvector`.
+
+The PostgreSQL adapters set transaction-local `statement_timeout`; client-side promise races are prohibited because they abandon, rather than cancel, database work. Fuzzy content retrieval uses exact contiguous fragments only when a query contains at least three non-space characters: `pg_trgm` cannot selectively index shorter fragments, and a low-threshold word-similarity scan across long markdown revisions violates the interactive budget. Scoped title retrieval still supplies short-fragment and near-text recall.
 
 ## Privacy and retention boundary
 

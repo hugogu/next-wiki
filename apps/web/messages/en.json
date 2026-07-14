@@ -416,6 +416,10 @@
         "title": "Vector search",
         "description": "When enabled, header search blends keyword matches with semantic vector results. Disable it for keyword-only search."
       },
+      "immediateTimeout": {
+        "label": "Keyword search timeout (ms)",
+        "help": "Maximum database time for each immediate full-text or fuzzy search. Valid range: 100–2,000 ms; default: 400 ms."
+      },
       "minRelevance": {
         "label": "Minimum relevance score",
         "help": "Only show results whose keyword or vector relevance score is at least this value. Use 0 for permissive matching; try 0.65+ to hide weak vector matches."

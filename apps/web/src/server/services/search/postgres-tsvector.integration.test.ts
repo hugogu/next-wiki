@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
+import { DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS } from '@next-wiki/shared';
 import { closeDb } from '@/server/db';
 import { ensurePublicApiDefaultSpace } from '../../../../test/public-wiki-api-fixtures';
 import { createFullTextEngine } from './engines/postgres-tsvector';
-import { IMMEDIATE_ENGINE_DEADLINE_MS } from './types';
 import { createSearchFixtureCorpus, ENGLISH_TERM } from './test-support';
 
 const engine = createFullTextEngine();
 
 function query(q: string) {
-  return { q, limit: 20, deadlineMs: IMMEDIATE_ENGINE_DEADLINE_MS };
+  return { q, limit: 20, deadlineMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS };
 }
 
 describe('full_text engine (PostgreSQL tsvector, simple configuration)', () => {

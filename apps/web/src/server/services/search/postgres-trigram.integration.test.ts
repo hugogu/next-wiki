@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
+import { DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS } from '@next-wiki/shared';
 import { closeDb } from '@/server/db';
 import { ensurePublicApiDefaultSpace } from '../../../../test/public-wiki-api-fixtures';
 import { createFuzzyEngine } from './engines/postgres-trigram';
-import { IMMEDIATE_ENGINE_DEADLINE_MS } from './types';
 import { CHINESE_FRAGMENT, CHINESE_NEAR_MATCH, createSearchFixtureCorpus } from './test-support';
 
 const engine = createFuzzyEngine();
 
 function query(q: string) {
-  return { q, limit: 20, deadlineMs: IMMEDIATE_ENGINE_DEADLINE_MS };
+  return { q, limit: 20, deadlineMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS };
 }
 
 describe('fuzzy engine (PostgreSQL pg_trgm)', () => {

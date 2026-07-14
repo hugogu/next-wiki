@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
+import { DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS } from '@next-wiki/shared';
 import { closeDb } from '@/server/db';
 import { ensurePublicApiDefaultSpace } from '../../../../test/public-wiki-api-fixtures';
 import { runCoordinatedSearch } from './coordinator';
@@ -30,6 +31,7 @@ describe('search engine registry', () => {
       snapshot: { full_text: true, fuzzy: true, semantic: true },
       excerpt: { windowSize: 120, show: true },
       minRelevanceScore: 0,
+      immediateSearchTimeoutMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS,
     }, registry);
 
     expect(snapshot.items).toHaveLength(1);

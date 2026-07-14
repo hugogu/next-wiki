@@ -704,6 +704,7 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
     excerpt: { windowSize: query.excerptLength, show: true },
     // The existing GET contract has no administrator relevance threshold.
     minRelevanceScore: 0,
+    immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
   });
 
   const tagFilters = extractTagFilters(query);
@@ -825,6 +826,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     snapshot,
     excerpt: { windowSize: settings.excerptLength, show: settings.showExcerpts },
     minRelevanceScore: settings.minRelevanceScore,
+    immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
     attempt: record ? { searchRecordId: record.id } : undefined,
   });
 

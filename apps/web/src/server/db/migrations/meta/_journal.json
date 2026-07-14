@@ -99,6 +99,13 @@
       "when": 1784000580420,
       "tag": "0013_scoped_trigram_search",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784004939014,
+      "tag": "0014_immediate_search_timeout",
+      "breakpoints": true
     }
   ]
 }

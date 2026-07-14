@@ -52,6 +52,14 @@ describe('search settings service', () => {
     await expect(readSearchSettings(admin)).resolves.toMatchObject(saved);
   });
 
+  it('persists a bounded immediate keyword-search timeout for an administrator', async () => {
+    const admin = await createUser('admin');
+    const saved = await updateSearchSettings(admin, { immediateSearchTimeoutMs: 750 });
+
+    expect(saved.immediateSearchTimeoutMs).toBe(750);
+    await expect(readSearchSettings(admin)).resolves.toMatchObject({ immediateSearchTimeoutMs: 750 });
+  });
+
   it('rejects disabling both lexical capabilities', async () => {
     const admin = await createUser('admin');
     await expect(updateSearchSettings(admin, {

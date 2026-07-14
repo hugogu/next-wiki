@@ -5,7 +5,6 @@
  */
 export {
   IMMEDIATE_CAPABILITY_IDS,
-  IMMEDIATE_ENGINE_DEADLINE_MS,
   SEARCH_CAPABILITY_IDS,
   isTerminalRunState,
   type CapabilitySnapshot,

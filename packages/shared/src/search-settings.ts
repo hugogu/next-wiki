@@ -1,9 +1,14 @@
 import { z } from 'zod';
 
+export const DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS = 400;
+export const MIN_IMMEDIATE_SEARCH_TIMEOUT_MS = 100;
+export const MAX_IMMEDIATE_SEARCH_TIMEOUT_MS = 2_000;
+
 export const searchSettingsViewSchema = z.object({
   fullTextSearchEnabled: z.boolean(),
   fuzzySearchEnabled: z.boolean(),
   semanticSearchEnabled: z.boolean(),
+  immediateSearchTimeoutMs: z.number().int().min(MIN_IMMEDIATE_SEARCH_TIMEOUT_MS).max(MAX_IMMEDIATE_SEARCH_TIMEOUT_MS),
   minRelevanceScore: z.number().min(-1).max(1),
   showExcerpts: z.boolean(),
   excerptLength: z.number().int().min(20).max(500),
@@ -16,6 +21,7 @@ export const updateSearchSettingsInputSchema = z
     fullTextSearchEnabled: z.boolean().optional(),
     fuzzySearchEnabled: z.boolean().optional(),
     semanticSearchEnabled: z.boolean().optional(),
+    immediateSearchTimeoutMs: z.coerce.number().int().min(MIN_IMMEDIATE_SEARCH_TIMEOUT_MS).max(MAX_IMMEDIATE_SEARCH_TIMEOUT_MS).optional(),
     minRelevanceScore: z.coerce.number().min(-1).max(1).optional(),
     showExcerpts: z.boolean().optional(),
     excerptLength: z.coerce.number().int().min(20).max(500).optional(),

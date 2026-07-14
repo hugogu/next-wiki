@@ -7,12 +7,6 @@ export const SEARCH_CAPABILITY_IDS = ['full_text', 'fuzzy', 'semantic'] as const
 /** Capabilities answered inside the request budget (no asynchronous continuation). */
 export const IMMEDIATE_CAPABILITY_IDS = ['full_text', 'fuzzy'] as const satisfies readonly SearchCapabilityId[];
 
-/**
- * Per-request budget for immediate engines. Lexical PostgreSQL queries must
- * return the initial snapshot well within the 500 ms product goal (SC-003).
- */
-export const IMMEDIATE_ENGINE_DEADLINE_MS = 400;
-
 /** Enabled-capability set accepted when a search attempt was created. */
 export type CapabilitySnapshot = Record<SearchCapabilityId, boolean>;
 
@@ -21,7 +15,7 @@ export type SearchEngineQuery = {
   q: string;
   /** Maximum candidates one engine may contribute before fusion. */
   limit: number;
-  /** Soft budget in milliseconds; an engine exceeding it reports timed_out. */
+  /** Database-enforced budget in milliseconds; an engine exceeding it reports timed_out. */
   deadlineMs: number;
   /** Durable attempt identity for engines that can resume asynchronous work. */
   attempt?: {

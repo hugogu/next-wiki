@@ -17,6 +17,7 @@ const view = {
   fullTextSearchEnabled: true,
   fuzzySearchEnabled: true,
   semanticSearchEnabled: true,
+  immediateSearchTimeoutMs: 400,
   minRelevanceScore: 0,
   showExcerpts: true,
   excerptLength: 120,
@@ -45,6 +46,7 @@ describe('search settings route', () => {
         fullTextSearchEnabled: false,
         fuzzySearchEnabled: true,
         semanticSearchEnabled: false,
+        immediateSearchTimeoutMs: 750,
       }),
     }));
 
@@ -53,6 +55,7 @@ describe('search settings route', () => {
       fullTextSearchEnabled: false,
       fuzzySearchEnabled: true,
       semanticSearchEnabled: false,
+      immediateSearchTimeoutMs: 750,
     });
   });
 
@@ -60,6 +63,16 @@ describe('search settings route', () => {
     const response = await route.PATCH(new NextRequest('http://localhost/api/settings/search', {
       method: 'PATCH',
       body: JSON.stringify({ fullTextSearchEnabled: false, fuzzySearchEnabled: false }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(settings.updateSearchSettings).not.toHaveBeenCalled();
+  });
+
+  it('rejects an immediate timeout outside the safe range before the service', async () => {
+    const response = await route.PATCH(new NextRequest('http://localhost/api/settings/search', {
+      method: 'PATCH',
+      body: JSON.stringify({ immediateSearchTimeoutMs: 99 }),
     }));
 
     expect(response.status).toBe(400);

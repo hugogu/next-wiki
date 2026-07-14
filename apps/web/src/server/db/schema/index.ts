@@ -406,6 +406,7 @@ export const searchSettings = pgTable(
     semanticSearchEnabled: boolean('semantic_search_enabled').notNull().default(true),
     fullTextSearchEnabled: boolean('full_text_search_enabled').notNull().default(true),
     fuzzySearchEnabled: boolean('fuzzy_search_enabled').notNull().default(true),
+    immediateSearchTimeoutMs: integer('immediate_search_timeout_ms').notNull().default(400),
     minRelevanceScore: integer('min_relevance_score').notNull().default(0),
     showExcerpts: boolean('show_excerpts').notNull().default(true),
     excerptLength: integer('excerpt_length').notNull().default(120),
@@ -415,6 +416,7 @@ export const searchSettings = pgTable(
     singletonId: check('search_settings_singleton_id', sql`${t.id} = 'default'`),
     relevanceRange: check('search_settings_min_relevance_score_range', sql`${t.minRelevanceScore} >= -100 and ${t.minRelevanceScore} <= 100`),
     excerptLengthRange: check('search_settings_excerpt_length_range', sql`${t.excerptLength} >= 20 and ${t.excerptLength} <= 500`),
+    immediateTimeoutRange: check('search_settings_immediate_timeout_range', sql`${t.immediateSearchTimeoutMs} >= 100 and ${t.immediateSearchTimeoutMs} <= 2000`),
     // Semantic retrieval can never become the only way to search the wiki.
     lexicalPathRequired: check('search_settings_lexical_path_required', sql`${t.fullTextSearchEnabled} or ${t.fuzzySearchEnabled}`),
   }),

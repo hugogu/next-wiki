@@ -12,6 +12,7 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
   const [fullTextSearchEnabled, setFullTextSearchEnabled] = useState(initial.fullTextSearchEnabled);
   const [fuzzySearchEnabled, setFuzzySearchEnabled] = useState(initial.fuzzySearchEnabled);
   const [semanticSearchEnabled, setSemanticSearchEnabled] = useState(initial.semanticSearchEnabled);
+  const [immediateSearchTimeoutMs, setImmediateSearchTimeoutMs] = useState(String(initial.immediateSearchTimeoutMs));
   const [minRelevanceScore, setMinRelevanceScore] = useState(String(initial.minRelevanceScore));
   const [showExcerpts, setShowExcerpts] = useState(initial.showExcerpts);
   const [excerptLength, setExcerptLength] = useState(String(initial.excerptLength));
@@ -36,6 +37,7 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
         fullTextSearchEnabled,
         fuzzySearchEnabled,
         semanticSearchEnabled,
+        immediateSearchTimeoutMs: Number(immediateSearchTimeoutMs),
         minRelevanceScore: Number(minRelevanceScore),
         showExcerpts,
         excerptLength: Number(excerptLength),
@@ -50,6 +52,7 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
     setFullTextSearchEnabled(body.fullTextSearchEnabled);
     setFuzzySearchEnabled(body.fuzzySearchEnabled);
     setSemanticSearchEnabled(body.semanticSearchEnabled);
+    setImmediateSearchTimeoutMs(String(body.immediateSearchTimeoutMs));
     setMinRelevanceScore(String(body.minRelevanceScore));
     setShowExcerpts(body.showExcerpts);
     setExcerptLength(String(body.excerptLength));
@@ -70,6 +73,19 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
             onClick={() => setFullTextSearchEnabled((value) => !value)}
           />
         </div>
+
+        <label className="block space-y-xs">
+          <span className="text-sm font-medium">{t('admin.searchSettings.immediateTimeout.label')}</span>
+          <Input
+            type="number"
+            min="100"
+            max="2000"
+            step="50"
+            value={immediateSearchTimeoutMs}
+            onChange={(event) => setImmediateSearchTimeoutMs(event.target.value)}
+          />
+          <span className="block text-xs text-muted">{t('admin.searchSettings.immediateTimeout.help')}</span>
+        </label>
 
         <div className="flex items-start justify-between gap-md">
           <div>

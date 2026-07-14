@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { SearchCapabilityId } from '@next-wiki/shared';
+import { DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS, type SearchCapabilityId } from '@next-wiki/shared';
 import { closeDb } from '@/server/db';
 import { buildAnonymousCtx } from '@/server/permissions';
 import * as searchAnalytics from '@/server/services/search-analytics';
@@ -38,6 +38,7 @@ function baseInput(q: string, overrides: Partial<CoordinatedSearchInput> = {}): 
     snapshot: ALL_ENABLED,
     excerpt: { windowSize: 120, show: true },
     minRelevanceScore: 0,
+    immediateSearchTimeoutMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS,
     ...overrides,
   };
 }

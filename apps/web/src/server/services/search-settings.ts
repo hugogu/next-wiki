@@ -1,5 +1,9 @@
 import { eq } from 'drizzle-orm';
-import type { SearchSettingsView, UpdateSearchSettingsInput } from '@next-wiki/shared';
+import {
+  DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS,
+  type SearchSettingsView,
+  type UpdateSearchSettingsInput,
+} from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
@@ -10,6 +14,7 @@ export const DEFAULT_SEARCH_SETTINGS: SearchSettingsView = {
   fullTextSearchEnabled: true,
   fuzzySearchEnabled: true,
   semanticSearchEnabled: true,
+  immediateSearchTimeoutMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS,
   minRelevanceScore: 0,
   showExcerpts: true,
   excerptLength: 120,
@@ -38,6 +43,7 @@ function toView(row: SearchSettingsRow | null | undefined): SearchSettingsView {
     fullTextSearchEnabled: row.fullTextSearchEnabled,
     fuzzySearchEnabled: row.fuzzySearchEnabled,
     semanticSearchEnabled: row.semanticSearchEnabled,
+    immediateSearchTimeoutMs: row.immediateSearchTimeoutMs,
     minRelevanceScore: scoreFromStored(row.minRelevanceScore),
     showExcerpts: row.showExcerpts,
     excerptLength: row.excerptLength,
@@ -76,6 +82,7 @@ export async function updateSearchSettings(
     ...(input.fullTextSearchEnabled !== undefined ? { fullTextSearchEnabled: input.fullTextSearchEnabled } : {}),
     ...(input.fuzzySearchEnabled !== undefined ? { fuzzySearchEnabled: input.fuzzySearchEnabled } : {}),
     ...(input.semanticSearchEnabled !== undefined ? { semanticSearchEnabled: input.semanticSearchEnabled } : {}),
+    ...(input.immediateSearchTimeoutMs !== undefined ? { immediateSearchTimeoutMs: input.immediateSearchTimeoutMs } : {}),
     ...(input.minRelevanceScore !== undefined ? { minRelevanceScore: scoreToStored(input.minRelevanceScore) } : {}),
     ...(input.showExcerpts !== undefined ? { showExcerpts: input.showExcerpts } : {}),
     ...(input.excerptLength !== undefined ? { excerptLength: input.excerptLength } : {}),

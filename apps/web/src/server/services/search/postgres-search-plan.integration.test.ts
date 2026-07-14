@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeDb, db } from '@/server/db';
-import { fullTextContentQuery, fullTextPageQuery } from './engines/postgres-tsvector';
+import { fullTextContentSql, fullTextPageQuery } from './engines/postgres-tsvector';
 import { fuzzyContentQuery, fuzzyTitleQuery, WORD_SIMILARITY_THRESHOLD } from './engines/postgres-trigram';
 
 /**
@@ -95,7 +95,7 @@ describe('full_text adapter query plans (tsvector, simple configuration)', () =>
   });
 
   it('drives the content window through page_revisions_content_fts_idx', async () => {
-    const plan = await explain(fullTextContentQuery(PLAN_SPACE_ID, 'rare corpus token', 40));
+    const plan = await explain(fullTextContentSql(PLAN_SPACE_ID, 'rare corpus token', 40));
     expect(plan).toContain('page_revisions_content_fts_idx');
     expect(plan).toContain('Bitmap Index Scan');
   });

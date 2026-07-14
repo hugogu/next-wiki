@@ -11,7 +11,6 @@ import { buildExcerpt, compactExcerpt, projectReadableCandidatePages } from './c
 import { fuseCandidates, type EngineContribution } from './ranking';
 import { productionSearchEngineRegistry, type SearchEngineRegistry } from './registry';
 import {
-  IMMEDIATE_ENGINE_DEADLINE_MS,
   SEARCH_CAPABILITY_IDS,
   isTerminalRunState,
   type CapabilitySnapshot,
@@ -27,6 +26,8 @@ export type CoordinatedSearchInput = {
   snapshot: CapabilitySnapshot;
   excerpt: { windowSize: number; show: boolean };
   minRelevanceScore: number;
+  /** Administrator-controlled database budget for each immediate lexical engine. */
+  immediateSearchTimeoutMs: number;
   /**
    * Durable attempt identity. When present the coordinator creates/resumes one
    * run per enabled capability and lets the semantic engine start or resume
@@ -189,7 +190,7 @@ async function executeEngine(
   return engine.run(ctx, {
     q: input.q,
     limit: input.limit,
-    deadlineMs: IMMEDIATE_ENGINE_DEADLINE_MS,
+    deadlineMs: input.immediateSearchTimeoutMs,
     attempt: input.attempt
       ? { searchRecordId: input.attempt.searchRecordId, continuationRef: run?.continuationRef ?? null }
       : undefined,

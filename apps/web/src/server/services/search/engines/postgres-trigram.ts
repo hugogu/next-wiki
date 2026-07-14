@@ -1,9 +1,17 @@
 import { and, eq, ilike, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { EngineDeadlineExceeded, withDeadline } from '../deadline';
+import { EngineDeadlineExceeded } from '../deadline';
 import type { SearchCandidate, SearchEngine, SearchEngineQuery } from '../types';
-import { candidateWindow, getDefaultSpaceId, likePattern, toLexicalCandidate } from './lexical-shared';
+import {
+  candidateWindow,
+  collectCompletedLexicalWindows,
+  getDefaultSpaceId,
+  likePattern,
+  runBoundedLexicalWindow,
+  type SearchDbExecutor,
+  toLexicalCandidate,
+} from './lexical-shared';
 
 /**
  * Calibrated against the deployed pgvector/pg16 image (en_US.utf8): an exact
@@ -16,9 +24,9 @@ export const WORD_SIMILARITY_THRESHOLD = '0.2';
 /**
  * Current `fuzzy` adapter: PostgreSQL `pg_trgm` over the trigram GIN indexes
  * from migration 0007. Contiguous Chinese fragments and substrings match
- * through ILIKE; small textual variations match through the indexable
- * word-similarity operator. Title and content run as separate bounded
- * windows so each predicate stays on its own trigram index
+ * through ILIKE; small textual variations match in scoped titles through the
+ * word-similarity operator. Title and content run as separate bounded windows
+ * so each predicate stays on its own trigram index
  * (`pages_space_title_trgm_idx`,
  * `page_revisions_content_source_trgm_idx`); the engine merges them locally.
  * It is not a word-segmentation promise.
@@ -28,7 +36,7 @@ export function createFuzzyEngine(): SearchEngine {
     capability: 'fuzzy',
     async run(_ctx, query) {
       try {
-        const candidates = await withDeadline(fetchCandidates(query), query.deadlineMs);
+        const candidates = await fetchCandidates(query);
         return { state: 'ready', candidates };
       } catch (error) {
         if (error instanceof EngineDeadlineExceeded) return { state: 'timed_out' };
@@ -39,8 +47,6 @@ export function createFuzzyEngine(): SearchEngine {
   };
 }
 
-type TrigramDb = Pick<typeof db, 'select'>;
-
 function publishedScope(spaceId: string) {
   return [
     eq(schema.pages.spaceId, spaceId),
@@ -49,7 +55,7 @@ function publishedScope(spaceId: string) {
   ] as const;
 }
 
-function selection(similarity: ReturnType<typeof sql<number>>, executor: TrigramDb) {
+function selection(similarity: ReturnType<typeof sql<number>>, executor: SearchDbExecutor) {
   return executor
     .select({
       pageId: schema.pages.id,
@@ -63,7 +69,7 @@ function selection(similarity: ReturnType<typeof sql<number>>, executor: Trigram
 }
 
 /** Title fragment and near matches; predicate matches `pages_space_title_trgm_idx`. */
-export function fuzzyTitleQuery(spaceId: string, q: string, window: number, executor: TrigramDb = db) {
+export function fuzzyTitleQuery(spaceId: string, q: string, window: number, executor: SearchDbExecutor = db) {
   const pattern = likePattern(q);
   const similarity = sql<number>`word_similarity(${q}, ${schema.pages.title})`;
   return selection(similarity, executor)
@@ -78,17 +84,20 @@ export function fuzzyTitleQuery(spaceId: string, q: string, window: number, exec
     .limit(window);
 }
 
-/** Content fragment and near matches; predicates match `page_revisions_content_source_trgm_idx`. */
-export function fuzzyContentQuery(spaceId: string, q: string, window: number, executor: TrigramDb = db) {
+/**
+ * Content fragment matches use the revision trigram index. Near-match scoring
+ * intentionally stays title-only: at a Chinese-tolerant similarity floor it
+ * matches a large share of long markdown revisions and cannot meet an
+ * interactive request budget without sacrificing exact fragment results.
+ */
+export function fuzzyContentQuery(spaceId: string, q: string, window: number, executor: SearchDbExecutor = db) {
   const pattern = likePattern(q);
-  const similarity = sql<number>`word_similarity(${q}, coalesce(${schema.pageRevisions.contentSource}, ''))`;
+  const exactMatch = ilike(schema.pageRevisions.contentSource, pattern);
+  const similarity = sql<number>`case when ${exactMatch} then 1 else 0 end`;
   return selection(similarity, executor)
     .where(and(
       ...publishedScope(spaceId),
-      or(
-        ilike(schema.pageRevisions.contentSource, pattern),
-        sql`${q} <% ${schema.pageRevisions.contentSource}`,
-      )!,
+      exactMatch,
     ))
     .orderBy(sql`similarity desc`, schema.pages.path)
     .limit(window);
@@ -99,16 +108,26 @@ async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidat
   if (!spaceId) return [];
   const window = candidateWindow(query.limit);
 
-  const rows = await db.transaction(async (tx) => {
-    // Scope the similarity floor to this transaction; `<%` compares against
-    // pg_trgm.word_similarity_threshold and stays index-assisted.
-    await tx.execute(sql`select set_config('pg_trgm.word_similarity_threshold', ${WORD_SIMILARITY_THRESHOLD}, true)`);
-    const [titleRows, contentRows] = await Promise.all([
-      fuzzyTitleQuery(spaceId, query.q, window, tx),
-      fuzzyContentQuery(spaceId, query.q, window, tx),
-    ]);
-    return [...titleRows, ...contentRows];
-  });
+  const windows = [
+    runBoundedLexicalWindow(
+      query.deadlineMs,
+      (tx) => fuzzyTitleQuery(spaceId, query.q, window, tx),
+      { wordSimilarityThreshold: WORD_SIMILARITY_THRESHOLD },
+    ),
+  ];
+
+  // pg_trgm stores trigrams, so a one- or two-character fragment cannot
+  // selectively constrain a revision-content index. The scoped title window
+  // remains useful for these queries; skip the unbounded content scan.
+  if (hasSelectiveTrigram(query.q)) {
+    windows.push(runBoundedLexicalWindow(
+      query.deadlineMs,
+      (tx) => fuzzyContentQuery(spaceId, query.q, window, tx),
+      { preferIndex: true },
+    ));
+  }
+
+  const rows = (await collectCompletedLexicalWindows(windows)).flat();
 
   const merged = new Map<string, { pageId: string; path: string; title: string; contentSource: string | null; similarity: number }>();
   for (const row of rows) {
@@ -125,6 +144,10 @@ async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidat
       const candidate = toLexicalCandidate(row, index, query.q);
       return candidate.exact?.term ? candidate : nearMatchCandidate(candidate, row.similarity);
     });
+}
+
+export function hasSelectiveTrigram(q: string): boolean {
+  return Array.from(q.replaceAll(/\s/g, '')).length >= 3;
 }
 
 /** A near match has no verbatim occurrence: no excerpt evidence, similarity-scaled display relevance. */
