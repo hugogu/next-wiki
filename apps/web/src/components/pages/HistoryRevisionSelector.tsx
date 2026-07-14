@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { PublishButton } from '@/components/pages/PublishButton';
+import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { useTranslation } from '@/i18n/client';
 import { RevisionDiffView } from './RevisionDiffView';
 
@@ -19,35 +19,46 @@ type ComparedRevision = {
   contentHtml: string;
 };
 
+type SelectedRevision = {
+  version: number;
+  contentHtml: string;
+};
+
 export function HistoryRevisionSelector({
   path,
   revisions,
   pageId,
   selectedPair,
+  selectedVersion,
   earlier,
   later,
+  selectedRevision,
 }: {
   path: string;
   revisions: HistoryRevision[];
   pageId?: string;
   selectedPair?: { earlier: number; later: number };
+  selectedVersion?: number;
   earlier?: ComparedRevision;
   later?: ComparedRevision;
+  selectedRevision?: SelectedRevision;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
   const pairSelection = selectedPair ? [selectedPair.earlier, selectedPair.later] : [];
-  const [pendingSelection, setPendingSelection] = useState<number[]>([]);
-  const selected = selectedPair ? pairSelection : pendingSelection;
+  const selected = selectedPair ? pairSelection : selectedVersion ? [selectedVersion] : [];
 
-  const updateComparison = (versions: number[]) => {
+  const updateSelection = (versions: number[]) => {
     const next = new URLSearchParams(searchParams.toString());
     next.delete('compare');
+    next.delete('selected');
     if (versions.length === 2) {
       const [first, second] = versions;
       next.set('compare', `${Math.min(first!, second!)}..${Math.max(first!, second!)}`);
+    } else if (versions.length === 1) {
+      next.set('selected', String(versions[0]));
     }
     router.replace(`${pathname}${next.size ? `?${next}` : ''}`, { scroll: false });
   };
@@ -58,8 +69,7 @@ export function HistoryRevisionSelector({
       : selected.length === 2
         ? [version]
         : [...selected, version];
-    setPendingSelection(next);
-    if (next.length !== 1 || selectedPair) updateComparison(next);
+    updateSelection(next);
   };
 
   return (
@@ -105,6 +115,13 @@ export function HistoryRevisionSelector({
       <section className="min-w-0">
         {earlier && later ? (
           <RevisionDiffView earlier={earlier} later={later} />
+        ) : selectedRevision ? (
+          <article className="rounded-lg bg-surface p-lg">
+            <p className="mb-md text-sm text-muted">
+              {t('page.revision.heading', { version: selectedRevision.version })}
+            </p>
+            <ContentRenderer html={selectedRevision.contentHtml} />
+          </article>
         ) : (
           <div className="rounded-lg bg-surface-elevated p-lg text-sm text-muted">
             {t('page.history.compare.selectHint')}
