@@ -74,3 +74,17 @@ These are intentionally left for planning, not for clarification:
 - Exact mapping between inbound message types and the existing asynchronous AI-action surface.
 - Rich-card representation and plain-text fallback behavior.
 - Schema, indexes, state transitions, and cleanup for the expanded Feishu entities.
+
+### Architecture revision (2026-07-14)
+
+The integration architecture was simplified from a separate long-running bot
+process with a private HTTP delegation contract to an **explicitly registered
+in-process module inside the single web application** (webhook route handler +
+in-process delegation + pg-boss delivery workers). This strengthens Constitution
+P1 (no new container, process, profile, port, or stateful service) and KISS,
+and removes the inter-process trust boundary and shared service credential,
+while preserving every functional requirement, permission recheck, audit,
+idempotency, and group-privacy guarantee. All checklist items remain satisfied;
+no functional flow was removed. plan.md, research.md, contracts/, and tasks.md
+were rewritten to match; FR-021/FR-022/FR-026 and the resilience wording were
+reframed from socket reconnection to durable delivery + restart recovery.

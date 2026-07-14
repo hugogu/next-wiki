@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "按方案A出speckit specification" — Add a Feishu bot entry that (a) lets Feishu users ask the wiki questions and get AI-grounded answers, and (b) pushes notable wiki events to Feishu chats. Feishu identities are bound to existing wiki user accounts; the bot operates as a separate process and invokes the wiki through a restricted, permission-preserving delegation boundary (Approach A).
+**Input**: User description — Add a Feishu bot entry that (a) lets Feishu users ask the wiki questions and get AI-grounded answers, and (b) pushes notable wiki events to Feishu chats. Feishu identities are bound to existing wiki user accounts. The integration is an explicitly registered module inside the single wiki web application (no separate process); inbound messages resolve the active binding in-process and reuse the wiki's existing permission, AI-question, and audit services so every bot action is attributed to the bound user and passes the normal permission chokepoint.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -81,7 +81,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 
 ### Edge Cases
 
-- **Bot loses connection to Feishu**: reconnect automatically; queue outbound notifications while disconnected; deliver queued items on reconnect for 72 hours by default; surface connection health to admins.
+- **Outbound Feishu delivery is unavailable** (Feishu API unreachable, or the web app restarts mid-delivery): persist all outbound notifications as durable rows; retry with backoff and recover in-flight deliveries on restart; retain undelivered items for 72 hours by default; surface delivery health to admins. Inbound events are covered by Feishu's own at-least-once retry plus the durable inbox.
 - **Bound wiki user is deactivated or revokes consent after binding**: treat the Feishu identity as unbound on next contact; terminate its active sessions; stop answering questions and sending personal notifications; the admin can formally revoke the binding.
 - **Same Feishu identity bound on multiple wiki deployments**: each binding is scoped to a single wiki deployment; cross-deployment binding is out of scope for v1.
 - **AI answer cannot be grounded in any accessible page**: bot replies that no accessible material was found and may prompt the user to refine the question.
@@ -134,7 +134,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 - **FR-023**: The bot MUST verify Feishu's inbound request authenticity and freshness before processing an event, and MUST reject replayed requests.
 - **FR-024**: The system MUST process each inbound Feishu event and each event-to-subscription delivery idempotently, so a duplicate cannot create a second binding, Q&A action, or delivered notification.
 - **FR-025**: Public-safe group cards MUST contain page metadata and links only while the event resource is publicly readable. Private-recipient group subscriptions MUST re-check each bound recipient's current permission and send protected event details only by direct message; they MUST NOT post a protected summary, title, link, or count to the group.
-- **FR-026**: The bot MUST use a restricted service identity to invoke a Feishu-specific delegation boundary that resolves the active binding server-side and establishes the bound wiki user and Feishu origin; it MUST NOT use a shared end-user credential, accept a caller-supplied user identity, or bypass the normal permission layer.
+- **FR-026**: The Feishu integration MUST resolve the active binding server-side and establish the bound wiki user and Feishu origin from that binding alone; it MUST NOT use a shared end-user credential, accept a caller-supplied user identity, or bypass the normal permission layer. The inbound path derives the effective user only from the confirmed binding, never from the message payload.
 - **FR-027**: The audit log MUST persist and expose the request origin as `feishu`, alongside the attributed wiki user, action outcome, and a correlation identifier that contains no raw question, answer, or credential.
 - **FR-028**: On unbinding, revocation, or user deactivation, the system MUST immediately expire active bot sessions and stop future personal notifications. It MUST retain binding, session, and delivery data only for documented operational retention periods and exclude raw credentials from all retained data.
 - **FR-029**: The system MUST never post a binding link in a group. If the bot cannot privately message an unbound group participant, it MUST provide only a non-sensitive instruction to start a direct bot chat.
@@ -142,13 +142,13 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 
 **Resilience**
 
-- **FR-021**: The bot MUST automatically reconnect after a connection loss and resume normal operation without admin intervention.
-- **FR-022**: Outbound notifications generated while the bot is disconnected MUST be queued and delivered on reconnect for 72 hours by default; admins MAY configure the retention window from 24 to 168 hours.
+- **FR-021**: After an outbound-delivery outage or a web-app restart, the system MUST resume delivering pending notifications automatically without admin intervention, recovering any in-flight (claimed-but-unfinished) deliveries.
+- **FR-022**: Outbound notifications generated while Feishu delivery is unavailable MUST be persisted durably and delivered once it recovers, for 72 hours by default; admins MAY configure the retention window from 24 to 168 hours.
 
 ### Public Content Delivery *(required when a feature changes anonymously readable published content)*
 
 - This feature does **not** change anonymously readable published page content, public metadata, or public navigation. No static/ISR cache impact on the public site.
-- The Q&A surface exposes only content the bound wiki user can already read in the web UI; no new anonymous Wiki content/API surface is introduced. The Feishu bot exposes only its signed event callback, which returns no Wiki content and is not a user-facing public API.
+- The Q&A surface exposes only content the bound wiki user can already read in the web UI; no new anonymous Wiki content/API surface is introduced. The integration adds only a signed Feishu event callback route (`/webhooks/feishu/events`), which returns no Wiki content, is kept out of the public REST/OpenAPI surface, and is not a user-facing public API.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -156,7 +156,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 - **Bot Session**: Conversational state for one Feishu identity within a chat (1:1 or group) — chat id, binding, reference to the underlying AI conversation, last-activity time, expiry time, session state (active / expired / reset).
 - **Notification Subscription**: An admin-configured rule mapping an event type (and optional space scope) to a direct bound identity, public-safe group, or private-recipient group; includes delivery state (active / paused / failing / action-required) and delivery mode.
 - **Notification Delivery Record**: A single idempotent event-to-subscription delivery — event id, target, deduplication key, status (queued / delivered / failed / blocked / expired), attempt count, timestamps.
-- **Connection Health Record**: Latest status of the bot's connection to Feishu — connected / disconnected, last connect time, last error, reconnect attempts.
+- **Connection Health**: Latest status of the Feishu integration — whether credentials are configured and valid, the last successful inbound event and outbound delivery times, and the most recent error (no secret or raw payload).
 - **Feishu Integration Configuration**: Encrypted app credentials, connection mode, rate-limit settings, notification retention setting, and credential-update metadata. No plaintext secret is retained for display.
 
 ## Success Criteria *(mandatory)*
@@ -167,7 +167,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 - **SC-002**: For an answerable question, the bot returns a grounded answer with at least one source link within 10 seconds at the 95th percentile.
 - **SC-003**: Permission-isolation tests, including a top-ranked unreadable source and a mixed-authority Feishu group, show zero leaked page content, citations, titles, or event metadata.
 - **SC-004**: Eligible subscribed event notifications arrive in the configured chat within 30 seconds of the event at the 95th percentile.
-- **SC-005**: After a connection loss, the bot recovers automatically and resumes delivering notifications within 60 seconds, without admin intervention, in at least 95% of cases.
+- **SC-005**: After an outbound-delivery outage or a web-app restart, the system recovers automatically and resumes delivering pending notifications within 60 seconds, without admin intervention, in at least 95% of cases.
 - **SC-006**: Admins can configure credentials, subscribe a chat to an event, and revoke a binding entirely through the UI, without editing source code or configuration files.
 - **SC-007**: Deterministic integration tests show every bot-initiated read and write records the bound user, `feishu` origin, action outcome, and correlation identifier in the audit log.
 - **SC-008**: Replaying an inbound Feishu event or re-running an event delivery produces no second binding, Q&A action, or delivered notification.
@@ -175,13 +175,13 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 ## Assumptions
 
 - The wiki already provides permission-aware content and AI Q&A surfaces, a long-running AI action surface, an audit log, and an admin panel; this feature reuses those capabilities rather than duplicating their business logic.
-- The current user-session Q&A entry point is not a delegation contract. This feature adds a narrowly scoped service-to-service delegation boundary that preserves the bound user, permission evaluation, and audit origin rather than treating a shared API key as that user.
+- The current user-session Q&A entry point is reused directly, in-process, under the bound user's permission context. This feature adds an explicitly registered integration module that preserves the bound user, permission evaluation, and audit origin rather than treating a shared API key as that user; no separate process or service credential is introduced.
 - Feishu app credentials (app id, app secret) are provisioned by the operator in the Feishu Developer Console before configuration; this feature does not register the Feishu app on the operator's behalf.
 - One bot instance serves one wiki deployment; multi-tenant Feishu marketplace distribution is out of scope for v1.
 - Users have network access to both the wiki and Feishu from their devices.
-- The operator configures an externally reachable HTTPS callback (through an ingress/reverse proxy or the optional bot port) in the Feishu Developer Console; it is required only when the optional integration is enabled.
-- The bot operates as a separate long-running process and calls into the wiki through its delegation boundary (Approach A); the wiki remains the only authoritative entrypoint for permission checks, audit, and business logic.
-- The bot is optional: an unconfigured deployment remains fully usable without Feishu. When enabled, it uses the same application image and PostgreSQL state as the wiki and adds no stateful service or mandatory external dependency.
+- The operator configures an externally reachable HTTPS callback (through the wiki's existing ingress/reverse proxy) in the Feishu Developer Console; it is required only when the optional integration is enabled.
+- The integration is an explicitly registered module inside the single wiki web application: the inbound Feishu callback is a route handler and outbound delivery uses the existing background job runner. The wiki remains the only authoritative entrypoint for permission checks, audit, and business logic. No separate process, image, port, or inter-process contract is introduced.
+- The integration is optional: an unconfigured deployment remains fully usable without Feishu, and the module stays inert until an admin configures credentials. It reuses the same application image, PostgreSQL state, and job runner as the wiki and adds no stateful service or mandatory external dependency.
 - The default conversational session window and notification retention window are specified above. Rate-limit defaults will be selected during planning from Feishu platform limits and documented before implementation.
 - The initial set of notifiable events is page-published, AI-action-completed, and transfer/import/export-completed; additional event types may be added in later iterations.
 - Group-chat Q&A uses the @-mentioner's binding for retrieval scope and audit attribution; widening retrieval to the union of all bound users in a chat is out of scope for v1.
