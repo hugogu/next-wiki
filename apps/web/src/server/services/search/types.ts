@@ -43,6 +43,14 @@ export type SearchCandidate = {
   rank: number;
   /** Optional raw-source excerpt evidence; re-validated against readable content. */
   excerpt?: string | null;
+  /** Which product-level field produced the match, for compatibility projection. */
+  field?: 'path' | 'title' | 'content';
+  /**
+   * Product-level display relevance in [-1, 1] retained for the feature-013
+   * `relevanceScore` compatibility field. It is a user-facing heuristic, not a
+   * raw index/provider score, and never drives cross-engine ordering.
+   */
+  compatRelevance?: number;
   /** Deterministic exact-match evidence used for ranking protection. */
   exact?: {
     path?: boolean;

@@ -53,9 +53,10 @@ import { findFrontmatterRelatedPages, findMarkdownLinks } from '@/server/transfe
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
-import * as publicAi from '@/server/services/public-ai';
 import * as searchAnalytics from '@/server/services/search-analytics';
 import { getSearchSettings } from '@/server/services/search-settings';
+import { runCoordinatedSearch } from '@/server/services/search/coordinator';
+import type { CapabilitySnapshot } from '@/server/services/search/types';
 import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
@@ -98,13 +99,6 @@ function buildExcerpt(content: string, term: string, windowSize: number): string
   return `${start > 0 ? '…' : ''}${excerpt}${end < content.length ? '…' : ''}`;
 }
 
-function compactExcerpt(excerpt: string | null, term: string, windowSize: number, show: boolean): string | null {
-  if (!show || !excerpt) return null;
-  const normalized = excerpt.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= windowSize) return normalized;
-  return buildExcerpt(normalized, term, windowSize) ?? `${normalized.slice(0, windowSize)}…`;
-}
-
 function countOccurrences(haystack: string, needle: string): number {
   if (!needle) return 0;
   let count = 0;
@@ -133,29 +127,6 @@ function scoreSearchMatch(matchType: 'path' | 'title' | 'content', page: PublicP
 
 function authorResource(row: { id: string; displayName: string | null; email: string }): PublicPageResource['author'] {
   return { id: row.id, displayName: row.displayName ?? row.email };
-}
-
-async function publishedSearchPageResource(
-  space: { slug: string },
-  page: PageRow,
-  authorRow: { id: string; displayName: string | null; email: string },
-  contentSource: string | null,
-): Promise<PublicPageResource> {
-  const { frontmatter } = parsePageFrontmatter(contentSource ?? '');
-  return {
-    id: page.id,
-    spaceSlug: space.slug,
-    path: page.path,
-    locale: page.locale,
-    title: page.title,
-    frontmatter,
-    metadata: page.currentPublishedVersionId ? await getRevisionMetadata(page.currentPublishedVersionId) : undefined,
-    status: 'published',
-    author: authorResource(authorRow),
-    createdAt: page.createdAt.toISOString(),
-    updatedAt: page.updatedAt.toISOString(),
-    links: links(page),
-  };
 }
 
 function links(page: PageRow) {
@@ -552,126 +523,6 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   return { items: result.items.map(stripPageContent), nextCursor: result.nextCursor };
 }
 
-async function searchPublishedPagesByKeyword(
-  ctx: PermCtx,
-  input: { q: string; limit: number; excerptLength: number },
-): Promise<PublicPageSearchResponse> {
-  const space = await getDefaultSpace();
-  if (!space) return { items: [], nextCursor: null };
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
-    return { items: [], nextCursor: null };
-  }
-
-  const pattern = likePattern(input.q);
-  const tsQuery = sql`websearch_to_tsquery('simple', ${input.q})`;
-  const pageDocument = sql`to_tsvector('simple', coalesce(${schema.pages.path}, '') || ' ' || coalesce(${schema.pages.title}, ''))`;
-  const contentDocument = sql`to_tsvector('simple', coalesce(${schema.pageRevisions.contentSource}, ''))`;
-  const matchType = sql<'path' | 'title' | 'content'>`
-    case
-      when ${schema.pages.path} ilike ${pattern} then 'path'
-      when ${schema.pages.title} ilike ${pattern} then 'title'
-      else 'content'
-    end
-  `;
-  const relevanceScore = sql<number>`
-    greatest(
-      case
-        when lower(${schema.pages.path}) = lower(${input.q}) then 1.0
-        when ${schema.pages.path} ilike ${pattern} then 0.95
-        when lower(${schema.pages.title}) = lower(${input.q}) then 0.9
-        when ${schema.pages.title} ilike ${pattern} then 0.8
-        else 0.0
-      end,
-      least(0.8, 0.4 + ts_rank(${pageDocument}, ${tsQuery}) * 0.4),
-      least(0.7, 0.3 + ts_rank(${contentDocument}, ${tsQuery}) * 0.4)
-    )
-  `;
-
-  const rows = await db
-    .select({
-      page: schema.pages,
-      contentSource: schema.pageRevisions.contentSource,
-      author: {
-        id: schema.users.id,
-        displayName: schema.users.displayName,
-        email: schema.users.email,
-      },
-      matchType,
-      relevanceScore,
-    })
-    .from(schema.pages)
-    .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
-    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
-    .where(and(
-      eq(schema.pages.spaceId, space.id),
-      isNull(schema.pages.deletedAt),
-      isNotNull(schema.pages.currentPublishedVersionId),
-      or(
-        sql`${pageDocument} @@ ${tsQuery}`,
-        sql`${contentDocument} @@ ${tsQuery}`,
-        ilike(schema.pages.path, pattern),
-        ilike(schema.pages.title, pattern),
-        ilike(schema.pageRevisions.contentSource, pattern),
-      )!,
-    ))
-    .orderBy(sql`${relevanceScore} desc`, schema.pages.path)
-    .limit(input.limit);
-
-  return {
-    nextCursor: null,
-    items: await Promise.all(rows.map(async (row) => {
-      const page = await publishedSearchPageResource(space, row.page, row.author, row.contentSource);
-      const excerpt = row.matchType === 'content' && row.contentSource
-        ? buildExcerpt(row.contentSource, input.q, input.excerptLength)
-        : null;
-      return {
-        page,
-        matchType: row.matchType,
-        excerpt,
-        score: Math.round(Number(row.relevanceScore) * 100) / 100,
-      };
-    })),
-  };
-}
-
-async function getPublishedSearchPagesByIds(
-  ctx: PermCtx,
-  pageIds: readonly string[],
-): Promise<Map<string, PublicPageResource>> {
-  const ids = [...new Set(pageIds)];
-  const result = new Map<string, PublicPageResource>();
-  if (ids.length === 0) return result;
-
-  const space = await getDefaultSpace();
-  if (!space) return result;
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) return result;
-
-  const rows = await db
-    .select({
-      page: schema.pages,
-      contentSource: schema.pageRevisions.contentSource,
-      author: {
-        id: schema.users.id,
-        displayName: schema.users.displayName,
-        email: schema.users.email,
-      },
-    })
-    .from(schema.pages)
-    .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
-    .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
-    .where(and(
-      eq(schema.pages.spaceId, space.id),
-      isNull(schema.pages.deletedAt),
-      isNotNull(schema.pages.currentPublishedVersionId),
-      inArray(schema.pages.id, ids),
-    ));
-
-  for (const row of rows) {
-    result.set(row.page.id, await publishedSearchPageResource(space, row.page, row.author, row.contentSource));
-  }
-  return result;
-}
-
 export async function getPageById(ctx: PermCtx, id: string, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
   return getVisiblePage(ctx, eq(schema.pages.id, id), include);
 }
@@ -879,119 +730,79 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
   return { items, nextCursor: pages.nextCursor };
 }
 
-const RRF_K = 60;
-
-/** Header-only hybrid operation; the legacy GET route remains keyword-only. */
+/**
+ * Header-only hybrid operation on the existing feature-013 POST resource.
+ * All retrieval flows through the search coordinator: enabled capabilities
+ * from the attempt snapshot start concurrently, lexical results return
+ * immediately, and the idempotent retry of the same record resumes any
+ * pending semantic action. The legacy GET route remains a pure lexical read.
+ */
 export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryInput): Promise<HybridPageSearchResponse> {
   const space = await getDefaultSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   const settings = await getSearchSettings();
-
-  const keyword = await searchPublishedPagesByKeyword(ctx, {
-    q: input.q,
-    limit: input.limit,
-    excerptLength: settings.excerptLength,
-  });
-  const baseSummary = {
-    keywordResultCount: keyword.items.length,
-    semanticResultCount: 0,
-    resultCount: keyword.items.length,
-    semanticState: 'skipped' as const,
+  const settingsSnapshot: CapabilitySnapshot = {
+    full_text: settings.fullTextSearchEnabled,
+    fuzzy: settings.fuzzySearchEnabled,
+    semantic: settings.semanticSearchEnabled,
   };
+
   let record: Awaited<ReturnType<typeof searchAnalytics.getOrCreateSearchRecord>> | null = null;
   try {
-    record = await searchAnalytics.getOrCreateSearchRecord(ctx, input, space.id, baseSummary);
+    record = await searchAnalytics.getOrCreateSearchRecord(ctx, input, space.id, {
+      keywordResultCount: 0,
+      semanticResultCount: 0,
+      resultCount: 0,
+      semanticState: 'skipped',
+    }, settingsSnapshot);
   } catch (error) {
-    // A telemetry outage must never turn a readable keyword result into a
-    // failed search. Without a durable record semantic polling cannot safely
-    // resume, so report generic reduced coverage instead.
+    // A telemetry outage must never turn readable lexical results into a
+    // failed search. Without a durable record semantic work cannot safely
+    // resume, so it is reported as generic reduced coverage instead.
     console.error('Failed to create hybrid search analytics:', error);
   }
-  let semanticState: HybridPageSearchResponse['semanticState'] = record
-    ? record.semanticState as HybridPageSearchResponse['semanticState']
-    : 'unavailable';
-  let semanticItems: Awaited<ReturnType<typeof publicAi.getSemanticSearchResults>>['items'] = [];
 
-  if (!settings.semanticSearchEnabled) {
-    semanticState = 'skipped';
-  } else if (record?.semanticActionId) {
-    try {
-      const semantic = await publicAi.getSemanticSearchResults(ctx, record.semanticActionId);
-      semanticState = semantic.status === 'succeeded' ? 'ready' : semantic.status === 'failed' ? 'failed' : 'pending';
-      semanticItems = semantic.status === 'succeeded' ? semantic.items ?? [] : [];
-    } catch {
-      semanticState = 'unavailable';
-    }
-  } else if (record && semanticState === 'skipped') {
-    try {
-      const accepted = await publicAi.submitSemanticSearch(ctx, { q: input.q, limit: input.limit, scope: 'all' });
-      semanticState = 'pending';
-      await searchAnalytics.updateSearchRecord(record.id, { ...baseSummary, semanticState, semanticActionId: accepted.id });
-      record = await searchAnalytics.getOwnedSearchRecord(ctx, input.searchRecordId, input.searchSessionId);
-    } catch {
-      // AI-disabled, anonymous, or non-entitled actors still receive keyword results.
-      semanticState = 'unavailable';
-    }
-  }
+  // An accepted attempt keeps the capability set it was created with, even if
+  // an administrator changed the settings between polls (FR-010).
+  const snapshot: CapabilitySnapshot = record
+    ? (record.capabilitySnapshot as CapabilitySnapshot)
+    : { ...settingsSnapshot, semantic: false };
 
-  const merged = new Map<string, {
-    page: PublicPageResource;
-    excerpt: string | null;
-    score: number;
-    relevanceScore: number;
-    matchSources: Array<'keyword' | 'semantic'>;
-  }>();
-  keyword.items.forEach((item, index) => {
-    const relevanceScore = item.score ?? 0;
-    merged.set(item.page.id, {
-      page: item.page,
-      excerpt: compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts),
-      score: 1 / (RRF_K + index + 1),
-      relevanceScore,
-      matchSources: ['keyword'],
-    });
+  const result = await runCoordinatedSearch(ctx, {
+    q: input.q.trim(),
+    limit: input.limit,
+    snapshot,
+    excerpt: { windowSize: settings.excerptLength, show: settings.showExcerpts },
+    minRelevanceScore: settings.minRelevanceScore,
+    attempt: record ? { searchRecordId: record.id } : undefined,
   });
-  let visibleSemanticResultCount = 0;
-  const semanticPages = await getPublishedSearchPagesByIds(ctx, semanticItems.map((item) => item.pageId));
-  for (const [index, item] of semanticItems.entries()) {
-    const page = semanticPages.get(item.pageId);
-    if (!page) continue;
-    visibleSemanticResultCount += 1;
-    const score = 1 / (RRF_K + index + 1);
-    const current = merged.get(page.id);
-    if (current) {
-      current.score += score;
-      current.relevanceScore = Math.max(current.relevanceScore, item.score);
-      if (!current.matchSources.includes('semantic')) current.matchSources.push('semantic');
-      if (!current.excerpt) current.excerpt = compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts);
-    } else {
-      merged.set(page.id, {
-        page,
-        excerpt: compactExcerpt(item.excerpt, input.q, settings.excerptLength, settings.showExcerpts),
-        score,
-        relevanceScore: item.score,
-        matchSources: ['semantic'],
-      });
-    }
-  }
-  const items = [...merged.values()]
-    .filter((item) => item.relevanceScore >= settings.minRelevanceScore)
-    .sort((a, b) => b.relevanceScore - a.relevanceScore || a.page.path.localeCompare(b.page.path))
-    .slice(0, input.limit);
+
+  const degradedSemantic = !record && settingsSnapshot.semantic;
+  const semanticState = degradedSemantic ? 'unavailable' : result.semanticState;
+  const engineStates = degradedSemantic
+    ? result.engineStates.map((state) => (state.capability === 'semantic' ? { ...state, state: 'unavailable' as const } : state))
+    : result.engineStates;
+
   if (record) {
     try {
       await searchAnalytics.updateSearchRecord(record.id, {
-        keywordResultCount: keyword.items.length,
-        semanticResultCount: visibleSemanticResultCount,
-        resultCount: items.length,
+        keywordResultCount: result.keywordReadableCount,
+        semanticResultCount: result.semanticReadableCount,
+        resultCount: result.items.length,
         semanticState,
-        semanticActionId: record.semanticActionId,
+        semanticActionId: result.semanticContinuationRef,
       });
     } catch (error) {
       console.error('Failed to update hybrid search analytics:', error);
     }
   }
-  return { searchRecordId: record?.id ?? input.searchRecordId, semanticState, items };
+
+  return {
+    searchRecordId: record?.id ?? input.searchRecordId,
+    semanticState,
+    engineStates,
+    items: result.items.map(({ field: _field, ...item }) => item),
+  };
 }
 
 export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Promise<PublicPageTreeResponse> {

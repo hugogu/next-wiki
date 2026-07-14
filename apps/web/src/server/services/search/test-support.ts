@@ -1,3 +1,6 @@
+import { like, or } from 'drizzle-orm';
+import { db } from '@/server/db';
+import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
@@ -32,7 +35,25 @@ export const CHINESE_FRAGMENT = '支付对账';
 export const CHINESE_NEAR_MATCH = '支付对帐';
 export const HIDDEN_TOKEN = 'CONFIDENTIALSEARCHTOKEN';
 
+/**
+ * Soft-deletes corpora left behind by earlier tests and runs. The test
+ * database persists between invocations, and identical fixture content from
+ * a previous corpus would otherwise tie with (and outrank, by path order)
+ * the current corpus in similarity-ordered assertions.
+ */
+async function retireEarlierCorpora(): Promise<void> {
+  await db.update(schema.pages)
+    .set({ deletedAt: new Date() })
+    .where(or(
+      like(schema.pages.path, '%/search-architecture'),
+      like(schema.pages.path, '%/cross-border-reconciliation'),
+      like(schema.pages.path, '%/sign-in-protection'),
+      like(schema.pages.path, '%/secret-plan'),
+    ));
+}
+
 export async function createSearchFixtureCorpus(prefix: string): Promise<SearchFixtureCorpus> {
+  await retireEarlierCorpora();
   const editor = await createPublicApiUser(`${prefix}-editor@example.com`, 'editor');
   const reader = await createPublicApiUser(`${prefix}-reader@example.com`, 'reader');
   const editorCtx = buildUserCtx(editor.id, 'editor');

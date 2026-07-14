@@ -14,7 +14,14 @@ export {
   type SearchEngineOutcome,
   type SearchEngineQuery,
 } from './types';
-export { createSearchEngineRegistry, type SearchEngineRegistry } from './registry';
+export { createSearchEngineRegistry, productionSearchEngineRegistry, type SearchEngineRegistry } from './registry';
+export {
+  runCoordinatedSearch,
+  type CoordinatedResultItem,
+  type CoordinatedSearchInput,
+  type CoordinatedSearchSnapshot,
+} from './coordinator';
+export { fuseCandidates, compareFusedCandidates, exactMatchTier, RRF_K, type EngineContribution, type FusedCandidate } from './ranking';
 export {
   buildExcerpt,
   compactExcerpt,

@@ -1,4 +1,7 @@
 import type { SearchCapabilityId } from '@next-wiki/shared';
+import { createSemanticEngine } from './engines/pgvector-semantic';
+import { createFuzzyEngine } from './engines/postgres-trigram';
+import { createFullTextEngine } from './engines/postgres-tsvector';
 import type { SearchEngine } from './types';
 
 /**
@@ -18,4 +21,21 @@ export function createSearchEngineRegistry(engines: readonly SearchEngine[]): Se
     registry.set(engine.capability, engine);
   }
   return registry;
+}
+
+let productionRegistry: SearchEngineRegistry | null = null;
+
+/**
+ * The one static registration of the current adapters:
+ * `full_text` → PostgreSQL tsvector, `fuzzy` → PostgreSQL pg_trgm,
+ * `semantic` → pgvector behind the existing AI-action lifecycle.
+ * Replacing an implementation means changing exactly this list.
+ */
+export function productionSearchEngineRegistry(): SearchEngineRegistry {
+  productionRegistry ??= createSearchEngineRegistry([
+    createFullTextEngine(),
+    createFuzzyEngine(),
+    createSemanticEngine(),
+  ]);
+  return productionRegistry;
 }

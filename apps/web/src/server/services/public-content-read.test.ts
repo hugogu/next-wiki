@@ -14,7 +14,20 @@ const searchAnalytics = vi.hoisted(() => ({
   getOrCreateSearchRecord: vi.fn(),
   getOwnedSearchRecord: vi.fn(),
   updateSearchRecord: vi.fn(),
+  ensureEngineRuns: vi.fn(),
+  getEngineRuns: vi.fn(),
+  updateEngineRun: vi.fn(),
 }));
+
+const ALL_CAPABILITIES = { full_text: true, fuzzy: true, semantic: true };
+
+function pendingRuns(semanticContinuationRef: string | null = null) {
+  return [
+    { capabilityId: 'full_text', state: 'pending', continuationRef: null },
+    { capabilityId: 'fuzzy', state: 'pending', continuationRef: null },
+    { capabilityId: 'semantic', state: 'pending', continuationRef: semanticContinuationRef },
+  ];
+}
 
 vi.mock('@/server/services/public-ai', () => semanticSearch);
 vi.mock('@/server/services/search-analytics', () => searchAnalytics);
@@ -378,22 +391,24 @@ describe('public content read facade', () => {
     });
     await revisions.publish(editorCtx, { path: 'docs/hybrid-keyword', version: 1 });
     const semantic = await pageService.create(editorCtx, {
-      path: 'docs/hybrid-semantic', title: 'Semantic', contentSource: 'related document',
+      path: 'docs/conceptual-note', title: 'Semantic', contentSource: 'related document',
     });
-    await revisions.publish(editorCtx, { path: 'docs/hybrid-semantic', version: 1 });
+    await revisions.publish(editorCtx, { path: 'docs/conceptual-note', version: 1 });
     const hidden = await pageService.create(editorCtx, {
       path: 'docs/hybrid-hidden', title: 'Hidden semantic', contentSource: 'private semantic source',
     });
 
     searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111', semanticState: 'pending', semanticActionId: 'action-1',
+      capabilitySnapshot: ALL_CAPABILITIES,
     });
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns('action-1'));
     semanticSearch.getSemanticSearchResults.mockResolvedValue({
       status: 'succeeded',
       items: [
-        { pageId: semantic.pageId, excerpt: 'semantic-only excerpt', score: 0.86 },
-        { pageId: keyword.pageId, excerpt: 'semantic duplicate excerpt', score: 0.84 },
-        { pageId: hidden.pageId, excerpt: 'hidden semantic excerpt', score: 0.9 },
+        { pageId: semantic.pageId, excerpt: 'semantic-only excerpt', score: 0.86, citations: [] },
+        { pageId: keyword.pageId, excerpt: 'semantic duplicate excerpt', score: 0.84, citations: [] },
+        { pageId: hidden.pageId, excerpt: 'hidden semantic excerpt', score: 0.9, citations: [] },
       ],
     });
 
@@ -403,17 +418,75 @@ describe('public content read facade', () => {
     });
 
     expect(result.semanticState).toBe('ready');
-    expect(result.items.map((item) => item.page.id)).toEqual([semantic.pageId, keyword.pageId]);
+    // The exact-term keyword match is deterministically protected over the
+    // approximate semantic-only candidate (FR-007); each page appears once.
+    expect(result.items.map((item) => item.page.id)).toEqual([keyword.pageId, semantic.pageId]);
     expect(result.items[0]).toMatchObject({
-      excerpt: 'semantic-only excerpt', relevanceScore: 0.86, matchSources: ['semantic'],
+      excerpt: expect.stringContaining('hybridtoken'), relevanceScore: 0.84,
+      matchSources: ['keyword', 'semantic'],
+      engineSources: ['full_text', 'fuzzy', 'semantic'],
     });
     expect(result.items[1]).toMatchObject({
-      excerpt: expect.stringContaining('hybridtoken'), relevanceScore: 0.84, matchSources: ['keyword', 'semantic'],
+      excerpt: 'semantic-only excerpt', relevanceScore: 0.86, matchSources: ['semantic'],
+      engineSources: ['semantic'],
     });
+    expect(result.engineStates).toEqual([
+      { capability: 'full_text', state: 'ready', resultCount: 1 },
+      { capability: 'fuzzy', state: 'ready', resultCount: 1 },
+      { capability: 'semantic', state: 'ready', resultCount: 2 },
+    ]);
     expect(JSON.stringify(result)).not.toContain('hidden semantic excerpt');
     expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-      semanticResultCount: 2, resultCount: 2, semanticState: 'ready',
+      keywordResultCount: 1, semanticResultCount: 2, resultCount: 2, semanticState: 'ready',
     }));
+  });
+
+  it('returns lexical results immediately with semantic pending, then merges on the idempotent retry (US2)', async () => {
+    const editor = await createPublicApiUser('public-hybrid-progressive-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-hybrid-progressive-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    const lexical = await pageService.create(editorCtx, {
+      path: 'docs/progressive-lexical', title: 'Progressive', contentSource: 'progressivetoken lexical body',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/progressive-lexical', version: 1 });
+    const conceptual = await pageService.create(editorCtx, {
+      path: 'docs/unrelated-note', title: 'Conceptual', contentSource: 'entirely different words',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/unrelated-note', version: 1 });
+
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+      capabilitySnapshot: ALL_CAPABILITIES,
+    });
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns(null));
+    semanticSearch.submitSemanticSearch.mockResolvedValue({ id: 'action-progressive' });
+
+    const input = {
+      kind: 'query' as const, searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'progressivetoken', limit: 20,
+    };
+    const first = await publicContent.hybridSearchPages(readerCtx, input);
+
+    expect(first.semanticState).toBe('pending');
+    expect(first.items.map((item) => item.page.id)).toEqual([lexical.pageId]);
+    expect(first.engineStates).toContainEqual({ capability: 'semantic', state: 'pending', resultCount: 0 });
+    expect(searchAnalytics.updateEngineRun).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111', 'semantic',
+      expect.objectContaining({ state: 'pending', continuationRef: 'action-progressive' }),
+    );
+
+    // The retry resumes the persisted continuation and returns one merged snapshot.
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns('action-progressive'));
+    semanticSearch.getSemanticSearchResults.mockResolvedValue({
+      status: 'succeeded',
+      items: [{ pageId: conceptual.pageId, excerpt: 'late semantic excerpt', score: 0.88, citations: [] }],
+    });
+
+    const second = await publicContent.hybridSearchPages(readerCtx, input);
+    expect(second.semanticState).toBe('ready');
+    expect(second.items.map((item) => item.page.id)).toEqual([lexical.pageId, conceptual.pageId]);
+    expect(semanticSearch.getSemanticSearchResults).toHaveBeenCalledWith(expect.anything(), 'action-progressive');
   });
 
   it('honors header search settings for semantic enablement, relevance threshold, and excerpts', async () => {
@@ -439,7 +512,9 @@ describe('public content read facade', () => {
 
     searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+      capabilitySnapshot: { full_text: true, fuzzy: true, semantic: false },
     });
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns(null).filter((run) => run.capabilityId !== 'semantic'));
 
     const result = await publicContent.hybridSearchPages(readerCtx, {
       kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
@@ -448,6 +523,7 @@ describe('public content read facade', () => {
 
     expect(result.semanticState).toBe('skipped');
     expect(semanticSearch.submitSemanticSearch).not.toHaveBeenCalled();
+    expect(result.engineStates).toContainEqual({ capability: 'semantic', state: 'skipped', resultCount: 0 });
     expect(result.items.map((item) => item.page.path)).toEqual(['settings-high']);
     expect(result.items[0]).toMatchObject({ excerpt: null, relevanceScore: 0.95 });
   });
@@ -458,7 +534,9 @@ describe('public content read facade', () => {
 
     searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+      capabilitySnapshot: ALL_CAPABILITIES,
     });
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns(null));
     semanticSearch.submitSemanticSearch.mockRejectedValueOnce(new Error('semantic unavailable'));
 
     const result = await publicContent.hybridSearchPages(readerCtx, {
@@ -469,6 +547,11 @@ describe('public content read facade', () => {
     expect(result).toEqual({
       searchRecordId: '11111111-1111-4111-8111-111111111111',
       semanticState: 'unavailable',
+      engineStates: [
+        { capability: 'full_text', state: 'ready', resultCount: 0 },
+        { capability: 'fuzzy', state: 'ready', resultCount: 0 },
+        { capability: 'semantic', state: 'unavailable', resultCount: 0 },
+      ],
       items: [],
     });
     expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
@@ -488,7 +571,9 @@ describe('public content read facade', () => {
 
     searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111', semanticState: 'pending', semanticActionId: 'action-failed',
+      capabilitySnapshot: ALL_CAPABILITIES,
     });
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns('action-failed'));
     semanticSearch.getSemanticSearchResults.mockResolvedValue({
       status: 'failed',
       items: [],
@@ -502,7 +587,8 @@ describe('public content read facade', () => {
 
     expect(result.semanticState).toBe('failed');
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ matchSources: ['keyword'] });
+    expect(result.items[0]).toMatchObject({ matchSources: ['keyword'], engineSources: ['full_text', 'fuzzy'] });
+    expect(result.engineStates).toContainEqual({ capability: 'semantic', state: 'failed', resultCount: 0 });
     expect(JSON.stringify(result)).not.toContain('PROVIDER_ERROR');
     expect(searchAnalytics.updateSearchRecord).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       keywordResultCount: 1, semanticResultCount: 0, resultCount: 1, semanticState: 'failed',
