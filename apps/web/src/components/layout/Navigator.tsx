@@ -4,7 +4,26 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { PublicPageTreeNode } from '@next-wiki/shared';
-import { ChevronRightIcon, FileTextIcon, FolderIcon, XIcon, UsersIcon, ClipboardListIcon, UserIcon, LockIcon, KeyIcon, DatabaseIcon, ArrowUpDownIcon, SettingsIcon, SlidersIcon, EyeIcon, SparklesIcon, SearchIcon, TagIcon, PlusIcon } from '@/components/icons';
+import {
+  ChevronRightIcon,
+  FileTextIcon,
+  FolderIcon,
+  XIcon,
+  UsersIcon,
+  ClipboardListIcon,
+  UserIcon,
+  LockIcon,
+  KeyIcon,
+  DatabaseIcon,
+  ArrowUpDownIcon,
+  SettingsIcon,
+  SlidersIcon,
+  EyeIcon,
+  SparklesIcon,
+  SearchIcon,
+  TagIcon,
+  PlusIcon,
+} from '@/components/icons';
 import { getPageHref, leafTitleFromPath } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
@@ -113,11 +132,7 @@ function TreeItem({
   // Children we can render right now: pre-expanded ones from SSR, or ones
   // the client has loaded lazily. Otherwise `node.children` stays empty.
   const visibleChildren =
-    node.children.length > 0
-      ? node.children
-      : loadState.status === 'ok'
-        ? loadState.children
-        : [];
+    node.children.length > 0 ? node.children : loadState.status === 'ok' ? loadState.children : [];
   const hasVisibleChildren = visibleChildren.length > 0;
   const indent = { paddingLeft: `${depth * 0.6 + 0.25}rem` };
 
@@ -148,7 +163,9 @@ function TreeItem({
             aria-expanded={isOpen}
             title={node.segment}
           >
-            <ChevronRightIcon className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+            <ChevronRightIcon
+              className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+            />
             <FolderIcon className="h-4 w-4 shrink-0" />
             <span className="truncate">{node.segment}</span>
           </button>
@@ -236,37 +253,102 @@ export function Navigator({
     {
       label: t('admin.nav.groups.content'),
       items: [
-        { href: '/admin/pages', label: t('admin.nav.pages'), icon: <FileTextIcon className="shrink-0" /> },
+        {
+          href: '/admin/pages',
+          label: t('admin.nav.pages'),
+          icon: <FileTextIcon className="shrink-0" />,
+        },
         { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
-        { href: '/admin/search', label: t('admin.nav.search'), icon: <SearchIcon className="shrink-0" /> },
-        { href: '/admin/translations', label: t('admin.nav.translations'), icon: <SparklesIcon className="shrink-0" /> },
+        {
+          href: '/admin/search',
+          label: t('admin.nav.search'),
+          icon: <SearchIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/translations',
+          label: t('admin.nav.translations'),
+          icon: <SparklesIcon className="shrink-0" />,
+        },
       ],
     },
     {
       label: t('admin.nav.groups.system'),
       items: [
-        { href: '/admin/site', label: t('admin.nav.site'), icon: <SettingsIcon className="shrink-0" /> },
-        { href: '/admin/appearance', label: t('admin.nav.appearance'), icon: <SlidersIcon className="shrink-0" /> },
-        { href: '/admin/ai', label: t('admin.nav.ai'), icon: <SparklesIcon className="shrink-0" /> },
-        { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
+        {
+          href: '/admin/site',
+          label: t('admin.nav.site'),
+          icon: <SettingsIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/appearance',
+          label: t('admin.nav.appearance'),
+          icon: <SlidersIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/ai',
+          label: t('admin.nav.ai'),
+          icon: <SparklesIcon className="shrink-0" />,
+        },
+        { href: '/admin/feishu', label: 'Feishu', icon: <SparklesIcon className="shrink-0" /> },
+        {
+          href: '/admin/users',
+          label: t('admin.nav.users'),
+          icon: <UsersIcon className="shrink-0" />,
+        },
       ],
     },
     {
       label: t('admin.nav.groups.operations'),
       items: [
-        { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
-        { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },
-        { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <ClipboardListIcon className="shrink-0" /> },
+        {
+          href: '/admin/storage',
+          label: t('admin.nav.storage'),
+          icon: <DatabaseIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/transfers',
+          label: t('admin.nav.transfers'),
+          icon: <ArrowUpDownIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/api-audit',
+          label: t('admin.nav.apiAudit'),
+          icon: <ClipboardListIcon className="shrink-0" />,
+        },
       ],
     },
   ];
   const USER_CENTER_ITEMS: AdminNavItem[] = [
-    { href: '/user-center/profile', label: t('userCenter.nav.profile'), icon: <UserIcon className="shrink-0" /> },
-    { href: '/user-center/password', label: t('userCenter.nav.password'), icon: <LockIcon className="shrink-0" /> },
-    { href: '/user-center/api-keys', label: t('userCenter.nav.apiKeys'), icon: <KeyIcon className="shrink-0" /> },
-    { href: '/user-center/reading-theme', label: t('userCenter.nav.readingTheme'), icon: <EyeIcon className="shrink-0" /> },
-    { href: '/user-center/ai-sessions', label: t('userCenter.nav.aiSessions'), icon: <SparklesIcon className="shrink-0" /> },
-    { href: '/user-center/audit', label: t('userCenter.nav.audit'), icon: <ClipboardListIcon className="shrink-0" /> },
+    {
+      href: '/user-center/profile',
+      label: t('userCenter.nav.profile'),
+      icon: <UserIcon className="shrink-0" />,
+    },
+    {
+      href: '/user-center/password',
+      label: t('userCenter.nav.password'),
+      icon: <LockIcon className="shrink-0" />,
+    },
+    {
+      href: '/user-center/api-keys',
+      label: t('userCenter.nav.apiKeys'),
+      icon: <KeyIcon className="shrink-0" />,
+    },
+    {
+      href: '/user-center/reading-theme',
+      label: t('userCenter.nav.readingTheme'),
+      icon: <EyeIcon className="shrink-0" />,
+    },
+    {
+      href: '/user-center/ai-sessions',
+      label: t('userCenter.nav.aiSessions'),
+      icon: <SparklesIcon className="shrink-0" />,
+    },
+    {
+      href: '/user-center/audit',
+      label: t('userCenter.nav.audit'),
+      icon: <ClipboardListIcon className="shrink-0" />,
+    },
   ];
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(ancestorPaths(currentPath)));
   const [branchCache, setBranchCache] = useState<Record<string, LazyPublicPageTreeNode[]>>({});
@@ -307,35 +389,41 @@ export function Navigator({
     });
   };
 
-  const loadBranch = useCallback((path: string) => {
-    if (branchCache[path] || inflight.current.has(path)) return;
-    inflight.current.add(path);
-    setBranchLoad((prev) => ({ ...prev, [path]: 'loading' }));
-    fetchBranchChildren(path)
-      .then((children) => {
-        setBranchCache((prev) => ({ ...prev, [path]: children }));
-        setBranchLoad((prev) => {
-          const next = { ...prev };
-          delete next[path];
-          return next;
+  const loadBranch = useCallback(
+    (path: string) => {
+      if (branchCache[path] || inflight.current.has(path)) return;
+      inflight.current.add(path);
+      setBranchLoad((prev) => ({ ...prev, [path]: 'loading' }));
+      fetchBranchChildren(path)
+        .then((children) => {
+          setBranchCache((prev) => ({ ...prev, [path]: children }));
+          setBranchLoad((prev) => {
+            const next = { ...prev };
+            delete next[path];
+            return next;
+          });
+        })
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'load failed';
+          setBranchLoad((prev) => ({ ...prev, [path]: 'error' }));
+          // Surface the underlying message in the console for debugging without
+          // breaking the UI; the chevron retry button keeps the sidebar usable.
+          console.error('[Navigator] branch load failed', path, message);
+        })
+        .finally(() => {
+          inflight.current.delete(path);
         });
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'load failed';
-        setBranchLoad((prev) => ({ ...prev, [path]: 'error' }));
-        // Surface the underlying message in the console for debugging without
-        // breaking the UI; the chevron retry button keeps the sidebar usable.
-        console.error('[Navigator] branch load failed', path, message);
-      })
-      .finally(() => {
-        inflight.current.delete(path);
-      });
-  }, [branchCache]);
+    },
+    [branchCache],
+  );
 
   // Whenever a new branch is expanded for the first time, fire a fetch.
   // Collapsing does not drop the cache so re-expanding is instant.
   useEffect(() => {
-    function findNode(nodes: LazyPublicPageTreeNode[], target: string): LazyPublicPageTreeNode | undefined {
+    function findNode(
+      nodes: LazyPublicPageTreeNode[],
+      target: string,
+    ): LazyPublicPageTreeNode | undefined {
       for (const node of nodes) {
         if (node.path === target) return node;
         const found = findNode(node.children, target);
@@ -346,7 +434,12 @@ export function Navigator({
     for (const path of expanded) {
       const node = findNode(tree, path);
       if (!node) continue;
-      if (node.hasChildren && node.children.length === 0 && !branchCache[path] && !branchLoad[path]) {
+      if (
+        node.hasChildren &&
+        node.children.length === 0 &&
+        !branchCache[path] &&
+        !branchLoad[path]
+      ) {
         loadBranch(path);
       }
     }
@@ -384,7 +477,13 @@ export function Navigator({
         style={{ top: 'var(--header-height)' }}
       >
         <div className="flex items-center justify-between p-md border-b border-border lg:hidden">
-          <span className="font-display font-semibold text-lg">{admin ? t('layout.nav.adminTitle') : userCenter ? t('userCenter.title') : t('layout.nav.pagesTitle')}</span>
+          <span className="font-display font-semibold text-lg">
+            {admin
+              ? t('layout.nav.adminTitle')
+              : userCenter
+                ? t('userCenter.title')
+                : t('layout.nav.pagesTitle')}
+          </span>
           <button
             type="button"
             onClick={onClose}
@@ -397,13 +496,17 @@ export function Navigator({
 
         <nav
           ref={scrollRef}
-          onScroll={(event) => sessionStorage.setItem(NAV_SCROLL_KEY, String(event.currentTarget.scrollTop))}
+          onScroll={(event) =>
+            sessionStorage.setItem(NAV_SCROLL_KEY, String(event.currentTarget.scrollTop))
+          }
           className="flex-1 overflow-y-auto p-sm"
         >
           {userCenter ? (
             <ul className="space-y-xs">
               {USER_CENTER_ITEMS.map((item) => {
-                const active = pathname === item.href || (item.href === '/admin/ai' && pathname.startsWith('/admin/ai/'));
+                const active =
+                  pathname === item.href ||
+                  (item.href === '/admin/ai' && pathname.startsWith('/admin/ai/'));
                 return (
                   <li key={item.href}>
                     <Link
