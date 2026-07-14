@@ -13,7 +13,22 @@ describe('revision diff URLs', () => {
 
   it('uses documented defaults for malformed options', () => {
     expect(parseRevisionDiffOptions(new URLSearchParams('view=other&context=-1&sync=0'))).toEqual({
-      view: 'source', context: 3, ignoreWhitespace: false, sync: false,
+      view: 'source',
+      context: 3,
+      ignoreWhitespace: false,
+      sync: false,
     });
+  });
+
+  it('rejects single-version values and serializes non-default options', () => {
+    expect(parseRevisionPair('8')).toBeNull();
+    expect(
+      getRevisionDiffHref('guide/one', 3, 8, {
+        view: 'preview',
+        context: 'full',
+        ignoreWhitespace: true,
+        sync: false,
+      }),
+    ).toBe('/revisions/3..8/guide/one?view=preview&context=full&ignoreWhitespace=1&sync=0');
   });
 });

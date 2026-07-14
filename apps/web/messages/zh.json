@@ -236,7 +236,7 @@
         "notFound": "版本不存在"
       }
     },
-    "diff": { "heading": "版本比较", "comparing": "比较 v{earlier} 与 v{later}", "source": "源文档", "preview": "预览", "context": "上下文", "fullContext": "完整上下文", "ignoreWhitespace": "忽略空白字符", "syncScroll": "同步滚动" },
+    "diff": { "heading": "版本比较", "comparing": "比较 v{earlier} 与 v{later}", "source": "源文档", "preview": "预览", "context": "上下文", "fullContext": "完整上下文", "ignoreWhitespace": "忽略空白字符", "syncScroll": "同步滚动", "noChanges": "没有可显示的差异。" },
     "publish": {
       "button": {
         "submit": "发布此版本",

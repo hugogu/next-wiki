@@ -144,6 +144,7 @@ export const translationKeys = [
   "page.diff.fullContext",
   "page.diff.ignoreWhitespace",
   "page.diff.syncScroll",
+  "page.diff.noChanges",
   "page.publish.button.submit",
   "page.publish.button.submitting",
   "page.publish.error.forbidden",

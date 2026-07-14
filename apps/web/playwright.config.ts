@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const WEB_PORT = process.env.WEB_PORT || '3001';
 const E2E_DATABASE_URL =
-  process.env.E2E_DATABASE_URL || 'postgresql://wiki:wiki@localhost:15433/wiki_e2e_test';
+  process.env.E2E_DATABASE_URL || 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_e2e_test';
 
 /**
  * Playwright configuration for the no-SPA navigation contract and role/publish
