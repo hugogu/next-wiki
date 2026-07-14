@@ -4,7 +4,8 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { logger } from '@/server/logger';
 import { getFeishuTransport } from '@/server/feishu/transport';
-import type { FeishuTransport } from '@/server/feishu/transport-types';
+import type { FeishuTransport, OutboundMessage } from '@/server/feishu/transport-types';
+import { buildFeishuAnswerCard } from '@/server/feishu/answer-card';
 import { feishuCopy } from '@/server/feishu/copy';
 import {
   createPendingAnswerDeliveries,
@@ -123,12 +124,12 @@ async function scheduleRetryOrFail(row: DeliveryRow, error: string, now: Date): 
     .where(eq(schema.feishuNotificationDeliveries.id, row.id));
 }
 
-/** Render the answer text for a delivery from its terminal action state. */
-async function renderAnswerText(actionId: string): Promise<string> {
+/** Render an answer card for a delivery from its terminal action state. */
+async function renderAnswer(actionId: string): Promise<Pick<OutboundMessage, 'card' | 'text'>> {
   const answer = await reconstructAnswer(actionId);
-  if (answer.status === 'insufficient_evidence') return feishuCopy.insufficientEvidence();
-  if (answer.status === 'unavailable' || !answer.text) return feishuCopy.unavailable();
-  return feishuCopy.answer(answer.text, answer.citations);
+  if (answer.status === 'insufficient_evidence') return { text: feishuCopy.insufficientEvidence() };
+  if (answer.status === 'unavailable' || !answer.text) return { text: feishuCopy.unavailable() };
+  return { card: buildFeishuAnswerCard(answer.text, answer.citations) };
 }
 
 async function processDelivery(
@@ -160,10 +161,10 @@ async function processDelivery(
   }
 
   try {
-    const text = await renderAnswerText(row.aiActionId);
+    const message = await renderAnswer(row.aiActionId);
     await transport.sendMessage({
       target: { type: 'direct', openId },
-      text,
+      ...message,
       requestUuid: row.id, // deterministic idempotency key
     });
     await markDelivered(row.id, now);

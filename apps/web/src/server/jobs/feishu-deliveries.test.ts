@@ -109,7 +109,7 @@ describe('feishu answer delivery worker', () => {
     expect(rows[0]!.aiActionId).toBe(action.id);
   });
 
-  it('sends a grounded answer with citation links direct to the asker', async () => {
+  it('sends a grounded answer card with citation links direct to the asker', async () => {
     const user = await makeUser('deliv-b@example.com');
     const binding = await makeBinding(user.id, 'ou_b');
     const action = await makeCompletedQuestion(user.id, { answer: 'Reset it here.' });
@@ -120,9 +120,24 @@ describe('feishu answer delivery worker', () => {
 
     expect(transport.sent).toHaveLength(1);
     expect(transport.sent[0]?.target).toEqual({ type: 'direct', openId: 'ou_b' });
-    expect(transport.sent[0]?.text).toContain('Reset it here.');
-    // The citation link is included (FR-007).
-    expect(transport.sent[0]?.text).toContain('/settings/api-keys');
+    expect(transport.sent[0]?.card).toEqual(
+      expect.objectContaining({
+        elements: expect.arrayContaining([
+          expect.objectContaining({
+            text: expect.objectContaining({
+              tag: 'lark_md',
+              content: expect.stringContaining('Reset it here.'),
+            }),
+          }),
+          expect.objectContaining({
+            text: expect.objectContaining({
+              tag: 'lark_md',
+              content: expect.stringContaining('/settings/api-keys'),
+            }),
+          }),
+        ]),
+      }),
+    );
     expect(transport.sent[0]?.requestUuid).toBeTruthy();
 
     const [row] = await db.select().from(schema.feishuNotificationDeliveries);
@@ -144,7 +159,7 @@ describe('feishu answer delivery worker', () => {
     await runFeishuDeliveries(new Date(), transport);
 
     expect(transport.sent).toHaveLength(2);
-    expect(transport.sent.map((message) => message.text)).toEqual(
+    expect(transport.sent.map((message) => JSON.stringify(message.card))).toEqual(
       expect.arrayContaining([
         expect.stringContaining('First answer.'),
         expect.stringContaining('Second answer.'),

@@ -44,12 +44,6 @@ export const feishuCopy = {
       '没有找到你有权限查看的相关内容。 / I could not find any material you have access to for that.'
     );
   },
-  /** Render a grounded answer with its source links appended. */
-  answer(text: string, citations: { title: string; url: string }[]): string {
-    if (citations.length === 0) return text;
-    const sources = citations.map((c) => `- ${c.title}: ${c.url}`).join('\n');
-    return `${text}\n\n来源 / Sources:\n${sources}`;
-  },
   /** Welcome shown right after a successful binding confirmation (web page). */
   bindWelcome(displayName: string | null): string {
     const name = displayName ?? '';
