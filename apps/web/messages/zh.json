@@ -839,6 +839,7 @@
       "title": "访问日志",
       "user": "用户",
       "keyName": "密钥",
+      "origin": "来源",
       "method": "方法",
       "path": "路径",
       "status": "状态",

@@ -31,6 +31,8 @@ import { runPageMetadataBackfill } from './page-metadata-backfill';
 import { runTranslationRun } from './translation';
 import { findRecoverableTranslationRunIds } from '@/server/services/translations';
 import { runPublicPageWarmup } from './public-page-warmup';
+import { runFeishuDeliveries, recoverStaleFeishuDeliveries } from './feishu-deliveries';
+import { runFeishuCleanup } from './feishu-cleanup';
 
 type JobBatch = { data: unknown }[];
 
@@ -128,10 +130,21 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.translation, async (jobs: JobBatch) => {
     for (const job of jobs) await runTranslationRun((job.data as { runId: string }).runId);
   });
+  // Optional Feishu integration (019). The delivery worker ticks every minute to
+  // pick up due outbound messages; cleanup runs hourly. Both no-op quickly when
+  // the integration is unconfigured, so they add no load to a default deployment.
+  await boss.work(QUEUES.feishuDelivery, async () => {
+    await runFeishuDeliveries();
+  });
+  await boss.work(QUEUES.feishuCleanup, async () => {
+    await runFeishuCleanup();
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
   await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});
   await boss.schedule(QUEUES.transferCleanup, '15 * * * *', {});
+  await boss.schedule(QUEUES.feishuDelivery, '* * * * *', {});
+  await boss.schedule(QUEUES.feishuCleanup, '30 * * * *', {});
 
   const pendingReplication = await db
     .select({ id: schema.storageReplicationTasks.id })
@@ -177,6 +190,13 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   for (const runId of await findRecoverableTranslationRunIds()) {
     await boss.send(QUEUES.translation, { runId });
     logger.info('re-enqueued interrupted translation run', { runId });
+  }
+  // Recover Feishu deliveries left claimed by a worker that died mid-send, then
+  // kick a delivery tick if any are due (FR-021/SC-005 restart recovery).
+  const recoveredFeishu = await recoverStaleFeishuDeliveries();
+  if (recoveredFeishu > 0) {
+    logger.info('recovered stale feishu deliveries', { count: recoveredFeishu });
+    await boss.send(QUEUES.feishuDelivery, {});
   }
   const metadataBackfill = await runPageMetadataBackfill();
   if (metadataBackfill.scanned > 0) {

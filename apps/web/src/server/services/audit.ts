@@ -3,7 +3,13 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { can, type PermCtx } from '@/server/permissions';
-import type { AuditQueryParams, AuditListResponse, AuthStatus, AuditEntryType } from '@next-wiki/shared';
+import type {
+  AuditQueryParams,
+  AuditListResponse,
+  AuthStatus,
+  AuditEntryType,
+  AuditOrigin,
+} from '@next-wiki/shared';
 
 export type AuditEntryInput = {
   keyId: string | null;
@@ -17,6 +23,10 @@ export type AuditEntryInput = {
   errorMessage: string | null;
   /** Source IP; optional so existing callers/tests need not supply it. */
   ip?: string | null;
+  /** Source channel (019). Defaults to `web` when omitted. */
+  origin?: AuditOrigin;
+  /** Non-secret Feishu correlation id; never a raw prompt/answer/secret. */
+  externalCorrelationId?: string | null;
 };
 
 /**
@@ -39,6 +49,8 @@ export async function writeEntry(input: AuditEntryInput): Promise<void> {
     keyId: input.keyId,
     userId: input.userId,
     entryType: input.entryType,
+    origin: input.origin ?? 'web',
+    externalCorrelationId: input.externalCorrelationId ?? null,
     method: input.method,
     path: input.path,
     statusCode: input.statusCode,
@@ -68,6 +80,8 @@ function mapEntry(row: {
   keyId: string | null;
   userId: string | null;
   entryType: string;
+  origin: string;
+  externalCorrelationId: string | null;
   method: string;
   path: string;
   statusCode: number;
@@ -86,6 +100,8 @@ function mapEntry(row: {
     userId: row.userId,
     userEmail: row.user?.email ?? null,
     entryType: row.entryType as AuditEntryType,
+    origin: row.origin as AuditOrigin,
+    externalCorrelationId: row.externalCorrelationId,
     method: row.method,
     path: row.path,
     statusCode: row.statusCode,
@@ -152,6 +168,7 @@ export async function listAll(
   if (params.startTime) conditions.push(gte(schema.apiAuditEntries.createdAt, params.startTime));
   if (params.endTime) conditions.push(lte(schema.apiAuditEntries.createdAt, params.endTime));
   if (params.entryType) conditions.push(eq(schema.apiAuditEntries.entryType, params.entryType));
+  if (params.origin) conditions.push(eq(schema.apiAuditEntries.origin, params.origin));
 
   const statusFilter = mapStatusFilter(params.status);
   if (statusFilter) conditions.push(statusFilter);

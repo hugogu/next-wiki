@@ -297,3 +297,53 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
   'estimated',
   'unavailable',
 ]);
+
+// ---- Feishu integration (019) ---------------------------------------------
+
+/** Source channel of an audit entry. Existing rows default to `web`. */
+export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu']);
+
+export const feishuConnectionModeEnum = pgEnum('feishu_connection_mode', ['webhook']);
+
+export const feishuBindingStatusEnum = pgEnum('feishu_binding_status', ['active', 'revoked']);
+
+export const feishuInboxStatusEnum = pgEnum('feishu_inbox_status', [
+  'accepted',
+  'processed',
+  'rejected',
+]);
+
+export const feishuSessionStateEnum = pgEnum('feishu_session_state', [
+  'active',
+  'expired',
+  'reset',
+]);
+
+export const feishuNotificationEventTypeEnum = pgEnum('feishu_notification_event_type', [
+  'page_published',
+  'ai_action_completed',
+  'transfer_completed',
+]);
+
+export const feishuSubscriptionModeEnum = pgEnum('feishu_subscription_mode', [
+  'direct',
+  'public_safe_group',
+  'private_recipients_group',
+]);
+
+export const feishuSubscriptionStatusEnum = pgEnum('feishu_subscription_status', [
+  'active',
+  'paused',
+  'failing',
+  'action_required',
+]);
+
+export const feishuDeliveryStatusEnum = pgEnum('feishu_delivery_status', [
+  'queued',
+  'running',
+  'delivered',
+  'retry',
+  'failed',
+  'blocked',
+  'expired',
+]);

@@ -13,6 +13,10 @@ export type AuthStatus = z.infer<typeof authStatusSchema>;
 export const auditEntryTypeSchema = z.enum(['api', 'page']);
 export type AuditEntryType = z.infer<typeof auditEntryTypeSchema>;
 
+/** Source channel of an audit entry (019). Existing rows default to `web`. */
+export const auditOriginSchema = z.enum(['web', 'api', 'feishu']);
+export type AuditOrigin = z.infer<typeof auditOriginSchema>;
+
 export const auditEntrySchema = z.object({
   id: z.string(),
   keyId: z.string().nullable(),
@@ -20,6 +24,8 @@ export const auditEntrySchema = z.object({
   userId: z.string().nullable(),
   userEmail: z.string().nullable(),
   entryType: auditEntryTypeSchema,
+  origin: auditOriginSchema,
+  externalCorrelationId: z.string().nullable(),
   method: z.string(),
   path: z.string(),
   statusCode: z.number(),
@@ -42,6 +48,7 @@ export const auditQueryParamsSchema = z.object({
   startTime: z.coerce.date().optional(),
   endTime: z.coerce.date().optional(),
   entryType: auditEntryTypeSchema.optional(),
+  origin: auditOriginSchema.optional(),
 });
 export type AuditQueryParams = z.infer<typeof auditQueryParamsSchema>;
 

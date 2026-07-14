@@ -403,4 +403,58 @@ describe('audit service', () => {
       expect(result.entries.every((e) => new Date(e.createdAt) >= start)).toBe(true);
     });
   });
+
+  describe('origin (feishu)', () => {
+  beforeAll(async () => {
+    await db.delete(schema.apiAuditEntries);
+    await db.delete(schema.users);
+  });
+
+  it('defaults origin to web and records a feishu origin + correlation', async () => {
+    const admin = await createTestUser('audit-origin-admin@example.com', 'admin');
+
+    // Default origin when omitted.
+    await auditService.writeEntry({
+      keyId: null,
+      userId: admin.id,
+      entryType: 'api',
+      method: 'GET',
+      path: '/api/web',
+      statusCode: 200,
+      durationMs: 1,
+      authStatus: 'authenticated',
+      errorMessage: null,
+    });
+    // Explicit feishu origin with an opaque correlation id (no secret/prompt).
+    await auditService.writeEntry({
+      keyId: null,
+      userId: admin.id,
+      entryType: 'api',
+      origin: 'feishu',
+      externalCorrelationId: 'corr-123',
+      method: 'POST',
+      path: '/internal/feishu/question',
+      statusCode: 200,
+      durationMs: 1,
+      authStatus: 'authenticated',
+      errorMessage: null,
+    });
+
+    const all = await auditService.listAll(buildUserCtx(admin.id, 'admin'), { page: 1, pageSize: 20 });
+    const web = all.entries.find((e) => e.path === '/api/web');
+    const feishu = all.entries.find((e) => e.path === '/internal/feishu/question');
+    expect(web!.origin).toBe('web');
+    expect(feishu!.origin).toBe('feishu');
+    expect(feishu!.externalCorrelationId).toBe('corr-123');
+
+    // Filter by origin.
+    const onlyFeishu = await auditService.listAll(buildUserCtx(admin.id, 'admin'), {
+      page: 1,
+      pageSize: 20,
+      origin: 'feishu',
+    });
+    expect(onlyFeishu.entries).toHaveLength(1);
+    expect(onlyFeishu.entries[0]!.origin).toBe('feishu');
+  });
+  });
 });

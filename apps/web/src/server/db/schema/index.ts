@@ -64,6 +64,15 @@ import {
   translationItemStatusEnum,
   translationFreshnessStatusEnum,
   translationUsageSourceEnum,
+  auditOriginEnum,
+  feishuConnectionModeEnum,
+  feishuBindingStatusEnum,
+  feishuInboxStatusEnum,
+  feishuSessionStateEnum,
+  feishuNotificationEventTypeEnum,
+  feishuSubscriptionModeEnum,
+  feishuSubscriptionStatusEnum,
+  feishuDeliveryStatusEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -318,6 +327,12 @@ export const apiAuditEntries = pgTable(
     keyId: uuid('key_id').references(() => apiKeys.id, { onDelete: 'cascade' }),
     userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
     entryType: text('entry_type').notNull().default('api'),
+    // Source channel of the request (019). Existing rows default to `web`; the
+    // audit writer sets this explicitly rather than inferring it from the path.
+    origin: auditOriginEnum('origin').notNull().default('web'),
+    // Non-secret Feishu event/message/action correlation. Never a raw prompt,
+    // answer, secret, or Feishu identity — only a bounded trace value.
+    externalCorrelationId: text('external_correlation_id'),
     method: text('method').notNull(),
     path: text('path').notNull(),
     statusCode: integer('status_code').notNull(),
@@ -335,6 +350,8 @@ export const apiAuditEntries = pgTable(
     keyCreatedIdx: index().on(t.keyId, t.createdAt),
     statusCodeIdx: index().on(t.statusCode),
     entryTypeCreatedIdx: index().on(t.entryType, t.createdAt),
+    originCreatedIdx: index().on(t.origin, t.createdAt),
+    externalCorrelationIdx: index().on(t.externalCorrelationId),
   }),
 );
 
@@ -1427,5 +1444,254 @@ export const pageTranslationStates = pgTable(
     ),
     freshnessIdx: index('page_translation_states_freshness_idx').on(t.freshnessStatus),
     groupIdx: index('page_translation_states_group_idx').on(t.translationGroupId),
+  }),
+);
+
+// ---- Feishu integration (019) ---------------------------------------------
+
+/** Singleton Feishu connection configuration (`id = 'default'`). Secrets are
+ * AES-256-GCM ciphertext only; an unconfigured deployment stays usable. */
+export const feishuIntegrationConfig = pgTable('feishu_integration_config', {
+  id: text('id').primaryKey(),
+  appId: text('app_id'),
+  appSecretEncrypted: text('app_secret_encrypted'),
+  encryptKeyEncrypted: text('encrypt_key_encrypted'),
+  verificationTokenEncrypted: text('verification_token_encrypted'),
+  enabled: boolean('enabled').notNull().default(false),
+  connectionMode: feishuConnectionModeEnum('connection_mode').notNull().default('webhook'),
+  userRateLimitPerMinute: integer('user_rate_limit_per_minute').notNull().default(10),
+  chatRateLimitPerMinute: integer('chat_rate_limit_per_minute').notNull().default(30),
+  notificationRetentionHours: integer('notification_retention_hours').notNull().default(72),
+  lastConnectedAt: timestamp('last_connected_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** A confirmed link between a Feishu identity and a Wiki user. */
+export const feishuBindings = pgTable(
+  'feishu_bindings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    openId: text('open_id').notNull(),
+    unionId: text('union_id'),
+    displayName: text('display_name'),
+    status: feishuBindingStatusEnum('status').notNull().default('active'),
+    boundAt: timestamp('bound_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revocationReason: text('revocation_reason'),
+  },
+  (t) => ({
+    // At most one active binding per Feishu identity; revoked rows are retained.
+    activeOpenIdUnique: uniqueIndex('feishu_bindings_active_open_id')
+      .on(t.openId)
+      .where(sql`${t.status} = 'active'`),
+    userIdx: index('feishu_bindings_user_idx').on(t.userId),
+    openIdIdx: index('feishu_bindings_open_id_idx').on(t.openId),
+  }),
+);
+
+export const feishuBindingsRelations = relations(feishuBindings, ({ one }) => ({
+  user: one(users, { fields: [feishuBindings.userId], references: [users.id] }),
+}));
+
+/** Single-use, 10-minute binding-confirmation tokens. The raw token is never
+ * stored — only its hash. */
+export const feishuBindingTokens = pgTable(
+  'feishu_binding_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tokenHash: text('token_hash').notNull().unique(),
+    openId: text('open_id').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    openIdIdx: index('feishu_binding_tokens_open_id_idx').on(t.openId),
+    expiresIdx: index('feishu_binding_tokens_expires_idx').on(t.expiresAt),
+  }),
+);
+
+/** Durable receive-side idempotency record. The unique triple prevents repeat
+ * processing across web-app restarts and Feishu at-least-once retries. */
+export const feishuInboxEvents = pgTable(
+  'feishu_inbox_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantKey: text('tenant_key').notNull(),
+    eventType: text('event_type').notNull(),
+    sourceEventId: text('source_event_id').notNull(),
+    // Present for message events; enables per-user/per-chat rate accounting.
+    openId: text('open_id'),
+    chatId: text('chat_id'),
+    status: feishuInboxStatusEnum('status').notNull().default('accepted'),
+    correlationId: text('correlation_id').notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    dedupeUnique: uniqueIndex('feishu_inbox_events_dedupe').on(
+      t.tenantKey,
+      t.eventType,
+      t.sourceEventId,
+    ),
+    openRateIdx: index('feishu_inbox_events_open_rate_idx').on(t.openId, t.receivedAt),
+    chatRateIdx: index('feishu_inbox_events_chat_rate_idx').on(t.chatId, t.receivedAt),
+    expiresIdx: index('feishu_inbox_events_expires_idx').on(t.expiresAt),
+  }),
+);
+
+/** Per-binding-per-chat conversation session. Never crosses users in a group. */
+export const feishuBotSessions = pgTable(
+  'feishu_bot_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bindingId: uuid('binding_id')
+      .notNull()
+      .references(() => feishuBindings.id, { onDelete: 'cascade' }),
+    chatId: text('chat_id').notNull(),
+    aiActionId: uuid('ai_action_id').references(() => aiActions.id, { onDelete: 'set null' }),
+    state: feishuSessionStateEnum('state').notNull().default('active'),
+    lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    // At most one active session per (binding, chat).
+    activeSessionUnique: uniqueIndex('feishu_bot_sessions_active')
+      .on(t.bindingId, t.chatId)
+      .where(sql`${t.state} = 'active'`),
+    expiresIdx: index('feishu_bot_sessions_expires_idx').on(t.expiresAt),
+  }),
+);
+
+export const feishuBotSessionsRelations = relations(feishuBotSessions, ({ one }) => ({
+  binding: one(feishuBindings, {
+    fields: [feishuBotSessions.bindingId],
+    references: [feishuBindings.id],
+  }),
+  action: one(aiActions, { fields: [feishuBotSessions.aiActionId], references: [aiActions.id] }),
+}));
+
+/** Administrator-configured notification subscription. Exactly one target shape
+ * is valid for the chosen mode (enforced in the service layer). */
+export const feishuNotificationSubscriptions = pgTable(
+  'feishu_notification_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: feishuNotificationEventTypeEnum('event_type').notNull(),
+    mode: feishuSubscriptionModeEnum('mode').notNull(),
+    targetOpenId: text('target_open_id'),
+    targetChatId: text('target_chat_id'),
+    spaceId: uuid('space_id').references(() => spaces.id, { onDelete: 'cascade' }),
+    status: feishuSubscriptionStatusEnum('status').notNull().default('active'),
+    failureCount: integer('failure_count').notNull().default(0),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    eventTypeIdx: index('feishu_subscriptions_event_type_idx').on(t.eventType, t.status),
+    statusIdx: index('feishu_subscriptions_status_idx').on(t.status),
+  }),
+);
+
+/** Durable, minimal outbox record for a supported Wiki event. `safePayload`
+ * holds only neutral identifiers/status — never pre-rendered private text. */
+export const feishuNotificationEvents = pgTable(
+  'feishu_notification_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: feishuNotificationEventTypeEnum('type').notNull(),
+    pageId: uuid('page_id').references(() => pages.id, { onDelete: 'set null' }),
+    spaceId: uuid('space_id').references(() => spaces.id, { onDelete: 'set null' }),
+    aiActionId: uuid('ai_action_id').references(() => aiActions.id, { onDelete: 'set null' }),
+    transferId: uuid('transfer_id').references(() => transferRuns.id, { onDelete: 'set null' }),
+    safePayload: jsonb('safe_payload').notNull().default({}),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    typeIdx: index('feishu_notification_events_type_idx').on(t.type, t.occurredAt),
+    expiresIdx: index('feishu_notification_events_expires_idx').on(t.expiresAt),
+  }),
+);
+
+/** One durable outbound Feishu message. The delivery id doubles as the
+ * deterministic outgoing request UUID. A delivery is sourced either from a
+ * grounded Q&A answer (`ai_action_id`) or from a notification event ×
+ * subscription; the resolved send target is denormalized onto the row so the
+ * worker can send without extra joins while still re-checking permission via
+ * `recipient_binding_id` at delivery time. */
+export const feishuNotificationDeliveries = pgTable(
+  'feishu_notification_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // Answer source: exactly one answer delivery per completed wiki_question.
+    aiActionId: uuid('ai_action_id').references(() => aiActions.id, { onDelete: 'cascade' }),
+    // Notification source: an event fanned out across subscriptions/recipients.
+    eventId: uuid('event_id').references(() => feishuNotificationEvents.id, {
+      onDelete: 'cascade',
+    }),
+    subscriptionId: uuid('subscription_id').references(
+      () => feishuNotificationSubscriptions.id,
+      { onDelete: 'cascade' },
+    ),
+    recipientBindingId: uuid('recipient_binding_id').references(() => feishuBindings.id, {
+      onDelete: 'set null',
+    }),
+    // Denormalized send target (permission is still re-checked via the binding).
+    targetOpenId: text('target_open_id'),
+    targetChatId: text('target_chat_id'),
+    status: feishuDeliveryStatusEnum('status').notNull().default('queued'),
+    attempts: integer('attempts').notNull().default(0),
+    claimedBy: text('claimed_by'),
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    lastError: text('last_error'),
+  },
+  (t) => ({
+    // One answer delivery per completed Q&A action.
+    answerUnique: uniqueIndex('feishu_deliveries_answer_unique')
+      .on(t.aiActionId)
+      .where(sql`${t.aiActionId} is not null`),
+    // Notification per-recipient (direct/private) and per-group (card) forms,
+    // each unambiguous under NULLS DISTINCT.
+    notifRecipientUnique: uniqueIndex('feishu_deliveries_notif_recipient_unique')
+      .on(t.eventId, t.subscriptionId, t.recipientBindingId)
+      .where(sql`${t.eventId} is not null and ${t.recipientBindingId} is not null`),
+    notifGroupUnique: uniqueIndex('feishu_deliveries_notif_group_unique')
+      .on(t.eventId, t.subscriptionId)
+      .where(sql`${t.eventId} is not null and ${t.recipientBindingId} is null`),
+    dueIdx: index('feishu_deliveries_due_idx').on(t.status, t.availableAt),
+    subscriptionIdx: index('feishu_deliveries_subscription_idx').on(t.subscriptionId, t.status),
+  }),
+);
+
+export const feishuNotificationDeliveriesRelations = relations(
+  feishuNotificationDeliveries,
+  ({ one }) => ({
+    event: one(feishuNotificationEvents, {
+      fields: [feishuNotificationDeliveries.eventId],
+      references: [feishuNotificationEvents.id],
+    }),
+    subscription: one(feishuNotificationSubscriptions, {
+      fields: [feishuNotificationDeliveries.subscriptionId],
+      references: [feishuNotificationSubscriptions.id],
+    }),
+    recipient: one(feishuBindings, {
+      fields: [feishuNotificationDeliveries.recipientBindingId],
+      references: [feishuBindings.id],
+    }),
   }),
 );

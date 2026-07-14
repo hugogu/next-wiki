@@ -582,6 +582,7 @@ export const translationKeys = [
   "admin.apiAudit.title",
   "admin.apiAudit.user",
   "admin.apiAudit.keyName",
+  "admin.apiAudit.origin",
   "admin.apiAudit.method",
   "admin.apiAudit.path",
   "admin.apiAudit.status",

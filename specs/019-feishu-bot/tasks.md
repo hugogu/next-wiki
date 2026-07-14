@@ -44,16 +44,16 @@ transport required by every story.
 
 **⚠️ CRITICAL**: Complete this phase before user-story implementation.
 
-- [ ] T005 [P] Define Feishu statuses, subscription modes, delivery states, connection mode, and the `audit_origin` enum in `apps/web/src/server/db/schema/enums.ts`.
-- [ ] T006 Define `feishu_integration_config`, `feishu_bindings`, `feishu_binding_tokens`, `feishu_inbox_events`, `feishu_bot_sessions`, subscription, notification-event, and delivery tables with the documented indexes/uniqueness constraints in `apps/web/src/server/db/schema/index.ts`.
-- [ ] T007 Extend `api_audit_entries` with bounded `origin` and `external_correlation_id` fields plus indexes and relations in `apps/web/src/server/db/schema/index.ts`.
-- [ ] T008 Generate the schema migration and snapshot with `pnpm db:generate`; inspect the generated files under `apps/web/src/server/db/migrations/`, then rerun the command to confirm `No schema changes`.
-- [ ] T009 Add Feishu configuration encryption, write-only serialization, retention/limit validation, and an in-process `getDecryptedConfig` accessor using the existing key-encryption primitive in `apps/web/src/server/services/feishu-config.ts` and `apps/web/src/server/services/feishu-config.test.ts`.
-- [ ] T010 Extend audit writing/query mapping for `origin=feishu` and opaque correlations in `apps/web/src/server/services/audit.ts`, `apps/web/src/server/services/audit.test.ts`, and `apps/web/src/components/admin/AdminAuditTable.tsx`.
-- [ ] T011 Implement durable Feishu inbox de-duplication, rate-limit accounting, and normalized correlation/error helpers in `apps/web/src/server/services/feishu-inbox.ts` and `apps/web/src/server/services/feishu-inbox.test.ts`.
-- [ ] T012 Implement the in-process Feishu transport client (SDK-backed verify/decrypt + send, reading the decrypted config) in `apps/web/src/server/feishu/transport.ts` behind the T003 interface, with unit coverage using the test double.
-- [ ] T013 Add explicit Feishu delivery/recovery/cleanup queue names, worker registration, stale-claim recovery, and cleanup scheduling in `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/register.ts` (worker bodies filled in US2/US3).
-- [ ] T014 Add foundational integration coverage for the generated schema, encrypted config serialization, audit origin, and inbox uniqueness in `apps/web/src/server/services/feishu-foundation.integration.test.ts`.
+- [X] T005 [P] Define Feishu statuses, subscription modes, delivery states, connection mode, and the `audit_origin` enum in `apps/web/src/server/db/schema/enums.ts`.
+- [X] T006 Define `feishu_integration_config`, `feishu_bindings`, `feishu_binding_tokens`, `feishu_inbox_events`, `feishu_bot_sessions`, subscription, notification-event, and delivery tables with the documented indexes/uniqueness constraints in `apps/web/src/server/db/schema/index.ts`.
+- [X] T007 Extend `api_audit_entries` with bounded `origin` and `external_correlation_id` fields plus indexes and relations in `apps/web/src/server/db/schema/index.ts`.
+- [X] T008 Generate the schema migration and snapshot with `pnpm db:generate`; inspect the generated files under `apps/web/src/server/db/migrations/`, then rerun the command to confirm `No schema changes`.
+- [X] T009 Add Feishu configuration encryption, write-only serialization, retention/limit validation, and an in-process `getDecryptedConfig` accessor using the existing key-encryption primitive in `apps/web/src/server/services/feishu-config.ts` and `apps/web/src/server/services/feishu-config.test.ts`.
+- [X] T010 Extend audit writing/query mapping for `origin=feishu` and opaque correlations in `apps/web/src/server/services/audit.ts`, `apps/web/src/server/services/audit.test.ts`, and `apps/web/src/components/admin/AdminAuditTable.tsx`.
+- [X] T011 Implement durable Feishu inbox de-duplication, rate-limit accounting, and normalized correlation/error helpers in `apps/web/src/server/services/feishu-inbox.ts` and `apps/web/src/server/services/feishu-inbox.test.ts`.
+- [X] T012 Implement the in-process Feishu transport client (SDK-backed verify/decrypt + send, reading the decrypted config) in `apps/web/src/server/feishu/transport.ts` behind the T003 interface, with unit coverage using the test double.
+- [X] T013 Add explicit Feishu delivery/recovery/cleanup queue names, worker registration, stale-claim recovery, and cleanup scheduling in `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/register.ts` (worker bodies filled in US2/US3).
+- [X] T014 Add foundational integration coverage for the generated schema, encrypted config serialization, audit origin, and inbox uniqueness in `apps/web/src/server/services/feishu-foundation.integration.test.ts`.
 
 **Checkpoint**: Database migrations are generated and clean; configuration is
 write-only encrypted; every Feishu-origin audit row records its origin; the

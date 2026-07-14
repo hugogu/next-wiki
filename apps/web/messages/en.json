@@ -839,6 +839,7 @@
       "title": "Access Log",
       "user": "User",
       "keyName": "Key",
+      "origin": "Origin",
       "method": "Method",
       "path": "Path",
       "status": "Status",

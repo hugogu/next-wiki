@@ -122,20 +122,29 @@ Durable, minimal outbox record created for a supported Wiki event.
 
 ### `feishu_notification_deliveries`
 
+One durable outbound Feishu message. In the in-process design this single outbox
+serves both grounded Q&A answers and event notifications, so the delivery worker,
+retry/backoff, idempotency, and restart recovery are shared.
+
 | Field | Type | Rules |
 |---|---|---|
 | `id` | UUID | Primary key and outgoing idempotency UUID. |
-| `event_id`, `subscription_id` | UUID FKs | Unique pair; one logical delivery per subscription. |
-| `recipient_binding_id` | UUID FK nullable | Required for direct/private-recipient delivery. |
+| `ai_action_id` | UUID FK nullable | Answer source: the completed `wiki_question` action. Exactly one answer delivery per action. |
+| `event_id`, `subscription_id` | UUID FK nullable | Notification source: an event fanned out across subscriptions. |
+| `recipient_binding_id` | UUID FK nullable | Required for direct/private-recipient delivery; permission is re-checked through it. |
+| `target_open_id`, `target_chat_id` | text nullable | Denormalized send target resolved at creation; permission still re-checked via the binding at send time. |
 | `status` | enum | `queued`, `running`, `delivered`, `retry`, `failed`, `blocked`, `expired`. |
 | `attempts` | integer | Starts at zero; terminal `failed` after five unsuccessful sends. |
+| `claimed_by`, `lease_expires_at` | text, timestamptz | Lease holder + expiry for stale-claim recovery. |
 | `available_at`, `claimed_at`, `delivered_at`, `expires_at` | timestamptz | Claim/retry/retention lifecycle. |
 | `last_error` | text nullable | Bounded normalized error only. |
 
-**Indexes**: unique `(event_id, subscription_id, recipient_binding_id)` where the
-nullable recipient form remains unambiguous; due-work index `(status, available_at)`;
-subscription-health index. The implementation may materialize per-recipient delivery
-rows for private-recipient groups after member and permission checks.
+**Indexes**: partial unique `(ai_action_id)` for answers; partial unique
+`(event_id, subscription_id, recipient_binding_id)` for per-recipient notifications
+and `(event_id, subscription_id)` for the nullable-recipient group-card form (each
+unambiguous under NULLS DISTINCT); due-work index `(status, available_at)`;
+subscription-health index. The implementation may materialize per-recipient
+delivery rows for private-recipient groups after member and permission checks.
 
 ## Existing audit extensions
 

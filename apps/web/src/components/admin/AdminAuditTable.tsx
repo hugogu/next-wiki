@@ -312,6 +312,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
                 <tr>
                   <DataTableHeader>{t('admin.apiAudit.user')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.keyName')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.origin')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.method')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.path')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.status')}</DataTableHeader>
@@ -326,6 +327,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
                   <DataTableRow key={entry.id}>
                     <DataTableCell>{entry.userEmail ?? entry.userId ?? '—'}</DataTableCell>
                     <DataTableCell>{entry.keyName ?? '—'}</DataTableCell>
+                    <DataTableCell className="font-mono text-xs">{entry.origin}</DataTableCell>
                     <DataTableCell className="font-mono">{entry.method}</DataTableCell>
                     <DataTableCell className="max-w-xs truncate font-mono text-xs">{entry.path}</DataTableCell>
                     <DataTableCell className={`font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</DataTableCell>

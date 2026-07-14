@@ -25,6 +25,10 @@ export const QUEUES = {
   // Dedicated long-running queue for AI page translation so a bulk one-language
   // run cannot starve interactive AI actions (questions, optimization, images).
   translation: 'translation',
+  // Optional Feishu integration (019): durable outbound message delivery and
+  // periodic cleanup. Inert unless the integration is configured.
+  feishuDelivery: 'feishu-delivery',
+  feishuCleanup: 'feishu-cleanup',
 } as const;
 
 /**

@@ -54,8 +54,7 @@ export type FeishuDeliveryStatus = z.infer<typeof feishuDeliveryStatusSchema>;
 export const feishuConnectionModeSchema = z.enum(['webhook']);
 export type FeishuConnectionMode = z.infer<typeof feishuConnectionModeSchema>;
 
-export const auditOriginSchema = z.enum(['web', 'api', 'feishu']);
-export type AuditOrigin = z.infer<typeof auditOriginSchema>;
+// The `feishu` audit origin lives in `audit.ts` (auditOriginSchema).
 
 // ---- Feishu identifier primitives -------------------------------------------
 
