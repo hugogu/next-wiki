@@ -95,6 +95,20 @@ describe('feishu-bindings service', () => {
     expect(await bindings.getActiveBinding('ou_e')).toBeNull();
   });
 
+  it('returns only the requesting user’s active binding without exposing its Feishu id', async () => {
+    const userA = await makeUser('bind-own-a@example.com');
+    const userB = await makeUser('bind-own-b@example.com');
+    const first = await bindings.issueBindingToken('ou_own_a');
+    const second = await bindings.issueBindingToken('ou_own_b');
+    await bindings.confirmBinding({ token: first.token, userId: userA.id });
+    await bindings.confirmBinding({ token: second.token, userId: userB.id });
+
+    const own = await bindings.getOwnActiveBinding(userA.id);
+    expect(own).toMatchObject({ displayName: 'bind-own-a' });
+    expect(own).not.toHaveProperty('openId');
+    expect(await bindings.getOwnActiveBinding(userB.id)).toMatchObject({ displayName: 'bind-own-b' });
+  });
+
   it('lets a user unbind and expires their active sessions', async () => {
     const user = await makeUser('bind-f@example.com');
     const { token } = await bindings.issueBindingToken('ou_f');

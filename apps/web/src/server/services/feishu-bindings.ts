@@ -17,6 +17,13 @@ export type ActiveBinding = {
   displayName: string | null;
 };
 
+export type OwnFeishuBinding = {
+  id: string;
+  displayName: string | null;
+  boundAt: Date;
+  lastSeenAt: Date | null;
+};
+
 function hashToken(rawToken: string): string {
   return createHash('sha256').update(rawToken).digest('hex');
 }
@@ -42,6 +49,18 @@ export async function getActiveBinding(openId: string): Promise<ActiveBinding | 
     openId: row.openId,
     displayName: row.user.displayName,
   };
+}
+
+/** Return the current user's active binding without exposing its Feishu identifier. */
+export async function getOwnActiveBinding(userId: string): Promise<OwnFeishuBinding | null> {
+  const binding = await db.query.feishuBindings.findFirst({
+    where: and(
+      eq(schema.feishuBindings.userId, userId),
+      eq(schema.feishuBindings.status, 'active'),
+    ),
+    columns: { id: true, displayName: true, boundAt: true, lastSeenAt: true },
+  });
+  return binding ?? null;
 }
 
 /**

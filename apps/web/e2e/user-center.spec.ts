@@ -12,7 +12,7 @@ async function login(page: Page, email: string, password: string) {
   await page.goto('/auth/login');
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.waitForURL('/');
 }
 
@@ -39,6 +39,14 @@ test.describe('user center profile and preferences', () => {
     const displayName = `Tester ${timestamp}`;
 
     await register(page, initialEmail, initialPassword);
+    await openUserCenter(page);
+
+    // Every signed-in user has a personal Feishu-binding entry; it does not
+    // depend on admin-only settings access.
+    await page.getByRole('link', { name: 'Feishu binding' }).click();
+    await expect(
+      page.getByText('An administrator has not enabled the Feishu bot yet, so it cannot be connected.'),
+    ).toBeVisible();
     await openUserCenter(page);
 
     // Update display name.

@@ -1216,6 +1216,7 @@
       "audit": "Audit Log",
       "readingTheme": "Reading theme",
       "aiSessions": "AI Chat History",
+      "feishu": "Feishu binding",
       "settings": "User Settings"
     },
     "readingTheme": {
@@ -1272,7 +1273,20 @@
       "confirming": "Connecting…",
       "successMessage": "Your Feishu account is now connected. You can return to Feishu and ask questions.",
       "missingToken": "This link is missing its connection token. Please start again from Feishu.",
-      "errorGeneric": "This connection link is invalid, expired, or already used. Please request a new one from Feishu."
+      "errorGeneric": "This connection link is invalid, expired, or already used. Please request a new one from Feishu.",
+      "settingsMetadataTitle": "Feishu binding",
+      "settingsHeading": "Feishu binding",
+      "settingsDescription": "Once connected, the bot answers using your Wiki permissions. Each user manages their own binding.",
+      "notAvailable": "An administrator has not enabled the Feishu bot yet, so it cannot be connected.",
+      "connected": "Feishu account connected",
+      "connectedAt": "Connected: {date}",
+      "notConnected": "No Feishu account connected",
+      "stepOne": "Find this Wiki's bot in Feishu and send it any message.",
+      "stepTwo": "The bot sends you a private one-time confirmation link.",
+      "stepThree": "Open the link while signed in to this Wiki account and confirm the connection.",
+      "unbind": "Disconnect",
+      "unbinding": "Disconnecting…",
+      "unbindFailed": "Could not disconnect Feishu. Please try again."
     },
     "apiKeys": {
       "metadataTitle": "API Keys",

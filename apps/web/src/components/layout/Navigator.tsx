@@ -19,6 +19,7 @@ import {
   SettingsIcon,
   SlidersIcon,
   EyeIcon,
+  FeishuIcon,
   SparklesIcon,
   SearchIcon,
   TagIcon,
@@ -289,7 +290,7 @@ export function Navigator({
           label: t('admin.nav.ai'),
           icon: <SparklesIcon className="shrink-0" />,
         },
-        { href: '/admin/feishu', label: 'Feishu', icon: <SparklesIcon className="shrink-0" /> },
+        { href: '/admin/feishu', label: 'Feishu', icon: <FeishuIcon className="shrink-0" /> },
         {
           href: '/admin/users',
           label: t('admin.nav.users'),
@@ -343,6 +344,11 @@ export function Navigator({
       href: '/user-center/ai-sessions',
       label: t('userCenter.nav.aiSessions'),
       icon: <SparklesIcon className="shrink-0" />,
+    },
+    {
+      href: '/user-center/feishu',
+      label: t('userCenter.nav.feishu'),
+      icon: <FeishuIcon className="shrink-0" />,
     },
     {
       href: '/user-center/audit',

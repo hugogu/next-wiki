@@ -390,6 +390,26 @@ export function DiscordIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** A compact, original four-colour mark that makes the Feishu integration easy to find. */
+export function FeishuIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path fill="#3370ff" d="M12 2.5c3.6 0 6.5 2.9 6.5 6.5v1.1L12 12.8 5.5 10.1V9c0-3.6 2.9-6.5 6.5-6.5Z" />
+      <path fill="#00b96b" d="M5.5 10.1 12 12.8v8.7c-3.6 0-6.5-2.9-6.5-6.5v-4.9Z" />
+      <path fill="#ff6b55" d="M18.5 10.1V15c0 3.6-2.9 6.5-6.5 6.5v-8.7l6.5-2.7Z" />
+      <path fill="#ffbf2f" d="m12 12.8 6.5-2.7-2.1 6.8-4.4 4.6-4.4-4.6-2.1-6.8 6.5 2.7Z" opacity=".94" />
+    </svg>
+  );
+}
+
 export function DatabaseIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

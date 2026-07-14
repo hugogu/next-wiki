@@ -1216,6 +1216,7 @@
       "audit": "审计日志",
       "readingTheme": "阅读主题",
       "aiSessions": "AI 会话历史",
+      "feishu": "飞书绑定",
       "settings": "用户设置"
     },
     "readingTheme": {
@@ -1272,7 +1273,20 @@
       "confirming": "连接中…",
       "successMessage": "你的飞书账号已成功连接。现在可以返回飞书提问了。",
       "missingToken": "此链接缺少连接令牌，请从飞书重新发起。",
-      "errorGeneric": "此连接链接无效、已过期或已被使用，请从飞书重新获取。"
+      "errorGeneric": "此连接链接无效、已过期或已被使用，请从飞书重新获取。",
+      "settingsMetadataTitle": "飞书绑定",
+      "settingsHeading": "飞书绑定",
+      "settingsDescription": "绑定后，机器人会使用你的 Wiki 权限回答问题；每个用户独立管理自己的绑定。",
+      "notAvailable": "管理员尚未启用飞书机器人，暂时无法绑定。",
+      "connected": "已绑定飞书账号",
+      "connectedAt": "绑定时间：{date}",
+      "notConnected": "尚未绑定飞书账号",
+      "stepOne": "在飞书中找到本 Wiki 的机器人，并发送任意消息。",
+      "stepTwo": "机器人会私信一次性确认链接。",
+      "stepThree": "使用当前 Wiki 账号打开链接并确认，即可完成绑定。",
+      "unbind": "解除绑定",
+      "unbinding": "正在解除…",
+      "unbindFailed": "无法解除飞书绑定，请重试。"
     },
     "apiKeys": {
       "metadataTitle": "API 密钥",
