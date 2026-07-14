@@ -390,7 +390,7 @@ export function DiscordIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** A compact, original four-colour mark that makes the Feishu integration easy to find. */
+/** Feishu's familiar cyan/blue ribbon mark, sized for the application navigation. */
 export function FeishuIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -402,10 +402,11 @@ export function FeishuIcon(props: SVGProps<SVGSVGElement>) {
       aria-hidden="true"
       {...props}
     >
-      <path fill="#3370ff" d="M12 2.5c3.6 0 6.5 2.9 6.5 6.5v1.1L12 12.8 5.5 10.1V9c0-3.6 2.9-6.5 6.5-6.5Z" />
-      <path fill="#00b96b" d="M5.5 10.1 12 12.8v8.7c-3.6 0-6.5-2.9-6.5-6.5v-4.9Z" />
-      <path fill="#ff6b55" d="M18.5 10.1V15c0 3.6-2.9 6.5-6.5 6.5v-8.7l6.5-2.7Z" />
-      <path fill="#ffbf2f" d="m12 12.8 6.5-2.7-2.1 6.8-4.4 4.6-4.4-4.6-2.1-6.8 6.5 2.7Z" opacity=".94" />
+      <rect width="24" height="24" rx="6" fill="white" />
+      <path fill="#00d6b9" d="M4.4 5.1h10.2c1.3 0 2.4.6 3.1 1.6l2.1 3.3c-2.8-1-5.5-.7-7.7 1L4.4 5.1Z" />
+      <path fill="#10bfb0" d="M4.4 5.1 12.1 11c-1.4 1.1-2.3 2.6-2.9 4.3L4.4 8.6V5.1Z" />
+      <path fill="#3169db" d="M4.4 8.6 11 14.2c2.1 1.7 4.8 1.9 7.1.6l2.7-1.7c-.9 3.5-3.7 5.8-7.6 5.8H7.1c-1.5 0-2.7-1.2-2.7-2.7V8.6Z" />
+      <path fill="#1648b8" d="M20.8 9.9c-3.2-.2-5.8.8-7.7 3.1-1.1 1.3-2.5 1.8-4.1 1.8l2 1.7c2.1 1.7 4.8 1.9 7.1.6l2.7-1.7c.3-1.8.3-3.7 0-5.5Z" />
     </svg>
   );
 }
