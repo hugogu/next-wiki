@@ -7,7 +7,8 @@ const preferenceRoute = readFileSync(new URL('../../app/api/user/preferences/rou
 
 describe('public localization cache boundary', () => {
   it('keeps public UI locale request-independent during document rendering', () => {
-    expect(publicLayout).toContain("dynamic = 'force-static'");
+    expect(publicLayout).toContain('PublicI18nBoundary');
+    expect(readerPage).toContain("dynamic = 'force-static'");
     expect(readerPage).toContain('getStaticLocale');
     expect(readerPage).not.toContain('getLocale()');
   });
