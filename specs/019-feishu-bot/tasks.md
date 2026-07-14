@@ -29,10 +29,10 @@ in-process transport, auditing, inbox de-duplication, and worker scaffolding.
 **Purpose**: Add the Feishu SDK, shared contracts, and the in-process transport
 seam without changing default Wiki behavior. No new container or process.
 
-- [ ] T001 Add the official Feishu SDK (`@larksuiteoapi/node-sdk`) to `apps/web/package.json`, create the module directory `apps/web/src/server/feishu/`, and confirm `docker compose up` starts nothing new.
-- [ ] T002 [P] Add shared bounded Feishu Zod schemas, enums, and exports for the module contracts in `packages/shared/src/feishu.ts` and `packages/shared/src/index.ts`.
-- [ ] T003 [P] Define the in-process Feishu transport interface (verify/decrypt webhook + send message) in `apps/web/src/server/feishu/transport-types.ts` and a deterministic test double in `apps/web/src/server/feishu/transport.test-support.ts` with `apps/web/src/server/feishu/transport.test.ts`.
-- [ ] T004 Document that Feishu is optional and configured via the admin UI (encrypted DB config, not env), plus the single callback route, in `.env.example` and `README.md` — with no new Compose service.
+- [X] T001 Add the official Feishu SDK (`@larksuiteoapi/node-sdk`) to `apps/web/package.json`, create the module directory `apps/web/src/server/feishu/`, and confirm `docker compose up` starts nothing new.
+- [X] T002 [P] Add shared bounded Feishu Zod schemas, enums, and exports for the module contracts in `packages/shared/src/feishu.ts` and `packages/shared/src/index.ts`.
+- [X] T003 [P] Define the in-process Feishu transport interface (verify/decrypt webhook + send message) in `apps/web/src/server/feishu/transport-types.ts` and a deterministic test double in `apps/web/src/server/feishu/transport.test-support.ts` with `apps/web/src/server/feishu/transport.test.ts`.
+- [X] T004 Document that Feishu is optional and configured via the admin UI (encrypted DB config, not env), plus the single callback route, in `.env.example` and `README.md` — with no new Compose service.
 
 ---
 

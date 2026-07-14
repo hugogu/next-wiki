@@ -70,6 +70,23 @@ first run. PostgreSQL is the only required service; everything else (object
 storage, alternate content backends) is opt-in via Compose profiles, e.g.
 `docker compose --profile storage-s3 up`.
 
+### Optional Feishu integration
+
+An optional [Feishu](https://open.feishu.cn/) integration lets users bind their
+Wiki account, ask grounded questions, and receive event notifications from
+within Feishu. It is an **in-process module of the web app** — no separate
+container, process, or Compose profile — and stays inert until an administrator
+configures it, so the default `docker compose up` is unchanged and needs no
+Feishu variables.
+
+Configure it entirely in the admin UI at `/admin/feishu`: enter the Feishu app
+id, app secret, Event v2 Encrypt Key, and limits (stored encrypted in
+PostgreSQL, never logged). Then register the signed callback
+`https://<your-host>/webhooks/feishu/events` in the Feishu Developer Console,
+pointing at the web app behind your existing HTTPS ingress. Every bot action is
+attributed to the bound Wiki user and passes the same permission checks as the
+web UI.
+
 ### Production deployment with Caddy + Cloudflare
 
 For public deployments, run Caddy in front of the `web` service so Cloudflare can

@@ -14,6 +14,7 @@ export * from './user-appearance';
 export * from './site';
 export * from './system-theme';
 export * from './search-settings';
+export * from './feishu';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 
