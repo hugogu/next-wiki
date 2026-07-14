@@ -40,6 +40,16 @@ function citationUrl(citation: AiCitation): string {
   return `${env.APP_URL}/${path}`;
 }
 
+export function toFeishuCitations(
+  citations: AiCitation[],
+): { title: string; url: string }[] {
+  return citations.map((citation) => ({ title: citation.title, url: citationUrl(citation) }));
+}
+
+function hasFeishuStreamingAnswer(requestMetadata: unknown): boolean {
+  return (requestMetadata as { feishuStreamingAnswer?: unknown } | null)?.feishuStreamingAnswer === true;
+}
+
 /**
  * Reconstruct a bot-safe answer from a completed `wiki_question` action's event
  * stream. Never returns raw prompts — only the produced answer text and the
@@ -73,7 +83,7 @@ export async function reconstructAnswer(actionId: string): Promise<Reconstructed
     } else if (ev.type === 'citations') {
       const p = ev.payload as { citations?: AiCitation[] };
       if (Array.isArray(p.citations)) {
-        citations = p.citations.map((c) => ({ title: c.title, url: citationUrl(c) }));
+        citations = toFeishuCitations(p.citations);
       }
     }
   }
@@ -91,6 +101,12 @@ export async function createAnswerDelivery(
   actionId: string,
   now: Date = new Date(),
 ): Promise<string | null> {
+  const action = await db.query.aiActions.findFirst({
+    where: eq(schema.aiActions.id, actionId),
+    columns: { requestMetadata: true },
+  });
+  if (hasFeishuStreamingAnswer(action?.requestMetadata)) return null;
+
   const session = await getSessionByActionId(actionId);
   if (!session) return null;
 
@@ -134,7 +150,7 @@ export async function createAnswerDelivery(
 export async function createPendingAnswerDeliveries(now: Date = new Date()): Promise<number> {
   const TERMINAL = ['completed', 'failed', 'cancelled', 'expired'] as const;
   const candidates = await db
-    .select({ actionId: schema.aiActions.id })
+    .select({ actionId: schema.aiActions.id, requestMetadata: schema.aiActions.requestMetadata })
     .from(schema.feishuBotSessions)
     .innerJoin(
       schema.aiActions,
@@ -159,7 +175,7 @@ export async function createPendingAnswerDeliveries(now: Date = new Date()): Pro
   let created = 0;
   const seen = new Set<string>();
   for (const row of candidates) {
-    if (!row.actionId || seen.has(row.actionId)) continue;
+    if (!row.actionId || seen.has(row.actionId) || hasFeishuStreamingAnswer(row.requestMetadata)) continue;
     seen.add(row.actionId);
     const id = await createAnswerDelivery(row.actionId, now);
     if (id) created += 1;

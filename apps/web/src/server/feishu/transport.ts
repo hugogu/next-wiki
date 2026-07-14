@@ -1,16 +1,110 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 import type {
+  FeishuAnswerStream,
   FeishuTransport,
   InboundFeishuEvent,
   OutboundMessage,
   ProcessingReaction,
 } from './transport-types';
+import {
+  appendFeishuAnswerSources,
+  buildFeishuStreamingAnswerCard,
+  FEISHU_STREAM_ANSWER_ELEMENT_ID,
+} from './answer-card';
 import { getDecryptedConfig } from '@/server/services/feishu-config';
 
 export type TransportConfig = {
   appId: string;
   appSecret: string;
 };
+
+const STREAM_UPDATE_INTERVAL_MS = 125;
+
+type FeishuApiResult = { code?: number; msg?: string };
+
+function ensureSuccess(result: FeishuApiResult, operation: string): void {
+  if (result.code === undefined || result.code === 0) return;
+  throw new Error(`Feishu ${operation} failed (${result.code}): ${result.msg ?? 'unknown error'}`);
+}
+
+function receiveTarget(message: OutboundMessage): {
+  receiveIdType: 'open_id' | 'chat_id';
+  receiveId: string;
+} {
+  return message.target.type === 'direct'
+    ? { receiveIdType: 'open_id', receiveId: message.target.openId }
+    : { receiveIdType: 'chat_id', receiveId: message.target.chatId };
+}
+
+class CardKitAnswerStream implements FeishuAnswerStream {
+  private content = '';
+  private lastSentContent = '';
+  private sequence = 0;
+  private lastSentAt = 0;
+
+  constructor(
+    private readonly client: lark.Client,
+    private readonly cardId: string,
+  ) {}
+
+  async append(text: string): Promise<void> {
+    if (!text) return;
+    this.content += text;
+    if (Date.now() - this.lastSentAt >= STREAM_UPDATE_INTERVAL_MS) await this.sendContent(this.content);
+  }
+
+  async complete(citations: { title: string; url: string }[]): Promise<void> {
+    const terminalContent = appendFeishuAnswerSources(this.content, citations);
+    await this.sendContent(terminalContent, true);
+    const result = await this.client.cardkit.v1.card.settings({
+      path: { card_id: this.cardId },
+      data: {
+        settings: JSON.stringify({
+          config: {
+            streaming_mode: false,
+            summary: { content: terminalContent.replace(/\s+/g, ' ').slice(0, 100) },
+          },
+        }),
+        sequence: ++this.sequence,
+        uuid: `finish_${this.cardId}_${this.sequence}`,
+      },
+    });
+    ensureSuccess(result, 'finalize streaming card');
+  }
+
+  async fail(): Promise<void> {
+    const terminalContent = this.content || '暂时无法生成回答，请稍后重试。';
+    try {
+      await this.sendContent(terminalContent, true);
+      const result = await this.client.cardkit.v1.card.settings({
+        path: { card_id: this.cardId },
+        data: {
+          settings: JSON.stringify({ config: { streaming_mode: false } }),
+          sequence: ++this.sequence,
+          uuid: `fail_${this.cardId}_${this.sequence}`,
+        },
+      });
+      ensureSuccess(result, 'finalize failed streaming card');
+    } catch {
+      // A failed stream must not hide the original AI job failure.
+    }
+  }
+
+  private async sendContent(content: string, force = false): Promise<void> {
+    if (!force && content === this.lastSentContent) return;
+    const result = await this.client.cardkit.v1.cardElement.content({
+      path: { card_id: this.cardId, element_id: FEISHU_STREAM_ANSWER_ELEMENT_ID },
+      data: {
+        content: content || '正在生成…',
+        sequence: ++this.sequence,
+        uuid: `content_${this.cardId}_${this.sequence}`,
+      },
+    });
+    ensureSuccess(result, 'update streaming card');
+    this.lastSentContent = content;
+    this.lastSentAt = Date.now();
+  }
+}
 
 function extractText(content: unknown): string {
   if (typeof content !== 'string') return '';
@@ -61,9 +155,7 @@ export function createFeishuTransport(config: TransportConfig): FeishuTransport 
 
   return {
     async sendMessage(message: OutboundMessage): Promise<{ providerMessageId: string }> {
-      const receiveIdType = message.target.type === 'direct' ? 'open_id' : 'chat_id';
-      const receiveId =
-        message.target.type === 'direct' ? message.target.openId : message.target.chatId;
+      const { receiveIdType, receiveId } = receiveTarget(message);
       const msgType = message.card ? 'interactive' : 'text';
       const content = message.card
         ? JSON.stringify(message.card)
@@ -73,6 +165,35 @@ export function createFeishuTransport(config: TransportConfig): FeishuTransport 
         data: { receive_id: receiveId, msg_type: msgType, content, uuid: message.requestUuid },
       });
       return { providerMessageId: res?.data?.message_id ?? '' };
+    },
+
+    async startAnswerStream(message: OutboundMessage): Promise<FeishuAnswerStream> {
+      const card = buildFeishuStreamingAnswerCard();
+      const created = await client.cardkit.v1.card.create({
+        data: { type: 'card_json', data: JSON.stringify(card) },
+      });
+      ensureSuccess(created, 'create streaming card');
+      const cardId = created.data?.card_id;
+      if (!cardId) throw new Error('Feishu did not return a streaming card id');
+
+      const { receiveIdType, receiveId } = receiveTarget(message);
+      const sent = await client.im.message.create({
+        params: { receive_id_type: receiveIdType },
+        data: {
+          receive_id: receiveId,
+          msg_type: 'interactive',
+          content: JSON.stringify({ type: 'card', data: { card_id: cardId } }),
+          uuid: message.requestUuid,
+        },
+      });
+      ensureSuccess(sent, 'send streaming card');
+      if (!sent.data?.message_id) throw new Error('Feishu did not return a streaming message id');
+      return new CardKitAnswerStream(client, cardId);
+    },
+
+    async requestPendingScopes(): Promise<void> {
+      const result = await client.application.v6.scope.apply();
+      ensureSuccess(result, 'apply for pending app scopes');
     },
 
     async addProcessingReaction(messageId: string): Promise<ProcessingReaction> {

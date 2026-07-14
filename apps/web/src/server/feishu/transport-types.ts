@@ -33,8 +33,17 @@ export type ProcessingReaction = {
   reactionId: string;
 };
 
+export type FeishuAnswerStream = {
+  append(text: string): Promise<void>;
+  complete(citations: { title: string; url: string }[]): Promise<void>;
+  fail(): Promise<void>;
+};
+
 export interface FeishuTransport {
   sendMessage(message: OutboundMessage): Promise<{ providerMessageId: string }>;
+  startAnswerStream(message: OutboundMessage): Promise<FeishuAnswerStream>;
+  /** Ask the tenant administrator to approve any app scopes still pending. */
+  requestPendingScopes(): Promise<void>;
   addProcessingReaction(messageId: string): Promise<ProcessingReaction>;
   removeProcessingReaction(reaction: ProcessingReaction): Promise<void>;
 }

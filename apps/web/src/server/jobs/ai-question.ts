@@ -22,7 +22,15 @@ import {
   readActionInput,
 } from '@/server/services/ai-actions';
 import { retrieve } from '@/server/services/ai-retrieval';
-import { nudgeAnswerDelivery } from '@/server/services/feishu-notifications';
+import {
+  nudgeAnswerDelivery,
+  toFeishuCitations,
+} from '@/server/services/feishu-notifications';
+import {
+  completeFeishuAnswerStream,
+  failFeishuAnswerStream,
+  startFeishuAnswerStream,
+} from '@/server/services/feishu-answer-streams';
 
 type QuestionInput = {
   question: string;
@@ -96,40 +104,50 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
   }
   const prompt = buildWikiQuestionPrompt(input.question, sources, input.conversation);
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
+  const feishuStream = await startFeishuAnswerStream(actionId);
   let answer = '';
   let usage: Record<string, unknown> = { ...retrievalUsage };
-  for await (const event of adapter.streamText({
-    actionId,
-    modelExternalId: textModel.externalId,
-    system: prompt.system,
-    messages: [{ role: 'user', content: prompt.user }],
-    maxOutputTokens: textModel.maxOutputTokens ?? undefined,
-    temperature: 0.1,
-    abortSignal: new AbortController().signal,
-  })) {
-    if (await isCancellationRequested(actionId))
-      throw new DomainError('CANCELLED', 'Question action was cancelled');
-    if (event.type === 'delta') {
-      answer += event.text;
-      await appendActionEvent(actionId, 'text_delta', { text: event.text });
-    } else if (event.type === 'reasoning_delta') {
-      await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
-    } else if (event.type === 'usage') {
-      usage = { ...usage, ...event };
+  try {
+    for await (const event of adapter.streamText({
+      actionId,
+      modelExternalId: textModel.externalId,
+      system: prompt.system,
+      messages: [{ role: 'user', content: prompt.user }],
+      maxOutputTokens: textModel.maxOutputTokens ?? undefined,
+      temperature: 0.1,
+      abortSignal: new AbortController().signal,
+    })) {
+      if (await isCancellationRequested(actionId))
+        throw new DomainError('CANCELLED', 'Question action was cancelled');
+      if (event.type === 'delta') {
+        answer += event.text;
+        await appendActionEvent(actionId, 'text_delta', { text: event.text });
+        await feishuStream?.stream.append(event.text);
+      } else if (event.type === 'reasoning_delta') {
+        await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
+      } else if (event.type === 'usage') {
+        usage = { ...usage, ...event };
+      }
     }
+    await assertAiFeature(ctx, 'question');
+    const citations = isInsufficientAnswer(answer, sources)
+      ? []
+      : normalizeQuestionCitations(answer, sources);
+    if (feishuStream) {
+      await completeFeishuAnswerStream(feishuStream, actionId, toFeishuCitations(citations));
+    }
+    await appendActionEvent(actionId, 'citations', { citations });
+    await finishAction(actionId, 'completed', {
+      resultMetadata: {
+        insufficientEvidence: isInsufficientAnswer(answer, sources),
+        citationCount: citations.length,
+      },
+      usageMetadata: usage,
+    });
+  } catch (error) {
+    if (feishuStream) await failFeishuAnswerStream(feishuStream, actionId);
+    throw error;
   }
-  await assertAiFeature(ctx, 'question');
-  const citations = isInsufficientAnswer(answer, sources)
-    ? []
-    : normalizeQuestionCitations(answer, sources);
-  await appendActionEvent(actionId, 'citations', { citations });
-  await finishAction(actionId, 'completed', {
-    resultMetadata: {
-      insufficientEvidence: isInsufficientAnswer(answer, sources),
-      citationCount: citations.length,
-    },
-    usageMetadata: usage,
-  });
   // Deliver a Feishu-originated answer promptly (no-op for web-originated ones).
   await nudgeAnswerDelivery(actionId);
 }
