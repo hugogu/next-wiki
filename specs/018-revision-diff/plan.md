@@ -6,7 +6,7 @@
 
 ## Summary
 
-Add revision-pair selection and the side-by-side comparison to one history page. The canonical history URL carries `compare=a..b`; its route performs the existing permission-checked reads of two revisions and passes their already stored source and rendered HTML to a client component. In the browser, the component uses the existing `diff` package to create an aligned line model, filters whitespace-only changes, collapses unchanged context, coordinates scrolling, and switches between source and rendered-preview presentations. No database change, background work, new HTTP endpoint, or call to the existing server-side Diff operation is involved.
+Add revision selection and the side-by-side comparison to one history page. A canonical history URL carries either `selected=n` for one rendered revision or `compare=a..b` for a pair; its route performs the existing permission-checked reads and passes stored source and rendered HTML to client components. In the browser, the component uses the existing `diff` package to create an aligned line model, filters whitespace-only changes, collapses unchanged context, coordinates scrolling, and switches between source and rendered-preview presentations. No database change, background work, new HTTP endpoint, or call to the existing server-side Diff operation is involved.
 
 ## Technical Context
 

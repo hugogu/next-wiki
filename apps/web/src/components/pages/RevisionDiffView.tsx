@@ -1,9 +1,9 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
+import { ToggleButton } from '@/components/ui/ToggleButton';
 import { useTranslation } from '@/i18n/client';
 import { parseRevisionDiffOptions } from '@/lib/path';
 import { buildDiffRows } from '@/lib/revision-diff';
@@ -35,18 +35,15 @@ export function RevisionDiffView({ earlier, later }: { earlier: Revision; later:
         <strong>
           {t('page.diff.comparing', { earlier: earlier.version, later: later.version })}
         </strong>
-        <Button
-          variant={options.view === 'source' ? 'primary' : 'secondary'}
-          onClick={() => update({ view: null })}
-        >
-          {t('page.diff.source')}
-        </Button>
-        <Button
-          variant={options.view === 'preview' ? 'primary' : 'secondary'}
-          onClick={() => update({ view: 'preview' })}
-        >
-          {t('page.diff.preview')}
-        </Button>
+        <ToggleButton
+          ariaLabel={`${t('page.diff.source')} / ${t('page.diff.preview')}`}
+          options={[
+            { value: 'source', label: t('page.diff.source') },
+            { value: 'preview', label: t('page.diff.preview') },
+          ]}
+          value={options.view}
+          onChange={(view) => update({ view: view === 'source' ? null : 'preview' })}
+        />
         <label className="inline-flex items-center gap-xs text-sm">
           {t('page.diff.context')}
           <Select

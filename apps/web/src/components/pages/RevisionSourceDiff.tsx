@@ -7,18 +7,18 @@ function Cell({ line, kind }: { line?: { number: number; text: string }; kind: s
   const changeStyle =
     kind === 'added'
       ? {
-          backgroundColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-          borderLeftColor: 'var(--color-primary)',
+          backgroundColor: 'color-mix(in srgb, var(--color-diff-added) 30%, transparent)',
+          borderLeftColor: 'var(--color-diff-added)',
         }
       : kind === 'removed'
         ? {
-            backgroundColor: 'color-mix(in srgb, var(--color-danger) 18%, transparent)',
-            borderLeftColor: 'var(--color-danger)',
+            backgroundColor: 'color-mix(in srgb, var(--color-diff-removed) 30%, transparent)',
+            borderLeftColor: 'var(--color-diff-removed)',
           }
         : kind === 'changed'
           ? {
-              backgroundColor: 'color-mix(in srgb, var(--color-warning) 22%, transparent)',
-              borderLeftColor: 'var(--color-warning)',
+              backgroundColor: 'color-mix(in srgb, var(--color-diff-changed) 34%, transparent)',
+              borderLeftColor: 'var(--color-diff-changed)',
             }
           : undefined;
   return (
@@ -27,7 +27,11 @@ function Cell({ line, kind }: { line?: { number: number; text: string }; kind: s
       data-diff-kind={kind === 'unchanged' ? undefined : kind}
       style={changeStyle}
     >
-      <span className="select-none border-r border-border bg-surface-elevated px-xs py-1 text-right text-muted">
+      <span
+        className={`select-none border-r border-border px-xs py-1 text-right ${
+          changeStyle ? 'text-foreground' : 'bg-surface-elevated text-muted'
+        }`}
+      >
         {line?.number ?? ''}
       </span>
       <code className="min-w-0 whitespace-pre-wrap break-words px-sm py-1">{line?.text ?? ''}</code>

@@ -8,7 +8,7 @@ This internal UI and route contract defines the client-side comparison of two pa
 
 | Purpose | Address | Contract |
 |---|---|---|
-| History selection and comparison | `/history/<path>?compare=<a>..<b>` | The sole interface for choosing two visible revisions and presenting their client-side Diff. |
+| History selection and comparison | `/history/<path>?selected=<n>` or `/history/<path>?compare=<a>..<b>` | The sole interface for choosing visible revisions. One selected revision renders its stored content; two selected revisions present their client-side Diff. |
 | Existing single revision | `/revisions/<n>/<path>` | Remains valid and renders one revision as today. |
 | Legacy comparison | `/revisions/<a>..<b>/<path>` | Redirects to the canonical history URL. `a` and `b` are distinct positive integers, with `a < b`. |
 

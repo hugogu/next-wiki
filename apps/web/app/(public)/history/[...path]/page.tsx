@@ -38,6 +38,11 @@ export default async function HistoryPage({
   const query = await searchParams;
   const compareValue = typeof query.compare === 'string' ? query.compare : '';
   const pair = parseRevisionPair(compareValue);
+  const selectedValue = typeof query.selected === 'string' ? query.selected : '';
+  const selectedVersion =
+    !pair && /^\d+$/.test(selectedValue) && Number.isSafeInteger(Number(selectedValue))
+      ? Number(selectedValue)
+      : undefined;
   if (pair?.reversed) {
     const next = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
@@ -69,12 +74,17 @@ export default async function HistoryPage({
       }
     : undefined;
 
-  const comparedRevisions = pair
-    ? await Promise.all([
-        pageService.getRevision({ actor }, path, pair.earlier),
-        pageService.getRevision({ actor }, path, pair.later),
-      ])
-    : [undefined, undefined];
+  const [comparedRevisions, selectedRevision] = await Promise.all([
+    pair
+      ? Promise.all([
+          pageService.getRevision({ actor }, path, pair.earlier),
+          pageService.getRevision({ actor }, path, pair.later),
+        ])
+      : Promise.resolve([undefined, undefined]),
+    selectedVersion
+      ? pageService.getRevision({ actor }, path, selectedVersion)
+      : Promise.resolve(undefined),
+  ]);
   const visibleVersions = new Set(revisions.map((revision) => revision.version));
   if (
     pair &&
@@ -83,6 +93,9 @@ export default async function HistoryPage({
       !comparedRevisions[0] ||
       !comparedRevisions[1])
   ) {
+    notFound();
+  }
+  if (selectedVersion && (!visibleVersions.has(selectedVersion) || !selectedRevision)) {
     notFound();
   }
 
@@ -107,8 +120,10 @@ export default async function HistoryPage({
             path={path}
             pageId={page?.pageId}
             selectedPair={pair ? { earlier: pair.earlier, later: pair.later } : undefined}
+            selectedVersion={selectedVersion}
             earlier={comparedRevisions[0] ?? undefined}
             later={comparedRevisions[1] ?? undefined}
+            selectedRevision={selectedRevision ?? undefined}
             revisions={revisions.map((revision) => ({
               version: revision.version,
               status: revision.status,

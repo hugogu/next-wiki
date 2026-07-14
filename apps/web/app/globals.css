@@ -17,6 +17,9 @@
   --color-ring: rgba(180, 83, 9, 0.25);
   --color-danger: #dc2626;
   --color-warning: #d97706;
+  --color-diff-added: #0f766e;
+  --color-diff-changed: #b45309;
+  --color-diff-removed: #b91c1c;
 
   /* Spacing tokens */
   --space-xs: 0.25rem;
@@ -34,8 +37,9 @@
   /* Typography tokens */
   --font-display: 'Crimson Pro', Georgia, serif;
   --font-body: 'Source Sans 3', system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
 
   /* Font-size tokens (admin-configurable; Markdown themes may override) */
   --font-size-base: 1rem;
@@ -62,6 +66,9 @@ html.dark {
   --color-ring: rgba(245, 158, 11, 0.25);
   --color-danger: #f87171;
   --color-warning: #fbbf24;
+  --color-diff-added: #2dd4bf;
+  --color-diff-changed: #fbbf24;
+  --color-diff-removed: #f87171;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -79,6 +86,9 @@ html.dark {
     --color-ring: rgba(245, 158, 11, 0.25);
     --color-danger: #f87171;
     --color-warning: #fbbf24;
+    --color-diff-added: #2dd4bf;
+    --color-diff-changed: #fbbf24;
+    --color-diff-removed: #f87171;
   }
 }
 

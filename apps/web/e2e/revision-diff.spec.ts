@@ -37,17 +37,31 @@ test('compares two revisions without requesting a server diff endpoint', async (
 
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Compare' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Publish this revision' }).first()).toHaveClass(/h-8/);
+  await expect(page.getByRole('button', { name: 'Publish this revision' }).first()).toHaveClass(
+    /h-8/,
+  );
   await page.getByRole('button', { name: /Version 2/ }).click();
+  await page.waitForURL(`/history/${path}?selected=2`);
+  await expect(page.getByText('Initial heading')).toBeVisible();
   await page.getByRole('button', { name: /Version 3/ }).click();
   await page.waitForURL(`/history/${path}?compare=2..3`);
   await expect(page.getByText('Comparing v2 to v3')).toBeVisible();
   await expect(page.getByLabel('Later revision source')).toContainText('Changed heading');
-  await expect(
-    page.getByLabel('Later revision source').locator('[data-diff-kind="changed"]').first(),
-  ).toBeVisible();
+  const changedRow = page
+    .getByLabel('Later revision source')
+    .locator('[data-diff-kind="changed"]')
+    .first();
+  await expect(changedRow).toBeVisible();
+  expect(
+    await changedRow.evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).not.toBe('rgba(0, 0, 0, 0)');
 
   await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.getByRole('group', { name: 'Source / Preview' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Preview' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(page.getByLabel('Later revision preview')).toContainText('Changed heading');
   await page.goto(`/revisions/3..2/${path}`);
   await page.waitForURL(`/history/${path}?compare=2..3`);
