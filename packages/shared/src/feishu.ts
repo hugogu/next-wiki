@@ -105,6 +105,13 @@ export const feishuInboundDispositionSchema = z.discriminatedUnion('disposition'
     correlationId: correlationIdSchema,
   }),
   z.object({
+    // An immediate, safe direct reply (e.g. AI disabled, or a reset ack).
+    disposition: z.literal('reply'),
+    responseTarget: feishuResponseTargetSchema,
+    text: z.string().max(4_000),
+    correlationId: correlationIdSchema,
+  }),
+  z.object({
     disposition: z.literal('ignored'),
     correlationId: correlationIdSchema,
   }),

@@ -29,10 +29,10 @@ in-process transport, auditing, inbox de-duplication, and worker scaffolding.
 **Purpose**: Add the Feishu SDK, shared contracts, and the in-process transport
 seam without changing default Wiki behavior. No new container or process.
 
-- [X] T001 Add the official Feishu SDK (`@larksuiteoapi/node-sdk`) to `apps/web/package.json`, create the module directory `apps/web/src/server/feishu/`, and confirm `docker compose up` starts nothing new.
-- [X] T002 [P] Add shared bounded Feishu Zod schemas, enums, and exports for the module contracts in `packages/shared/src/feishu.ts` and `packages/shared/src/index.ts`.
-- [X] T003 [P] Define the in-process Feishu transport interface (verify/decrypt webhook + send message) in `apps/web/src/server/feishu/transport-types.ts` and a deterministic test double in `apps/web/src/server/feishu/transport.test-support.ts` with `apps/web/src/server/feishu/transport.test.ts`.
-- [X] T004 Document that Feishu is optional and configured via the admin UI (encrypted DB config, not env), plus the single callback route, in `.env.example` and `README.md` — with no new Compose service.
+- [x] T001 Add the official Feishu SDK (`@larksuiteoapi/node-sdk`) to `apps/web/package.json`, create the module directory `apps/web/src/server/feishu/`, and confirm `docker compose up` starts nothing new.
+- [x] T002 [P] Add shared bounded Feishu Zod schemas, enums, and exports for the module contracts in `packages/shared/src/feishu.ts` and `packages/shared/src/index.ts`.
+- [x] T003 [P] Define the in-process Feishu transport interface (verify/decrypt webhook + send message) in `apps/web/src/server/feishu/transport-types.ts` and a deterministic test double in `apps/web/src/server/feishu/transport.test-support.ts` with `apps/web/src/server/feishu/transport.test.ts`.
+- [x] T004 Document that Feishu is optional and configured via the admin UI (encrypted DB config, not env), plus the single callback route, in `.env.example` and `README.md` — with no new Compose service.
 
 ---
 
@@ -44,16 +44,16 @@ transport required by every story.
 
 **⚠️ CRITICAL**: Complete this phase before user-story implementation.
 
-- [X] T005 [P] Define Feishu statuses, subscription modes, delivery states, connection mode, and the `audit_origin` enum in `apps/web/src/server/db/schema/enums.ts`.
-- [X] T006 Define `feishu_integration_config`, `feishu_bindings`, `feishu_binding_tokens`, `feishu_inbox_events`, `feishu_bot_sessions`, subscription, notification-event, and delivery tables with the documented indexes/uniqueness constraints in `apps/web/src/server/db/schema/index.ts`.
-- [X] T007 Extend `api_audit_entries` with bounded `origin` and `external_correlation_id` fields plus indexes and relations in `apps/web/src/server/db/schema/index.ts`.
-- [X] T008 Generate the schema migration and snapshot with `pnpm db:generate`; inspect the generated files under `apps/web/src/server/db/migrations/`, then rerun the command to confirm `No schema changes`.
-- [X] T009 Add Feishu configuration encryption, write-only serialization, retention/limit validation, and an in-process `getDecryptedConfig` accessor using the existing key-encryption primitive in `apps/web/src/server/services/feishu-config.ts` and `apps/web/src/server/services/feishu-config.test.ts`.
-- [X] T010 Extend audit writing/query mapping for `origin=feishu` and opaque correlations in `apps/web/src/server/services/audit.ts`, `apps/web/src/server/services/audit.test.ts`, and `apps/web/src/components/admin/AdminAuditTable.tsx`.
-- [X] T011 Implement durable Feishu inbox de-duplication, rate-limit accounting, and normalized correlation/error helpers in `apps/web/src/server/services/feishu-inbox.ts` and `apps/web/src/server/services/feishu-inbox.test.ts`.
-- [X] T012 Implement the in-process Feishu transport client (SDK-backed verify/decrypt + send, reading the decrypted config) in `apps/web/src/server/feishu/transport.ts` behind the T003 interface, with unit coverage using the test double.
-- [X] T013 Add explicit Feishu delivery/recovery/cleanup queue names, worker registration, stale-claim recovery, and cleanup scheduling in `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/register.ts` (worker bodies filled in US2/US3).
-- [X] T014 Add foundational integration coverage for the generated schema, encrypted config serialization, audit origin, and inbox uniqueness in `apps/web/src/server/services/feishu-foundation.integration.test.ts`.
+- [x] T005 [P] Define Feishu statuses, subscription modes, delivery states, connection mode, and the `audit_origin` enum in `apps/web/src/server/db/schema/enums.ts`.
+- [x] T006 Define `feishu_integration_config`, `feishu_bindings`, `feishu_binding_tokens`, `feishu_inbox_events`, `feishu_bot_sessions`, subscription, notification-event, and delivery tables with the documented indexes/uniqueness constraints in `apps/web/src/server/db/schema/index.ts`.
+- [x] T007 Extend `api_audit_entries` with bounded `origin` and `external_correlation_id` fields plus indexes and relations in `apps/web/src/server/db/schema/index.ts`.
+- [x] T008 Generate the schema migration and snapshot with `pnpm db:generate`; inspect the generated files under `apps/web/src/server/db/migrations/`, then rerun the command to confirm `No schema changes`.
+- [x] T009 Add Feishu configuration encryption, write-only serialization, retention/limit validation, and an in-process `getDecryptedConfig` accessor using the existing key-encryption primitive in `apps/web/src/server/services/feishu-config.ts` and `apps/web/src/server/services/feishu-config.test.ts`.
+- [x] T010 Extend audit writing/query mapping for `origin=feishu` and opaque correlations in `apps/web/src/server/services/audit.ts`, `apps/web/src/server/services/audit.test.ts`, and `apps/web/src/components/admin/AdminAuditTable.tsx`.
+- [x] T011 Implement durable Feishu inbox de-duplication, rate-limit accounting, and normalized correlation/error helpers in `apps/web/src/server/services/feishu-inbox.ts` and `apps/web/src/server/services/feishu-inbox.test.ts`.
+- [x] T012 Implement the in-process Feishu transport client (SDK-backed verify/decrypt + send, reading the decrypted config) in `apps/web/src/server/feishu/transport.ts` behind the T003 interface, with unit coverage using the test double.
+- [x] T013 Add explicit Feishu delivery/recovery/cleanup queue names, worker registration, stale-claim recovery, and cleanup scheduling in `apps/web/src/server/jobs/runtime.ts` and `apps/web/src/server/jobs/register.ts` (worker bodies filled in US2/US3).
+- [x] T014 Add foundational integration coverage for the generated schema, encrypted config serialization, audit origin, and inbox uniqueness in `apps/web/src/server/services/feishu-foundation.integration.test.ts`.
 
 **Checkpoint**: Database migrations are generated and clean; configuration is
 write-only encrypted; every Feishu-origin audit row records its origin; the
@@ -73,19 +73,19 @@ group.
 
 ### Tests for User Story 1
 
-- [X] T015 [P] [US1] Add binding-token service tests for hashing, 10-minute expiry, one-time use, `open_id` matching, user deactivation, unbind, and admin revocation in `apps/web/src/server/services/feishu-bindings.test.ts`.
-- [X] T016 [P] [US1] Add webhook route tests for invalid signature, stale payload, duplicate `message_id`, URL verification, direct binding disposition, and group-safe no-link fallback in `apps/web/app/webhooks/feishu/events/route.test.ts`.
-- [X] T017 [P] [US1] Add Playwright binding/revocation coverage with private-message and group-fallback fixtures in `apps/web/e2e/feishu-binding.spec.ts`.
+- [x] T015 [P] [US1] Add binding-token service tests for hashing, 10-minute expiry, one-time use, `open_id` matching, user deactivation, unbind, and admin revocation in `apps/web/src/server/services/feishu-bindings.test.ts`.
+- [x] T016 [P] [US1] Add webhook route tests for invalid signature, stale payload, duplicate `message_id`, URL verification, direct binding disposition, and group-safe no-link fallback in `apps/web/app/webhooks/feishu/events/route.test.ts`.
+- [x] T017 [P] [US1] Add Playwright binding/revocation coverage with private-message and group-fallback fixtures in `apps/web/e2e/feishu-binding.spec.ts`.
 
 ### Implementation for User Story 1
 
-- [X] T018 [US1] Implement active-binding lookup, hashed token issuance/consumption, confirmation, unbind, revocation, and immediate session expiry in `apps/web/src/server/services/feishu-bindings.ts`.
-- [X] T019 [US1] Implement the authenticated binding-confirmation page and mutation route in `apps/web/app/(user)/user-center/feishu/bind/page.tsx` and `apps/web/app/api/feishu/bindings/route.ts`.
-- [X] T020 [US1] Implement the Feishu Event v2 callback route (URL-verification response, decrypt/verify-before-parse, durable inbox acknowledgement, hand-off to delegation) in `apps/web/app/webhooks/feishu/events/route.ts`.
-- [X] T021 [US1] Implement the in-process delegation entry `handleInboundMessage` that resolves bindings server-side and returns only `bind`/`ignored`/safe dispositions in `apps/web/src/server/services/feishu-delegation.ts`.
-- [X] T022 [US1] Implement direct-message sending and generic group fallback (never emitting a binding URL in a group) in `apps/web/src/server/services/feishu-messaging.ts` using the T012 transport.
-- [X] T023 [US1] Add binding/unbinding confirmation copy and translations in `apps/web/messages/en.json` and `apps/web/messages/zh-CN.json`.
-- [X] T024 [US1] Run the US1 Vitest, webhook route, and Playwright suites named in T015–T017.
+- [x] T018 [US1] Implement active-binding lookup, hashed token issuance/consumption, confirmation, unbind, revocation, and immediate session expiry in `apps/web/src/server/services/feishu-bindings.ts`.
+- [x] T019 [US1] Implement the authenticated binding-confirmation page and mutation route in `apps/web/app/(user)/user-center/feishu/bind/page.tsx` and `apps/web/app/api/feishu/bindings/route.ts`.
+- [x] T020 [US1] Implement the Feishu Event v2 callback route (URL-verification response, decrypt/verify-before-parse, durable inbox acknowledgement, hand-off to delegation) in `apps/web/app/webhooks/feishu/events/route.ts`.
+- [x] T021 [US1] Implement the in-process delegation entry `handleInboundMessage` that resolves bindings server-side and returns only `bind`/`ignored`/safe dispositions in `apps/web/src/server/services/feishu-delegation.ts`.
+- [x] T022 [US1] Implement direct-message sending and generic group fallback (never emitting a binding URL in a group) in `apps/web/src/server/services/feishu-messaging.ts` using the T012 transport.
+- [x] T023 [US1] Add binding/unbinding confirmation copy and translations in `apps/web/messages/en.json` and `apps/web/messages/zh-CN.json`.
+- [x] T024 [US1] Run the US1 Vitest, webhook route, and Playwright suites named in T015–T017.
 
 **Checkpoint**: User Story 1 is independently demonstrable with no Q&A,
 subscription, or notification implementation enabled.
@@ -105,18 +105,18 @@ reset/expiry clears only that user's session.
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] [US2] Add delegation-service tests for in-process binding resolution, effective-user-from-binding-only, AI-disabled fallback, and audit attribution in `apps/web/src/server/services/feishu-delegation.test.ts`.
+- [x] T025 [P] [US2] Add delegation-service tests for in-process binding resolution, effective-user-from-binding-only, AI-disabled fallback, and audit attribution in `apps/web/src/server/services/feishu-delegation.test.ts`.
 - [ ] T026 [P] [US2] Add permission-isolation tests for unreadable retrieval candidates, group @-mention actor selection, direct-only protected answers, and public-only group replies in `apps/web/src/server/services/feishu-question.test.ts`.
-- [ ] T027 [P] [US2] Add answer-delivery worker tests for queued/running/completed/insufficient-evidence outcomes and duplicate handling in `apps/web/src/server/jobs/feishu-deliveries.test.ts`.
+- [x] T027 [P] [US2] Add answer-delivery worker tests for queued/running/completed/insufficient-evidence outcomes and duplicate handling in `apps/web/src/server/jobs/feishu-deliveries.test.ts`.
 - [ ] T028 [P] [US2] Add end-to-end bound Q&A, session reset/expiry, entitlement change, and citation-link coverage in `apps/web/e2e/feishu-question.spec.ts`.
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Implement per-binding-per-chat session lifecycle, reset command, 30-minute default expiry, and 5–240-minute configuration validation in `apps/web/src/server/services/feishu-sessions.ts`.
-- [ ] T030 [US2] Extend the in-process delegation flow to build the bound user's `PermCtx`, invoke `createWikiQuestion`, set Feishu request metadata, and recheck normal AI permissions in `apps/web/src/server/services/feishu-delegation.ts`.
-- [ ] T031 [US2] On `wiki_question` terminal state, create a sanitized answer-delivery row (citations only, group-vs-direct policy) and persist Feishu origin/correlation without raw prompts/answers in `apps/web/src/server/services/feishu-notifications.ts` and `apps/web/src/server/jobs/ai-question.ts`.
-- [ ] T032 [US2] Implement the answer/notification delivery worker (claim, re-check binding + citation visibility, render card, send via transport, record outcome, backoff) in `apps/web/src/server/jobs/feishu-deliveries.ts`.
-- [ ] T033 [US2] Assert worker-time actor/entitlement rechecks and Feishu metadata in `apps/web/src/server/jobs/ai-question.test.ts`.
+- [x] T029 [US2] Implement per-binding-per-chat session lifecycle, reset command, 30-minute default expiry, and 5–240-minute configuration validation in `apps/web/src/server/services/feishu-sessions.ts`.
+- [x] T030 [US2] Extend the in-process delegation flow to build the bound user's `PermCtx`, invoke `createWikiQuestion`, set Feishu request metadata, and recheck normal AI permissions in `apps/web/src/server/services/feishu-delegation.ts`.
+- [x] T031 [US2] On `wiki_question` terminal state, create a sanitized answer-delivery row (citations only, group-vs-direct policy) and persist Feishu origin/correlation without raw prompts/answers in `apps/web/src/server/services/feishu-notifications.ts` and `apps/web/src/server/jobs/ai-question.ts`.
+- [x] T032 [US2] Implement the answer/notification delivery worker (claim, re-check binding + citation visibility, render card, send via transport, record outcome, backoff) in `apps/web/src/server/jobs/feishu-deliveries.ts`.
+- [x] T033 [US2] Assert worker-time actor/entitlement rechecks and Feishu metadata in `apps/web/src/server/jobs/ai-question.test.ts`.
 - [ ] T034 [US2] Run the US2 service, worker, and Playwright suites named in T025–T028.
 
 **Checkpoint**: User Stories 1 and 2 work independently with existing AI

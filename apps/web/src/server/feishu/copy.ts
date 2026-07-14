@@ -18,6 +18,38 @@ export const feishuCopy = {
       "I've sent you a private message with a link to connect your Wiki account."
     );
   },
+  /** Acknowledge a "start a new conversation" reset command. */
+  resetAck(): string {
+    return '已开始新的对话。 / Started a new conversation.';
+  },
+  /** Shown when AI Q&A is disabled at the Wiki level. */
+  aiDisabled(): string {
+    return (
+      '当前 Wiki 未启用 AI 问答功能。 / AI question answering is not enabled on this Wiki.'
+    );
+  },
+  /** Generic "couldn't answer right now" fallback (never leaks details). */
+  unavailable(): string {
+    return (
+      '暂时无法回答这个问题，请稍后再试。 / I could not answer that right now — please try again later.'
+    );
+  },
+  /** Shown when the user exceeds the per-user/per-chat rate limit. */
+  rateLimited(): string {
+    return '你发送得太频繁了，请稍后再试。 / You are sending messages too quickly — please try again shortly.';
+  },
+  /** No accessible source material was found for the question. */
+  insufficientEvidence(): string {
+    return (
+      '没有找到你有权限查看的相关内容。 / I could not find any material you have access to for that.'
+    );
+  },
+  /** Render a grounded answer with its source links appended. */
+  answer(text: string, citations: { title: string; url: string }[]): string {
+    if (citations.length === 0) return text;
+    const sources = citations.map((c) => `- ${c.title}: ${c.url}`).join('\n');
+    return `${text}\n\n来源 / Sources:\n${sources}`;
+  },
   /** Welcome shown right after a successful binding confirmation (web page). */
   bindWelcome(displayName: string | null): string {
     const name = displayName ?? '';

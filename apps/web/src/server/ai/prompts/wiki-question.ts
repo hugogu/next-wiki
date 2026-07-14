@@ -9,20 +9,28 @@ export type QuestionSource = AiCitation & { id: string; content: string };
  */
 const CITATION_MARKER = /[\[【](S\d+)[\]】]/g;
 
-export function buildWikiQuestionPrompt(question: string, sources: QuestionSource[]) {
+export function buildWikiQuestionPrompt(
+  question: string,
+  sources: QuestionSource[],
+  conversation: { question: string; answer: string }[] = [],
+) {
   const sourceText = sources
-    .map((source) => `<source id="${source.id}" title="${source.title}" path="${source.path}">\n${source.content}\n</source>`)
+    .map(
+      (source) =>
+        `<source id="${source.id}" title="${source.title}" path="${source.path}">\n${source.content}\n</source>`,
+    )
     .join('\n\n');
   return {
     system:
       'You are a helpful Wiki assistant. Use only the supplied Wiki sources to answer. ' +
+      'Conversation history may clarify references, but it is not a factual source and must not be cited. ' +
       'Cite factual claims with source ids in plain ASCII brackets exactly like [S1] — never full-width brackets such as 【S1】, even when answering in Chinese. ' +
       'If the user asks which page contains or mentions something, answer with the page title and cite the relevant source; ' +
       'do not spell out the raw page path as plain text, the citation link already carries it. ' +
       'Format every mathematical expression using Markdown math syntax: wrap inline math in single dollar signs like $x^2$ ' +
       'and block/display math in double dollar signs on their own lines like $$\\int_0^1 x\\,dx$$. Never emit bare LaTeX without dollar-sign delimiters. ' +
       'If the sources truly do not support any answer, respond exactly with INSUFFICIENT_WIKI_EVIDENCE. Do not invent citations.',
-    user: `${sourceText}\n\n<question>\n${question}\n</question>`,
+    user: `${sourceText}${conversation.length > 0 ? `\n\n<conversation>\n${conversation.map((turn) => `<turn><question>${turn.question}</question><answer>${turn.answer}</answer></turn>`).join('\n')}\n</conversation>` : ''}\n\n<question>\n${question}\n</question>`,
   };
 }
 

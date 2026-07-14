@@ -88,10 +88,18 @@ describe('feishu webhook processing', () => {
 
   it('is idempotent for a duplicate message_id', async () => {
     const transport = new FakeFeishuTransport();
-    await processWebhook({ transport, rawBody: messageEnvelope({ messageId: 'om_dup' }), headers: {} });
+    await processWebhook({
+      transport,
+      rawBody: messageEnvelope({ messageId: 'om_dup' }),
+      headers: {},
+    });
     transport.reset();
     // Same message id again → no new token, no new send.
-    await processWebhook({ transport, rawBody: messageEnvelope({ messageId: 'om_dup' }), headers: {} });
+    await processWebhook({
+      transport,
+      rawBody: messageEnvelope({ messageId: 'om_dup' }),
+      headers: {},
+    });
     expect(transport.sent).toHaveLength(0);
     const tokens = await db.select().from(schema.feishuBindingTokens);
     expect(tokens).toHaveLength(1);
@@ -121,7 +129,7 @@ describe('feishu webhook processing', () => {
     expect(transport.sent).toHaveLength(0);
   });
 
-  it('takes no action for an already-bound user in US1 scope', async () => {
+  it('gives an already-bound user a safe AI-disabled reply when Q&A is not configured', async () => {
     const [user] = await db
       .insert(schema.users)
       .values({ email: 'bound@example.com', passwordHash: 'HASH' })
@@ -136,6 +144,8 @@ describe('feishu webhook processing', () => {
       rawBody: messageEnvelope({ openId: 'ou_bound', messageId: 'om_bound' }),
       headers: {},
     });
-    expect(transport.sent).toHaveLength(0);
+    expect(transport.sent).toHaveLength(1);
+    expect(transport.sent[0]?.target).toEqual({ type: 'direct', openId: 'ou_bound' });
+    expect(transport.sent[0]?.text).toMatch(/AI question answering is not enabled/i);
   });
 });

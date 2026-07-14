@@ -12,6 +12,7 @@ const TOKEN_TTL_MS = 10 * 60 * 1000;
 export type ActiveBinding = {
   id: string;
   userId: string;
+  role: 'admin' | 'editor' | 'reader';
   openId: string;
   displayName: string | null;
 };
@@ -31,12 +32,13 @@ export async function getActiveBinding(openId: string): Promise<ActiveBinding | 
       eq(schema.feishuBindings.openId, openId),
       eq(schema.feishuBindings.status, 'active'),
     ),
-    with: { user: { columns: { id: true, status: true, displayName: true } } },
+    with: { user: { columns: { id: true, status: true, role: true, displayName: true } } },
   });
   if (!row || !row.user || row.user.status !== 'active') return null;
   return {
     id: row.id,
     userId: row.userId,
+    role: row.user.role,
     openId: row.openId,
     displayName: row.user.displayName,
   };

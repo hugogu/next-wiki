@@ -23,6 +23,8 @@ import type {
 export class FakeFeishuTransport implements FeishuTransport {
   /** Every message handed to `sendMessage`, in call order. */
   readonly sent: OutboundMessage[] = [];
+  /** When true, `sendMessage` throws to exercise retry/backoff paths. */
+  failSends = false;
   private sendCounter = 0;
 
   parseWebhook(
@@ -55,6 +57,7 @@ export class FakeFeishuTransport implements FeishuTransport {
   }
 
   async sendMessage(message: OutboundMessage): Promise<{ providerMessageId: string }> {
+    if (this.failSends) throw new Error('fake send failure');
     this.sent.push(message);
     this.sendCounter += 1;
     return { providerMessageId: `om_fake_${this.sendCounter}` };
@@ -63,5 +66,6 @@ export class FakeFeishuTransport implements FeishuTransport {
   reset(): void {
     this.sent.length = 0;
     this.sendCounter = 0;
+    this.failSends = false;
   }
 }

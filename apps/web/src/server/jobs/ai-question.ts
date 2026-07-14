@@ -15,13 +15,20 @@ import {
 import { loadReadableFullContext } from '@/server/ai/retrieval/full-context';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
-import { appendActionEvent, finishAction, isCancellationRequested, readActionInput } from '@/server/services/ai-actions';
+import {
+  appendActionEvent,
+  finishAction,
+  isCancellationRequested,
+  readActionInput,
+} from '@/server/services/ai-actions';
 import { retrieve } from '@/server/services/ai-retrieval';
+import { nudgeAnswerDelivery } from '@/server/services/feishu-notifications';
 
 type QuestionInput = {
   question: string;
   mode: AiQuestionMode;
   currentPage?: { pageId: string; revisionId: string };
+  conversation?: { question: string; answer: string }[];
 };
 
 export async function runWikiQuestionAction(actionId: string): Promise<void> {
@@ -34,7 +41,8 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
     db.query.users.findFirst({ where: eq(schema.users.id, action.actorUserId) }),
     db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, action.modelId) }),
   ]);
-  if (!user || user.status !== 'active' || !textModel) throw new DomainError('CANCELLED', 'Question action is no longer authorized');
+  if (!user || user.status !== 'active' || !textModel)
+    throw new DomainError('CANCELLED', 'Question action is no longer authorized');
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
 
@@ -52,12 +60,20 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
     const generation = await db.query.aiIndexGenerations.findFirst({
       where: eq(schema.aiIndexGenerations.isActive, true),
     });
-    if (!generation || generation.status !== 'ready') throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
-    const embeddingModel = await db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, generation.modelId) });
+    if (!generation || generation.status !== 'ready')
+      throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
+    const embeddingModel = await db.query.aiModels.findFirst({
+      where: eq(schema.aiModels.id, generation.modelId),
+    });
     if (!embeddingModel) throw new DomainError('MODEL_NOT_FOUND', 'Embedding model not found');
-    const embeddingProvider = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, embeddingModel.providerId) });
-    if (!embeddingProvider?.enabled) throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
-    const embedded = await createAiProviderAdapter(await providerRuntime(embeddingProvider.id)).embed({
+    const embeddingProvider = await db.query.aiProviders.findFirst({
+      where: eq(schema.aiProviders.id, embeddingModel.providerId),
+    });
+    if (!embeddingProvider?.enabled)
+      throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
+    const embedded = await createAiProviderAdapter(
+      await providerRuntime(embeddingProvider.id),
+    ).embed({
       actionId,
       modelExternalId: embeddingModel.externalId,
       inputs: [input.question],
@@ -70,10 +86,15 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
 
   if (sources.length === 0) {
     await appendActionEvent(actionId, 'text_delta', { text: 'INSUFFICIENT_WIKI_EVIDENCE' });
-    await finishAction(actionId, 'completed', { resultMetadata: { insufficientEvidence: true, citationCount: 0 } });
+    await finishAction(actionId, 'completed', {
+      resultMetadata: { insufficientEvidence: true, citationCount: 0 },
+    });
+    // If this question came from Feishu, wake the delivery worker to send the
+    // "no accessible material" answer promptly.
+    await nudgeAnswerDelivery(actionId);
     return;
   }
-  const prompt = buildWikiQuestionPrompt(input.question, sources);
+  const prompt = buildWikiQuestionPrompt(input.question, sources, input.conversation);
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   let answer = '';
   let usage: Record<string, unknown> = { ...retrievalUsage };
@@ -86,7 +107,8 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
     temperature: 0.1,
     abortSignal: new AbortController().signal,
   })) {
-    if (await isCancellationRequested(actionId)) throw new DomainError('CANCELLED', 'Question action was cancelled');
+    if (await isCancellationRequested(actionId))
+      throw new DomainError('CANCELLED', 'Question action was cancelled');
     if (event.type === 'delta') {
       answer += event.text;
       await appendActionEvent(actionId, 'text_delta', { text: event.text });
@@ -97,10 +119,17 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
     }
   }
   await assertAiFeature(ctx, 'question');
-  const citations = isInsufficientAnswer(answer, sources) ? [] : normalizeQuestionCitations(answer, sources);
+  const citations = isInsufficientAnswer(answer, sources)
+    ? []
+    : normalizeQuestionCitations(answer, sources);
   await appendActionEvent(actionId, 'citations', { citations });
   await finishAction(actionId, 'completed', {
-    resultMetadata: { insufficientEvidence: isInsufficientAnswer(answer, sources), citationCount: citations.length },
+    resultMetadata: {
+      insufficientEvidence: isInsufficientAnswer(answer, sources),
+      citationCount: citations.length,
+    },
     usageMetadata: usage,
   });
+  // Deliver a Feishu-originated answer promptly (no-op for web-originated ones).
+  await nudgeAnswerDelivery(actionId);
 }

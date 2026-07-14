@@ -15,6 +15,14 @@ export async function actOnDisposition(
 ): Promise<void> {
   if (disposition.disposition === 'bind') {
     await sendBindingInstructions(transport, input, disposition.bindUrl);
+    return;
+  }
+  if (disposition.disposition === 'reply') {
+    await transport.sendMessage({
+      target: { type: 'direct', openId: disposition.responseTarget.openId },
+      text: disposition.text,
+    });
+    return;
   }
   // 'question_queued' answers are delivered asynchronously by the delivery
   // worker (US2). 'ignored' produces no outbound message.

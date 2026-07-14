@@ -17,8 +17,10 @@ export async function getAssignedModel(purpose: 'wiki_text' | 'wiki_embedding' |
     .limit(1);
   const assigned = rows[0];
   if (!assigned) throw new DomainError('AI_NOT_CONFIGURED', `No model is assigned for ${purpose}`);
-  if (!assigned.provider.enabled) throw new DomainError('PROVIDER_DISABLED', 'The assigned AI provider is disabled');
-  if (assigned.model.availability !== 'available') throw new DomainError('MODEL_UNAVAILABLE', 'The assigned AI model is unavailable');
+  if (!assigned.provider.enabled)
+    throw new DomainError('PROVIDER_DISABLED', 'The assigned AI provider is disabled');
+  if (assigned.model.availability !== 'available')
+    throw new DomainError('MODEL_UNAVAILABLE', 'The assigned AI model is unavailable');
   return assigned;
 }
 
@@ -40,7 +42,10 @@ async function validateCurrentPage(
       ),
     )
     .limit(1);
-  if (!rows[0] || !can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: rows[0].anonymousRead })) {
+  if (
+    !rows[0] ||
+    !can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: rows[0].anonymousRead })
+  ) {
     throw new DomainError('NOT_FOUND', 'Current page not found');
   }
 }
@@ -51,6 +56,9 @@ export async function createWikiQuestion(
     question: string;
     mode: AiQuestionMode;
     currentPage?: { pageId: string; revisionId: string };
+    conversation?: { question: string; answer: string }[];
+    /** Internal channel metadata; never contains the raw question or credentials. */
+    requestMetadata?: Record<string, unknown>;
   },
 ) {
   await assertAiFeature(ctx, 'question');
@@ -64,6 +72,7 @@ export async function createWikiQuestion(
     pageId: input.currentPage?.pageId ?? null,
     questionMode: input.mode,
     requestMetadata: {
+      ...input.requestMetadata,
       questionBytes: Buffer.byteLength(input.question),
       hasCurrentPage: Boolean(input.currentPage),
       providerName: provider.name,
