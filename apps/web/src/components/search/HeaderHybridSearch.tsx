@@ -1,14 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { HybridPageSearchResponse } from '@next-wiki/shared';
 import { SearchIcon } from '@/components/icons';
+import { useHybridPageSearch } from '@/hooks/useHybridPageSearch';
 import { getPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
-
-type SearchStatus = 'idle' | 'searching' | 'error';
-
-const SEARCH_DEBOUNCE_MS = 250;
 
 function getSearchTerms(query: string): string[] {
   const normalized = query.trim();
@@ -48,20 +44,24 @@ export function HeaderHybridSearch() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<HybridPageSearchResponse | null>(null);
-  const [status, setStatus] = useState<SearchStatus>('idle');
+  const [searchSessionId, setSearchSessionId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const requestRef = useRef(0);
-  const runSearchRef = useRef<((value: string, searchRecordId: string, attempt: number) => Promise<void>) | null>(null);
   const sessionRef = useRef<string | null>(null);
   const searchRecordRef = useRef<string | null>(null);
   const terminalEventRef = useRef(false);
   const resultsId = useId();
+  const { data: results, error, isSearching, searchRecordId } = useHybridPageSearch({
+    enabled: open,
+    query,
+    searchSessionId,
+  });
+
+  useEffect(() => {
+    searchRecordRef.current = searchRecordId;
+  }, [searchRecordId]);
 
   const close = useCallback((recordEscape: boolean) => {
-    abortRef.current?.abort();
     if (recordEscape && searchRecordRef.current && sessionRef.current && !terminalEventRef.current) {
       terminalEventRef.current = true;
       void fetch('/api/v1/search/pages', {
@@ -76,70 +76,11 @@ export function HeaderHybridSearch() {
     }
     setOpen(false);
     setQuery('');
-    setResults(null);
-    setStatus('idle');
+    setSearchSessionId(null);
     searchRecordRef.current = null;
     sessionRef.current = null;
-    requestRef.current += 1;
     previousFocusRef.current?.focus();
   }, []);
-
-  const runSearch = useCallback(async (value: string, searchRecordId: string, attempt: number) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setStatus('searching');
-    try {
-      const response = await fetch('/api/v1/search/pages', {
-        method: 'POST', signal: controller.signal, headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'query', searchRecordId, searchSessionId: sessionRef.current, q: value, limit: 20 }),
-      });
-      if (!response.ok) throw new Error('search failed');
-      const body = await response.json() as HybridPageSearchResponse;
-      if (!open || attempt !== requestRef.current || value !== query.trim()) return;
-      setResults(body);
-      setStatus('idle');
-      if (body.semanticState === 'pending') {
-        window.setTimeout(() => void runSearchRef.current?.(value, searchRecordId, attempt), 350);
-      }
-    } catch (error) {
-      if ((error as Error).name !== 'AbortError' && attempt === requestRef.current) setStatus('error');
-    }
-  }, [open, query]);
-
-  useEffect(() => {
-    runSearchRef.current = runSearch;
-  }, [runSearch]);
-
-  useEffect(() => {
-    if (!open) return;
-    const normalized = query.trim();
-    if (normalized.length < 2) {
-      abortRef.current?.abort();
-      queueMicrotask(() => {
-        setResults(null);
-        setStatus('idle');
-      });
-      searchRecordRef.current = null;
-      return;
-    }
-    const id = crypto.randomUUID();
-    const attempt = ++requestRef.current;
-    abortRef.current?.abort();
-    searchRecordRef.current = null;
-    queueMicrotask(() => {
-      setResults(null);
-      setStatus('searching');
-    });
-    const timeout = window.setTimeout(() => {
-      searchRecordRef.current = id;
-      void runSearch(normalized, id, attempt);
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      window.clearTimeout(timeout);
-      abortRef.current?.abort();
-    };
-  }, [open, query, runSearch]);
 
   useEffect(() => {
     if (!open) return;
@@ -156,7 +97,9 @@ export function HeaderHybridSearch() {
   const openSearch = () => {
     if (!open) {
       previousFocusRef.current = document.activeElement as HTMLElement | null;
-      sessionRef.current = crypto.randomUUID();
+      const sessionId = crypto.randomUUID();
+      sessionRef.current = sessionId;
+      setSearchSessionId(sessionId);
       terminalEventRef.current = false;
       setOpen(true);
       window.setTimeout(() => inputRef.current?.focus());
@@ -165,7 +108,7 @@ export function HeaderHybridSearch() {
   const terms = getSearchTerms(query);
   const normalizedQuery = query.trim();
   const hasResults = Boolean(results?.items.length);
-  const isFetchingMore = status === 'searching' || results?.semanticState === 'pending';
+  const isFetchingMore = isSearching || results?.semanticState === 'pending';
   const loadingHint = normalizedQuery.length >= 2 && isFetchingMore
     ? results?.semanticState === 'pending' && hasResults
       ? t('header.search.loadingSemantic')
@@ -173,7 +116,7 @@ export function HeaderHybridSearch() {
     : null;
   const statusText = normalizedQuery.length < 2
     ? t('header.search.minChars')
-    : status === 'error'
+    : error
       ? t('header.search.error')
       : results?.semanticState === 'unavailable' || results?.semanticState === 'failed'
         ? t('header.search.reducedCoverage')
