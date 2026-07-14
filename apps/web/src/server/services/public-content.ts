@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -123,10 +123,6 @@ function scoreSearchMatch(matchType: 'path' | 'title' | 'content', page: PublicP
   if (matchType === 'title') return page.title.toLowerCase() === q ? 0.9 : 0.8;
   const occurrences = page.contentSource ? countOccurrences(page.contentSource.toLowerCase(), q) : 0;
   return Math.min(0.3 + occurrences * 0.05, 0.7);
-}
-
-function authorResource(row: { id: string; displayName: string | null; email: string }): PublicPageResource['author'] {
-  return { id: row.id, displayName: row.displayName ?? row.email };
 }
 
 function links(page: PageRow) {
