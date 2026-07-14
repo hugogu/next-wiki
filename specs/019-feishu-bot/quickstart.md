@@ -17,19 +17,21 @@ Feishu tenants.
 ## Start the stack
 
 1. Install workspace dependencies if they are not already present.
-2. Start the normal Wiki stack and then the optional Feishu profile. For a real
-   tenant, configure its HTTPS callback through an ingress/reverse proxy or the
-   optional bot port; the local mock can call the bot listener directly:
+2. Start the normal Wiki stack. For a real tenant, configure its HTTPS callback
+   through an ingress/reverse proxy; the local mock calls the web callback route
+   directly. No Feishu service or Compose profile is required:
 
    ```sh
    docker compose up -d --build
-   docker compose --profile feishu up -d bot
    ```
 
-3. Confirm the web readiness endpoint and bot health/connection status in the
+3. Confirm the web readiness endpoint and integration health in the
    canonical Feishu admin integration page.
-4. Configure the test Feishu credentials through the admin UI. Verify that the UI
-   returns only masked credential state and that a restart still shows no secret.
+4. In `/admin/feishu`, generate a QR code and scan it with Feishu. Choose either
+   an existing application or a new application in the native Feishu screen.
+   Verify that the response never includes a device code or App Secret. Complete
+   the Event v2 Encrypt Key and (if used) Verification Token, then enable the
+   integration. Manual App ID/App Secret entry remains available as a fallback.
 
 ## Binding and Q&A
 
@@ -59,8 +61,8 @@ Feishu tenants.
 3. Configure a `private_recipients_group` transfer subscription. Use fixtures with
    authorized, unauthorized, and unbound group members. Verify only the authorized
    bound users receive direct cards and the group receives no summary.
-4. Stop the bot, emit a notification, then restart it. Verify the durable delivery
-   is claimed and sent within the configured retention window.
+4. Stop the web app, emit a notification, then restart it. Verify the durable
+   delivery is claimed and sent within the configured retention window.
 5. Force five retryable send failures. Verify the subscription is paused/failing and
    visible to admins. Advance beyond expiry and verify an explicit `expired`
    delivery record rather than a silent drop.

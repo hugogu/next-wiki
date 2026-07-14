@@ -8,7 +8,7 @@
 
 **Input**: User description — Add a Feishu bot entry that (a) lets Feishu users ask the wiki questions and get AI-grounded answers, and (b) pushes notable wiki events to Feishu chats. Feishu identities are bound to existing wiki user accounts. The integration is an explicitly registered module inside the single wiki web application (no separate process); inbound messages resolve the active binding in-process and reuse the wiki's existing permission, AI-question, and audit services so every bot action is attributed to the bound user and passes the normal permission chokepoint.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Bind a Feishu Identity to a Wiki Account (Priority: P1)
 
@@ -64,7 +64,7 @@ A bound user or a designated Feishu group receives notifications when notable wi
 
 ### User Story 4 - Admin Configures the Bot Connection and Subscriptions (Priority: P2)
 
-An admin opens the wiki admin panel, enters the Feishu app credentials needed for the bot to connect, selects which events trigger notifications and to which chats, and reviews a list of bound Feishu identities. The admin can revoke any binding, pause any subscription, and inspect connection health.
+An admin opens the wiki admin panel and either scans a Feishu QR code to associate an existing application or create a new one, or enters existing app credentials manually. The admin then completes the Event v2 webhook security settings, selects which events trigger notifications and to which chats, and reviews a list of bound Feishu identities. The admin can revoke any binding, pause any subscription, and inspect connection health.
 
 **Why this priority**: Configuration must be self-service so the integration stays operable without code changes or vendor intervention.
 
@@ -72,7 +72,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 
 **Acceptance Scenarios**:
 
-1. **Given** the admin opens the Feishu integration settings page, **When** valid app credentials are saved, **Then** the bot connection status shows "online" within 60 seconds.
+1. **Given** the admin opens the Feishu integration settings page, **When** they scan the generated QR code and choose an existing or new Feishu app, **Then** the app ID and secret are saved encrypted without being returned to the browser; after Event v2 security settings are completed, the bot connection status shows "online" within 60 seconds.
 2. **Given** the admin opens the notification subscriptions page, **When** they add a direct-chat, public-safe group, or private-recipient group subscription for an event (optionally scoped to a space), **Then** subsequent eligible occurrences of that event are delivered according to its mode.
 3. **Given** the admin opens the bound users list, **When** they revoke a binding, **Then** the corresponding Feishu identity is treated as unbound on next contact.
 4. **Given** the admin opens the connection health view, **When** the bot has lost connection, **Then** the admin sees the current status, the last successful connection time, and the most recent error.
@@ -93,7 +93,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 - **Group chat with multiple bound users**: the bot uses the @-mentioner's binding for both retrieval scope and audit attribution; other bound users in the chat do not widen the retrieval scope.
 - **A subscribed group has no eligible recipients for a protected event**: do not post resource metadata to the group; record a blocked delivery and surface the subscription as requiring admin action.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -122,7 +122,8 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 
 **Admin Configuration**
 
-- **FR-015**: Admins MUST be able to configure the Feishu app credentials and connection mode through the admin panel, without code changes or file edits.
+- **FR-015**: Admins MUST be able to configure the Feishu app credentials and connection mode through the admin panel, without code changes or file edits. The panel MUST offer a Feishu device-code QR flow that lets the administrator associate an existing app or create a new app, while retaining a manual credential fallback.
+- **FR-015a**: The QR registration `device_code`, App Secret, and any equivalent credential MUST remain server-side; the browser may receive only an opaque registration ID, the verification URL/QR image, expiry, and non-secret completion state.
 - **FR-016**: Admins MUST be able to view current connection status, recent delivery health, and recent error summaries.
 - **FR-017**: Admins MUST be able to view, filter, and revoke bound Feishu identities.
 
@@ -145,12 +146,12 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 - **FR-021**: After an outbound-delivery outage or a web-app restart, the system MUST resume delivering pending notifications automatically without admin intervention, recovering any in-flight (claimed-but-unfinished) deliveries.
 - **FR-022**: Outbound notifications generated while Feishu delivery is unavailable MUST be persisted durably and delivered once it recovers, for 72 hours by default; admins MAY configure the retention window from 24 to 168 hours.
 
-### Public Content Delivery *(required when a feature changes anonymously readable published content)*
+### Public Content Delivery _(required when a feature changes anonymously readable published content)_
 
 - This feature does **not** change anonymously readable published page content, public metadata, or public navigation. No static/ISR cache impact on the public site.
 - The Q&A surface exposes only content the bound wiki user can already read in the web UI; no new anonymous Wiki content/API surface is introduced. The integration adds only a signed Feishu event callback route (`/webhooks/feishu/events`), which returns no Wiki content, is kept out of the public REST/OpenAPI surface, and is not a user-facing public API.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **Feishu Binding**: Links a Feishu identity (open id, union id, display name) to a wiki user. Tracks binding state (active / revoked), creation time, last-seen time, and revocation reason.
 - **Bot Session**: Conversational state for one Feishu identity within a chat (1:1 or group) — chat id, binding, reference to the underlying AI conversation, last-activity time, expiry time, session state (active / expired / reset).
@@ -159,7 +160,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 - **Connection Health**: Latest status of the Feishu integration — whether credentials are configured and valid, the last successful inbound event and outbound delivery times, and the most recent error (no secret or raw payload).
 - **Feishu Integration Configuration**: Encrypted app credentials, connection mode, rate-limit settings, notification retention setting, and credential-update metadata. No plaintext secret is retained for display.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -176,7 +177,7 @@ An admin opens the wiki admin panel, enters the Feishu app credentials needed fo
 
 - The wiki already provides permission-aware content and AI Q&A surfaces, a long-running AI action surface, an audit log, and an admin panel; this feature reuses those capabilities rather than duplicating their business logic.
 - The current user-session Q&A entry point is reused directly, in-process, under the bound user's permission context. This feature adds an explicitly registered integration module that preserves the bound user, permission evaluation, and audit origin rather than treating a shared API key as that user; no separate process or service credential is introduced.
-- Feishu app credentials (app id, app secret) are provisioned by the operator in the Feishu Developer Console before configuration; this feature does not register the Feishu app on the operator's behalf.
+- The Feishu QR registration service is available to the target tenant and can create or associate an app through the native Feishu flow. If it is unavailable, denied, or expires, an operator can configure an existing app manually in the Developer Console.
 - One bot instance serves one wiki deployment; multi-tenant Feishu marketplace distribution is out of scope for v1.
 - Users have network access to both the wiki and Feishu from their devices.
 - The operator configures an externally reachable HTTPS callback (through the wiki's existing ingress/reverse proxy) in the Feishu Developer Console; it is required only when the optional integration is enabled.

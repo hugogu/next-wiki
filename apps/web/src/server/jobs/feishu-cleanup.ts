@@ -17,6 +17,10 @@ export async function runFeishuCleanup(now: Date = new Date()): Promise<void> {
     .where(lt(schema.feishuBindingTokens.expiresAt, now));
 
   await db
+    .delete(schema.feishuAppRegistrationSessions)
+    .where(lt(schema.feishuAppRegistrationSessions.expiresAt, now));
+
+  await db
     .delete(schema.feishuNotificationDeliveries)
     .where(
       and(

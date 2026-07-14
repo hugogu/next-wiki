@@ -210,3 +210,40 @@ message-send limits.
   DB-backed workers is simpler and horizontally safe.
 - Add Redis or a broker — rejected because PostgreSQL plus pg-boss already meet
   the durable-state requirement and P1 prohibits a new default stateful service.
+
+## R7 — QR app association and creation
+
+**Decision**: Offer an administrator-initiated Feishu device-code registration
+flow from `/admin/feishu`, modelled on OpenClaw's Feishu plugin. The web app
+calls `https://accounts.feishu.cn/oauth/v1/app/registration` to initialize and
+begin a `PersonalAgent` / `client_secret` flow, renders the returned
+`verification_uri_complete` as a QR code, and polls once per browser-scheduled
+interval. The browser receives no device code. A short-lived PostgreSQL row
+holds only AES-256-GCM-encrypted `device_code`; on completion the server writes
+the returned App ID and App Secret through the existing write-only encrypted
+configuration service. Manual credentials remain the fallback.
+
+**Rationale**: this produces the same native Feishu experience as OpenClaw:
+the mobile app presents the administrator with the choice to associate an
+existing app or create a new one. Persisting the short-lived encrypted state
+survives a web-app restart and keeps the device credential out of the browser,
+without a second process, worker, or container. Event v2 still needs its
+Encrypt Key and optional Verification Token configured before the integration
+can be enabled, so this flow cannot safely enable the webhook automatically.
+
+**Alternatives considered**:
+
+- Claim that the QR flow can create a bot without a server-side device-code
+  exchange — rejected because the resulting App Secret must not be exposed to
+  the client.
+- Store the device code in an HTTP-only cookie or process memory — rejected
+  because it is fragile across restarts and cannot be safely recovered on a
+  multi-replica deployment.
+- Use a third-party QR image endpoint — rejected because it unnecessarily
+  discloses the verification URL; render locally instead.
+
+**Local evidence**:
+
+- `../openclaw/extensions/feishu/src/app-registration.ts`
+- `../openclaw/extensions/feishu/src/setup-surface.ts`
+- `../openclaw/docs/channels/feishu.md`

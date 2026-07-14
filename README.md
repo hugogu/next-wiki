@@ -79,9 +79,12 @@ container, process, or Compose profile — and stays inert until an administrato
 configures it, so the default `docker compose up` is unchanged and needs no
 Feishu variables.
 
-Configure it entirely in the admin UI at `/admin/feishu`: enter the Feishu app
-id, app secret, Event v2 Encrypt Key, and limits (stored encrypted in
-PostgreSQL, never logged). Then register the signed callback
+Configure it entirely in the admin UI at `/admin/feishu`: generate and scan a
+Feishu QR code to associate an existing app or create a new one, then complete
+the Event v2 Encrypt Key and limits. The App Secret and short-lived device code
+are stored encrypted in PostgreSQL and never returned to the browser or logged.
+Manual App ID/App Secret entry remains available if QR registration is not
+available. Then register the signed callback
 `https://<your-host>/webhooks/feishu/events` in the Feishu Developer Console,
 pointing at the web app behind your existing HTTPS ingress. Every bot action is
 attributed to the bound Wiki user and passes the same permission checks as the
@@ -96,6 +99,7 @@ use **Full (strict)** TLS to the origin.
    certificate (`*.pem` or `*.crt`) and private key (`*.key` or `*.pem`).
 2. Place the files in `docker/caddy/certs/`.
 3. Edit `.env`:
+
    ```bash
    # Public domain and app URL
    APP_URL=https://wiki.example.com
@@ -109,7 +113,9 @@ use **Full (strict)** TLS to the origin.
    # Docker network. This prevents direct access to port 3000 from the internet.
    WEB_PORT=127.0.0.1:3000
    ```
+
 4. Start the stack with the Caddy overlay:
+
    ```bash
    # Dev build (builds image locally)
    docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
@@ -117,6 +123,7 @@ use **Full (strict)** TLS to the origin.
    # Prod build (pulls published image, e.g. hugogu/next-wiki-web:latest)
    docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
    ```
+
 5. In Cloudflare, set the SSL/TLS encryption mode to **Full (strict)** and point
 the domain's A record to your server IP.
 
@@ -126,6 +133,7 @@ You can test the Caddy overlay locally without Cloudflare by generating a
 self-signed certificate.
 
 1. Generate a certificate with SANs for `wiki.local` and `localhost`:
+
    ```bash
    mkdir -p docker/caddy/certs
    cat > /tmp/localhost.conf <<'EOF'
@@ -153,9 +161,11 @@ self-signed certificate.
      -out docker/caddy/certs/localhost.crt \
      -config /tmp/localhost.conf
    ```
+
    The generated key and certificate are ignored by Git.
 
 2. Configure `.env`:
+
    ```bash
    CADDY_HOST=wiki.local
    CADDY_CERT_PATH=/etc/caddy/certs/localhost.crt
@@ -169,11 +179,13 @@ self-signed certificate.
    ```
 
 3. Start the stack with the Caddy overlay:
+
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
    ```
 
 4. Verify HTTPS and the HTTP→HTTPS redirect:
+
    ```bash
    curl -k --resolve wiki.local:8443:127.0.0.1 https://wiki.local:8443/healthz
    curl -I --resolve wiki.local:8080:127.0.0.1 http://wiki.local:8080/

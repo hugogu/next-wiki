@@ -5955,6 +5955,50 @@
     "responses": {}
   },
   "paths": {
+    "/admin/feishu": {
+      "get": {
+        "operationId": "get-admin-feishu",
+        "summary": "Internal administrator endpoint; Feishu credentials are always write-only.",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-admin-feishu",
+        "summary": "Save masked Feishu configuration without ever returning plaintext secrets.",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit/all": {
       "get": {
         "operationId": "get-audit-all",
@@ -9257,6 +9301,147 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/feishu/bindings": {
+      "post": {
+        "operationId": "post-feishu-bindings",
+        "summary": "Confirm a pending Feishu binding as the signed-in user.",
+        "description": "",
+        "tags": [
+          "Feishu"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-feishu-bindings",
+        "summary": "The signed-in user unbinds their own Feishu identity.",
+        "description": "",
+        "tags": [
+          "Feishu"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feishu/registration": {
+      "post": {
+        "operationId": "post-admin-feishu-registration",
+        "summary": "Start Feishu QR application registration",
+        "description": "Starts a server-held device-code flow; the device code and App Secret are never returned.",
+        "tags": [
+          "Feishu Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feishu/registration/{registrationId}": {
+      "get": {
+        "operationId": "get-admin-feishu-registration-{registrationId}",
+        "summary": "Poll Feishu QR application registration",
+        "description": "",
+        "tags": [
+          "Feishu Admin"
+        ],
+        "parameters": [
+          {
+            "name": "registrationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: registrationId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-admin-feishu-registration-{registrationId}",
+        "summary": "Cancel Feishu QR application registration",
+        "description": "",
+        "tags": [
+          "Feishu Admin"
+        ],
+        "parameters": [
+          {
+            "name": "registrationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: registrationId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -13609,6 +13794,12 @@
     },
     {
       "name": "Auth"
+    },
+    {
+      "name": "Feishu"
+    },
+    {
+      "name": "Feishu Admin"
     },
     {
       "name": "Openapi.json"

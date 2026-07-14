@@ -170,6 +170,7 @@ reloads a shared filtered URL with the same state.
 - [ ] T045 [P] [US4] Add admin service/route tests for role enforcement, write-only secrets, connection health, subscription validation, pause/resume, binding revocation, and URL query validation in `apps/web/src/server/services/feishu-admin.test.ts` and `apps/web/app/api/admin/feishu/route.test.ts`.
 - [ ] T046 [P] [US4] Add component tests for masked configuration, subscription mode warnings, health/error rendering, and bindings filters in `apps/web/src/components/admin/feishu/FeishuIntegrationPanel.test.tsx`.
 - [ ] T047 [P] [US4] Add Playwright canonical-route, deep-link, subscription, health, and revocation coverage in `apps/web/e2e/admin-feishu.spec.ts`.
+- [x] T047a [US4] Add server-held Feishu QR application registration (native existing-app/new-app flow), encrypted device-code persistence, local QR rendering, polling/cancellation routes, and API/client tests in `apps/web/src/server/feishu/app-registration.ts`, `apps/web/src/server/services/feishu-app-registration.ts`, `apps/web/app/api/admin/feishu/registration/`, and `apps/web/src/components/admin/feishu/FeishuIntegrationPanel.tsx`.
 
 ### Implementation for User Story 4
 

@@ -1468,6 +1468,30 @@ export const feishuIntegrationConfig = pgTable('feishu_integration_config', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Short-lived server-side state for a Feishu QR application-registration flow.
+ * The device code is an authorization secret and must never reach the browser. */
+export const feishuAppRegistrationSessions = pgTable(
+  'feishu_app_registration_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    domain: text('domain').notNull(),
+    deviceCodeEncrypted: text('device_code_encrypted').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    lastPolledAt: timestamp('last_polled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    creatorExpiresIdx: index('feishu_app_registration_sessions_creator_expires_idx').on(
+      t.createdBy,
+      t.expiresAt,
+    ),
+    expiresIdx: index('feishu_app_registration_sessions_expires_idx').on(t.expiresAt),
+  }),
+);
+
 /** A confirmed link between a Feishu identity and a Wiki user. */
 export const feishuBindings = pgTable(
   'feishu_bindings',

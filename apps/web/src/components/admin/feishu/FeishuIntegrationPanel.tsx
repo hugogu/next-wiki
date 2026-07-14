@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import type { FeishuConfigView } from '@next-wiki/shared';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +10,13 @@ import { Input } from '@/components/ui/Input';
 type Props = {
   initial: FeishuConfigView;
   callbackUrl: string;
+};
+
+type Registration = {
+  registrationId: string;
+  qrUrl: string;
+  expiresAt: string;
+  pollIntervalSeconds: number;
 };
 
 export function FeishuIntegrationPanel({ initial, callbackUrl }: Props) {
@@ -22,6 +30,103 @@ export function FeishuIntegrationPanel({ initial, callbackUrl }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [registration, setRegistration] = useState<Registration | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!registration) return;
+    let active = true;
+    void import('qrcode')
+      .then(({ toDataURL }) => toDataURL(registration.qrUrl, { margin: 1, width: 280 }))
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (active) setError('无法生成二维码，请使用下方链接在飞书中打开。');
+      });
+    return () => {
+      active = false;
+    };
+  }, [registration]);
+
+  useEffect(() => {
+    if (!registration) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/admin/feishu/registration/${registration.registrationId}`,
+        );
+        const body = await response.json().catch(() => null);
+        if (!active) return;
+        if (!response.ok) {
+          setRegistration(null);
+          setRegistrationMessage(body?.message ?? '二维码已失效，请重新生成。');
+          return;
+        }
+        if (body?.status === 'pending') {
+          timer = setTimeout(poll, registration.pollIntervalSeconds * 1000);
+          return;
+        }
+        setRegistration(null);
+        if (body?.status === 'completed') {
+          setAppId(body.appId);
+          setConfig((current) => ({ ...current, appId: body.appId, hasAppSecret: true }));
+          setRegistrationMessage(
+            '飞书应用已关联，App ID 与 App Secret 已加密保存。请继续填写 Webhook 安全项。',
+          );
+          return;
+        }
+        setRegistrationMessage(
+          body?.status === 'denied' ? '已取消飞书应用关联。' : '二维码已过期，请重新生成。',
+        );
+      } catch {
+        if (active) timer = setTimeout(poll, registration.pollIntervalSeconds * 1000);
+      }
+    };
+    timer = setTimeout(poll, registration.pollIntervalSeconds * 1000);
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [registration]);
+
+  async function startRegistration() {
+    setRegistrationLoading(true);
+    setError(null);
+    setRegistrationMessage(null);
+    try {
+      const response = await fetch('/api/admin/feishu/registration', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain: 'feishu' }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(body?.message ?? '无法生成飞书二维码。');
+        return;
+      }
+      setQrDataUrl(null);
+      setRegistration(body as Registration);
+    } catch {
+      setError('无法连接到服务器，未能生成飞书二维码。');
+    } finally {
+      setRegistrationLoading(false);
+    }
+  }
+
+  async function cancelRegistration() {
+    if (!registration) return;
+    const registrationId = registration.registrationId;
+    setQrDataUrl(null);
+    setRegistration(null);
+    await fetch(`/api/admin/feishu/registration/${registrationId}`, { method: 'DELETE' }).catch(
+      () => undefined,
+    );
+  }
 
   async function save() {
     setSaving(true);
@@ -64,7 +169,49 @@ export function FeishuIntegrationPanel({ initial, callbackUrl }: Props) {
   return (
     <div className="max-w-3xl space-y-lg">
       <section className="rounded-lg border border-border bg-surface p-lg space-y-sm">
-        <h2 className="font-display text-lg font-semibold">先在飞书开放平台创建应用</h2>
+        <h2 className="font-display text-lg font-semibold">扫码关联或创建飞书应用</h2>
+        <p className="text-sm text-muted">
+          生成二维码后，用飞书 App 扫码。飞书会让管理员关联现有应用或创建新应用；完成后 App ID 和
+          App Secret 会直接加密写入本系统。
+        </p>
+        <Button onClick={startRegistration} disabled={registrationLoading || Boolean(registration)}>
+          {registrationLoading ? '正在生成二维码…' : '生成飞书二维码'}
+        </Button>
+        {registration && (
+          <div className="space-y-sm rounded-md border border-border bg-background p-md">
+            {qrDataUrl && (
+              <Image
+                src={qrDataUrl}
+                alt="用飞书 App 扫描以关联或创建机器人"
+                width={280}
+                height={280}
+                unoptimized
+              />
+            )}
+            <p className="text-sm text-muted">
+              二维码将在 {new Date(registration.expiresAt).toLocaleTimeString()}{' '}
+              失效；完成后此页面会自动继续。
+            </p>
+            <a
+              className="text-sm text-primary underline"
+              href={registration.qrUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              无法扫码？在飞书中打开关联链接
+            </a>
+            <div>
+              <Button variant="secondary" onClick={cancelRegistration}>
+                取消
+              </Button>
+            </div>
+          </div>
+        )}
+        {registrationMessage && <Alert>{registrationMessage}</Alert>}
+      </section>
+
+      <section className="rounded-lg border border-border bg-surface p-lg space-y-sm">
+        <h2 className="font-display text-lg font-semibold">手动配置（已有应用）</h2>
         <ol className="list-decimal space-y-xs pl-lg text-sm text-muted">
           <li>使用有权限的飞书管理员账号创建“企业自建应用”，并启用机器人能力。</li>
           <li>在应用的事件订阅中填写下方回调地址，并订阅接收消息事件。</li>
@@ -73,9 +220,6 @@ export function FeishuIntegrationPanel({ initial, callbackUrl }: Props) {
           </li>
           <li>发布或安装该应用到目标租户后，用户可在飞书中给机器人发消息完成账号绑定。</li>
         </ol>
-        <p className="text-sm text-muted">
-          扫码不能创建机器人；二维码仅可能出现在飞书侧的管理员安装或授权流程中。
-        </p>
         <label className="block space-y-xs text-sm">
           <span className="font-medium">Event V2 回调地址</span>
           <Input value={callbackUrl} readOnly aria-label="Feishu Event V2 callback URL" />
