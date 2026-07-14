@@ -31,6 +31,10 @@ describe('search candidate projection', () => {
       title: 'Search Architecture',
     });
     expect(english?.page.locale).toBeTruthy();
+    // Projection is intentionally engine-neutral: provenance is added only by
+    // the coordinator after this permission boundary has removed hidden pages.
+    expect(english).not.toHaveProperty('engineSources');
+    expect(JSON.stringify(english)).not.toContain('pg_trgm');
     // The draft-only page leaves no trace: no entry, no title, no excerpt source.
     expect(JSON.stringify([...projected.values()].map((entry) => entry.page))).not.toContain(HIDDEN_TOKEN);
     expect(projected.has(corpus.pages.hiddenDraft.pageId)).toBe(false);
