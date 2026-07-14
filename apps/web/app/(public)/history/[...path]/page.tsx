@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { PublishButton } from '@/components/pages/PublishButton';
+import { HistoryRevisionSelector } from '@/components/pages/HistoryRevisionSelector';
 import { getPagePathFromParams, getPageHref, getRevisionHref } from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
@@ -60,6 +61,8 @@ export default async function HistoryPage({ params }: { params: Params }) {
             <p>{t('page.history.empty.forbidden')}</p>
           </EmptyState>
         ) : (
+          <>
+          <HistoryRevisionSelector path={path} revisions={revisions} />
           <ul className="space-y-sm">
             {revisions.map((r) => (
               <li key={r.version} className="flex items-center justify-between p-md bg-surface border border-border rounded-lg">
@@ -78,6 +81,7 @@ export default async function HistoryPage({ params }: { params: Params }) {
               </li>
             ))}
           </ul>
+          </>
         )}
       </div>
     </Layout>

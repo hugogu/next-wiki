@@ -35,6 +35,50 @@ export function getRevisionHref(path: string, version: number): string {
   return `/revisions/${version}/${encodePath(path)}`;
 }
 
+export type RevisionDiffOptions = {
+  view: 'source' | 'preview';
+  context: number | 'full';
+  ignoreWhitespace: boolean;
+  sync: boolean;
+};
+
+export const defaultRevisionDiffOptions: RevisionDiffOptions = {
+  view: 'source', context: 3, ignoreWhitespace: false, sync: true,
+};
+
+export function parseRevisionPair(value: string): { earlier: number; later: number; reversed: boolean } | null {
+  const match = /^(\d+)\.\.(\d+)$/.exec(value);
+  if (!match) return null;
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  if (!Number.isSafeInteger(first) || !Number.isSafeInteger(second) || first < 1 || second < 1 || first === second) return null;
+  return { earlier: Math.min(first, second), later: Math.max(first, second), reversed: first > second };
+}
+
+export function parseRevisionDiffOptions(params: URLSearchParams): RevisionDiffOptions {
+  const context = params.get('context');
+  const numericContext = context !== null && /^\d+$/.test(context) ? Number(context) : null;
+  return {
+    view: params.get('view') === 'preview' ? 'preview' : 'source',
+    context: context === 'full' ? 'full' : (numericContext !== null && Number.isSafeInteger(numericContext) ? numericContext : 3),
+    ignoreWhitespace: params.get('ignoreWhitespace') === '1',
+    sync: params.get('sync') !== '0',
+  };
+}
+
+export function getRevisionDiffHref(path: string, first: number, second: number, options: Partial<RevisionDiffOptions> = {}): string {
+  const earlier = Math.min(first, second);
+  const later = Math.max(first, second);
+  const value = { ...defaultRevisionDiffOptions, ...options };
+  const params = new URLSearchParams();
+  if (value.view !== 'source') params.set('view', value.view);
+  if (value.context !== 3) params.set('context', String(value.context));
+  if (value.ignoreWhitespace) params.set('ignoreWhitespace', '1');
+  if (!value.sync) params.set('sync', '0');
+  const query = params.toString();
+  return `/revisions/${earlier}..${later}/${encodePath(path)}${query ? `?${query}` : ''}`;
+}
+
 export function getPropertiesHref(path: string): string {
   return `/properties/${encodePath(path)}`;
 }

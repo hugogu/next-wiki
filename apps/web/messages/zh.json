@@ -222,7 +222,8 @@
         "forbidden": "你没有权限查看此页面的历史。"
       },
       "versionLink": "版本 {version}",
-      "revisionMeta": "{date}，作者 {name}"
+      "revisionMeta": "{date}，作者 {name}",
+      "compare": { "selectionLabel": "选择要比较的版本", "selectVersion": "版本 {version}", "submit": "比较", "ready": "已选择两个版本", "selectHint": "请选择两个版本" }
     },
     "revision": {
       "metadataTitle": "版本 {version} - {path}",
@@ -235,6 +236,7 @@
         "notFound": "版本不存在"
       }
     },
+    "diff": { "heading": "版本比较", "comparing": "比较 v{earlier} 与 v{later}", "source": "源文档", "preview": "预览", "context": "上下文", "fullContext": "完整上下文", "ignoreWhitespace": "忽略空白字符", "syncScroll": "同步滚动" },
     "publish": {
       "button": {
         "submit": "发布此版本",
