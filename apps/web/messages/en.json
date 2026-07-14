@@ -222,7 +222,8 @@
         "forbidden": "You do not have permission to view this page's history."
       },
       "versionLink": "Version {version}",
-      "revisionMeta": "{date} by {name}"
+      "revisionMeta": "{date} by {name}",
+      "compare": { "selectionLabel": "Select revisions to compare", "selectVersion": "Version {version}", "submit": "Compare", "ready": "Two revisions selected", "selectHint": "Select two revisions" }
     },
     "revision": {
       "metadataTitle": "Revision {version} - {path}",
@@ -235,6 +236,7 @@
         "notFound": "Revision not found"
       }
     },
+    "diff": { "heading": "Revision comparison", "comparing": "Comparing v{earlier} to v{later}", "source": "Source", "preview": "Preview", "context": "Context", "fullContext": "Full context", "ignoreWhitespace": "Ignore whitespace", "syncScroll": "Sync scroll", "noChanges": "No differences to display." },
     "publish": {
       "button": {
         "submit": "Publish this revision",

@@ -6,7 +6,7 @@
  * whose name ends with `_test`. The URL is configurable via `TEST_DATABASE_URL`
  * so CI or a different local Postgres can be targeted without code changes.
  */
-const DEFAULT_TEST_DATABASE_URL = 'postgresql://wiki:wiki@localhost:15433/wiki_test';
+const DEFAULT_TEST_DATABASE_URL = 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_test';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL;
 

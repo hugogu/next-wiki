@@ -50,7 +50,7 @@ const envSchema = z.object({
 
 // Local convenience defaults for dev/test only. In production a missing value
 // must fail loudly rather than silently use an unsafe default.
-const DEV_DATABASE_URL = 'postgresql://wiki:wiki@localhost:15433/wiki';
+const DEV_DATABASE_URL = 'postgresql://wiki:wiki@127.0.0.1:15433/wiki';
 const DEV_API_KEY_ENCRYPTION_KEY = '0'.repeat(64);
 
 export const env = envSchema.parse({

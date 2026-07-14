@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
-import { PublishButton } from '@/components/pages/PublishButton';
-import { getPagePathFromParams, getPageHref, getRevisionHref } from '@/lib/path';
+import { HistoryRevisionSelector } from '@/components/pages/HistoryRevisionSelector';
+import { getPagePathFromParams, getPageHref, getHistoryHref, parseRevisionPair } from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -22,62 +22,103 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: t('page.history.metadataTitle', { path }) };
 }
 
-export default async function HistoryPage({ params }: { params: Params }) {
+export default async function HistoryPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const locale = await getStaticLocale();
   const t = getDictionary(locale);
   const formatter = createAppFormatter(locale);
   const raw = await params;
   const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
-  const revisions = await pageService.getHistory({ actor }, path);
-  const page = await pageService.getLive({ actor }, path);
+  const query = await searchParams;
+  const compareValue = typeof query.compare === 'string' ? query.compare : '';
+  const pair = parseRevisionPair(compareValue);
+  if (pair?.reversed) {
+    const next = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (typeof value === 'string') next.set(key, value);
+    });
+    next.set('compare', `${pair.earlier}..${pair.later}`);
+    redirect(`${getHistoryHref(path)}?${next}`);
+  }
+
+  const [revisions, page, canEdit] = await Promise.all([
+    pageService.getHistory({ actor }, path),
+    pageService.getLive({ actor }, path),
+    pageService.canCreate({ actor }),
+  ]);
 
   if (revisions.length === 0 && !page) {
     notFound();
   }
 
   const pageContext = page
-      ? {
+    ? {
         pageId: page.pageId,
         path,
         title: page.title,
         status: page.status,
-        canEdit: await pageService.canCreate({ actor }),
+        canEdit,
         canPublish: false,
         version: page.version,
       }
     : undefined;
 
+  const comparedRevisions = pair
+    ? await Promise.all([
+        pageService.getRevision({ actor }, path, pair.earlier),
+        pageService.getRevision({ actor }, path, pair.later),
+      ])
+    : [undefined, undefined];
+  const visibleVersions = new Set(revisions.map((revision) => revision.version));
+  if (
+    pair &&
+    (!visibleVersions.has(pair.earlier) ||
+      !visibleVersions.has(pair.later) ||
+      !comparedRevisions[0] ||
+      !comparedRevisions[1])
+  ) {
+    notFound();
+  }
+
   return (
     <Layout pageContext={pageContext}>
-      <div className="max-w-3xl mx-auto px-lg py-xl">
-        <Link href={getPageHref(path)} className="text-sm text-primary hover:underline mb-md inline-block">
+      <div className="mx-auto max-w-7xl px-lg py-xl">
+        <Link
+          href={getPageHref(path)}
+          className="text-sm text-primary hover:underline mb-md inline-block"
+        >
           {t('page.history.backToPage', { title: page?.title ?? path })}
         </Link>
-        <h1 className="font-display text-3xl font-semibold mb-md">{t('page.history.heading', { title: page?.title ?? path })}</h1>
+        <h1 className="font-display text-3xl font-semibold mb-md">
+          {t('page.history.heading', { title: page?.title ?? path })}
+        </h1>
         {revisions.length === 0 ? (
           <EmptyState title={t('page.history.empty.title')}>
             <p>{t('page.history.empty.forbidden')}</p>
           </EmptyState>
         ) : (
-          <ul className="space-y-sm">
-            {revisions.map((r) => (
-              <li key={r.version} className="flex items-center justify-between p-md bg-surface border border-border rounded-lg">
-                <div>
-                  <Link href={getRevisionHref(path, r.version)} className="font-medium text-primary hover:underline">
-                    {t('page.history.versionLink', { version: r.version })}
-                  </Link>
-                  <span className="ml-sm text-sm text-muted capitalize">{r.status}</span>
-                  <p className="text-sm text-muted">
-                    {t('page.history.revisionMeta', { date: formatter.dateTime(new Date(r.createdAt), 'short'), name: r.authorDisplayName ?? t('common.unknownAuthor') })}
-                  </p>
-                </div>
-                {r.status === 'draft' && r.canPublish && page?.pageId ? (
-                  <PublishButton pageId={page.pageId} path={path} version={r.version} />
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <HistoryRevisionSelector
+            path={path}
+            pageId={page?.pageId}
+            selectedPair={pair ? { earlier: pair.earlier, later: pair.later } : undefined}
+            earlier={comparedRevisions[0] ?? undefined}
+            later={comparedRevisions[1] ?? undefined}
+            revisions={revisions.map((revision) => ({
+              version: revision.version,
+              status: revision.status,
+              canPublish: revision.canPublish,
+              meta: t('page.history.revisionMeta', {
+                date: formatter.dateTime(new Date(revision.createdAt), 'short'),
+                name: revision.authorDisplayName ?? t('common.unknownAuthor'),
+              }),
+            }))}
+          />
         )}
       </div>
     </Layout>
