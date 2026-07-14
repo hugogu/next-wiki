@@ -78,6 +78,8 @@ export function fuseCandidates(contributions: readonly EngineContribution[]): Fu
   return [...merged.values()].sort(compareFusedCandidates);
 }
 
-export function compareFusedCandidates(a: FusedCandidate, b: FusedCandidate): number {
+type ComparableFusedCandidate = Pick<FusedCandidate, 'pageId' | 'score' | 'exactTier'>;
+
+export function compareFusedCandidates(a: ComparableFusedCandidate, b: ComparableFusedCandidate): number {
   return b.exactTier - a.exactTier || b.score - a.score || a.pageId.localeCompare(b.pageId);
 }
