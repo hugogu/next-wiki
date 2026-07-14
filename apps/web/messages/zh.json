@@ -1264,6 +1264,16 @@
       "languageLabel": "语言",
       "saveFailed": "无法保存偏好设置，请重试。"
     },
+    "feishu": {
+      "metadataTitle": "连接飞书",
+      "heading": "连接你的飞书账号",
+      "description": "确认后，将发起本次连接请求的飞书身份与你的 Wiki 账号绑定。你可以随时解除绑定。",
+      "confirmButton": "确认连接",
+      "confirming": "连接中…",
+      "successMessage": "你的飞书账号已成功连接。现在可以返回飞书提问了。",
+      "missingToken": "此链接缺少连接令牌，请从飞书重新发起。",
+      "errorGeneric": "此连接链接无效、已过期或已被使用，请从飞书重新获取。"
+    },
     "apiKeys": {
       "metadataTitle": "API 密钥",
       "title": "API 密钥",

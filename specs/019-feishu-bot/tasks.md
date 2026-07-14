@@ -73,19 +73,19 @@ group.
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Add binding-token service tests for hashing, 10-minute expiry, one-time use, `open_id` matching, user deactivation, unbind, and admin revocation in `apps/web/src/server/services/feishu-bindings.test.ts`.
-- [ ] T016 [P] [US1] Add webhook route tests for invalid signature, stale payload, duplicate `message_id`, URL verification, direct binding disposition, and group-safe no-link fallback in `apps/web/app/webhooks/feishu/events/route.test.ts`.
-- [ ] T017 [P] [US1] Add Playwright binding/revocation coverage with private-message and group-fallback fixtures in `apps/web/e2e/feishu-binding.spec.ts`.
+- [X] T015 [P] [US1] Add binding-token service tests for hashing, 10-minute expiry, one-time use, `open_id` matching, user deactivation, unbind, and admin revocation in `apps/web/src/server/services/feishu-bindings.test.ts`.
+- [X] T016 [P] [US1] Add webhook route tests for invalid signature, stale payload, duplicate `message_id`, URL verification, direct binding disposition, and group-safe no-link fallback in `apps/web/app/webhooks/feishu/events/route.test.ts`.
+- [X] T017 [P] [US1] Add Playwright binding/revocation coverage with private-message and group-fallback fixtures in `apps/web/e2e/feishu-binding.spec.ts`.
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Implement active-binding lookup, hashed token issuance/consumption, confirmation, unbind, revocation, and immediate session expiry in `apps/web/src/server/services/feishu-bindings.ts`.
-- [ ] T019 [US1] Implement the authenticated binding-confirmation page and mutation route in `apps/web/app/(user)/user-center/feishu/bind/page.tsx` and `apps/web/app/api/feishu/bindings/route.ts`.
-- [ ] T020 [US1] Implement the Feishu Event v2 callback route (URL-verification response, decrypt/verify-before-parse, durable inbox acknowledgement, hand-off to delegation) in `apps/web/app/webhooks/feishu/events/route.ts`.
-- [ ] T021 [US1] Implement the in-process delegation entry `handleInboundMessage` that resolves bindings server-side and returns only `bind`/`ignored`/safe dispositions in `apps/web/src/server/services/feishu-delegation.ts`.
-- [ ] T022 [US1] Implement direct-message sending and generic group fallback (never emitting a binding URL in a group) in `apps/web/src/server/services/feishu-messaging.ts` using the T012 transport.
-- [ ] T023 [US1] Add binding/unbinding confirmation copy and translations in `apps/web/messages/en.json` and `apps/web/messages/zh-CN.json`.
-- [ ] T024 [US1] Run the US1 Vitest, webhook route, and Playwright suites named in T015–T017.
+- [X] T018 [US1] Implement active-binding lookup, hashed token issuance/consumption, confirmation, unbind, revocation, and immediate session expiry in `apps/web/src/server/services/feishu-bindings.ts`.
+- [X] T019 [US1] Implement the authenticated binding-confirmation page and mutation route in `apps/web/app/(user)/user-center/feishu/bind/page.tsx` and `apps/web/app/api/feishu/bindings/route.ts`.
+- [X] T020 [US1] Implement the Feishu Event v2 callback route (URL-verification response, decrypt/verify-before-parse, durable inbox acknowledgement, hand-off to delegation) in `apps/web/app/webhooks/feishu/events/route.ts`.
+- [X] T021 [US1] Implement the in-process delegation entry `handleInboundMessage` that resolves bindings server-side and returns only `bind`/`ignored`/safe dispositions in `apps/web/src/server/services/feishu-delegation.ts`.
+- [X] T022 [US1] Implement direct-message sending and generic group fallback (never emitting a binding URL in a group) in `apps/web/src/server/services/feishu-messaging.ts` using the T012 transport.
+- [X] T023 [US1] Add binding/unbinding confirmation copy and translations in `apps/web/messages/en.json` and `apps/web/messages/zh-CN.json`.
+- [X] T024 [US1] Run the US1 Vitest, webhook route, and Playwright suites named in T015–T017.
 
 **Checkpoint**: User Story 1 is independently demonstrable with no Q&A,
 subscription, or notification implementation enabled.

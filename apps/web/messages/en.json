@@ -1264,6 +1264,16 @@
       "languageLabel": "Language",
       "saveFailed": "Could not save preferences. Please try again."
     },
+    "feishu": {
+      "metadataTitle": "Connect Feishu",
+      "heading": "Connect your Feishu account",
+      "description": "Confirm to link the Feishu identity that requested this connection to your Wiki account. You can disconnect it at any time.",
+      "confirmButton": "Confirm connection",
+      "confirming": "Connecting…",
+      "successMessage": "Your Feishu account is now connected. You can return to Feishu and ask questions.",
+      "missingToken": "This link is missing its connection token. Please start again from Feishu.",
+      "errorGeneric": "This connection link is invalid, expired, or already used. Please request a new one from Feishu."
+    },
     "apiKeys": {
       "metadataTitle": "API Keys",
       "title": "API Keys",

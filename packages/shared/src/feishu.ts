@@ -125,6 +125,13 @@ export const feishuDeliveryTargetSchema = z.discriminatedUnion('type', [
 ]);
 export type FeishuDeliveryTarget = z.infer<typeof feishuDeliveryTargetSchema>;
 
+// ---- First-party binding confirmation ---------------------------------------
+
+export const feishuBindingConfirmInputSchema = z.object({
+  token: z.string().min(1).max(512),
+});
+export type FeishuBindingConfirmInput = z.infer<typeof feishuBindingConfirmInputSchema>;
+
 // ---- First-party admin config (write-only secrets) --------------------------
 
 export const feishuConfigInputSchema = z.object({
