@@ -17,8 +17,8 @@
 
 **Purpose**: Establish reusable test data and a server-only home for the search subsystem.
 
-- [ ] T001 Create deterministic readable/unreadable English, Chinese, and semantic-search fixtures in `apps/web/src/server/services/search/test-support.ts`
-- [ ] T002 Create the server search module export boundary in `apps/web/src/server/services/search/index.ts`
+- [X] T001 Create deterministic readable/unreadable English, Chinese, and semantic-search fixtures in `apps/web/src/server/services/search/test-support.ts`
+- [X] T002 Create the server search module export boundary in `apps/web/src/server/services/search/index.ts`
 
 ---
 
@@ -28,16 +28,16 @@
 
 **⚠️ CRITICAL**: No user-story implementation begins until this phase is complete.
 
-- [ ] T003 Extend search settings, search records, capability-run enums, relations, and constraints in `apps/web/src/server/db/schema/index.ts`
-- [ ] T004 Generate and review the additive Drizzle migration and metadata under `apps/web/src/server/db/migrations/` and `apps/web/src/server/db/migrations/meta/` without duplicating existing `pg_trgm` or full-text indexes
-- [ ] T005 [P] Extend full-text/fuzzy capability settings validation and exports in `packages/shared/src/search-settings.ts` and `packages/shared/src/index.ts`
-- [ ] T006 [P] Add stable capability-state and engine-source response schemas, then update OpenAPI schema tests in `packages/shared/src/pages.ts`, `apps/web/src/server/api/openapi-schemas.ts`, and `apps/web/src/server/api/openapi-schemas.test.ts`
-- [ ] T007 Add failing idempotency, capability-snapshot, and per-engine-run lifecycle tests in `apps/web/src/server/services/search-analytics.test.ts`
-- [ ] T008 Implement owned search-record snapshots and `search_engine_runs` persistence in `apps/web/src/server/services/search-analytics.ts`
-- [ ] T009 [P] Define server-only `SearchEngine`, `SearchCandidate`, stable capability IDs, deadlines, and lifecycle outcomes in `apps/web/src/server/services/search/types.ts`
-- [ ] T010 Implement the explicit static adapter registry in `apps/web/src/server/services/search/registry.ts`
-- [ ] T011 Add failing central projection tests for published state, space, locale, and read permission in `apps/web/src/server/services/search/candidate-projection.test.ts`
-- [ ] T012 Implement central permission-safe candidate hydration and public-result projection in `apps/web/src/server/services/search/candidate-projection.ts`
+- [X] T003 Extend search settings, search records, capability-run enums, relations, and constraints in `apps/web/src/server/db/schema/index.ts`
+- [X] T004 Generate and review the additive Drizzle migration and metadata under `apps/web/src/server/db/migrations/` and `apps/web/src/server/db/migrations/meta/` without duplicating existing `pg_trgm` or full-text indexes
+- [X] T005 [P] Extend full-text/fuzzy capability settings validation and exports in `packages/shared/src/search-settings.ts` and `packages/shared/src/index.ts`
+- [X] T006 [P] Add stable capability-state and engine-source response schemas, then update OpenAPI schema tests in `packages/shared/src/pages.ts`, `apps/web/src/server/api/openapi-schemas.ts`, and `apps/web/src/server/api/openapi-schemas.test.ts`
+- [X] T007 Add failing idempotency, capability-snapshot, and per-engine-run lifecycle tests in `apps/web/src/server/services/search-analytics.test.ts`
+- [X] T008 Implement owned search-record snapshots and `search_engine_runs` persistence in `apps/web/src/server/services/search-analytics.ts`
+- [X] T009 [P] Define server-only `SearchEngine`, `SearchCandidate`, stable capability IDs, deadlines, and lifecycle outcomes in `apps/web/src/server/services/search/types.ts`
+- [X] T010 Implement the explicit static adapter registry in `apps/web/src/server/services/search/registry.ts`
+- [X] T011 Add failing central projection tests for published state, space, locale, and read permission in `apps/web/src/server/services/search/candidate-projection.test.ts`
+- [X] T012 Implement central permission-safe candidate hydration and public-result projection in `apps/web/src/server/services/search/candidate-projection.ts`
 
 **Checkpoint**: The schema, durable attempt/run ownership, stable API vocabulary, registry, and shared visibility boundary are ready. User stories can now proceed without creating another search route or permission path.
 

@@ -168,6 +168,23 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
 
 export const searchBehaviorActionEnum = pgEnum('search_behavior_action', ['result_open', 'escape']);
 
+// ---- Complementary search engines (017) -----------------------------------
+
+export const searchCapabilityIdEnum = pgEnum('search_capability_id', [
+  'full_text',
+  'fuzzy',
+  'semantic',
+]);
+
+export const searchEngineRunStateEnum = pgEnum('search_engine_run_state', [
+  'ready',
+  'pending',
+  'skipped',
+  'unavailable',
+  'failed',
+  'timed_out',
+]);
+
 export const tagMutationKindEnum = pgEnum('tag_mutation_kind', ['rename', 'delete', 'merge']);
 export const tagMutationStatusEnum = pgEnum('tag_mutation_status', ['queued', 'running', 'succeeded', 'failed']);
 

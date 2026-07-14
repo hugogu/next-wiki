@@ -85,6 +85,13 @@
       "when": 1783840311136,
       "tag": "0011_sticky_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783994575106,
+      "tag": "0012_brief_machine_man",
+      "breakpoints": true
     }
   ]
 }

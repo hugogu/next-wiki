@@ -7,6 +7,8 @@ import { DomainError } from '@/server/errors';
 
 const SETTINGS_ID = 'default';
 export const DEFAULT_SEARCH_SETTINGS: SearchSettingsView = {
+  fullTextSearchEnabled: true,
+  fuzzySearchEnabled: true,
   semanticSearchEnabled: true,
   minRelevanceScore: 0,
   showExcerpts: true,
@@ -33,6 +35,8 @@ function scoreFromStored(value: number): number {
 function toView(row: SearchSettingsRow | null | undefined): SearchSettingsView {
   if (!row) return DEFAULT_SEARCH_SETTINGS;
   return {
+    fullTextSearchEnabled: row.fullTextSearchEnabled,
+    fuzzySearchEnabled: row.fuzzySearchEnabled,
     semanticSearchEnabled: row.semanticSearchEnabled,
     minRelevanceScore: scoreFromStored(row.minRelevanceScore),
     showExcerpts: row.showExcerpts,
@@ -59,7 +63,18 @@ export async function updateSearchSettings(
   input: UpdateSearchSettingsInput,
 ): Promise<SearchSettingsView> {
   assertAdmin(ctx);
+  const current = toView(await getRow());
+  const nextFullText = input.fullTextSearchEnabled ?? current.fullTextSearchEnabled;
+  const nextFuzzy = input.fuzzySearchEnabled ?? current.fuzzySearchEnabled;
+  // Semantic retrieval can never become the only way to search (FR-009); the
+  // check constraint enforces this at the database, but validate here for a
+  // clear domain error instead of a constraint violation.
+  if (!nextFullText && !nextFuzzy) {
+    throw new DomainError('BAD_REQUEST', 'At least one of full-text or fuzzy search must remain enabled');
+  }
   const values = {
+    ...(input.fullTextSearchEnabled !== undefined ? { fullTextSearchEnabled: input.fullTextSearchEnabled } : {}),
+    ...(input.fuzzySearchEnabled !== undefined ? { fuzzySearchEnabled: input.fuzzySearchEnabled } : {}),
     ...(input.semanticSearchEnabled !== undefined ? { semanticSearchEnabled: input.semanticSearchEnabled } : {}),
     ...(input.minRelevanceScore !== undefined ? { minRelevanceScore: scoreToStored(input.minRelevanceScore) } : {}),
     ...(input.showExcerpts !== undefined ? { showExcerpts: input.showExcerpts } : {}),

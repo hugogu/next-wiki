@@ -359,18 +359,37 @@ export type HybridSearchBehaviorInput = z.infer<typeof hybridSearchBehaviorInput
 export const hybridPageSearchInputSchema = z.discriminatedUnion('kind', [hybridSearchQueryInputSchema, hybridSearchBehaviorInputSchema]);
 export type HybridPageSearchInput = z.infer<typeof hybridPageSearchInputSchema>;
 
+// ---- 017: Stable search capability vocabulary ------------------------------
+
+export const searchCapabilityIdSchema = z.enum(['full_text', 'fuzzy', 'semantic']);
+export type SearchCapabilityId = z.infer<typeof searchCapabilityIdSchema>;
+
+export const searchEngineRunStateSchema = z.enum(['ready', 'pending', 'skipped', 'unavailable', 'failed', 'timed_out']);
+export type SearchEngineRunState = z.infer<typeof searchEngineRunStateSchema>;
+
+export const hybridSearchEngineStateSchema = z.object({
+  capability: searchCapabilityIdSchema,
+  state: searchEngineRunStateSchema,
+  resultCount: z.number().int().min(0),
+});
+export type HybridSearchEngineState = z.infer<typeof hybridSearchEngineStateSchema>;
+
 export const hybridSearchResultSchema = z.object({
   page: publicPageResourceSchema,
   excerpt: z.string().nullable(),
   score: z.number(),
   relevanceScore: z.number().min(-1).max(1),
   matchSources: z.array(z.enum(['keyword', 'semantic'])).min(1),
+  // Absent only in old stored/compatibility responses; new coordinator
+  // responses always include stable capability provenance.
+  engineSources: z.array(searchCapabilityIdSchema).min(1).optional(),
 });
 export type HybridSearchResult = z.infer<typeof hybridSearchResultSchema>;
 
 export const hybridPageSearchResponseSchema = z.object({
   searchRecordId: z.string().uuid(),
   semanticState: hybridSearchSemanticStateSchema,
+  engineStates: z.array(hybridSearchEngineStateSchema).optional(),
   items: z.array(hybridSearchResultSchema),
 });
 export type HybridPageSearchResponse = z.infer<typeof hybridPageSearchResponseSchema>;

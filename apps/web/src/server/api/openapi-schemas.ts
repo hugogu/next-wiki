@@ -1053,6 +1053,75 @@ export const PublicPageSearchResponse = z
   })
   .describe('Paginated public page search response.');
 
+export const HybridSearchQueryInput = z
+  .object({
+    kind: z.literal('query').describe('Selects the idempotent query operation.'),
+    searchRecordId: z.string().uuid().describe('Client-generated idempotency key for one search attempt; retries reuse it.'),
+    searchSessionId: z.string().uuid().describe('Client-generated overlay session identifier owning this attempt.'),
+    q: z.string().trim().min(2).max(200).describe('Free-text search query (minimum two characters).'),
+    limit: z.number().int().min(1).max(20).optional().default(20).describe('Maximum number of fused results to return (1-20). Defaults to 20.'),
+  })
+  .describe('Run or resume one idempotent Header hybrid search attempt.');
+
+export const HybridSearchBehaviorInput = z
+  .object({
+    kind: z.literal('behavior').describe('Selects the behavior-recording operation.'),
+    eventId: z.string().uuid().describe('Client-generated idempotency key for this behavior event.'),
+    searchRecordId: z.string().uuid().describe('Search attempt the behavior belongs to.'),
+    searchSessionId: z.string().uuid().describe('Overlay session that owns the search attempt.'),
+    action: z.enum(['result_open', 'escape']).describe('Terminal search behavior: a result was opened, or search was abandoned.'),
+    pageId: z.string().uuid().optional().describe('Opened page id; required for result_open and forbidden for escape.'),
+  })
+  .describe('Record a terminal search behavior for an owned search attempt.');
+
+export const HybridPageSearchInput = z
+  .discriminatedUnion('kind', [HybridSearchQueryInput, HybridSearchBehaviorInput])
+  .describe('Header hybrid search request: an idempotent query snapshot or a behavior event.');
+
+export const HybridSearchEngineState = z
+  .object({
+    capability: z
+      .enum(['full_text', 'fuzzy', 'semantic'])
+      .describe('Stable product capability identifier; never a database extension or vendor name.'),
+    state: z
+      .enum(['ready', 'pending', 'skipped', 'unavailable', 'failed', 'timed_out'])
+      .describe('Safe lifecycle state for this capability within the attempt. No diagnostic detail is exposed.'),
+    resultCount: z.number().int().min(0).describe('Readable result count contributed by this capability after permission filtering.'),
+  })
+  .describe('Per-capability lifecycle state for one search attempt.');
+
+export const HybridSearchResult = z
+  .object({
+    page: PublicPageResource,
+    excerpt: z.string().nullable().describe('Safe excerpt centered on matched content, or null when excerpts are disabled or absent.'),
+    score: z.number().describe('Fused rank score. Not comparable to legacy GET search scores.'),
+    relevanceScore: z.number().min(-1).max(1).describe('Compatibility display value; not the cross-engine ordering algorithm.'),
+    matchSources: z
+      .array(z.enum(['keyword', 'semantic']))
+      .min(1)
+      .describe('Conceptual feature-013 match sources retained for existing clients.'),
+    engineSources: z
+      .array(z.enum(['full_text', 'fuzzy', 'semantic']))
+      .min(1)
+      .optional()
+      .describe('Stable capability provenance. Absent only for old stored/compatibility responses.'),
+  })
+  .describe('One de-duplicated, permission-filtered hybrid search result.');
+
+export const HybridPageSearchResponse = z
+  .object({
+    searchRecordId: z.string().uuid().describe('Idempotency key of the search attempt this snapshot belongs to.'),
+    semanticState: z
+      .enum(['pending', 'ready', 'unavailable', 'failed', 'skipped'])
+      .describe('Feature-013 compatibility mirror of the semantic capability; semantic timed_out maps to failed.'),
+    engineStates: z
+      .array(HybridSearchEngineState)
+      .optional()
+      .describe('Every capability in the attempt snapshot with its safe lifecycle state. Poll while any state is pending.'),
+    items: z.array(HybridSearchResult).describe('Latest fused snapshot of readable results, de-duplicated by page id.'),
+  })
+  .describe('Progressive Header hybrid search snapshot. Every response is a full latest snapshot, not a delta.');
+
 export const PublicSemanticSearchSubmitInput = z
   .object({
     q: z.string().trim().min(1).max(8_000).describe('Free-text semantic search query.'),

@@ -45,6 +45,8 @@ import {
   aiQuestionModeEnum,
   aiEventTypeEnum,
   searchBehaviorActionEnum,
+  searchCapabilityIdEnum,
+  searchEngineRunStateEnum,
   transferSourceTypeEnum,
   transferSourceStatusEnum,
   transferRunKindEnum,
@@ -358,6 +360,12 @@ export const searchRecords = pgTable(
     // Correlation key for the semantic-search action. Drizzle does not attach a
     // DB-level FK here because ai_actions is declared later in this module.
     semanticActionId: uuid('semantic_action_id'),
+    // Capability set accepted when the attempt was created (017). Later
+    // administrator setting changes never alter an in-flight attempt.
+    capabilitySnapshot: jsonb('capability_snapshot')
+      .$type<Record<'full_text' | 'fuzzy' | 'semantic', boolean>>()
+      .notNull()
+      .default({ full_text: true, fuzzy: true, semantic: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -396,6 +404,8 @@ export const searchSettings = pgTable(
   {
     id: text('id').primaryKey().default('default'),
     semanticSearchEnabled: boolean('semantic_search_enabled').notNull().default(true),
+    fullTextSearchEnabled: boolean('full_text_search_enabled').notNull().default(true),
+    fuzzySearchEnabled: boolean('fuzzy_search_enabled').notNull().default(true),
     minRelevanceScore: integer('min_relevance_score').notNull().default(0),
     showExcerpts: boolean('show_excerpts').notNull().default(true),
     excerptLength: integer('excerpt_length').notNull().default(120),
@@ -405,6 +415,32 @@ export const searchSettings = pgTable(
     singletonId: check('search_settings_singleton_id', sql`${t.id} = 'default'`),
     relevanceRange: check('search_settings_min_relevance_score_range', sql`${t.minRelevanceScore} >= -100 and ${t.minRelevanceScore} <= 100`),
     excerptLengthRange: check('search_settings_excerpt_length_range', sql`${t.excerptLength} >= 20 and ${t.excerptLength} <= 500`),
+    // Semantic retrieval can never become the only way to search the wiki.
+    lexicalPathRequired: check('search_settings_lexical_path_required', sql`${t.fullTextSearchEnabled} or ${t.fuzzySearchEnabled}`),
+  }),
+);
+
+// One row per stable capability within one accepted search attempt (017).
+// Persists only safe lifecycle state, aggregate count, timing, and an opaque
+// continuation reference — never candidates, excerpts, scores, or diagnostics.
+export const searchEngineRuns = pgTable(
+  'search_engine_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    searchRecordId: uuid('search_record_id').notNull().references(() => searchRecords.id, { onDelete: 'cascade' }),
+    capabilityId: searchCapabilityIdEnum('capability_id').notNull(),
+    state: searchEngineRunStateEnum('state').notNull().default('pending'),
+    resultCount: integer('result_count').notNull().default(0),
+    continuationRef: text('continuation_ref'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    recordCapabilityUnique: uniqueIndex('search_engine_runs_record_capability_unique').on(t.searchRecordId, t.capabilityId),
+    resultCountNonNegative: check('search_engine_runs_result_count_nonnegative', sql`${t.resultCount} >= 0`),
+    stateUpdatedIdx: index().on(t.state, t.updatedAt),
+    recordUpdatedIdx: index().on(t.searchRecordId, t.updatedAt),
   }),
 );
 
@@ -412,6 +448,11 @@ export const searchRecordsRelations = relations(searchRecords, ({ one, many }) =
   space: one(spaces, { fields: [searchRecords.spaceId], references: [spaces.id] }),
   actor: one(users, { fields: [searchRecords.actorUserId], references: [users.id] }),
   behaviors: many(searchBehaviors),
+  engineRuns: many(searchEngineRuns),
+}));
+
+export const searchEngineRunsRelations = relations(searchEngineRuns, ({ one }) => ({
+  record: one(searchRecords, { fields: [searchEngineRuns.searchRecordId], references: [searchRecords.id] }),
 }));
 
 export const searchBehaviorsRelations = relations(searchBehaviors, ({ one }) => ({
