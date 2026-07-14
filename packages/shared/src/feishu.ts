@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Zero-dependency shared Zod contracts for the optional Feishu integration
 // module (019). These bound every value that crosses the module's internal
-// seams (webhook → delegation → delivery) and the first-party admin surface.
+// seams (SDK event → delegation → delivery) and the first-party admin surface.
 // The inbound path intentionally never carries a Wiki user id, role, permission
 // scope, or a caller-chosen audit origin: the web app resolves the effective
 // user from the confirmed Feishu binding alone.
@@ -51,7 +51,7 @@ export const feishuDeliveryStatusSchema = z.enum([
 ]);
 export type FeishuDeliveryStatus = z.infer<typeof feishuDeliveryStatusSchema>;
 
-export const feishuConnectionModeSchema = z.enum(['webhook']);
+export const feishuConnectionModeSchema = z.literal('websocket');
 export type FeishuConnectionMode = z.infer<typeof feishuConnectionModeSchema>;
 
 export const feishuRegistrationDomainSchema = z.enum(['feishu', 'lark']);
@@ -79,7 +79,7 @@ export type FeishuChatType = z.infer<typeof feishuChatTypeSchema>;
  */
 export const correlationIdSchema = z.string().min(1).max(128);
 
-// ---- Inbound message (webhook → delegation) ---------------------------------
+// ---- Inbound message (SDK event → delegation) --------------------------------
 
 export const feishuInboundMessageSchema = z.object({
   /** `tenant:event_type:message_id` idempotency key consumed by the inbox. */
@@ -154,11 +154,6 @@ export const feishuConfigInputSchema = z.object({
   appId: z.string().min(1).max(128).optional(),
   /** Write-only: present only when the admin is setting/rotating the secret. */
   appSecret: z.string().min(1).max(512).optional(),
-  encryptKey: z.string().min(1).max(512).optional(),
-  verificationToken: z.string().min(1).max(512).optional(),
-  userRateLimitPerMinute: z.number().int().min(1).max(600).optional(),
-  chatRateLimitPerMinute: z.number().int().min(1).max(600).optional(),
-  notificationRetentionHours: z.number().int().min(24).max(168).optional(),
 });
 export type FeishuConfigInput = z.infer<typeof feishuConfigInputSchema>;
 
@@ -167,12 +162,7 @@ export const feishuConfigViewSchema = z.object({
   enabled: z.boolean(),
   appId: z.string().nullable(),
   hasAppSecret: z.boolean(),
-  hasEncryptKey: z.boolean(),
-  hasVerificationToken: z.boolean(),
   connectionMode: feishuConnectionModeSchema,
-  userRateLimitPerMinute: z.number().int(),
-  chatRateLimitPerMinute: z.number().int(),
-  notificationRetentionHours: z.number().int(),
   lastConnectedAt: z.string().nullable(),
   lastError: z.string().nullable(),
 });

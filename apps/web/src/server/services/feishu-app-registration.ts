@@ -8,6 +8,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { pollAppRegistration, startAppRegistration } from '@/server/feishu/app-registration';
+import { startFeishuLongConnection } from '@/server/feishu/long-connection';
 import type { PermCtx } from '@/server/permissions';
 import { assertCanManageFeishu, updateConfig } from './feishu-config';
 
@@ -99,7 +100,8 @@ export async function checkFeishuAppRegistration(ctx: PermCtx, registrationId: s
   }
 
   if (result.status === 'completed') {
-    await updateConfig(ctx, { appId: result.appId, appSecret: result.appSecret });
+    await updateConfig(ctx, { appId: result.appId, appSecret: result.appSecret, enabled: true });
+    await startFeishuLongConnection();
     await db
       .delete(schema.feishuAppRegistrationSessions)
       .where(eq(schema.feishuAppRegistrationSessions.id, session.id));

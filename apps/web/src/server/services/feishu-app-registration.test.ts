@@ -3,8 +3,10 @@ import { eq } from 'drizzle-orm';
 
 const startAppRegistration = vi.hoisted(() => vi.fn());
 const pollAppRegistration = vi.hoisted(() => vi.fn());
+const startFeishuLongConnection = vi.hoisted(() => vi.fn());
 
 vi.mock('@/server/feishu/app-registration', () => ({ startAppRegistration, pollAppRegistration }));
+vi.mock('@/server/feishu/long-connection', () => ({ startFeishuLongConnection }));
 
 import { decryptKey } from '@/server/crypto/key-encryption';
 import { closeDb, db } from '@/server/db';
@@ -35,6 +37,8 @@ beforeEach(async () => {
   await db.delete(schema.feishuIntegrationConfig);
   startAppRegistration.mockReset();
   pollAppRegistration.mockReset();
+  startFeishuLongConnection.mockReset();
+  startFeishuLongConnection.mockResolvedValue(undefined);
 });
 
 afterAll(async () => {

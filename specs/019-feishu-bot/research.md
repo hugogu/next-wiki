@@ -2,22 +2,18 @@
 
 ## R1 — Inbound event transport, authenticity, and replay handling
 
-**Decision**: Serve the Feishu Event v2 callback as a Next.js route handler in
-the web app (`POST /webhooks/feishu/events`). Require the configured Encrypt Key
-and official SDK/protocol signature validation before parsing or enqueuing a
-business event. Handle URL verification separately and immediately. Persist an
+**Decision**: Use the Feishu SDK WebSocket long connection in the web process.
+Register the message dispatcher during application instrumentation and persist an
 inbox/deduplication record before asynchronous processing: use `message_id` for
 `im.message.receive_v1` and `event_id` for other v2 events, namespaced by tenant
 and event type. Retain the deduplication record for at least 24 hours and
 acknowledge a duplicate as a successful no-op.
 
 **Rationale**: Feishu documents at-least-once event delivery and retries through
-six hours; a Verification Token alone is not sufficient event authentication. A
-durable inbox prevents repeat binding, repeated LLM work, and duplicate cards
-across web-app restarts while keeping webhook acknowledgement short. Serving the
-callback in the web app removes the separate listener process entirely — the
-route handler already has direct, in-process access to the binding, permission,
-and job services it needs, so no inter-process contract is required.
+its SDK connection. A durable inbox prevents repeat binding, repeated LLM work,
+and duplicate cards across web-app restarts. The outbound connection avoids a
+public callback endpoint, Encrypt Key, and Verification Token while retaining a
+single in-process module and no inter-process contract.
 
 **Alternatives considered**:
 
@@ -25,17 +21,16 @@ and job services it needs, so no inter-process contract is required.
   rejected. It adds a second image/process, an inter-process trust boundary, and
   a shared service credential for no functional gain now that the callback can
   be an in-process route. Collapsing it into the web app is simpler (P1/KISS).
-- Verification Token only — rejected because it may be sent in cleartext and does
-  not protect the inbound business request sufficiently.
-- Feishu long-connection (WebSocket) transport — rejected for v1 because it
-  couples a long-lived socket lifecycle to every web replica; a stateless signed
-  webhook fits Next.js route handling and horizontal scaling better.
+- HTTP callback transport — rejected because it requires public ingress plus
+  Encrypt Key and Verification Token configuration even after the QR flow.
+- A separate WebSocket worker — rejected because the SDK connection can run in
+  the existing web process with the same durable inbox and worker recovery.
 - In-memory deduplication — rejected because restarts and multiple web replicas
   reintroduce duplicate processing.
 
 **Sources**:
 
-- [Feishu Encrypt Key configuration](https://open.feishu.cn/document/server-docs/event-subscription-guide/event-subscription-configure-/encrypt-key-encryption-configuration-case?lang=zh-CN)
+- [Feishu event subscription overview](https://open.feishu.cn/document/ukTMukTMukTM/uUTNz4SN1MjL1UzM?lang=zh-CN)
 - [Feishu event retries and event IDs](https://open.feishu.cn/document/ukTMukTMukTM/uUTNz4SN1MjL1UzM?lang=zh-CN)
 - [Feishu message receive event](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)
 
@@ -76,7 +71,7 @@ subscriptions without creating an alternate, weaker authorization model.
 
 ## R3 — In-process delegation (bound-user attribution)
 
-**Decision**: Resolve delegation entirely in-process. The webhook route hands a
+**Decision**: Resolve delegation entirely in-process. The SDK event handler hands a
 validated, deduplicated command to a Feishu delegation service in the same
 process. That service looks up the active binding for the Feishu `open_id`,
 builds the bound user's normal `PermCtx` with `buildUserCtx`, calls the existing
@@ -151,10 +146,10 @@ features — the Feishu workers slot into that same seam.
 
 ## R5 — Secrets, audit provenance, and retention
 
-**Decision**: Encrypt the Feishu app secret and Encrypt Key with the existing
+**Decision**: Encrypt the Feishu app secret with the existing
 AES-256-GCM key-encryption primitive. Configuration input is write-only and
 output exposes only `hasSecret` / masked identity. The web app decrypts these
-in-process when verifying inbound events and sending messages. Extend audit
+in-process when opening the long connection and sending messages. Extend audit
 entries with a bounded origin and an external correlation identifier; use
 `feishu` plus a non-secret event/message correlation value. Do not put raw
 questions, answers, credentials, or Feishu IDs in the audit metadata. Expire bot
@@ -186,9 +181,9 @@ code both stores and consumes them.
 ## R6 — Deployment and rate limiting
 
 **Decision**: Ship the integration inside the existing `web` service. The Feishu
-SDK is a web-app dependency; the webhook is a route handler; workers run on the
-existing job runner. The only new external surface is the signed callback route,
-exposed through the operator's existing HTTPS ingress/reverse proxy. Default
+SDK is a web-app dependency; it opens an outbound WebSocket from application
+instrumentation; workers run on the existing job runner. There is no callback
+route or ingress requirement. Default
 startup is unchanged and needs no Feishu credentials — the module is inert until
 configured. Start with Wiki-protective in-process defaults of 10 accepted Q&A
 requests per bound user per minute and 30 per chat per minute, while the outbound
@@ -205,9 +200,8 @@ message-send limits.
 - Separate `feishu` Compose profile / bot container — rejected; it grew the
   deployment footprint and added an inter-process boundary the in-process module
   makes unnecessary.
-- Run the bot in Next instrumentation as a long-lived socket — rejected because it
-  couples transport lifecycle to web replicas; a stateless signed webhook plus
-  DB-backed workers is simpler and horizontally safe.
+- HTTP callback transport — rejected because it requires a public callback URL
+  and manual event-security setup after QR registration.
 - Add Redis or a broker — rejected because PostgreSQL plus pg-boss already meet
   the durable-state requirement and P1 prohibits a new default stateful service.
 
@@ -221,15 +215,16 @@ begin a `PersonalAgent` / `client_secret` flow, renders the returned
 interval. The browser receives no device code. A short-lived PostgreSQL row
 holds only AES-256-GCM-encrypted `device_code`; on completion the server writes
 the returned App ID and App Secret through the existing write-only encrypted
-configuration service. Manual credentials remain the fallback.
+configuration service and immediately enables the WebSocket connection. There is
+no manual-credential fallback in the administrator UI.
 
 **Rationale**: this produces the same native Feishu experience as OpenClaw:
 the mobile app presents the administrator with the choice to associate an
 existing app or create a new one. Persisting the short-lived encrypted state
 survives a web-app restart and keeps the device credential out of the browser,
-without a second process, worker, or container. Event v2 still needs its
-Encrypt Key and optional Verification Token configured before the integration
-can be enabled, so this flow cannot safely enable the webhook automatically.
+without a second process, worker, or container. The SDK's outbound WebSocket
+does not need a callback URL, Encrypt Key, or Verification Token, so a completed
+QR flow can enable the integration automatically.
 
 **Alternatives considered**:
 

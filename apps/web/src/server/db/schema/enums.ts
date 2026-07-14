@@ -115,11 +115,7 @@ export const aiCapabilitySourceEnum = pgEnum('ai_capability_source', [
   'catalog',
   'manual',
 ]);
-export const aiPurposeEnum = pgEnum('ai_purpose', [
-  'wiki_text',
-  'wiki_embedding',
-  'wiki_image',
-]);
+export const aiPurposeEnum = pgEnum('ai_purpose', ['wiki_text', 'wiki_embedding', 'wiki_image']);
 export const aiIndexStatusEnum = pgEnum('ai_index_status', [
   'building',
   'ready',
@@ -186,7 +182,12 @@ export const searchEngineRunStateEnum = pgEnum('search_engine_run_state', [
 ]);
 
 export const tagMutationKindEnum = pgEnum('tag_mutation_kind', ['rename', 'delete', 'merge']);
-export const tagMutationStatusEnum = pgEnum('tag_mutation_status', ['queued', 'running', 'succeeded', 'failed']);
+export const tagMutationStatusEnum = pgEnum('tag_mutation_status', [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+]);
 
 // ---- Content transfer (005) -----------------------------------------------
 
@@ -303,7 +304,7 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
 /** Source channel of an audit entry. Existing rows default to `web`. */
 export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu']);
 
-export const feishuConnectionModeEnum = pgEnum('feishu_connection_mode', ['webhook']);
+export const feishuConnectionModeEnum = pgEnum('feishu_connection_mode', ['webhook', 'websocket']);
 
 export const feishuBindingStatusEnum = pgEnum('feishu_binding_status', ['active', 'revoked']);
 

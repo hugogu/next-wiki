@@ -40,10 +40,12 @@ afterAll(async () => {
 
 describe('feishu-config service', () => {
   it('hides the surface from non-admins', async () => {
-    await expect(feishuConfig.getConfigView(editorCtx)).rejects.toMatchObject({ code: 'FORBIDDEN' });
-    await expect(
-      feishuConfig.updateConfig(editorCtx, { appId: 'cli_x' }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(feishuConfig.getConfigView(editorCtx)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    await expect(feishuConfig.updateConfig(editorCtx, { appId: 'cli_x' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('returns a disabled default view for an unconfigured deployment', async () => {
@@ -51,7 +53,6 @@ describe('feishu-config service', () => {
     expect(view.enabled).toBe(false);
     expect(view.appId).toBeNull();
     expect(view.hasAppSecret).toBe(false);
-    expect(view.notificationRetentionHours).toBe(72);
     // An unconfigured deployment is inactive in-process.
     expect(await feishuConfig.getDecryptedConfig()).toBeNull();
     expect(await feishuConfig.isFeishuConfigured()).toBe(false);
@@ -61,15 +62,10 @@ describe('feishu-config service', () => {
     const view = await feishuConfig.updateConfig(adminCtx, {
       appId: 'cli_app',
       appSecret: 'super-secret',
-      encryptKey: 'enc-key',
-      verificationToken: 'vtoken',
     });
     expect(view.hasAppSecret).toBe(true);
-    expect(view.hasEncryptKey).toBe(true);
-    expect(view.hasVerificationToken).toBe(true);
     // The masked view exposes no plaintext secret.
     expect(JSON.stringify(view)).not.toContain('super-secret');
-    expect(JSON.stringify(view)).not.toContain('enc-key');
 
     // The stored columns are ciphertext, decryptable in-process only.
     const row = await db.query.feishuIntegrationConfig.findFirst({
@@ -83,14 +79,13 @@ describe('feishu-config service', () => {
     await feishuConfig.updateConfig(adminCtx, {
       appId: 'cli_app',
       appSecret: 'secret-1',
-      encryptKey: 'enc-1',
     });
-    await feishuConfig.updateConfig(adminCtx, { userRateLimitPerMinute: 20 });
+    await feishuConfig.updateConfig(adminCtx, { enabled: true });
     const row = await db.query.feishuIntegrationConfig.findFirst({
       where: eq(schema.feishuIntegrationConfig.id, 'default'),
     });
     expect(decryptKey(row!.appSecretEncrypted!)).toBe('secret-1');
-    expect(row!.userRateLimitPerMinute).toBe(20);
+    expect(row!.enabled).toBe(true);
   });
 
   it('refuses to enable without the required secrets', async () => {
@@ -103,24 +98,12 @@ describe('feishu-config service', () => {
     await feishuConfig.updateConfig(adminCtx, {
       appId: 'cli_app',
       appSecret: 'secret',
-      encryptKey: 'enc',
       enabled: true,
     });
     const runtime = await feishuConfig.getDecryptedConfig();
     expect(runtime).not.toBeNull();
     expect(runtime!.appId).toBe('cli_app');
     expect(runtime!.appSecret).toBe('secret');
-    expect(runtime!.encryptKey).toBe('enc');
-    expect(runtime!.verificationToken).toBeNull();
     expect(await feishuConfig.isFeishuConfigured()).toBe(true);
-  });
-
-  it('validates retention and rate-limit bounds', async () => {
-    await expect(
-      feishuConfig.updateConfig(adminCtx, { notificationRetentionHours: 1 }),
-    ).rejects.toBeTruthy();
-    await expect(
-      feishuConfig.updateConfig(adminCtx, { userRateLimitPerMinute: 0 }),
-    ).rejects.toBeTruthy();
   });
 });

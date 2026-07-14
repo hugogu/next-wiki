@@ -23,10 +23,8 @@ Singleton configuration record (`id = 'default'`).
 | `id`                              | text            | Primary key; fixed singleton identifier.                     |
 | `app_id`                          | text            | Required when enabled; safe to display in masked form.       |
 | `app_secret_encrypted`            | text            | Required when enabled; AES-256-GCM ciphertext only.          |
-| `encrypt_key_encrypted`           | text            | Event v2 decrypt/verification secret; ciphertext only.       |
-| `verification_token_encrypted`    | text            | Optional compatibility/configuration value; ciphertext only. |
 | `enabled`                         | boolean         | Default false; an unconfigured deployment is usable.         |
-| `connection_mode`                 | enum            | `webhook` for v1; stored explicitly for health reporting.    |
+| `connection_mode`                 | enum            | WebSocket long connection; exposed for health reporting.     |
 | `user_rate_limit_per_minute`      | integer         | Default 10; positive bounded administrator value.            |
 | `chat_rate_limit_per_minute`      | integer         | Default 30; positive bounded administrator value.            |
 | `notification_retention_hours`    | integer         | Default 72; inclusive range 24–168.                          |

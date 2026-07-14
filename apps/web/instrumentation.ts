@@ -32,6 +32,8 @@ export async function register() {
     await boss.start();
     await registerJobs(boss);
     setBoss(boss);
+    const { startFeishuLongConnection } = await import('./src/server/feishu/long-connection');
+    await startFeishuLongConnection();
     logger.info('pg-boss worker started');
   } catch (error) {
     const { logger } = await import('./src/server/logger');

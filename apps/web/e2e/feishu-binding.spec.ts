@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 
 // The Feishu integration stores all state in Postgres. These tests seed a
-// single-use binding token directly (as the webhook would) and drive the
+// single-use binding token directly (as the SDK event handler would) and drive the
 // authenticated confirmation page, then assert the binding via the database.
 const E2E_DATABASE_URL =
   process.env.E2E_DATABASE_URL || 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_e2e_test';

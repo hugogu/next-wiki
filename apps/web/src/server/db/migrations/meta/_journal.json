@@ -120,6 +120,13 @@
       "when": 1784027402206,
       "tag": "0016_greedy_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784030511775,
+      "tag": "0017_sharp_katie_power",
+      "breakpoints": true
     }
   ]
 }

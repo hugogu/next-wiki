@@ -8,8 +8,8 @@
 
 Add an optional Feishu integration that lives **inside the single web
 application** as an explicitly registered module — no separate process, image,
-or inter-process contract. The Feishu Event v2 callback is a Next.js route
-handler; inbound messages resolve the active binding in-process, build the bound
+or inter-process contract. The Feishu SDK maintains an outbound WebSocket long
+connection; inbound messages resolve the active binding in-process, build the bound
 user's normal `PermCtx`, and reuse the existing AI-question service directly.
 Grounded answers and durable event notifications are sent by background workers
 registered on the existing pg-boss runner. PostgreSQL-backed inbox/outbox rows
@@ -24,27 +24,26 @@ credentials.
 
 **Primary Dependencies**: Next.js 16, React 19.2, Drizzle ORM, pg-boss, Zod,
 existing provider-agnostic AI services; Feishu official Node SDK
-(`@larksuiteoapi/node-sdk`) for Event v2 decryption/verification and message
+(`@larksuiteoapi/node-sdk`) for the WebSocket event dispatcher and message
 delivery, used in-process by the web app.
 
 **Storage**: Existing PostgreSQL 16 / pgvector database; all Feishu bindings,
 inbox records, sessions, configuration, notification events, and deliveries are
-durable PostgreSQL state. The Feishu app secret and Encrypt Key use the existing
-AES-256-GCM key-encryption primitive.
+durable PostgreSQL state. The Feishu app secret uses the existing AES-256-GCM
+key-encryption primitive.
 
 **Testing**: Vitest unit and integration tests, Playwright admin/binding E2E
 tests, and Docker Compose integration tests with a mocked Feishu transport.
 
-**Target Platform**: The existing single `web` Docker service. The only new
-external surface is the signed Feishu HTTPS callback route, served by the web
-app and exposed through the operator's existing ingress/reverse proxy. No new
-container, Compose profile, or port is introduced.
+**Target Platform**: The existing single `web` Docker service. The web app opens
+an outbound Feishu WebSocket; no callback URL, ingress rule, new container,
+Compose profile, or port is introduced.
 
 **Project Type**: Web application. The Feishu integration is a module under
 `apps/web/src/server/feishu` plus route handlers under `apps/web/app`.
 
-**Performance Goals**: Acknowledge inbound questions within 3 seconds (the route
-handler persists the inbox record and enqueues, then returns); grounded answer
+**Performance Goals**: Accept inbound questions within 3 seconds (the SDK event
+handler persists the inbox record and enqueues); grounded answer
 with citations within 10 seconds p95; eligible notification within 30 seconds
 p95; resumed delivery within 60 seconds in 95% of injected outage/restart cases.
 
@@ -52,8 +51,8 @@ p95; resumed delivery within 60 seconds in 95% of injected outage/restart cases.
 credentials/question/answer in logs or audit metadata; all resource reads
 re-check `PermCtx` at request and job time; Feishu events are at-least-once;
 notification delivery is at-least-once with deterministic de-duplication; no new
-anonymous Wiki content endpoint and no public-content cache impact. The webhook
-route is not part of the public REST/OpenAPI surface.
+anonymous Wiki content endpoint and no public-content cache impact. The SDK event
+connection is not part of the public REST/OpenAPI surface.
 
 **Scale/Scope**: One Feishu app per Wiki deployment; direct messages and
 @-mentions only; three notification event families; one active configuration;
@@ -68,10 +67,10 @@ delivery retention.
 | P1 simple deployment | PASS | The integration is a module in the existing `web` service; `docker compose up` starts nothing new and needs no Feishu credentials. No new container, profile, port, or stateful service. |
 | P2/P3 provider-agnostic grounded AI | PASS | Delegate to the existing AI-question service and provider registry in-process; retain existing grounded citations and disabled-AI fallback. |
 | P5 permissions first-class | PASS | The module resolves the binding, creates the bound user's `PermCtx`, and rechecks it at action execution and delivery through the same `can()` chokepoint as the web UI; group membership never substitutes for Wiki authorization. |
-| P7 async-heavy work | PASS | Webhook acknowledgement is short (persist inbox row + enqueue); Q&A uses the existing AI action/pg-boss lifecycle and delivery uses durable rows plus background workers on the same runner. |
+| P7 async-heavy work | PASS | The WebSocket event handler persists the inbox row and enqueues quickly; Q&A uses the existing AI action/pg-boss lifecycle and delivery uses durable rows plus background workers on the same runner. |
 | P8 versioning | N/A | The feature neither changes nor stores page content. |
-| P9 API/open standards | PASS | The webhook is a documented signed callback, not a public REST resource; it stays out of generated OpenAPI. Admin/binding operations reuse first-party authenticated routes with normal Zod/audit behavior. |
-| P10 explicit registration | PASS | Feishu Event handlers, the webhook route, admin/binding routes, and pg-boss workers are registered explicitly through a single `registerFeishuModule` seam and the existing `registerJobs` runner. |
+| P9 API/open standards | PASS | The SDK connection exposes no public REST resource. Admin/binding operations reuse first-party authenticated routes with normal Zod/audit behavior. |
+| P10 explicit registration | PASS | Feishu Event handlers, admin/binding routes, and pg-boss workers are registered explicitly through a single `registerFeishuModule` seam and the existing `registerJobs` runner. |
 | P11 URL/navigation | PASS | Admin configuration, subscriptions, bindings, and health have one canonical admin integration entry point; filters/pagination state uses query parameters. |
 | P12 public reading | N/A | No anonymous published representation, public metadata, or navigation changes. |
 
@@ -91,7 +90,7 @@ specs/019-feishu-bot/
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
-│   ├── feishu-webhook.md          # signed inbound callback (web route)
+│   ├── feishu-long-connection.md  # SDK WebSocket inbound connection
 │   └── integration-module.md      # in-process module boundaries + admin routes
 └── tasks.md
 ```
@@ -101,7 +100,6 @@ specs/019-feishu-bot/
 ```text
 apps/web/
 ├── app/
-│   ├── webhooks/feishu/events/     # signed Feishu Event v2 callback route
 │   ├── (user)/user-center/feishu/  # authenticated binding-confirmation page
 │   ├── (admin)/admin/feishu/       # canonical admin integration entry point
 │   └── api/
@@ -120,7 +118,7 @@ packages/
 
 **Structure Decision**: Keep all Feishu domain logic in `apps/web`, alongside
 the services it reuses (AI question, permissions, audit, jobs). The transport
-client (Feishu SDK wrapper for verify/decrypt/send) is isolated in
+client (Feishu SDK wrapper for receive/send) is isolated in
 `src/server/feishu` behind a small interface so tests substitute a deterministic
 double. No separate application, no private HTTP delegation contract, and no
 generic impersonation layer are introduced.
@@ -129,7 +127,7 @@ generic impersonation layer are introduced.
 
 Resolved decisions and evidence are recorded in [research.md](./research.md):
 
-1. Event v2 webhook as a Next.js route handler with durable inbox de-duplication.
+1. SDK WebSocket event dispatcher with durable inbox de-duplication.
 2. Public-safe group cards and private-recipient direct fan-out.
 3. In-process delegation: resolve the binding and build the bound user's
    `PermCtx`, then call the existing AI-question service directly.
@@ -141,7 +139,7 @@ Resolved decisions and evidence are recorded in [research.md](./research.md):
 
 - Model all persisted state and transitions in [data-model.md](./data-model.md).
 - Treat [integration-module.md](./contracts/integration-module.md) as the
-  in-process module boundary: the webhook route hands a validated, deduplicated
+  in-process module boundary: the SDK event dispatcher hands a validated, deduplicated
   command to the delegation service, which resolves the effective user. No
   service token or cross-process call exists.
 - Write a notification event/delivery row transactionally with the originating
@@ -152,14 +150,14 @@ Resolved decisions and evidence are recorded in [research.md](./research.md):
   binding, subscription status, and the recipient's current `PermCtx`.
 - Generate every database migration from `apps/web/src/server/db/schema/*.ts`
   with `pnpm db:generate`; do not hand-author migration SQL or journal entries.
-- Keep the webhook route out of generated OpenAPI; validate its payloads and the
+- Keep the SDK event connection out of generated OpenAPI; validate the
   first-party admin/binding routes with shared Zod schemas.
 - Use the existing design tokens and `src/components/ui/` primitives for the
   canonical administration surface; no inline feature-specific styling.
 
 ## Validation Strategy
 
-1. Unit-test signature/decryption adapter boundaries, binding-token single use
+1. Unit-test SDK event normalization boundaries, binding-token single use
    and expiry, inbox/delivery unique keys, group mode selection, encrypted
    secret serialization, and rate-limit accounting.
 2. Integration-test in-process delegated Q&A under an active binding,
@@ -171,7 +169,7 @@ Resolved decisions and evidence are recorded in [research.md](./research.md):
 4. Playwright-test the canonical admin routes for credentials, health, direct/
    group subscription modes, binding list/revocation, and URL-restored filters.
 5. Run `pnpm lint`, `pnpm typecheck`, targeted Vitest/Playwright suites, then
-   `docker compose up -d --build` plus the mock-transport webhook scenario.
+   `docker compose up -d --build` plus the mock-transport WebSocket scenario.
 
 ## Complexity Tracking
 

@@ -64,7 +64,7 @@ A bound user or a designated Feishu group receives notifications when notable wi
 
 ### User Story 4 - Admin Configures the Bot Connection and Subscriptions (Priority: P2)
 
-An admin opens the wiki admin panel and either scans a Feishu QR code to associate an existing application or create a new one, or enters existing app credentials manually. The admin then completes the Event v2 webhook security settings, selects which events trigger notifications and to which chats, and reviews a list of bound Feishu identities. The admin can revoke any binding, pause any subscription, and inspect connection health.
+An admin opens the wiki admin panel and scans a Feishu QR code to associate an existing application or create a new one. The bot establishes its WebSocket long connection automatically, then the admin can select notification events, review bound identities, revoke bindings, pause subscriptions, and inspect connection health.
 
 **Why this priority**: Configuration must be self-service so the integration stays operable without code changes or vendor intervention.
 
@@ -122,7 +122,7 @@ An admin opens the wiki admin panel and either scans a Feishu QR code to associa
 
 **Admin Configuration**
 
-- **FR-015**: Admins MUST be able to configure the Feishu app credentials and connection mode through the admin panel, without code changes or file edits. The panel MUST offer a Feishu device-code QR flow that lets the administrator associate an existing app or create a new app, while retaining a manual credential fallback.
+- **FR-015**: Admins MUST configure the Feishu app only through a device-code QR flow that lets the administrator associate an existing app or create a new app. The bot MUST establish an outbound WebSocket long connection automatically; the admin panel MUST NOT require a callback URL or manual credentials.
 - **FR-015a**: The QR registration `device_code`, App Secret, and any equivalent credential MUST remain server-side; the browser may receive only an opaque registration ID, the verification URL/QR image, expiry, and non-secret completion state.
 - **FR-016**: Admins MUST be able to view current connection status, recent delivery health, and recent error summaries.
 - **FR-017**: Admins MUST be able to view, filter, and revoke bound Feishu identities.
@@ -149,7 +149,7 @@ An admin opens the wiki admin panel and either scans a Feishu QR code to associa
 ### Public Content Delivery _(required when a feature changes anonymously readable published content)_
 
 - This feature does **not** change anonymously readable published page content, public metadata, or public navigation. No static/ISR cache impact on the public site.
-- The Q&A surface exposes only content the bound wiki user can already read in the web UI; no new anonymous Wiki content/API surface is introduced. The integration adds only a signed Feishu event callback route (`/webhooks/feishu/events`), which returns no Wiki content, is kept out of the public REST/OpenAPI surface, and is not a user-facing public API.
+- The Q&A surface exposes only content the bound wiki user can already read in the web UI; no new anonymous Wiki content/API surface is introduced. The integration receives events through an outbound SDK WebSocket connection and adds no public callback route or user-facing API.
 
 ### Key Entities _(include if feature involves data)_
 
@@ -177,11 +177,11 @@ An admin opens the wiki admin panel and either scans a Feishu QR code to associa
 
 - The wiki already provides permission-aware content and AI Q&A surfaces, a long-running AI action surface, an audit log, and an admin panel; this feature reuses those capabilities rather than duplicating their business logic.
 - The current user-session Q&A entry point is reused directly, in-process, under the bound user's permission context. This feature adds an explicitly registered integration module that preserves the bound user, permission evaluation, and audit origin rather than treating a shared API key as that user; no separate process or service credential is introduced.
-- The Feishu QR registration service is available to the target tenant and can create or associate an app through the native Feishu flow. If it is unavailable, denied, or expires, an operator can configure an existing app manually in the Developer Console.
+- The Feishu QR registration service is available to the target tenant and can create or associate an app through the native Feishu flow. If it is unavailable, denied, or expires, setup remains incomplete until a new QR flow succeeds.
 - One bot instance serves one wiki deployment; multi-tenant Feishu marketplace distribution is out of scope for v1.
 - Users have network access to both the wiki and Feishu from their devices.
-- The operator configures an externally reachable HTTPS callback (through the wiki's existing ingress/reverse proxy) in the Feishu Developer Console; it is required only when the optional integration is enabled.
-- The integration is an explicitly registered module inside the single wiki web application: the inbound Feishu callback is a route handler and outbound delivery uses the existing background job runner. The wiki remains the only authoritative entrypoint for permission checks, audit, and business logic. No separate process, image, port, or inter-process contract is introduced.
+- The QR flow supplies the app credentials; the SDK establishes an outbound WebSocket long connection. No externally reachable HTTPS callback or Event V2 callback security fields are required.
+- The integration is an explicitly registered module inside the single wiki web application: the inbound Feishu SDK event handler and outbound delivery use the existing application and background job runner. The wiki remains the only authoritative entrypoint for permission checks, audit, and business logic. No separate process, image, port, or inter-process contract is introduced.
 - The integration is optional: an unconfigured deployment remains fully usable without Feishu, and the module stays inert until an admin configures credentials. It reuses the same application image, PostgreSQL state, and job runner as the wiki and adds no stateful service or mandatory external dependency.
 - The default conversational session window and notification retention window are specified above. Rate-limit defaults will be selected during planning from Feishu platform limits and documented before implementation.
 - The initial set of notifiable events is page-published, AI-action-completed, and transfer/import/export-completed; additional event types may be added in later iterations.

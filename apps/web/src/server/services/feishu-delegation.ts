@@ -19,7 +19,7 @@ import {
 const AI_DISABLED_CODES = new Set(['AI_DISABLED', 'AI_FEATURE_DISABLED', 'AI_NOT_CONFIGURED']);
 
 /**
- * In-process delegation entry point. The webhook route hands a validated,
+ * In-process delegation entry point. The SDK event handler hands a validated,
  * deduplicated inbound message here; this service — not the caller — resolves
  * the effective Wiki user from the confirmed binding alone and reuses the
  * existing AI-question service under that user's permission context.
@@ -99,7 +99,7 @@ export async function handleInboundMessage(
       userId: binding.userId,
       entryType: 'api',
       method: 'POST',
-      path: '/webhooks/feishu/events',
+      path: 'feishu:websocket',
       statusCode: 202,
       durationMs: 0,
       authStatus: 'authenticated',

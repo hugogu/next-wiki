@@ -1,7 +1,7 @@
 # Quickstart: Validate Feishu Bot Integration
 
 This guide validates the feature against a local Docker Compose deployment and a
-mocked Feishu Event v2/message transport. It does not send messages to production
+mocked Feishu WebSocket/message transport. It does not connect to a production
 Feishu tenants.
 
 ## Prerequisites
@@ -9,17 +9,17 @@ Feishu tenants.
 - Node.js and pnpm versions supported by the repository.
 - Docker Compose.
 - A generated local `API_KEY_ENCRYPTION_KEY`.
-- Feishu mock credentials: app ID, app secret, Encrypt Key, and bot service
-  credential. Test values only; do not add them to source control.
+- Feishu mock credentials: app ID and app secret. Test values only; do not add
+  them to source control.
 - A seeded active Wiki user, a readable published page, an unreadable/private page
   when ACL fixtures are available, and an admin user.
 
 ## Start the stack
 
 1. Install workspace dependencies if they are not already present.
-2. Start the normal Wiki stack. For a real tenant, configure its HTTPS callback
-   through an ingress/reverse proxy; the local mock calls the web callback route
-   directly. No Feishu service or Compose profile is required:
+2. Start the normal Wiki stack. No Feishu service, callback URL, or public
+   ingress is required because the web process establishes the outbound
+   WebSocket connection:
 
    ```sh
    docker compose up -d --build
@@ -29,18 +29,18 @@ Feishu tenants.
    canonical Feishu admin integration page.
 4. In `/admin/feishu`, generate a QR code and scan it with Feishu. Choose either
    an existing application or a new application in the native Feishu screen.
-   Verify that the response never includes a device code or App Secret. Complete
-   the Event v2 Encrypt Key and (if used) Verification Token, then enable the
-   integration. Manual App ID/App Secret entry remains available as a fallback.
+   Verify that the response never includes a device code or App Secret and that
+   the WebSocket connection becomes active automatically.
 
 ## Binding and Q&A
 
-1. Submit a signed, encrypted direct-message fixture from an unbound `open_id`.
+1. Dispatch a direct-message fixture from an unbound `open_id` through the SDK
+   event normalization boundary.
    Expect one private binding-link disposition and no Q&A action.
 2. Open the link as the intended Wiki user, confirm the binding, and verify that a
    second attempt to use the same link fails. Advance the clock past 10 minutes and
    verify expiry.
-3. Send a signed direct question from the bound `open_id`. Expect acknowledgement
+3. Dispatch a direct question from the bound `open_id`. Expect acknowledgement
    within three seconds, an AI action attributed to the bound Wiki user, and a
    direct answer with at least one readable citation.
 4. Send the same event again. Expect an idempotent no-op: no additional action,
@@ -69,8 +69,9 @@ Feishu tenants.
 
 ## Audit and security
 
-1. Submit an invalid signature, stale event, and replayed event. Expect rejection
-   before business processing and a duplicate-safe response for the replay.
+1. Submit a malformed SDK event and a replayed event. Expect the malformed event
+   to be ignored before business processing and a duplicate-safe response for the
+   replay.
 2. Inspect audit records for each accepted bot request. Verify the resolved Wiki
    user, `origin=feishu`, outcome, and opaque correlation ID; verify raw prompts,
    answers, tokens, app secret, and Feishu identifiers are absent.

@@ -6,12 +6,12 @@
 
 **Architecture**: The Feishu integration is an **in-process module** in the
 single `apps/web` application — no separate bot process, image, Compose profile,
-or private HTTP delegation contract. The inbound callback is a Next.js route
-handler; delegation resolves the binding in-process; delivery uses the existing
+or private HTTP delegation contract. The SDK WebSocket event handler resolves
+the binding in-process; delivery uses the existing
 pg-boss job runner.
 
 **Tests**: Tests are required by the feature specification, implementation plan,
-and project rules. Add the listed Vitest, webhook/route, E2E, migration-generation,
+and project rules. Add the listed Vitest, SDK-event, E2E, migration-generation,
 and Compose validations before considering a story complete.
 
 **Organization**: Tasks are grouped by user story so each increment has a focused
@@ -31,8 +31,8 @@ seam without changing default Wiki behavior. No new container or process.
 
 - [x] T001 Add the official Feishu SDK (`@larksuiteoapi/node-sdk`) to `apps/web/package.json`, create the module directory `apps/web/src/server/feishu/`, and confirm `docker compose up` starts nothing new.
 - [x] T002 [P] Add shared bounded Feishu Zod schemas, enums, and exports for the module contracts in `packages/shared/src/feishu.ts` and `packages/shared/src/index.ts`.
-- [x] T003 [P] Define the in-process Feishu transport interface (verify/decrypt webhook + send message) in `apps/web/src/server/feishu/transport-types.ts` and a deterministic test double in `apps/web/src/server/feishu/transport.test-support.ts` with `apps/web/src/server/feishu/transport.test.ts`.
-- [x] T004 Document that Feishu is optional and configured via the admin UI (encrypted DB config, not env), plus the single callback route, in `.env.example` and `README.md` — with no new Compose service.
+- [x] T003 [P] Define the in-process Feishu transport interface (SDK event normalization + send message) in `apps/web/src/server/feishu/transport-types.ts` and a deterministic test double in `apps/web/src/server/feishu/transport.test-support.ts` with `apps/web/src/server/feishu/transport.test.ts`.
+- [x] T004 Document that Feishu is optional and QR-configured through the admin UI (encrypted DB config, not env), using a WebSocket long connection with no callback route, in `.env.example` and `README.md` — with no new Compose service.
 
 ---
 
@@ -74,18 +74,18 @@ group.
 ### Tests for User Story 1
 
 - [x] T015 [P] [US1] Add binding-token service tests for hashing, 10-minute expiry, one-time use, `open_id` matching, user deactivation, unbind, and admin revocation in `apps/web/src/server/services/feishu-bindings.test.ts`.
-- [x] T016 [P] [US1] Add webhook route tests for invalid signature, stale payload, duplicate `message_id`, URL verification, direct binding disposition, and group-safe no-link fallback in `apps/web/app/webhooks/feishu/events/route.test.ts`.
+- [x] T016 [P] [US1] Add SDK inbound-event tests for normalization, duplicate `message_id`, direct binding disposition, and group-safe no-link fallback in `apps/web/src/server/feishu/transport.test.ts` and service coverage.
 - [x] T017 [P] [US1] Add Playwright binding/revocation coverage with private-message and group-fallback fixtures in `apps/web/e2e/feishu-binding.spec.ts`.
 
 ### Implementation for User Story 1
 
 - [x] T018 [US1] Implement active-binding lookup, hashed token issuance/consumption, confirmation, unbind, revocation, and immediate session expiry in `apps/web/src/server/services/feishu-bindings.ts`.
 - [x] T019 [US1] Implement the authenticated binding-confirmation page and mutation route in `apps/web/app/(user)/user-center/feishu/bind/page.tsx` and `apps/web/app/api/feishu/bindings/route.ts`.
-- [x] T020 [US1] Implement the Feishu Event v2 callback route (URL-verification response, decrypt/verify-before-parse, durable inbox acknowledgement, hand-off to delegation) in `apps/web/app/webhooks/feishu/events/route.ts`.
+- [x] T020 [US1] Implement the Feishu SDK WebSocket dispatcher (automatic startup/reconnect, event normalization, durable inbox acknowledgement, hand-off to delegation) in `apps/web/src/server/feishu/long-connection.ts`.
 - [x] T021 [US1] Implement the in-process delegation entry `handleInboundMessage` that resolves bindings server-side and returns only `bind`/`ignored`/safe dispositions in `apps/web/src/server/services/feishu-delegation.ts`.
 - [x] T022 [US1] Implement direct-message sending and generic group fallback (never emitting a binding URL in a group) in `apps/web/src/server/services/feishu-messaging.ts` using the T012 transport.
 - [x] T023 [US1] Add binding/unbinding confirmation copy and translations in `apps/web/messages/en.json` and `apps/web/messages/zh-CN.json`.
-- [x] T024 [US1] Run the US1 Vitest, webhook route, and Playwright suites named in T015–T017.
+- [x] T024 [US1] Run the US1 Vitest, SDK-event, and Playwright suites named in T015–T017.
 
 **Checkpoint**: User Story 1 is independently demonstrable with no Q&A,
 subscription, or notification implementation enabled.
@@ -193,12 +193,12 @@ URL-restorable.
 documentation without changing public-content delivery.
 
 - [ ] T055 [P] Add structured, secret-redacted Feishu logs and readiness behavior in `apps/web/src/server/feishu/` and `apps/web/app/readyz/route.ts`.
-- [ ] T056 [P] Add Feishu setup, callback/ingress, backup, recovery, and credential-rotation guidance in `README.md` and `docs/operations/feishu-bot.md`.
-- [ ] T057 [P] Add public-contract regression tests confirming the webhook route is absent from generated OpenAPI and no anonymous page route becomes dynamic in `apps/web/app/api/v1/public-route-architecture.test.ts` and `apps/web/app/(public)/public-content-delivery.test.ts`.
-- [ ] T058 Add feature contract conformance coverage for `specs/019-feishu-bot/contracts/feishu-webhook.md` and `specs/019-feishu-bot/contracts/integration-module.md` in `apps/web/e2e/feishu-contracts.spec.ts`.
+- [ ] T056 [P] Add Feishu QR setup, connection recovery, backup, and credential-rotation guidance in `README.md` and `docs/operations/feishu-bot.md`.
+- [ ] T057 [P] Add public-contract regression tests confirming no Feishu callback route exists in generated OpenAPI and no anonymous page route becomes dynamic in `apps/web/app/api/v1/public-route-architecture.test.ts` and `apps/web/app/(public)/public-content-delivery.test.ts`.
+- [ ] T058 Add feature contract conformance coverage for `specs/019-feishu-bot/contracts/feishu-long-connection.md` and `specs/019-feishu-bot/contracts/integration-module.md` in `apps/web/e2e/feishu-contracts.spec.ts`.
 - [ ] T059 Run `pnpm db:generate` again after all schema changes and verify the generated migration/snapshot is clean.
 - [ ] T060 Run targeted Vitest, Playwright, `pnpm lint`, `pnpm typecheck`, and `pnpm test`; record results in `specs/019-feishu-bot/quickstart.md`.
-- [ ] T061 Run `docker compose up -d --build` with the mock transport webhook scenario; record the end-to-end result in `specs/019-feishu-bot/quickstart.md`.
+- [ ] T061 Run `docker compose up -d --build` with the mock transport WebSocket scenario; record the end-to-end result in `specs/019-feishu-bot/quickstart.md`.
 - [ ] T062 Review the complete change against Constitution P1, P3, P5, P7, P9, P10, P11, and P12 and add the PR verification notes in `specs/019-feishu-bot/plan.md`.
 
 ---

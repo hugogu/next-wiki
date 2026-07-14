@@ -90,11 +90,7 @@ const vector = customType<{ data: number[]; driverData: string }>({
     return `[${value.join(',')}]`;
   },
   fromDriver(value) {
-    return value
-      .slice(1, -1)
-      .split(',')
-      .filter(Boolean)
-      .map(Number);
+    return value.slice(1, -1).split(',').filter(Boolean).map(Number);
   },
 });
 
@@ -224,7 +220,9 @@ export const tags = pgTable(
   'tags',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    spaceId: uuid('space_id').notNull().references(() => spaces.id),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id),
     name: text('name').notNull(),
     normalizedName: text('normalized_name').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -238,7 +236,9 @@ export const tags = pgTable(
 );
 
 export const pageRevisionMetadata = pgTable('page_revision_metadata', {
-  revisionId: uuid('revision_id').primaryKey().references(() => pageRevisions.id, { onDelete: 'cascade' }),
+  revisionId: uuid('revision_id')
+    .primaryKey()
+    .references(() => pageRevisions.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   date: date('metadata_date'),
   summary: text('summary'),
@@ -248,8 +248,12 @@ export const pageRevisionMetadata = pgTable('page_revision_metadata', {
 export const pageRevisionTags = pgTable(
   'page_revision_tags',
   {
-    revisionId: uuid('revision_id').notNull().references(() => pageRevisions.id, { onDelete: 'cascade' }),
-    tagId: uuid('tag_id').notNull().references(() => tags.id),
+    revisionId: uuid('revision_id')
+      .notNull()
+      .references(() => pageRevisions.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id),
     tagName: text('tag_name').notNull(),
     normalizedName: text('normalized_name').notNull(),
   },
@@ -263,7 +267,9 @@ export const tagMutations = pgTable(
   'tag_mutations',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    tagId: uuid('tag_id').notNull().references(() => tags.id),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id),
     targetTagId: uuid('target_tag_id').references(() => tags.id),
     kind: tagMutationKindEnum('kind').notNull(),
     status: tagMutationStatusEnum('status').notNull().default('queued'),
@@ -287,11 +293,17 @@ export const tagsRelations = relations(tags, ({ many }) => ({
 }));
 
 export const pageRevisionMetadataRelations = relations(pageRevisionMetadata, ({ one }) => ({
-  revision: one(pageRevisions, { fields: [pageRevisionMetadata.revisionId], references: [pageRevisions.id] }),
+  revision: one(pageRevisions, {
+    fields: [pageRevisionMetadata.revisionId],
+    references: [pageRevisions.id],
+  }),
 }));
 
 export const pageRevisionTagsRelations = relations(pageRevisionTags, ({ one }) => ({
-  revision: one(pageRevisions, { fields: [pageRevisionTags.revisionId], references: [pageRevisions.id] }),
+  revision: one(pageRevisions, {
+    fields: [pageRevisionTags.revisionId],
+    references: [pageRevisions.id],
+  }),
   tag: one(tags, { fields: [pageRevisionTags.tagId], references: [tags.id] }),
 }));
 
@@ -366,7 +378,9 @@ export const searchRecords = pgTable(
   'search_records',
   {
     id: uuid('id').primaryKey(),
-    spaceId: uuid('space_id').notNull().references(() => spaces.id),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id),
     actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
     sessionId: uuid('session_id').notNull(),
     query: text('query').notNull(),
@@ -398,7 +412,9 @@ export const searchBehaviors = pgTable(
   'search_behaviors',
   {
     id: uuid('id').primaryKey(),
-    searchRecordId: uuid('search_record_id').notNull().references(() => searchRecords.id, { onDelete: 'cascade' }),
+    searchRecordId: uuid('search_record_id')
+      .notNull()
+      .references(() => searchRecords.id, { onDelete: 'cascade' }),
     actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
     action: searchBehaviorActionEnum('action').notNull(),
     pageId: uuid('page_id').references(() => pages.id, { onDelete: 'set null' }),
@@ -431,11 +447,23 @@ export const searchSettings = pgTable(
   },
   (t) => ({
     singletonId: check('search_settings_singleton_id', sql`${t.id} = 'default'`),
-    relevanceRange: check('search_settings_min_relevance_score_range', sql`${t.minRelevanceScore} >= -100 and ${t.minRelevanceScore} <= 100`),
-    excerptLengthRange: check('search_settings_excerpt_length_range', sql`${t.excerptLength} >= 20 and ${t.excerptLength} <= 500`),
-    immediateTimeoutRange: check('search_settings_immediate_timeout_range', sql`${t.immediateSearchTimeoutMs} >= 100 and ${t.immediateSearchTimeoutMs} <= 2000`),
+    relevanceRange: check(
+      'search_settings_min_relevance_score_range',
+      sql`${t.minRelevanceScore} >= -100 and ${t.minRelevanceScore} <= 100`,
+    ),
+    excerptLengthRange: check(
+      'search_settings_excerpt_length_range',
+      sql`${t.excerptLength} >= 20 and ${t.excerptLength} <= 500`,
+    ),
+    immediateTimeoutRange: check(
+      'search_settings_immediate_timeout_range',
+      sql`${t.immediateSearchTimeoutMs} >= 100 and ${t.immediateSearchTimeoutMs} <= 2000`,
+    ),
     // Semantic retrieval can never become the only way to search the wiki.
-    lexicalPathRequired: check('search_settings_lexical_path_required', sql`${t.fullTextSearchEnabled} or ${t.fuzzySearchEnabled}`),
+    lexicalPathRequired: check(
+      'search_settings_lexical_path_required',
+      sql`${t.fullTextSearchEnabled} or ${t.fuzzySearchEnabled}`,
+    ),
   }),
 );
 
@@ -446,7 +474,9 @@ export const searchEngineRuns = pgTable(
   'search_engine_runs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    searchRecordId: uuid('search_record_id').notNull().references(() => searchRecords.id, { onDelete: 'cascade' }),
+    searchRecordId: uuid('search_record_id')
+      .notNull()
+      .references(() => searchRecords.id, { onDelete: 'cascade' }),
     capabilityId: searchCapabilityIdEnum('capability_id').notNull(),
     state: searchEngineRunStateEnum('state').notNull().default('pending'),
     resultCount: integer('result_count').notNull().default(0),
@@ -456,8 +486,14 @@ export const searchEngineRuns = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    recordCapabilityUnique: uniqueIndex('search_engine_runs_record_capability_unique').on(t.searchRecordId, t.capabilityId),
-    resultCountNonNegative: check('search_engine_runs_result_count_nonnegative', sql`${t.resultCount} >= 0`),
+    recordCapabilityUnique: uniqueIndex('search_engine_runs_record_capability_unique').on(
+      t.searchRecordId,
+      t.capabilityId,
+    ),
+    resultCountNonNegative: check(
+      'search_engine_runs_result_count_nonnegative',
+      sql`${t.resultCount} >= 0`,
+    ),
     stateUpdatedIdx: index().on(t.state, t.updatedAt),
     recordUpdatedIdx: index().on(t.searchRecordId, t.updatedAt),
   }),
@@ -471,11 +507,17 @@ export const searchRecordsRelations = relations(searchRecords, ({ one, many }) =
 }));
 
 export const searchEngineRunsRelations = relations(searchEngineRuns, ({ one }) => ({
-  record: one(searchRecords, { fields: [searchEngineRuns.searchRecordId], references: [searchRecords.id] }),
+  record: one(searchRecords, {
+    fields: [searchEngineRuns.searchRecordId],
+    references: [searchRecords.id],
+  }),
 }));
 
 export const searchBehaviorsRelations = relations(searchBehaviors, ({ one }) => ({
-  record: one(searchRecords, { fields: [searchBehaviors.searchRecordId], references: [searchRecords.id] }),
+  record: one(searchRecords, {
+    fields: [searchBehaviors.searchRecordId],
+    references: [searchRecords.id],
+  }),
   actor: one(users, { fields: [searchBehaviors.actorUserId], references: [users.id] }),
   page: one(pages, { fields: [searchBehaviors.pageId], references: [pages.id] }),
 }));
@@ -1180,32 +1222,26 @@ export const aiGeneratedArtifacts = pgTable(
 /** One group per source/original page; translated pages link back via
  * `pages.translation_group_id`. Makes parentage explicit so unrelated same-path
  * locale pages are never mistaken for a translation. */
-export const translationGroups = pgTable(
-  'translation_groups',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    sourcePageId: uuid('source_page_id')
-      .notNull()
-      .unique()
-      .references(() => pages.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-);
+export const translationGroups = pgTable('translation_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sourcePageId: uuid('source_page_id')
+    .notNull()
+    .unique()
+    .references(() => pages.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Immutable, named translation-style templates. Editing a template creates a
  * new version row; used versions are never mutated. */
-export const translationPromptTemplates = pgTable(
-  'translation_prompt_templates',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: text('name').notNull().unique(),
-    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-    retiredAt: timestamp('retired_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-);
+export const translationPromptTemplates = pgTable('translation_prompt_templates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  retiredAt: timestamp('retired_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const translationPromptVersions = pgTable(
   'translation_prompt_versions',
@@ -1664,10 +1700,9 @@ export const feishuNotificationDeliveries = pgTable(
     eventId: uuid('event_id').references(() => feishuNotificationEvents.id, {
       onDelete: 'cascade',
     }),
-    subscriptionId: uuid('subscription_id').references(
-      () => feishuNotificationSubscriptions.id,
-      { onDelete: 'cascade' },
-    ),
+    subscriptionId: uuid('subscription_id').references(() => feishuNotificationSubscriptions.id, {
+      onDelete: 'cascade',
+    }),
     recipientBindingId: uuid('recipient_binding_id').references(() => feishuBindings.id, {
       onDelete: 'set null',
     }),

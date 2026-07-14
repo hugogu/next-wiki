@@ -5976,27 +5976,6 @@
             }
           }
         }
-      },
-      "put": {
-        "operationId": "put-admin-feishu",
-        "summary": "Save masked Feishu configuration without ever returning plaintext secrets.",
-        "description": "",
-        "tags": [
-          "Admin"
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/audit/all": {

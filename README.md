@@ -4,8 +4,8 @@
 
 **A personal, AI-native knowledge assets vault.**
 
-Write and organize knowledge with AI — and let that same knowledge base become 
-the grounding memory any AI assistant reads from when it talks with you. 
+Write and organize knowledge with AI — and let that same knowledge base become
+the grounding memory any AI assistant reads from when it talks with you.
 Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -19,12 +19,12 @@ Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
 
 ## Screenshots
 
-| Knowledge base home | Public REST API reference |
-| --- | --- |
+| Knowledge base home                                  | Public REST API reference                           |
+| ---------------------------------------------------- | --------------------------------------------------- |
 | ![Knowledge base home](docs/screenshots/welcome.png) | ![API documentation](docs/screenshots/api-docs.png) |
 
-| AI Native integration |
-| --- |
+| AI Native integration                            |
+| ------------------------------------------------ |
 | ![AI settings](docs/screenshots/ai-settings.png) |
 
 ## Why next-wiki
@@ -80,15 +80,12 @@ configures it, so the default `docker compose up` is unchanged and needs no
 Feishu variables.
 
 Configure it entirely in the admin UI at `/admin/feishu`: generate and scan a
-Feishu QR code to associate an existing app or create a new one, then complete
-the Event v2 Encrypt Key and limits. The App Secret and short-lived device code
-are stored encrypted in PostgreSQL and never returned to the browser or logged.
-Manual App ID/App Secret entry remains available if QR registration is not
-available. Then register the signed callback
-`https://<your-host>/webhooks/feishu/events` in the Feishu Developer Console,
-pointing at the web app behind your existing HTTPS ingress. Every bot action is
-attributed to the bound Wiki user and passes the same permission checks as the
-web UI.
+Feishu QR code to associate an existing app or create a new one. The App Secret
+and short-lived device code are stored encrypted in PostgreSQL and never
+returned to the browser or logged. The bot receives events through an outbound
+WebSocket long connection, so it needs neither a callback URL nor a public
+ingress configuration. Every bot action is attributed to the bound Wiki user
+and passes the same permission checks as the web UI.
 
 ### Production deployment with Caddy + Cloudflare
 
@@ -125,7 +122,7 @@ use **Full (strict)** TLS to the origin.
    ```
 
 5. In Cloudflare, set the SSL/TLS encryption mode to **Full (strict)** and point
-the domain's A record to your server IP.
+   the domain's A record to your server IP.
 
 ### Local testing with a self-signed certificate
 
