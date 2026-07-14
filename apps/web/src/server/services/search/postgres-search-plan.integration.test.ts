@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeDb, db } from '@/server/db';
 import { fullTextContentQuery, fullTextPageQuery } from './engines/postgres-tsvector';
-import { fuzzyContentQuery, fuzzyPageQuery, WORD_SIMILARITY_THRESHOLD } from './engines/postgres-trigram';
+import { fuzzyContentQuery, fuzzyTitleQuery, WORD_SIMILARITY_THRESHOLD } from './engines/postgres-trigram';
 
 /**
  * Query-plan contract for the final adapter predicates (T023): every window
@@ -102,10 +102,9 @@ describe('full_text adapter query plans (tsvector, simple configuration)', () =>
 });
 
 describe('fuzzy adapter query plans (pg_trgm)', () => {
-  it('drives the path/title window through the pages trigram indexes', async () => {
-    const plan = await explain(fuzzyPageQuery(PLAN_SPACE_ID, '搜索架构', 40));
-    expect(plan).toContain('pages_path_trgm_idx');
-    expect(plan).toContain('pages_title_trgm_idx');
+  it('drives the scoped title window through pages_space_title_trgm_idx', async () => {
+    const plan = await explain(fuzzyTitleQuery(PLAN_SPACE_ID, '搜索架构', 40));
+    expect(plan).toContain('pages_space_title_trgm_idx');
     expect(plan).toContain('Bitmap Index Scan');
   });
 

@@ -92,6 +92,13 @@
       "when": 1783994575106,
       "tag": "0012_brief_machine_man",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784000580420,
+      "tag": "0013_scoped_trigram_search",
+      "breakpoints": true
     }
   ]
 }

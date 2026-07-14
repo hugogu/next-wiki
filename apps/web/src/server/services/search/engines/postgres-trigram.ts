@@ -17,9 +17,9 @@ export const WORD_SIMILARITY_THRESHOLD = '0.2';
  * Current `fuzzy` adapter: PostgreSQL `pg_trgm` over the trigram GIN indexes
  * from migration 0007. Contiguous Chinese fragments and substrings match
  * through ILIKE; small textual variations match through the indexable
- * word-similarity operator. Path/title and content run as separate bounded
+ * word-similarity operator. Title and content run as separate bounded
  * windows so each predicate stays on its own trigram index
- * (`pages_path_trgm_idx`, `pages_title_trgm_idx`,
+ * (`pages_space_title_trgm_idx`,
  * `page_revisions_content_source_trgm_idx`); the engine merges them locally.
  * It is not a word-segmentation promise.
  */
@@ -62,17 +62,15 @@ function selection(similarity: ReturnType<typeof sql<number>>, executor: Trigram
     .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id));
 }
 
-/** Path/title fragment and near matches; predicates match the pages trigram indexes. */
-export function fuzzyPageQuery(spaceId: string, q: string, window: number, executor: TrigramDb = db) {
+/** Title fragment and near matches; predicate matches `pages_space_title_trgm_idx`. */
+export function fuzzyTitleQuery(spaceId: string, q: string, window: number, executor: TrigramDb = db) {
   const pattern = likePattern(q);
-  const similarity = sql<number>`greatest(word_similarity(${q}, ${schema.pages.path}), word_similarity(${q}, ${schema.pages.title}))`;
+  const similarity = sql<number>`word_similarity(${q}, ${schema.pages.title})`;
   return selection(similarity, executor)
     .where(and(
       ...publishedScope(spaceId),
       or(
-        ilike(schema.pages.path, pattern),
         ilike(schema.pages.title, pattern),
-        sql`${q} <% ${schema.pages.path}`,
         sql`${q} <% ${schema.pages.title}`,
       )!,
     ))
@@ -105,11 +103,11 @@ async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidat
     // Scope the similarity floor to this transaction; `<%` compares against
     // pg_trgm.word_similarity_threshold and stays index-assisted.
     await tx.execute(sql`select set_config('pg_trgm.word_similarity_threshold', ${WORD_SIMILARITY_THRESHOLD}, true)`);
-    const [pageRows, contentRows] = await Promise.all([
-      fuzzyPageQuery(spaceId, query.q, window, tx),
+    const [titleRows, contentRows] = await Promise.all([
+      fuzzyTitleQuery(spaceId, query.q, window, tx),
       fuzzyContentQuery(spaceId, query.q, window, tx),
     ]);
-    return [...pageRows, ...contentRows];
+    return [...titleRows, ...contentRows];
   });
 
   const merged = new Map<string, { pageId: string; path: string; title: string; contentSource: string | null; similarity: number }>();
