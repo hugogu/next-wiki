@@ -403,7 +403,15 @@
     },
     "searchSettings": {
       "title": "搜索设置",
-      "description": "调整头部搜索的相关性阈值、向量检索和结果介绍展示。",
+      "description": "调整全文、模糊和语义搜索，以及结果介绍展示。",
+      "fullText": {
+        "title": "全文搜索",
+        "description": "通过 PostgreSQL 全文检索处理已知词语和多词查询。"
+      },
+      "fuzzy": {
+        "title": "模糊搜索",
+        "description": "通过宽容的片段匹配处理中文文本和近似匹配。"
+      },
       "semantic": {
         "title": "向量搜索",
         "description": "启用后，头部搜索会混合关键词匹配和语义向量结果。关闭后只使用关键词全文搜索。"
@@ -421,7 +429,8 @@
         "help": "每条结果介绍的大致字符数。有效范围：20–500。"
       },
       "saved": "已保存。",
-      "saveError": "搜索设置保存失败。"
+      "saveError": "搜索设置保存失败。",
+      "lexicalRequired": "请保持全文搜索或模糊搜索处于启用状态。"
     },
     "pages": {
       "metadataTitle": "页面管理",

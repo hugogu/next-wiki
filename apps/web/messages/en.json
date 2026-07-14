@@ -403,7 +403,15 @@
     },
     "searchSettings": {
       "title": "Search Settings",
-      "description": "Tune header search relevance, semantic retrieval, and result preview display.",
+      "description": "Tune full-text, fuzzy, and semantic search alongside result preview display.",
+      "fullText": {
+        "title": "Full-text search",
+        "description": "Use PostgreSQL full-text retrieval for known terms and multi-word queries."
+      },
+      "fuzzy": {
+        "title": "Fuzzy search",
+        "description": "Use tolerant fragment matching, including Chinese text and near matches."
+      },
       "semantic": {
         "title": "Vector search",
         "description": "When enabled, header search blends keyword matches with semantic vector results. Disable it for keyword-only search."
@@ -421,7 +429,8 @@
         "help": "Approximate character count for each result description. Valid range: 20–500."
       },
       "saved": "Saved.",
-      "saveError": "Failed to save search settings."
+      "saveError": "Failed to save search settings.",
+      "lexicalRequired": "Keep full-text search or fuzzy search enabled."
     },
     "pages": {
       "metadataTitle": "Page management",

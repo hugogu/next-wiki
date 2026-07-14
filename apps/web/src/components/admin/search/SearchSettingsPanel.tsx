@@ -9,6 +9,8 @@ import { useTranslation } from '@/i18n/client';
 
 export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }) {
   const { t } = useTranslation();
+  const [fullTextSearchEnabled, setFullTextSearchEnabled] = useState(initial.fullTextSearchEnabled);
+  const [fuzzySearchEnabled, setFuzzySearchEnabled] = useState(initial.fuzzySearchEnabled);
   const [semanticSearchEnabled, setSemanticSearchEnabled] = useState(initial.semanticSearchEnabled);
   const [minRelevanceScore, setMinRelevanceScore] = useState(String(initial.minRelevanceScore));
   const [showExcerpts, setShowExcerpts] = useState(initial.showExcerpts);
@@ -16,8 +18,14 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const lexicalDisabled = !fullTextSearchEnabled && !fuzzySearchEnabled;
 
   async function save() {
+    if (lexicalDisabled) {
+      setMessage(null);
+      setError(t('admin.searchSettings.lexicalRequired'));
+      return;
+    }
     setSaving(true);
     setMessage(null);
     setError(null);
@@ -25,6 +33,8 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        fullTextSearchEnabled,
+        fuzzySearchEnabled,
         semanticSearchEnabled,
         minRelevanceScore: Number(minRelevanceScore),
         showExcerpts,
@@ -37,6 +47,8 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
       return;
     }
     const body = await response.json() as SearchSettingsView;
+    setFullTextSearchEnabled(body.fullTextSearchEnabled);
+    setFuzzySearchEnabled(body.fuzzySearchEnabled);
     setSemanticSearchEnabled(body.semanticSearchEnabled);
     setMinRelevanceScore(String(body.minRelevanceScore));
     setShowExcerpts(body.showExcerpts);
@@ -47,6 +59,30 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
   return (
     <div className="max-w-3xl rounded-lg border border-border bg-surface p-lg shadow-sm">
       <div className="space-y-lg">
+        <div className="flex items-start justify-between gap-md">
+          <div>
+            <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.fullText.title')}</h2>
+            <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.fullText.description')}</p>
+          </div>
+          <Switch
+            checked={fullTextSearchEnabled}
+            aria-label={t('admin.searchSettings.fullText.title')}
+            onClick={() => setFullTextSearchEnabled((value) => !value)}
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-md">
+          <div>
+            <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.fuzzy.title')}</h2>
+            <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.fuzzy.description')}</p>
+          </div>
+          <Switch
+            checked={fuzzySearchEnabled}
+            aria-label={t('admin.searchSettings.fuzzy.title')}
+            onClick={() => setFuzzySearchEnabled((value) => !value)}
+          />
+        </div>
+
         <div className="flex items-start justify-between gap-md">
           <div>
             <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.semantic.title')}</h2>
@@ -99,10 +135,11 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
         </label>
 
         <div className="flex items-center gap-md">
-          <Button onClick={save} disabled={saving}>{saving ? t('common.status.saving') : t('common.actions.save')}</Button>
+          <Button onClick={save} disabled={saving || lexicalDisabled}>{saving ? t('common.status.saving') : t('common.actions.save')}</Button>
           {message && <span className="text-sm text-muted">{message}</span>}
-          {error && <span className="text-sm text-danger">{error}</span>}
+          {error && <span role="alert" className="text-sm text-danger">{error}</span>}
         </div>
+        {lexicalDisabled && <p role="alert" className="text-sm text-danger">{t('admin.searchSettings.lexicalRequired')}</p>}
       </div>
     </div>
   );
