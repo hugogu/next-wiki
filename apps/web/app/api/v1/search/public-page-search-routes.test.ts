@@ -69,17 +69,27 @@ describe('Public Wiki page search route', () => {
   });
 
   it('runs the idempotent hybrid query through the existing search resource', async () => {
+    const searchSessionId = '22222222-2222-4222-8222-222222222222';
     const payload = {
       searchRecordId: '11111111-1111-4111-8111-111111111111',
-      searchSessionId: '22222222-2222-4222-8222-222222222222',
-      semanticState: 'unavailable', items: [],
+      semanticState: 'pending',
+      engineStates: [
+        { capability: 'full_text', state: 'ready', resultCount: 1 },
+        { capability: 'fuzzy', state: 'ready', resultCount: 0 },
+        { capability: 'semantic', state: 'pending', resultCount: 0 },
+      ],
+      items: [{
+        page: { id: '33333333-3333-4333-8333-333333333333', path: 'docs/search', title: 'Search', locale: 'en', status: 'published', author: { id: null, displayName: null }, frontmatter: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', links: { self: '', byPath: '', revisions: '', drafts: '' } },
+        excerpt: 'search', score: 0.1, relevanceScore: 0.8, matchSources: ['keyword'], engineSources: ['full_text'],
+      }],
     };
     publicContent.hybridSearchPages.mockResolvedValue(payload);
     const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind: 'query', searchRecordId: payload.searchRecordId, searchSessionId: payload.searchSessionId, q: 'auth' }),
+      body: JSON.stringify({ kind: 'query', searchRecordId: payload.searchRecordId, searchSessionId, q: 'auth' }),
     }), { params: Promise.resolve({}) });
     expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(payload);
     expect(publicContent.hybridSearchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ q: 'auth', limit: 20 }));
   });
 
