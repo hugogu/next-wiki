@@ -6,8 +6,8 @@ import type { SearchEngine } from './types';
 
 /**
  * Explicit, auditable capability → adapter mapping (P10). No filesystem
- * discovery, no global mutable singleton: the production registry is built
- * from one static list, and tests inject replacement adapters through
+ * discovery or global singleton: each caller receives a registry built from
+ * one static list, and tests inject replacement adapters through
  * {@link createSearchEngineRegistry} without touching routes or settings.
  */
 export type SearchEngineRegistry = ReadonlyMap<SearchCapabilityId, SearchEngine>;
@@ -23,8 +23,6 @@ export function createSearchEngineRegistry(engines: readonly SearchEngine[]): Se
   return registry;
 }
 
-let productionRegistry: SearchEngineRegistry | null = null;
-
 /**
  * The one static registration of the current adapters:
  * `full_text` → PostgreSQL tsvector, `fuzzy` → PostgreSQL pg_trgm,
@@ -32,10 +30,9 @@ let productionRegistry: SearchEngineRegistry | null = null;
  * Replacing an implementation means changing exactly this list.
  */
 export function productionSearchEngineRegistry(): SearchEngineRegistry {
-  productionRegistry ??= createSearchEngineRegistry([
+  return createSearchEngineRegistry([
     createFullTextEngine(),
     createFuzzyEngine(),
     createSemanticEngine(),
   ]);
-  return productionRegistry;
 }
