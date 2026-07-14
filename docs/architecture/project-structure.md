@@ -23,6 +23,7 @@ next-wiki/
 |           |   |-- api/            # REST route helpers + OpenAPI metadata (session, errors, validate)
 |           |   |-- mcp/            # MCP tool adapters (optional)
 |           |   |-- services/       # Business logic layer
+|           |   |   `-- search/     # Registered search capabilities, coordinator, and rank fusion
 |           |   |-- db/             # Drizzle schema + migrations
 |           |   |-- auth/           # Custom bcrypt session auth + first-run admin bootstrap
 |           |   |-- pipeline/       # Rendering pipeline (remark/rehype)
@@ -51,6 +52,9 @@ next-wiki/
 - Server Components, route handlers, and server actions MAY import `src/server/`
   through designated server entry modules.
 - Files under `app/` are route shells. Business logic lives in `src/server/`.
+- Search retrieval implementations live in `src/server/services/search/`.
+  Route handlers and UI components use the shared public-content/search facade;
+  they MUST NOT import a capability adapter or database query directly.
 - Third-party UI/control libraries (if any are introduced later) MUST only be
   imported inside `src/components/ui/`. All other components use the `ui/`
-  primitives. The current implementation uses no thir
+  primitives. The current implementation uses no third-party UI control library.

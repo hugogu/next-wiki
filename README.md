@@ -216,6 +216,7 @@ or any MCP-compatible client. See
 
 - [`docs/architecture`](docs/architecture) — architectural mandates and
   design docs
+- [`docs/architecture/mandates.md#search-retrieval-architecture`](docs/architecture/mandates.md#search-retrieval-architecture) — registered, complementary search capability architecture
 - [`.specify/memory/constitution.md`](.specify/memory/constitution.md) —
   binding project principles
 - [`specs/`](specs) — feature specs, plans, and tasks (Spec Kit workflow)

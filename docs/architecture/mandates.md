@@ -43,6 +43,22 @@ Pages MUST be indexed for PostgreSQL full-text search at save time. Search
 queries MUST enforce the caller's permission context before returning results.
 Search indexing respects the page locale.
 
+## Search Retrieval Architecture
+
+Search is a retrieval subsystem with stable product capabilities, not a set of database-specific endpoint branches. The initial capabilities are `full_text`, `fuzzy`, and `semantic`: their default adapters use PostgreSQL `tsvector`, PostgreSQL `pg_trgm`, and `pgvector` respectively. A capability ID, its setting, and its client-facing lifecycle MUST remain stable when an adapter is replaced by another PostgreSQL, self-hosted, or managed implementation.
+
+Rules:
+
+- Capability adapters are server-only and MUST be explicitly registered in one static registry. Dynamic module discovery is prohibited.
+- The search coordinator is the only layer that selects enabled capabilities, starts them concurrently, resumes asynchronous work, de-duplicates candidates, fuses rank positions, and formats a public search result.
+- An adapter MAY return only bounded internal candidates, local rank, and safe excerpt evidence. It MUST NOT construct a public page result, bypass the shared visibility projection, or expose raw engine/provider diagnostics.
+- The coordinator MUST apply published-state, space, locale, and read permission checks before a page title, excerpt, count, rank, or source is returned. Failed or unavailable engines expose only non-sensitive lifecycle states and never protected-page existence.
+- Enabled capabilities start independently. Immediate local retrieval may finish in the request; work that can exceed the request budget MUST have a durable resumable lifecycle. One capability's delay or failure MUST NOT hide another capability's usable results.
+- Cross-capability order MUST use engine-local rank fusion with deterministic exact path/title/term protection. Raw full-text, trigram, and vector scores MUST NOT be compared as a common scale.
+- The legacy GET page-search operation remains a pure read. The interactive POST lifecycle is the single progressive search resource; it returns capability-level state additively and is never a public-reader cache input.
+
+Page revisions remain the source of truth. All search indexes and engine runs are derived, rebuildable state. Search settings select capabilities for new attempts; each accepted attempt retains its own capability snapshot so a later administrator change cannot alter an in-progress result lifecycle.
+
 ## Rendering Pipeline
 
 The rendering pipeline MUST follow `source -> parse -> transform[] -> render`.

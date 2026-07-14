@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/016-next-intl-migration`
 **Created**: 2026-07-13
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "按建议引入 next-intl，以替代现有本地化方案。"
 
 ## User Scenarios & Testing *(mandatory)*

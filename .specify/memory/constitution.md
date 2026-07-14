@@ -1,38 +1,34 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 2.0.0 -> 2.1.0
-  Bump rationale: MINOR — adds a Core Principle and an Architectural Mandate
-  that make static/ISR delivery of anonymous published content a binding
-  product requirement.
+  Version change: 2.1.0 -> 2.2.0
+  Bump rationale: MINOR — adds the Search Retrieval Architecture mandate and
+  updates the fixed search-technology baseline to three complementary,
+  replaceable PostgreSQL-backed capabilities.
 
-  Modified principles:
-    - None.
-
-  Added principles:
-    - New P12 "Public Reading Is Static by Default": published anonymous
-      content and its public navigation must use static/ISR delivery, with
-      explicit revalidation after public-content mutations.
+  Modified technology decisions:
+    - Vector Search: pgvector remains the baseline semantic implementation,
+      now behind a stable semantic capability adapter.
+    - Full-text Search: PostgreSQL tsvector + pg_trgm are the default lexical
+      baseline; optional external engines replace an adapter, not the product
+      contract.
 
   Added architectural mandates:
-    - Public Content Delivery: public published content is an ISR/static
-      representation and cannot vary its document body by request cookies,
-      headers, or session state.
+    - Search Retrieval Architecture: registered, independently enabled
+      capabilities run through one permission-safe coordinator and remain
+      replaceable behind stable capability IDs.
 
   Removed sections: none.
 
-  Templates requiring updates:
-    - .specify/templates/plan-template.md   — ✅ updated with the public
-      content delivery gate.
-    - .specify/templates/spec-template.md   — ✅ updated with public-content
-      delivery requirements for affected features.
-    - .specify/templates/tasks-template.md  — ✅ updated with an ISR and
-      invalidation validation task.
-    - docs/architecture/mandates.md         — ✅ updated with the binding
-      Public Content Delivery rules.
-    - README.md                             — ✅ updated to state the delivery
-      model.
-    - .specify/templates/commands/          — ✅ not present in this project.
+  Documents requiring updates:
+    - docs/architecture/mandates.md         — ✅ updated with binding search
+      retrieval rules.
+    - docs/architecture/project-structure.md — ✅ updated with the registered
+      server search-module boundary.
+    - docs/architecture/frontend-data-flow.md — ✅ updated with progressive
+      search server-state ownership.
+    - README.md                             — ✅ updated with the architecture
+      entry point.
 
   Follow-up TODOs: none. This file also restores governance content
   (Authoritative Sources, Compliance Review, Ratifiers) that was truncated by
@@ -42,9 +38,9 @@
 
 # next-wiki Project Constitution
 
-**Version**: 2.1.0
+**Version**: 2.2.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-07-13
+**Last Amended**: 2026-07-14
 
 ---
 
@@ -313,6 +309,7 @@ the linked docs) requires a constitution amendment.
 | Deployment & Operations Baseline | Single `docker compose up`; PostgreSQL + named volumes; `/healthz`, `/readyz`, job status, structured logs, documented backup/restore. | `docs/architecture/mandates.md` |
 | AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations (see P3). | `docs/architecture/mandates.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
+| Search Retrieval Architecture | Search uses explicitly registered, independently enabled capabilities through one permission-safe coordinator; implementations are replaceable behind stable capability IDs. | `docs/architecture/mandates.md` |
 | Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
 | Public Content Delivery | Anonymous published documents, their metadata, and public navigation are static/ISR; personalized controls are separate; every public-content mutation revalidates the affected paths. | `docs/architecture/mandates.md` |
 | Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; all UI primitives isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
@@ -374,8 +371,8 @@ These decisions are fixed for v1.x. Changes require a constitution amendment.
 | API (AI agents) | MCP Server (optional) | AI-agent integration over permissioned tools; the standard path for external AI clients to use the wiki as memory (P3) |
 | Markdown Parser | unified / remark / rehype | AST-based, pluggable, server-side rendering |
 | Editor (client) | CodeMirror 6 | Lightweight split Markdown editor; serializes to raw Markdown only; no heavy WYSIWYG/AST runtime shipped to the client; modular `@codemirror/*` packages |
-| Vector Search | pgvector (PostgreSQL extension) | No extra service, integrates with PostgreSQL |
-| Full-text Search | PostgreSQL tsvector default + Meilisearch optional | Zero-dependency baseline; Meilisearch for CJK and scale |
+| Vector Search | pgvector semantic capability adapter | PostgreSQL baseline with no extra service; an approved adapter may replace the implementation without changing product capability, API, or permission semantics |
+| Full-text & Fuzzy Search | PostgreSQL tsvector full-text + pg_trgm fuzzy capability adapters; external engines optional | Complementary zero-dependency lexical baseline for term retrieval, Chinese fragments, and near text; external engines replace adapters rather than becoming a parallel product contract |
 | Styling & UI | Tailwind CSS + CSS custom properties + in-house components | Unified design system in `src/components/ui/`; in-house primitives (Button, Input, Alert, …) for controls, Tailwind for content layout, CSS-variable tokens for themes; no third-party component library; single source of truth for all resources and cross-page UX consistency |
 | Containerization | Docker Compose + Kubernetes manifests | Single compose for normal install; K8s for production operators |
 | Testing | Vitest + Playwright | Unit/integration plus E2E coverage |
