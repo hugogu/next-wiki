@@ -63,8 +63,8 @@ export function HistoryRevisionSelector({
   };
 
   return (
-    <div className="grid min-h-0 gap-lg lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <aside className="min-h-0 lg:max-h-[calc(100vh-14rem)] lg:overflow-auto">
+    <div className="grid min-h-0 gap-xl lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside className="min-h-0 pr-md [scrollbar-gutter:stable] lg:max-h-[calc(100vh-14rem)] lg:overflow-auto">
         <p className="mb-sm text-sm text-muted" aria-live="polite">
           {selected.length === 2
             ? t('page.history.compare.ready')
@@ -76,24 +76,26 @@ export function HistoryRevisionSelector({
             return (
               <li
                 key={revision.version}
-                className={`flex items-center gap-xs rounded-lg border p-sm ${
+                className={`flex items-center gap-xs rounded-md border p-xs ${
                   isSelected ? 'border-primary bg-primary/10' : 'border-border bg-surface'
                 }`}
               >
                 <button
                   type="button"
-                  className="min-w-0 flex-1 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-xs px-xs py-1 text-left"
                   aria-pressed={isSelected}
                   onClick={() => select(revision.version)}
                 >
-                  <span className="block font-medium">
+                  <span className="shrink-0 font-medium">
                     {t('page.history.compare.selectVersion', { version: revision.version })}
                   </span>
-                  <span className="text-xs text-muted capitalize">{revision.status}</span>
-                  <span className="block text-xs text-muted">{revision.meta}</span>
+                  <span className="rounded bg-surface-elevated px-xs py-px text-xs text-muted capitalize">
+                    {revision.status}
+                  </span>
+                  <span className="min-w-0 truncate text-xs text-muted">{revision.meta}</span>
                 </button>
                 {revision.status === 'draft' && revision.canPublish && pageId ? (
-                  <PublishButton pageId={pageId} path={path} version={revision.version} />
+                  <PublishButton pageId={pageId} path={path} version={revision.version} iconOnly />
                 ) : null}
               </li>
             );

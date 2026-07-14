@@ -4,16 +4,29 @@ import { useEffect, useMemo, useRef } from 'react';
 import { buildDiffRows, withContext, type DiffRow } from '@/lib/revision-diff';
 
 function Cell({ line, kind }: { line?: { number: number; text: string }; kind: string }) {
-  const highlight =
+  const changeStyle =
     kind === 'added'
-      ? 'bg-primary/15'
+      ? {
+          backgroundColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)',
+          borderLeftColor: 'var(--color-primary)',
+        }
       : kind === 'removed'
-        ? 'bg-danger/15'
+        ? {
+            backgroundColor: 'color-mix(in srgb, var(--color-danger) 18%, transparent)',
+            borderLeftColor: 'var(--color-danger)',
+          }
         : kind === 'changed'
-          ? 'bg-warning/15'
-          : '';
+          ? {
+              backgroundColor: 'color-mix(in srgb, var(--color-warning) 22%, transparent)',
+              borderLeftColor: 'var(--color-warning)',
+            }
+          : undefined;
   return (
-    <div className={`grid grid-cols-[3rem_minmax(0,1fr)] font-mono text-sm ${highlight}`}>
+    <div
+      className="grid grid-cols-[3rem_minmax(0,1fr)] border-l-4 border-transparent font-mono text-sm"
+      data-diff-kind={kind === 'unchanged' ? undefined : kind}
+      style={changeStyle}
+    >
       <span className="select-none border-r border-border bg-surface-elevated px-xs py-1 text-right text-muted">
         {line?.number ?? ''}
       </span>

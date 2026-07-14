@@ -37,13 +37,14 @@ test('compares two revisions without requesting a server diff endpoint', async (
 
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Compare' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Publish this revision' }).first()).toHaveClass(/h-8/);
   await page.getByRole('button', { name: /Version 2/ }).click();
   await page.getByRole('button', { name: /Version 3/ }).click();
   await page.waitForURL(`/history/${path}?compare=2..3`);
   await expect(page.getByText('Comparing v2 to v3')).toBeVisible();
   await expect(page.getByLabel('Later revision source')).toContainText('Changed heading');
   await expect(
-    page.getByLabel('Later revision source').locator('[class~="bg-warning/15"]').first(),
+    page.getByLabel('Later revision source').locator('[data-diff-kind="changed"]').first(),
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Preview' }).click();
