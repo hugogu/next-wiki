@@ -183,6 +183,13 @@ article .prose > h1:first-child {
   margin-top: 0;
 }
 
+/* The page reader keeps sharing available beside the first Markdown title.
+   Reserve that control's footprint so a long title wraps before it instead of
+   rendering underneath the button. */
+.page-reader-article[data-has-share='true'] .prose > h1:first-child {
+  padding-right: calc(2.25rem + var(--space-md));
+}
+
 .prose h2 {
   font-size: var(--font-size-h2);
 }
