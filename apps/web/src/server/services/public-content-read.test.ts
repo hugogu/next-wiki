@@ -381,6 +381,40 @@ describe('public content read facade', () => {
     expect(JSON.stringify(result)).not.toContain('CONFIDENTIALTOKEN');
   });
 
+  it('uses enabled immediate engines for published GET search without starting semantic work', async () => {
+    const editor = await createPublicApiUser('public-get-fuzzy-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-get-fuzzy-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    await db.insert(schema.searchSettings).values({
+      id: 'default',
+      fullTextSearchEnabled: false,
+      fuzzySearchEnabled: true,
+      semanticSearchEnabled: true,
+    });
+    await pageService.create(editorCtx, {
+      path: 'docs/reconciliation',
+      title: 'Reconciliation flow',
+      contentSource: '跨境支付对账流程说明',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/reconciliation', version: 1 });
+
+    const result = await publicContent.searchPages(readerCtx, {
+      q: '支付对账',
+      scope: 'all',
+      status: 'published',
+      limit: 20,
+      include: [],
+      excerptLength: 100,
+    });
+
+    expect(result.items.map((item) => item.page.path)).toEqual(['docs/reconciliation']);
+    expect(result.items[0]).toMatchObject({ matchType: 'content', score: expect.any(Number) });
+    expect(result.nextCursor).toBeNull();
+    expect(semanticSearch.submitSemanticSearch).not.toHaveBeenCalled();
+    expect(searchAnalytics.getOrCreateSearchRecord).not.toHaveBeenCalled();
+  });
+
   it('merges visible semantic candidates with keyword results without duplicate pages or leaked excerpts', async () => {
     const editor = await createPublicApiUser('public-hybrid-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-hybrid-reader@example.com', 'reader');

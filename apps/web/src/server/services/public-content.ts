@@ -688,6 +688,61 @@ export async function getAssetContent(ctx: PermCtx, id: string) {
 }
 
 export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): Promise<PublicPageSearchResponse> {
+  // The capability adapters index current published revisions. Preserve the
+  // legacy read path for draft/all, cursor, and expanded-revision requests
+  // while moving the common published search to the immediate engines.
+  if (query.status !== 'published' || query.cursor || query.include.length > 0) {
+    return searchPagesWithLegacyFilters(ctx, query);
+  }
+
+  const settings = await getSearchSettings();
+  const result = await runCoordinatedSearch(ctx, {
+    q: query.q.trim(),
+    limit: query.limit,
+    snapshot: {
+      full_text: settings.fullTextSearchEnabled,
+      fuzzy: settings.fuzzySearchEnabled,
+      // GET remains a pure read: semantic work is never started here.
+      semantic: false,
+    },
+    excerpt: { windowSize: query.excerptLength, show: true },
+    // The existing GET contract has no administrator relevance threshold.
+    minRelevanceScore: 0,
+  });
+
+  const tagFilters = extractTagFilters(query);
+  const frontmatterFilters = extractFrontmatterFilters(query);
+  const items = result.items
+    .filter((item) => {
+      if (query.scope !== 'all' && item.field !== query.scope) return false;
+      if (query.pathPrefix && item.page.path !== query.pathPrefix && !item.page.path.startsWith(`${query.pathPrefix}/`)) return false;
+      const createdAt = new Date(item.page.createdAt);
+      const updatedAt = new Date(item.page.updatedAt);
+      if (query.createdStart && createdAt < query.createdStart) return false;
+      if (query.createdEnd && createdAt > query.createdEnd) return false;
+      if (query.updatedStart && updatedAt < query.updatedStart) return false;
+      if (query.updatedEnd && updatedAt > query.updatedEnd) return false;
+      if (tagFilters && !matchesTagFilters(item.page, tagFilters)) return false;
+      if (frontmatterFilters && !matchesFrontmatterFilters(item.page.frontmatter, frontmatterFilters)) return false;
+      return true;
+    })
+    .map(({ page, excerpt, relevanceScore, field }) => ({
+      page,
+      matchType: field,
+      excerpt,
+      score: relevanceScore,
+    }))
+    // GET has long exposed this display relevance as `score`. Keep its
+    // ordering aligned with that public value; the hybrid POST response keeps
+    // the coordinator's RRF order and fused score instead.
+    .sort((a, b) => b.score - a.score || a.page.path.localeCompare(b.page.path));
+
+  // Capability engines return one bounded, globally ranked snapshot. Keep the
+  // existing envelope while avoiding a misleading cursor over a partial rank.
+  return { items, nextCursor: null };
+}
+
+async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearchQuery): Promise<PublicPageSearchResponse> {
   // Fetch through the internal (content-included) path rather than the public
   // listPages, since matchType/excerpt need contentSource before the public
   // page shape strips it.
