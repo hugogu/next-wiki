@@ -7,7 +7,7 @@ async function login(page: Page, email: string, password: string) {
   await page.goto('/auth/login');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await page.getByRole('main').getByRole('button', { name: /^sign in$/i }).click();
   await page.waitForURL('/');
 }
 
@@ -160,5 +160,31 @@ test.describe('editor toolbar toggles', () => {
     await page.locator('.cm-content').click({ position: { x: 40, y: 520 } });
     await page.waitForTimeout(200);
     expect(await preview.evaluate((el) => el.scrollTop)).toBeGreaterThan(20);
+  });
+
+  test('releasing the editor scrollbar preserves the scroll-synced preview position', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await createPage(page, 'Editor Toolbar Test');
+    await page.locator('.cm-content').fill(longMarkdown(120) + '\n\n' + tableMarkdown(40));
+
+    const editorScroller = page.locator('.cm-scroller');
+    const preview = page.getByTestId('editor-preview-pane');
+    await waitForBothPanesScrollable(page);
+
+    // Put the caret near the start, then scroll via the scrollbar. The old
+    // generic mouseup handler used this stale caret position and moved the
+    // preview back up after a correct editor-scroll synchronization.
+    await page.locator('.cm-content').click({ position: { x: 40, y: 20 } });
+    await editorScroller.evaluate((el) => {
+      el.scrollTop = (el.scrollHeight - el.clientHeight) * 0.6;
+    });
+    await page.waitForTimeout(200);
+
+    const synchronizedPosition = await preview.evaluate((el) => el.scrollTop);
+    expect(synchronizedPosition).toBeGreaterThan(100);
+
+    await editorScroller.dispatchEvent('mouseup');
+    await page.waitForTimeout(100);
+    expect(await preview.evaluate((el) => el.scrollTop)).toBeCloseTo(synchronizedPosition, 0);
   });
 });

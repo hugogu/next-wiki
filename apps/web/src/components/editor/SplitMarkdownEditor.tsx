@@ -436,11 +436,15 @@ export function SplitMarkdownEditor({
   // Clicking (or moving the caret with the pointer) drives the preview so the
   // caret's line keeps the same on-screen height in both panes — a lighter
   // touch than a full scroll so the reader's eye stays on the edited spot.
-  const handleEditorPointerSync = useCallback(() => {
-    if (!scrollSyncEnabled) return;
+  const handleEditorPointerSync = useCallback((event: MouseEvent) => {
+    if (!scrollSyncEnabled || event.button !== 0) return;
     const view = viewRef.current;
     const preview = previewRef.current;
     if (!view || !preview) return;
+    // A mouseup from the native scrollbar bubbles through `view.dom`, but it
+    // does not move the caret. Re-applying the caret-based position after a
+    // scrollbar drag overwrites the scroll handler's correctly synced target.
+    if (!(event.target instanceof Node) || !view.contentDOM.contains(event.target)) return;
     const pairs = buildPairs();
     if (!pairs.length) return;
 
