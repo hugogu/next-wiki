@@ -10,7 +10,7 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { EditIcon, EyeIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
+import { ArrowDownIcon, EditIcon, EyeIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
 import { getEditHref, getHistoryHref, getPageHref, getPropertiesHref } from '@/lib/path';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
@@ -24,6 +24,11 @@ function buildAdminPagesHref(query: QueryMap, overrides: QueryMap): string {
   }
   const qs = params.toString();
   return qs ? `/admin/pages?${qs}` : '/admin/pages';
+}
+
+function sortAriaValue(list: AdminPageListResult, sort: AdminPageSortKey): 'ascending' | 'descending' | undefined {
+  if (list.sort !== sort) return undefined;
+  return list.direction === 'asc' ? 'ascending' : 'descending';
 }
 
 function SortHeader({
@@ -41,7 +46,6 @@ function SortHeader({
 }) {
   const active = list.sort === sort;
   const nextDirection = active && list.direction === 'asc' ? 'desc' : 'asc';
-  const label = active ? `${children} (${list.direction})` : children;
 
   return (
     <Link
@@ -49,7 +53,13 @@ function SortHeader({
       className="inline-flex items-center gap-xs rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
       aria-label={t('admin.pages.sortBy', { column: String(children) })}
     >
-      {label}
+      {children}
+      {active && (
+        <ArrowDownIcon
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 ${list.direction === 'asc' ? 'rotate-180' : ''}`}
+        />
+      )}
     </Link>
   );
 }
@@ -156,17 +166,17 @@ export function AdminPagesPanel({
       <DataTable>
         <DataTableHead>
           <tr>
-            <DataTableHeader>
+            <DataTableHeader aria-sort={sortAriaValue(list, 'title')}>
               <SortHeader t={t} query={query} list={list} sort="title">{t('admin.pages.table.title')}</SortHeader>
             </DataTableHeader>
             <DataTableHeader>{t('admin.pages.table.status')}</DataTableHeader>
-            <DataTableHeader>
+            <DataTableHeader aria-sort={sortAriaValue(list, 'author')}>
               <SortHeader t={t} query={query} list={list} sort="author">{t('admin.pages.table.author')}</SortHeader>
             </DataTableHeader>
-            <DataTableHeader align="right">
+            <DataTableHeader align="right" aria-sort={sortAriaValue(list, 'edits')}>
               <SortHeader t={t} query={query} list={list} sort="edits">{t('admin.pages.table.edits')}</SortHeader>
             </DataTableHeader>
-            <DataTableHeader>
+            <DataTableHeader aria-sort={sortAriaValue(list, 'updatedAt')}>
               <SortHeader t={t} query={query} list={list} sort="updatedAt">{t('admin.pages.table.updatedAt')}</SortHeader>
             </DataTableHeader>
             <DataTableHeader align="right">{t('admin.pages.table.actions')}</DataTableHeader>
