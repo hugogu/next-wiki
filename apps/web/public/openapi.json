@@ -822,35 +822,246 @@
         ],
         "description": "Generated Git export SSH key pair (public half)."
       },
-      "HybridPageSearchInput": {},
+      "HybridPageSearchInput": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HybridSearchQueryInput"
+          },
+          {
+            "$ref": "#/components/schemas/HybridSearchBehaviorInput"
+          }
+        ],
+        "description": "Header hybrid search request: an idempotent query snapshot or a behavior event."
+      },
       "HybridPageSearchResponse": {
         "type": "object",
         "properties": {
+          "searchRecordId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency key of the search attempt this snapshot belongs to."
+          },
           "semanticState": {
             "type": "string",
             "enum": [
-              "failed",
-              "skipped",
               "pending",
+              "ready",
               "unavailable",
-              "ready"
-            ]
+              "failed",
+              "skipped"
+            ],
+            "description": "Feature-013 compatibility mirror of the semantic capability; semantic timed_out maps to failed."
           },
-          "searchRecordId": {
-            "type": "string"
+          "engineStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HybridSearchEngineState"
+            },
+            "description": "Every capability in the attempt snapshot with its safe lifecycle state. Poll while any state is pending."
           },
           "items": {
             "type": "array",
             "items": {
-              "type": "object"
-            }
+              "$ref": "#/components/schemas/HybridSearchResult"
+            },
+            "description": "Latest fused snapshot of readable results, de-duplicated by page id."
           }
         },
         "required": [
-          "semanticState",
           "searchRecordId",
+          "semanticState",
           "items"
-        ]
+        ],
+        "description": "Progressive Header hybrid search snapshot. Every response is a full latest snapshot, not a delta."
+      },
+      "HybridSearchBehaviorInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "behavior"
+            ],
+            "description": "Selects the behavior-recording operation."
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated idempotency key for this behavior event."
+          },
+          "searchRecordId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Search attempt the behavior belongs to."
+          },
+          "searchSessionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Overlay session that owns the search attempt."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "result_open",
+              "escape"
+            ],
+            "description": "Terminal search behavior: a result was opened, or search was abandoned."
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Opened page id; required for result_open and forbidden for escape."
+          }
+        },
+        "required": [
+          "kind",
+          "eventId",
+          "searchRecordId",
+          "searchSessionId",
+          "action"
+        ],
+        "description": "Record a terminal search behavior for an owned search attempt."
+      },
+      "HybridSearchEngineState": {
+        "type": "object",
+        "properties": {
+          "capability": {
+            "type": "string",
+            "enum": [
+              "full_text",
+              "fuzzy",
+              "semantic"
+            ],
+            "description": "Stable product capability identifier; never a database extension or vendor name."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "pending",
+              "skipped",
+              "unavailable",
+              "failed",
+              "timed_out"
+            ],
+            "description": "Safe lifecycle state for this capability within the attempt. No diagnostic detail is exposed."
+          },
+          "resultCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Readable result count contributed by this capability after permission filtering."
+          }
+        },
+        "required": [
+          "capability",
+          "state",
+          "resultCount"
+        ],
+        "description": "Per-capability lifecycle state for one search attempt."
+      },
+      "HybridSearchQueryInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "query"
+            ],
+            "description": "Selects the idempotent query operation."
+          },
+          "searchRecordId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated idempotency key for one search attempt; retries reuse it."
+          },
+          "searchSessionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated overlay session identifier owning this attempt."
+          },
+          "q": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Free-text search query (minimum two characters)."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 20,
+            "description": "Maximum number of fused results to return (1-20). Defaults to 20."
+          }
+        },
+        "required": [
+          "kind",
+          "searchRecordId",
+          "searchSessionId",
+          "q"
+        ],
+        "description": "Run or resume one idempotent Header hybrid search attempt."
+      },
+      "HybridSearchResult": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/PublicPageResource"
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Safe excerpt centered on matched content, or null when excerpts are disabled or absent."
+          },
+          "score": {
+            "type": "number",
+            "description": "Fused rank score. Not comparable to legacy GET search scores."
+          },
+          "relevanceScore": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1,
+            "description": "Compatibility display value; not the cross-engine ordering algorithm."
+          },
+          "matchSources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "keyword",
+                "semantic"
+              ]
+            },
+            "minItems": 1,
+            "description": "Conceptual feature-013 match sources retained for existing clients."
+          },
+          "engineSources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "full_text",
+                "fuzzy",
+                "semantic"
+              ]
+            },
+            "minItems": 1,
+            "description": "Stable capability provenance. Absent only for old stored/compatibility responses."
+          }
+        },
+        "required": [
+          "page",
+          "excerpt",
+          "score",
+          "relevanceScore",
+          "matchSources"
+        ],
+        "description": "One de-duplicated, permission-filtered hybrid search result."
       },
       "idSchema": {
         "type": "string",
@@ -5009,6 +5220,564 @@
         ],
         "description": "A configured Wiki.js transfer source."
       },
+      "TranslationLanguageList": {},
+      "TranslationLanguageView": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "defaultPromptVersionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "defaultModelId": {
+            "type": "object"
+          },
+          "retired": {
+            "type": "boolean"
+          },
+          "defaultModelName": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "createdAt",
+          "updatedAt",
+          "enabled",
+          "defaultPromptVersionId",
+          "defaultModelId",
+          "retired",
+          "defaultModelName"
+        ]
+      },
+      "TranslationPromptDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "retired": {
+            "type": "boolean"
+          },
+          "currentVersion": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "versionNumber": {
+                "type": "number"
+              },
+              "contentHash": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "createdAt",
+              "versionNumber",
+              "contentHash",
+              "body"
+            ]
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "createdAt",
+          "updatedAt",
+          "retired",
+          "currentVersion",
+          "versions"
+        ]
+      },
+      "TranslationPromptTemplateList": {},
+      "TranslationRunAccepted": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "targetLocale": {
+            "type": "string"
+          },
+          "detailUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "targetLocale",
+          "detailUrl"
+        ]
+      },
+      "TranslationRunItemList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "running",
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "skipped",
+                    "pending",
+                    "superseded"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                },
+                "errorCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errorMessage": {
+                  "type": "object"
+                },
+                "startedAt": {
+                  "type": "object"
+                },
+                "finishedAt": {
+                  "type": "object"
+                },
+                "sourcePageId": {
+                  "type": "string"
+                },
+                "durationMs": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "attempts": {
+                  "type": "number"
+                },
+                "runId": {
+                  "type": "string"
+                },
+                "warningCode": {
+                  "type": "object"
+                },
+                "targetPath": {
+                  "type": "object"
+                },
+                "targetLocale": {
+                  "type": "string"
+                },
+                "sourceRevisionId": {
+                  "type": "object"
+                },
+                "translationPageId": {
+                  "type": "object"
+                },
+                "translationRevisionId": {
+                  "type": "object"
+                },
+                "retryAvailable": {
+                  "type": "boolean"
+                },
+                "usage": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "unavailable",
+                        "provider_reported",
+                        "estimated"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "object"
+                    },
+                    "outputTokens": {
+                      "type": "object"
+                    },
+                    "cachedTokens": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "inputTokens",
+                    "outputTokens",
+                    "cachedTokens"
+                  ]
+                }
+              },
+              "required": [
+                "status",
+                "id",
+                "errorCode",
+                "errorMessage",
+                "startedAt",
+                "finishedAt",
+                "sourcePageId",
+                "durationMs",
+                "attempts",
+                "runId",
+                "warningCode",
+                "targetPath",
+                "targetLocale",
+                "sourceRevisionId",
+                "translationPageId",
+                "translationRevisionId",
+                "retryAvailable",
+                "usage"
+              ]
+            }
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ]
+      },
+      "TranslationRunView": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled",
+              "paused",
+              "completed_with_warnings"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelName": {
+            "type": "object"
+          },
+          "errorCode": {
+            "type": "object"
+          },
+          "errorMessage": {
+            "type": "object"
+          },
+          "queuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "object"
+          },
+          "finishedAt": {
+            "type": "object"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "initial",
+              "resume",
+              "replacement",
+              "refresh"
+            ]
+          },
+          "totalItems": {
+            "type": "number"
+          },
+          "processedItems": {
+            "type": "number"
+          },
+          "skippedItems": {
+            "type": "number"
+          },
+          "failedItems": {
+            "type": "number"
+          },
+          "currentItem": {
+            "type": "object"
+          },
+          "cancelRequested": {
+            "type": "boolean"
+          },
+          "pauseRequested": {
+            "type": "boolean"
+          },
+          "targetLocale": {
+            "type": "string"
+          },
+          "predecessorRunId": {
+            "type": "object"
+          },
+          "promptVersionId": {
+            "type": "object"
+          },
+          "completedItems": {
+            "type": "number"
+          },
+          "supersededItems": {
+            "type": "number"
+          },
+          "totalDurationMs": {
+            "type": "number"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "unavailable",
+                  "provider_reported",
+                  "estimated"
+                ]
+              },
+              "inputTokens": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "outputTokens": {
+                "type": "object"
+              },
+              "cachedTokens": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "source",
+              "inputTokens",
+              "outputTokens",
+              "cachedTokens"
+            ]
+          },
+          "canPause": {
+            "type": "boolean"
+          },
+          "canResume": {
+            "type": "boolean"
+          },
+          "canCancel": {
+            "type": "boolean"
+          },
+          "canRetry": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "modelId",
+          "modelName",
+          "errorCode",
+          "errorMessage",
+          "queuedAt",
+          "startedAt",
+          "finishedAt",
+          "kind",
+          "totalItems",
+          "processedItems",
+          "skippedItems",
+          "failedItems",
+          "currentItem",
+          "cancelRequested",
+          "pauseRequested",
+          "targetLocale",
+          "predecessorRunId",
+          "promptVersionId",
+          "completedItems",
+          "supersededItems",
+          "totalDurationMs",
+          "usage",
+          "canPause",
+          "canResume",
+          "canCancel",
+          "canRetry"
+        ]
+      },
+      "TranslationStats": {
+        "type": "object",
+        "properties": {
+          "totalSourcePages": {
+            "type": "number"
+          },
+          "totalTranslatedPages": {
+            "type": "number"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "totalPages": {
+                  "type": "number"
+                },
+                "failedPages": {
+                  "type": "number"
+                },
+                "retired": {
+                  "type": "boolean"
+                },
+                "freshPages": {
+                  "type": "number"
+                },
+                "stalePages": {
+                  "type": "number"
+                },
+                "lastTranslatedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "enabled",
+                "totalPages",
+                "failedPages",
+                "retired",
+                "freshPages",
+                "stalePages",
+                "lastTranslatedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "totalSourcePages",
+          "totalTranslatedPages",
+          "languages"
+        ]
+      },
+      "TranslationUsageList": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "completed": {
+                  "type": "number"
+                },
+                "failed": {
+                  "type": "number"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "skipped": {
+                  "type": "number"
+                },
+                "totalDurationMs": {
+                  "type": "number"
+                },
+                "reportedInputTokens": {
+                  "type": "number"
+                },
+                "reportedOutputTokens": {
+                  "type": "number"
+                },
+                "estimatedInputTokens": {
+                  "type": "number"
+                },
+                "estimatedOutputTokens": {
+                  "type": "number"
+                },
+                "unavailableCount": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "completed",
+                "failed",
+                "key",
+                "skipped",
+                "totalDurationMs",
+                "reportedInputTokens",
+                "reportedOutputTokens",
+                "estimatedInputTokens",
+                "estimatedOutputTokens",
+                "unavailableCount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "rows"
+        ]
+      },
+      "TranslationVersionList": {},
       "UpdatePreferencesInput": {
         "type": "object",
         "properties": {
@@ -6319,6 +7088,12 @@
                         {
                           "type": "string",
                           "enum": [
+                            "unavailable"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
                             "unverified"
                           ]
                         },
@@ -6326,12 +7101,6 @@
                           "type": "string",
                           "enum": [
                             "healthy"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "unavailable"
                           ]
                         }
                       ]
@@ -11634,6 +12403,700 @@
         }
       }
     },
+    "/translations/documents": {
+      "get": {
+        "operationId": "get-translations-documents",
+        "summary": "List translated documents and their freshness",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationDocumentList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/languages": {
+      "get": {
+        "operationId": "get-translations-languages",
+        "summary": "List configured translation target languages",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationLanguageList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-translations-languages",
+        "summary": "Add a translation target language",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationLanguageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/prompts": {
+      "get": {
+        "operationId": "get-translations-prompts",
+        "summary": "List translation prompt styles",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationPromptTemplateList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-translations-prompts",
+        "summary": "Create a translation prompt style",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationPromptDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/runs": {
+      "get": {
+        "operationId": "get-translations-runs",
+        "summary": "List translation runs",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-translations-runs",
+        "summary": "Start a translation run for one target language",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunAccepted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/stats": {
+      "get": {
+        "operationId": "get-translations-stats",
+        "summary": "Per-language translation coverage stats",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/usage": {
+      "get": {
+        "operationId": "get-translations-usage",
+        "summary": "Aggregate translation usage and duration analytics",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationUsageList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/languages/{code}": {
+      "patch": {
+        "operationId": "patch-translations-languages-{code}",
+        "summary": "Update a translation target language",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: code"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationLanguageView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-translations-languages-{code}",
+        "summary": "Retire a translation target language",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: code"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/translations/prompts/{id}": {
+      "get": {
+        "operationId": "get-translations-prompts-{id}",
+        "summary": "Get a translation prompt style with versions",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationPromptDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-translations-prompts-{id}",
+        "summary": "Add a new immutable version to a prompt style",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationPromptDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-translations-prompts-{id}",
+        "summary": "Retire a translation prompt style",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/translations/runs/{id}": {
+      "get": {
+        "operationId": "get-translations-runs-{id}",
+        "summary": "Get a translation run",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/documents/{id}/versions": {
+      "get": {
+        "operationId": "get-translations-documents-{id}-versions",
+        "summary": "List the revision/provenance history of a translated document",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationVersionList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/runs/{id}/cancellation": {
+      "post": {
+        "operationId": "post-translations-runs-{id}-cancellation",
+        "summary": "Cancel a translation run",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/runs/{id}/items": {
+      "get": {
+        "operationId": "get-translations-runs-{id}-items",
+        "summary": "List per-page items of a translation run",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunItemList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/runs/{id}/pause": {
+      "post": {
+        "operationId": "post-translations-runs-{id}-pause",
+        "summary": "Pause an active translation run",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/runs/{id}/resume": {
+      "post": {
+        "operationId": "post-translations-runs-{id}-resume",
+        "summary": "Resume a paused translation run",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunAccepted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/runs/{id}/retries": {
+      "post": {
+        "operationId": "post-translations-runs-{id}-retries",
+        "summary": "Create a retry/replacement successor translation run",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationRunAccepted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tree": {
       "get": {
         "operationId": "get-v1-tree",
@@ -12179,6 +13642,9 @@
     },
     {
       "name": "Transfers"
+    },
+    {
+      "name": "Translations"
     },
     {
       "name": "Tree"
