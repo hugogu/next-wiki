@@ -51,20 +51,20 @@
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Add exact-match protection, page-ID de-duplication, and rank-fusion unit tests in `apps/web/src/server/services/search/ranking.test.ts`
-- [ ] T014 [P] [US1] Add term and multi-term query-plan/result integration coverage using the indexed `simple` expression in `apps/web/src/server/services/search/postgres-tsvector.integration.test.ts`
-- [ ] T015 [P] [US1] Add Chinese fragment, one-character near-match, mixed-script, and low-similarity rejection coverage in `apps/web/src/server/services/search/postgres-trigram.integration.test.ts`
-- [ ] T016 [P] [US1] Add completed semantic-action contribution/fusion tests in `apps/web/src/server/services/search/engines/pgvector-semantic.test.ts` and legacy GET compatibility/permission expectations in `apps/web/src/server/services/public-content-read.test.ts`
-- [ ] T017 [P] [US1] Add unchanged GET request/response-envelope coverage in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`
+- [X] T013 [P] [US1] Add exact-match protection, page-ID de-duplication, and rank-fusion unit tests in `apps/web/src/server/services/search/ranking.test.ts`
+- [X] T014 [P] [US1] Add term and multi-term query-plan/result integration coverage using the indexed `simple` expression in `apps/web/src/server/services/search/postgres-tsvector.integration.test.ts`
+- [X] T015 [P] [US1] Add Chinese fragment, one-character near-match, mixed-script, and low-similarity rejection coverage in `apps/web/src/server/services/search/postgres-trigram.integration.test.ts`
+- [X] T016 [P] [US1] Add completed semantic-action contribution/fusion tests in `apps/web/src/server/services/search/engines/pgvector-semantic.test.ts` and legacy GET compatibility/permission expectations in `apps/web/src/server/services/public-content-read.test.ts`
+- [X] T017 [P] [US1] Add unchanged GET request/response-envelope coverage in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Implement deterministic exact-match protection and reciprocal-rank fusion without comparing native scores in `apps/web/src/server/services/search/ranking.ts`
-- [ ] T019 [US1] Implement the `full_text` adapter with the existing `tsvector('simple', ...)` expressions in `apps/web/src/server/services/search/engines/postgres-tsvector.ts`
-- [ ] T020 [US1] Implement the `fuzzy` adapter using bounded `pg_trgm` similarity candidates and engine-local ranking in `apps/web/src/server/services/search/engines/postgres-trigram.ts`
-- [ ] T021 [US1] Implement completed semantic-action candidate retrieval plus immediate three-capability execution, isolated failures, and fused candidate output in `apps/web/src/server/services/search/engines/pgvector-semantic.ts` and `apps/web/src/server/services/search/coordinator.ts`
-- [ ] T022 [US1] Refactor legacy keyword search to use enabled immediate lexical capabilities without starting semantic work in `apps/web/src/server/services/public-content.ts`
-- [ ] T023 [US1] Add `EXPLAIN (ANALYZE, BUFFERS)` assertions for the final full-text and trigram predicates in `apps/web/src/server/services/search/postgres-search-plan.integration.test.ts`
+- [X] T018 [US1] Implement deterministic exact-match protection and reciprocal-rank fusion without comparing native scores in `apps/web/src/server/services/search/ranking.ts`
+- [X] T019 [US1] Implement the `full_text` adapter with the existing `tsvector('simple', ...)` expressions in `apps/web/src/server/services/search/engines/postgres-tsvector.ts`
+- [X] T020 [US1] Implement the `fuzzy` adapter using bounded `pg_trgm` similarity candidates and engine-local ranking in `apps/web/src/server/services/search/engines/postgres-trigram.ts`
+- [X] T021 [US1] Implement completed semantic-action candidate retrieval plus immediate three-capability execution, isolated failures, and fused candidate output in `apps/web/src/server/services/search/engines/pgvector-semantic.ts` and `apps/web/src/server/services/search/coordinator.ts`
+- [X] T022 [US1] Refactor legacy keyword search to use enabled immediate lexical capabilities without starting semantic work in `apps/web/src/server/services/public-content.ts`
+- [X] T023 [US1] Add `EXPLAIN (ANALYZE, BUFFERS)` assertions for the final full-text and trigram predicates in `apps/web/src/server/services/search/postgres-search-plan.integration.test.ts`
 
 **Checkpoint**: Full-text and fuzzy GET retrieval remain independently testable, preserve permissions, and prove the existing PostgreSQL indexes are used; the coordinator also fuses an already-ready semantic contribution.
 
@@ -78,20 +78,20 @@
 
 ### Tests for User Story 2
 
-- [ ] T024 [P] [US2] Add concurrent `Promise.allSettled`, deadline, pending/resume, and partial-failure tests in `apps/web/src/server/services/search/coordinator.test.ts`
-- [ ] T025 [P] [US2] Add semantic action continuation and `timed_out` compatibility mapping tests in `apps/web/src/server/services/search/engines/pgvector-semantic.test.ts`
-- [ ] T026 [P] [US2] Extend progressive POST snapshot, engine-state, fused-source, and non-disclosure tests in `apps/web/src/server/services/public-content-read.test.ts`
-- [ ] T027 [P] [US2] Extend additive POST response and behavior-route contract tests in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`
-- [ ] T028 [P] [US2] Add delayed semantic, stale-query, progressive polling, and source-badge browser coverage in `apps/web/e2e/header-hybrid-search.spec.ts`
+- [X] T024 [P] [US2] Add concurrent `Promise.allSettled`, deadline, pending/resume, and partial-failure tests in `apps/web/src/server/services/search/coordinator.test.ts`
+- [X] T025 [P] [US2] Add semantic action continuation and `timed_out` compatibility mapping tests in `apps/web/src/server/services/search/engines/pgvector-semantic.test.ts`
+- [X] T026 [P] [US2] Extend progressive POST snapshot, engine-state, fused-source, and non-disclosure tests in `apps/web/src/server/services/public-content-read.test.ts`
+- [X] T027 [P] [US2] Extend additive POST response and behavior-route contract tests in `apps/web/app/api/v1/search/public-page-search-routes.test.ts`
+- [X] T028 [P] [US2] Add delayed semantic, stale-query, progressive polling, and source-badge browser coverage in `apps/web/e2e/header-hybrid-search.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Extend the semantic adapter to initiate and resume the existing AI-action/pgvector lifecycle for pending search attempts in `apps/web/src/server/services/search/engines/pgvector-semantic.ts`
-- [ ] T030 [US2] Extend the coordinator to snapshot enabled capabilities, create/resume engine runs, invoke adapters concurrently, and return safe `engineStates` in `apps/web/src/server/services/search/coordinator.ts`
-- [ ] T031 [US2] Replace the Header hybrid keyword/semantic branches with coordinator snapshots while retaining `semanticState` and conceptual `matchSources` in `apps/web/src/server/services/public-content.ts`
-- [ ] T032 [US2] Update the existing POST route's OpenAPI-facing response usage without adding a search path in `apps/web/app/api/v1/search/pages/route.ts`
-- [ ] T033 [US2] Create TanStack Query-based POST polling keyed by search record and overlay session in `apps/web/src/hooks/useHybridPageSearch.ts`
-- [ ] T034 [US2] Refactor transient overlay state and progressive server-state rendering to use the new hook in `apps/web/src/components/search/HeaderHybridSearch.tsx`
+- [X] T029 [US2] Extend the semantic adapter to initiate and resume the existing AI-action/pgvector lifecycle for pending search attempts in `apps/web/src/server/services/search/engines/pgvector-semantic.ts`
+- [X] T030 [US2] Extend the coordinator to snapshot enabled capabilities, create/resume engine runs, invoke adapters concurrently, and return safe `engineStates` in `apps/web/src/server/services/search/coordinator.ts`
+- [X] T031 [US2] Replace the Header hybrid keyword/semantic branches with coordinator snapshots while retaining `semanticState` and conceptual `matchSources` in `apps/web/src/server/services/public-content.ts`
+- [X] T032 [US2] Update the existing POST route's OpenAPI-facing response usage without adding a search path in `apps/web/app/api/v1/search/pages/route.ts`
+- [X] T033 [US2] Create TanStack Query-based POST polling keyed by search record and overlay session in `apps/web/src/hooks/useHybridPageSearch.ts`
+- [X] T034 [US2] Refactor transient overlay state and progressive server-state rendering to use the new hook in `apps/web/src/components/search/HeaderHybridSearch.tsx`
 
 **Checkpoint**: The existing Header search resource returns progressive, de-duplicated, permission-safe snapshots; semantic work never blocks lexical results and no new transport route is introduced.
 
@@ -105,16 +105,16 @@
 
 ### Tests for User Story 3
 
-- [ ] T035 [P] [US3] Add settings defaults, persistence, lexical-safety validation, and authorization tests in `apps/web/src/server/services/search-settings.test.ts`
-- [ ] T036 [P] [US3] Add settings GET/PATCH validation and authorization route tests in `apps/web/app/api/settings/search/route.test.ts`
-- [ ] T037 [P] [US3] Add administrator capability-switch persistence and invalid lexical configuration coverage in `apps/web/e2e/admin-search-settings.spec.ts`
+- [X] T035 [P] [US3] Add settings defaults, persistence, lexical-safety validation, and authorization tests in `apps/web/src/server/services/search-settings.test.ts`
+- [X] T036 [P] [US3] Add settings GET/PATCH validation and authorization route tests in `apps/web/app/api/settings/search/route.test.ts`
+- [X] T037 [P] [US3] Add administrator capability-switch persistence and invalid lexical configuration coverage in `apps/web/e2e/admin-search-settings.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] Persist and validate independent capability settings through the existing service in `apps/web/src/server/services/search-settings.ts`
-- [ ] T039 [US3] Apply the expanded validated settings input/output through the existing admin route in `apps/web/app/api/settings/search/route.ts`
-- [ ] T040 [P] [US3] Add full-text and fuzzy capability labels, descriptions, validation, and saved-state messages in `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/i18n/keys.ts`
-- [ ] T041 [US3] Render and submit the three independent capability controls with accessible validation feedback in `apps/web/src/components/admin/search/SearchSettingsPanel.tsx`
+- [X] T038 [US3] Persist and validate independent capability settings through the existing service in `apps/web/src/server/services/search-settings.ts`
+- [X] T039 [US3] Apply the expanded validated settings input/output through the existing admin route in `apps/web/app/api/settings/search/route.ts`
+- [X] T040 [P] [US3] Add full-text and fuzzy capability labels, descriptions, validation, and saved-state messages in `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/i18n/keys.ts`
+- [X] T041 [US3] Render and submit the three independent capability controls with accessible validation feedback in `apps/web/src/components/admin/search/SearchSettingsPanel.tsx`
 
 **Checkpoint**: Administrators can safely control capability participation from the existing settings surface, and every new attempt gets a durable, predictable capability snapshot.
 
@@ -128,13 +128,13 @@
 
 ### Tests for User Story 4
 
-- [ ] T042 [P] [US4] Add a fake replacement-adapter contract test covering ready, pending, failed, and safe error states in `apps/web/src/server/services/search/registry.test.ts`
-- [ ] T043 [P] [US4] Add stable `engineSources` and no-diagnostic-leak regression coverage in `apps/web/src/server/services/search/candidate-projection.test.ts`
+- [X] T042 [P] [US4] Add a fake replacement-adapter contract test covering ready, pending, failed, and safe error states in `apps/web/src/server/services/search/registry.test.ts`
+- [X] T043 [P] [US4] Add stable `engineSources` and no-diagnostic-leak regression coverage in `apps/web/src/server/services/search/candidate-projection.test.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T044 [US4] Make registry construction explicitly injectable for tests and future replacement adapters while retaining the production static registry in `apps/web/src/server/services/search/registry.ts`
-- [ ] T045 [US4] Document the concrete adapter, coordinator, permission, and progressive-state implementation boundary in `docs/architecture/mandates.md`, `docs/architecture/project-structure.md`, and `docs/architecture/frontend-data-flow.md`
+- [X] T044 [US4] Make registry construction explicitly injectable for tests and future replacement adapters while retaining the production static registry in `apps/web/src/server/services/search/registry.ts`
+- [X] T045 [US4] Document the concrete adapter, coordinator, permission, and progressive-state implementation boundary in `docs/architecture/mandates.md`, `docs/architecture/project-structure.md`, and `docs/architecture/frontend-data-flow.md`
 
 **Checkpoint**: A replacement capability adapter is demonstrably isolated from the REST resource, administration model, permission projection, and client-facing capability vocabulary.
 
@@ -144,11 +144,11 @@
 
 **Purpose**: Regenerate derived contracts, validate operational behavior, preserve static reader delivery, and record the final verification evidence.
 
-- [ ] T046 [P] Regenerate and verify the public REST artifact from updated schemas with `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/public/openapi.json`
-- [ ] T047 [P] Validate all added English and Chinese catalog keys with `apps/web/scripts/validate-i18n.mjs`
-- [ ] T048 [P] Run the migration and capability quickstart scenarios, recording query-plan and state results in `specs/017-pg-trgm-search/quickstart.md`
-- [ ] T049 Run focused Vitest, Playwright, lint, typecheck, and full test commands listed in `specs/017-pg-trgm-search/quickstart.md`
-- [ ] T050 Build with Docker and verify `/search` plus anonymous published reader routes preserve the static/ISR build contract using `docker/Dockerfile` and `apps/web/app/(public)/search/page.tsx`
+- [X] T046 [P] Regenerate and verify the public REST artifact from updated schemas with `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/public/openapi.json`
+- [X] T047 [P] Validate all added English and Chinese catalog keys with `apps/web/scripts/validate-i18n.mjs`
+- [X] T048 [P] Run the migration and capability quickstart scenarios, recording query-plan and state results in `specs/017-pg-trgm-search/quickstart.md`
+- [X] T049 Run focused Vitest, Playwright, lint, typecheck, and full test commands listed in `specs/017-pg-trgm-search/quickstart.md`
+- [X] T050 Build with Docker and verify `/search` plus anonymous published reader routes preserve the static/ISR build contract using `docker/Dockerfile` and `apps/web/app/(public)/search/page.tsx`
 
 ---
 

@@ -71,3 +71,11 @@ pnpm test
 ```
 
 The focused suite must cover all capability lifecycle states, rank fusion, settings snapshots, replacement adapter contract tests, Chinese fuzzy fixtures, permission filtering, GET compatibility, and progressive Header polling.
+
+## 6. Implementation verification record (2026-07-14)
+
+- A fresh PostgreSQL test database applied migrations through `0013_scoped_trigram_search.sql`; the four `EXPLAIN (ANALYZE, BUFFERS)` assertions confirmed `pages_keyword_fts_idx`, `page_revisions_content_fts_idx`, `pages_space_title_trgm_idx`, and `page_revisions_content_source_trgm_idx`.
+- The full web Vitest suite passed against an isolated `wiki_017_full_test` database. Targeted capability, settings, route, and replacement-adapter suites also passed.
+- Playwright passed Header progressive-search coverage (4 tests) and administrator capability-switch coverage (1 test).
+- `pnpm --filter @next-wiki/web typecheck`, `pnpm --filter @next-wiki/web lint`, and `pnpm --filter @next-wiki/web i18n:validate` passed; the catalog validator reported 1,121 keys in both locales.
+- `docker build -f docker/Dockerfile -t next-wiki:017-search .` completed successfully without a database service. This verifies the production static generation path, including `/search`, no longer performs the failed build-time PostgreSQL connection.
