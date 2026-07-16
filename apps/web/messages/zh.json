@@ -390,6 +390,7 @@
       "loadFailed": "无法加载标签",
       "createFailed": "无法创建标签",
       "updateFailed": "无法更新标签",
+      "duplicate": "已存在同名标签",
       "metadataTitle": "标签管理",
       "title": "标签管理",
       "description": "统一维护 Wiki 标签，查看标签使用情况并整理重复或不再使用的标签。"
@@ -1562,6 +1563,8 @@
     "document": {
       "source": "源页面",
       "freshness": "新鲜度",
+      "translatedAt": "翻译时间",
+      "retranslate": "重新翻译",
       "open": "打开",
       "empty": "尚无已翻译文档。"
     },

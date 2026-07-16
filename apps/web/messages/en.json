@@ -390,6 +390,7 @@
       "loadFailed": "Unable to load tags",
       "createFailed": "Unable to create tag",
       "updateFailed": "Unable to update tag",
+      "duplicate": "A tag with this name already exists",
       "metadataTitle": "Tag management",
       "title": "Tag Management",
       "description": "Maintain wiki tags, review where they are used, and clean up duplicate or unused tags."
@@ -1562,6 +1563,8 @@
     "document": {
       "source": "Source page",
       "freshness": "Freshness",
+      "translatedAt": "Translated at",
+      "retranslate": "Re-translate",
       "open": "Open",
       "empty": "No translated documents yet."
     },

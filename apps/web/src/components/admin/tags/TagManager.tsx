@@ -26,14 +26,24 @@ type Mutation = {
 
 type EditMode = 'rename' | 'merge' | null;
 
+/** An error carrying the API error code so callers can localize by code. */
+class RequestError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
     headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { message?: string; error?: { message?: string } } | null;
-    throw new Error(payload?.message ?? payload?.error?.message ?? 'Request failed');
+    const payload = await response.json().catch(() => null) as { code?: string; message?: string; error?: { code?: string; message?: string } } | null;
+    throw new RequestError(
+      payload?.message ?? payload?.error?.message ?? 'Request failed',
+      payload?.code ?? payload?.error?.code,
+    );
   }
   return response.json() as Promise<T>;
 }
@@ -159,7 +169,11 @@ export function TagManager() {
       await loadTags();
       setSelectedId(tag.id);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : t('admin.tags.createFailed'));
+      setError(
+        createError instanceof RequestError && createError.code === 'CONFLICT'
+          ? t('admin.tags.duplicate')
+          : createError instanceof Error ? createError.message : t('admin.tags.createFailed'),
+      );
     } finally {
       setPending(false);
     }
@@ -177,7 +191,11 @@ export function TagManager() {
       setMessage(t('admin.tags.operationQueued'));
       void trackMutation(operation, 'admin.tags.renamed', selectedTag.id);
     } catch (renameError) {
-      setError(renameError instanceof Error ? renameError.message : t('admin.tags.updateFailed'));
+      setError(
+        renameError instanceof RequestError && renameError.code === 'CONFLICT'
+          ? t('admin.tags.duplicate')
+          : renameError instanceof Error ? renameError.message : t('admin.tags.updateFailed'),
+      );
     } finally {
       setPending(false);
     }
