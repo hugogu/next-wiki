@@ -401,7 +401,8 @@
         "system": "系统",
         "operations": "数据与运维"
       },
-      "ai": "AI"
+      "ai": "AI",
+      "feishu": "飞书"
     },
     "searchSettings": {
       "title": "搜索设置",

@@ -290,7 +290,7 @@ export function Navigator({
           label: t('admin.nav.ai'),
           icon: <SparklesIcon className="shrink-0" />,
         },
-        { href: '/admin/feishu', label: 'Feishu', icon: <FeishuIcon className="shrink-0" /> },
+        { href: '/admin/feishu', label: t('admin.nav.feishu'), icon: <FeishuIcon className="shrink-0" /> },
         {
           href: '/admin/users',
           label: t('admin.nav.users'),

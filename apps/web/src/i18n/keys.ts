@@ -269,6 +269,7 @@ export const translationKeys = [
   "admin.nav.groups.system",
   "admin.nav.groups.operations",
   "admin.nav.ai",
+  "admin.nav.feishu",
   "admin.searchSettings.title",
   "admin.searchSettings.description",
   "admin.searchSettings.fullText.title",

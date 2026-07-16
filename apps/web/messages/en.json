@@ -401,7 +401,8 @@
         "system": "System",
         "operations": "Data & Operations"
       },
-      "ai": "AI"
+      "ai": "AI",
+      "feishu": "Feishu"
     },
     "searchSettings": {
       "title": "Search Settings",
