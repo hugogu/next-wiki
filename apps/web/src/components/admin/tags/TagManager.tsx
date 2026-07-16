@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { PublicPageResource } from '@next-wiki/shared';
-import { ArrowUpDownIcon, EditIcon, EyeIcon, PlusIcon, SearchIcon, TagIcon, TrashIcon } from '@/components/icons';
+import { ArrowUpDownIcon, EditIcon, PlusIcon, SearchIcon, TagIcon, TrashIcon } from '@/components/icons';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { useTranslation } from '@/i18n/client';
@@ -365,7 +365,12 @@ export function TagManager() {
                     {filteredPages.map((page) => (
                       <li key={page.id} className="flex items-center gap-md px-md py-sm hover:bg-surface-elevated/50">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{page.title}</p>
+                          <Link
+                            href={getPageHref(page.path)}
+                            className="block truncate rounded-sm text-sm font-medium text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          >
+                            {page.title}
+                          </Link>
                           <code className="block truncate text-xs text-muted">/{page.path}</code>
                           {(page.metadata?.tags?.length ?? 0) > 0 && (
                             <ul className="mt-xs flex flex-wrap gap-xs" aria-label={t('admin.tags.pageTagsLabel')}>
@@ -384,9 +389,6 @@ export function TagManager() {
                         <span className="hidden rounded-full border border-border px-sm py-xs text-xs text-muted sm:inline-block">
                           {t(`admin.pages.status.${page.status}`)}
                         </span>
-                        <Link href={getPageHref(page.path)} aria-label={t('admin.pages.actions.view')} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground">
-                          <EyeIcon className="h-4 w-4" />
-                        </Link>
                         <Link href={getEditHref(page.path)} aria-label={t('admin.pages.actions.edit')} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground">
                           <EditIcon className="h-4 w-4" />
                         </Link>
