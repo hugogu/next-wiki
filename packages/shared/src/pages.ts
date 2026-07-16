@@ -213,6 +213,8 @@ export type AdminPageListItem = {
   editCount: number;
   createdAt: string;
   updatedAt: string;
+  /** Tags on the page's latest revision. */
+  tags: { id: string; name: string; normalizedName: string }[];
 };
 
 export type AdminPageListFilters = {

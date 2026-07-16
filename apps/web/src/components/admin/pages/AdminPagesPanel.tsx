@@ -12,6 +12,7 @@ import {
 import { Pagination } from '@/components/ui/Pagination';
 import { ArrowDownIcon, EditIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
 import { getEditHref, getHistoryHref, getPageHref, getPropertiesHref } from '@/lib/path';
+import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
 
@@ -200,6 +201,9 @@ export function AdminPagesPanel({
                     <HighlightedText text={page.title} keyword={list.filters.keyword} />
                   </Link>
                   <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
+                  <div className="mt-xs">
+                    <EditableTagList tags={page.tags} pageId={page.id} canEdit ariaLabel={t('page.metadata.tags')} />
+                  </div>
                 </DataTableCell>
                 <DataTableCell>
                   <span className="rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">

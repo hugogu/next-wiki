@@ -10,6 +10,7 @@ import { assertNotMigrating } from '@/server/services/migration';
 import { pathSchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
+  AdminPageListItem,
   AdminPageListResult,
   AdminPageSortDirection,
   AdminPageSortKey,
@@ -390,6 +391,27 @@ export async function listAdminPages(
     : [];
   const editCountByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.value)]));
 
+  // Tags on each page's latest revision (pageRevisionTags denormalizes the tag
+  // name/normalized name, so no join to the tags table is needed).
+  const tagRows = rowPageIds.length
+    ? await db
+        .select({
+          pageId: schema.pages.id,
+          id: schema.pageRevisionTags.tagId,
+          name: schema.pageRevisionTags.tagName,
+          normalizedName: schema.pageRevisionTags.normalizedName,
+        })
+        .from(schema.pages)
+        .innerJoin(schema.pageRevisionTags, eq(schema.pageRevisionTags.revisionId, schema.pages.latestVersionId))
+        .where(inArray(schema.pages.id, rowPageIds))
+    : [];
+  const tagsByPageId = new Map<string, AdminPageListItem['tags']>();
+  for (const tag of tagRows) {
+    const list = tagsByPageId.get(tag.pageId) ?? [];
+    list.push({ id: tag.id, name: tag.name, normalizedName: tag.normalizedName });
+    tagsByPageId.set(tag.pageId, list);
+  }
+
   return {
     items: rows.map((row) => ({
       id: row.id,
@@ -401,6 +423,7 @@ export async function listAdminPages(
       editCount: 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
+      tags: tagsByPageId.get(row.id) ?? [],
     })),
     totalItems,
     currentPage: safePage,
