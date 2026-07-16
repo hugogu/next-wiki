@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { PublicPageResource } from '@next-wiki/shared';
-import { ArrowUpDownIcon, EditIcon, PlusIcon, SearchIcon, TagIcon, TrashIcon } from '@/components/icons';
+import { ArrowUpDownIcon, EditIcon, SearchIcon, TagIcon, TrashIcon } from '@/components/icons';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { EditableTagList } from '@/components/pages/EditableTagList';
@@ -60,7 +60,6 @@ export function TagManager() {
   const [pageQuery, setPageQuery] = useState('');
   const [pageResult, setPageResult] = useState<{ tagId: string; items: PublicPageResource[] }>({ tagId: '', items: [] });
   const [pagesReloadKey, setPagesReloadKey] = useState(0);
-  const [newName, setNewName] = useState('');
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [renameName, setRenameName] = useState('');
   const [mergeTargetId, setMergeTargetId] = useState('');
@@ -159,28 +158,6 @@ export function TagManager() {
     }
   }, [loadTags, t]);
 
-  const create = async () => {
-    if (!newName.trim()) return;
-    setPending(true);
-    setError(null);
-    try {
-      const tag = await request<Tag>('/api/v1/tags', { method: 'POST', body: JSON.stringify({ name: newName }) });
-      setNewName('');
-      setMessage(t('admin.tags.created'));
-      setTagQuery('');
-      await loadTags();
-      setSelectedId(tag.id);
-    } catch (createError) {
-      setError(
-        createError instanceof RequestError && createError.code === 'CONFLICT'
-          ? t('admin.tags.duplicate')
-          : createError instanceof Error ? createError.message : t('admin.tags.createFailed'),
-      );
-    } finally {
-      setPending(false);
-    }
-  };
-
   const rename = async () => {
     if (!selectedTag || !renameName.trim()) return;
     setPending(true);
@@ -239,35 +216,6 @@ export function TagManager() {
 
   return (
     <div className="space-y-md" aria-label={t('admin.tags.ariaLabel')}>
-      <section className="rounded-lg border border-border bg-surface p-md">
-        <div className="flex flex-col gap-md lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold">{t('admin.tags.createHeading')}</h2>
-            <p className="mt-xs text-sm text-muted">{t('admin.tags.createDescription')}</p>
-          </div>
-          <form
-            className="flex w-full gap-sm lg:max-w-lg"
-            onSubmit={(event) => { event.preventDefault(); void create(); }}
-          >
-            <input
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-              placeholder={t('admin.tags.newPlaceholder')}
-              aria-label={t('admin.tags.newPlaceholder')}
-              className="min-w-0 flex-1 rounded-md border border-border bg-background px-sm py-sm text-sm"
-            />
-            <button
-              type="submit"
-              disabled={pending || !newName.trim()}
-              className="inline-flex items-center gap-xs rounded-md bg-primary px-md py-sm text-sm font-medium text-primary-text disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <PlusIcon className="h-4 w-4" />
-              {t('admin.tags.create')}
-            </button>
-          </form>
-        </div>
-      </section>
-
       {(message || error) && (
         <div role="status" className={`rounded-md border px-md py-sm text-sm ${error ? 'border-danger/30 bg-danger/10 text-danger' : 'border-primary/20 bg-primary/10 text-foreground'}`}>
           {error ?? message}
