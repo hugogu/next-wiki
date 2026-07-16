@@ -20,13 +20,23 @@ type Model = { id: string; displayName: string };
  * Config (languages, models, styles) is fetched on open from the admin-scoped
  * endpoints; the trigger that renders this is already gated to admins.
  */
-export function TranslatePageDialog({ pageId, onClose }: { pageId: string; onClose: () => void }) {
+export function TranslatePageDialog({
+  pageId,
+  initialTargetLocale,
+  onClose,
+}: {
+  pageId: string;
+  /** When set, the run targets this locale and the language picker is locked
+   * (used by "re-translate" on an existing translated document). */
+  initialTargetLocale?: string;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [languages, setLanguages] = useState<TranslationLanguageView[]>([]);
   const [models, setModels] = useState<Model[]>([]);
   const [styles, setStyles] = useState<TranslationPromptTemplateView[]>([]);
-  const [targetLocale, setTargetLocale] = useState('');
+  const [targetLocale, setTargetLocale] = useState(initialTargetLocale ?? '');
   const [modelId, setModelId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -51,7 +61,7 @@ export function TranslatePageDialog({ pageId, onClose }: { pageId: string; onClo
         setLanguages(enabled);
         setModels(mdl.items);
         setStyles(sty.items);
-        setTargetLocale(enabled[0]?.code ?? '');
+        setTargetLocale(initialTargetLocale ?? enabled[0]?.code ?? '');
       })
       .catch(() => {
         if (!cancelled) setErrorMessage(t('page.translate.error'));
@@ -62,7 +72,7 @@ export function TranslatePageDialog({ pageId, onClose }: { pageId: string; onClo
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, initialTargetLocale]);
 
   async function submit() {
     if (!targetLocale) return;
@@ -115,13 +125,19 @@ export function TranslatePageDialog({ pageId, onClose }: { pageId: string; onClo
         >
           <label className="flex flex-col gap-xs text-sm">
             <span className="text-muted">{t('translation.run.targetLocale')}</span>
-            <Select value={targetLocale} onChange={(event) => setTargetLocale(event.target.value)}>
-              {languages.map((language) => (
-                <option key={language.code} value={language.code}>
-                  {language.code.toUpperCase()}
-                </option>
-              ))}
-            </Select>
+            {initialTargetLocale ? (
+              <span className="rounded-md border border-border bg-surface-elevated px-sm py-sm font-mono text-sm uppercase">
+                {targetLocale}
+              </span>
+            ) : (
+              <Select value={targetLocale} onChange={(event) => setTargetLocale(event.target.value)}>
+                {languages.map((language) => (
+                  <option key={language.code} value={language.code}>
+                    {language.code.toUpperCase()}
+                  </option>
+                ))}
+              </Select>
+            )}
           </label>
           <label className="flex flex-col gap-xs text-sm">
             <span className="text-muted">{t('translation.run.model')}</span>
@@ -152,7 +168,7 @@ export function TranslatePageDialog({ pageId, onClose }: { pageId: string; onClo
           )}
           <div className="flex justify-end gap-sm">
             <Button type="button" variant="ghost" onClick={onClose}>{t('page.translate.close')}</Button>
-            <Button type="submit" disabled={submitting || !targetLocale || languages.length === 0}>
+            <Button type="submit" disabled={submitting || !targetLocale || (!initialTargetLocale && languages.length === 0)}>
               {submitting ? t('common.status.saving') : t('translation.run.create')}
             </Button>
           </div>

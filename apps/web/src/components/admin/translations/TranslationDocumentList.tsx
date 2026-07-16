@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { TranslationDocumentView, TranslationFreshnessStatus } from '@next-wiki/shared';
+import type { TranslationDocumentView } from '@next-wiki/shared';
 import {
   DataTable,
   DataTableBody,
@@ -11,23 +11,17 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { EyeIcon, HistoryIcon } from '@/components/icons';
+import { HistoryIcon, LanguagesIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
+import { TranslatePageDialog } from '@/components/pages/TranslatePageDialog';
 import { TranslationVersionHistory } from './TranslationVersionHistory';
-
-function freshnessTone(status: TranslationFreshnessStatus) {
-  if (status === 'fresh') return 'success' as const;
-  if (status === 'stale' || status === 'failed') return 'warning' as const;
-  if (status === 'unavailable') return 'neutral' as const;
-  return 'info' as const;
-}
 
 export function TranslationDocumentList({ documents }: { documents: TranslationDocumentView[] }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [retranslating, setRetranslating] = useState<TranslationDocumentView | null>(null);
 
   if (documents.length === 0) {
     return (
@@ -38,67 +32,82 @@ export function TranslationDocumentList({ documents }: { documents: TranslationD
   }
 
   return (
-    <DataTable>
-      <DataTableHead>
-        <DataTableRow>
-          <DataTableHeader>{t('translation.document.source')}</DataTableHeader>
-          <DataTableHeader>{t('translation.run.targetLocale')}</DataTableHeader>
-          <DataTableHeader>{t('translation.document.freshness')}</DataTableHeader>
-          <DataTableHeader>{t('admin.transfers.table.actions')}</DataTableHeader>
-        </DataTableRow>
-      </DataTableHead>
-      <DataTableBody>
-        {documents.map((doc) => (
-          <>
-            <DataTableRow key={doc.translationPageId}>
-              <DataTableCell>
-                <Link className="text-primary hover:underline" href={doc.sourceUrl}>
-                  {doc.sourcePath}
-                </Link>
-              </DataTableCell>
-              <DataTableCell className="font-mono uppercase">{doc.targetLocale}</DataTableCell>
-              <DataTableCell>
-                <StatusBadge tone={freshnessTone(doc.freshness)}>
-                  {t(`translation.freshness.${doc.freshness}`)}
-                </StatusBadge>
-              </DataTableCell>
-              <DataTableCell>
-                <div className="flex items-center gap-xs">
-                  <Tooltip label={t('translation.document.open')}>
-                    <Link
-                      href={doc.translationUrl}
-                      target="_blank"
-                      aria-label={t('translation.document.open')}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-transparent text-muted transition-colors hover:bg-surface hover:text-foreground"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </Link>
-                  </Tooltip>
-                  <Tooltip label={t('translation.run.detail.history')}>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={t('translation.run.detail.history')}
-                      onClick={() =>
-                        setExpanded((cur) => (cur === doc.translationPageId ? null : doc.translationPageId))
-                      }
-                    >
-                      <HistoryIcon className="h-4 w-4" />
-                    </Button>
-                  </Tooltip>
-                </div>
-              </DataTableCell>
-            </DataTableRow>
-            {expanded === doc.translationPageId && (
-              <DataTableRow key={`${doc.translationPageId}-history`}>
-                <DataTableCell colSpan={4}>
-                  <TranslationVersionHistory translationPageId={doc.translationPageId} />
+    <>
+      <DataTable>
+        <DataTableHead>
+          <DataTableRow>
+            <DataTableHeader>{t('translation.document.source')}</DataTableHeader>
+            <DataTableHeader>{t('translation.run.targetLocale')}</DataTableHeader>
+            <DataTableHeader>{t('translation.document.translatedAt')}</DataTableHeader>
+            <DataTableHeader>{t('admin.transfers.table.actions')}</DataTableHeader>
+          </DataTableRow>
+        </DataTableHead>
+        <DataTableBody>
+          {documents.map((doc) => (
+            <>
+              <DataTableRow key={doc.translationPageId}>
+                <DataTableCell>
+                  <Link className="text-primary hover:underline" href={doc.sourceUrl}>
+                    {doc.sourcePath}
+                  </Link>
+                </DataTableCell>
+                <DataTableCell>
+                  <Link
+                    className="font-mono uppercase text-primary hover:underline"
+                    href={doc.translationUrl}
+                    target="_blank"
+                  >
+                    {doc.targetLocale}
+                  </Link>
+                </DataTableCell>
+                <DataTableCell className="text-muted">
+                  {new Date(doc.updatedAt).toLocaleString()}
+                </DataTableCell>
+                <DataTableCell>
+                  <div className="flex items-center gap-xs">
+                    <Tooltip label={t('translation.document.retranslate')}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('translation.document.retranslate')}
+                        onClick={() => setRetranslating(doc)}
+                      >
+                        <LanguagesIcon className="h-4 w-4" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip label={t('translation.run.detail.history')}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('translation.run.detail.history')}
+                        onClick={() =>
+                          setExpanded((cur) => (cur === doc.translationPageId ? null : doc.translationPageId))
+                        }
+                      >
+                        <HistoryIcon className="h-4 w-4" />
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </DataTableCell>
               </DataTableRow>
-            )}
-          </>
-        ))}
-      </DataTableBody>
-    </DataTable>
+              {expanded === doc.translationPageId && (
+                <DataTableRow key={`${doc.translationPageId}-history`}>
+                  <DataTableCell colSpan={4}>
+                    <TranslationVersionHistory translationPageId={doc.translationPageId} />
+                  </DataTableCell>
+                </DataTableRow>
+              )}
+            </>
+          ))}
+        </DataTableBody>
+      </DataTable>
+      {retranslating && (
+        <TranslatePageDialog
+          pageId={retranslating.sourcePageId}
+          initialTargetLocale={retranslating.targetLocale}
+          onClose={() => setRetranslating(null)}
+        />
+      )}
+    </>
   );
 }
