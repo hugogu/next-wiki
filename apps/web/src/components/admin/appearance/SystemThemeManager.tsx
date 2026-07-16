@@ -184,8 +184,15 @@ export function SystemThemeManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [themeParam]);
 
+  const activeThemeName = themes.find((theme) => theme.id === activeThemeId)?.name
+    ?? t('admin.appearance.defaultTheme');
+
   return (
-    <div className="grid gap-lg md:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="space-y-md">
+      <div className="rounded-md border border-primary/20 bg-primary/10 px-md py-sm text-sm text-foreground" role="status">
+        {t('admin.appearance.activeSummary', { name: activeThemeName })}
+      </div>
+      <div className="grid gap-lg md:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="space-y-xs">
         {themes.map((theme) => {
           const isActive = theme.id === activeThemeId;
@@ -297,6 +304,7 @@ export function SystemThemeManager({
           </div>
         )}
       </section>
+      </div>
 
       {confirmDelete && detail && (
         <ConfirmDialog

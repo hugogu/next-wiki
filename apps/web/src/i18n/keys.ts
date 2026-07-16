@@ -331,6 +331,8 @@ export const translationKeys = [
   "admin.appearance.builtin",
   "admin.appearance.builtinReadonly",
   "admin.appearance.active",
+  "admin.appearance.activeSummary",
+  "admin.appearance.defaultTheme",
   "admin.appearance.activate",
   "admin.appearance.activated",
   "admin.appearance.copy",

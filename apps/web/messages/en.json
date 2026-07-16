@@ -498,6 +498,8 @@
       "builtin": "built-in",
       "builtinReadonly": "Built-in themes are read-only.",
       "active": "Active",
+      "activeSummary": "Active appearance: {name}",
+      "defaultTheme": "Default appearance",
       "activate": "Activate",
       "activated": "Theme activated.",
       "copy": "Copy to edit",

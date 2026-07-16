@@ -498,6 +498,8 @@
       "builtin": "内置",
       "builtinReadonly": "内置主题为只读。",
       "active": "使用中",
+      "activeSummary": "当前生效外观：{name}",
+      "defaultTheme": "默认外观",
       "activate": "启用",
       "activated": "已启用该主题。",
       "copy": "复制以编辑",
