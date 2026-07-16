@@ -11,6 +11,12 @@ export type PageContext = {
   canEdit: boolean;
   canPublish: boolean;
   version: number;
+  /** Source (original) path of the page, without any locale prefix. */
+  sourcePath?: string;
+  /** Locale codes of published translations available for this page. */
+  translationLocales?: string[];
+  /** The locale currently being viewed, or null when viewing the original. */
+  currentLocale?: string | null;
 } | null;
 
 export type AppShellProps = {

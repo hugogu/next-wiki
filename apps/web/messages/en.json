@@ -266,6 +266,8 @@
       "publishing": "Publishing...",
       "properties": "Page properties",
       "view": "View page",
+      "otherLanguages": "Other language versions",
+      "original": "Original",
       "newPage": "New page",
       "admin": "Admin"
     },

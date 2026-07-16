@@ -21,7 +21,8 @@ import {
 } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
-import { getPageHref, getEditHref, getHistoryHref, getPublicApiPagePublicationUrl } from '@/lib/path';
+import { getPageHref, getEditHref, getHistoryHref, getTranslatedPageHref, getPublicApiPagePublicationUrl } from '@/lib/path';
+import { translationLanguageName } from '@next-wiki/shared';
 import { HeaderHybridSearch } from '@/components/search/HeaderHybridSearch';
 
 function IconButton({
@@ -64,6 +65,20 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+function LanguageLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={`block rounded-sm px-sm py-xs text-sm transition-colors hover:bg-surface-elevated ${
+        active ? 'font-medium text-primary' : 'text-foreground'
+      }`}
+    >
+      {label}
+    </Link>
   );
 }
 
@@ -199,11 +214,33 @@ export function Header({
                 </IconButton>
               )}
 
-              {pageContext && (
+              {pageContext && pageContext.sourcePath && (pageContext.translationLocales?.length ?? 0) > 0 ? (
+                <div className="group relative">
+                  <IconButton href={getPageHref(pageContext.path)} label={t('page.header.view')} active>
+                    <EyeIcon />
+                  </IconButton>
+                  <div className="invisible absolute right-0 top-full z-30 mt-xs min-w-[10rem] rounded-md border border-border bg-surface p-xs opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                    <p className="px-sm py-xs text-xs font-medium text-muted">{t('page.header.otherLanguages')}</p>
+                    <LanguageLink
+                      href={getPageHref(pageContext.sourcePath)}
+                      label={t('page.header.original')}
+                      active={!pageContext.currentLocale}
+                    />
+                    {pageContext.translationLocales!.map((locale) => (
+                      <LanguageLink
+                        key={locale}
+                        href={getTranslatedPageHref(locale, pageContext.sourcePath!)}
+                        label={translationLanguageName(locale)}
+                        active={pageContext.currentLocale === locale}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : pageContext ? (
                 <IconButton href={getPageHref(pageContext.path)} label={t('page.header.view')} active>
                   <EyeIcon />
                 </IconButton>
-              )}
+              ) : null}
               {(isOnUserCenter || isOnAdmin) ? (
                 <IconButton onClick={() => goBack('/')} label={t('common.actions.back')}>
                   <ChevronLeftIcon />

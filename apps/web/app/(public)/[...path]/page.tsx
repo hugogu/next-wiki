@@ -184,6 +184,11 @@ export default async function PageRead({ params }: { params: PageParams }) {
         }
       : null;
 
+  // Language versions available for this page (original + published translations),
+  // used by the header's view control to link between locales. Public info, so
+  // the anonymous cached lookup is safe on the static document.
+  const translationLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath);
+
   const pageContext = {
     pageId: page.pageId,
     revisionId: page.revisionId,
@@ -193,6 +198,9 @@ export default async function PageRead({ params }: { params: PageParams }) {
     canEdit,
     canPublish,
     version: page.version,
+    sourcePath: resolved.sourcePath,
+    translationLocales,
+    currentLocale: isTranslation ? resolved.locale : null,
   };
 
   const bodyHtml = injectHeadingIds(page.contentHtml);

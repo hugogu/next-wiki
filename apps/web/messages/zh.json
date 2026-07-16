@@ -266,6 +266,8 @@
       "publishing": "发布中...",
       "properties": "页面属性",
       "view": "查看页面",
+      "otherLanguages": "其它语言版本",
+      "original": "原文",
       "newPage": "新建页面",
       "admin": "管理"
     },

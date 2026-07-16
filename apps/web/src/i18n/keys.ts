@@ -165,6 +165,8 @@ export const translationKeys = [
   "page.header.publishing",
   "page.header.properties",
   "page.header.view",
+  "page.header.otherLanguages",
+  "page.header.original",
   "page.header.newPage",
   "page.header.admin",
   "page.share.button",
