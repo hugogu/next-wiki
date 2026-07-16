@@ -1,0 +1,19 @@
+# On tag push to next-wiki, dispatch a repository_dispatch event to
+# hugogu/next-wiki-deploy with the tag name. Lets us tag in the source
+# repo and have the deploy repo take over from there.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+jobs:
+  notify-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to next-wiki-deploy
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
+          repository: hugogu/next-wiki-deploy
+          event-type: next-wiki-release
+          client-payload: '{"tag": "${{ github.ref_name }}"}'
