@@ -90,10 +90,10 @@ export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView 
     <div className="max-w-3xl space-y-lg">
       <section className="rounded-lg border border-border bg-surface p-lg space-y-md">
         <div>
-          <h2 className="font-display text-lg font-semibold">扫码关联或创建飞书机器人</h2>
+          <h2 className="font-display text-lg font-semibold">扫码接入飞书</h2>
           <p className="text-sm text-muted">
-            用飞书 App 扫描二维码后，可关联现有应用或创建新应用。完成后机器人会自动使用 WebSocket
-            长连接接收消息，不需要回调地址或手工填写密钥。
+            用飞书 App 扫一扫，一步即可让本 Wiki 上线到你的飞书。接入后即可在飞书里与 Wiki 对话，
+            全程无需填写任何密钥或地址。
           </p>
         </div>
         <Button onClick={start} disabled={loading || Boolean(registration)}>
