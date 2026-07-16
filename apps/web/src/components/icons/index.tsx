@@ -390,24 +390,14 @@ export function DiscordIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** Feishu's familiar cyan/blue ribbon mark, sized for the application navigation. */
+/** A monochrome ribbon outline that matches the navigation's line-icon style. */
 export function FeishuIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      {...props}
-    >
-      <rect width="24" height="24" rx="6" fill="white" />
-      <path fill="#00d6b9" d="M4.4 5.1h10.2c1.3 0 2.4.6 3.1 1.6l2.1 3.3c-2.8-1-5.5-.7-7.7 1L4.4 5.1Z" />
-      <path fill="#10bfb0" d="M4.4 5.1 12.1 11c-1.4 1.1-2.3 2.6-2.9 4.3L4.4 8.6V5.1Z" />
-      <path fill="#3169db" d="M4.4 8.6 11 14.2c2.1 1.7 4.8 1.9 7.1.6l2.7-1.7c-.9 3.5-3.7 5.8-7.6 5.8H7.1c-1.5 0-2.7-1.2-2.7-2.7V8.6Z" />
-      <path fill="#1648b8" d="M20.8 9.9c-3.2-.2-5.8.8-7.7 3.1-1.1 1.3-2.5 1.8-4.1 1.8l2 1.7c2.1 1.7 4.8 1.9 7.1.6l2.7-1.7c.3-1.8.3-3.7 0-5.5Z" />
-    </svg>
+    <Icon {...props}>
+      <path d="M4 6h9.2c2.2 0 4.2 1.2 5.2 3.2l1.1 2.2" />
+      <path d="m4 7 6.2 5.1a4.1 4.1 0 0 0 5 .1l1.7-1.3a6.4 6.4 0 0 1 3.1-1.3" />
+      <path d="M4 7v8.5c0 1.4 1.1 2.5 2.5 2.5h6.1c3.4 0 6.4-2.1 7.5-5.2" />
+    </Icon>
   );
 }
 
