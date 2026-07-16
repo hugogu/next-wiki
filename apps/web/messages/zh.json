@@ -269,7 +269,15 @@
       "otherLanguages": "其它语言版本",
       "original": "原文",
       "newPage": "新建页面",
-      "admin": "管理"
+      "admin": "管理",
+      "translate": "翻译此页"
+    },
+    "translate": {
+      "title": "翻译此页",
+      "description": "选择目标语言、模型与风格，为当前页面创建一个后台翻译任务。",
+      "success": "翻译任务已创建，正在后台运行。可稍后在翻译管理中查看进度。",
+      "error": "创建翻译任务失败。",
+      "close": "关闭"
     },
     "share": {
       "button": "分享",

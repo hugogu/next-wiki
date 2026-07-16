@@ -269,7 +269,15 @@
       "otherLanguages": "Other language versions",
       "original": "Original",
       "newPage": "New page",
-      "admin": "Admin"
+      "admin": "Admin",
+      "translate": "Translate this page"
+    },
+    "translate": {
+      "title": "Translate this page",
+      "description": "Pick a target language, model, and style to queue a background translation task for this page.",
+      "success": "Translation task created and running in the background. Check progress later in Translations admin.",
+      "error": "Failed to create the translation task.",
+      "close": "Close"
     },
     "share": {
       "button": "Share",

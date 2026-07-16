@@ -18,7 +18,9 @@ import {
   SaveIcon,
   XIcon,
   ChevronLeftIcon,
+  LanguagesIcon,
 } from '@/components/icons';
+import { TranslatePageDialog } from '@/components/pages/TranslatePageDialog';
 import { apiPost } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { getPageHref, getEditHref, getHistoryHref, getTranslatedPageHref, getPublicApiPagePublicationUrl } from '@/lib/path';
@@ -118,8 +120,13 @@ export function Header({
   const editor = useEditor();
   const { goBack } = useHistory();
   const [publishing, setPublishing] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
   const isSignedIn = user.kind === 'user';
   const role = isSignedIn ? user.role : null;
+  // Translating a page targets the original source, so only offer it on the
+  // original (not a translated view) and only to admins (manage_translations).
+  const canTranslate =
+    role === 'admin' && Boolean(pageContext?.pageId) && !pageContext?.currentLocale;
 
   const handlePublish = async () => {
     if (!pageContext || !pageContext.pageId || !pageContext.canPublish || pageContext.status === 'published') return;
@@ -205,6 +212,12 @@ export function Header({
                 </IconButton>
               )}
 
+              {canTranslate && (
+                <IconButton onClick={() => setTranslateOpen(true)} label={t('page.header.translate')}>
+                  <LanguagesIcon />
+                </IconButton>
+              )}
+
               {pageContext && pageContext.canPublish && pageContext.status === 'draft' && (
                 <IconButton
                   onClick={handlePublish}
@@ -254,6 +267,9 @@ export function Header({
           </>
         )}
       </div>
+      {translateOpen && pageContext?.pageId && (
+        <TranslatePageDialog pageId={pageContext.pageId} onClose={() => setTranslateOpen(false)} />
+      )}
     </header>
   );
 }
