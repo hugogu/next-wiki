@@ -60,103 +60,109 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
   }
 
   return (
-    <div className="max-w-3xl rounded-lg border border-border bg-surface p-lg shadow-sm">
-      <div className="space-y-lg">
-        <div className="flex items-start justify-between gap-md">
-          <div>
-            <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.fullText.title')}</h2>
-            <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.fullText.description')}</p>
+    <div className="max-w-5xl rounded-lg border border-border bg-surface p-lg shadow-sm">
+      <div className="grid gap-lg lg:grid-cols-2 lg:gap-x-xl">
+        {/* Column 1: how results are matched and ranked. */}
+        <div className="space-y-lg">
+          <div className="flex items-start justify-between gap-md">
+            <div>
+              <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.fullText.title')}</h2>
+              <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.fullText.description')}</p>
+            </div>
+            <Switch
+              checked={fullTextSearchEnabled}
+              aria-label={t('admin.searchSettings.fullText.title')}
+              onClick={() => setFullTextSearchEnabled((value) => !value)}
+            />
           </div>
-          <Switch
-            checked={fullTextSearchEnabled}
-            aria-label={t('admin.searchSettings.fullText.title')}
-            onClick={() => setFullTextSearchEnabled((value) => !value)}
-          />
-        </div>
 
-        <label className="block space-y-xs">
-          <span className="text-sm font-medium">{t('admin.searchSettings.immediateTimeout.label')}</span>
-          <Input
-            type="number"
-            min="100"
-            max="2000"
-            step="50"
-            value={immediateSearchTimeoutMs}
-            onChange={(event) => setImmediateSearchTimeoutMs(event.target.value)}
-          />
-          <span className="block text-xs text-muted">{t('admin.searchSettings.immediateTimeout.help')}</span>
-        </label>
+          <label className="block space-y-xs">
+            <span className="text-sm font-medium">{t('admin.searchSettings.immediateTimeout.label')}</span>
+            <Input
+              type="number"
+              min="100"
+              max="2000"
+              step="50"
+              value={immediateSearchTimeoutMs}
+              onChange={(event) => setImmediateSearchTimeoutMs(event.target.value)}
+            />
+            <span className="block text-xs text-muted">{t('admin.searchSettings.immediateTimeout.help')}</span>
+          </label>
 
-        <div className="flex items-start justify-between gap-md">
-          <div>
-            <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.fuzzy.title')}</h2>
-            <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.fuzzy.description')}</p>
+          <div className="flex items-start justify-between gap-md">
+            <div>
+              <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.fuzzy.title')}</h2>
+              <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.fuzzy.description')}</p>
+            </div>
+            <Switch
+              checked={fuzzySearchEnabled}
+              aria-label={t('admin.searchSettings.fuzzy.title')}
+              onClick={() => setFuzzySearchEnabled((value) => !value)}
+            />
           </div>
-          <Switch
-            checked={fuzzySearchEnabled}
-            aria-label={t('admin.searchSettings.fuzzy.title')}
-            onClick={() => setFuzzySearchEnabled((value) => !value)}
-          />
-        </div>
 
-        <div className="flex items-start justify-between gap-md">
-          <div>
-            <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.semantic.title')}</h2>
-            <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.semantic.description')}</p>
+          <div className="flex items-start justify-between gap-md">
+            <div>
+              <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.semantic.title')}</h2>
+              <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.semantic.description')}</p>
+            </div>
+            <Switch
+              checked={semanticSearchEnabled}
+              aria-label={t('admin.searchSettings.semantic.title')}
+              onClick={() => setSemanticSearchEnabled((value) => !value)}
+            />
           </div>
-          <Switch
-            checked={semanticSearchEnabled}
-            aria-label={t('admin.searchSettings.semantic.title')}
-            onClick={() => setSemanticSearchEnabled((value) => !value)}
-          />
+
+          <label className="block space-y-xs">
+            <span className="text-sm font-medium">{t('admin.searchSettings.minRelevance.label')}</span>
+            <Input
+              type="number"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={minRelevanceScore}
+              onChange={(event) => setMinRelevanceScore(event.target.value)}
+            />
+            <span className="block text-xs text-muted">{t('admin.searchSettings.minRelevance.help')}</span>
+          </label>
         </div>
 
-        <label className="block space-y-xs">
-          <span className="text-sm font-medium">{t('admin.searchSettings.minRelevance.label')}</span>
-          <Input
-            type="number"
-            min="-1"
-            max="1"
-            step="0.01"
-            value={minRelevanceScore}
-            onChange={(event) => setMinRelevanceScore(event.target.value)}
-          />
-          <span className="block text-xs text-muted">{t('admin.searchSettings.minRelevance.help')}</span>
-        </label>
-
-        <div className="flex items-start justify-between gap-md">
-          <div>
-            <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.excerpts.title')}</h2>
-            <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.excerpts.description')}</p>
+        {/* Column 2: how each result is presented (excerpts). */}
+        <div className="space-y-lg lg:border-l lg:border-border lg:pl-xl">
+          <div className="flex items-start justify-between gap-md">
+            <div>
+              <h2 className="font-display text-lg font-semibold">{t('admin.searchSettings.excerpts.title')}</h2>
+              <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.excerpts.description')}</p>
+            </div>
+            <Switch
+              checked={showExcerpts}
+              aria-label={t('admin.searchSettings.excerpts.title')}
+              onClick={() => setShowExcerpts((value) => !value)}
+            />
           </div>
-          <Switch
-            checked={showExcerpts}
-            aria-label={t('admin.searchSettings.excerpts.title')}
-            onClick={() => setShowExcerpts((value) => !value)}
-          />
-        </div>
 
-        <label className="block space-y-xs">
-          <span className="text-sm font-medium">{t('admin.searchSettings.excerptLength.label')}</span>
-          <Input
-            type="number"
-            min="20"
-            max="500"
-            step="10"
-            disabled={!showExcerpts}
-            value={excerptLength}
-            onChange={(event) => setExcerptLength(event.target.value)}
-          />
-          <span className="block text-xs text-muted">{t('admin.searchSettings.excerptLength.help')}</span>
-        </label>
-
-        <div className="flex items-center gap-md">
-          <Button onClick={save} disabled={saving || lexicalDisabled}>{saving ? t('common.status.saving') : t('common.actions.save')}</Button>
-          {message && <span className="text-sm text-muted">{message}</span>}
-          {error && <span role="alert" className="text-sm text-danger">{error}</span>}
+          <label className="block space-y-xs">
+            <span className="text-sm font-medium">{t('admin.searchSettings.excerptLength.label')}</span>
+            <Input
+              type="number"
+              min="20"
+              max="500"
+              step="10"
+              disabled={!showExcerpts}
+              value={excerptLength}
+              onChange={(event) => setExcerptLength(event.target.value)}
+            />
+            <span className="block text-xs text-muted">{t('admin.searchSettings.excerptLength.help')}</span>
+          </label>
         </div>
-        {lexicalDisabled && <p role="alert" className="text-sm text-danger">{t('admin.searchSettings.lexicalRequired')}</p>}
       </div>
+
+      <div className="mt-lg flex items-center gap-md border-t border-border pt-lg">
+        <Button onClick={save} disabled={saving || lexicalDisabled}>{saving ? t('common.status.saving') : t('common.actions.save')}</Button>
+        {message && <span className="text-sm text-muted">{message}</span>}
+        {error && <span role="alert" className="text-sm text-danger">{error}</span>}
+      </div>
+      {lexicalDisabled && <p role="alert" className="mt-sm text-sm text-danger">{t('admin.searchSettings.lexicalRequired')}</p>}
     </div>
   );
 }
