@@ -10,7 +10,7 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { ArrowDownIcon, EditIcon, EyeIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
+import { ArrowDownIcon, EditIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
 import { getEditHref, getHistoryHref, getPageHref, getPropertiesHref } from '@/lib/path';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
@@ -193,7 +193,12 @@ export function AdminPagesPanel({
             list.items.map((page) => (
               <DataTableRow key={page.id}>
                 <DataTableCell className="max-w-sm font-medium">
-                  <span className="block truncate"><HighlightedText text={page.title} keyword={list.filters.keyword} /></span>
+                  <Link
+                    href={getPageHref(page.path)}
+                    className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <HighlightedText text={page.title} keyword={list.filters.keyword} />
+                  </Link>
                   <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
                 </DataTableCell>
                 <DataTableCell>
@@ -210,9 +215,6 @@ export function AdminPagesPanel({
                 </DataTableCell>
                 <DataTableCell align="right">
                   <div className="flex items-center justify-end gap-xs">
-                    <IconLink href={getPageHref(page.path)} label={t('admin.pages.actions.view')}>
-                      <EyeIcon />
-                    </IconLink>
                     <IconLink href={getEditHref(page.path)} label={t('admin.pages.actions.edit')}>
                       <EditIcon />
                     </IconLink>
