@@ -889,11 +889,19 @@
         "successMessage": "Temporary password set for {email}",
         "securityHint": "Share this password securely. The user must set a new password on next sign-in."
       },
+      "delete": {
+        "button": "Delete user",
+        "title": "Delete user?",
+        "message": "Delete {email}? The account will be unable to sign in and removed from the list; its authorship history is preserved. This cannot be undone.",
+        "confirm": "Delete",
+        "error": "Failed to delete the user."
+      },
       "error": {
         "manageForbidden": "You do not have permission to manage users",
         "cannotRemoveOwnAdmin": "You cannot remove your own admin role",
         "userNotFound": "User not found",
         "cannotDisableSelf": "You cannot disable your own account",
+        "cannotDeleteSelf": "You cannot delete your own account",
         "tempPasswordTooShort": "Temporary password must be at least 8 characters"
       }
     },

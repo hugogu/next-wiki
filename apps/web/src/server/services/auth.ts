@@ -32,6 +32,10 @@ export async function resolveActorFromSession(sessionId: string): Promise<Actor 
   }
 
   const user = session.user;
+  // A soft-deleted account must not authenticate, even with a still-valid session.
+  if (user.deletedAt) {
+    return null;
+  }
   return {
     kind: 'user',
     userId: user.id,
@@ -121,7 +125,7 @@ export async function login(input: { email: string; password: string }): Promise
     where: eq(schema.users.email, input.email),
   });
 
-  if (!user || user.status === 'disabled') {
+  if (!user || user.status === 'disabled' || user.deletedAt) {
     throw new DomainError('UNAUTHORIZED', 'Invalid email or password');
   }
 

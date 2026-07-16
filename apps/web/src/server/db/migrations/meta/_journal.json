@@ -127,6 +127,13 @@
       "when": 1784030511775,
       "tag": "0017_sharp_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784209784012,
+      "tag": "0018_abnormal_mojo",
+      "breakpoints": true
     }
   ]
 }

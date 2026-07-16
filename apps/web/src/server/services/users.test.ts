@@ -109,6 +109,57 @@ describe('userService US5', () => {
     });
   });
 
+  describe('deleteUser', () => {
+    it('soft-deletes: hides from the list, blocks login, and revokes sessions', async () => {
+      const admin = await createUser('admin-delete@example.com', 'admin');
+      const target = await createUser('target-delete@example.com', 'reader');
+      // Give the target a live session to confirm it is revoked on delete.
+      await db.insert(schema.sessions).values({
+        id: 'sess-delete-1',
+        userId: target.id,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      });
+
+      await userService.deleteUser(buildUserCtx(admin.id, 'admin'), target.id);
+
+      const row = await db.query.users.findFirst({ where: eq(schema.users.id, target.id) });
+      expect(row?.deletedAt).not.toBeNull();
+
+      const listed = await userService.list(buildUserCtx(admin.id, 'admin'));
+      expect(listed.map((u) => u.email)).not.toContain('target-delete@example.com');
+
+      const session = await db.query.sessions.findFirst({ where: eq(schema.sessions.id, 'sess-delete-1') });
+      expect(session).toBeUndefined();
+    });
+
+    it('prevents self-deletion', async () => {
+      const admin = await createUser('admin-delete-self@example.com', 'admin');
+
+      await expect(
+        userService.deleteUser(buildUserCtx(admin.id, 'admin'), admin.id),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('denies non-admin callers', async () => {
+      const editor = await createUser('editor-delete@example.com', 'editor');
+      const target = await createUser('target-delete-deny@example.com', 'reader');
+
+      await expect(
+        userService.deleteUser(buildUserCtx(editor.id, 'editor'), target.id),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('404s on an already-deleted user', async () => {
+      const admin = await createUser('admin-delete-again@example.com', 'admin');
+      const target = await createUser('target-delete-again@example.com', 'reader');
+
+      await userService.deleteUser(buildUserCtx(admin.id, 'admin'), target.id);
+      await expect(
+        userService.deleteUser(buildUserCtx(admin.id, 'admin'), target.id),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+  });
+
   describe('resetPassword', () => {
     it('sets a new temporary password and the must_reset_password flag', async () => {
       const admin = await createUser('admin-reset@example.com', 'admin');

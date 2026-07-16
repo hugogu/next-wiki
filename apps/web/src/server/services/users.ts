@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
@@ -26,7 +26,7 @@ function requireAdmin(ctx: PermCtx): void {
  */
 export async function hasAnyAdmin(): Promise<boolean> {
   const existingAdmin = await db.query.users.findFirst({
-    where: eq(schema.users.role, 'admin'),
+    where: and(eq(schema.users.role, 'admin'), isNull(schema.users.deletedAt)),
   });
   return Boolean(existingAdmin);
 }
@@ -47,6 +47,7 @@ export async function listSafe(ctx: PermCtx): Promise<UserView[] | null> {
 
 async function listInternal(): Promise<UserView[]> {
   const rows = await db.query.users.findMany({
+    where: isNull(schema.users.deletedAt),
     orderBy: schema.users.createdAt,
   });
 
@@ -97,6 +98,33 @@ export async function setStatus(ctx: PermCtx, userId: string, status: 'active' |
   if (!updated) {
     throw new DomainError('NOT_FOUND', 'User not found');
   }
+}
+
+/**
+ * Soft-delete a user account: mark it deleted, hide it from management lists,
+ * and revoke any live sessions. Authorship/audit references are preserved.
+ * Self-deletion is refused, which also guarantees at least one admin always
+ * remains (an admin cannot delete themselves).
+ */
+export async function deleteUser(ctx: PermCtx, userId: string): Promise<void> {
+  requireAdmin(ctx);
+
+  if (userId === getUserId(ctx)) {
+    throw new DomainError('FORBIDDEN', 'You cannot delete your own account');
+  }
+
+  const [updated] = await db
+    .update(schema.users)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(schema.users.id, userId), isNull(schema.users.deletedAt)))
+    .returning();
+
+  if (!updated) {
+    throw new DomainError('NOT_FOUND', 'User not found');
+  }
+
+  // Immediately invalidate the deleted user's sessions so a live cookie stops working.
+  await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
 }
 
 export async function resetPassword(

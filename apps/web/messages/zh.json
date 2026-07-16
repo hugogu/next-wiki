@@ -889,11 +889,19 @@
         "successMessage": "已为 {email} 设置临时密码",
         "securityHint": "请安全地分享此密码。该用户下次登录时必须设置新密码。"
       },
+      "delete": {
+        "button": "删除用户",
+        "title": "删除用户？",
+        "message": "确定要删除 {email} 吗？该账号将无法登录并从列表中移除，其历史内容归属仍会保留。此操作不可撤销。",
+        "confirm": "删除",
+        "error": "删除用户失败。"
+      },
       "error": {
         "manageForbidden": "你没有权限管理用户",
         "cannotRemoveOwnAdmin": "你不能移除自己的管理员角色",
         "userNotFound": "用户不存在",
         "cannotDisableSelf": "你不能禁用自己的账号",
+        "cannotDeleteSelf": "你不能删除自己的账号",
         "tempPasswordTooShort": "临时密码至少需要 8 个字符"
       }
     },

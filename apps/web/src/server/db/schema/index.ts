@@ -117,6 +117,10 @@ export const users = pgTable(
     localePreference: text('locale_preference'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Soft-delete marker: set when an admin removes the account. Deleted users
+    // are hidden from management lists and cannot authenticate, but their rows
+    // (and thus their authorship/audit references) are preserved.
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => ({
     emailIdx: index().on(t.email),

@@ -15,7 +15,8 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { UserAiAccessDialog } from '@/components/admin/ai/UserAiAccessDialog';
-import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon, SettingsIcon } from '@/components/icons';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon, SettingsIcon, TrashIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
 function IconButton({
@@ -54,6 +55,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
   const [tempPassword, setTempPassword] = useState('');
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
   const [aiUser, setAiUser] = useState<UserView | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserView | null>(null);
 
   const setRole = useApiMutation<{ userId: string; role: UserView['role'] }, { ok: true }>(
     ({ userId }) => `/api/users/${encodeURIComponent(userId)}/role`,
@@ -73,6 +75,16 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
       onSuccess: () => {
         setResettingUserId(null);
         setTempPassword('');
+        router.refresh();
+      },
+    },
+  );
+  const deleteUser = useApiMutation<{ userId: string }, { ok: true }>(
+    ({ userId }) => `/api/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
+      onSuccess: () => {
+        setDeletingUser(null);
         router.refresh();
       },
     },
@@ -207,6 +219,14 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                         >
                           {user.status === 'active' ? <LockIcon /> : <UnlockIcon />}
                         </IconButton>
+                        <IconButton
+                          label={t('admin.users.delete.button')}
+                          variant="danger"
+                          disabled={deleteUser.isPending}
+                          onClick={() => setDeletingUser(user)}
+                        >
+                          <TrashIcon />
+                        </IconButton>
                       </>
                     )}
                   </div>
@@ -217,6 +237,24 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
       </DataTable>
 
       {aiUser && <UserAiAccessDialog user={aiUser} onClose={() => setAiUser(null)} />}
+
+      {deletingUser && (
+        <ConfirmDialog
+          title={t('admin.users.delete.title')}
+          message={t('admin.users.delete.message', { email: deletingUser.email })}
+          confirmLabel={t('admin.users.delete.confirm')}
+          confirmVariant="danger"
+          pending={deleteUser.isPending}
+          error={deleteUser.error ? (deleteUser.error.message || t('admin.users.delete.error')) : undefined}
+          onConfirm={() => deleteUser.mutate({ userId: deletingUser.id })}
+          onCancel={() => {
+            if (!deleteUser.isPending) {
+              deleteUser.reset();
+              setDeletingUser(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
