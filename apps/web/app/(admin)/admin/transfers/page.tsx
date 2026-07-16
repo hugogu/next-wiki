@@ -5,7 +5,6 @@ import {
   ArchiveImportPanel,
   ExportPanel,
   TransferAdminTabs,
-  TransferRunList,
   WikiJsSourcePanel,
   type TransferTab,
 } from '@/components/admin/transfers';
@@ -23,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function tab(value?: string): TransferTab {
-  return ['exports', 'archives', 'wikijs', 'history'].includes(value ?? '')
+  return ['exports', 'archives', 'wikijs'].includes(value ?? '')
     ? (value as TransferTab)
     : 'exports';
 }
@@ -51,7 +50,6 @@ export default async function TransfersPage({
           {selected === 'exports' && <ExportPanel runs={runs.filter((run) => run.kind === 'site_export')} />}
           {selected === 'archives' && <ArchiveImportPanel runs={runs.filter((run) => run.kind.startsWith('archive_'))} />}
           {selected === 'wikijs' && <WikiJsSourcePanel sources={sources} runs={runs.filter((run) => run.kind.startsWith('wikijs_'))} />}
-          {selected === 'history' && <TransferRunList runs={runs} />}
         </TransferAdminTabs>
       </div>
     </Layout>

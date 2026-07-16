@@ -4,9 +4,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { useTranslation } from '@/i18n/client';
 
-export type TransferTab = 'exports' | 'archives' | 'wikijs' | 'history';
+export type TransferTab = 'exports' | 'archives' | 'wikijs';
 
-const TABS: TransferTab[] = ['exports', 'archives', 'wikijs', 'history'];
+const TABS: TransferTab[] = ['exports', 'archives', 'wikijs'];
 
 export function TransferAdminTabs({
   selected,
