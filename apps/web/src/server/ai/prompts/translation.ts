@@ -19,6 +19,7 @@ const MARKDOWN_RULES = [
   'Preserve YAML frontmatter keys and any structural values; translate only human-readable frontmatter text such as title and summary.',
   'Keep link targets, image paths, and HTML attributes unchanged; you may translate visible link text and image alt text.',
   'Do not add, remove, or reorder sections. Do not add commentary, notes, or explanations.',
+  'Do not restate or describe the task, and do not think out loud. Never write meta sentences such as "The user wants me to…", "I need to…", or "Here is the translation". Begin your response directly with the first line of the translated document.',
   'Return ONLY the translated Markdown document. Do not wrap the whole document in a code fence.',
 ].join('\n- ');
 
@@ -53,7 +54,7 @@ export function buildTranslationInput(params: {
     messages: [
       {
         role: 'user',
-        content: `Translate this Markdown document into ${target}. Output only the translated Markdown.\n\n<document>\n${params.sourceMarkdown}\n</document>`,
+        content: `Translate this Markdown document into ${target}. Respond with the translated Markdown only — no preface, no reasoning, no explanation. Start directly with the document's first line.\n\n<document>\n${params.sourceMarkdown}\n</document>`,
       },
     ],
     maxOutputTokens: params.maxOutputTokens,
