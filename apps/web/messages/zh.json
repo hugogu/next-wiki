@@ -293,6 +293,12 @@
       "date": "日期",
       "tags": "标签",
       "summary": "摘要"
+    },
+    "tags": {
+      "add": "添加标签",
+      "addPlaceholder": "标签名…",
+      "remove": "移除标签 {name}",
+      "saveError": "保存标签失败。"
     }
   },
   "space": {

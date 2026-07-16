@@ -1725,3 +1725,18 @@ export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: Pu
   if (!result) throw new DomainError('NOT_FOUND', 'Page not found');
   return result;
 }
+
+/**
+ * Replace a page's tags and publish immediately, so inline tag edits take
+ * effect on the live page without a manual publish step. Drafts the change
+ * through the normal metadata path (which enforces edit permission) and then
+ * publishes the new revision (which enforces publish permission).
+ */
+export async function setPageTags(ctx: PermCtx, pageId: string, tags: string[]): Promise<PublicPageResource> {
+  const page = await getPageRowById(pageId);
+  if (!page || !page.latestVersionId) throw new DomainError('NOT_FOUND', 'Page not found');
+  const drafted = await updatePageMetadata(ctx, pageId, { baseRevisionId: page.latestVersionId, tags });
+  const version = drafted.latestRevision?.version;
+  if (version == null) throw new DomainError('NOT_FOUND', 'Draft revision not found after tag update');
+  return publishRevision(ctx, pageId, version, {}, ['latestRevision']);
+}

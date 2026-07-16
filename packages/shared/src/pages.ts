@@ -133,6 +133,13 @@ export const publicPageMetadataInputSchema = z.object({
 });
 export type PublicPageMetadataInput = z.infer<typeof publicPageMetadataInputSchema>;
 
+/** Replace a page's tag set. The server drafts + publishes the change so the
+ * live page reflects it immediately (used by inline tag editing). */
+export const publicPageTagsInputSchema = z.object({
+  tags: z.array(z.string().min(1).max(100)).max(50),
+});
+export type PublicPageTagsInput = z.infer<typeof publicPageTagsInputSchema>;
+
 export const publicTagSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),

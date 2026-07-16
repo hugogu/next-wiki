@@ -293,6 +293,12 @@
       "date": "Date",
       "tags": "Tags",
       "summary": "Summary"
+    },
+    "tags": {
+      "add": "Add tag",
+      "addPlaceholder": "Tag name…",
+      "remove": "Remove tag {name}",
+      "saveError": "Failed to save tags."
     }
   },
   "space": {

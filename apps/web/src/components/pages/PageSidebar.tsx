@@ -1,4 +1,5 @@
-import { TagList, type PageTag } from './TagList';
+import { ReaderTags } from './ReaderTags';
+import type { PageTag } from './TagList';
 import type { Heading } from '@/lib/html';
 
 type PageSidebarProps = {
@@ -22,11 +23,7 @@ export function PageSidebar({ headings, tags, tagsLabel, outlineLabel }: PageSid
       {hasTags && (
         <div className="rounded-lg border border-border bg-surface p-sm">
           <p className="mb-sm border-b border-border pb-sm text-sm font-medium text-foreground">{tagsLabel}</p>
-          <TagList
-            tags={tags}
-            ariaLabel={tagsLabel}
-            tagHref={(tag) => `/tags/${encodeURIComponent(tag.normalizedName)}`}
-          />
+          <ReaderTags tags={tags} ariaLabel={tagsLabel} />
         </div>
       )}
       {hasOutline && (

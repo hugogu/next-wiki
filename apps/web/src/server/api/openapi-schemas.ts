@@ -780,6 +780,10 @@ export const PublicPageMetadataInput = z.object({
   summary: z.string().max(2000).nullable().optional(),
 }).describe('Additive patch for the supported page metadata fields.');
 
+export const PublicPageTagsInput = z.object({
+  tags: z.array(z.string().min(1).max(100)).max(50).describe('The complete replacement tag set for the page.'),
+}).describe('Replace a page\'s tags; the change is published immediately.');
+
 export const PublicTag = z.object({
   id: z.string().uuid(),
   name: z.string(),

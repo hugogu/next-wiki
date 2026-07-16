@@ -6,6 +6,7 @@ import { Navigator } from './Navigator';
 import type { AppShellProps } from './types';
 import { AiChatPane } from '@/components/chat/AiChatPane';
 import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
+import { PageEditProvider } from '@/components/pages/PageEditContext';
 import type { Actor } from '@/server/permissions';
 import type { AiEntitlementView } from '@next-wiki/shared';
 
@@ -112,7 +113,11 @@ export function AppShell({
                     long ones, keeping the footer at the very bottom of the
                     flow instead of floating mid-content. */}
               <div className={fitViewport ? 'h-full min-w-0 shrink-0' : 'grow shrink-0 basis-auto'}>
-                {children}
+                <PageEditProvider
+                  value={{ canEdit: resolvedPageContext?.canEdit ?? false, pageId: resolvedPageContext?.pageId }}
+                >
+                  {children}
+                </PageEditProvider>
               </div>
               {footer}
             </div>

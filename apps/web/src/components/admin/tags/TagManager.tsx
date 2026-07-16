@@ -6,6 +6,7 @@ import type { PublicPageResource } from '@next-wiki/shared';
 import { ArrowUpDownIcon, EditIcon, PlusIcon, SearchIcon, TagIcon, TrashIcon } from '@/components/icons';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { EditableTagList } from '@/components/pages/EditableTagList';
 import { useTranslation } from '@/i18n/client';
 import { getEditHref, getPageHref } from '@/lib/path';
 
@@ -58,6 +59,7 @@ export function TagManager() {
   const [tagQuery, setTagQuery] = useState('');
   const [pageQuery, setPageQuery] = useState('');
   const [pageResult, setPageResult] = useState<{ tagId: string; items: PublicPageResource[] }>({ tagId: '', items: [] });
+  const [pagesReloadKey, setPagesReloadKey] = useState(0);
   const [newName, setNewName] = useState('');
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [renameName, setRenameName] = useState('');
@@ -121,7 +123,7 @@ export function TagManager() {
         }
       });
     return () => controller.abort();
-  }, [selectedTagId, selectedTagNormalizedName, t]);
+  }, [selectedTagId, selectedTagNormalizedName, pagesReloadKey, t]);
 
   const filteredPages = useMemo(() => {
     const query = pageQuery.trim().toLocaleLowerCase();
@@ -390,19 +392,15 @@ export function TagManager() {
                             {page.title}
                           </Link>
                           <code className="block truncate text-xs text-muted">/{page.path}</code>
-                          {(page.metadata?.tags?.length ?? 0) > 0 && (
-                            <ul className="mt-xs flex flex-wrap gap-xs" aria-label={t('admin.tags.pageTagsLabel')}>
-                              {page.metadata!.tags.map((tag) => (
-                                <li
-                                  key={tag.id}
-                                  className={`inline-flex items-center gap-xs rounded-full border px-sm py-[2px] text-xs ${tag.normalizedName === selectedTagNormalizedName ? 'border-primary/30 bg-primary/10 font-medium text-primary' : 'border-border text-muted'}`}
-                                >
-                                  <TagIcon className="h-3 w-3" />
-                                  {tag.name}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <div className="mt-xs">
+                            <EditableTagList
+                              tags={page.metadata?.tags ?? []}
+                              pageId={page.id}
+                              canEdit
+                              ariaLabel={t('admin.tags.pageTagsLabel')}
+                              onChange={() => setPagesReloadKey((key) => key + 1)}
+                            />
+                          </div>
                         </div>
                         <span className="hidden rounded-full border border-border px-sm py-xs text-xs text-muted sm:inline-block">
                           {t(`admin.pages.status.${page.status}`)}

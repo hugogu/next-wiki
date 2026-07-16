@@ -63,6 +63,30 @@ describe('public content write facade', () => {
     expect(published.publishedRevision?.version).toBe(2);
   });
 
+  it('setPageTags drafts and immediately publishes the new tag set', async () => {
+    const editor = await createPublicApiUser('public-write-tags@example.com', 'editor');
+    const ctx = buildUserCtx(editor.id, 'editor');
+
+    const page = await publicContent.createPage(
+      ctx,
+      {
+        path: 'public/tags',
+        title: 'Tags',
+        contentSource: '---\ntitle: Tags\ntags:\n  - alpha\n---\n\n# Tags',
+      },
+      ['latestRevision'],
+    );
+    await revisions.publish(ctx, { path: 'public/tags', version: 1 });
+
+    const updated = await publicContent.setPageTags(ctx, page.id, ['beta', 'gamma']);
+    expect(updated.status).toBe('published');
+    expect((updated.metadata?.tags ?? []).map((tag) => tag.name).sort()).toEqual(['beta', 'gamma']);
+
+    // The change is live: re-reading the page yields the new published tags.
+    const reread = await publicContent.getPageById(ctx, page.id, []);
+    expect((reread?.metadata?.tags ?? []).map((tag) => tag.name).sort()).toEqual(['beta', 'gamma']);
+  });
+
   it('rejects stale base revisions without creating a new draft', async () => {
     const editor = await createPublicApiUser('public-stale-editor@example.com', 'editor');
     const userCtx = buildUserCtx(editor.id, 'editor');
