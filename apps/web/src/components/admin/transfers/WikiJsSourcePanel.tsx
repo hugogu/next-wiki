@@ -7,7 +7,8 @@ import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { EyeIcon, LinkIcon, ImportIcon, TrashIcon } from '@/components/icons';
+import { ModalDialog } from '@/components/ui/ModalDialog';
+import { EyeIcon, LinkIcon, ImportIcon, InfoIcon, PlusIcon, TrashIcon } from '@/components/icons';
 import { apiDelete, apiPatch, apiPost } from '@/lib/api/client';
 import { TransferRunList } from './TransferRunList';
 
@@ -26,6 +27,7 @@ export function WikiJsSourcePanel({
   const [privateNetwork, setPrivateNetwork] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
@@ -45,8 +47,10 @@ export function WikiJsSourcePanel({
       setName('');
       setBaseUrl('');
       setApiToken('');
+      setPrivateNetwork(false);
       setTestStatus('idle');
       setTestMessage(null);
+      setShowAdd(false);
       router.refresh();
     } catch (cause) {
       setError((cause as { message?: string }).message ?? 'Failed');
@@ -105,39 +109,61 @@ export function WikiJsSourcePanel({
 
   return (
     <section className="space-y-md">
-      <div className="rounded-lg border border-border bg-surface-elevated p-md">
-        <h2 className="font-display text-lg font-semibold">{t('admin.transfers.tabs.wikijs')}</h2>
-        <p className="mt-xs text-sm text-muted">{t('admin.transfers.wikijs.comingSoon')}</p>
-        <div className="mt-md grid gap-sm">
-          <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('admin.transfers.wikijs.name')} />
-          <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://wiki.example.com" />
-          <Input type="password" value={apiToken} onChange={(event) => setApiToken(event.target.value)} placeholder={t('admin.transfers.wikijs.token')} />
-          <label className="flex items-center gap-sm text-sm">
-            <input type="checkbox" checked={privateNetwork} onChange={(event) => setPrivateNetwork(event.target.checked)} />
-            {t('admin.transfers.wikijs.privateNetwork')}
-          </label>
-          <div className="mt-md flex flex-wrap items-center gap-sm">
-            <Button
-              disabled={busy || !baseUrl || !apiToken}
-              variant="secondary"
-              onClick={testSource}
-            >
-              {t('admin.transfers.wikijs.test')}
-            </Button>
-            <Button disabled={busy || !name || !baseUrl || !apiToken} onClick={createSource}>{t('admin.transfers.wikijs.add')}</Button>
-          </div>
+      <div className="flex flex-wrap items-start justify-between gap-sm rounded-lg border border-border bg-surface-elevated p-md">
+        <div>
+          <h2 className="font-display text-lg font-semibold">{t('admin.transfers.tabs.wikijs')}</h2>
+          <p className="mt-xs text-sm text-muted">{t('admin.transfers.wikijs.comingSoon')}</p>
         </div>
-        {testStatus !== 'idle' && (
-          <p
-            className={`mt-sm text-sm ${
-              testStatus === 'success' ? 'text-success' : testStatus === 'error' ? 'text-danger' : 'text-muted'
-            }`}
-          >
-            {testStatus === 'running' ? t('admin.transfers.wikijs.testing') : testMessage}
-          </p>
-        )}
-        {error && <p className="mt-sm text-sm text-danger">{error}</p>}
+        <Button onClick={() => { setError(null); setTestStatus('idle'); setTestMessage(null); setShowAdd(true); }}>
+          <PlusIcon className="h-4 w-4" />
+          <span className="ml-xs">{t('admin.transfers.wikijs.add')}</span>
+        </Button>
       </div>
+
+      {showAdd && (
+        <ModalDialog
+          title={t('admin.transfers.wikijs.addTitle')}
+          description={t('admin.transfers.wikijs.comingSoon')}
+          onClose={() => { if (!busy) setShowAdd(false); }}
+          maxWidth="max-w-lg"
+        >
+          <div className="grid gap-sm">
+            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('admin.transfers.wikijs.name')} />
+            <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://wiki.example.com" />
+            <Input type="password" value={apiToken} onChange={(event) => setApiToken(event.target.value)} placeholder={t('admin.transfers.wikijs.token')} />
+            <label className="flex items-center gap-sm text-sm">
+              <input type="checkbox" checked={privateNetwork} onChange={(event) => setPrivateNetwork(event.target.checked)} />
+              {t('admin.transfers.wikijs.privateNetwork')}
+              <Tooltip label={t('admin.transfers.wikijs.privateNetworkHelp')}>
+                <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.wikijs.privateNetworkHelp')}>
+                  <InfoIcon className="h-4 w-4" />
+                </span>
+              </Tooltip>
+            </label>
+            <div className="mt-sm flex flex-wrap items-center gap-sm">
+              <Button
+                disabled={busy || !baseUrl || !apiToken}
+                variant="secondary"
+                onClick={testSource}
+              >
+                {t('admin.transfers.wikijs.test')}
+              </Button>
+              <Button disabled={busy || !name || !baseUrl || !apiToken} onClick={createSource}>{t('admin.transfers.wikijs.add')}</Button>
+            </div>
+            {testStatus !== 'idle' && (
+              <p
+                className={`text-sm ${
+                  testStatus === 'success' ? 'text-success' : testStatus === 'error' ? 'text-danger' : 'text-muted'
+                }`}
+              >
+                {testStatus === 'running' ? t('admin.transfers.wikijs.testing') : testMessage}
+              </p>
+            )}
+            {error && <p className="text-sm text-danger">{error}</p>}
+          </div>
+        </ModalDialog>
+      )}
+
       {sources.map((source) => {
         const preview = runs.find((run) => run.sourceId === source.id && run.kind === 'wikijs_preview' && (run.status === 'completed' || run.status === 'completed_with_warnings'));
         return (

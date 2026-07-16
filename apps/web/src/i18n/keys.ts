@@ -400,6 +400,8 @@ export const translationKeys = [
   "admin.transfers.wikijs.name",
   "admin.transfers.wikijs.token",
   "admin.transfers.wikijs.privateNetwork",
+  "admin.transfers.wikijs.privateNetworkHelp",
+  "admin.transfers.wikijs.addTitle",
   "admin.transfers.wikijs.add",
   "admin.transfers.wikijs.test",
   "admin.transfers.wikijs.testing",

@@ -602,6 +602,8 @@
         "name": "数据源名称",
         "token": "API Token",
         "privateNetwork": "允许访问受信任的私有网络 Wiki.js 主机",
+        "privateNetworkHelp": "默认仅允许连接公网地址。开启后可连接位于受信任私有网络（如内网 IP 或自建域名）的 Wiki.js 主机；请仅对你信任的地址开启，以避免服务端请求伪造（SSRF）风险。",
+        "addTitle": "添加 Wiki.js 数据源",
         "add": "添加数据源",
         "test": "测试",
         "testing": "正在测试连接…",

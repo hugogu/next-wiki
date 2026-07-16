@@ -602,6 +602,8 @@
         "name": "Source name",
         "token": "API token",
         "privateNetwork": "Allow this trusted Wiki.js host on a private network",
+        "privateNetworkHelp": "By default only public hosts are allowed. Enable this to reach a Wiki.js host on a trusted private network (e.g. an internal IP or self-hosted domain). Only enable it for hosts you trust, to avoid server-side request forgery (SSRF).",
+        "addTitle": "Add Wiki.js source",
         "add": "Add source",
         "test": "Test",
         "testing": "Testing connection…",
