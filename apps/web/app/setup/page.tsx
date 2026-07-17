@@ -37,9 +37,9 @@ export default async function SetupPage() {
 
   return (
     <Layout skipPasswordGate>
-      <div className="max-w-md mx-auto px-lg py-xl">
+      <div className="mx-auto w-full max-w-4xl px-lg py-xl">
         <h1 className="font-display text-2xl font-semibold mb-md">{t('setup.heading')}</h1>
-        <p className="text-muted mb-md text-sm">{t('setup.description')}</p>
+        <p className="text-muted mb-lg text-sm">{t('setup.description')}</p>
         <FirstRunOnboarding initialState={state} />
       </div>
     </Layout>

@@ -5,6 +5,7 @@ import type { SetupSamplePageResult, SetupStateView } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { StepPanel } from '@/components/setup/StepPanel';
 import { useSamplePagesMutation } from '@/components/setup/useSetupOnboarding';
 import { getPageHref } from '@/lib/path';
 
@@ -58,23 +59,21 @@ export function SamplePagesStep({ state }: { state: SetupStateView }) {
   const decided = status === 'completed' || status === 'partial' || status === 'skipped';
 
   return (
-    <div className="space-y-md">
-      <div>
-        <h2 className="text-lg font-medium">{t('setup.samplePages.title')}</h2>
-        <p className="text-sm text-muted mt-xs">{t('setup.samplePages.description')}</p>
+    <StepPanel title={t('setup.samplePages.title')} description={t('setup.samplePages.description')}>
+      <div className="space-y-md">
+        {mutation.error && <Alert>{mutation.error.message}</Alert>}
+        {(decided || pages) && <SamplePageResultList pages={pages} />}
+        {!decided && (
+          <div className="flex gap-sm">
+            <Button onClick={() => mutation.mutate({ mode: 'generate' })} disabled={mutation.isPending}>
+              {mutation.isPending ? t('setup.samplePages.generating') : t('setup.samplePages.generate')}
+            </Button>
+            <Button variant="secondary" onClick={() => mutation.mutate({ mode: 'skip' })} disabled={mutation.isPending}>
+              {t('setup.samplePages.skip')}
+            </Button>
+          </div>
+        )}
       </div>
-      {mutation.error && <Alert>{mutation.error.message}</Alert>}
-      {(decided || pages) && <SamplePageResultList pages={pages} />}
-      {!decided && (
-        <div className="flex gap-sm">
-          <Button onClick={() => mutation.mutate({ mode: 'generate' })} disabled={mutation.isPending}>
-            {mutation.isPending ? t('setup.samplePages.generating') : t('setup.samplePages.generate')}
-          </Button>
-          <Button variant="secondary" onClick={() => mutation.mutate({ mode: 'skip' })} disabled={mutation.isPending}>
-            {t('setup.samplePages.skip')}
-          </Button>
-        </div>
-      )}
-    </div>
+    </StepPanel>
   );
 }

@@ -7,6 +7,7 @@ import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
+import { StepPanel } from '@/components/setup/StepPanel';
 import { useAiBootstrapMutation, type ApiError } from '@/components/setup/useSetupOnboarding';
 
 const PURPOSE_LABEL_KEYS = {
@@ -35,7 +36,7 @@ export function PurposeResultList({ purposes }: { purposes: SetupAiResult | null
       {entries.map(({ key, result }) => (
         <li key={key} className="flex items-start justify-between gap-md">
           <span>{t(PURPOSE_LABEL_KEYS[key])}</span>
-          <span className={result.status === 'configured' ? 'text-success' : result.status === 'failed' ? 'text-danger' : 'text-muted'}>
+          <span className={result.status === 'configured' ? 'text-primary' : result.status === 'failed' ? 'text-danger' : 'text-muted'}>
             {t(PURPOSE_STATUS_KEYS[result.status])}
             {result.modelName ? ` · ${result.modelName}` : ''}
             {result.reason ? ` — ${result.reason}` : ''}
@@ -95,90 +96,84 @@ export function OpenRouterBootstrapStep({ state }: { state: SetupStateView }) {
 
   if (status === 'queued' || status === 'running') {
     return (
-      <div className="space-y-md">
-        <h2 className="text-lg font-medium">{t('setup.ai.title')}</h2>
+      <StepPanel title={t('setup.ai.title')} description={t('setup.ai.description')}>
         <p className="text-sm text-muted" role="status">
           {status === 'queued' ? t('setup.ai.queued') : t('setup.ai.running')} {t('setup.ai.polling')}
         </p>
-      </div>
+      </StepPanel>
     );
   }
 
   if (status === 'completed' || status === 'partial' || status === 'skipped') {
     return (
-      <div className="space-y-md">
-        <h2 className="text-lg font-medium">{t('setup.ai.title')}</h2>
+      <StepPanel title={t('setup.ai.title')} description={t('setup.ai.description')}>
         <PurposeResultList purposes={purposes} />
-      </div>
+      </StepPanel>
     );
   }
 
   if (status === 'disabled') {
     return (
-      <div className="space-y-md">
-        <h2 className="text-lg font-medium">{t('setup.ai.title')}</h2>
-        <Alert>{t('setup.ai.disabled')}</Alert>
-        <Button
-          onClick={() => mutation.mutate({ mode: 'skip' })}
-          disabled={mutation.isPending}
-        >
-          {t('setup.ai.skip')}
-        </Button>
-      </div>
+      <StepPanel title={t('setup.ai.title')} description={t('setup.ai.description')}>
+        <div className="space-y-md">
+          <Alert>{t('setup.ai.disabled')}</Alert>
+          <Button onClick={() => mutation.mutate({ mode: 'skip' })} disabled={mutation.isPending}>
+            {t('setup.ai.skip')}
+          </Button>
+        </div>
+      </StepPanel>
     );
   }
 
   return (
-    <div className="space-y-md">
-      <div>
-        <h2 className="text-lg font-medium">{t('setup.ai.title')}</h2>
-        <p className="text-sm text-muted mt-xs">{t('setup.ai.description')}</p>
-      </div>
-      {error && <Alert>{error}</Alert>}
-      {status === 'failed' && purposes && <PurposeResultList purposes={purposes} />}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          setError(null);
-          mutation.mutate({ mode: 'configure', apiKey, autoAssign });
-        }}
-        className="space-y-md"
-      >
-        <div>
-          <label htmlFor="openrouter-key" className="block text-sm font-medium mb-sm">
-            {t('setup.ai.keyLabel')}
+    <StepPanel title={t('setup.ai.title')} description={t('setup.ai.description')}>
+      <div className="space-y-md">
+        {error && <Alert>{error}</Alert>}
+        {status === 'failed' && purposes && <PurposeResultList purposes={purposes} />}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setError(null);
+            mutation.mutate({ mode: 'configure', apiKey, autoAssign });
+          }}
+          className="space-y-md"
+        >
+          <div>
+            <label htmlFor="openrouter-key" className="mb-sm block text-sm font-medium">
+              {t('setup.ai.keyLabel')}
+            </label>
+            <Input
+              id="openrouter-key"
+              type="password"
+              autoComplete="off"
+              placeholder={t('setup.ai.keyPlaceholder')}
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+            <p className="mt-xs text-xs text-muted">{t('setup.ai.keyHelp')}</p>
+          </div>
+          <label className="flex items-center gap-sm text-sm">
+            <input
+              type="checkbox"
+              checked={autoAssign}
+              onChange={(event) => setAutoAssign(event.target.checked)}
+            />
+            {t('setup.ai.autoAssignLabel')}
           </label>
-          <Input
-            id="openrouter-key"
-            type="password"
-            autoComplete="off"
-            placeholder={t('setup.ai.keyPlaceholder')}
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
-          <p className="text-xs text-muted mt-xs">{t('setup.ai.keyHelp')}</p>
-        </div>
-        <label className="flex items-center gap-sm text-sm">
-          <input
-            type="checkbox"
-            checked={autoAssign}
-            onChange={(event) => setAutoAssign(event.target.checked)}
-          />
-          {t('setup.ai.autoAssignLabel')}
-        </label>
-        <div className="flex gap-sm">
-          <Button type="submit" disabled={mutation.isPending || apiKey.trim().length === 0}>
-            {mutation.isPending ? t('setup.ai.configuring') : status === 'failed' ? t('setup.ai.retry') : t('setup.ai.configure')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => mutation.mutate({ mode: 'skip' })}
-            disabled={mutation.isPending}
-          >
-            {t('setup.ai.skip')}
-          </Button>
-        </div>
-      </form>
-    </div>
+          <div className="flex gap-sm">
+            <Button type="submit" disabled={mutation.isPending || apiKey.trim().length === 0}>
+              {mutation.isPending ? t('setup.ai.configuring') : status === 'failed' ? t('setup.ai.retry') : t('setup.ai.configure')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => mutation.mutate({ mode: 'skip' })}
+              disabled={mutation.isPending}
+            >
+              {t('setup.ai.skip')}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </StepPanel>
   );
 }

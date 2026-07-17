@@ -143,7 +143,8 @@
       "summary": "总结"
     },
     "account": {
-      "success": "管理员账号已创建。请继续完成下方的可选设置步骤。"
+      "title": "创建管理员账号",
+      "description": "该账号将拥有整个维基，之后可以在管理后台添加更多用户。"
     },
     "ai": {
       "title": "通过 OpenRouter 设置 AI（可选）",
@@ -204,7 +205,6 @@
       "configureAiManually": "请在管理员 AI 设置中配置 AI 提供商和模型。",
       "goToWiki": "进入维基首页",
       "goToAiSettings": "打开管理员 AI 设置",
-      "viewPage": "查看页面",
       "status": {
         "skipped": "已跳过",
         "completed": "已完成",

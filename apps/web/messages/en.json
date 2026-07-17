@@ -143,7 +143,8 @@
       "summary": "Summary"
     },
     "account": {
-      "success": "Admin account created. Continue with the optional setup steps below."
+      "title": "Create the admin account",
+      "description": "This account owns the wiki. You can add more users later from the admin area."
     },
     "ai": {
       "title": "Set up AI with OpenRouter (optional)",
@@ -204,7 +205,6 @@
       "configureAiManually": "Configure AI providers and models in Admin AI settings.",
       "goToWiki": "Go to wiki home",
       "goToAiSettings": "Open Admin AI settings",
-      "viewPage": "View page",
       "status": {
         "skipped": "Skipped",
         "completed": "Completed",
