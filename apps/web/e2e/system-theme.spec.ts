@@ -7,7 +7,7 @@ async function login(page: Page, email: string, password: string) {
   await page.goto('/auth/login');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await page.getByRole('main').getByRole('button', { name: /sign in/i }).click();
   await page.waitForURL('/');
 }
 
@@ -32,7 +32,8 @@ test.describe('admin system themes', () => {
     const stylesheetEditor = page.getByLabel('Theme stylesheet').locator('.cm-content');
     await expect(stylesheetEditor).toContainText('font-size');
 
-    await page.getByRole('button', { name: 'Copy to edit' }).click();
+    // Copy directly from the theme list row (no need to scroll to the editor).
+    await page.getByRole('button', { name: 'Copy to edit: Wiki.js-inspired' }).click();
     await expect(page.getByText('Copy created.')).toBeVisible();
 
     await page.getByLabel('Theme name').fill('My System Theme');
@@ -41,7 +42,9 @@ test.describe('admin system themes', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Theme saved.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Activate' }).click();
+    // Enable via the toggle next to the theme title.
+    await page.getByRole('switch', { name: 'Enable this theme' }).click();
     await expect(page.getByText('Theme activated.')).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Enable this theme' })).toBeChecked();
   });
 });

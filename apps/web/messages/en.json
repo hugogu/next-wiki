@@ -614,6 +614,7 @@
       "activeSummary": "Active appearance: {name}",
       "defaultTheme": "Default appearance",
       "activate": "Activate",
+      "enable": "Enable this theme",
       "activated": "Theme activated.",
       "copy": "Copy to edit",
       "copied": "Copy created.",
@@ -985,6 +986,7 @@
         "role": "Role",
         "status": "Status",
         "joined": "Joined",
+        "lastLogin": "Last login",
         "actions": "Actions"
       },
       "role": {

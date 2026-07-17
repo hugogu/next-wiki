@@ -9,6 +9,8 @@ import type {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
+import { Switch } from '@/components/ui/Switch';
+import { CopyIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 import { ThemePreview, buildPreviewVars } from '@/components/appearance/ThemePreview';
 import { CssEditor } from './CssEditor';
@@ -104,13 +106,12 @@ export function SystemThemeManager({
       setNotice(t('admin.appearance.activated'));
     });
 
-  const copy = () =>
+  const copyTheme = (source: { id: string; name: string }) =>
     withBusy(async () => {
-      if (!detail) return;
       const res = await fetch('/api/system-themes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sourceThemeId: detail.id, name: `${detail.name} copy` }),
+        body: JSON.stringify({ sourceThemeId: source.id, name: `${source.name} copy` }),
       });
       if (!res.ok) {
         setError(await readError(res));
@@ -198,26 +199,40 @@ export function SystemThemeManager({
           const isActive = theme.id === activeThemeId;
           const selected = detail?.id === theme.id;
           return (
-            <button
+            <div
               key={theme.id}
-              type="button"
-              onClick={() => selectInUrl(theme.id)}
-              className={`flex w-full items-center justify-between gap-sm rounded-md px-md py-sm text-left text-sm ${
+              className={`group flex w-full items-center gap-xs rounded-md px-md py-sm text-left text-sm ${
                 selected ? 'bg-surface-elevated' : 'hover:bg-surface-elevated'
               }`}
             >
-              <span className="truncate">
-                {theme.name}
-                {theme.isBuiltin && (
-                  <span className="ml-xs text-xs text-muted">({t('admin.appearance.builtin')})</span>
-                )}
-              </span>
-              {isActive && (
-                <span className="text-xs font-medium text-primary">
-                  {t('admin.appearance.active')}
+              <button
+                type="button"
+                onClick={() => selectInUrl(theme.id)}
+                className="flex min-w-0 flex-1 items-center justify-between gap-sm"
+              >
+                <span className="truncate">
+                  {theme.name}
+                  {theme.isBuiltin && (
+                    <span className="ml-xs text-xs text-muted">({t('admin.appearance.builtin')})</span>
+                  )}
                 </span>
-              )}
-            </button>
+                {isActive && (
+                  <span className="text-xs font-medium text-primary">
+                    {t('admin.appearance.active')}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label={`${t('admin.appearance.copy')}: ${theme.name}`}
+                title={t('admin.appearance.copy')}
+                disabled={busy}
+                onClick={() => copyTheme({ id: theme.id, name: theme.name })}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-background hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-40"
+              >
+                <CopyIcon className="h-4 w-4" />
+              </button>
+            </div>
           );
         })}
       </aside>
@@ -242,6 +257,15 @@ export function SystemThemeManager({
                 {detail.isBuiltin && (
                   <span className="text-xs text-muted">{t('admin.appearance.builtinReadonly')}</span>
                 )}
+                <span className="ml-auto flex items-center gap-sm">
+                  <Switch
+                    checked={detail.id === activeThemeId}
+                    disabled={busy}
+                    aria-label={t('admin.appearance.enable')}
+                    onClick={() => activate(detail.id === activeThemeId ? null : detail.id)}
+                  />
+                  <span className="text-sm text-muted">{t('admin.appearance.enable')}</span>
+                </span>
               </div>
 
               <CssEditor
@@ -258,39 +282,16 @@ export function SystemThemeManager({
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-sm">
-                {detail.isBuiltin ? (
-                  <>
-                    <Button onClick={() => activate(detail.id)} disabled={busy}>
-                      {t('admin.appearance.activate')}
-                    </Button>
-                    <Button variant="secondary" onClick={copy} disabled={busy}>
-                      {t('admin.appearance.copy')}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={() => activate(detail.id)}
-                      disabled={busy}
-                      variant={detail.id === activeThemeId ? 'secondary' : 'primary'}
-                    >
-                      {detail.id === activeThemeId
-                        ? t('admin.appearance.active')
-                        : t('admin.appearance.activate')}
-                    </Button>
-                    <Button variant="secondary" onClick={copy} disabled={busy}>
-                      {t('admin.appearance.copy')}
-                    </Button>
-                    <Button variant="secondary" onClick={save} disabled={busy}>
-                      {t('admin.appearance.save')}
-                    </Button>
-                    <Button variant="ghost" onClick={() => setConfirmDelete(true)} disabled={busy}>
-                      {t('admin.appearance.delete')}
-                    </Button>
-                  </>
-                )}
-              </div>
+              {!detail.isBuiltin && (
+                <div className="flex flex-wrap items-center gap-sm">
+                  <Button variant="secondary" onClick={save} disabled={busy}>
+                    {t('admin.appearance.save')}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirmDelete(true)} disabled={busy}>
+                    {t('admin.appearance.delete')}
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="lg:sticky lg:top-md lg:self-start">

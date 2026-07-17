@@ -614,6 +614,7 @@
       "activeSummary": "当前生效外观：{name}",
       "defaultTheme": "默认外观",
       "activate": "启用",
+      "enable": "启用该主题",
       "activated": "已启用该主题。",
       "copy": "复制以编辑",
       "copied": "已创建副本。",
@@ -985,6 +986,7 @@
         "role": "角色",
         "status": "状态",
         "joined": "加入时间",
+        "lastLogin": "最后登录",
         "actions": "操作"
       },
       "role": {
