@@ -135,7 +135,84 @@
   "setup": {
     "metadataTitle": "First-run setup",
     "heading": "Welcome to next-wiki",
-    "description": "Create the initial admin account to get started. This screen is only available while no admins exist."
+    "description": "Get your wiki ready: create the initial admin account, then choose optional AI and example page setup.",
+    "steps": {
+      "account": "Admin account",
+      "ai": "AI setup (optional)",
+      "samplePages": "Example pages (optional)",
+      "summary": "Summary"
+    },
+    "account": {
+      "success": "Admin account created. Continue with the optional setup steps below."
+    },
+    "ai": {
+      "title": "Set up AI with OpenRouter (optional)",
+      "description": "Connect an OpenRouter account to enable wiki chat, semantic search, and image generation. You can skip this and configure it later in Admin AI settings.",
+      "keyLabel": "OpenRouter API key",
+      "keyPlaceholder": "sk-or-...",
+      "keyHelp": "The key is stored encrypted and never shown again.",
+      "autoAssignLabel": "Automatically assign detected models to AI features",
+      "configure": "Validate and set up AI",
+      "configuring": "Validating...",
+      "skip": "Skip AI setup",
+      "retry": "Retry",
+      "queued": "Detecting models in the background...",
+      "running": "Syncing models...",
+      "polling": "This can take a minute. You can wait or refresh the page.",
+      "disabled": "AI is disabled by administrator policy. You can continue without AI.",
+      "error": {
+        "authFailed": "The OpenRouter key could not be validated. Check the key and try again.",
+        "rateLimited": "OpenRouter rate limit exceeded. Wait a moment and retry.",
+        "timeout": "OpenRouter validation timed out. Retry.",
+        "unavailable": "OpenRouter is unavailable right now. Retry or skip for now.",
+        "generic": "AI setup failed. You can retry or skip and configure it later."
+      },
+      "purposes": {
+        "wiki_text": "Chat / Wiki answers",
+        "wiki_embedding": "Embeddings / Semantic search",
+        "wiki_image": "Image generation"
+      },
+      "purposeStatus": {
+        "configured": "Configured",
+        "skipped": "Skipped",
+        "unavailable": "No compatible model",
+        "needs_manual_setup": "Needs manual setup",
+        "failed": "Failed"
+      }
+    },
+    "samplePages": {
+      "title": "Generate example and help pages (optional)",
+      "description": "Create a welcome page, a Markdown syntax guide, and a main features tour as normal wiki pages. You can edit or delete them later.",
+      "generate": "Generate example pages",
+      "generating": "Generating...",
+      "skip": "Skip example pages",
+      "pageStatus": {
+        "created": "Created",
+        "updated": "Updated",
+        "skipped": "Already present",
+        "collision": "Skipped (already exists)",
+        "failed": "Failed"
+      }
+    },
+    "summary": {
+      "title": "Setup complete",
+      "description": "Your wiki is ready. Review the setup results below.",
+      "adminCreated": "Admin account created",
+      "aiStatus": "AI setup",
+      "samplePagesStatus": "Example pages",
+      "manualActions": "Remaining manual actions",
+      "configureAiManually": "Configure AI providers and models in Admin AI settings.",
+      "goToWiki": "Go to wiki home",
+      "goToAiSettings": "Open Admin AI settings",
+      "viewPage": "View page",
+      "status": {
+        "skipped": "Skipped",
+        "completed": "Completed",
+        "partial": "Partially completed",
+        "failed": "Failed",
+        "disabled": "Disabled"
+      }
+    }
   },
   "site": {
     "description": "A personal knowledge base where you collaborate with AI and continuously feed it better context."
@@ -223,7 +300,13 @@
       },
       "versionLink": "Version {version}",
       "revisionMeta": "{date} by {name}",
-      "compare": { "selectionLabel": "Select revisions to compare", "selectVersion": "Version {version}", "submit": "Compare", "ready": "Two revisions selected", "selectHint": "Select two revisions" }
+      "compare": {
+        "selectionLabel": "Select revisions to compare",
+        "selectVersion": "Version {version}",
+        "submit": "Compare",
+        "ready": "Two revisions selected",
+        "selectHint": "Select two revisions"
+      }
     },
     "revision": {
       "metadataTitle": "Revision {version} - {path}",
@@ -236,7 +319,17 @@
         "notFound": "Revision not found"
       }
     },
-    "diff": { "heading": "Revision comparison", "comparing": "Comparing v{earlier} to v{later}", "source": "Source", "preview": "Preview", "context": "Context", "fullContext": "Full context", "ignoreWhitespace": "Ignore whitespace", "syncScroll": "Sync scroll", "noChanges": "No differences to display." },
+    "diff": {
+      "heading": "Revision comparison",
+      "comparing": "Comparing v{earlier} to v{later}",
+      "source": "Source",
+      "preview": "Preview",
+      "context": "Context",
+      "fullContext": "Full context",
+      "ignoreWhitespace": "Ignore whitespace",
+      "syncScroll": "Sync scroll",
+      "noChanges": "No differences to display."
+    },
     "publish": {
       "button": {
         "submit": "Publish this revision",

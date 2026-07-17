@@ -135,7 +135,84 @@
   "setup": {
     "metadataTitle": "首次设置",
     "heading": "欢迎使用 next-wiki",
-    "description": "创建第一个管理员账号以开始使用。此界面仅在尚未存在管理员时可用。"
+    "description": "准备您的维基：创建第一个管理员账号，然后按需完成 AI 和示例页面设置。",
+    "steps": {
+      "account": "管理员账号",
+      "ai": "AI 设置（可选）",
+      "samplePages": "示例页面（可选）",
+      "summary": "总结"
+    },
+    "account": {
+      "success": "管理员账号已创建。请继续完成下方的可选设置步骤。"
+    },
+    "ai": {
+      "title": "通过 OpenRouter 设置 AI（可选）",
+      "description": "连接 OpenRouter 账号以启用维基问答、语义搜索和图片生成。也可以跳过，稍后在管理员 AI 设置中配置。",
+      "keyLabel": "OpenRouter API 密钥",
+      "keyPlaceholder": "sk-or-...",
+      "keyHelp": "密钥将加密存储，保存后不会再显示。",
+      "autoAssignLabel": "自动为各 AI 功能分配检测到的模型",
+      "configure": "验证并设置 AI",
+      "configuring": "正在验证...",
+      "skip": "跳过 AI 设置",
+      "retry": "重试",
+      "queued": "正在后台检测模型...",
+      "running": "正在同步模型...",
+      "polling": "可能需要一分钟。您可以等待或刷新页面。",
+      "disabled": "AI 已被管理员策略禁用。您可以不使用 AI 继续。",
+      "error": {
+        "authFailed": "OpenRouter 密钥验证失败，请检查密钥后重试。",
+        "rateLimited": "OpenRouter 速率超限，请稍候重试。",
+        "timeout": "OpenRouter 验证超时，请重试。",
+        "unavailable": "OpenRouter 暂时不可用，请重试或暂时跳过。",
+        "generic": "AI 设置失败。您可以重试，或跳过并稍后配置。"
+      },
+      "purposes": {
+        "wiki_text": "聊天 / 维基问答",
+        "wiki_embedding": "向量嵌入 / 语义搜索",
+        "wiki_image": "图片生成"
+      },
+      "purposeStatus": {
+        "configured": "已配置",
+        "skipped": "已跳过",
+        "unavailable": "无兼容模型",
+        "needs_manual_setup": "需要手动设置",
+        "failed": "失败"
+      }
+    },
+    "samplePages": {
+      "title": "生成示例和帮助页面（可选）",
+      "description": "创建欢迎页、Markdown 语法指南和主要功能介绍，它们都是普通的维基页面，之后可以编辑或删除。",
+      "generate": "生成示例页面",
+      "generating": "正在生成...",
+      "skip": "跳过示例页面",
+      "pageStatus": {
+        "created": "已创建",
+        "updated": "已更新",
+        "skipped": "已存在",
+        "collision": "已跳过（已存在）",
+        "failed": "失败"
+      }
+    },
+    "summary": {
+      "title": "设置完成",
+      "description": "您的维基已就绪。请查看下方的设置结果。",
+      "adminCreated": "管理员账号已创建",
+      "aiStatus": "AI 设置",
+      "samplePagesStatus": "示例页面",
+      "manualActions": "待手动完成的事项",
+      "configureAiManually": "请在管理员 AI 设置中配置 AI 提供商和模型。",
+      "goToWiki": "进入维基首页",
+      "goToAiSettings": "打开管理员 AI 设置",
+      "viewPage": "查看页面",
+      "status": {
+        "skipped": "已跳过",
+        "completed": "已完成",
+        "partial": "部分完成",
+        "failed": "失败",
+        "disabled": "已禁用"
+      }
+    }
   },
   "site": {
     "description": "与 AI 协作，并持续反哺 AI 的个人知识库。"
@@ -223,7 +300,13 @@
       },
       "versionLink": "版本 {version}",
       "revisionMeta": "{date}，作者 {name}",
-      "compare": { "selectionLabel": "选择要比较的版本", "selectVersion": "版本 {version}", "submit": "比较", "ready": "已选择两个版本", "selectHint": "请选择两个版本" }
+      "compare": {
+        "selectionLabel": "选择要比较的版本",
+        "selectVersion": "版本 {version}",
+        "submit": "比较",
+        "ready": "已选择两个版本",
+        "selectHint": "请选择两个版本"
+      }
     },
     "revision": {
       "metadataTitle": "版本 {version} - {path}",
@@ -236,7 +319,17 @@
         "notFound": "版本不存在"
       }
     },
-    "diff": { "heading": "版本比较", "comparing": "比较 v{earlier} 与 v{later}", "source": "源文档", "preview": "预览", "context": "上下文", "fullContext": "完整上下文", "ignoreWhitespace": "忽略空白字符", "syncScroll": "同步滚动", "noChanges": "没有可显示的差异。" },
+    "diff": {
+      "heading": "版本比较",
+      "comparing": "比较 v{earlier} 与 v{later}",
+      "source": "源文档",
+      "preview": "预览",
+      "context": "上下文",
+      "fullContext": "完整上下文",
+      "ignoreWhitespace": "忽略空白字符",
+      "syncScroll": "同步滚动",
+      "noChanges": "没有可显示的差异。"
+    },
     "publish": {
       "button": {
         "submit": "发布此版本",

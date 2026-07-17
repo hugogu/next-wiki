@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { setupInputSchema, type SetupInput } from '@next-wiki/shared';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { setupInputSchema, type SetupInput } from '@next-wiki/shared';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
@@ -11,12 +12,20 @@ import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { getLocalizedErrorMessage } from '@/i18n/error-messages';
 
+/**
+ * Account step of first-run onboarding: creates the initial Admin and hands
+ * off to the next onboarding step through server state instead of navigating
+ * away from /setup.
+ */
 export function SetupForm() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
-  const setup = useApiMutation<SetupInput, { ok: true }>('/api/auth/setup', {
+  const setup = useApiMutation<SetupInput, { ok: true; nextStep?: string }>('/api/auth/setup', {
     onSuccess: () => {
-      window.location.href = '/';
+      // The session cookie is already set by the response; refresh the setup
+      // state so the onboarding shell advances to the next step.
+      void queryClient.invalidateQueries({ queryKey: ['setup-state'] });
     },
     onError: (err: ApiError) => {
       if (err.code === 'CONFLICT') {
