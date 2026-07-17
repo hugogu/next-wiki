@@ -27,6 +27,7 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 });
 
 import { createWikiQuestion } from '@/server/services/ai-question';
+import { AiProviderError } from '@/server/ai/types';
 import { runWikiQuestionAction } from './ai-question';
 
 describe('Wiki question worker', () => {
@@ -177,6 +178,51 @@ describe('Wiki question worker', () => {
       );
     },
   );
+
+  it('requests a bounded output budget, never the whole context window', async () => {
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'full',
+    });
+    await runWikiQuestionAction(action.id);
+    const requested = streamText.mock.calls[0]![0].maxOutputTokens as number;
+    // Capped at the answer ceiling and well below the model's 32k window.
+    expect(requested).toBe(8192);
+    expect(requested).toBeLessThan(32_000);
+  });
+
+  it('compresses attached sources and retries after a context-length error', async () => {
+    streamText.mockReset();
+    streamText
+      .mockImplementationOnce(async function* () {
+        // Provider rejects the first attempt as too long for its window.
+        throw new AiProviderError(
+          'INVALID_RESPONSE',
+          "This endpoint's maximum context length is 262144 tokens. However, you requested about 266324 tokens. Please reduce the length.",
+        );
+      })
+      .mockImplementationOnce(async function* () {
+        yield { type: 'delta', text: 'Grounded answer [S1]' };
+        yield { type: 'usage', inputTokens: 10, outputTokens: 4 };
+      });
+
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'full',
+    });
+    await runWikiQuestionAction(action.id);
+
+    expect(streamText).toHaveBeenCalledTimes(2);
+    const events = await db.query.aiActionEvents.findMany({
+      where: eq(schema.aiActionEvents.actionId, action.id),
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'text_delta',
+        payload: expect.objectContaining({ text: 'Grounded answer [S1]' }),
+      }),
+    );
+  });
 
   it('rechecks entitlement immediately before provider use', async () => {
     const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {

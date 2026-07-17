@@ -7,11 +7,15 @@ import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import {
   buildWikiQuestionPrompt,
+  compressQuestionSources,
+  computeAnswerMaxOutputTokens,
+  estimatePromptTokens,
   isInsufficientAnswer,
   normalizeQuestionCitations,
   searchResultsToSources,
   type QuestionSource,
 } from '@/server/ai/prompts/wiki-question';
+import { isContextLengthExceededError } from '@/server/ai/types';
 import { loadReadableFullContext } from '@/server/ai/retrieval/full-context';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
@@ -38,6 +42,11 @@ type QuestionInput = {
   currentPage?: { pageId: string; revisionId: string };
   conversation?: { question: string; answer: string }[];
 };
+
+// How many times to shrink the attached sources and retry when the provider
+// reports the request exceeded its context window. Sources are halved each
+// time, so three retries send as little as ~1/8 of the original body.
+const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
 
 export async function runWikiQuestionAction(actionId: string): Promise<void> {
   const input = await readActionInput<QuestionInput>(actionId);
@@ -102,44 +111,71 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
     await nudgeAnswerDelivery(actionId);
     return;
   }
-  const prompt = buildWikiQuestionPrompt(input.question, sources, input.conversation);
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   const feishuStream = await startFeishuAnswerStream(actionId);
   let answer = '';
   let usage: Record<string, unknown> = { ...retrievalUsage };
+  // Sources actually sent to the model. A context-overflow retry compresses
+  // these, and citations must resolve against whatever the model finally saw.
+  let promptSources = sources;
   try {
-    for await (const event of adapter.streamText({
-      actionId,
-      modelExternalId: textModel.externalId,
-      system: prompt.system,
-      messages: [{ role: 'user', content: prompt.user }],
-      maxOutputTokens: textModel.maxOutputTokens ?? undefined,
-      temperature: 0.1,
-      abortSignal: new AbortController().signal,
-    })) {
-      if (await isCancellationRequested(actionId))
-        throw new DomainError('CANCELLED', 'Question action was cancelled');
-      if (event.type === 'delta') {
-        answer += event.text;
-        await appendActionEvent(actionId, 'text_delta', { text: event.text });
-        await feishuStream?.stream.append(event.text);
-      } else if (event.type === 'reasoning_delta') {
-        await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
-      } else if (event.type === 'usage') {
-        usage = { ...usage, ...event };
+    for (let attempt = 0; ; attempt += 1) {
+      const prompt = buildWikiQuestionPrompt(input.question, promptSources, input.conversation);
+      const maxOutputTokens = computeAnswerMaxOutputTokens(
+        estimatePromptTokens(prompt.system, prompt.user),
+        textModel.contextWindow,
+        textModel.maxOutputTokens,
+      );
+      try {
+        for await (const event of adapter.streamText({
+          actionId,
+          modelExternalId: textModel.externalId,
+          system: prompt.system,
+          messages: [{ role: 'user', content: prompt.user }],
+          maxOutputTokens,
+          temperature: 0.1,
+          abortSignal: new AbortController().signal,
+        })) {
+          if (await isCancellationRequested(actionId))
+            throw new DomainError('CANCELLED', 'Question action was cancelled');
+          if (event.type === 'delta') {
+            answer += event.text;
+            await appendActionEvent(actionId, 'text_delta', { text: event.text });
+            await feishuStream?.stream.append(event.text);
+          } else if (event.type === 'reasoning_delta') {
+            await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
+          } else if (event.type === 'usage') {
+            usage = { ...usage, ...event };
+          }
+        }
+        break;
+      } catch (error) {
+        // Retry only when nothing has streamed yet (so we never duplicate
+        // output) and the failure is specifically an over-long request whose
+        // attached sources we can shrink.
+        const compressed =
+          answer === '' &&
+          attempt < MAX_CONTEXT_COMPRESSION_RETRIES &&
+          isContextLengthExceededError(error)
+            ? compressQuestionSources(promptSources)
+            : null;
+        if (!compressed || compressed.length === 0) throw error;
+        promptSources = compressed;
+        usage = { ...retrievalUsage };
+        continue;
       }
     }
     await assertAiFeature(ctx, 'question');
-    const citations = isInsufficientAnswer(answer, sources)
+    const citations = isInsufficientAnswer(answer, promptSources)
       ? []
-      : normalizeQuestionCitations(answer, sources);
+      : normalizeQuestionCitations(answer, promptSources);
     if (feishuStream) {
       await completeFeishuAnswerStream(feishuStream, actionId, toFeishuCitations(citations));
     }
     await appendActionEvent(actionId, 'citations', { citations });
     await finishAction(actionId, 'completed', {
       resultMetadata: {
-        insufficientEvidence: isInsufficientAnswer(answer, sources),
+        insufficientEvidence: isInsufficientAnswer(answer, promptSources),
         citationCount: citations.length,
       },
       usageMetadata: usage,

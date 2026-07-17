@@ -59,3 +59,52 @@ export function normalizeQuestionCitations(text: string, sources: QuestionSource
 export function isInsufficientAnswer(text: string, sources: QuestionSource[]): boolean {
   return sources.length === 0 || text.trim() === 'INSUFFICIENT_WIKI_EVIDENCE';
 }
+
+/**
+ * Rough token estimate for a built prompt. Four characters per token is the
+ * standard heuristic for English/markdown; CJK is denser, but the generous
+ * safety margins in {@link computeAnswerMaxOutputTokens} absorb the difference.
+ */
+export function estimatePromptTokens(system: string, user: string): number {
+  return Math.ceil((system.length + user.length) / 4);
+}
+
+// A Wiki answer never needs the whole window; cap it so a bogus per-model
+// output limit can't consume the entire context and starve the input.
+const ANSWER_TOKEN_CEILING = 8192;
+
+/**
+ * Choose a safe `max_tokens` for a Wiki answer. Two failure modes motivate
+ * this: (1) some catalog models report `maxOutputTokens` equal to their full
+ * context window, and (2) omitting `max_tokens` makes several providers (e.g.
+ * OpenRouter) default the output budget to the entire remaining window — either
+ * way `input + requested output` exceeds the context limit and the request
+ * 400s. Cap the answer to a generous ceiling and always subtract the estimated
+ * prompt so the two together fit the window.
+ */
+export function computeAnswerMaxOutputTokens(
+  estPromptTokens: number,
+  contextWindow: number | null,
+  modelMaxOutput: number | null,
+): number {
+  let maxOut = Math.min(modelMaxOutput ?? ANSWER_TOKEN_CEILING, ANSWER_TOKEN_CEILING);
+  if (contextWindow && contextWindow > 0) {
+    maxOut = Math.min(maxOut, contextWindow - estPromptTokens - 512);
+  }
+  return Math.max(512, maxOut);
+}
+
+/**
+ * Shrink attached sources when a request still overflows the context window.
+ * Halves each source's body (keeping the more salient head) and drops any that
+ * become empty, so a compressed retry sends materially less text while keeping
+ * the citation ids stable for the sources that survive.
+ */
+export function compressQuestionSources(sources: QuestionSource[]): QuestionSource[] {
+  return sources
+    .map((source) => ({
+      ...source,
+      content: source.content.slice(0, Math.floor(source.content.length / 2)).trimEnd(),
+    }))
+    .filter((source) => source.content.length > 0);
+}

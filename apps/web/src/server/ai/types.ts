@@ -134,6 +134,19 @@ export class AiProviderError extends Error {
   }
 }
 
+/**
+ * Recognize the provider error that means the request (input + requested
+ * output) exceeded the model's context window. Providers surface this as a 400
+ * with free-text prose rather than a stable code, so match the well-known
+ * phrasings. Callers use it to trigger a compressed retry.
+ */
+export function isContextLengthExceededError(error: unknown): boolean {
+  if (!(error instanceof AiProviderError)) return false;
+  return /context[_ ](?:length|window)|maximum context|reduce the length|prompt is too long|too many (?:input |prompt )?tokens/i.test(
+    error.message,
+  );
+}
+
 export function normalizeProviderError(error: unknown): AiProviderError {
   if (error instanceof AiProviderError) return error;
   if (error instanceof DOMException && error.name === 'AbortError') {
