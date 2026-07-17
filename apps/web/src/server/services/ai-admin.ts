@@ -1,8 +1,12 @@
 import { and, asc, eq, inArray, notInArray, or } from 'drizzle-orm';
 import {
+  aiModelDetectorConfigSchema,
   getAiProviderVendor,
+  readModelDetectorConfig,
   type AiCapability,
   type AiModelCreate,
+  type AiModelDetectorConfig,
+  type AiModelSyncResult,
   type AiModelView,
   type AiProviderCreate,
   type AiProviderKind,
@@ -23,6 +27,13 @@ import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
 import { createAction, getAiSettings, recordTerminalAction } from './ai-actions';
 import { createAiProviderAdapter, createModelDiscoveryAdapter } from '@/server/ai/registry';
 import { detectCapabilities, listEmbeddingModels } from '@/server/ai/model-detector';
+import { createDetector } from '@/server/ai/model-detectors/registry';
+import {
+  DetectorError,
+  normalizeDetectorError,
+  type DetectedModel,
+  type DetectorRuntimeConfig,
+} from '@/server/ai/model-detectors/types';
 import {
   normalizeProviderError,
   type DiscoveredModel,
@@ -51,6 +62,31 @@ function validateBaseUrl(value: string): string {
     throw new DomainError('BAD_REQUEST', 'Provider base URL is invalid');
   }
   return url.toString().replace(/\/$/, '');
+}
+
+/**
+ * Validate a provider's `modelDetector` config up front so a misconfigured
+ * detector is rejected at create/update time rather than only at sync. A
+ * Cloudflare detector requires a provider credential (its API token); the
+ * token is supplied on create, or must already exist on update.
+ */
+function validateDetectorConfig(
+  config: Record<string, unknown> | undefined,
+  credentials: ProviderCredentials | undefined,
+  hasStoredCredentials: boolean,
+): void {
+  const raw = (config ?? {})['modelDetector'];
+  if (raw === undefined) return;
+  const parsed = aiModelDetectorConfigSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new DomainError('BAD_REQUEST', 'Model detector configuration is invalid');
+  }
+  if (parsed.data.source === 'cloudflare') {
+    const hasCredential = Boolean(credentials?.apiKey) || (credentials === undefined && hasStoredCredentials);
+    if (!hasCredential) {
+      throw new DomainError('BAD_REQUEST', 'Cloudflare detector requires an API token credential');
+    }
+  }
 }
 
 function resolveProviderProtocol(
@@ -202,6 +238,7 @@ export async function createProvider(
   const userId = actorId(ctx);
   const type = input.type ?? 'chat';
   const kind = resolveProviderProtocol(type, input.vendor, input.kind);
+  validateDetectorConfig(input.config, input.credentials, false);
   try {
     const [row] = await db
       .insert(schema.aiProviders)
@@ -239,6 +276,9 @@ export async function updateProvider(
   const type = input.type ?? current.type;
   const vendor = input.vendor ?? current.vendor;
   const kind = resolveProviderProtocol(type, vendor, input.kind);
+  if (input.config !== undefined) {
+    validateDetectorConfig(input.config, input.credentials, Boolean(current.credentialsEncrypted));
+  }
   const [row] = await db
     .update(schema.aiProviders)
     .set({
@@ -737,8 +777,171 @@ export async function testProviderConnection(
   return health;
 }
 
-export async function syncProviderModels(providerId: string) {
+/**
+ * Build the detector runtime config for a provider that selects a detector
+ * source in its config, or return null when no detector is configured. The
+ * detector credential comes from the provider's encrypted credentials — never
+ * from the non-secret config blob.
+ */
+export function resolveDetectorRuntime(
+  runtime: ProviderRuntimeConfig,
+  detectorConfig: AiModelDetectorConfig,
+): DetectorRuntimeConfig {
+  return {
+    source: detectorConfig.source,
+    providerId: runtime.providerId,
+    providerName: runtime.name,
+    providerType: runtime.type,
+    vendor: runtime.vendor,
+    accountId: detectorConfig.cloudflareAccountId,
+    namespace: detectorConfig.namespace,
+    options: {
+      includeDeprecated: detectorConfig.includeDeprecated,
+      hideExperimental: detectorConfig.hideExperimental,
+    },
+    credentials: runtime.credentials,
+  };
+}
+
+/**
+ * Merge one normalized {@link DetectedModel} into `ai_models` /
+ * `ai_model_capabilities`. Manually added models are never overwritten, and
+ * manual (`source=manual`) capability rows are never touched — only
+ * detector-owned rows are upserted. Returns whether the row was newly inserted.
+ */
+async function mergeDetectedModel(providerId: string, model: DetectedModel): Promise<'added' | 'updated' | 'skipped'> {
+  const existing = await db.query.aiModels.findFirst({
+    where: and(eq(schema.aiModels.providerId, providerId), eq(schema.aiModels.externalId, model.externalId)),
+  });
+  if (existing?.manuallyAdded) return 'skipped';
+
+  const [stored] = await db
+    .insert(schema.aiModels)
+    .values({
+      providerId,
+      externalId: model.externalId,
+      canonicalId: model.canonicalId ?? null,
+      displayName: model.displayName,
+      availability: model.availability,
+      contextWindow: model.contextWindow ?? null,
+      maxOutputTokens: model.maxOutputTokens ?? null,
+      embeddingDimensions: model.embeddingDimensions ?? null,
+      inputModalities: model.inputModalities,
+      outputModalities: model.outputModalities,
+      rawMetadata: model.rawMetadata,
+      lastSeenAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [schema.aiModels.providerId, schema.aiModels.externalId],
+      set: {
+        canonicalId: model.canonicalId ?? null,
+        displayName: model.displayName,
+        availability: model.availability,
+        contextWindow: model.contextWindow ?? null,
+        maxOutputTokens: model.maxOutputTokens ?? null,
+        embeddingDimensions: model.embeddingDimensions ?? null,
+        inputModalities: model.inputModalities,
+        outputModalities: model.outputModalities,
+        rawMetadata: model.rawMetadata,
+        lastSeenAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    .returning({ id: schema.aiModels.id });
+  for (const capability of model.capabilities) {
+    await db
+      .insert(schema.aiModelCapabilities)
+      .values({
+        modelId: stored!.id,
+        capability: capability.capability,
+        supported: capability.supported,
+        source: capability.source,
+        details: capability.details,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.aiModelCapabilities.modelId,
+          schema.aiModelCapabilities.capability,
+          schema.aiModelCapabilities.source,
+        ],
+        set: { supported: capability.supported, details: capability.details, updatedAt: new Date() },
+      });
+  }
+  return existing ? 'updated' : 'added';
+}
+
+/**
+ * Detector-backed model sync. Selects the registered detector for the provider,
+ * lists normalized models, and merges detector-owned metadata while preserving
+ * manual overrides and manually added models. Missing non-manual models are
+ * marked unavailable, never hard-deleted.
+ */
+export async function syncProviderModelsViaDetector(
+  runtime: ProviderRuntimeConfig,
+  detectorConfig: AiModelDetectorConfig,
+): Promise<AiModelSyncResult> {
+  const detector = createDetector(resolveDetectorRuntime(runtime, detectorConfig));
+  const controller = new AbortController();
+  let result;
+  try {
+    result = await detector.listModels({ abortSignal: controller.signal });
+  } catch (error) {
+    const normalized = error instanceof DetectorError ? error : normalizeDetectorError(error);
+    throw new DomainError(
+      normalized.retryable ? 'PROVIDER_UNAVAILABLE' : 'INVALID_RESPONSE',
+      normalized.message,
+    );
+  }
+
+  const kept: string[] = [];
+  let added = 0;
+  let updated = 0;
+  let skipped = result.counts.skipped ?? 0;
+  for (const model of result.models) {
+    const outcome = await mergeDetectedModel(runtime.providerId, model);
+    if (outcome === 'skipped') {
+      skipped++;
+      continue;
+    }
+    kept.push(model.externalId);
+    if (outcome === 'added') added++;
+    else updated++;
+  }
+
+  let unavailable = result.counts.unavailable ?? 0;
+  const unseen = await db
+    .update(schema.aiModels)
+    .set({ availability: 'unavailable', updatedAt: new Date() })
+    .where(
+      and(
+        eq(schema.aiModels.providerId, runtime.providerId),
+        eq(schema.aiModels.manuallyAdded, false),
+        kept.length ? notInArray(schema.aiModels.externalId, kept) : undefined,
+        eq(schema.aiModels.availability, 'available'),
+      ),
+    )
+    .returning({ id: schema.aiModels.id });
+  unavailable += unseen.length;
+
+  return {
+    count: kept.length,
+    skipped,
+    detectorSource: detectorConfig.source,
+    freshness: result.freshness,
+    added,
+    updated,
+    unavailable,
+    partial: result.counts.partial ?? 0,
+    warnings: result.warnings,
+  };
+}
+
+export async function syncProviderModels(providerId: string): Promise<AiModelSyncResult> {
   const runtime = await providerRuntime(providerId);
+  const detectorConfig = readModelDetectorConfig(runtime.config);
+  if (detectorConfig) {
+    return syncProviderModelsViaDetector(runtime, detectorConfig);
+  }
   const settings = await getAiSettings();
   const detector = settings.modelDetectorApiKeyEncrypted
     ? { apiKey: (decryptAiJson(settings.modelDetectorApiKeyEncrypted) as { apiKey: string }).apiKey }
@@ -820,6 +1023,69 @@ export async function syncProviderModels(providerId: string) {
       .where(and(eq(schema.aiModels.providerId, providerId), inArray(schema.aiModels.externalId, kept)));
   }
   return { count: kept.length, skipped };
+}
+
+export type StartModelSyncResult =
+  | { mode: 'action'; action: { id: string; feature: 'model_sync'; status: string; providerId: string; eventsUrl: string } }
+  | { mode: 'sync'; result: AiModelSyncResult };
+
+/**
+ * Start provider model synchronization. Detector-backed providers (whose config
+ * selects a detector source) run through the `model_sync` action lifecycle so
+ * per-model schema enrichment cannot block the admin request; a non-terminal
+ * run is resumed rather than duplicated. Other providers still sync inline.
+ */
+export async function startProviderModelSync(
+  ctx: PermCtx,
+  providerId: string,
+): Promise<StartModelSyncResult> {
+  assertCanManageAi(ctx);
+  const provider = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, providerId) });
+  if (!provider) throw new DomainError('NOT_FOUND', 'AI provider not found');
+  if (!provider.enabled) throw new DomainError('PROVIDER_DISABLED', 'AI provider is disabled');
+
+  const detectorConfig = readModelDetectorConfig(provider.config as Record<string, unknown>);
+  if (!detectorConfig) {
+    return { mode: 'sync', result: await syncProviderModelsNow(ctx, providerId) };
+  }
+
+  // Resume an in-flight run instead of starting a duplicate.
+  const existing = await db.query.aiActions.findFirst({
+    where: and(
+      eq(schema.aiActions.providerId, providerId),
+      eq(schema.aiActions.feature, 'model_sync'),
+      inArray(schema.aiActions.status, ['queued', 'running']),
+    ),
+  });
+  if (existing) {
+    return {
+      mode: 'action',
+      action: {
+        id: existing.id,
+        feature: 'model_sync',
+        status: existing.status,
+        providerId,
+        eventsUrl: `/api/ai/actions/${existing.id}`,
+      },
+    };
+  }
+
+  const accepted = await createAction(ctx, {
+    feature: 'model_sync',
+    input: { providerId },
+    providerId,
+    requestMetadata: { providerId, detectorSource: detectorConfig.source },
+  });
+  return {
+    mode: 'action',
+    action: {
+      id: accepted.id,
+      feature: 'model_sync',
+      status: accepted.status,
+      providerId,
+      eventsUrl: `/api/ai/actions/${accepted.id}`,
+    },
+  };
 }
 
 export async function syncProviderModelsNow(ctx: PermCtx, providerId: string) {

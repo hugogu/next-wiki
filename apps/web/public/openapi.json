@@ -167,6 +167,37 @@
           },
           "count": {
             "type": "number"
+          },
+          "detectorSource": {
+            "type": "string",
+            "enum": ["openrouter", "cloudflare"]
+          },
+          "freshness": {
+            "type": "string",
+            "enum": ["fresh", "cache"]
+          },
+          "added": {
+            "type": "number"
+          },
+          "updated": {
+            "type": "number"
+          },
+          "unavailable": {
+            "type": "number"
+          },
+          "partial": {
+            "type": "number"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "modelExternalId": { "type": "string" },
+                "code": { "type": "string" }
+              },
+              "required": ["code"]
+            }
           }
         },
         "required": [

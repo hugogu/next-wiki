@@ -92,7 +92,10 @@ export function ProviderList({
       );
       setFeedback({
         ok: true,
-        text: `${provider.name}: ${t('admin.ai.providers.syncComplete', result)}`,
+        text: `${provider.name}: ${t('admin.ai.providers.syncComplete', {
+          count: result.count,
+          skipped: result.skipped,
+        })}`,
       });
       router.refresh();
     } catch (value) {

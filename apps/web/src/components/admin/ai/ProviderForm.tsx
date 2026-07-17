@@ -49,6 +49,8 @@ export function ProviderForm({
     getAiProviderVendor(initialVendor).baseUrls[type] ?? '',
   );
   const [apiKey, setApiKey] = useState('');
+  const [detectorSource, setDetectorSource] = useState<'' | 'cloudflare'>('');
+  const [cloudflareAccountId, setCloudflareAccountId] = useState('');
   const [manualModelId, setManualModelId] = useState('');
   const [embeddingDimensions, setEmbeddingDimensions] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +111,9 @@ export function ProviderForm({
             type,
             vendor,
             baseUrl,
-            config: {},
+            config: detectorSource === 'cloudflare'
+              ? { modelDetector: { source: 'cloudflare', cloudflareAccountId: cloudflareAccountId.trim() } }
+              : {},
             credentials: { apiKey },
             enabled: true,
           });
@@ -195,6 +199,28 @@ export function ProviderForm({
             </label>
           )}
         </>
+      )}
+      <label className="block space-y-xs">
+        <span className="text-sm font-medium">{t('admin.ai.providers.detectorSource')}</span>
+        <Select
+          value={detectorSource}
+          onChange={(event) => setDetectorSource(event.target.value as '' | 'cloudflare')}
+        >
+          <option value="">{t('admin.ai.providers.detectorSource.none')}</option>
+          <option value="cloudflare">{t('admin.ai.providers.detectorSource.cloudflare')}</option>
+        </Select>
+        <span className="block text-xs text-muted">{t('admin.ai.providers.detectorHint')}</span>
+      </label>
+      {detectorSource === 'cloudflare' && (
+        <label className="block space-y-xs">
+          <span className="text-sm font-medium">{t('admin.ai.providers.cloudflareAccountId')}</span>
+          <Input
+            value={cloudflareAccountId}
+            onChange={(event) => setCloudflareAccountId(event.target.value)}
+            required
+          />
+          <span className="block text-xs text-muted">{t('admin.ai.providers.cloudflareAccountIdHint')}</span>
+        </label>
       )}
       <label className="block space-y-xs">
         <span className="text-sm font-medium">{t('admin.ai.providers.apiKey')}</span>
