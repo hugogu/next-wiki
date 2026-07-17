@@ -31,6 +31,7 @@ export default defineConfig({
       `E2E_DATABASE_URL="${E2E_DATABASE_URL}" node test/prepare-e2e-db.mjs && ` +
       `DATABASE_URL="${E2E_DATABASE_URL}" NEXT_WIKI_SEED=true ` +
       `NEXT_WIKI_E2E=true ` +
+      `OPENROUTER_BASE_URL=http://127.0.0.1:31987 ` +
       `CONTENT_LOCAL_BASE_PATH=/tmp/next-wiki-e2e-content ` +
       `CONTENT_LOCAL_HOST_PATH=/tmp/next-wiki-e2e-content ` +
       `API_KEY_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 ` +
