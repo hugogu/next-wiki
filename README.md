@@ -19,13 +19,11 @@ Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
 
 ## Screenshots
 
-| Knowledge base home                                  | Public REST API reference                           |
-| ---------------------------------------------------- | --------------------------------------------------- |
-| ![Knowledge base home](docs/screenshots/welcome.png) | ![API documentation](docs/screenshots/api-docs.png) |
+![Knowledge base home](docs/screenshots/welcome.png)
 
-| AI Native integration                            |
-| ------------------------------------------------ |
-| ![AI settings](docs/screenshots/ai-settings.png) |
+| AI Native integration                            | Public REST API reference                           |
+| ------------------------------------------------ | --------------------------------------------------- |
+| ![AI settings](docs/screenshots/ai-settings.png) | ![API documentation](docs/screenshots/api-docs.png) |
 
 ## Why next-wiki
 
