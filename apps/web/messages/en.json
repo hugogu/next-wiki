@@ -510,10 +510,12 @@
       "groups": {
         "content": "Content",
         "system": "System",
-        "operations": "Data & Operations"
+        "operations": "Data & Operations",
+        "ai": "AI"
       },
       "ai": "AI",
-      "feishu": "Feishu"
+      "feishu": "Feishu",
+      "bots": "Bots"
     },
     "searchSettings": {
       "title": "Search Settings",
@@ -1318,6 +1320,10 @@
         "completed": "Completed",
         "showFailed": "Show failed pages"
       }
+    },
+    "bots": {
+      "title": "Bots",
+      "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation."
     }
   },
   "renderer": {

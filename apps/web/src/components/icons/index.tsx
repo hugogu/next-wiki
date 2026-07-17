@@ -401,6 +401,20 @@ export function FeishuIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** A simple robot head matching the navigation's line-icon style. */
+export function BotIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="9" width="16" height="11" rx="2" />
+      <path d="M12 9V5" />
+      <circle cx="12" cy="4" r="1" />
+      <path d="M9 14h.01" />
+      <path d="M15 14h.01" />
+      <path d="M9 17h6" />
+    </Icon>
+  );
+}
+
 export function DatabaseIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

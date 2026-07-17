@@ -20,6 +20,7 @@ import {
   SlidersIcon,
   EyeIcon,
   FeishuIcon,
+  BotIcon,
   SparklesIcon,
   SearchIcon,
   TagIcon,
@@ -265,10 +266,25 @@ export function Navigator({
           label: t('admin.nav.search'),
           icon: <SearchIcon className="shrink-0" />,
         },
+      ],
+    },
+    {
+      label: t('admin.nav.groups.ai'),
+      items: [
+        {
+          href: '/admin/ai',
+          label: t('admin.nav.ai'),
+          icon: <SparklesIcon className="shrink-0" />,
+        },
         {
           href: '/admin/translations',
           label: t('admin.nav.translations'),
           icon: <SparklesIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/bots',
+          label: t('admin.nav.bots'),
+          icon: <BotIcon className="shrink-0" />,
         },
       ],
     },
@@ -285,12 +301,6 @@ export function Navigator({
           label: t('admin.nav.appearance'),
           icon: <SlidersIcon className="shrink-0" />,
         },
-        {
-          href: '/admin/ai',
-          label: t('admin.nav.ai'),
-          icon: <SparklesIcon className="shrink-0" />,
-        },
-        { href: '/admin/feishu', label: t('admin.nav.feishu'), icon: <FeishuIcon className="shrink-0" /> },
         {
           href: '/admin/users',
           label: t('admin.nav.users'),

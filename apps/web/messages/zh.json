@@ -510,10 +510,12 @@
       "groups": {
         "content": "内容",
         "system": "系统",
-        "operations": "数据与运维"
+        "operations": "数据与运维",
+        "ai": "AI"
       },
       "ai": "AI",
-      "feishu": "飞书"
+      "feishu": "飞书",
+      "bots": "机器人"
     },
     "searchSettings": {
       "title": "搜索设置",
@@ -1318,6 +1320,10 @@
         "completed": "已完成",
         "showFailed": "查看失败页面"
       }
+    },
+    "bots": {
+      "title": "机器人",
+      "description": "连接聊天机器人，让团队成员在聊天中直接向 Wiki 提问、搜索页面并接收更新通知。"
     }
   },
   "renderer": {
