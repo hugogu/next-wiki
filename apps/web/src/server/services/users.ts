@@ -58,6 +58,7 @@ async function listInternal(): Promise<UserView[]> {
     status: u.status,
     displayName: u.displayName,
     createdAt: u.createdAt.toISOString(),
+    lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
   }));
 }
 

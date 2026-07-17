@@ -138,6 +138,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
             <DataTableHeader>{t('admin.users.table.role')}</DataTableHeader>
             <DataTableHeader>{t('admin.users.table.status')}</DataTableHeader>
             <DataTableHeader>{t('admin.users.table.joined')}</DataTableHeader>
+            <DataTableHeader>{t('admin.users.table.lastLogin')}</DataTableHeader>
             <DataTableHeader align="right">{t('admin.users.table.actions')}</DataTableHeader>
           </tr>
         </DataTableHead>
@@ -161,6 +162,9 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                 </DataTableCell>
                 <DataTableCell className="capitalize">{user.status}</DataTableCell>
                 <DataTableCell className="text-muted">{new Date(user.createdAt).toLocaleDateString()}</DataTableCell>
+                <DataTableCell className="text-muted">
+                  {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : '—'}
+                </DataTableCell>
                 <DataTableCell>
                   <div className="flex items-center justify-end gap-sm">
                     {resettingUserId === user.id ? (

@@ -103,5 +103,6 @@ export const userViewSchema = z.object({
   status: userStatusSchema,
   displayName: z.string().nullable(),
   createdAt: z.string(),
+  lastLoginAt: z.string().nullable(),
 });
 export type UserView = z.infer<typeof userViewSchema>;

@@ -119,6 +119,8 @@ export const users = pgTable(
     displayName: text('display_name'),
     themePreference: text('theme_preference'),
     localePreference: text('locale_preference'),
+    // Set whenever a session is established (password login, first-run setup).
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     // Soft-delete marker: set when an admin removes the account. Deleted users

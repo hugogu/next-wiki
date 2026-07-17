@@ -147,6 +147,10 @@ export async function establishSession(userId: string): Promise<void> {
     userId,
     expiresAt,
   });
+  await db
+    .update(schema.users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(schema.users.id, userId));
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, sessionId, {

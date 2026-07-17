@@ -1,8 +1,18 @@
-import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: vi.fn(),
+    delete: vi.fn(),
+  })),
+  headers: vi.fn(async () => new Map()),
+}));
+
 import * as userService from '@/server/services/users';
 import * as authService from '@/server/services/auth';
 import { buildUserCtx, buildAnonymousCtx } from '@/server/permissions';
@@ -42,6 +52,19 @@ describe('userService US5', () => {
 
       expect(users.length).toBeGreaterThanOrEqual(2);
       expect(users.map((u) => u.email)).toContain('reader-list@example.com');
+    });
+
+    it('exposes lastLoginAt after a session is established and null before any sign-in', async () => {
+      const admin = await createUser('admin-lastlogin@example.com', 'admin');
+      const before = await userService.list(buildUserCtx(admin.id, 'admin'));
+      expect(before.find((u) => u.id === admin.id)?.lastLoginAt).toBeNull();
+
+      await authService.establishSession(admin.id);
+
+      const after = await userService.list(buildUserCtx(admin.id, 'admin'));
+      const view = after.find((u) => u.id === admin.id);
+      expect(view?.lastLoginAt).toBeTruthy();
+      expect(Date.parse(view!.lastLoginAt!)).toBeGreaterThan(Date.now() - 60_000);
     });
 
     it('denies non-admin callers without leaking data', async () => {

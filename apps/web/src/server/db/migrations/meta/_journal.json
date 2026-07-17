@@ -148,6 +148,13 @@
       "when": 1784297371916,
       "tag": "0020_mixed_guardsmen",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784298262706,
+      "tag": "0021_normal_puppet_master",
+      "breakpoints": true
     }
   ]
 }
