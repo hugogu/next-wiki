@@ -141,6 +141,13 @@
       "when": 1784266628559,
       "tag": "0019_sparkling_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784297371916,
+      "tag": "0020_mixed_guardsmen",
+      "breakpoints": true
     }
   ]
 }
