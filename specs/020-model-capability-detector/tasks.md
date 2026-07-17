@@ -140,7 +140,7 @@
 
 - [X] T051 [US4] Implement detector error normalization and safe detail shaping in `apps/web/src/server/ai/model-detectors/types.ts`
 - [X] T052 [US4] Persist detector source, freshness, counts, warnings, and sanitized failure metadata on `model_sync` actions in `apps/web/src/server/services/ai-admin.ts`
-- [ ] T053 [US4] Expose detector coverage and partial status through admin model views without secrets in `apps/web/src/server/services/ai-admin.ts`
+- [X] T053 [US4] Expose detector coverage and partial status through admin model views without secrets in `apps/web/src/server/services/ai-admin.ts`
 - [ ] T054 [US4] Render detector configured/unconfigured/partial/failed states in `apps/web/src/components/admin/ai/ModelDetectorPanel.tsx`
 - [X] T055 [US4] Render per-model detector provenance and partial enrichment indicators in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
 - [X] T056 [US4] Ensure all detector status and model sync admin routes enforce `manage_ai` and return safe errors in `apps/web/app/api/ai/providers/[id]/model-syncs/route.ts`
