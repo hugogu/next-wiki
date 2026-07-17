@@ -73,6 +73,10 @@ import {
   feishuSubscriptionModeEnum,
   feishuSubscriptionStatusEnum,
   feishuDeliveryStatusEnum,
+  setupAccountStatusEnum,
+  setupAiStatusEnum,
+  setupSamplePagesStatusEnum,
+  setupStepEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -1766,3 +1770,43 @@ export const feishuNotificationDeliveriesRelations = relations(
     }),
   }),
 );
+
+// ---- First-run onboarding (021) ----------------------------------------------
+
+/** Single-row first-run onboarding progress (id always 'default'). Records
+ * explicit Admin choices (skipped/failed/completed) that cannot be derived
+ * from users, AI settings, or pages alone, so interrupted setup can resume and
+ * report an accurate final summary. Never stores credentials or page bodies. */
+export const setupProgress = pgTable(
+  'setup_progress',
+  {
+    id: text('id').primaryKey().default('default'),
+    adminUserId: uuid('admin_user_id').references(() => users.id, { onDelete: 'set null' }),
+    accountStatus: setupAccountStatusEnum('account_status').notNull().default('needed'),
+    aiStatus: setupAiStatusEnum('ai_status').notNull().default('not_started'),
+    samplePagesStatus: setupSamplePagesStatusEnum('sample_pages_status')
+      .notNull()
+      .default('not_started'),
+    currentStep: setupStepEnum('current_step').notNull().default('account'),
+    aiActionId: uuid('ai_action_id').references(() => aiActions.id, { onDelete: 'set null' }),
+    aiResult: jsonb('ai_result'),
+    samplePagesResult: jsonb('sample_pages_result'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    singletonId: check('setup_progress_singleton_id', sql`${t.id} = 'default'`),
+  }),
+);
+
+export const setupProgressRelations = relations(setupProgress, ({ one }) => ({
+  adminUser: one(users, {
+    fields: [setupProgress.adminUserId],
+    references: [users.id],
+  }),
+  aiAction: one(aiActions, {
+    fields: [setupProgress.aiActionId],
+    references: [aiActions.id],
+  }),
+}));

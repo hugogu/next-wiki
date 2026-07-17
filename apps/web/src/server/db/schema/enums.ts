@@ -348,3 +348,34 @@ export const feishuDeliveryStatusEnum = pgEnum('feishu_delivery_status', [
   'blocked',
   'expired',
 ]);
+
+// ---- First-run onboarding (021) ---------------------------------------------
+
+export const setupAccountStatusEnum = pgEnum('setup_account_status', ['needed', 'created']);
+
+export const setupAiStatusEnum = pgEnum('setup_ai_status', [
+  'not_started',
+  'skipped',
+  'queued',
+  'running',
+  'completed',
+  'partial',
+  'failed',
+  'disabled',
+]);
+
+export const setupSamplePagesStatusEnum = pgEnum('setup_sample_pages_status', [
+  'not_started',
+  'skipped',
+  'completed',
+  'partial',
+  'failed',
+]);
+
+export const setupStepEnum = pgEnum('setup_step', [
+  'account',
+  'ai',
+  'sample_pages',
+  'summary',
+  'closed',
+]);
