@@ -1,4 +1,5 @@
 import { getAiProviderVendor, type AiCapability, type AiProviderVendor } from '@next-wiki/shared';
+import { env } from '@/server/config';
 import type {
   DetectedCapability,
   DetectedModel,
@@ -54,7 +55,7 @@ const TTL_MS = 60 * 60 * 1000;
 
 async function loadModels(apiKey: string): Promise<Map<string, OpenRouterModel>> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.models;
-  const response = await fetch('https://openrouter.ai/api/v1/models', {
+  const response = await fetch(`${env.OPENROUTER_BASE_URL}/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
     signal: AbortSignal.timeout(15_000),
   });
@@ -68,7 +69,7 @@ async function loadModels(apiKey: string): Promise<Map<string, OpenRouterModel>>
 
 async function loadEmbeddingModels(apiKey: string): Promise<OpenRouterModel[]> {
   if (embeddingCache && Date.now() - embeddingCache.at < TTL_MS) return embeddingCache.models;
-  const response = await fetch('https://openrouter.ai/api/v1/embeddings/models', {
+  const response = await fetch(`${env.OPENROUTER_BASE_URL}/embeddings/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
     signal: AbortSignal.timeout(15_000),
   });

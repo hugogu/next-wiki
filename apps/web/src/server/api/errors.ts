@@ -59,6 +59,8 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 422);
     case 'RATE_LIMITED':
       return apiError(code, message, 429);
+    case 'PROVIDER_AUTH_FAILED':
+      return apiError(code, message, 422);
     case 'TIMEOUT':
       return apiError(code, message, 504);
     case 'PROVIDER_UNAVAILABLE':

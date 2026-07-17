@@ -46,6 +46,8 @@ const envSchema = z.object({
   // omit an apiKey. Lets personal deployments configure AI via .env without
   // pasting the key into the admin UI.
   OPENROUTER_API_KEY: z.string().optional(),
+  // Optional OpenRouter API base URL override (proxy/mirror/test fixture).
+  OPENROUTER_BASE_URL: z.string().url().default('https://openrouter.ai/api/v1'),
 });
 
 // Local convenience defaults for dev/test only. In production a missing value

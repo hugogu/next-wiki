@@ -1499,3 +1499,147 @@ export const ChangeEmailOutputSchema = changeEmailOutputSchema;
 export const ProfileViewSchema = profileViewSchema;
 export const UserIdParamSchema = userIdParamSchema;
 export const ErrorResponse = errorResponseSchema;
+
+// ---- First-run onboarding (021) ----------------------------------------------
+
+export const SetupStateView = z
+  .object({
+    needed: z.boolean().describe('Whether first-run onboarding still has incomplete steps.'),
+    currentStep: z
+      .enum(['account', 'ai', 'sample_pages', 'summary', 'closed'])
+      .describe('Current onboarding step.'),
+    accountStatus: z.enum(['needed', 'created']).optional().describe('Initial Admin account status.'),
+    aiStatus: z
+      .enum(['not_started', 'skipped', 'queued', 'running', 'completed', 'partial', 'failed', 'disabled'])
+      .optional()
+      .describe('OpenRouter AI bootstrap status.'),
+    samplePagesStatus: z
+      .enum(['not_started', 'skipped', 'completed', 'partial', 'failed'])
+      .optional()
+      .describe('Sample/help page generation status.'),
+    summary: z
+      .object({
+        adminCreated: z.boolean(),
+        ai: z
+          .object({
+            wiki_text: z
+              .object({
+                status: z.enum(['configured', 'skipped', 'unavailable', 'needs_manual_setup', 'failed']),
+                modelId: z.string().uuid().optional(),
+                modelName: z.string().optional(),
+                reason: z.string().optional(),
+              })
+              .optional(),
+            wiki_embedding: z
+              .object({
+                status: z.enum(['configured', 'skipped', 'unavailable', 'needs_manual_setup', 'failed']),
+                modelId: z.string().uuid().optional(),
+                modelName: z.string().optional(),
+                reason: z.string().optional(),
+              })
+              .optional(),
+            wiki_image: z
+              .object({
+                status: z.enum(['configured', 'skipped', 'unavailable', 'needs_manual_setup', 'failed']),
+                modelId: z.string().uuid().optional(),
+                modelName: z.string().optional(),
+                reason: z.string().optional(),
+              })
+              .optional(),
+          })
+          .nullable()
+          .describe('Per-purpose AI outcome; never contains credentials.'),
+        samplePages: z
+          .array(
+            z.object({
+              path: z.string(),
+              status: z.enum(['created', 'updated', 'skipped', 'collision', 'failed']),
+              pageId: z.string().uuid().optional(),
+              reason: z.string().optional(),
+            }),
+          )
+          .nullable()
+          .describe('Per-page sample generation outcome.'),
+      })
+      .optional()
+      .describe('Credential-free onboarding summary for the signed-in Admin.'),
+  })
+  .describe('First-run onboarding state. Anonymous callers only receive whether account setup is needed.');
+
+export const SetupAiBootstrapInput = z
+  .discriminatedUnion('mode', [
+    z.object({ mode: z.literal('skip') }),
+    z.object({
+      mode: z.literal('configure'),
+      apiKey: z.string().min(1).max(512).describe('Write-only OpenRouter API key.'),
+      autoAssign: z.boolean().optional().default(true).describe('Automatically assign detected models to AI purposes.'),
+    }),
+  ])
+  .describe('OpenRouter AI bootstrap choice.');
+
+export const SetupAiBootstrapResult = z
+  .object({
+    status: z.enum(['queued', 'completed', 'partial', 'failed', 'skipped', 'disabled']),
+    actionId: z.string().uuid().optional().describe('AI action tracking the background model sync.'),
+    pollUrl: z.string().optional().describe('URL to poll for setup state while queued.'),
+    purposes: z
+      .object({
+        wiki_text: z
+          .object({
+            status: z.enum(['configured', 'skipped', 'unavailable', 'needs_manual_setup', 'failed']),
+            modelId: z.string().uuid().optional(),
+            modelName: z.string().optional(),
+            reason: z.string().optional(),
+          })
+          .optional(),
+        wiki_embedding: z
+          .object({
+            status: z.enum(['configured', 'skipped', 'unavailable', 'needs_manual_setup', 'failed']),
+            modelId: z.string().uuid().optional(),
+            modelName: z.string().optional(),
+            reason: z.string().optional(),
+          })
+          .optional(),
+        wiki_image: z
+          .object({
+            status: z.enum(['configured', 'skipped', 'unavailable', 'needs_manual_setup', 'failed']),
+            modelId: z.string().uuid().optional(),
+            modelName: z.string().optional(),
+            reason: z.string().optional(),
+          })
+          .optional(),
+      })
+      .optional()
+      .describe('Per-purpose outcome (wiki_text/wiki_embedding/wiki_image).'),
+    error: z
+      .object({
+        code: z.string(),
+        message: z.string(),
+      })
+      .optional(),
+    nextStep: z.enum(['account', 'ai', 'sample_pages', 'summary', 'closed']).optional(),
+  })
+  .describe('OpenRouter AI bootstrap result. Never contains credentials.');
+
+export const SetupSamplePagesInput = z
+  .object({
+    mode: z.enum(['skip', 'generate']).describe('Skip sample pages, or generate the example/help pages.'),
+  })
+  .describe('Sample/help page choice.');
+
+export const SetupSamplePagesResult = z
+  .object({
+    status: z.enum(['not_started', 'skipped', 'completed', 'partial', 'failed']),
+    pages: z
+      .array(
+        z.object({
+          path: z.string(),
+          status: z.enum(['created', 'updated', 'skipped', 'collision', 'failed']),
+          pageId: z.string().uuid().optional(),
+          reason: z.string().optional(),
+        }),
+      )
+      .describe('Per-page generation outcome.'),
+    nextStep: z.enum(['account', 'ai', 'sample_pages', 'summary', 'closed']).optional(),
+  })
+  .describe('Sample/help page generation result.');

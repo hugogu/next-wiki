@@ -4,6 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
 import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
+import { WELCOME_PAGE_SOURCE } from '@/server/services/setup-sample-page-definitions';
 import { env } from '@/server/config';
 
 const DEFAULT_SPACE_SLUG = 'default';
@@ -103,60 +104,8 @@ export async function seedDatabase() {
 
   // Create the system default welcome page on first install. This page is
   // shipped with next-wiki and demonstrates the supported Markdown extensions.
-  const source = `# Welcome to next-wiki
-
-This is the first published page. Every page is authored in **Markdown** and rendered to HTML when saved so readers see fast, static-like pages.
-
-## What you can do
-
-| Feature | Editor | Reader | Admin |
-| --- |:---:|:---:|:---:|
-| Read published pages | ✓ | ✓ | ✓ |
-| Draft and edit pages | ✓ | — | ✓ |
-| Publish revisions | ✓ | — | ✓ |
-| Manage users | — | — | ✓ |
-
-## Markdown support
-
-Pages support standard Markdown plus GitHub-flavored extras such as tables, task lists, fenced code blocks with syntax highlighting, LaTeX math, and Mermaid diagrams.
-
-\`\`\`js
-// A small example
-function greet(name) {
-  return \`Hello, \${name}!\`;
-}
-
-console.log(greet('next-wiki'));
-\`\`\`
-
-### Math
-
-Inline math: $E = mc^2$
-
-Block math:
-
-$$
-\\int_{0}^{\\infty} e^{-x} \\, dx = 1
-$$
-
-### Diagrams
-
-\`\`\`mermaid
-graph TD
-    A[Start] --> B{Is it working?}
-    B -->|Yes| C[Great!]
-    B -->|No| D[Debug]
-    D --> B
-\`\`\`
-
-## Try it out
-
-- Click **New page** to create a draft.
-- Use the split editor to write Markdown and preview the result side by side.
-- Publish a revision when you are ready to share it.
-
-> **Tip:** Code blocks use language tags like \`js\`, \`ts\`, \`json\`, \`sql\`, \`yaml\`, or \`mermaid\`. LaTeX is wrapped in \`$...$\` or \`$$...$$\`.
-`;
+  // The content is shared with the first-run onboarding sample-page writer.
+  const source = WELCOME_PAGE_SOURCE;
 
   const { html, hash } = renderMarkdown(source);
 
