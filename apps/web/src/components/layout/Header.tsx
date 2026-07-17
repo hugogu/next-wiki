@@ -166,7 +166,7 @@ export function Header({
               : pathname === '/admin/search'
                 ? t('admin.nav.search')
               : pathname.startsWith('/admin/ai')
-                ? t('admin.nav.ai')
+                ? t('admin.nav.providers')
               : pathname === '/admin/api-audit'
                 ? t('admin.nav.apiAudit')
                 : null;

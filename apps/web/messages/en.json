@@ -513,7 +513,7 @@
         "operations": "Data & Operations",
         "ai": "AI"
       },
-      "ai": "AI",
+      "providers": "Providers",
       "feishu": "Feishu",
       "bots": "Bots"
     },
@@ -1324,6 +1324,31 @@
     "bots": {
       "title": "Bots",
       "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation."
+    },
+    "feishu": {
+      "connect": {
+        "title": "Connect Feishu by QR code",
+        "description": "Scan with the Feishu app to bring this wiki into your Feishu workspace. Once connected, your team can chat with the wiki right inside Feishu — no keys or addresses to fill in.",
+        "generate": "Generate Feishu QR code",
+        "generating": "Generating QR code…",
+        "regenerate": "Relink Feishu app",
+        "qrAlt": "Scan with the Feishu app to link or create the bot",
+        "expiresAt": "The QR code expires at {time}.",
+        "linked": "Feishu app linked. Establishing the WebSocket connection.",
+        "expired": "The QR code expired or linking was cancelled. Generate a new one.",
+        "generateFailed": "Could not generate the Feishu QR code."
+      },
+      "status": {
+        "title": "Connection status",
+        "transport": "Transport: WebSocket long-lived connection",
+        "app": "App: {value}",
+        "notLinked": "Not linked",
+        "state": "Status: {value}",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "lastConnected": "Last connected: {time}",
+        "lastError": "Last error: {message}"
+      }
     }
   },
   "renderer": {

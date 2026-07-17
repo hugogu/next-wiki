@@ -513,7 +513,7 @@
         "operations": "数据与运维",
         "ai": "AI"
       },
-      "ai": "AI",
+      "providers": "提供商",
       "feishu": "飞书",
       "bots": "机器人"
     },
@@ -1324,6 +1324,31 @@
     "bots": {
       "title": "机器人",
       "description": "连接聊天机器人，让团队成员在聊天中直接向 Wiki 提问、搜索页面并接收更新通知。"
+    },
+    "feishu": {
+      "connect": {
+        "title": "扫码接入飞书",
+        "description": "用飞书 App 扫一扫，一步即可让本 Wiki 上线到你的飞书。接入后即可在飞书里与 Wiki 对话，全程无需填写任何密钥或地址。",
+        "generate": "生成飞书二维码",
+        "generating": "正在生成二维码…",
+        "regenerate": "重新关联飞书应用",
+        "qrAlt": "用飞书 App 扫描以关联或创建机器人",
+        "expiresAt": "二维码将在 {time} 失效。",
+        "linked": "飞书应用已关联，正在建立 WebSocket 长连接。",
+        "expired": "二维码已失效或关联被取消，请重新生成。",
+        "generateFailed": "无法生成飞书二维码。"
+      },
+      "status": {
+        "title": "连接状态",
+        "transport": "传输方式：WebSocket 长连接",
+        "app": "应用：{value}",
+        "notLinked": "尚未关联",
+        "state": "状态：{value}",
+        "enabled": "已启用",
+        "disabled": "未启用",
+        "lastConnected": "最近连接：{time}",
+        "lastError": "最近错误：{message}"
+      }
     }
   },
   "renderer": {

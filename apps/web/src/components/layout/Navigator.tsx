@@ -21,6 +21,7 @@ import {
   EyeIcon,
   FeishuIcon,
   BotIcon,
+  LanguagesIcon,
   SparklesIcon,
   SearchIcon,
   TagIcon,
@@ -273,18 +274,18 @@ export function Navigator({
       items: [
         {
           href: '/admin/ai',
-          label: t('admin.nav.ai'),
-          icon: <SparklesIcon className="shrink-0" />,
-        },
-        {
-          href: '/admin/translations',
-          label: t('admin.nav.translations'),
+          label: t('admin.nav.providers'),
           icon: <SparklesIcon className="shrink-0" />,
         },
         {
           href: '/admin/bots',
           label: t('admin.nav.bots'),
           icon: <BotIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/translations',
+          label: t('admin.nav.translations'),
+          icon: <LanguagesIcon className="shrink-0" />,
         },
       ],
     },

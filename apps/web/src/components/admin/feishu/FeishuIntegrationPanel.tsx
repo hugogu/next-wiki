@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import type { FeishuConfigView } from '@next-wiki/shared';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { useTranslation } from '@/i18n/client';
 
 type Registration = {
   registrationId: string;
@@ -14,6 +15,7 @@ type Registration = {
 };
 
 export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView }) {
+  const { t } = useTranslation();
   const [config, setConfig] = useState(initial);
   const [registration, setRegistration] = useState<Registration | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -51,9 +53,9 @@ export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView 
           appId: body.appId,
           hasAppSecret: true,
         }));
-        setMessage('飞书应用已关联，正在建立 WebSocket 长连接。');
+        setMessage(t('admin.feishu.connect.linked'));
       } else {
-        setMessage(body?.message ?? '二维码已失效或关联被取消，请重新生成。');
+        setMessage(body?.message ?? t('admin.feishu.connect.expired'));
       }
     };
     timer = setTimeout(
@@ -64,7 +66,7 @@ export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView 
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [registration]);
+  }, [registration, t]);
 
   async function start() {
     setLoading(true);
@@ -80,7 +82,7 @@ export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView 
       setQrDataUrl(null);
       setRegistration(body as Registration);
     } catch (error) {
-      setMessage(error instanceof Error && error.message ? error.message : '无法生成飞书二维码。');
+      setMessage(error instanceof Error && error.message ? error.message : t('admin.feishu.connect.generateFailed'));
     } finally {
       setLoading(false);
     }
@@ -90,42 +92,49 @@ export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView 
     <div className="max-w-3xl space-y-lg">
       <section className="rounded-lg border border-border bg-surface p-lg space-y-md">
         <div>
-          <h2 className="font-display text-lg font-semibold">扫码接入飞书</h2>
-          <p className="text-sm text-muted">
-            用飞书 App 扫一扫，一步即可让本 Wiki 上线到你的飞书。接入后即可在飞书里与 Wiki 对话，
-            全程无需填写任何密钥或地址。
-          </p>
+          <h2 className="font-display text-lg font-semibold">{t('admin.feishu.connect.title')}</h2>
+          <p className="text-sm text-muted">{t('admin.feishu.connect.description')}</p>
         </div>
         <Button onClick={start} disabled={loading || Boolean(registration)}>
-          {loading ? '正在生成二维码…' : config.enabled ? '重新关联飞书应用' : '生成飞书二维码'}
+          {loading
+            ? t('admin.feishu.connect.generating')
+            : config.enabled
+              ? t('admin.feishu.connect.regenerate')
+              : t('admin.feishu.connect.generate')}
         </Button>
         {registration && (
           <div className="space-y-sm rounded-md border border-border bg-background p-md">
             {qrDataUrl && (
               <Image
                 src={qrDataUrl}
-                alt="用飞书 App 扫描以关联或创建机器人"
+                alt={t('admin.feishu.connect.qrAlt')}
                 width={280}
                 height={280}
                 unoptimized
               />
             )}
             <p className="text-sm text-muted">
-              二维码将在 {new Date(registration.expiresAt).toLocaleTimeString()} 失效。
+              {t('admin.feishu.connect.expiresAt', {
+                time: new Date(registration.expiresAt).toLocaleTimeString(),
+              })}
             </p>
           </div>
         )}
         {message && <Alert>{message}</Alert>}
       </section>
       <section className="rounded-lg border border-border bg-surface p-lg space-y-xs text-sm">
-        <h2 className="font-display text-lg font-semibold">连接状态</h2>
-        <p>传输方式：WebSocket 长连接</p>
-        <p>应用：{config.appId ?? '尚未关联'}</p>
-        <p>状态：{config.enabled ? '已启用' : '未启用'}</p>
+        <h2 className="font-display text-lg font-semibold">{t('admin.feishu.status.title')}</h2>
+        <p>{t('admin.feishu.status.transport')}</p>
+        <p>{t('admin.feishu.status.app', { value: config.appId ?? t('admin.feishu.status.notLinked') })}</p>
+        <p>
+          {t('admin.feishu.status.state', {
+            value: config.enabled ? t('admin.feishu.status.enabled') : t('admin.feishu.status.disabled'),
+          })}
+        </p>
         {config.lastConnectedAt && (
-          <p>最近连接：{new Date(config.lastConnectedAt).toLocaleString()}</p>
+          <p>{t('admin.feishu.status.lastConnected', { time: new Date(config.lastConnectedAt).toLocaleString() })}</p>
         )}
-        {config.lastError && <Alert>最近错误：{config.lastError}</Alert>}
+        {config.lastError && <Alert>{t('admin.feishu.status.lastError', { message: config.lastError })}</Alert>}
       </section>
     </div>
   );
