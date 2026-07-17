@@ -134,6 +134,13 @@
       "when": 1784209784012,
       "tag": "0018_abnormal_mojo",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784266628559,
+      "tag": "0019_sparkling_caretaker",
+      "breakpoints": true
     }
   ]
 }

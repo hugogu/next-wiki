@@ -947,7 +947,15 @@ export const aiSettings = pgTable('ai_settings', {
   enabled: boolean('enabled').notNull().default(false),
   eventRetentionHours: integer('event_retention_hours').notNull().default(24),
   artifactRetentionHours: integer('artifact_retention_hours').notNull().default(24),
+  // Each Model Capability Detector is configured independently so switching
+  // between them never discards stored credentials. OpenRouter is a global
+  // enrichment key (active when present). Cloudflare is a catalog-listing
+  // engine, gated by its own enabled flag so saving a token does not silently
+  // change how every provider syncs.
   modelDetectorApiKeyEncrypted: text('model_detector_api_key_encrypted'),
+  cloudflareDetectorEnabled: boolean('cloudflare_detector_enabled').notNull().default(false),
+  cloudflareAccountId: text('cloudflare_account_id'),
+  cloudflareApiTokenEncrypted: text('cloudflare_api_token_encrypted'),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

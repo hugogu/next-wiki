@@ -50,34 +50,26 @@ describe('AI Admin REST routes', () => {
     expect(JSON.stringify(await response.json())).not.toContain('secret');
   });
 
-  it('accepts a Cloudflare detector config and never returns the token', async () => {
-    services.createProvider.mockResolvedValue({
-      id: 'provider',
-      name: 'Cloudflare Detector',
-      hasCredentials: true,
-      config: { modelDetector: { source: 'cloudflare', cloudflareAccountId: 'acct-1' } },
-    });
-    const response = await providersRoute.POST(new NextRequest('http://localhost/api/ai/providers', {
-      method: 'POST',
+  it('accepts a global Cloudflare detector config and never returns the token', async () => {
+    services.updateSettings.mockResolvedValue({ enabled: true });
+    const response = await settingsRoute.PATCH(new NextRequest('http://localhost/api/ai/settings', {
+      method: 'PATCH',
       body: JSON.stringify({
-        name: 'Cloudflare Detector',
-        type: 'chat',
-        vendor: 'custom',
-        kind: 'openai_compatible',
-        baseUrl: 'https://example.com/v1',
-        config: { modelDetector: { source: 'cloudflare', cloudflareAccountId: 'acct-1' } },
-        credentials: { apiKey: 'cf-secret-token' },
-        enabled: true,
+        cloudflareDetectorEnabled: true,
+        cloudflareAccountId: 'acct-1',
+        cloudflareApiToken: 'cf-secret-token',
       }),
       headers: { 'content-type': 'application/json' },
     }));
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     const body = JSON.stringify(await response.json());
     expect(body).not.toContain('cf-secret-token');
-    expect(services.createProvider).toHaveBeenCalledWith(
+    expect(services.updateSettings).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        config: { modelDetector: { source: 'cloudflare', cloudflareAccountId: 'acct-1' } },
+        cloudflareDetectorEnabled: true,
+        cloudflareAccountId: 'acct-1',
+        cloudflareApiToken: 'cf-secret-token',
       }),
     );
   });

@@ -45,6 +45,7 @@ export function AiAdminTabs({
   actions,
   actionsTotal,
   hasModelDetectorApiKey,
+  detector,
 }: {
   providers: AiProviderView[];
   models: AiModelView[];
@@ -53,6 +54,12 @@ export function AiAdminTabs({
   actions: AiActionView[];
   actionsTotal: number;
   hasModelDetectorApiKey: boolean;
+  detector: {
+    hasOpenRouterKey: boolean;
+    cloudflareEnabled: boolean;
+    cloudflareAccountId: string | null;
+    hasCloudflareToken: boolean;
+  };
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -68,12 +75,15 @@ export function AiAdminTabs({
     params.set('tab', tab);
     router.push(`${pathname}?${params.toString()}`);
   };
+  // Any configured detector marks the tab as set up.
+  const detectorConfigured =
+    detector.hasOpenRouterKey || (Boolean(detector.cloudflareAccountId) && detector.hasCloudflareToken);
 
   const tabs = [
     {
       id: 'detector' as const,
       label: t('admin.ai.tabs.detector'),
-      status: hasModelDetectorApiKey ? (
+      status: detectorConfigured ? (
         <Tooltip label={t('admin.ai.modelDetector.configuredShort')}>
           <CheckIcon className="h-4 w-4 text-success" />
         </Tooltip>
@@ -147,7 +157,12 @@ export function AiAdminTabs({
           </section>
         )}
         {selected === 'detector' && (
-          <ModelDetectorPanel hasModelDetectorApiKey={hasModelDetectorApiKey} />
+          <ModelDetectorPanel
+            hasModelDetectorApiKey={hasModelDetectorApiKey}
+            cloudflareDetectorEnabled={detector.cloudflareEnabled}
+            cloudflareAccountId={detector.cloudflareAccountId}
+            hasCloudflareToken={detector.hasCloudflareToken}
+          />
         )}
         {selected === 'indexes' && <IndexList indexes={indexes} />}
         {selected === 'actions' && (

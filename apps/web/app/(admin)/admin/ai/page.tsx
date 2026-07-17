@@ -45,6 +45,12 @@ export default async function AdminAiPage() {
           actions={actions.items}
           actionsTotal={actions.total}
           hasModelDetectorApiKey={settings.hasModelDetectorApiKey}
+          detector={{
+            hasOpenRouterKey: settings.hasModelDetectorApiKey,
+            cloudflareEnabled: settings.cloudflareDetectorEnabled,
+            cloudflareAccountId: settings.cloudflareAccountId,
+            hasCloudflareToken: settings.hasCloudflareApiToken,
+          }}
         />
       </div>
     </Layout>

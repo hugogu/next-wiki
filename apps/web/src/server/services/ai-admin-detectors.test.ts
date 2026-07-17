@@ -3,30 +3,43 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
-import { encryptAiJson } from '@/server/crypto/ai-encryption';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { cloudflareModel, cloudflareSchema, stubFetch } from '@/server/ai/model-detectors/test-helpers';
 import {
   createProvider,
   listModels,
+  readSettings,
   setCapabilityOverride,
   syncProviderModels,
+  updateSettings,
 } from './ai-admin';
 
 function isSearch(url: string) {
   return url.includes('/ai/models/search');
 }
 
-/** A Cloudflare-detector-backed provider: config selects the detector source. */
+/** Activate Cloudflare as the globally-active detector with valid credentials. */
+async function enableCloudflareDetector(
+  ctx: ReturnType<typeof buildUserCtx>,
+  overrides: { accountId?: string; token?: string } = {},
+) {
+  await updateSettings(ctx, {
+    cloudflareDetectorEnabled: true,
+    ...(overrides.accountId === undefined ? { cloudflareAccountId: 'acct-1' } : {}),
+    ...(overrides.token === undefined ? { cloudflareApiToken: 'cf-token' } : {}),
+  });
+}
+
+/** A plain provider whose models are synced by the global Cloudflare detector. */
 async function createCloudflareProvider(ctx: ReturnType<typeof buildUserCtx>) {
+  await enableCloudflareDetector(ctx);
   return createProvider(ctx, {
     name: 'Cloudflare Detector',
     type: 'chat',
     vendor: 'custom',
     kind: 'openai_compatible',
     baseUrl: 'https://example.invalid/v1',
-    config: { modelDetector: { source: 'cloudflare', cloudflareAccountId: 'acct-1', hideExperimental: false } },
-    credentials: { apiKey: 'cf-token' },
+    credentials: { apiKey: 'provider-key' },
   });
 }
 
@@ -159,6 +172,29 @@ describe('detector-backed model sync', () => {
     expect(row?.displayName).toBe('Hand-curated name');
   });
 
+  it('keeps each detector credential independent when the other is saved', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    // Configure OpenRouter, then configure Cloudflare separately.
+    await updateSettings(ctx, { modelDetectorApiKey: 'router-key' });
+    await updateSettings(ctx, {
+      cloudflareDetectorEnabled: true,
+      cloudflareAccountId: 'acct-1',
+      cloudflareApiToken: 'cf-token',
+    });
+    const settings = await readSettings(ctx);
+    // Saving Cloudflare must not clear the stored OpenRouter key.
+    expect(settings.hasModelDetectorApiKey).toBe(true);
+    expect(settings.hasCloudflareApiToken).toBe(true);
+    expect(settings.cloudflareDetectorEnabled).toBe(true);
+    expect(settings.cloudflareAccountId).toBe('acct-1');
+
+    // Re-saving OpenRouter must not disturb the Cloudflare token/account.
+    await updateSettings(ctx, { modelDetectorApiKey: 'router-key-2' });
+    const after = await readSettings(ctx);
+    expect(after.hasCloudflareApiToken).toBe(true);
+    expect(after.cloudflareAccountId).toBe('acct-1');
+  });
+
   it('records only proven capabilities, leaving unproven ones absent rather than supported', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const provider = await createCloudflareProvider(ctx);
@@ -176,31 +212,26 @@ describe('detector-backed model sync', () => {
     expect(model!.capabilities.some((c) => c.capability === 'text_generation' && c.supported)).toBe(true);
   });
 
-  it('rejects creating a Cloudflare detector provider without an API token', async () => {
+  it('does not call Cloudflare when the active detector is missing its token', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
-    await expect(
-      createProvider(ctx, {
-        name: 'No token',
-        type: 'chat',
-        vendor: 'custom',
-        kind: 'openai_compatible',
-        baseUrl: 'https://example.invalid/v1',
-        config: { modelDetector: { source: 'cloudflare', cloudflareAccountId: 'acct-1' } },
-        credentials: { headers: { 'x-marker': 'present' } },
-      }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-  });
-
-  it('fails a sync before any network call when the token was later cleared', async () => {
-    const ctx = buildUserCtx(adminId, 'admin');
-    const provider = await createCloudflareProvider(ctx);
-    // Simulate the token being cleared out-of-band (credentials without apiKey).
-    await db
-      .update(schema.aiProviders)
-      .set({ credentialsEncrypted: encryptAiJson({ headers: { 'x-marker': 'present' } }) })
-      .where(eq(schema.aiProviders.id, provider.id));
-    const mock = stubFetch(() => ({ body: {} }));
-    await expect(syncProviderModels(provider.id)).rejects.toMatchObject({ code: expect.any(String) });
-    expect(mock).not.toHaveBeenCalled();
+    // Enable Cloudflare but never store a token: the detector is not resolvable,
+    // so sync falls back to the legacy discovery path without a Cloudflare call.
+    await updateSettings(ctx, { cloudflareDetectorEnabled: true, cloudflareAccountId: 'acct-1' });
+    const provider = await createProvider(ctx, {
+      name: 'Incomplete detector',
+      type: 'chat',
+      vendor: 'custom',
+      kind: 'openai_compatible',
+      baseUrl: 'https://example.invalid/v1',
+      credentials: { apiKey: 'provider-key' },
+    });
+    const mock = stubFetch((url) => {
+      if (isSearch(url)) throw new Error('Cloudflare should not be called');
+      return { body: { data: [] } };
+    });
+    const result = await syncProviderModels(provider.id);
+    // Legacy path ran (no detector source on the result), no Cloudflare search.
+    expect(result.detectorSource).toBeUndefined();
+    expect(mock.mock.calls.some(([url]) => String(url).includes('/ai/models/search'))).toBe(false);
   });
 });

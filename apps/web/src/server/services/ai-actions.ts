@@ -62,6 +62,9 @@ export async function getAiSettings() {
       eventRetentionHours: env.AI_EVENT_RETENTION_HOURS,
       artifactRetentionHours: env.AI_ARTIFACT_RETENTION_HOURS,
       modelDetectorApiKeyEncrypted: null,
+      cloudflareDetectorEnabled: false,
+      cloudflareAccountId: null,
+      cloudflareApiTokenEncrypted: null,
       updatedBy: null,
       updatedAt: new Date(0),
     }

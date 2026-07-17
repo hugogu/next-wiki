@@ -1,11 +1,8 @@
 import { and, asc, eq, inArray, notInArray, or } from 'drizzle-orm';
 import {
-  aiModelDetectorConfigSchema,
   getAiProviderVendor,
-  readModelDetectorConfig,
   type AiCapability,
   type AiModelCreate,
-  type AiModelDetectorConfig,
   type AiModelSyncResult,
   type AiModelView,
   type AiProviderCreate,
@@ -64,31 +61,6 @@ function validateBaseUrl(value: string): string {
   return url.toString().replace(/\/$/, '');
 }
 
-/**
- * Validate a provider's `modelDetector` config up front so a misconfigured
- * detector is rejected at create/update time rather than only at sync. A
- * Cloudflare detector requires a provider credential (its API token); the
- * token is supplied on create, or must already exist on update.
- */
-function validateDetectorConfig(
-  config: Record<string, unknown> | undefined,
-  credentials: ProviderCredentials | undefined,
-  hasStoredCredentials: boolean,
-): void {
-  const raw = (config ?? {})['modelDetector'];
-  if (raw === undefined) return;
-  const parsed = aiModelDetectorConfigSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new DomainError('BAD_REQUEST', 'Model detector configuration is invalid');
-  }
-  if (parsed.data.source === 'cloudflare') {
-    const hasCredential = Boolean(credentials?.apiKey) || (credentials === undefined && hasStoredCredentials);
-    if (!hasCredential) {
-      throw new DomainError('BAD_REQUEST', 'Cloudflare detector requires an API token credential');
-    }
-  }
-}
-
 function resolveProviderProtocol(
   type: AiProviderType,
   vendor: AiProviderCreate['vendor'],
@@ -141,7 +113,12 @@ export async function readSettings(ctx: PermCtx) {
     enabled: settings.enabled,
     eventRetentionHours: settings.eventRetentionHours,
     artifactRetentionHours: settings.artifactRetentionHours,
+    // Each detector reports its own config independently so the admin UI can
+    // show and edit them side by side without one clobbering the other.
     hasModelDetectorApiKey: Boolean(settings.modelDetectorApiKeyEncrypted),
+    cloudflareDetectorEnabled: settings.cloudflareDetectorEnabled,
+    cloudflareAccountId: settings.cloudflareAccountId ?? null,
+    hasCloudflareApiToken: Boolean(settings.cloudflareApiTokenEncrypted),
     assignments,
   };
 }
@@ -151,6 +128,11 @@ export async function updateSettings(ctx: PermCtx, input: AiSettingsUpdate) {
   const values = {
     ...(input.modelDetectorApiKey
       ? { modelDetectorApiKeyEncrypted: encryptAiJson({ apiKey: input.modelDetectorApiKey }) }
+      : {}),
+    ...(input.cloudflareDetectorEnabled !== undefined ? { cloudflareDetectorEnabled: input.cloudflareDetectorEnabled } : {}),
+    ...(input.cloudflareAccountId !== undefined ? { cloudflareAccountId: input.cloudflareAccountId } : {}),
+    ...(input.cloudflareApiToken
+      ? { cloudflareApiTokenEncrypted: encryptAiJson({ apiKey: input.cloudflareApiToken }) }
       : {}),
     ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
     ...(input.eventRetentionHours !== undefined ? { eventRetentionHours: input.eventRetentionHours } : {}),
@@ -238,7 +220,6 @@ export async function createProvider(
   const userId = actorId(ctx);
   const type = input.type ?? 'chat';
   const kind = resolveProviderProtocol(type, input.vendor, input.kind);
-  validateDetectorConfig(input.config, input.credentials, false);
   try {
     const [row] = await db
       .insert(schema.aiProviders)
@@ -276,9 +257,6 @@ export async function updateProvider(
   const type = input.type ?? current.type;
   const vendor = input.vendor ?? current.vendor;
   const kind = resolveProviderProtocol(type, vendor, input.kind);
-  if (input.config !== undefined) {
-    validateDetectorConfig(input.config, input.credentials, Boolean(current.credentialsEncrypted));
-  }
   const [row] = await db
     .update(schema.aiProviders)
     .set({
@@ -778,28 +756,52 @@ export async function testProviderConnection(
 }
 
 /**
- * Build the detector runtime config for a provider that selects a detector
- * source in its config, or return null when no detector is configured. The
- * detector credential comes from the provider's encrypted credentials — never
- * from the non-secret config blob.
+ * The globally-active detector, resolved from AI settings, that drives the
+ * catalog-listing sync engine. Only Cloudflare uses this engine; OpenRouter
+ * remains a global enrichment key on the legacy sync path. Returns null when no
+ * catalog-listing detector is active or its config is incomplete.
  */
-export function resolveDetectorRuntime(
+export type ResolvedGlobalDetector = {
+  source: 'cloudflare';
+  accountId: string;
+  apiKey: string;
+  includeDeprecated: boolean;
+  hideExperimental: boolean;
+};
+
+type AiSettingsRow = Awaited<ReturnType<typeof getAiSettings>>;
+
+export function resolveGlobalDetector(settings: AiSettingsRow): ResolvedGlobalDetector | null {
+  if (!settings.cloudflareDetectorEnabled) return null;
+  if (!settings.cloudflareAccountId || !settings.cloudflareApiTokenEncrypted) return null;
+  const { apiKey } = decryptAiJson(settings.cloudflareApiTokenEncrypted) as { apiKey?: string };
+  if (!apiKey) return null;
+  return {
+    source: 'cloudflare',
+    accountId: settings.cloudflareAccountId,
+    apiKey,
+    includeDeprecated: false,
+    hideExperimental: true,
+  };
+}
+
+/** Build a detector runtime config from the resolved global detector. */
+function detectorRuntimeFor(
   runtime: ProviderRuntimeConfig,
-  detectorConfig: AiModelDetectorConfig,
+  detector: ResolvedGlobalDetector,
 ): DetectorRuntimeConfig {
   return {
-    source: detectorConfig.source,
+    source: detector.source,
     providerId: runtime.providerId,
     providerName: runtime.name,
     providerType: runtime.type,
     vendor: runtime.vendor,
-    accountId: detectorConfig.cloudflareAccountId,
-    namespace: detectorConfig.namespace,
+    accountId: detector.accountId,
     options: {
-      includeDeprecated: detectorConfig.includeDeprecated,
-      hideExperimental: detectorConfig.hideExperimental,
+      includeDeprecated: detector.includeDeprecated,
+      hideExperimental: detector.hideExperimental,
     },
-    credentials: runtime.credentials,
+    credentials: { apiKey: detector.apiKey },
   };
 }
 
@@ -878,9 +880,9 @@ async function mergeDetectedModel(providerId: string, model: DetectedModel): Pro
  */
 export async function syncProviderModelsViaDetector(
   runtime: ProviderRuntimeConfig,
-  detectorConfig: AiModelDetectorConfig,
+  globalDetector: ResolvedGlobalDetector,
 ): Promise<AiModelSyncResult> {
-  const detector = createDetector(resolveDetectorRuntime(runtime, detectorConfig));
+  const detector = createDetector(detectorRuntimeFor(runtime, globalDetector));
   const controller = new AbortController();
   let result;
   try {
@@ -926,7 +928,7 @@ export async function syncProviderModelsViaDetector(
   return {
     count: kept.length,
     skipped,
-    detectorSource: detectorConfig.source,
+    detectorSource: globalDetector.source,
     freshness: result.freshness,
     added,
     updated,
@@ -938,11 +940,14 @@ export async function syncProviderModelsViaDetector(
 
 export async function syncProviderModels(providerId: string): Promise<AiModelSyncResult> {
   const runtime = await providerRuntime(providerId);
-  const detectorConfig = readModelDetectorConfig(runtime.config);
-  if (detectorConfig) {
-    return syncProviderModelsViaDetector(runtime, detectorConfig);
-  }
   const settings = await getAiSettings();
+  // When a catalog-listing detector (Cloudflare) is the globally-active source,
+  // it drives sync for every provider. OpenRouter stays on the legacy
+  // enrichment path below.
+  const globalDetector = resolveGlobalDetector(settings);
+  if (globalDetector) {
+    return syncProviderModelsViaDetector(runtime, globalDetector);
+  }
   const detector = settings.modelDetectorApiKeyEncrypted
     ? { apiKey: (decryptAiJson(settings.modelDetectorApiKeyEncrypted) as { apiKey: string }).apiKey }
     : null;
@@ -1044,8 +1049,10 @@ export async function startProviderModelSync(
   if (!provider) throw new DomainError('NOT_FOUND', 'AI provider not found');
   if (!provider.enabled) throw new DomainError('PROVIDER_DISABLED', 'AI provider is disabled');
 
-  const detectorConfig = readModelDetectorConfig(provider.config as Record<string, unknown>);
-  if (!detectorConfig) {
+  // Catalog-listing detector (Cloudflare) runs as a resumable action because it
+  // does per-model schema calls; without one, sync stays inline.
+  const globalDetector = resolveGlobalDetector(await getAiSettings());
+  if (!globalDetector) {
     return { mode: 'sync', result: await syncProviderModelsNow(ctx, providerId) };
   }
 
@@ -1074,7 +1081,7 @@ export async function startProviderModelSync(
     feature: 'model_sync',
     input: { providerId },
     providerId,
-    requestMetadata: { providerId, detectorSource: detectorConfig.source },
+    requestMetadata: { providerId, detectorSource: globalDetector.source },
   });
   return {
     mode: 'action',

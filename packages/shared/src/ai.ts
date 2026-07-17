@@ -32,42 +32,6 @@ export type AiModelDiscoveryProtocol = 'openai' | 'openrouter' | 'anthropic' | '
 export const aiModelDetectorSourceSchema = z.enum(['openrouter', 'cloudflare']);
 export type AiModelDetectorSource = z.infer<typeof aiModelDetectorSourceSchema>;
 
-/**
- * Non-secret detector configuration stored on `ai_providers.config` under the
- * `modelDetector` key. The detector credential (e.g. a Cloudflare API token) is
- * kept in the provider's encrypted credentials, never here.
- */
-export const aiModelDetectorConfigSchema = z.object({
-  source: aiModelDetectorSourceSchema,
-  cloudflareAccountId: z.string().trim().min(1).max(200).optional(),
-  namespace: z.string().trim().min(1).max(200).optional(),
-  includeDeprecated: z.boolean().default(false),
-  hideExperimental: z.boolean().default(true),
-}).superRefine((value, context) => {
-  if (value.source === 'cloudflare' && !value.cloudflareAccountId) {
-    context.addIssue({
-      code: 'custom',
-      path: ['cloudflareAccountId'],
-      message: 'cloudflareAccountId is required when source is cloudflare',
-    });
-  }
-});
-export type AiModelDetectorConfig = z.infer<typeof aiModelDetectorConfigSchema>;
-
-/**
- * Parse a provider config JSON blob into a validated detector config, or return
- * null when no detector is configured. Unknown/invalid detector config is
- * treated as absent so a malformed blob never blocks provider administration.
- */
-export function readModelDetectorConfig(
-  config: Record<string, unknown> | null | undefined,
-): AiModelDetectorConfig | null {
-  const raw = (config ?? {})['modelDetector'];
-  if (!raw || typeof raw !== 'object') return null;
-  const parsed = aiModelDetectorConfigSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
-}
-
 export type AiProviderVendorDefinition = {
   vendor: AiProviderVendor;
   capabilities: AiProviderType[];
@@ -245,6 +209,12 @@ export const aiSettingsUpdateSchema = z.object({
   // every capability (chat, embedding, image) using that same key. Each is
   // created under a distinct name because provider names are globally unique.
   registerOpenRouterProviders: z.boolean().optional(),
+  // Cloudflare detector is configured independently of OpenRouter. The account
+  // id is non-secret admin config; the token is write-only; the enabled flag
+  // gates whether it drives model sync.
+  cloudflareDetectorEnabled: z.boolean().optional(),
+  cloudflareAccountId: z.string().trim().min(1).max(200).optional(),
+  cloudflareApiToken: z.string().min(1).max(8_192).optional(),
 });
 export type AiSettingsUpdate = z.infer<typeof aiSettingsUpdateSchema>;
 

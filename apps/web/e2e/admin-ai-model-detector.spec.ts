@@ -12,9 +12,10 @@ import { test, expect, type Page } from '@playwright/test';
  * detector via an e2e-only env flag) so these can run deterministically offline.
  *
  * Selector inventory (source of truth for the UI under test):
- * - Provider form detector select:   getByLabel('Model capability detector')
+ * - Detector tab active source:       getByLabel('Active detector')       (?tab=detector)
  * - Cloudflare account id:            getByLabel('Cloudflare account ID')
- * - API key:                          getByLabel('API key')
+ * - Cloudflare token:                 getByLabel('Cloudflare API token')
+ * - Save detector settings:           getByRole('button', { name: /save/i })
  * - Sync action button (per row):     getByRole('button', { name: /sync/i })
  * - Sync-started feedback:            getByText(/Model sync started/i)
  * - Model catalog detector badge:     getByText('Cloudflare')      (in model row)
@@ -35,20 +36,21 @@ async function login(page: Page, email: string, password: string) {
 }
 
 test.describe('admin AI model capability detector', () => {
-  test.fixme('configures a Cloudflare detector without exposing the stored token', async ({ page }) => {
+  test.fixme('configures the global Cloudflare detector without exposing the token', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/ai');
+    await page.goto('/admin/ai?tab=detector');
 
-    // Open the chat provider form and select the Cloudflare detector.
-    await page.getByRole('button', { name: /add/i }).first().click();
-    await page.getByLabel('Model capability detector').selectOption('cloudflare');
+    // The detector is global: pick Cloudflare as the active source and save.
+    await page.getByLabel('Active detector').selectOption('cloudflare');
     await expect(page.getByLabel('Cloudflare account ID')).toBeVisible();
     await page.getByLabel('Cloudflare account ID').fill('acct-e2e');
-    await page.getByLabel('API key').fill('cf-e2e-token');
-    await page.getByRole('button', { name: /create/i }).click();
+    await page.getByLabel('Cloudflare API token').fill('cf-e2e-token');
+    await page.getByRole('button', { name: /save/i }).click();
 
-    // The stored token never round-trips back to the client.
+    // The stored token never round-trips back to the client after reload.
+    await page.reload();
     await expect(page.getByText('cf-e2e-token')).toHaveCount(0);
+    await expect(page.getByLabel('Cloudflare API token')).toHaveValue('');
   });
 
   test.fixme('starts a detector-backed sync and shows result counts and provenance', async ({ page }) => {
