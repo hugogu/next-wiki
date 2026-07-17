@@ -21,7 +21,52 @@ export const aiProviderVendorSchema = z.enum([
   'custom',
 ]);
 export type AiProviderVendor = z.infer<typeof aiProviderVendorSchema>;
-export type AiModelDiscoveryProtocol = 'openai' | 'openrouter' | 'anthropic' | 'none';
+export type AiModelDiscoveryProtocol = 'openai' | 'openrouter' | 'anthropic' | 'cloudflare' | 'none';
+
+/**
+ * Registered Model Capability Detector sources. A detector source is a stable
+ * product-level contract, distinct from a provider vendor or runtime protocol:
+ * one provider may run inference through an OpenAI-compatible protocol while
+ * selecting a separate detector source for catalog/capability discovery.
+ */
+export const aiModelDetectorSourceSchema = z.enum(['openrouter', 'cloudflare']);
+export type AiModelDetectorSource = z.infer<typeof aiModelDetectorSourceSchema>;
+
+/**
+ * Non-secret detector configuration stored on `ai_providers.config` under the
+ * `modelDetector` key. The detector credential (e.g. a Cloudflare API token) is
+ * kept in the provider's encrypted credentials, never here.
+ */
+export const aiModelDetectorConfigSchema = z.object({
+  source: aiModelDetectorSourceSchema,
+  cloudflareAccountId: z.string().trim().min(1).max(200).optional(),
+  namespace: z.string().trim().min(1).max(200).optional(),
+  includeDeprecated: z.boolean().default(false),
+  hideExperimental: z.boolean().default(true),
+}).superRefine((value, context) => {
+  if (value.source === 'cloudflare' && !value.cloudflareAccountId) {
+    context.addIssue({
+      code: 'custom',
+      path: ['cloudflareAccountId'],
+      message: 'cloudflareAccountId is required when source is cloudflare',
+    });
+  }
+});
+export type AiModelDetectorConfig = z.infer<typeof aiModelDetectorConfigSchema>;
+
+/**
+ * Parse a provider config JSON blob into a validated detector config, or return
+ * null when no detector is configured. Unknown/invalid detector config is
+ * treated as absent so a malformed blob never blocks provider administration.
+ */
+export function readModelDetectorConfig(
+  config: Record<string, unknown> | null | undefined,
+): AiModelDetectorConfig | null {
+  const raw = (config ?? {})['modelDetector'];
+  if (!raw || typeof raw !== 'object') return null;
+  const parsed = aiModelDetectorConfigSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
 
 export type AiProviderVendorDefinition = {
   vendor: AiProviderVendor;
@@ -325,11 +370,40 @@ export const aiModelViewSchema = z.object({
   lastSeenAt: z.string().nullable(),
 });
 export type AiModelView = z.infer<typeof aiModelViewSchema>;
+export const aiModelSyncWarningSchema = z.object({
+  modelExternalId: z.string().optional(),
+  code: z.string(),
+});
+export type AiModelSyncWarning = z.infer<typeof aiModelSyncWarningSchema>;
+
 export const aiModelSyncResultSchema = z.object({
   count: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
+  // Detector-run detail. Present for detector-backed syncs; `count`/`skipped`
+  // stay for backward compatibility with existing synchronous callers.
+  detectorSource: aiModelDetectorSourceSchema.optional(),
+  freshness: z.enum(['fresh', 'cache']).optional(),
+  added: z.number().int().nonnegative().optional(),
+  updated: z.number().int().nonnegative().optional(),
+  unavailable: z.number().int().nonnegative().optional(),
+  partial: z.number().int().nonnegative().optional(),
+  warnings: z.array(aiModelSyncWarningSchema).optional(),
 });
 export type AiModelSyncResult = z.infer<typeof aiModelSyncResultSchema>;
+
+/**
+ * Response for a detector-backed `POST /model-syncs` — the accepted (or
+ * resumed) `model_sync` action. Synchronous vendor syncs still return
+ * `AiModelSyncResult` directly.
+ */
+export const aiModelSyncActionSchema = z.object({
+  id: z.string().uuid(),
+  feature: z.literal('model_sync'),
+  status: aiActionStatusSchema,
+  providerId: z.string().uuid(),
+  eventsUrl: z.string(),
+});
+export type AiModelSyncAction = z.infer<typeof aiModelSyncActionSchema>;
 
 export const aiEntitlementUpdateSchema = z.object({
   questionAnsweringEnabled: z.boolean(),
