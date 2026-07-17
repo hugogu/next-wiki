@@ -28,6 +28,12 @@ const PURPOSE_BY_PROVIDER_TYPE: Record<AiProviderType, 'wiki_text' | 'wiki_embed
   image: 'wiki_image',
 };
 
+/** Preferred embedding model for onboarding auto-assign: capable, cheap, and
+ * dimension-stable. When its synced record lacks dimensions, fall back to the
+ * known 1024 so assignment still succeeds. */
+const PREFERRED_EMBEDDING_EXTERNAL_ID = 'perplexity/pplx-embed-v1-0.6b';
+const PREFERRED_EMBEDDING_DIMENSIONS = 1024;
+
 const OPENROUTER_PROVIDER_NAMES: Record<AiProviderType, string> = {
   chat: 'OpenRouter Chat',
   embedding: 'OpenRouter Embedding',
@@ -299,28 +305,58 @@ async function readAutoAssignFlag(progress: SetupProgressRow): Promise<boolean> 
   return metadata?.autoAssign !== false;
 }
 
+type ModelRow = typeof schema.aiModels.$inferSelect;
+
+/**
+ * Deterministic candidate order with operator-friendly preferences: free
+ * OpenRouter chat models first for wiki_text, and the known-good Perplexity
+ * embedding model first for wiki_embedding.
+ */
+function rankCandidates(
+  purpose: 'wiki_text' | 'wiki_embedding' | 'wiki_image',
+  models: ModelRow[],
+): ModelRow[] {
+  const score = (model: ModelRow): number => {
+    if (purpose === 'wiki_embedding' && model.externalId === PREFERRED_EMBEDDING_EXTERNAL_ID) return 2;
+    if (purpose === 'wiki_text' && /free/i.test(model.externalId) ) return 1;
+    if (purpose === 'wiki_text' && /free/i.test(model.displayName)) return 1;
+    return 0;
+  };
+  return [...models].sort(
+    (a, b) => score(b) - score(a) || a.displayName.localeCompare(b.displayName),
+  );
+}
+
 async function assignBestModel(
   ctx: PermCtx,
   purpose: 'wiki_text' | 'wiki_embedding' | 'wiki_image',
   providerId: string,
 ): Promise<SetupPurposeResult> {
-  const candidates = await db
-    .select()
-    .from(schema.aiModels)
-    .where(
-      and(
-        eq(schema.aiModels.providerId, providerId),
-        eq(schema.aiModels.availability, 'available'),
+  const candidates = rankCandidates(
+    purpose,
+    await db
+      .select()
+      .from(schema.aiModels)
+      .where(
+        and(
+          eq(schema.aiModels.providerId, providerId),
+          eq(schema.aiModels.availability, 'available'),
+        ),
       ),
-    )
-    .orderBy(schema.aiModels.displayName);
+  );
   if (candidates.length === 0) {
     return { status: 'unavailable', reason: 'No compatible detected model' };
   }
   let lastReason = 'Capability evidence is missing or ambiguous';
   for (const model of candidates) {
     try {
-      await aiAdmin.assignPurpose(ctx, purpose, model.id);
+      const options =
+        purpose === 'wiki_embedding' &&
+        model.externalId === PREFERRED_EMBEDDING_EXTERNAL_ID &&
+        !model.embeddingDimensions
+          ? { embeddingDimensions: PREFERRED_EMBEDDING_DIMENSIONS }
+          : {};
+      await aiAdmin.assignPurpose(ctx, purpose, model.id, options);
       return { status: 'configured', modelId: model.id, modelName: model.displayName };
     } catch (error) {
       if (error instanceof DomainError) {

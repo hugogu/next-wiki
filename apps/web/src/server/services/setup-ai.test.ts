@@ -41,31 +41,50 @@ async function openSetupAtAiStep(): Promise<{ userId: string; actor: Actor }> {
 const CAPABILITY_BY_TYPE = { chat: 'text_generation', embedding: 'embedding', image: 'image_generation' } as const;
 
 /** Simulates a completed background model sync with proven capabilities. */
-async function completeSyncWithModels(options: { skipTypes?: Array<'chat' | 'embedding' | 'image'> } = {}) {
+async function completeSyncWithModels(options: {
+  skipTypes?: Array<'chat' | 'embedding' | 'image'>;
+  extraModels?: Partial<Record<'chat' | 'embedding' | 'image', Array<{
+    externalId: string;
+    displayName: string;
+    embeddingDimensions?: number | null;
+  }>>>;
+} = {}) {
   const providers = await db.select().from(schema.aiProviders);
   for (const provider of providers) {
     const type = provider.type as 'chat' | 'embedding' | 'image';
     if (!options.skipTypes?.includes(type)) {
-      const [model] = await db
-        .insert(schema.aiModels)
-        .values({
-          providerId: provider.id,
-          externalId: `fixture/${type}`,
-          displayName: `Fixture ${type === 'chat' ? 'Chat' : type === 'embedding' ? 'Embedding' : 'Image'}`,
-          availability: 'available',
-          embeddingDimensions: type === 'embedding' ? 3 : null,
-          inputModalities: ['text'],
-          outputModalities: type === 'image' ? ['image'] : type === 'embedding' ? ['embeddings'] : ['text'],
-          rawMetadata: {},
-        })
-        .returning();
-      await db.insert(schema.aiModelCapabilities).values({
-        modelId: model!.id,
-        capability: CAPABILITY_BY_TYPE[type],
-        supported: true,
-        source: 'provider',
-        details: {},
-      });
+      const base = {
+        externalId: `fixture/${type}`,
+        displayName: `Fixture ${type === 'chat' ? 'Chat' : type === 'embedding' ? 'Embedding' : 'Image'}`,
+        embeddingDimensions: type === 'embedding' ? 3 : null,
+      };
+      for (const modelDef of [base, ...(options.extraModels?.[type] ?? [])]) {
+        const [model] = await db
+          .insert(schema.aiModels)
+          .values({
+            providerId: provider.id,
+            externalId: modelDef.externalId,
+            displayName: modelDef.displayName,
+            availability: 'available',
+            embeddingDimensions:
+              modelDef.embeddingDimensions !== undefined
+                ? modelDef.embeddingDimensions
+                : type === 'embedding'
+                  ? 3
+                  : null,
+            inputModalities: ['text'],
+            outputModalities: type === 'image' ? ['image'] : type === 'embedding' ? ['embeddings'] : ['text'],
+            rawMetadata: {},
+          })
+          .returning();
+        await db.insert(schema.aiModelCapabilities).values({
+          modelId: model!.id,
+          capability: CAPABILITY_BY_TYPE[type],
+          supported: true,
+          source: 'provider',
+          details: {},
+        });
+      }
     }
   }
   await db
@@ -178,8 +197,43 @@ describe('setup-ai OpenRouter bootstrap (US2)', () => {
     }
   });
 
-  it('marks purposes without compatible models as unavailable (partial)', async () => {
+  it('prefers free chat models and the Perplexity embedding model when present', async () => {
     const fixture = await startOpenRouterFixture();
+    try {
+      const { actor } = await openSetupAtAiStep();
+      await setupAi.configureAiBootstrap(actor, { apiKey: OPENROUTER_FIXTURE_KEY, baseUrl: fixture.baseUrl });
+      await completeSyncWithModels({
+        extraModels: {
+          chat: [{ externalId: 'fixture/text:free', displayName: 'Fixture Text Free' }],
+          embedding: [
+            { externalId: 'perplexity/pplx-embed-v1-0.6b', displayName: 'PPLX Embed v1 0.6B', embeddingDimensions: null },
+          ],
+        },
+      });
+      await setupAi.reconcileSetupAi(actor);
+
+      const progress = await readSetupProgress();
+      expect(progress?.aiStatus).toBe('completed');
+      expect(progress?.aiResult).toMatchObject({
+        wiki_text: { status: 'configured', modelName: 'Fixture Text Free' },
+        wiki_embedding: { status: 'configured', modelName: 'PPLX Embed v1 0.6B' },
+      });
+
+      // The preferred embedding model received its known 1024 dimensions.
+      const assignment = await db.query.aiPurposeAssignments.findFirst({
+        where: eq(schema.aiPurposeAssignments.purpose, 'wiki_embedding'),
+      });
+      const model = await db.query.aiModels.findFirst({
+        where: eq(schema.aiModels.id, assignment!.modelId),
+      });
+      expect(model?.externalId).toBe('perplexity/pplx-embed-v1-0.6b');
+      expect(model?.embeddingDimensions).toBe(1024);
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  it('marks purposes without compatible models as unavailable (partial)', async () => {    const fixture = await startOpenRouterFixture();
     try {
       const { actor } = await openSetupAtAiStep();
       await setupAi.configureAiBootstrap(actor, { apiKey: OPENROUTER_FIXTURE_KEY, baseUrl: fixture.baseUrl });

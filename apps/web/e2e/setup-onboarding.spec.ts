@@ -104,6 +104,12 @@ async function startOpenRouterFixture(): Promise<Server> {
             embedding_dimensions: 3,
             architecture: { input_modalities: ['text'], output_modalities: ['embeddings'] },
           },
+          {
+            id: 'perplexity/pplx-embed-v1-0.6b',
+            name: 'PPLX Embed v1 0.6B',
+            embedding_dimensions: 1024,
+            architecture: { input_modalities: ['text'], output_modalities: ['embeddings'] },
+          },
         ],
       });
       return;
@@ -114,6 +120,12 @@ async function startOpenRouterFixture(): Promise<Server> {
           {
             id: 'fixture/text',
             name: 'Fixture Text',
+            context_length: 32_000,
+            architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+          },
+          {
+            id: 'fixture/text:free',
+            name: 'Fixture Text Free',
             context_length: 32_000,
             architecture: { input_modalities: ['text'], output_modalities: ['text'] },
           },
@@ -133,7 +145,10 @@ async function startOpenRouterFixture(): Promise<Server> {
         const body = JSON.parse(raw || '{}');
         const inputs = Array.isArray(body.input) ? body.input : [body.input];
         json(200, {
-          data: inputs.map((_: unknown, index: number) => ({ index, embedding: [0.1, 0.2, 0.3] })),
+          data: inputs.map((_: unknown, index: number) => ({
+            index,
+            embedding: Array.from({ length: 1024 }, (_v, i) => ((i + index) % 10) / 10),
+          })),
           usage: { prompt_tokens: inputs.length },
         });
       });
@@ -309,8 +324,9 @@ test.describe('US2: OpenRouter bootstrap', () => {
     await page.getByRole('button', { name: /skip example pages/i }).click();
     await expect(page.getByText(/setup complete/i)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/chat \/ wiki answers/i)).toBeVisible();
-    await expect(page.getByText(/configured/i).first()).toBeVisible();
-    await expect(page.getByText(/embeddings \/ semantic search/i)).toBeVisible();
+    // The free chat model and the preferred Perplexity embedding win auto-assign.
+    await expect(page.getByText(/fixture text free/i)).toBeVisible();
+    await expect(page.getByText(/pplx embed v1 0.6b/i)).toBeVisible();
   });
 
   test('rejects an invalid key with a safe retryable error', async ({ page }) => {
