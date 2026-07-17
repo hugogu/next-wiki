@@ -86,16 +86,20 @@ export function ProviderList({
     setBusy(`${provider.id}:sync`);
     setFeedback(null);
     try {
-      const result = await apiPost<Record<string, never>, AiModelSyncResult>(
+      // Detector-backed providers return a queued model_sync action (202);
+      // inline syncs return the result directly. Distinguish by the action's
+      // `feature` marker so the admin sees the right feedback either way.
+      const result = await apiPost<Record<string, never>, AiModelSyncResult & { feature?: string }>(
         `/api/ai/providers/${provider.id}/model-syncs`,
         {},
       );
       setFeedback({
         ok: true,
-        text: `${provider.name}: ${t('admin.ai.providers.syncComplete', {
-          count: result.count,
-          skipped: result.skipped,
-        })}`,
+        text: `${provider.name}: ${
+          result.feature === 'model_sync'
+            ? t('admin.ai.providers.syncStarted')
+            : t('admin.ai.providers.syncComplete', { count: result.count, skipped: result.skipped })
+        }`,
       });
       router.refresh();
     } catch (value) {

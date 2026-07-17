@@ -37,6 +37,27 @@ const capabilityIcons = {
   thinking: SparklesIcon,
 } as const;
 
+const DETECTOR_LABELS: Record<string, TranslationKey> = {
+  openrouter: 'admin.ai.models.detector.openrouter',
+  cloudflare: 'admin.ai.models.detector.cloudflare',
+};
+
+/**
+ * Derive detector provenance for a model from its capability rows. Detector
+ * evidence lives in each capability's `details.detector`/`details.partial`;
+ * manual rows carry no detector and take precedence in the effective view.
+ */
+function modelProvenance(model: AiModelView): { detector: string | null; partial: boolean } {
+  let detector: string | null = null;
+  let partial = false;
+  for (const capability of model.capabilities) {
+    const details = capability.details as { detector?: unknown; partial?: unknown } | undefined;
+    if (typeof details?.detector === 'string' && capability.source !== 'manual') detector = details.detector;
+    if (details?.partial === true) partial = true;
+  }
+  return { detector, partial };
+}
+
 export function ModelCatalog({
   models,
   providers,
@@ -193,6 +214,22 @@ export function ModelCatalog({
                     )}
                   </div>
                   <p className="mt-xs max-w-xs truncate font-mono text-xs text-muted">{model.externalId}</p>
+                  {(() => {
+                    const { detector, partial } = modelProvenance(model);
+                    if (!detector) return null;
+                    return (
+                      <div className="mt-xs flex flex-wrap items-center gap-xs">
+                        <Tooltip label={t('admin.ai.models.detectorProvenance', { source: t(DETECTOR_LABELS[detector] ?? 'admin.ai.models.detector.openrouter') })}>
+                          <StatusBadge tone="neutral">{t(DETECTOR_LABELS[detector] ?? 'admin.ai.models.detector.openrouter')}</StatusBadge>
+                        </Tooltip>
+                        {partial && (
+                          <Tooltip label={t('admin.ai.models.partialHint')}>
+                            <StatusBadge tone="warning">{t('admin.ai.models.partial')}</StatusBadge>
+                          </Tooltip>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </DataTableCell>
                 <DataTableCell>{model.providerName}</DataTableCell>
                 <DataTableCell>
@@ -209,8 +246,16 @@ export function ModelCatalog({
                       {CHAT_CAPABILITIES.map((capability) => {
                         const current = model.capabilities.find((item) => item.capability === capability);
                         const CapabilityIcon = capabilityIcons[capability];
+                        const isManual = current?.source === 'manual';
                         return (
-                          <Tooltip key={capability} label={t(capabilityLabels[capability])}>
+                          <Tooltip
+                            key={capability}
+                            label={
+                              isManual
+                                ? `${t(capabilityLabels[capability])} · ${t('admin.ai.models.manualOverride')}`
+                                : t(capabilityLabels[capability])
+                            }
+                          >
                             <label className="flex items-center gap-xs">
                               <Switch
                                 checked={current?.supported === true}
@@ -218,7 +263,9 @@ export function ModelCatalog({
                                 aria-label={`${model.displayName}: ${t(capabilityLabels[capability])}`}
                                 onClick={() => void toggle(model, capability, current?.supported !== true)}
                               />
-                              <CapabilityIcon className="h-4 w-4 text-muted" />
+                              <CapabilityIcon
+                                className={`h-4 w-4 ${isManual ? 'text-primary' : 'text-muted'}`}
+                              />
                             </label>
                           </Tooltip>
                         );

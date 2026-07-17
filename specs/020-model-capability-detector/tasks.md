@@ -17,7 +17,7 @@
 
 - [X] T001 Create detector fixture directory with OpenRouter and Cloudflare sample payload placeholders in `apps/web/src/server/ai/model-detectors/__fixtures__/README.md`
 - [X] T002 [P] Add detector-focused Vitest fixture helpers scaffold in `apps/web/src/server/ai/model-detectors/test-helpers.ts`
-- [ ] T003 [P] Add admin AI detector E2E fixture notes and selectors inventory in `apps/web/e2e/admin-ai-model-detector.spec.ts`
+- [X] T003 [P] Add admin AI detector E2E fixture notes and selectors inventory in `apps/web/e2e/admin-ai-model-detector.spec.ts`
 
 ---
 
@@ -108,7 +108,7 @@
 ### Tests for User Story 3
 
 - [X] T039 [P] [US3] Add manual override precedence tests across OpenRouter and Cloudflare syncs in `apps/web/src/server/services/ai-admin-detectors.test.ts`
-- [ ] T040 [P] [US3] Add assignment validation tests for unknown detector values and explicit manual confirmation in `apps/web/src/server/services/ai-admin.test.ts`
+- [X] T040 [P] [US3] Add assignment validation tests for unknown detector values and explicit manual confirmation in `apps/web/src/server/services/ai-admin.test.ts`
 - [ ] T041 [P] [US3] Add UI regression test for manual capability override persistence after sync in `apps/web/e2e/admin-ai-model-detector.spec.ts`
 
 ### Implementation for User Story 3
@@ -116,8 +116,8 @@
 - [X] T042 [US3] Ensure detector merge skips overwriting `manually_added` model rows in `apps/web/src/server/services/ai-admin.ts`
 - [X] T043 [US3] Ensure detector merge upserts only detector-owned capability rows and never deletes `source=manual` rows in `apps/web/src/server/services/ai-admin.ts`
 - [ ] T044 [US3] Update assignment validation to reject unknown detector evidence unless manual confirmation creates an override in `apps/web/src/server/services/ai-admin.ts`
-- [ ] T045 [US3] Show detector provenance and manual override precedence in model capability controls in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
-- [ ] T046 [US3] Keep manual model creation available for detector-backed providers in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
+- [X] T045 [US3] Show detector provenance and manual override precedence in model capability controls in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
+- [X] T046 [US3] Keep manual model creation available for detector-backed providers in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
 
 **Checkpoint**: Administrators can trust that automated detection will not erase deliberate local model capability decisions.
 
@@ -142,7 +142,7 @@
 - [X] T052 [US4] Persist detector source, freshness, counts, warnings, and sanitized failure metadata on `model_sync` actions in `apps/web/src/server/services/ai-admin.ts`
 - [ ] T053 [US4] Expose detector coverage and partial status through admin model views without secrets in `apps/web/src/server/services/ai-admin.ts`
 - [ ] T054 [US4] Render detector configured/unconfigured/partial/failed states in `apps/web/src/components/admin/ai/ModelDetectorPanel.tsx`
-- [ ] T055 [US4] Render per-model detector provenance and partial enrichment indicators in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
+- [X] T055 [US4] Render per-model detector provenance and partial enrichment indicators in `apps/web/src/components/admin/ai/ModelCatalog.tsx`
 - [X] T056 [US4] Ensure all detector status and model sync admin routes enforce `manage_ai` and return safe errors in `apps/web/app/api/ai/providers/[id]/model-syncs/route.ts`
 
 **Checkpoint**: Administrators can diagnose detector coverage and failures safely without provider secrets or raw sensitive payloads.

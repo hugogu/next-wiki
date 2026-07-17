@@ -159,6 +159,23 @@ describe('detector-backed model sync', () => {
     expect(row?.displayName).toBe('Hand-curated name');
   });
 
+  it('records only proven capabilities, leaving unproven ones absent rather than supported', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const provider = await createCloudflareProvider(ctx);
+    // Text-only evidence: no image input, so vision must not be asserted.
+    stubFetch((url) => {
+      if (isSearch(url)) return { body: { success: true, result: [cloudflareModel('@cf/text', 'Text Generation')] } };
+      return { body: cloudflareSchema({ prompt: { type: 'string' } }, { response: { type: 'string' } }) };
+    });
+    await syncProviderModels(provider.id);
+
+    const [model] = await listModels(ctx, provider.id);
+    const vision = model!.capabilities.find((c) => c.capability === 'vision');
+    // Unknown/unproven capability is absent, never a positive detector row.
+    expect(vision).toBeUndefined();
+    expect(model!.capabilities.some((c) => c.capability === 'text_generation' && c.supported)).toBe(true);
+  });
+
   it('rejects creating a Cloudflare detector provider without an API token', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
     await expect(
