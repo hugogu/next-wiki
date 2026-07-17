@@ -310,7 +310,14 @@
     "header": {
       "save": "Save",
       "close": "Close",
-      "properties": "Page properties"
+      "properties": "Page properties",
+      "delete": "Delete page"
+    },
+    "delete": {
+      "title": "Delete page?",
+      "message": "Delete \"{title}\"? This hides the page and queues index reconciliation.",
+      "confirm": "Delete page",
+      "error": "Could not delete page."
     },
     "toolbar": {
       "heading": "Heading",

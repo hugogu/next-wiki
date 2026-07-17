@@ -15,13 +15,14 @@ import {
   updatePagePropertiesSchema,
 } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
-import { apiPost, apiPatch, type ApiError } from '@/lib/api/client';
+import { apiPost, apiPatch, apiDelete, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
 import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getHistoryHref, getPageHref } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { hasEditorFrontmatter, writeEditorMetadata } from '@/lib/page-frontmatter';
 
 type EditPageInitial = {
@@ -30,6 +31,7 @@ type EditPageInitial = {
   title: string;
   contentSource: string;
   canPublish: boolean;
+  canDelete: boolean;
   latestVersion: number;
   metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
 };
@@ -41,6 +43,9 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [newPath, setNewPath] = useState(path);
   const [initialMetadata] = useState(() => ({
     date: initial.metadata.date ?? '',
@@ -130,6 +135,24 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
     setPropertiesOpen((open) => !open);
   }, []);
 
+  const requestDelete = useCallback(() => {
+    setDeleteError(null);
+    setDeleteOpen(true);
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await apiDelete<void>(getPublicApiPageUrl(initial.pageId));
+      window.location.href = '/';
+    } catch (err) {
+      const error = err as ApiError;
+      setDeleteError(error.message || t('editor.delete.error'));
+      setIsDeleting(false);
+    }
+  }, [initial.pageId, t]);
+
   useEffect(() => {
     setEditor({
       title: title || '',
@@ -139,6 +162,8 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
       toggleProperties,
       save,
       close,
+      canDelete: initial.canDelete,
+      requestDelete,
     });
     return () => setEditor(null);
   }, [
@@ -148,6 +173,8 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
     toggleProperties,
     save,
     close,
+    initial.canDelete,
+    requestDelete,
     setEditor,
     t,
   ]);
@@ -198,6 +225,21 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
           />
         )}
       </div>
+
+      {deleteOpen && (
+        <ConfirmDialog
+          title={t('editor.delete.title')}
+          message={t('editor.delete.message', { title: initial.title })}
+          confirmLabel={t('editor.delete.confirm')}
+          confirmVariant="danger"
+          pending={isDeleting}
+          error={deleteError ?? undefined}
+          onConfirm={handleDelete}
+          onCancel={() => {
+            if (!isDeleting) setDeleteOpen(false);
+          }}
+        />
+      )}
     </form>
   );
 }

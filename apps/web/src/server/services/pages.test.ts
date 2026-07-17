@@ -233,6 +233,17 @@ describe('pageService US3', () => {
 
       const view = await pageService.getForEdit(ctx, 'get-edit');
       expect(view?.contentSource).toBe('source');
+      // The authoring editor may delete their own page.
+      expect(view?.canDelete).toBe(true);
+    });
+
+    it('withholds canDelete from a non-author editor', async () => {
+      const author = await createUser('editor-getedit-author@example.com', 'editor');
+      const other = await createUser('editor-getedit-other@example.com', 'editor');
+      await pageService.create(buildUserCtx(author.id, 'editor'), { path: 'get-edit-del', title: 'T', contentSource: 'c' });
+
+      const view = await pageService.getForEdit(buildUserCtx(other.id, 'editor'), 'get-edit-del');
+      expect(view?.canDelete).toBe(false);
     });
 
     it('returns null for reader', async () => {

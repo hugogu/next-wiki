@@ -310,7 +310,14 @@
     "header": {
       "save": "保存",
       "close": "关闭",
-      "properties": "页面属性"
+      "properties": "页面属性",
+      "delete": "删除页面"
+    },
+    "delete": {
+      "title": "删除页面?",
+      "message": "确定删除“{title}”吗?页面会被隐藏，并触发索引协调任务。",
+      "confirm": "删除页面",
+      "error": "无法删除页面。"
     },
     "toolbar": {
       "heading": "标题",

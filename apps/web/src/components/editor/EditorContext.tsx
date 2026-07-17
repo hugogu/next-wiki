@@ -10,6 +10,8 @@ type EditorState = {
   toggleProperties: () => void;
   save: () => void;
   close: () => void;
+  canDelete: boolean;
+  requestDelete: () => void;
 };
 
 type EditorContextValue = {

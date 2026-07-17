@@ -19,6 +19,7 @@ import {
   XIcon,
   ChevronLeftIcon,
   LanguagesIcon,
+  TrashIcon,
 } from '@/components/icons';
 import { TranslatePageDialog } from '@/components/pages/TranslatePageDialog';
 import { apiPost } from '@/lib/api/client';
@@ -101,6 +102,11 @@ function EditorHeaderActions({ editor }: { editor: NonNullable<ReturnType<typeof
       >
         <SettingsIcon />
       </IconButton>
+      {editor.canDelete && (
+        <IconButton onClick={editor.requestDelete} label={t('editor.header.delete')}>
+          <TrashIcon />
+        </IconButton>
+      )}
     </>
   );
 }

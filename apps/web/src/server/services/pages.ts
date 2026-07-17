@@ -1167,6 +1167,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
     { kind: 'revision', pageId: page.id, version: revision.versionNumber },
     { isAuthor: isRevisionAuthor },
   );
+  const canDelete = can(ctx, 'delete', { kind: 'page', pageId: page.id }, { isAuthor });
 
   return {
     pageId: page.id,
@@ -1179,6 +1180,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,
+    canDelete,
     metadata,
   };
 }
