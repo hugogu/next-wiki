@@ -23,6 +23,19 @@ export type PermCtx = {
   actor: Actor;
 };
 
+/** 022: space kinds gate whole action families before role evaluation. */
+export type SpaceKind = 'wiki' | 'raw' | 'generated';
+
+/** 022: restricted pages are admin-only for read/read_draft/edit. */
+export type PageVisibility = 'public' | 'restricted';
+
+export type CanOptions = {
+  isAuthor?: boolean;
+  anonymousRead?: boolean;
+  spaceKind?: SpaceKind;
+  visibility?: PageVisibility;
+};
+
 export type Action =
   | 'read'
   | 'read_draft'
@@ -77,8 +90,36 @@ function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action
   return actor.scopes.some((scope) => scopeToActions[scope].includes(action));
 }
 
-function roleAllows(action: Action, role: 'admin' | 'editor' | 'reader' | 'anonymous', opts: { isAuthor?: boolean; anonymousRead?: boolean }): boolean {
-  const { isAuthor = false, anonymousRead = true } = opts;
+function roleAllows(
+  action: Action,
+  role: 'admin' | 'editor' | 'reader' | 'anonymous',
+  opts: { isAuthor?: boolean; anonymousRead?: boolean; spaceKind?: SpaceKind; visibility?: PageVisibility },
+): boolean {
+  const { isAuthor = false, anonymousRead = true, spaceKind, visibility = 'public' } = opts;
+
+  // 022: the raw space is an append-only evidence store — edits, deletes,
+  // publishes, and draft reads are denied for EVERY actor (deny before allow);
+  // reads and creates are admin-only. The generated space is admin-curated.
+  if (spaceKind === 'raw') {
+    if (action === 'edit' || action === 'delete' || action === 'publish' || action === 'read_draft') {
+      return false;
+    }
+    if (action === 'read' || action === 'create') return role === 'admin';
+  }
+  if (
+    spaceKind === 'generated' &&
+    (action === 'read' ||
+      action === 'read_draft' ||
+      action === 'create' ||
+      action === 'edit' ||
+      action === 'publish' ||
+      action === 'delete')
+  ) {
+    return role === 'admin';
+  }
+  if (visibility === 'restricted' && (action === 'read' || action === 'read_draft' || action === 'edit')) {
+    return role === 'admin';
+  }
 
   switch (action) {
     case 'read':
@@ -136,10 +177,10 @@ export function can(
   ctx: PermCtx,
   action: Action,
   resource: Resource,
-  opts: { isAuthor?: boolean; anonymousRead?: boolean } = {},
+  opts: CanOptions = {},
 ): boolean {
   const { actor } = ctx;
-  const { isAuthor = false, anonymousRead = true } = opts;
+  const { isAuthor = false, anonymousRead = true, spaceKind, visibility } = opts;
 
   if (actor.kind === 'api_key') {
     // manage_users is never allowed via API key (no scope maps to it).
@@ -156,11 +197,11 @@ export function can(
       return false;
     }
     if (!actionAllowedByScope(actor, action)) return false;
-    return roleAllows(action, actor.role, { isAuthor, anonymousRead });
+    return roleAllows(action, actor.role, { isAuthor, anonymousRead, spaceKind, visibility });
   }
 
   const role = actor.kind === 'user' ? actor.role : 'anonymous';
-  return roleAllows(action, role, { isAuthor, anonymousRead });
+  return roleAllows(action, role, { isAuthor, anonymousRead, spaceKind, visibility });
 }
 
 export function buildAnonymousCtx(): PermCtx {
