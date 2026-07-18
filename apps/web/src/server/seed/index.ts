@@ -81,6 +81,19 @@ export async function seedWritingModeSpaces() {
   }
 }
 
+/**
+ * Ensure the writing-mode settings singleton exists (022). Seeding the row at
+ * boot lets the content-write barrier's `SELECT … FOR SHARE` lock it even on a
+ * fresh database, so `beginPendingSwitch` drains in-flight writes instead of
+ * inserting past them. Idempotent; `getMode` keeps its lazy seed as fallback.
+ */
+export async function seedWritingModeSettings() {
+  await db
+    .insert(schema.writingModeSettings)
+    .values({ id: 'default' })
+    .onConflictDoNothing();
+}
+
 export async function seedDatabase() {
   await seedDefaultStorageBackend();
   // Built-in system themes are core (read-only) data, seeded on every boot.
@@ -88,6 +101,7 @@ export async function seedDatabase() {
   // The three writing-mode spaces are core infrastructure; seeded on every
   // boot so the instance is writable right after first-run setup.
   await seedWritingModeSpaces();
+  await seedWritingModeSettings();
 
   // Demo/sample data only: a sample admin account and welcome page. This NEVER
   // runs in production unless explicitly opted in via NEXT_WIKI_SEED=true. The
