@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { TransferCleanupResult, TransferItemList, TransferItemView, TransferRunView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
@@ -8,10 +9,23 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, RedoIcon, TrashIcon, XIcon } from '@/components/icons';
 import { apiGet, useApiMutation } from '@/lib/api/client';
+import { getPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 
 const PAGE_SIZE = 20;
 const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warnings', 'failed', 'cancelled'];
+
+/**
+ * Page items are recorded with a `locale/path` display name and the imported
+ * page id in `targetKey`. Derive the reader href so the transfer report links
+ * straight to the page it created, stripping the leading locale segment that
+ * the wiki serves via metadata rather than the URL.
+ */
+function importedPageHref(item: TransferItemView): string | null {
+  if (item.kind !== 'page' || !item.targetKey) return null;
+  const path = item.displayName.split('/').slice(1).join('/');
+  return path ? getPageHref(path) : null;
+}
 
 export function TransferRunDetail({
   run: initialRun,
@@ -160,10 +174,18 @@ export function TransferRunDetail({
             </Button>
           ))}
         </div>
-        {items.map((item) => (
+        {items.map((item) => {
+          const href = importedPageHref(item);
+          return (
           <div key={item.id} className="rounded-md border border-border p-sm text-sm">
             <div className="flex justify-between gap-sm">
-              <span className="truncate">{item.displayName}</span>
+              {href ? (
+                <Link href={href} className="truncate text-primary hover:underline" title={item.displayName}>
+                  {item.displayName}
+                </Link>
+              ) : (
+                <span className="truncate">{item.displayName}</span>
+              )}
               <span className="shrink-0 text-muted">{item.action} · {item.status}</span>
             </div>
             {item.warningMessage && (
@@ -177,7 +199,8 @@ export function TransferRunDetail({
               </p>
             )}
           </div>
-        ))}
+          );
+        })}
         {items.length === 0 && (
           <p className="rounded-md border border-border p-md text-sm text-muted">{t('admin.transfers.detail.noItems')}</p>
         )}
