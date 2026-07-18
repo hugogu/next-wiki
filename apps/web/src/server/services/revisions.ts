@@ -28,11 +28,11 @@ export async function publish(
 
   await assertNotMigrating();
 
+  const space = await resolveSpace();
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
-
-    const space = await resolveSpace();
-    if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
     const page = await tx.query.pages.findFirst({
       where: and(
