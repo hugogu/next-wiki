@@ -7,10 +7,6 @@ import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import { getRevisionMetadata } from '@/server/services/page-metadata';
 import { resolveSpace } from '@/server/services/spaces';
 
-async function getDefaultSpace() {
-  return resolveSpace();
-}
-
 function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
@@ -46,7 +42,7 @@ export async function projectReadableCandidatePages(
   const result = new Map<string, ReadableCandidatePage>();
   if (ids.length === 0) return result;
 
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return result;
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) return result;
 

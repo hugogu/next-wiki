@@ -8,10 +8,6 @@ import type { FrontmatterFilters } from '@/server/transfers/frontmatter';
 import { createSemanticSearch, type SemanticSearchInput } from './ai-retrieval';
 import { resolveSpace } from '@/server/services/spaces';
 
-async function getDefaultSpace() {
-  return resolveSpace();
-}
-
 function toArray(value: string | string[] | undefined): string[] | undefined {
   if (value === undefined) return undefined;
   return Array.isArray(value) ? value : [value];
@@ -35,7 +31,7 @@ function extractFrontmatterFilters(input: PublicSemanticSearchSubmitInput): Fron
  * with no disclosure of index readiness (FR-006/FR-007).
  */
 async function requireSemanticSearchScope(ctx: PermCtx): Promise<void> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   const canReadPages = can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false });
   const canSearch = can(ctx, 'use_ai_search', { kind: 'ai_index' });
   if (!canReadPages || !canSearch) {

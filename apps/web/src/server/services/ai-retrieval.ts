@@ -14,10 +14,6 @@ import { assertAiFeature } from './ai-entitlements';
 import { createAction, readActionInput, appendActionEvent, finishAction } from './ai-actions';
 import { resolveSpace } from '@/server/services/spaces';
 
-async function getDefaultSpace() {
-  return resolveSpace();
-}
-
 export type SemanticSearchInput = {
   query: string;
   limit: number;
@@ -58,7 +54,7 @@ export async function readPermissionFilteredVectorCandidates(
   queryVector: number[],
   limit: number,
 ): Promise<VectorMatch[]> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false })) return [];
   return exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
 }

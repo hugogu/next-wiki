@@ -7,10 +7,6 @@ import { DomainError } from '@/server/errors';
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { resolveSpace } from '@/server/services/spaces';
 
-async function defaultSpace() {
-  return resolveSpace();
-}
-
 function assertTagManager(ctx: PermCtx) {
   if (!can(ctx, 'manage_tags', { kind: 'tags' })) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to manage tags');
@@ -28,7 +24,7 @@ function view(tag: typeof schema.tags.$inferSelect) {
 }
 
 export async function listTags(ctx: PermCtx, input: { q?: string; limit?: number } = {}) {
-  const space = await defaultSpace();
+  const space = await resolveSpace();
   if (!space || !can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
     return { items: [], nextCursor: null };
   }
@@ -43,7 +39,7 @@ export async function listTags(ctx: PermCtx, input: { q?: string; limit?: number
 
 export async function createTag(ctx: PermCtx, name: string) {
   assertTagManager(ctx);
-  const space = await defaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   const normalizedName = normalizeTagName(name);
   if (!normalizedName) throw new DomainError('BAD_REQUEST', 'Tag name cannot be empty');

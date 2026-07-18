@@ -4,10 +4,9 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
 import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
+import { DEFAULT_SPACE_SLUG } from '@/server/services/spaces';
 import { WELCOME_PAGE_SOURCE } from '@/server/services/setup-sample-page-definitions';
 import { env } from '@/server/config';
-
-const DEFAULT_SPACE_SLUG = 'default';
 
 /**
  * Ensure exactly one active Database primary backend exists. This is core
