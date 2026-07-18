@@ -1054,8 +1054,10 @@
         "configured": "Configured",
         "configuredShort": "Configured",
         "unconfigured": "Not configured",
-        "source.openrouter": "OpenRouter",
-        "source.cloudflare": "Cloudflare Workers AI",
+        "source": {
+          "openrouter": "OpenRouter",
+          "cloudflare": "Cloudflare Workers AI"
+        },
         "openrouterHint": "A global key used to enrich chat capabilities and discover vendor embedding models.",
         "cloudflareHint": "Lists the Workers AI catalog and infers capabilities from each model's schema.",
         "cloudflareEnabled": "Use Cloudflare for model sync",
@@ -1179,8 +1181,10 @@
         "supported": "Supported",
         "unsupported": "Not supported",
         "supportUnknown": "Unknown",
-        "detector.openrouter": "OpenRouter",
-        "detector.cloudflare": "Cloudflare",
+        "detector": {
+          "openrouter": "OpenRouter",
+          "cloudflare": "Cloudflare"
+        },
         "detectorProvenance": "Capabilities detected via {source}",
         "partial": "Partial",
         "partialHint": "Some capability evidence could not be fetched during the last sync.",

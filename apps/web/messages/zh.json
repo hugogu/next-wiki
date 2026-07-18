@@ -1054,8 +1054,10 @@
         "configured": "已配置",
         "configuredShort": "已配置",
         "unconfigured": "未配置",
-        "source.openrouter": "OpenRouter",
-        "source.cloudflare": "Cloudflare Workers AI",
+        "source": {
+          "openrouter": "OpenRouter",
+          "cloudflare": "Cloudflare Workers AI"
+        },
         "openrouterHint": "用于补充对话模型能力并发现各平台向量模型的全局密钥。",
         "cloudflareHint": "列举 Workers AI 目录，并根据各模型的 schema 推断能力。",
         "cloudflareEnabled": "使用 Cloudflare 进行模型同步",
@@ -1179,8 +1181,10 @@
         "supported": "支持",
         "unsupported": "不支持",
         "supportUnknown": "未知",
-        "detector.openrouter": "OpenRouter",
-        "detector.cloudflare": "Cloudflare",
+        "detector": {
+          "openrouter": "OpenRouter",
+          "cloudflare": "Cloudflare"
+        },
         "detectorProvenance": "能力由 {source} 检测",
         "partial": "部分",
         "partialHint": "上次同步时部分能力证据无法获取。",
