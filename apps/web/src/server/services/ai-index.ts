@@ -1,11 +1,11 @@
-import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import type { AiIndexView } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { CHUNKER_VERSION } from '@/server/ai/chunking/markdown-chunker';
-import { createAction, getAiSettings, requestActionCancellation } from './ai-actions';
+import { createAction, getAiSettings } from './ai-actions';
 
 function assertAdmin(ctx: PermCtx): void {
   if (ctx.actor.kind !== 'user' || !can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
@@ -70,17 +70,52 @@ export async function cancelIndexGeneration(ctx: PermCtx, generationId: string):
   const row = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) });
   if (!row) throw new DomainError('NOT_FOUND', 'AI index not found');
   if (row.status !== 'building') throw new DomainError('CONFLICT', 'Only a building knowledge index can be cancelled');
-  // The worker polls this flag each page and finalizes the cancellation itself
-  // (deleting a never-activated generation, or leaving a live index intact).
-  const action = await db.query.aiActions.findFirst({
-    where: and(
-      eq(schema.aiActions.indexGenerationId, generationId),
-      inArray(schema.aiActions.status, ['queued', 'running']),
-    ),
-    orderBy: desc(schema.aiActions.queuedAt),
-  });
-  if (!action) throw new DomainError('NOT_FOUND', 'No active build action to cancel');
-  await requestActionCancellation(ctx, action.id);
+  const actions = await db
+    .select({ status: schema.aiActions.status })
+    .from(schema.aiActions)
+    .where(
+      and(
+        eq(schema.aiActions.indexGenerationId, generationId),
+        inArray(schema.aiActions.status, ['queued', 'running']),
+      ),
+    );
+  if (actions.length === 0) throw new DomainError('NOT_FOUND', 'No active build action to cancel');
+  // Flag every outstanding build action: a running worker stops at its next
+  // per-page cancel poll, and a queued job takes runAiAction's early-cancel path
+  // (finishing the action without ever running the index handler).
+  await db
+    .update(schema.aiActions)
+    .set({ cancelRequested: true })
+    .where(
+      and(
+        eq(schema.aiActions.indexGenerationId, generationId),
+        inArray(schema.aiActions.status, ['queued', 'running']),
+      ),
+    );
+  // A running worker owns finalization (its per-page poll deletes a
+  // never-activated generation, or restores a live one to `ready`). But if the
+  // build job is still queued, that poll never runs — the early-cancel path
+  // finishes only the action — so the generation would stay stuck at `building`
+  // forever. Finalize it here for that case. The cancel flag set above
+  // guarantees any concurrent worker pickup early-returns without touching the
+  // generation, so deleting it now is race-safe.
+  if (!actions.some((action) => action.status === 'running')) {
+    if (row.isActive) {
+      // Defensive: a live index must never be dropped; just clear the build state.
+      await db
+        .update(schema.aiIndexGenerations)
+        .set({ status: 'ready', errorCode: null, errorMessage: null })
+        .where(eq(schema.aiIndexGenerations.id, generationId));
+    } else {
+      // Keep-only-active policy: a never-activated build's partial output is
+      // useless, so drop it (page states and chunks cascade on delete).
+      await db
+        .update(schema.aiActions)
+        .set({ indexGenerationId: null })
+        .where(eq(schema.aiActions.indexGenerationId, generationId));
+      await db.delete(schema.aiIndexGenerations).where(eq(schema.aiIndexGenerations.id, generationId));
+    }
+  }
 }
 
 export async function createIndexRebuild(ctx: PermCtx, reason = 'manual') {

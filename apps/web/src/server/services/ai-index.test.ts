@@ -221,16 +221,38 @@ describe('AI index lifecycle', () => {
     ).toBeUndefined();
   });
 
-  it('cancels the active build action of a building generation', async () => {
+  it('cancels a queued build and finalizes it so it does not stay building', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const created = await createIndexRebuild(ctx, 'test');
     const generationId = created.generation.id;
-    expect(created.action.id).toBeDefined();
+    // No worker runs in tests, so the build action stays queued — the exact case
+    // where the worker's per-page cancel poll never runs and the generation
+    // would otherwise stay stuck at `building`.
+    await cancelIndexGeneration(ctx, generationId);
+
+    // The action is flagged, and the never-activated build is dropped rather
+    // than left building forever.
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
+    expect(action?.cancelRequested).toBe(true);
+    expect(await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) }))
+      .toBeUndefined();
+  });
+
+  it('defers finalization to the worker when the build is already running', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const generationId = created.generation.id;
+    // A worker has claimed the build; it owns finalization via its per-page poll.
+    await db.update(schema.aiActions).set({ status: 'running' }).where(eq(schema.aiActions.id, created.action.id));
 
     await cancelIndexGeneration(ctx, generationId);
 
-    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
-    expect(action?.cancelRequested).toBe(true);
+    // The service only flags cancellation; it must not delete the generation out
+    // from under the running worker.
+    expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) }))
+      .toMatchObject({ cancelRequested: true });
+    expect(await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) }))
+      .toMatchObject({ status: 'building' });
   });
 
   it('refuses to cancel a generation that is not currently building', async () => {
