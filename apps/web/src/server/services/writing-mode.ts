@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -13,19 +13,27 @@ const SETTINGS_ID = 'default';
 
 export type WritingMode = typeof schema.writingModeSettings.$inferSelect.mode;
 
-async function readMode(): Promise<WritingMode> {
+type SettingsRow = typeof schema.writingModeSettings.$inferSelect;
+type ContentTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function readOrSeedSettings(): Promise<SettingsRow | null> {
   const existing = await db.query.writingModeSettings.findFirst({
     where: eq(schema.writingModeSettings.id, SETTINGS_ID),
   });
-  if (existing) return existing.mode;
+  if (existing) return existing;
   await db
     .insert(schema.writingModeSettings)
     .values({ id: SETTINGS_ID })
     .onConflictDoNothing();
-  const seeded = await db.query.writingModeSettings.findFirst({
-    where: eq(schema.writingModeSettings.id, SETTINGS_ID),
-  });
-  return seeded?.mode ?? 'copilot';
+  return (
+    (await db.query.writingModeSettings.findFirst({
+      where: eq(schema.writingModeSettings.id, SETTINGS_ID),
+    })) ?? null
+  );
+}
+
+async function readMode(): Promise<WritingMode> {
+  return (await readOrSeedSettings())?.mode ?? 'copilot';
 }
 
 const getCachedMode = unstable_cache(async () => readMode(), ['writing-mode'], {
@@ -63,6 +71,68 @@ export async function setMode(ctx: PermCtx, mode: WritingMode): Promise<WritingM
     throw new DomainError('FORBIDDEN', 'You do not have permission to change the writing mode');
   }
   return setModeInternal(mode, ctx.actor.userId);
+}
+
+export type WritingModeSwitchState = {
+  mode: WritingMode;
+  pendingMode: WritingMode | null;
+  switchJobId: string | null;
+};
+
+export async function getSwitchState(): Promise<WritingModeSwitchState> {
+  const row = await readOrSeedSettings();
+  return {
+    mode: row?.mode ?? 'copilot',
+    pendingMode: row?.pendingMode ?? null,
+    switchJobId: row?.switchJobId ?? null,
+  };
+}
+
+/** Mark an async mode switch as pending; content writes pause until it clears. */
+export async function beginPendingSwitch(
+  mode: WritingMode,
+  jobId: string,
+  userId: string | null,
+): Promise<void> {
+  await db
+    .insert(schema.writingModeSettings)
+    .values({
+      id: SETTINGS_ID,
+      pendingMode: mode,
+      switchJobId: jobId,
+      updatedBy: userId,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.writingModeSettings.id,
+      set: { pendingMode: mode, switchJobId: jobId, updatedBy: userId, updatedAt: new Date() },
+    });
+  invalidateWritingModeCache();
+}
+
+export async function clearPendingSwitch(userId: string | null): Promise<void> {
+  await db
+    .update(schema.writingModeSettings)
+    .set({ pendingMode: null, switchJobId: null, updatedBy: userId, updatedAt: new Date() })
+    .where(eq(schema.writingModeSettings.id, SETTINGS_ID));
+  invalidateWritingModeCache();
+}
+
+/**
+ * Write barrier: the first DB lock of every content-mutation transaction takes
+ * the mode singleton row FOR SHARE and refuses the write while an async mode
+ * switch is pending. A missing row means defaults (no pending switch).
+ */
+export async function assertNoSwitchInProgress(tx: ContentTx): Promise<void> {
+  const rows = (await tx.execute(
+    sql`select pending_mode from writing_mode_settings where id = ${SETTINGS_ID} for share`,
+  )) as unknown as Array<{ pending_mode: WritingMode | null }>;
+  if (rows[0]?.pending_mode) {
+    throw new DomainError(
+      'MODE_SWITCH_IN_PROGRESS',
+      'A writing-mode switch is in progress; content writes are paused',
+    );
+  }
 }
 
 /** Raw/generated spaces only exist once the instance runs in LLM Wiki mode. */
