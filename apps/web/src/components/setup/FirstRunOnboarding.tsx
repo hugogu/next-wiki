@@ -9,12 +9,14 @@ import { SamplePagesStep } from '@/components/setup/SamplePagesStep';
 import { SetupSummary } from '@/components/setup/SetupSummary';
 import { StepPanel } from '@/components/setup/StepPanel';
 import { useSetupState } from '@/components/setup/useSetupOnboarding';
+import { WritingModeStep } from '@/components/setup/WritingModeStep';
 
-const STEP_ORDER = ['account', 'ai', 'sample_pages', 'summary'] as const;
+const STEP_ORDER = ['account', 'ai', 'writing_mode', 'sample_pages', 'summary'] as const;
 
 const STEP_LABEL_KEYS = {
   account: 'setup.steps.account',
   ai: 'setup.steps.ai',
+  writing_mode: 'setup.steps.writingMode',
   sample_pages: 'setup.steps.samplePages',
   summary: 'setup.steps.summary',
 } as const;
@@ -90,6 +92,7 @@ export function FirstRunOnboarding({ initialState }: { initialState: SetupStateV
           </StepPanel>
         )}
         {step === 'ai' && <OpenRouterBootstrapStep state={state} />}
+        {step === 'writing_mode' && <WritingModeStep />}
         {step === 'sample_pages' && <SamplePagesStep state={state} />}
         {step === 'summary' && <SetupSummary state={state} />}
       </div>

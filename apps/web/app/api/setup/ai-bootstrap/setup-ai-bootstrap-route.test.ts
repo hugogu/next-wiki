@@ -37,13 +37,13 @@ describe('PUT /api/setup/ai-bootstrap', () => {
         wiki_embedding: { status: 'skipped' },
         wiki_image: { status: 'skipped' },
       },
-      nextStep: 'sample_pages',
+      nextStep: 'writing_mode',
     });
     const response = await route.PUT(request({ mode: 'skip' }));
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.status).toBe('skipped');
-    expect(body.nextStep).toBe('sample_pages');
+    expect(body.nextStep).toBe('writing_mode');
     expect(services.skipAiBootstrap).toHaveBeenCalledWith(actor.value);
     expect(services.configureAiBootstrap).not.toHaveBeenCalled();
   });
@@ -70,7 +70,7 @@ describe('PUT /api/setup/ai-bootstrap', () => {
         wiki_embedding: { status: 'configured', modelId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a002', modelName: 'Example Embedding' },
         wiki_image: { status: 'needs_manual_setup', reason: 'No compatible detected model' },
       },
-      nextStep: 'sample_pages',
+      nextStep: 'writing_mode',
     });
     const response = await route.PUT(request({ mode: 'configure', apiKey: 'sk-or-secret' }));
     const body = await response.json();

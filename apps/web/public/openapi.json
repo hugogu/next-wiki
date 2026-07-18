@@ -168,36 +168,93 @@
           "count": {
             "type": "number"
           },
-          "detectorSource": {
-            "type": "string",
-            "enum": ["openrouter", "cloudflare"]
-          },
-          "freshness": {
-            "type": "string",
-            "enum": ["fresh", "cache"]
-          },
-          "added": {
-            "type": "number"
-          },
-          "updated": {
-            "type": "number"
-          },
           "unavailable": {
-            "type": "number"
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "number"
+              }
+            ]
           },
           "partial": {
-            "type": "number"
+            "type": "object"
+          },
+          "detectorSource": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "openrouter"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "cloudflare"
+                ]
+              }
+            ]
+          },
+          "freshness": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "fresh"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "cache"
+                ]
+              }
+            ]
+          },
+          "added": {
+            "type": "object"
+          },
+          "updated": {
+            "type": "object"
           },
           "warnings": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "modelExternalId": { "type": "string" },
-                "code": { "type": "string" }
+            "oneOf": [
+              {
+                "type": "object"
               },
-              "required": ["code"]
-            }
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "modelExternalId": {
+                      "oneOf": [
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code"
+                  ]
+                }
+              }
+            ]
           }
         },
         "required": [
@@ -2281,6 +2338,14 @@
             ],
             "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
           },
+          "space": {
+            "type": "string",
+            "description": "Space slug to list pages from. Defaults to the default wiki space."
+          },
+          "filterType": {
+            "type": "string",
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
           "limit": {
             "default": 20,
             "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
@@ -2480,6 +2545,79 @@
           "title": {
             "type": "string",
             "description": "Human-readable page title."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native",
+              "link"
+            ],
+            "description": "Page kind: a native content page or a softlink page rendering a generated target. Omitted until space-aware resource assembly lands."
+          },
+          "linkTarget": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pageId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Target page identifier of a softlink page."
+              },
+              "path": {
+                "type": "string",
+                "description": "Target page path."
+              },
+              "title": {
+                "type": "string",
+                "description": "Target page title."
+              }
+            },
+            "required": [
+              "pageId",
+              "path",
+              "title"
+            ],
+            "description": "Resolved softlink target, projected only for permitted callers; null for native pages."
+          },
+          "origin": {
+            "type": "object",
+            "properties": {
+              "actorKind": {
+                "type": "string",
+                "enum": [
+                  "human",
+                  "machine"
+                ],
+                "description": "Whether the page was created through a session (human) or an API key/pipeline (machine)."
+              },
+              "nature": {
+                "type": "string",
+                "enum": [
+                  "original",
+                  "generated"
+                ],
+                "description": "Creation-time classification: original human input or generated content."
+              }
+            },
+            "required": [
+              "actorKind",
+              "nature"
+            ],
+            "description": "Creation provenance of the page. Omitted until space-aware resource assembly lands."
+          },
+          "humanModified": {
+            "type": "boolean",
+            "description": "Whether any revision of the page was written by a human actor. Omitted until space-aware resource assembly lands."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted"
+            ],
+            "description": "Page visibility: public within its space rules, or restricted to administrators."
           },
           "contentSource": {
             "type": "string",
@@ -2810,6 +2948,25 @@
         ],
         "description": "Paginated public page search response."
       },
+      "PublicPageTagsInput": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50,
+            "description": "The complete replacement tag set for the page."
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "description": "Replace a page's tags; the change is published immediately."
+      },
       "PublicPageTreeNode": {
         "type": "object",
         "properties": {
@@ -2886,6 +3043,14 @@
               }
             ],
             "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space slug to build the tree from. Defaults to the default wiki space."
+          },
+          "filterType": {
+            "type": "string",
+            "description": "Filter to pages whose frontmatter type matches this value."
           }
         },
         "description": "Public page tree query parameters."
@@ -3086,6 +3251,70 @@
           "contentSource": {
             "type": "string",
             "description": "Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list."
+          },
+          "origin": {
+            "type": "object",
+            "properties": {
+              "actorKind": {
+                "type": "string",
+                "enum": [
+                  "human",
+                  "machine"
+                ],
+                "description": "Whether this revision was written through a session (human) or an API key/pipeline (machine)."
+              },
+              "nature": {
+                "type": "string",
+                "enum": [
+                  "original",
+                  "generated"
+                ],
+                "description": "Creation-time classification of the page: original human input or generated content."
+              }
+            },
+            "required": [
+              "actorKind",
+              "nature"
+            ],
+            "description": "Provenance of this revision. Omitted until provenance projection lands for every revision route."
+          },
+          "linkTargetPageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Immutable link target recorded on link create/retarget revisions."
+          },
+          "source": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "channel": {
+                "type": "string",
+                "description": "Ingestion channel of a raw chunk."
+              },
+              "url": {
+                "type": "string",
+                "description": "Source URL of a raw chunk."
+              },
+              "sessionId": {
+                "type": "string",
+                "description": "Ingestion session identifier of a raw chunk."
+              },
+              "command": {
+                "type": "string",
+                "description": "Ingestion command of a raw chunk."
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp when the raw chunk was captured (ISO 8601)."
+              }
+            },
+            "description": "Immutable raw-source metadata of a raw create/append chunk."
           },
           "frontmatter": {
             "type": [
@@ -4078,6 +4307,200 @@
         ],
         "description": "Change a user account status."
       },
+      "SetupAiBootstrapInput": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "mode"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "skip"
+                ]
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "configure"
+                ]
+              },
+              "apiKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "description": "Write-only OpenRouter API key."
+              },
+              "autoAssign": {
+                "type": "boolean",
+                "default": true,
+                "description": "Automatically assign detected models to AI purposes."
+              }
+            },
+            "required": [
+              "mode",
+              "apiKey"
+            ]
+          }
+        ],
+        "description": "OpenRouter AI bootstrap choice."
+      },
+      "SetupAiBootstrapResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "completed",
+              "partial",
+              "failed",
+              "skipped",
+              "disabled"
+            ]
+          },
+          "actionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "AI action tracking the background model sync."
+          },
+          "pollUrl": {
+            "type": "string",
+            "description": "URL to poll for setup state while queued."
+          },
+          "purposes": {
+            "type": "object",
+            "properties": {
+              "wiki_text": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "configured",
+                      "skipped",
+                      "unavailable",
+                      "needs_manual_setup",
+                      "failed"
+                    ]
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "modelName": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "wiki_embedding": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "configured",
+                      "skipped",
+                      "unavailable",
+                      "needs_manual_setup",
+                      "failed"
+                    ]
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "modelName": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "wiki_image": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "configured",
+                      "skipped",
+                      "unavailable",
+                      "needs_manual_setup",
+                      "failed"
+                    ]
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "modelName": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            },
+            "description": "Per-purpose outcome (wiki_text/wiki_embedding/wiki_image)."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "nextStep": {
+            "type": "string",
+            "enum": [
+              "account",
+              "ai",
+              "writing_mode",
+              "sample_pages",
+              "summary",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "description": "OpenRouter AI bootstrap result. Never contains credentials."
+      },
       "SetupInput": {
         "type": "object",
         "properties": {
@@ -4098,6 +4521,306 @@
           "password"
         ],
         "description": "First-run setup input, creating the initial administrator account."
+      },
+      "SetupSamplePagesInput": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "generate"
+            ],
+            "description": "Skip sample pages, or generate the example/help pages."
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "description": "Sample/help page choice."
+      },
+      "SetupSamplePagesResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "skipped",
+              "completed",
+              "partial",
+              "failed"
+            ]
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "created",
+                    "updated",
+                    "skipped",
+                    "collision",
+                    "failed"
+                  ]
+                },
+                "pageId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "status"
+              ]
+            },
+            "description": "Per-page generation outcome."
+          },
+          "nextStep": {
+            "type": "string",
+            "enum": [
+              "account",
+              "ai",
+              "writing_mode",
+              "sample_pages",
+              "summary",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "pages"
+        ],
+        "description": "Sample/help page generation result."
+      },
+      "SetupStateView": {
+        "type": "object",
+        "properties": {
+          "needed": {
+            "type": "boolean",
+            "description": "Whether first-run onboarding still has incomplete steps."
+          },
+          "currentStep": {
+            "type": "string",
+            "enum": [
+              "account",
+              "ai",
+              "writing_mode",
+              "sample_pages",
+              "summary",
+              "closed"
+            ],
+            "description": "Current onboarding step."
+          },
+          "accountStatus": {
+            "type": "string",
+            "enum": [
+              "needed",
+              "created"
+            ],
+            "description": "Initial Admin account status."
+          },
+          "aiStatus": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "skipped",
+              "queued",
+              "running",
+              "completed",
+              "partial",
+              "failed",
+              "disabled"
+            ],
+            "description": "OpenRouter AI bootstrap status."
+          },
+          "samplePagesStatus": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "skipped",
+              "completed",
+              "partial",
+              "failed"
+            ],
+            "description": "Sample/help page generation status."
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "adminCreated": {
+                "type": "boolean"
+              },
+              "ai": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "wiki_text": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "configured",
+                          "skipped",
+                          "unavailable",
+                          "needs_manual_setup",
+                          "failed"
+                        ]
+                      },
+                      "modelId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "modelName": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  "wiki_embedding": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "configured",
+                          "skipped",
+                          "unavailable",
+                          "needs_manual_setup",
+                          "failed"
+                        ]
+                      },
+                      "modelId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "modelName": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  "wiki_image": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "configured",
+                          "skipped",
+                          "unavailable",
+                          "needs_manual_setup",
+                          "failed"
+                        ]
+                      },
+                      "modelId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "modelName": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ]
+                  }
+                },
+                "description": "Per-purpose AI outcome; never contains credentials."
+              },
+              "samplePages": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "updated",
+                        "skipped",
+                        "collision",
+                        "failed"
+                      ]
+                    },
+                    "pageId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "status"
+                  ]
+                },
+                "description": "Per-page sample generation outcome."
+              }
+            },
+            "required": [
+              "adminCreated",
+              "ai",
+              "samplePages"
+            ],
+            "description": "Credential-free onboarding summary for the signed-in Admin."
+          }
+        },
+        "required": [
+          "needed",
+          "currentStep"
+        ],
+        "description": "First-run onboarding state. Anonymous callers only receive whether account setup is needed."
+      },
+      "SetupWritingModeInput": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "copilot",
+              "llm-wiki"
+            ],
+            "description": "Writing mode selected for this wiki."
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "description": "First-run writing mode choice."
       },
       "SourceTestResult": {
         "oneOf": [
@@ -5981,6 +6704,44 @@
           "id"
         ],
         "description": "User ID path parameter"
+      },
+      "WritingModeSettingsView": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "copilot",
+              "llm-wiki"
+            ],
+            "description": "Active instance writing mode."
+          },
+          "pendingMode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "copilot",
+              "llm-wiki"
+            ],
+            "description": "Target mode while a mode switch is in progress."
+          },
+          "switchJobId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Background job handling the pending switch, or null."
+          }
+        },
+        "required": [
+          "mode",
+          "pendingMode",
+          "switchJobId"
+        ],
+        "description": "Writing mode settings available to administrators."
       }
     },
     "responses": {}
@@ -7187,12 +7948,6 @@
                     "name": {
                       "type": "string"
                     },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    },
                     "kind": {
                       "oneOf": [
                         {
@@ -7226,6 +7981,12 @@
                           ]
                         }
                       ]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
                     },
                     "enabled": {
                       "type": "boolean"
@@ -7312,9 +8073,9 @@
                     "id",
                     "type",
                     "name",
+                    "kind",
                     "createdAt",
                     "updatedAt",
-                    "kind",
                     "enabled",
                     "config",
                     "baseUrl",
@@ -9287,7 +10048,7 @@
       "post": {
         "operationId": "post-auth-setup",
         "summary": "Setup",
-        "description": "Creates the first admin user when the wiki has no users yet.",
+        "description": "Creates the first admin user when the wiki has no users yet, establishes a session, and advances first-run onboarding to the AI step.",
         "tags": [
           "Auth"
         ],
@@ -9544,6 +10305,26 @@
               "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
             },
             "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Space slug to list pages from. Defaults to the default wiki space."
+            },
+            "description": "Space slug to list pages from. Defaults to the default wiki space."
+          },
+          {
+            "in": "query",
+            "name": "filterType",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter to pages whose frontmatter type matches this value."
+            },
+            "description": "Filter to pages whose frontmatter type matches this value."
           },
           {
             "in": "query",
@@ -10140,6 +10921,54 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PublicPageMetadataInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/tags": {
+      "put": {
+        "operationId": "put-v1-pages-{id}-tags",
+        "summary": "Replace page tags",
+        "description": "Sets the page's tag list and publishes the change immediately so the live page reflects it.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageTagsInput"
               }
             }
           }
@@ -10983,6 +11812,168 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/writing-mode": {
+      "get": {
+        "operationId": "get-settings-writing-mode",
+        "summary": "Get the writing mode settings",
+        "description": "Returns the instance writing mode and any in-progress mode switch. Requires an Admin session.",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingModeSettingsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/setup": {
+      "get": {
+        "operationId": "get-setup",
+        "summary": "Get setup state",
+        "description": "Returns the current first-run onboarding state. Anonymous callers only receive whether account setup is needed; the signed-in Admin receives the full resumable state. Never cached and never contains credentials.",
+        "tags": [
+          "Setup"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStateView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/setup/ai-bootstrap": {
+      "put": {
+        "operationId": "put-setup-ai-bootstrap",
+        "summary": "Configure or skip AI bootstrap",
+        "description": "Configures optional OpenRouter AI bootstrap (validated key, provider registration, background model sync) or skips AI setup. Requires the signed-in initial Admin. The API key is write-only and never returned.",
+        "tags": [
+          "Setup"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupAiBootstrapInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupAiBootstrapResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/setup/sample-pages": {
+      "put": {
+        "operationId": "put-setup-sample-pages",
+        "summary": "Generate or skip sample pages",
+        "description": "Generates the optional welcome, Markdown syntax, and main features pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.",
+        "tags": [
+          "Setup"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupSamplePagesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSamplePagesResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/setup/writing-mode": {
+      "put": {
+        "operationId": "put-setup-writing-mode",
+        "summary": "Select the writing mode during first-run setup",
+        "description": "Records the signed-in initial Admin's one-time Copilot or LLM Wiki choice and advances onboarding to sample-page setup.",
+        "tags": [
+          "Setup"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupWritingModeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStateView"
                 }
               }
             }
@@ -12680,6 +13671,18 @@
         }
       }
     },
+    "/translations/models": {
+      "get": {
+        "operationId": "get-translations-models",
+        "summary": "List text-generation models eligible for translation. Admin only.",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/translations/prompts": {
       "get": {
         "operationId": "get-translations-prompts",
@@ -13330,6 +14333,26 @@
               "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
             },
             "description": "Directory prefix to scope the tree to a subtree (e.g. \"docs\" returns only the docs/ branch)."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Space slug to build the tree from. Defaults to the default wiki space."
+            },
+            "description": "Space slug to build the tree from. Defaults to the default wiki space."
+          },
+          {
+            "in": "query",
+            "name": "filterType",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter to pages whose frontmatter type matches this value."
+            },
+            "description": "Filter to pages whose frontmatter type matches this value."
           }
         ],
         "security": [
@@ -13641,6 +14664,45 @@
         }
       }
     },
+    "/users/{id}": {
+      "delete": {
+        "operationId": "delete-users-{id}",
+        "summary": "Delete user",
+        "description": "Soft-deletes the specified user, hiding it from management and",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/okResponseSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/{id}/reset-password": {
       "post": {
         "operationId": "post-users-{id}-reset-password",
@@ -13831,6 +14893,12 @@
     },
     {
       "name": "Search Admin"
+    },
+    {
+      "name": "Settings"
+    },
+    {
+      "name": "Setup"
     },
     {
       "name": "Stats"

@@ -61,17 +61,17 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 1
 
-- [ ] T014 [P] [US1] Service tests for `recordWritingMode` transitions (valid choice advances to `sample_pages`, mode persisted, invalid value rejected) in `apps/web/src/server/services/setup.test.ts`
-- [ ] T015 [P] [US1] Route tests for `PUT /api/setup/writing-mode` (state machine integration, anonymous setup gating) in `apps/web/app/api/setup/writing-mode/route.test.ts`
+- [X] T014 [P] [US1] Service tests for `recordWritingMode` transitions (valid choice advances to `sample_pages`, mode persisted, invalid value rejected) in `apps/web/src/server/services/setup.test.ts`
+- [X] T015 [P] [US1] Route tests for `PUT /api/setup/writing-mode` (state machine integration, anonymous setup gating) in `apps/web/app/api/setup/writing-mode/route.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Add `recordWritingMode` transition and adjust `nextStepAfterAi` to land on `writing_mode` in `apps/web/src/server/services/setup.ts`
-- [ ] T017 [US1] Create route `PUT /api/setup/writing-mode` in `apps/web/app/api/setup/writing-mode/route.ts` calling the service and returning updated setup state
-- [ ] T018 [US1] Create `WritingModeStep` component (radio cards: Copilot default/recommended, LLM Wiki) in `apps/web/src/components/setup/WritingModeStep.tsx` and insert `writing_mode` into `STEP_ORDER` before `sample_pages` in `apps/web/src/components/setup/FirstRunOnboarding.tsx`
-- [ ] T019 [US1] Add `GET /api/settings/writing-mode` route in `apps/web/app/api/settings/writing-mode/route.ts` (admin-only, returns current mode from `writing-mode.ts`)
-- [ ] T020 [US1] Create admin page `apps/web/app/(admin)/admin/writing-mode/page.tsx` (guarded by admin, displays current mode and description; switch action added in US7) and register the nav entry in `apps/web/src/components/layout/Navigator.tsx` ADMIN_GROUPS
-- [ ] T021 [P] [US1] Add en/zh strings for the new step and admin page in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T016 [US1] Add `recordWritingMode` transition and adjust `nextStepAfterAi` to land on `writing_mode` in `apps/web/src/server/services/setup.ts`
+- [X] T017 [US1] Create route `PUT /api/setup/writing-mode` in `apps/web/app/api/setup/writing-mode/route.ts` calling the service and returning updated setup state
+- [X] T018 [US1] Create `WritingModeStep` component (radio cards: Copilot default/recommended, LLM Wiki) in `apps/web/src/components/setup/WritingModeStep.tsx` and insert `writing_mode` into `STEP_ORDER` before `sample_pages` in `apps/web/src/components/setup/FirstRunOnboarding.tsx`
+- [X] T019 [US1] Add `GET /api/settings/writing-mode` route in `apps/web/app/api/settings/writing-mode/route.ts` (admin-only, returns current mode from `writing-mode.ts`)
+- [X] T020 [US1] Create admin page `apps/web/app/(admin)/admin/writing-mode/page.tsx` (guarded by admin, displays current mode and description; switch action added in US7) and register the nav entry in `apps/web/src/components/layout/Navigator.tsx` ADMIN_GROUPS
+- [X] T021 [P] [US1] Add en/zh strings for the new step and admin page in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Fresh setup in each mode yields the right mode and topology (quickstart S1)
 

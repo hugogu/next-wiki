@@ -1645,6 +1645,12 @@ export const SetupAiBootstrapInput = z
   ])
   .describe('OpenRouter AI bootstrap choice.');
 
+export const SetupWritingModeInput = z
+  .object({
+    mode: z.enum(['copilot', 'llm-wiki']).describe('Writing mode selected for this wiki.'),
+  })
+  .describe('First-run writing mode choice.');
+
 export const SetupAiBootstrapResult = z
   .object({
     status: z.enum(['queued', 'completed', 'partial', 'failed', 'skipped', 'disabled']),
@@ -1711,3 +1717,11 @@ export const SetupSamplePagesResult = z
     nextStep: z.enum(['account', 'ai', 'writing_mode', 'sample_pages', 'summary', 'closed']).optional(),
   })
   .describe('Sample/help page generation result.');
+
+export const WritingModeSettingsView = z
+  .object({
+    mode: z.enum(['copilot', 'llm-wiki']).describe('Active instance writing mode.'),
+    pendingMode: z.enum(['copilot', 'llm-wiki']).nullable().describe('Target mode while a mode switch is in progress.'),
+    switchJobId: z.string().uuid().nullable().describe('Background job handling the pending switch, or null.'),
+  })
+  .describe('Writing mode settings available to administrators.');

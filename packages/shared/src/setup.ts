@@ -27,6 +27,14 @@ export type SetupSamplePagesStatus = z.infer<typeof setupSamplePagesStatusSchema
 export const setupStepSchema = z.enum(['account', 'ai', 'writing_mode', 'sample_pages', 'summary', 'closed']);
 export type SetupStep = z.infer<typeof setupStepSchema>;
 
+export const writingModeSchema = z.enum(['copilot', 'llm-wiki']);
+export type WritingMode = z.infer<typeof writingModeSchema>;
+
+export const setupWritingModeInputSchema = z.object({
+  mode: writingModeSchema,
+});
+export type SetupWritingModeInput = z.infer<typeof setupWritingModeInputSchema>;
+
 export const setupPurposeResultStatusSchema = z.enum([
   'configured',
   'skipped',

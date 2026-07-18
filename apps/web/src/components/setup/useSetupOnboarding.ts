@@ -12,6 +12,7 @@ import type {
   SetupSamplePagesInput,
   SetupSamplePagesResponse,
   SetupStateView,
+  SetupWritingModeInput,
 } from '@next-wiki/shared';
 
 export type { ApiError };
@@ -46,6 +47,18 @@ export function useSamplePagesMutation(
   },
 ) {
   return useApiMutation<SetupSamplePagesInput, SetupSamplePagesResponse>('/api/setup/sample-pages', {
+    method: 'PUT',
+    ...options,
+  });
+}
+
+export function useWritingModeMutation(
+  options?: {
+    onSuccess?: (result: SetupStateView) => void;
+    onError?: (error: ApiError) => void;
+  },
+) {
+  return useApiMutation<SetupWritingModeInput, SetupStateView>('/api/setup/writing-mode', {
     method: 'PUT',
     ...options,
   });

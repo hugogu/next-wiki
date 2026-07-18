@@ -135,10 +135,11 @@
   "setup": {
     "metadataTitle": "首次设置",
     "heading": "欢迎使用 next-wiki",
-    "description": "准备您的维基：创建第一个管理员账号，然后按需完成 AI 和示例页面设置。",
+    "description": "准备您的维基：创建第一个管理员账号，然后按需完成 AI、写作模式和示例页面设置。",
     "steps": {
       "account": "管理员账号",
       "ai": "AI 设置（可选）",
+      "writingMode": "写作模式",
       "samplePages": "示例页面（可选）",
       "summary": "总结"
     },
@@ -179,6 +180,21 @@
         "unavailable": "无兼容模型",
         "needs_manual_setup": "需要手动设置",
         "failed": "失败"
+      }
+    },
+    "writingMode": {
+      "title": "选择写作模式",
+      "description": "此选择决定维基如何处理人工撰写和 AI 生成的内容。",
+      "recommended": "推荐",
+      "continue": "继续",
+      "saving": "正在保存...",
+      "copilot": {
+        "title": "Copilot",
+        "description": "在同一个协作维基空间中管理人工和 AI 内容。"
+      },
+      "llmWiki": {
+        "title": "LLM Wiki",
+        "description": "将原始输入和生成知识放在仅管理员可见的独立空间中。"
       }
     },
     "samplePages": {
@@ -519,7 +535,8 @@
       },
       "providers": "提供商",
       "feishu": "飞书",
-      "bots": "机器人"
+      "bots": "机器人",
+      "writingMode": "写作模式"
     },
     "searchSettings": {
       "title": "搜索设置",
@@ -1358,6 +1375,20 @@
         "disabled": "未启用",
         "lastConnected": "最近连接：{time}",
         "lastError": "最近错误：{message}"
+      }
+    },
+    "writingMode": {
+      "metadataTitle": "写作模式",
+      "title": "写作模式",
+      "description": "查看首次设置期间选定的实例内容创作模型。",
+      "currentLabel": "当前模式",
+      "modes": {
+        "copilot": "Copilot",
+        "llmWiki": "LLM Wiki"
+      },
+      "modeDescriptions": {
+        "copilot": "人工和 AI 内容在同一个维基空间中协作。",
+        "llmWiki": "原始输入和生成知识保存在仅管理员可见的独立空间中。"
       }
     }
   },

@@ -135,10 +135,11 @@
   "setup": {
     "metadataTitle": "First-run setup",
     "heading": "Welcome to next-wiki",
-    "description": "Get your wiki ready: create the initial admin account, then choose optional AI and example page setup.",
+    "description": "Get your wiki ready: create the initial admin account, then choose optional AI, writing mode, and example page setup.",
     "steps": {
       "account": "Admin account",
       "ai": "AI setup (optional)",
+      "writingMode": "Writing mode",
       "samplePages": "Example pages (optional)",
       "summary": "Summary"
     },
@@ -179,6 +180,21 @@
         "unavailable": "No compatible model",
         "needs_manual_setup": "Needs manual setup",
         "failed": "Failed"
+      }
+    },
+    "writingMode": {
+      "title": "Choose a writing mode",
+      "description": "This sets how your wiki handles authored and AI-generated content.",
+      "recommended": "Recommended",
+      "continue": "Continue",
+      "saving": "Saving...",
+      "copilot": {
+        "title": "Copilot",
+        "description": "Use one collaborative wiki space for people and AI."
+      },
+      "llmWiki": {
+        "title": "LLM Wiki",
+        "description": "Keep original inputs and generated knowledge in separate Admin-only spaces."
       }
     },
     "samplePages": {
@@ -519,7 +535,8 @@
       },
       "providers": "Providers",
       "feishu": "Feishu",
-      "bots": "Bots"
+      "bots": "Bots",
+      "writingMode": "Writing Mode"
     },
     "searchSettings": {
       "title": "Search Settings",
@@ -1358,6 +1375,20 @@
         "disabled": "Disabled",
         "lastConnected": "Last connected: {time}",
         "lastError": "Last error: {message}"
+      }
+    },
+    "writingMode": {
+      "metadataTitle": "Writing mode",
+      "title": "Writing mode",
+      "description": "Review the instance content-authoring model selected during first-run setup.",
+      "currentLabel": "Current mode",
+      "modes": {
+        "copilot": "Copilot",
+        "llmWiki": "LLM Wiki"
+      },
+      "modeDescriptions": {
+        "copilot": "People and AI collaborate in the same wiki space.",
+        "llmWiki": "Original inputs and generated knowledge are kept in separate Admin-only spaces."
       }
     }
   },

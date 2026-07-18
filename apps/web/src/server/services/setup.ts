@@ -7,10 +7,12 @@ import type {
   SetupSamplePagesStatus,
   SetupStateView,
 } from '@next-wiki/shared';
+import { writingModeSchema } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
 import { hasAnyAdmin } from '@/server/services/users';
+import { invalidateWritingModeCache } from '@/server/services/writing-mode';
 import { DomainError } from '@/server/errors';
 import type { Actor } from '@/server/permissions';
 
@@ -142,7 +144,7 @@ export async function recordAiSkip(): Promise<void> {
     aiStatus: 'skipped',
     aiResult: result,
     aiActionId: null,
-    currentStep: nextStepAfterAi(progress),
+    currentStep: nextStepAfterAi(),
   });
 }
 
@@ -152,7 +154,7 @@ export async function recordAiQueued(actionId: string): Promise<void> {
 
 /**
  * Records a terminal AI bootstrap outcome. `completed`/`partial` advance to
- * the sample-pages step; `failed`/`disabled` stay on the AI step so the Admin
+ * the writing-mode step; `failed`/`disabled` stay on the AI step so the Admin
  * can retry or skip.
  */
 export async function recordAiTerminal(outcome: {
@@ -160,18 +162,66 @@ export async function recordAiTerminal(outcome: {
   result: SetupAiResult;
   actionId?: string | null;
 }): Promise<void> {
-  const progress = await ensureSetupProgress();
+  await ensureSetupProgress();
   const advances = outcome.status === 'completed' || outcome.status === 'partial';
   await updateProgress({
     aiStatus: outcome.status,
     aiResult: outcome.result,
     ...(outcome.actionId !== undefined ? { aiActionId: outcome.actionId } : {}),
-    currentStep: advances ? nextStepAfterAi(progress) : 'ai',
+    currentStep: advances ? nextStepAfterAi() : 'ai',
   });
 }
 
-function nextStepAfterAi(progress: SetupProgressRow): 'sample_pages' | 'summary' {
-  return progress.samplePagesStatus === 'not_started' ? 'sample_pages' : 'summary';
+function nextStepAfterAi(): 'writing_mode' {
+  return 'writing_mode';
+}
+
+/**
+ * Records the one-time writing mode choice after AI setup. The mode and
+ * onboarding transition share a transaction, so a refresh cannot observe one
+ * without the other.
+ */
+export async function recordWritingMode(actor: Actor, rawMode: unknown): Promise<SetupStateView> {
+  const parsedMode = writingModeSchema.safeParse(rawMode);
+  if (!parsedMode.success) {
+    throw new DomainError('BAD_REQUEST', 'Writing mode must be copilot or llm-wiki');
+  }
+
+  const progress = await assertSetupAdmin(actor);
+  if (progress.currentStep !== 'writing_mode') {
+    throw new DomainError('BAD_REQUEST', 'Writing mode can only be selected during its setup step');
+  }
+  const userId = actor.kind === 'user' ? actor.userId : null;
+  if (!userId) {
+    throw new DomainError('FORBIDDEN', 'Setup requires the initial admin account');
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(schema.writingModeSettings)
+      .values({
+        id: 'default',
+        mode: parsedMode.data,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: schema.writingModeSettings.id,
+        set: { mode: parsedMode.data, updatedBy: userId, updatedAt: new Date() },
+      });
+
+    const [updated] = await tx
+      .update(schema.setupProgress)
+      .set({ currentStep: 'sample_pages', updatedAt: new Date() })
+      .where(and(eq(schema.setupProgress.id, SETUP_PROGRESS_ID), eq(schema.setupProgress.currentStep, 'writing_mode')))
+      .returning({ id: schema.setupProgress.id });
+    if (!updated) {
+      throw new DomainError('BAD_REQUEST', 'Writing mode has already been selected');
+    }
+  });
+
+  invalidateWritingModeCache();
+  return getSetupState(actor);
 }
 
 /** Sample-pages step skipped by the Admin. Idempotent. */

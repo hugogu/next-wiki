@@ -216,6 +216,20 @@ describe('sample page writer (US3)', () => {
     await expect(samplePages.generateSamplePages({ kind: 'anonymous' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await expect(samplePages.skipSamplePages({ kind: 'anonymous' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  it('requires a writing-mode choice before sample pages', async () => {
+    await resetSetupOnboardingState();
+    const { userId } = await createAdminUser();
+    await db.insert(schema.setupProgress).values({
+      id: 'default',
+      adminUserId: userId,
+      accountStatus: 'created',
+      currentStep: 'writing_mode',
+      aiStatus: 'skipped',
+    });
+
+    await expect(samplePages.skipSamplePages(adminActor(userId))).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
 });
 
 describe('sample page cache invalidation (US3)', () => {

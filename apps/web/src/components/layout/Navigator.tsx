@@ -320,6 +320,11 @@ export function Navigator({
           icon: <SlidersIcon className="shrink-0" />,
         },
         {
+          href: '/admin/writing-mode',
+          label: t('admin.nav.writingMode'),
+          icon: <SettingsIcon className="shrink-0" />,
+        },
+        {
           href: '/admin/users',
           label: t('admin.nav.users'),
           icon: <UsersIcon className="shrink-0" />,

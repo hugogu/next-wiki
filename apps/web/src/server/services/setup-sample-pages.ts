@@ -9,6 +9,7 @@ import * as schema from '@/server/db/schema';
 import type { Actor, PermCtx } from '@/server/permissions';
 import * as pagesService from '@/server/services/pages';
 import * as revisionsService from '@/server/services/revisions';
+import { DomainError } from '@/server/errors';
 import { assertSetupAdmin, recordSamplePagesOutcome, recordSamplePagesSkip } from '@/server/services/setup';
 import {
   MAIN_FEATURES_PAGE_SOURCE,
@@ -29,7 +30,10 @@ function asCtx(actor: Actor): PermCtx {
 
 /** Decline the optional sample/help pages. Idempotent and side-effect free. */
 export async function skipSamplePages(actor: Actor): Promise<SetupSamplePagesResponse> {
-  await assertSetupAdmin(actor);
+  const progress = await assertSetupAdmin(actor);
+  if (progress.currentStep !== 'sample_pages' && progress.currentStep !== 'summary') {
+    throw new DomainError('BAD_REQUEST', 'Select a writing mode before configuring sample pages');
+  }
   await recordSamplePagesSkip();
   return { status: 'skipped', pages: [], nextStep: 'summary' };
 }
@@ -108,7 +112,10 @@ async function writeSamplePage(
  * skip setup-owned pages and report collisions for user-authored ones.
  */
 export async function generateSamplePages(actor: Actor): Promise<SetupSamplePagesResponse> {
-  await assertSetupAdmin(actor);
+  const progress = await assertSetupAdmin(actor);
+  if (progress.currentStep !== 'sample_pages' && progress.currentStep !== 'summary') {
+    throw new DomainError('BAD_REQUEST', 'Select a writing mode before configuring sample pages');
+  }
   const ctx = asCtx(actor);
 
   const results: SetupSamplePageResult[] = [];

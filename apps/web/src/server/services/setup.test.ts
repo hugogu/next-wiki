@@ -20,6 +20,7 @@ vi.mock('next/headers', () => ({
 }));
 
 import * as setupService from '@/server/services/setup';
+import { getMode } from '@/server/services/writing-mode';
 
 const anonymous: Actor = { kind: 'anonymous' };
 const adminActor = (userId: string): Actor => ({ kind: 'user', userId, role: 'admin' });
@@ -65,7 +66,7 @@ describe('setupService', () => {
       expect(JSON.stringify(anonState)).not.toContain('aiResult');
     });
 
-    it('walks account → ai → sample_pages → summary with explicit choices', async () => {
+    it('walks account → ai → writing_mode → sample_pages → summary with explicit choices', async () => {
       await resetSetupOnboardingState();
       const { userId } = await createAdminUser();
       await db.insert(schema.setupProgress).values({
@@ -78,12 +79,17 @@ describe('setupService', () => {
       await setupService.recordAiSkip();
       let progress = await readSetupProgress();
       expect(progress?.aiStatus).toBe('skipped');
-      expect(progress?.currentStep).toBe('sample_pages');
+      expect(progress?.currentStep).toBe('writing_mode');
       expect(progress?.aiResult).toMatchObject({
         wiki_text: { status: 'skipped' },
         wiki_embedding: { status: 'skipped' },
         wiki_image: { status: 'skipped' },
       });
+
+      await setupService.recordWritingMode(adminActor(userId), 'llm-wiki');
+      progress = await readSetupProgress();
+      expect(progress?.currentStep).toBe('sample_pages');
+      await expect(getMode()).resolves.toBe('llm-wiki');
 
       await setupService.recordSamplePagesSkip();
       progress = await readSetupProgress();
@@ -133,7 +139,7 @@ describe('setupService', () => {
       });
       progress = await readSetupProgress();
       expect(progress?.aiStatus).toBe('completed');
-      expect(progress?.currentStep).toBe('sample_pages');
+      expect(progress?.currentStep).toBe('writing_mode');
     });
 
     it('rejects setup mutations from non-admin or closed callers', async () => {
@@ -144,6 +150,30 @@ describe('setupService', () => {
       await expect(setupService.assertSetupAdmin(editorActor(userId))).rejects.toMatchObject({ code: 'FORBIDDEN' });
       // Admin exists but no progress row → setup closed.
       await expect(setupService.assertSetupAdmin(adminActor(userId))).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('persists the selected writing mode and rejects invalid or out-of-step choices', async () => {
+      await resetSetupOnboardingState();
+      const { userId } = await createAdminUser();
+      await db.insert(schema.setupProgress).values({
+        id: 'default',
+        adminUserId: userId,
+        accountStatus: 'created',
+        currentStep: 'writing_mode',
+        aiStatus: 'skipped',
+      });
+
+      await expect(setupService.recordWritingMode(adminActor(userId), 'copilot')).resolves.toMatchObject({
+        currentStep: 'sample_pages',
+      });
+      await expect(getMode()).resolves.toBe('copilot');
+      await expect(setupService.recordWritingMode(adminActor(userId), 'llm-wiki')).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+      await expect(setupService.recordWritingMode(adminActor(userId), 'invalid-mode')).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+      await expect(setupService.recordWritingMode(anonymous, 'llm-wiki')).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
     it('skips summary shaping of unknown aiResult keys', async () => {
@@ -264,7 +294,7 @@ describe('setupService', () => {
       expect(state.summary).toEqual({ adminCreated: true, ai: null, samplePages: null });
     });
 
-    it('resumes at sample_pages after a terminal AI outcome', async () => {
+    it('resumes at writing_mode after a terminal AI outcome', async () => {
       const progress = await readSetupProgress();
       await setupService.recordAiTerminal({
         status: 'completed',
@@ -275,7 +305,7 @@ describe('setupService', () => {
         },
       });
       const state = await setupService.getSetupState(adminActor(progress!.adminUserId!));
-      expect(state.currentStep).toBe('sample_pages');
+      expect(state.currentStep).toBe('writing_mode');
       // Reset to not_started so the following skip tests exercise a real transition.
       await db
         .update(schema.setupProgress)
@@ -290,7 +320,7 @@ describe('setupService', () => {
       const second = await readSetupProgress();
       expect(second?.aiStatus).toBe('skipped');
       expect(second?.aiResult).toEqual(first?.aiResult);
-      expect(second?.currentStep).toBe('sample_pages');
+      expect(second?.currentStep).toBe('writing_mode');
     });
 
     it('repeated sample-pages skip is a no-op', async () => {
@@ -322,17 +352,17 @@ describe('setupService', () => {
       expect(progress?.samplePagesResult).toEqual(results);
     });
 
-    it('AI skip after sample-pages decision lands on summary', async () => {
+    it('AI skip after a later manual reset returns to writing-mode selection', async () => {
       const progress = await readSetupProgress();
       expect(progress?.samplePagesStatus).toBe('completed');
-      // Re-deciding AI after samples are done must not rewind to sample_pages.
+      // Re-deciding AI after a manual reset must still collect the mode choice.
       await db
         .update(schema.setupProgress)
         .set({ aiStatus: 'not_started', currentStep: 'ai' })
         .where(eq(schema.setupProgress.id, 'default'));
       await setupService.recordAiSkip();
       const after = await readSetupProgress();
-      expect(after?.currentStep).toBe('summary');
+      expect(after?.currentStep).toBe('writing_mode');
     });
   });
 });

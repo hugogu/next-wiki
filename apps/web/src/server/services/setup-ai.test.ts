@@ -100,7 +100,7 @@ describe('setup-ai skip mode (US2)', () => {
       const { actor } = await openSetupAtAiStep();
       const result = await setupAi.skipAiBootstrap(actor);
       expect(result.status).toBe('skipped');
-      expect(result.nextStep).toBe('sample_pages');
+      expect(result.nextStep).toBe('writing_mode');
 
       expect(fixture.requests).toHaveLength(0);
       expect(await db.select().from(schema.aiProviders)).toHaveLength(0);
@@ -109,7 +109,7 @@ describe('setup-ai skip mode (US2)', () => {
 
       const progress = await readSetupProgress();
       expect(progress?.aiStatus).toBe('skipped');
-      expect(progress?.currentStep).toBe('sample_pages');
+      expect(progress?.currentStep).toBe('writing_mode');
       expect(progress?.aiResult).toMatchObject({
         wiki_text: { status: 'skipped' },
         wiki_embedding: { status: 'skipped' },
@@ -183,7 +183,7 @@ describe('setup-ai OpenRouter bootstrap (US2)', () => {
 
     const progress = await readSetupProgress();
     expect(progress?.aiStatus).toBe('completed');
-    expect(progress?.currentStep).toBe('sample_pages');
+    expect(progress?.currentStep).toBe('writing_mode');
     expect(progress?.aiResult).toMatchObject({
       wiki_text: { status: 'configured', modelName: 'Fixture Chat' },
       wiki_embedding: { status: 'configured', modelName: 'Fixture Embedding' },
@@ -242,7 +242,7 @@ describe('setup-ai OpenRouter bootstrap (US2)', () => {
 
       const progress = await readSetupProgress();
       expect(progress?.aiStatus).toBe('partial');
-      expect(progress?.currentStep).toBe('sample_pages');
+      expect(progress?.currentStep).toBe('writing_mode');
       expect(progress?.aiResult).toMatchObject({
         wiki_text: { status: 'configured' },
         wiki_embedding: { status: 'configured' },

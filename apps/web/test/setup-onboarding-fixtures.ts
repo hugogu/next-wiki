@@ -17,7 +17,7 @@ export const OPENROUTER_FIXTURE_KEY = 'test-key';
  * keys when a later file deletes rows in its own beforeAll order.
  */
 export async function resetSetupOnboardingState(): Promise<void> {
-  await db.execute(sql`TRUNCATE TABLE ai_generated_artifacts, ai_action_events, ai_action_inputs, ai_actions, ai_knowledge_chunks, ai_page_index_states, ai_index_generations, user_ai_entitlements, ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings, setup_progress, storage_replication_tasks, storage_cleanup_jobs, content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, api_audit_entries, api_keys, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE`);
+  await db.execute(sql`TRUNCATE TABLE ai_generated_artifacts, ai_action_events, ai_action_inputs, ai_actions, ai_knowledge_chunks, ai_page_index_states, ai_index_generations, user_ai_entitlements, ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings, setup_progress, writing_mode_settings, storage_replication_tasks, storage_cleanup_jobs, content_asset_refs, content_blobs, content_assets, content_migrations, storage_backends, api_audit_entries, api_keys, page_revisions, pages, sessions, users, spaces RESTART IDENTITY CASCADE`);
   await ensureDefaultSpace();
   await seedDefaultStorageBackend();
 }

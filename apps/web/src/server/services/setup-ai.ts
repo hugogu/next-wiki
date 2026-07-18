@@ -55,7 +55,7 @@ export async function skipAiBootstrap(actor: Actor): Promise<SetupAiBootstrapRes
   return {
     status: 'skipped',
     purposes: (progress?.aiResult as SetupAiResult | null) ?? undefined,
-    nextStep: 'sample_pages',
+    nextStep: progress?.currentStep ?? 'writing_mode',
   };
 }
 
@@ -86,7 +86,7 @@ export async function configureAiBootstrap(
     return {
       status: progress.aiStatus,
       purposes: (progress.aiResult as SetupAiResult | null) ?? undefined,
-      nextStep: 'sample_pages',
+      nextStep: progress.currentStep,
     };
   }
 
