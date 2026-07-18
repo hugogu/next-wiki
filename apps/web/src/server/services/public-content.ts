@@ -61,17 +61,10 @@ import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevision
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
-
-const DEFAULT_SPACE_SLUG = 'default';
+import { resolveSpace } from '@/server/services/spaces';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
-
-async function getDefaultSpace() {
-  return db.query.spaces.findFirst({
-    where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
-  });
-}
 
 function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
@@ -259,7 +252,7 @@ async function visiblePageResource(
 }
 
 async function getVisiblePage(ctx: PermCtx, predicate: SQL, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
   const page = await db.query.pages.findFirst({
     where: and(
@@ -273,7 +266,7 @@ async function getVisiblePage(ctx: PermCtx, predicate: SQL, include: readonly Pu
 }
 
 async function getPageRowById(pageId: string): Promise<PageRow | null> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
   return (await db.query.pages.findFirst({
     where: and(
@@ -360,7 +353,7 @@ async function listPagesInternal(
   query: ListPagesQuery,
   options: { includeContent: boolean },
 ): Promise<PublicPageListResponse> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return { items: [], nextCursor: null };
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
@@ -790,7 +783,7 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
  * pending semantic action. The legacy GET route remains a pure lexical read.
  */
 export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryInput): Promise<HybridPageSearchResponse> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   const settings = await getSearchSettings();
   const settingsSnapshot: CapabilitySnapshot = {
@@ -859,7 +852,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
 }
 
 export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Promise<PublicPageTreeResponse> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
@@ -1011,7 +1004,7 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
   const targetPage = await getPageRowById(pageId);
   if (!targetPage) return { items: [] };
 
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return { items: [] };
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
     return { items: [] };
@@ -1121,7 +1114,7 @@ async function resolveLinkTarget(
 export async function getOutboundLinks(ctx: PermCtx, pageId: string): Promise<PublicOutboundLinksResponse> {
   const page = await getPageById(ctx, pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
 
   const contentSource = page.contentSource ?? '';
@@ -1207,7 +1200,7 @@ export async function getNeighborhood(
 ): Promise<PublicNeighborhoodResponse> {
   const rootPage = await getPageById(ctx, nodeId);
   if (!rootPage) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
 
   const root = { pageId: rootPage.id, path: rootPage.path, title: rootPage.title };
@@ -1451,7 +1444,7 @@ export async function batchUpdatePages(ctx: PermCtx, input: PublicPageBatchUpdat
   if (!can(ctx, 'edit', { kind: 'page_list' })) {
     throw new DomainError('FORBIDDEN', 'This API key cannot edit pages');
   }
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   const results: PublicBatchItemResult[] = [];
@@ -1497,7 +1490,7 @@ export async function batchSoftDeletePages(ctx: PermCtx, input: PublicPageBatchD
   if (isReaderOrAnonymous || !can(ctx, 'delete', { kind: 'page_list' }, { isAuthor: true })) {
     throw new DomainError('FORBIDDEN', 'This API key cannot delete pages');
   }
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   const results: PublicBatchItemResult[] = [];
@@ -1530,7 +1523,7 @@ export async function getStats(
   ctx: PermCtx,
   options: { includeOrphans?: boolean } = {},
 ): Promise<PublicStats> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) {
     return { totalPages: 0, publishedPages: 0, draftPages: 0, deletedPages: 0, recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 }, directories: [] };
   }
@@ -1664,7 +1657,7 @@ export async function findSimilar(
   input: { title?: string; path?: string; threshold?: number },
 ): Promise<{ results: PublicSimilarResult[]; threshold: number }> {
   const threshold = input.threshold ?? 0.5;
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return { results: [], threshold };
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {

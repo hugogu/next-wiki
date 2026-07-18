@@ -8,6 +8,7 @@ import { markRunTerminal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import { WikiJsClient, computeWikiJsPageFingerprint } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
+import { resolveSpace } from '@/server/services/spaces';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
 
@@ -19,7 +20,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
     : null;
   if (!artifact || artifact.status !== 'ready') throw new Error('Source archive is unavailable');
   const inspected = await inspectPortableArchive(transferArtifactStore.pathFor(artifact.storageKey));
-  const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+  const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   const strategy = (run.options as { conflictStrategy?: string }).conflictStrategy ?? 'skip';
   let created = 0;
@@ -108,7 +109,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   const source = await getRuntimeSource(run.sourceId);
   const client = new WikiJsClient(source.baseUrl, source.apiToken, source.allowPrivateNetwork);
   const inventory = await client.listPages();
-  const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+  const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   const strategy = (run.options as { conflictStrategy?: string }).conflictStrategy ?? 'skip';
   const items: (typeof schema.transferItems.$inferInsert)[] = [];

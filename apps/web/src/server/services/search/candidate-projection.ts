@@ -5,11 +5,10 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import { getRevisionMetadata } from '@/server/services/page-metadata';
-
-const DEFAULT_SPACE_SLUG = 'default';
+import { resolveSpace } from '@/server/services/spaces';
 
 async function getDefaultSpace() {
-  return db.query.spaces.findFirst({ where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG) });
+  return resolveSpace();
 }
 
 function encodePath(path: string): string {

@@ -8,6 +8,7 @@ import { addReplicationTasks, kickReplication } from './storage-replication';
 import { reconcilePageAcrossIndexes } from './ai-index';
 import { buildUserCtx } from '@/server/permissions';
 import { persistRevisionMetadata } from './page-metadata';
+import { resolveSpace } from '@/server/services/spaces';
 
 export async function writeImportedPage(input: {
   actorUserId: string;
@@ -17,7 +18,7 @@ export async function writeImportedPage(input: {
   markdown: string;
   action: 'create' | 'replace' | 'skip';
 }): Promise<{ pageId: string | null; revisionId: string | null; action: typeof input.action }> {
-  const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+  const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   // Match the database uniqueness contract exactly. The canonical page key is
   // (space_id, path, locale), and the unique index also includes soft-deleted

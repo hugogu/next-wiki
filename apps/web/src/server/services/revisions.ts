@@ -10,8 +10,7 @@ import { invalidateTranslationsForSource } from '@/server/services/translations'
 import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
-
-const DEFAULT_SPACE_SLUG = 'default';
+import { resolveSpace } from '@/server/services/spaces';
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -29,9 +28,7 @@ export async function publish(
   await assertNotMigrating();
 
   const result = await db.transaction(async (tx) => {
-    const space = await tx.query.spaces.findFirst({
-      where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
-    });
+    const space = await resolveSpace();
     if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
     const page = await tx.query.pages.findFirst({

@@ -27,8 +27,8 @@ import { enqueue, getBoss, QUEUES } from '@/server/jobs/runtime';
 import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { assertAiEnabled } from './ai-actions';
 import { assertCanManageTranslations } from './translation-config';
+import { resolveSpace } from '@/server/services/spaces';
 
-const DEFAULT_SPACE_SLUG = 'default';
 const ACTIVE = ['queued', 'running'] as const;
 const TERMINAL = ['completed', 'completed_with_warnings', 'failed', 'cancelled'] as const;
 
@@ -184,9 +184,7 @@ async function resolvePromptVersion(
 // ---- Eligible source resolution -------------------------------------------
 
 async function getDefaultSpaceId(): Promise<string> {
-  const space = await db.query.spaces.findFirst({
-    where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
-  });
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   return space.id;
 }

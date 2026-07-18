@@ -12,13 +12,10 @@ import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { providerRuntime } from './ai-admin';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction, readActionInput, appendActionEvent, finishAction } from './ai-actions';
-
-const DEFAULT_SPACE_SLUG = 'default';
+import { resolveSpace } from '@/server/services/spaces';
 
 async function getDefaultSpace() {
-  return db.query.spaces.findFirst({
-    where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
-  });
+  return resolveSpace();
 }
 
 export type SemanticSearchInput = {

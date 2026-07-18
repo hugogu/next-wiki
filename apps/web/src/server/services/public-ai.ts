@@ -6,11 +6,10 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import type { FrontmatterFilters } from '@/server/transfers/frontmatter';
 import { createSemanticSearch, type SemanticSearchInput } from './ai-retrieval';
-
-const DEFAULT_SPACE_SLUG = 'default';
+import { resolveSpace } from '@/server/services/spaces';
 
 async function getDefaultSpace() {
-  return db.query.spaces.findFirst({ where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG) });
+  return resolveSpace();
 }
 
 function toArray(value: string | string[] | undefined): string[] | undefined {

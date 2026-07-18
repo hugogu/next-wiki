@@ -3,6 +3,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { readImageFromDatabase, readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { extractLocalAssetIds } from '@/server/transfers/markdown-links';
+import { resolveSpace } from '@/server/services/spaces';
 
 export type ExportAsset = {
   id: string;
@@ -33,9 +34,7 @@ export async function capturePublishedSnapshot(): Promise<{
   pages: ExportPage[];
   assets: ExportAsset[];
 }> {
-  const space = await db.query.spaces.findFirst({
-    where: eq(schema.spaces.slug, 'default'),
-  });
+  const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   const capturedAt = new Date();
   const rows = await db

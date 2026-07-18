@@ -1,11 +1,9 @@
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { db } from '@/server/db';
-import * as schema from '@/server/db/schema';
 import { buildExcerpt } from '../candidate-projection';
 import { EngineDeadlineExceeded, isDatabaseDeadline } from '../deadline';
+import { resolveSpace } from '@/server/services/spaces';
 import type { SearchCandidate } from '../types';
-
-const DEFAULT_SPACE_SLUG = 'default';
 
 /** A global database handle or one transaction-bound executor. */
 export type SearchDbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -14,7 +12,7 @@ export type SearchDbExecutor = typeof db | Parameters<Parameters<typeof db.trans
 export const EXCERPT_EVIDENCE_WINDOW = 300;
 
 export async function getDefaultSpaceId(): Promise<string | null> {
-  const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG) });
+  const space = await resolveSpace();
   return space?.id ?? null;
 }
 

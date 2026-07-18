@@ -5,11 +5,10 @@ import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { normalizeTagName } from '@/server/metadata/frontmatter';
-
-const DEFAULT_SPACE_SLUG = 'default';
+import { resolveSpace } from '@/server/services/spaces';
 
 async function defaultSpace() {
-  return db.query.spaces.findFirst({ where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG) });
+  return resolveSpace();
 }
 
 function assertTagManager(ctx: PermCtx) {

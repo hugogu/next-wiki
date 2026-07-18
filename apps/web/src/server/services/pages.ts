@@ -36,18 +36,12 @@ import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
+import { resolveSpace } from '@/server/services/spaces';
 
-const DEFAULT_SPACE_SLUG = 'default';
 const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
 const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
 const HTML_LINK_RE = /<a\b[^>]*\bhref=(["'])(.*?)\1/gi;
-
-async function getDefaultSpace() {
-  return db.query.spaces.findFirst({
-    where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
-  });
-}
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -185,7 +179,7 @@ export async function listPublished(
   ctx: PermCtx,
   options: ListPublishedOptions = {},
 ): Promise<PageSummary[]> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return [];
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
@@ -243,7 +237,7 @@ export async function listPublished(
 
 /** Total number of published pages in the default space, mirroring `listPublished`'s filter. */
 export async function countPublished(ctx: PermCtx): Promise<number> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return 0;
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
@@ -299,7 +293,7 @@ export async function listAdminPages(
   } = {},
 ): Promise<AdminPageListResult> {
   assertAdmin(ctx);
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) {
     return {
       items: [],
@@ -438,7 +432,7 @@ export async function listAdminPages(
 
 export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
   assertAdmin(ctx);
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return { totalPages: 0, totalEdits: 0, totalPageLinks: 0 };
 
   const activePagesQuery = db
@@ -475,7 +469,7 @@ export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
 }
 
 export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | null> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
 
   if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
@@ -586,7 +580,7 @@ export async function getLiveTranslation(
   locale: string,
   path: string,
 ): Promise<TranslationReadResult> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return { kind: 'not_found' };
 
   // Only an enabled, non-retired target language has reader-visible URLs.
@@ -670,7 +664,7 @@ export async function getLiveTranslation(
  * is not a published source page.
  */
 export async function getPublishedTranslationLocales(sourcePath: string): Promise<string[]> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return [];
   const source = await db.query.pages.findFirst({
     where: and(
@@ -746,7 +740,7 @@ export async function getCachedPublishedTranslationLocales(sourcePath: string): 
 }
 
 export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | null> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
 
   const page = await db.query.pages.findFirst({
@@ -769,7 +763,7 @@ export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | 
  * nothing pre-publication or private can leak through the share URL.
  */
 export async function getPublishedForShare(pageId: string): Promise<LivePage | null> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
 
   const page = await db.query.pages.findFirst({
@@ -813,7 +807,7 @@ export async function getPublishedForShare(pageId: string): Promise<LivePage | n
  * Returns true if the caller is allowed to create pages in the default space.
  */
 export async function canCreate(ctx: PermCtx): Promise<boolean> {
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return false;
   return can(ctx, 'create', { kind: 'page_list' });
 }
@@ -824,7 +818,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
     throw new DomainError('UNAUTHORIZED', 'Sign in to delete pages');
   }
 
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   const page = await db.query.pages.findFirst({
@@ -863,7 +857,7 @@ export async function create(
     throw new DomainError('UNAUTHORIZED', 'Sign in to create pages');
   }
 
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   if (!can(ctx, 'create', { kind: 'page_list' })) {
@@ -962,7 +956,7 @@ export async function newDraft(
     throw new DomainError('UNAUTHORIZED', 'Sign in to edit pages');
   }
 
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   await assertNotMigrating();
@@ -1060,7 +1054,7 @@ export async function updateProperties(
     throw new DomainError('UNAUTHORIZED', 'Sign in to edit page properties');
   }
 
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   if (!input.path && !input.title) {
@@ -1134,7 +1128,7 @@ export async function updateProperties(
 
 export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableView | null> {
   const userId = getUserId(ctx);
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
 
   const page = await db.query.pages.findFirst({
@@ -1191,7 +1185,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
 
 export async function getHistory(ctx: PermCtx, path: string): Promise<RevisionSummary[]> {
   const userId = getUserId(ctx);
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return [];
 
   const page = await db.query.pages.findFirst({
@@ -1256,7 +1250,7 @@ export async function getRevision(
   version: number,
 ): Promise<RevisionView | null> {
   const userId = getUserId(ctx);
-  const space = await getDefaultSpace();
+  const space = await resolveSpace();
   if (!space) return null;
 
   const page = await db.query.pages.findFirst({
