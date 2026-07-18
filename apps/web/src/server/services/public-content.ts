@@ -62,6 +62,7 @@ import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { resolveSpace } from '@/server/services/spaces';
+import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
@@ -1398,6 +1399,8 @@ async function batchUpdateOneItem(
   const revisionId = randomUUID();
 
   await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     const [revision] = await tx
       .insert(schema.pageRevisions)
       .values({
@@ -1410,6 +1413,7 @@ async function batchUpdateOneItem(
         contentHash: hash,
         authorId: userId,
         status: 'draft',
+        actorKind: pageService.actorKindOf(ctx),
       })
       .returning();
     if (!revision) throw new Error('Failed to create revision');

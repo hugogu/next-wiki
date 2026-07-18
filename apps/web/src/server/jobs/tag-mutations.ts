@@ -10,6 +10,7 @@ import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
+import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 type Target = {
   page: typeof schema.pages.$inferSelect;
@@ -46,6 +47,8 @@ export async function runTagMutation(mutationId: string) {
 
     const affectedPageIds = new Set<string>();
     await db.transaction(async (tx) => {
+      await assertNoSwitchInProgress(tx);
+
       const tag = await tx.query.tags.findFirst({
         where: and(eq(schema.tags.id, mutation.tagId), isNull(schema.tags.deletedAt)),
       });
@@ -131,6 +134,7 @@ export async function runTagMutation(mutationId: string) {
           authorId: mutation.requestedBy ?? target.revision.authorId,
           status: target.revision.status,
           publishedAt: target.revision.status === 'published' ? new Date() : null,
+          actorKind: 'machine',
         });
         await persistRevisionMetadata(tx, {
           revisionId,

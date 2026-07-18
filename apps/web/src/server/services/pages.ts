@@ -48,7 +48,7 @@ function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
 }
 
-function actorKindOf(ctx: PermCtx): 'human' | 'machine' {
+export function actorKindOf(ctx: PermCtx): 'human' | 'machine' {
   return ctx.actor.kind === 'api_key' ? 'machine' : 'human';
 }
 
