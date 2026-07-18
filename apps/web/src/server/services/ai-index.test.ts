@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
@@ -142,6 +142,66 @@ describe('AI index lifecycle', () => {
     // The new rebuild's own action must stay runnable.
     expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, second.action.id) }))
       .toMatchObject({ status: 'queued', cancelRequested: false });
+  });
+
+  it('coalesces bulk reconciles into a single queued rebuild job per generation', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const genId = created.generation.id;
+    // The generation is live; further page writes are incremental updates.
+    await db.update(schema.aiIndexGenerations)
+      .set({ status: 'ready', isActive: true, readyAt: new Date() })
+      .where(eq(schema.aiIndexGenerations.id, genId));
+    // createIndexRebuild already queued exactly one rebuild action.
+    expect(await db.select().from(schema.aiActions).where(eq(schema.aiActions.indexGenerationId, genId)))
+      .toHaveLength(1);
+
+    // Simulate a bulk import: reconcile many pages. The single queued action
+    // above will drain all their pending states, so no new actions are created.
+    const pageIds: string[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const pid = randomUUID();
+      pageIds.push(pid);
+      await db.insert(schema.pages).values({ id: pid, spaceId, slug: `bulk-${i}`, path: `bulk-${i}`, title: `Bulk ${i}`, authorId: adminId });
+      await reconcilePageAcrossIndexes(pid, ctx);
+    }
+
+    // Still just one queued rebuild action — not one per reconciled page.
+    expect(await db.select().from(schema.aiActions).where(eq(schema.aiActions.indexGenerationId, genId)))
+      .toHaveLength(1);
+    // Every page still got its durable pending marker (nothing is lost).
+    for (const pid of pageIds) {
+      expect(await db.query.aiPageIndexStates.findFirst({
+        where: and(eq(schema.aiPageIndexStates.generationId, genId), eq(schema.aiPageIndexStates.pageId, pid)),
+      })).toMatchObject({ status: 'pending' });
+    }
+    for (const pid of pageIds) {
+      await db.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, pid));
+      await db.delete(schema.pages).where(eq(schema.pages.id, pid));
+    }
+  });
+
+  it('enqueues a fresh rebuild job when only a running (already-scanned) action exists', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(ctx, 'test');
+    const genId = created.generation.id;
+    await db.update(schema.aiIndexGenerations)
+      .set({ status: 'ready', isActive: true, readyAt: new Date() })
+      .where(eq(schema.aiIndexGenerations.id, genId));
+    // The existing action is mid-run: it has already scanned its pending set,
+    // so a page arriving now cannot rely on it and needs its own queued job.
+    await db.update(schema.aiActions).set({ status: 'running' }).where(eq(schema.aiActions.indexGenerationId, genId));
+
+    const latePage = randomUUID();
+    await db.insert(schema.pages).values({ id: latePage, spaceId, slug: 'late', path: 'late', title: 'Late', authorId: adminId });
+    await reconcilePageAcrossIndexes(latePage, ctx);
+
+    expect(await db.select().from(schema.aiActions).where(and(
+      eq(schema.aiActions.indexGenerationId, genId),
+      eq(schema.aiActions.status, 'queued'),
+    ))).toHaveLength(1);
+    await db.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, latePage));
+    await db.delete(schema.pages).where(eq(schema.pages.id, latePage));
   });
 
   it('deletes an inactive generation but refuses the active one', async () => {

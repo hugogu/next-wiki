@@ -210,15 +210,35 @@ export async function reconcilePageAcrossIndexes(pageId: string, ctx?: PermCtx):
         },
       });
     if (aiEnabled && ctx?.actor.kind === 'user') {
-      await createAction(ctx, {
-        feature: 'index_rebuild',
-        input: { generationId: generation.id },
-        providerId: generation.providerId,
-        modelId: generation.modelId,
-        indexGenerationId: generation.id,
-        pageId,
-        requestMetadata: { reconciliation: true, pageId },
+      // Coalesce incremental reconciles: one queued rebuild job scans and
+      // (re)indexes every pending page-state for the generation, so a single
+      // job in flight is enough. Without this, a bulk import (one reconcile per
+      // page) spawns O(N) rebuild jobs, each of which itself loops over all
+      // pending pages — O(N^2) work and a huge queue backlog. A `running`
+      // action may have already scanned past this page's pending row, so it
+      // does not count: only an unstarted `queued` job is guaranteed to pick
+      // this page up, so we enqueue one when none is already waiting. The
+      // durable page-state row above is written regardless, so nothing is lost.
+      const pendingJob = await db.query.aiActions.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(schema.aiActions.feature, 'index_rebuild'),
+          eq(schema.aiActions.indexGenerationId, generation.id),
+          eq(schema.aiActions.status, 'queued'),
+          eq(schema.aiActions.cancelRequested, false),
+        ),
       });
+      if (!pendingJob) {
+        await createAction(ctx, {
+          feature: 'index_rebuild',
+          input: { generationId: generation.id },
+          providerId: generation.providerId,
+          modelId: generation.modelId,
+          indexGenerationId: generation.id,
+          pageId,
+          requestMetadata: { reconciliation: true, pageId },
+        });
+      }
     }
   }
 }
