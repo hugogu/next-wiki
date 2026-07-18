@@ -131,7 +131,13 @@ function links(page: PageRow) {
   };
 }
 
-function minimalDeletedPageResource(space: { slug: string }, page: PageRow): PublicPageResource {
+async function minimalDeletedPageResource(space: { slug: string }, page: PageRow): Promise<PublicPageResource> {
+  const initialRevision = await db.query.pageRevisions.findFirst({
+    where: and(
+      eq(schema.pageRevisions.pageId, page.id),
+      eq(schema.pageRevisions.versionNumber, 1),
+    ),
+  });
   return {
     id: page.id,
     spaceSlug: space.slug,
@@ -139,6 +145,8 @@ function minimalDeletedPageResource(space: { slug: string }, page: PageRow): Pub
     locale: page.locale,
     title: page.title,
     kind: page.kind,
+    linkTarget: null,
+    origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     status: 'deleted',
     author: { id: null, displayName: null },
     frontmatter: null,
@@ -169,6 +177,7 @@ async function revisionSummary(ctx: PermCtx, space: SpaceRow, page: PageRow, rev
     createdAt: revision.createdAt.toISOString(),
     publishedAt: revision.publishedAt?.toISOString() ?? null,
     canPublish: can(ctx, 'publish', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, pagePermissionOptions(space, page, { isAuthor })),
+    origin: { actorKind: revision.actorKind, nature: page.nature },
   };
 }
 
@@ -266,10 +275,8 @@ async function visiblePageResource(
     kind: page.kind,
     linkTarget: canViewProvenance && page.linkTargetPageId
       ? (linkTarget ? { pageId: linkTarget.id, path: linkTarget.path, title: linkTarget.title } : null)
-      : undefined,
-    origin: initialRevision
-      ? { actorKind: initialRevision.actorKind, nature: page.nature }
-      : undefined,
+      : null,
+    origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
     visibility: canViewProvenance ? page.visibility : undefined,
     contentSource: options.includeContent ? content : undefined,
@@ -308,6 +315,13 @@ async function getPageRowById(pageId: string): Promise<PageRow | null> {
   })) ?? null;
 }
 
+async function getPageSpace(page: PageRow): Promise<SpaceRow | null> {
+  const space = await getSpaceById(page.spaceId);
+  if (!space) return null;
+  await assertSpaceKindAllowed(space.kind);
+  return space;
+}
+
 type VisibleRevisionOptions = {
   includeContent: boolean;
 };
@@ -342,7 +356,7 @@ async function visibleRevisionResource(
     frontmatter,
     metadata,
     origin: { actorKind: revision.actorKind, nature: page.nature },
-    linkTargetPageId: canViewProvenance ? revision.linkTargetPageId : undefined,
+    linkTargetPageId: canViewProvenance ? revision.linkTargetPageId : null,
     source: canViewProvenance && space.kind === 'raw'
       ? (revision.sourceMetadata as PublicRevisionResource['source'])
       : null,
@@ -368,8 +382,16 @@ function extractTagFilters(query: { 'filter[tag]'?: string[] }): string[] | unde
   return filters.length > 0 ? filters : undefined;
 }
 
+function extractTypeFilter(query: { 'filter[type]'?: string; filterType?: string }): string | undefined {
+  return query['filter[type]'] ?? query.filterType;
+}
+
 function matchesTagFilters(page: PublicPageResource, filters: readonly string[]): boolean {
   return page.metadata?.tags.some((tag) => filters.includes(tag.normalizedName)) ?? false;
+}
+
+function matchesTypeFilter(page: PublicPageResource, filterType: string): boolean {
+  return typeof page.frontmatter?.type === 'string' && page.frontmatter.type === filterType;
 }
 
 type ListPagesQuery = {
@@ -386,6 +408,7 @@ type ListPagesQuery = {
   createdEnd?: Date;
   updatedStart?: Date;
   updatedEnd?: Date;
+  filterType?: string;
   tagFilters?: string[];
   frontmatterFilters?: FrontmatterFilters;
 };
@@ -410,7 +433,7 @@ async function listPagesInternal(
 
   if (query.path) {
     const page = await getPageByPath(ctx, query.path, query.include, query.space);
-    return { items: page ? [page] : [], nextCursor: null };
+    return { items: page && (!query.filterType || matchesTypeFilter(page, query.filterType)) ? [page] : [], nextCursor: null };
   }
 
   const canSeeDeleted = query.status === 'deleted' || query.status === 'all'
@@ -535,6 +558,7 @@ async function listPagesInternal(
     if (query.frontmatterFilters && !matchesFrontmatterFilters(item.frontmatter, query.frontmatterFilters)) {
       continue;
     }
+    if (query.filterType && !matchesTypeFilter(item, query.filterType)) continue;
     if (query.tagFilters && !matchesTagFilters(item, query.tagFilters)) continue;
     items.push(item);
     if (items.length >= query.limit) break;
@@ -551,7 +575,12 @@ export async function listPages(ctx: PermCtx, query: PublicPageListQuery): Promi
   // needs it for the JS-level re-check above.
   const result = await listPagesInternal(
     ctx,
-    { ...query, tagFilters: extractTagFilters(query), frontmatterFilters: extractFrontmatterFilters(query) },
+    {
+      ...query,
+      filterType: extractTypeFilter(query),
+      tagFilters: extractTagFilters(query),
+      frontmatterFilters: extractFrontmatterFilters(query),
+    },
     { includeContent: Boolean(query.q) },
   );
   // The `path` filter is a single-page lookup wearing the list endpoint's clothes
@@ -613,6 +642,7 @@ export async function createPage(
         path: input.path,
         title: input.title,
         contentSource: input.contentSource,
+        nature: input.nature,
       }, targetSpace.slug);
   const page = await getPageById(ctx, created.pageId, include);
   if (!page) throw new DomainError('NOT_FOUND', 'Created page is not visible');
@@ -683,7 +713,7 @@ const LIST_REVISION_OPTIONS: VisibleRevisionOptions = { includeContent: false };
 export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicRevisionListQuery): Promise<PublicRevisionListResponse> {
   const page = await getPageRowById(pageId);
   if (!page) return { items: [], nextCursor: null };
-  const space = await getSpaceById(page.spaceId);
+  const space = await getPageSpace(page);
   if (!space) return { items: [], nextCursor: null };
   const cursor = decodePublicCursor(query.cursor);
   const rows = await db
@@ -715,7 +745,7 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
 export async function getRevision(ctx: PermCtx, pageId: string, version: number): Promise<PublicRevisionResource | null> {
   const page = await getPageRowById(pageId);
   if (!page) return null;
-  const space = await getSpaceById(page.spaceId);
+  const space = await getPageSpace(page);
   if (!space) return null;
   const revision = await db.query.pageRevisions.findFirst({
     where: and(
@@ -791,6 +821,13 @@ export async function getAssetContent(ctx: PermCtx, id: string) {
 }
 
 export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): Promise<PublicPageSearchResponse> {
+  const space = await resolveSpace(query.space);
+  if (!space) return { items: [], nextCursor: null };
+  await assertSpaceKindAllowed(space.kind);
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    return { items: [], nextCursor: null };
+  }
+
   // The capability adapters index current published revisions. Preserve the
   // legacy read path for draft/all, cursor, and expanded-revision requests
   // while moving the common published search to the immediate engines.
@@ -812,10 +849,12 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
     // The existing GET contract has no administrator relevance threshold.
     minRelevanceScore: 0,
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
+    spaceId: space.id,
   });
 
   const tagFilters = extractTagFilters(query);
   const frontmatterFilters = extractFrontmatterFilters(query);
+  const filterType = extractTypeFilter(query);
   const items = result.items
     .filter((item) => {
       if (query.scope !== 'all' && item.field !== query.scope) return false;
@@ -826,6 +865,7 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
       if (query.createdEnd && createdAt > query.createdEnd) return false;
       if (query.updatedStart && updatedAt < query.updatedStart) return false;
       if (query.updatedEnd && updatedAt > query.updatedEnd) return false;
+      if (filterType && !matchesTypeFilter(item.page, filterType)) return false;
       if (tagFilters && !matchesTagFilters(item.page, tagFilters)) return false;
       if (frontmatterFilters && !matchesFrontmatterFilters(item.page.frontmatter, frontmatterFilters)) return false;
       return true;
@@ -854,6 +894,7 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
     ctx,
     {
       status: query.status,
+      space: query.space,
       q: query.q,
       pathPrefix: query.pathPrefix,
       limit: query.limit,
@@ -864,6 +905,7 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
       createdEnd: query.createdEnd,
       updatedStart: query.updatedStart,
       updatedEnd: query.updatedEnd,
+      filterType: extractTypeFilter(query),
       tagFilters: extractTagFilters(query),
       frontmatterFilters: extractFrontmatterFilters(query),
     },
@@ -897,13 +939,19 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
  * pending semantic action. The legacy GET route remains a pure lexical read.
  */
 export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryInput): Promise<HybridPageSearchResponse> {
-  const space = await resolveSpace();
+  const space = await resolveSpace(input.space);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to search this space');
+  }
   const settings = await getSearchSettings();
   const settingsSnapshot: CapabilitySnapshot = {
     full_text: settings.fullTextSearchEnabled,
     fuzzy: settings.fuzzySearchEnabled,
-    semantic: settings.semanticSearchEnabled,
+    // Vector retrieval remains scoped to the existing public-wiki index.
+    // Raw/generated search uses the space-aware lexical engines only.
+    semantic: space.kind === 'wiki' && settings.semanticSearchEnabled,
   };
 
   let record: Awaited<ReturnType<typeof searchAnalytics.getOrCreateSearchRecord>> | null = null;
@@ -935,6 +983,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     minRelevanceScore: settings.minRelevanceScore,
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
     attempt: record ? { searchRecordId: record.id } : undefined,
+    spaceId: space.id,
   });
 
   const degradedSemantic = !record && settingsSnapshot.semantic;
@@ -1000,8 +1049,10 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
       kind: schema.pages.kind,
       linkTargetPageId: schema.pages.linkTargetPageId,
       currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+      contentSource: schema.pageRevisions.contentSource,
     })
     .from(schema.pages)
+    .leftJoin(schema.pageRevisions, eq(schema.pages.latestVersionId, schema.pageRevisions.id))
     .where(and(...conditions))
     .orderBy(schema.pages.path);
 
@@ -1016,6 +1067,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
   const visible: Row[] = [];
   const userId = getActorUserId(ctx);
   const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
+  const filterType = extractTypeFilter(query);
   for (const row of rows) {
     const status: Row['status'] = row.currentPublishedVersionId ? 'published' : 'draft';
     if (query.status === 'draft' && status !== 'draft') continue;
@@ -1023,6 +1075,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     const isAuthor = userId ? row.authorId === userId : false;
     if (!can(ctx, 'read', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     if (status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, pagePermissionOptions(space, row, { isAuthor }))) continue;
+    if (filterType && parsePageFrontmatter(row.contentSource ?? '').frontmatter?.type !== filterType) continue;
     const target = canViewProvenance && row.linkTargetPageId
       ? await db.query.pages.findFirst({
           columns: { id: true, path: true, title: true },
@@ -1168,7 +1221,7 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
   const targetPage = await getPageRowById(pageId);
   if (!targetPage) return { items: [] };
 
-  const space = await resolveSpace();
+  const space = await getPageSpace(targetPage);
   if (!space) return { items: [] };
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { items: [] };
@@ -1285,7 +1338,7 @@ async function resolveLinkTarget(
 export async function getOutboundLinks(ctx: PermCtx, pageId: string): Promise<PublicOutboundLinksResponse> {
   const page = await getPageById(ctx, pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await resolveSpace();
+  const space = await resolveSpace(page.spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
 
   const contentSource = page.contentSource ?? '';
@@ -1371,7 +1424,7 @@ export async function getNeighborhood(
 ): Promise<PublicNeighborhoodResponse> {
   const rootPage = await getPageById(ctx, nodeId);
   if (!rootPage) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await resolveSpace();
+  const space = await resolveSpace(rootPage.spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
 
   const root = { pageId: rootPage.id, path: rootPage.path, title: rootPage.title };
@@ -1459,13 +1512,7 @@ export async function batchCreatePages(
   const created: PublicBatchCreateResult['created'] = [];
   await db.transaction(async () => {
     for (const pageInput of input.pages) {
-      const result = await pageService.create(ctx, {
-        path: pageInput.path,
-        title: pageInput.title,
-        contentSource: pageInput.contentSource,
-      });
-      const page = await getPageById(ctx, result.pageId, ['latestRevision']);
-      if (!page) throw new DomainError('NOT_FOUND', 'Created page is not visible');
+      const page = await createPage(ctx, pageInput, ['latestRevision']);
       created.push({
         id: page.id,
         path: page.path,
@@ -1698,12 +1745,13 @@ export type PublicStats = {
 
 export async function getStats(
   ctx: PermCtx,
-  options: { includeOrphans?: boolean } = {},
+  options: { includeOrphans?: boolean; space?: string } = {},
 ): Promise<PublicStats> {
-  const space = await resolveSpace();
+  const space = await resolveSpace(options.space);
   if (!space) {
     return { totalPages: 0, publishedPages: 0, draftPages: 0, deletedPages: 0, recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 }, directories: [] };
   }
+  await assertSpaceKindAllowed(space.kind);
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { totalPages: 0, publishedPages: 0, draftPages: 0, deletedPages: 0, recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 }, directories: [] };
   }

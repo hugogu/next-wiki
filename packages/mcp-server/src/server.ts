@@ -31,6 +31,7 @@ import { deleteTag, deleteTagSchema } from './tools/delete-tag';
 import { mergeTag, mergeTagSchema } from './tools/merge-tag';
 import { getTagMutation, getTagMutationSchema } from './tools/get-tag-mutation';
 import { updatePageMetadata, updatePageMetadataSchema } from './tools/update-page-metadata';
+import { appendRawEntry, appendRawEntrySchema } from './tools/append-raw-entry';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
   const server = new McpServer({
@@ -67,7 +68,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     }),
   );
 
-  server.tool('list_pages', 'List wiki pages visible to the configured API key.', listPagesSchema, async (args) => ({
+  server.tool('list_pages', 'List pages visible to the configured API key, optionally within a writing-mode content space.', listPagesSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await listPages(client, args)) }],
   }));
 
@@ -81,7 +82,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'get_page_tree',
-    'Get the directory tree of wiki pages for a global structural overview. Use ?pathPrefix to scope to a subdirectory.',
+    'Get the directory tree of visible pages for a content space. Use pathPrefix to scope to a subdirectory.',
     getPageTreeSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await getPageTree(client, args)) }],
@@ -92,8 +93,12 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await getPage(client, args)) }],
   }));
 
-  server.tool('create_page', 'Create a new wiki page with an initial draft revision.', createPageSchema, async (args) => ({
+  server.tool('create_page', 'Create a new page, raw evidence entry, or generated-content link with an initial revision.', createPageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await createPage(client, args)) }],
+  }));
+
+  server.tool('append_raw_entry', 'Append an immutable Markdown chunk to a raw entry. Existing raw content cannot be edited or deleted.', appendRawEntrySchema, async (args) => ({
+    content: [{ type: 'text', text: JSON.stringify(await appendRawEntry(client, args)) }],
   }));
 
   server.tool('save_draft', 'Save a new draft revision of an existing page.', saveDraftSchema, async (args) => ({
@@ -162,7 +167,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'batch_create_pages',
-    'Create up to 50 pages atomically in a single transaction.',
+    'Create up to 50 pages atomically in a single transaction, with a target content space for each page.',
     batchCreatePagesSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await batchCreatePages(client, args)) }],
@@ -189,7 +194,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     }),
   );
 
-  server.tool('get_stats', 'Get aggregate wiki statistics and optional orphan detection.', getStatsSchema, async (args) => ({
+  server.tool('get_stats', 'Get aggregate statistics and optional orphan detection for a content space.', getStatsSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getStats(client, args)) }],
   }));
 

@@ -220,6 +220,29 @@ describe('public content read facade', () => {
     expect(withRevisions.items[0]?.contentSource).toBeUndefined();
     expect(withRevisions.items[0]?.latestRevision?.version).toBe(1);
     expect(withRevisions.items[0]?.publishedRevision?.version).toBe(1);
+    expect(withRevisions.items[0]?.latestRevision?.origin).toEqual({ actorKind: 'human', nature: 'original' });
+  });
+
+  it('keeps provenance on deleted-page list projections without revealing link targets', async () => {
+    const admin = await createPublicApiUser('public-deleted-provenance-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    await pageService.create(adminCtx, { path: 'docs/deleted-provenance', title: 'Deleted', contentSource: '# Deleted' });
+    await revisions.publish(adminCtx, { path: 'docs/deleted-provenance', version: 1 });
+    await pageService.remove(adminCtx, 'docs/deleted-provenance');
+
+    const result = await publicContent.listPages(adminCtx, {
+      status: 'all',
+      pathPrefix: 'docs/deleted-provenance',
+      limit: 20,
+      order: 'path',
+      include: [],
+    });
+
+    expect(result.items).toEqual([expect.objectContaining({
+      status: 'deleted',
+      origin: { actorKind: 'human', nature: 'original' },
+      linkTarget: null,
+    })]);
   });
 
   it('keeps contentSource for the path= exact-lookup filter (single-page lookup, not browsing)', async () => {
@@ -317,6 +340,7 @@ describe('public content read facade', () => {
     const list = await publicContent.listRevisions(readerCtx, page!.id, { limit: 20 });
     expect(list.items).toHaveLength(1);
     expect(list.items[0]?.contentSource).toBeUndefined();
+    expect(list.items[0]?.origin).toEqual({ actorKind: 'human', nature: 'original' });
 
     const single = await publicContent.getRevision(readerCtx, page!.id, 1);
     expect(single?.contentSource).toBe('# v1');

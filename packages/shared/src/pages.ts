@@ -67,6 +67,12 @@ export const publicRevisionSummarySchema = z.object({
   createdAt: z.string(),
   publishedAt: z.string().nullable(),
   canPublish: z.boolean(),
+  origin: z
+    .object({
+      actorKind: z.enum(['human', 'machine']),
+      nature: z.enum(['original', 'generated']),
+    })
+    .optional(),
 });
 export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 
@@ -210,17 +216,25 @@ export const publicPageListQuerySchema = z.object({
   q: z.string().min(1).max(200).optional(),
   path: pathSchema.optional(),
   pathPrefix: pathSchema.optional(),
-  // 022: space slug + frontmatter `type` filter for multi-space listings.
+  // 022: space slug and frontmatter `type` filtering for multi-space listings.
   space: z.string().optional(),
-  filterType: z.string().optional(),
+  'filter[type]': z.string().min(1).max(200).optional(),
+  // Kept for SDK callers that use a camelCase property before it is encoded
+  // as the public `filter[type]` query parameter.
+  filterType: z.string().min(1).max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
   include: publicIncludeQuerySchema,
+  createdStart: z.coerce.date().optional(),
+  createdEnd: z.coerce.date().optional(),
   'filter[tag]': frontmatterFilterListSchema,
   'filter[status]': frontmatterFilterListSchema,
   'filter[owner]': frontmatterFilterListSchema,
   'filter[has_frontmatter]': frontmatterHasFlagSchema,
+}).refine((value) => !value.createdStart || !value.createdEnd || value.createdStart <= value.createdEnd, {
+  message: 'createdStart must be before or equal to createdEnd',
+  path: ['createdStart'],
 });
 export type PublicPageListQuery = z.infer<typeof publicPageListQuerySchema>;
 
@@ -303,6 +317,7 @@ export const publicPageCreateInputSchema = z.object({
   title: z.string().min(1).max(200),
   contentSource: z.string().default(''),
   space: z.string().min(1).max(100).optional(),
+  nature: z.enum(['original', 'generated']).optional(),
   inputKind: rawInputKindSchema.optional(),
   source: rawSourceSchema.optional(),
   kind: z.enum(['native', 'link']).optional(),
@@ -373,6 +388,9 @@ export const publicPageSearchQuerySchema = z
     scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
     status: z.enum(['published', 'draft', 'all']).default('published'),
     pathPrefix: pathSchema.optional(),
+    space: z.string().optional(),
+    'filter[type]': z.string().min(1).max(200).optional(),
+    filterType: z.string().min(1).max(200).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     cursor: z.string().optional(),
     include: publicIncludeQuerySchema,
@@ -421,6 +439,7 @@ export const hybridSearchQueryInputSchema = z.object({
   searchSessionId: z.string().uuid(),
   q: z.string().trim().min(2).max(200),
   limit: z.number().int().min(1).max(20).default(20),
+  space: z.string().optional(),
 });
 export type HybridSearchQueryInput = z.infer<typeof hybridSearchQueryInputSchema>;
 
@@ -475,9 +494,10 @@ export type HybridPageSearchResponse = z.infer<typeof hybridPageSearchResponseSc
 export const publicPageTreeQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   pathPrefix: pathSchema.optional(),
-  // 022: space slug + frontmatter `type` filter for multi-space trees.
+  // 022: space slug and frontmatter `type` filtering for multi-space trees.
   space: z.string().optional(),
-  filterType: z.string().optional(),
+  'filter[type]': z.string().min(1).max(200).optional(),
+  filterType: z.string().min(1).max(200).optional(),
 });
 export type PublicPageTreeQuery = z.infer<typeof publicPageTreeQuerySchema>;
 
@@ -557,6 +577,7 @@ export type PublicRevisionDiffResponse = z.infer<typeof publicRevisionDiffRespon
 
 export const publicStatsQuerySchema = z.object({
   include: z.enum(['orphans']).optional(),
+  space: z.string().optional(),
 });
 export type PublicStatsQuery = z.infer<typeof publicStatsQuerySchema>;
 

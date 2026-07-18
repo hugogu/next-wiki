@@ -104,7 +104,7 @@ export function fuzzyContentQuery(spaceId: string, q: string, window: number, ex
 }
 
 async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidate[]> {
-  const spaceId = await getDefaultSpaceId();
+  const spaceId = query.spaceId ?? await getDefaultSpaceId();
   if (!spaceId) return [];
   const window = candidateWindow(query.limit);
 

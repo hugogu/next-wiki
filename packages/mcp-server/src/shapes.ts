@@ -14,13 +14,36 @@ import type {
 
 export type SearchWikiResult = {
   id: string;
+  space: string;
   path: string;
   title: string;
   matchType: 'path' | 'title' | 'content';
   excerpt: string | null;
   score: number | null;
   frontmatter: Record<string, unknown> | null;
+  kind?: PublicPageResource['kind'];
+  linkTarget?: PublicPageResource['linkTarget'];
+  origin?: PublicPageResource['origin'];
+  humanModified?: boolean;
 };
+
+function pageProvenance(source: PublicPageResource) {
+  return {
+    space: source.spaceSlug,
+    ...(source.kind ? { kind: source.kind } : {}),
+    ...(source.linkTarget !== undefined ? { linkTarget: source.linkTarget } : {}),
+    ...(source.origin ? { origin: source.origin } : {}),
+    ...(source.humanModified !== undefined ? { humanModified: source.humanModified } : {}),
+  };
+}
+
+function revisionProvenance(source: PublicRevisionResource) {
+  return {
+    ...(source.origin ? { origin: source.origin } : {}),
+    ...(source.linkTargetPageId !== undefined ? { linkTargetPageId: source.linkTargetPageId } : {}),
+    ...(source.source !== undefined ? { source: source.source } : {}),
+  };
+}
 
 export function searchWikiResponse(source: PublicPageSearchResponse): {
   results: SearchWikiResult[];
@@ -29,6 +52,7 @@ export function searchWikiResponse(source: PublicPageSearchResponse): {
   return {
     results: source.items.map((item) => ({
       id: item.page.id,
+      ...pageProvenance(item.page),
       path: item.page.path,
       title: item.page.title,
       matchType: item.matchType,
@@ -42,11 +66,16 @@ export function searchWikiResponse(source: PublicPageSearchResponse): {
 
 export type PageListItem = {
   id: string;
+  space: string;
   path: string;
   title: string;
   status: string;
   locale: string;
   metadata?: PublicPageResource['metadata'];
+  kind?: PublicPageResource['kind'];
+  linkTarget?: PublicPageResource['linkTarget'];
+  origin?: PublicPageResource['origin'];
+  humanModified?: boolean;
 };
 
 export function listPagesResponse(source: { items: PublicPageResource[]; nextCursor: string | null }): {
@@ -57,6 +86,7 @@ export function listPagesResponse(source: { items: PublicPageResource[]; nextCur
   return {
     pages: source.items.map((page) => ({
       id: page.id,
+      ...pageProvenance(page),
       path: page.path,
       title: page.title,
       status: page.status,
@@ -70,6 +100,7 @@ export function listPagesResponse(source: { items: PublicPageResource[]; nextCur
 
 export function getPageResponse(source: PublicPageResource): {
   id: string;
+  space: string;
   path: string;
   title: string;
   locale: string;
@@ -79,9 +110,14 @@ export function getPageResponse(source: PublicPageResource): {
   publishedRevisionId?: string;
   updatedAt: string;
   metadata?: PublicPageResource['metadata'];
+  kind?: PublicPageResource['kind'];
+  linkTarget?: PublicPageResource['linkTarget'];
+  origin?: PublicPageResource['origin'];
+  humanModified?: boolean;
 } {
   return {
     id: source.id,
+    ...pageProvenance(source),
     path: source.path,
     title: source.title,
     locale: source.locale,
@@ -96,13 +132,19 @@ export function getPageResponse(source: PublicPageResource): {
 
 export function createPageResponse(source: PublicPageResource): {
   id: string;
+  space: string;
   path: string;
   title: string;
   status: string;
   revisionId?: string;
+  kind?: PublicPageResource['kind'];
+  linkTarget?: PublicPageResource['linkTarget'];
+  origin?: PublicPageResource['origin'];
+  humanModified?: boolean;
 } {
   return {
     id: source.id,
+    ...pageProvenance(source),
     path: source.path,
     title: source.title,
     status: source.status,
@@ -114,22 +156,32 @@ export function saveDraftResponse(source: PublicRevisionResource): {
   revisionId: string;
   version: number;
   status: string;
+  origin?: PublicRevisionResource['origin'];
+  linkTargetPageId?: string | null;
+  source?: PublicRevisionResource['source'];
 } {
   return {
     revisionId: source.id,
     version: source.version,
     status: source.status,
+    ...revisionProvenance(source),
   };
 }
 
 export function updatePropertiesResponse(source: PublicPageResource): {
   id: string;
+  space: string;
   path: string;
   title: string;
   updatedAt: string;
+  kind?: PublicPageResource['kind'];
+  linkTarget?: PublicPageResource['linkTarget'];
+  origin?: PublicPageResource['origin'];
+  humanModified?: boolean;
 } {
   return {
     id: source.id,
+    ...pageProvenance(source),
     path: source.path,
     title: source.title,
     updatedAt: source.updatedAt,
@@ -138,14 +190,20 @@ export function updatePropertiesResponse(source: PublicPageResource): {
 
 export function publishPageResponse(source: PublicPageResource): {
   id: string;
+  space: string;
   path: string;
   title: string;
   status: string;
   publishedRevisionId?: string;
   publishedAt?: string;
+  kind?: PublicPageResource['kind'];
+  linkTarget?: PublicPageResource['linkTarget'];
+  origin?: PublicPageResource['origin'];
+  humanModified?: boolean;
 } {
   return {
     id: source.id,
+    ...pageProvenance(source),
     path: source.path,
     title: source.title,
     status: source.status,
@@ -161,6 +219,9 @@ export type RevisionListItem = {
   author: { id: string | null; displayName: string | null };
   createdAt: string;
   publishedAt: string | null;
+  origin?: PublicRevisionResource['origin'];
+  linkTargetPageId?: string | null;
+  source?: PublicRevisionResource['source'];
 };
 
 export function listRevisionsResponse(source: { items: PublicRevisionResource[]; nextCursor: string | null }): {
@@ -176,6 +237,7 @@ export function listRevisionsResponse(source: { items: PublicRevisionResource[];
       author: revision.author,
       createdAt: revision.createdAt,
       publishedAt: revision.publishedAt,
+      ...revisionProvenance(revision),
     })),
     hasMore: source.nextCursor !== null,
     nextCursor: source.nextCursor,
@@ -192,6 +254,9 @@ export function getRevisionResponse(source: PublicRevisionResource): {
   createdAt: string;
   publishedAt: string | null;
   canPublish: boolean;
+  origin?: PublicRevisionResource['origin'];
+  linkTargetPageId?: string | null;
+  source?: PublicRevisionResource['source'];
 } {
   return {
     id: source.id,
@@ -203,6 +268,7 @@ export function getRevisionResponse(source: PublicRevisionResource): {
     createdAt: source.createdAt,
     publishedAt: source.publishedAt,
     canPublish: source.canPublish,
+    ...revisionProvenance(source),
   };
 }
 
@@ -228,6 +294,8 @@ export type TreeNode = {
   title: string | null;
   pageId: string | null;
   status: string | null;
+  kind?: PublicPageTreeNode['kind'];
+  linkTarget?: PublicPageTreeNode['linkTarget'];
   children: TreeNode[];
 };
 
@@ -238,6 +306,8 @@ function flattenTree(node: PublicPageTreeNode): TreeNode {
     title: node.title,
     pageId: node.pageId,
     status: node.status,
+    ...(node.kind ? { kind: node.kind } : {}),
+    ...(node.linkTarget !== undefined ? { linkTarget: node.linkTarget } : {}),
     children: node.children.map(flattenTree),
   };
 }

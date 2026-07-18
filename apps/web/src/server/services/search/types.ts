@@ -17,6 +17,8 @@ export type SearchEngineQuery = {
   limit: number;
   /** Database-enforced budget in milliseconds; an engine exceeding it reports timed_out. */
   deadlineMs: number;
+  /** Resolved content space for lexical candidate retrieval and projection. */
+  spaceId?: string;
   /** Durable attempt identity for engines that can resume asynchronous work. */
   attempt?: {
     searchRecordId: string;

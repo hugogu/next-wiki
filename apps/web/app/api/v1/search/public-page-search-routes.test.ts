@@ -68,6 +68,21 @@ describe('Public Wiki page search route', () => {
     expect(Object.keys(body).sort()).toEqual(['items', 'nextCursor']);
   });
 
+  it('forwards the requested space and frontmatter type filter', async () => {
+    publicContent.searchPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const response = await searchRoute.GET(
+      new NextRequest('http://localhost/api/v1/search/pages?q=incident&space=generated&filter%5Btype%5D=Playbook'),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publicContent.searchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      space: 'generated',
+      'filter[type]': 'Playbook',
+    }));
+  });
+
   it('runs the idempotent hybrid query through the existing search resource', async () => {
     const searchSessionId = '22222222-2222-4222-8222-222222222222';
     const payload = {
@@ -86,11 +101,11 @@ describe('Public Wiki page search route', () => {
     publicContent.hybridSearchPages.mockResolvedValue(payload);
     const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind: 'query', searchRecordId: payload.searchRecordId, searchSessionId, q: 'auth' }),
+      body: JSON.stringify({ kind: 'query', searchRecordId: payload.searchRecordId, searchSessionId, q: 'auth', space: 'generated' }),
     }), { params: Promise.resolve({}) });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(payload);
-    expect(publicContent.hybridSearchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ q: 'auth', limit: 20 }));
+    expect(publicContent.hybridSearchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ q: 'auth', limit: 20, space: 'generated' }));
   });
 
   it.each(['unavailable', 'failed'] as const)('returns generic %s semantic coverage on the existing search resource', async (semanticState) => {

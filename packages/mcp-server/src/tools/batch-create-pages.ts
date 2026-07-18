@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { WikiApiClient } from '../api-client';
+import { contentSpaceSchema, type WikiApiClient } from '../api-client';
 
 export const batchCreatePagesSchema = {
   pages: z
@@ -9,6 +9,7 @@ export const batchCreatePagesSchema = {
         title: z.string().describe('Page title'),
         contentSource: z.string().describe('Markdown source'),
         locale: z.string().optional().describe('Locale (defaults to workspace default)'),
+        space: contentSpaceSchema.optional().describe('Target content space for this page'),
       }),
     )
     .min(1)

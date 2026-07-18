@@ -55,6 +55,29 @@ describe('WikiApiClient', () => {
     expect(url.toString()).toContain('limit=10');
   });
 
+  it('encodes writing-space and type filters for collection queries', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+
+    await client.listPages({
+      space: 'generated',
+      filterType: 'concept',
+      filterTag: 'payments',
+      createdStart: new Date('2026-07-01T00:00:00.000Z'),
+      createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+    });
+
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.toString()).toContain('space=generated');
+    expect(url.toString()).toContain('filter%5Btype%5D=concept');
+    expect(url.toString()).toContain('filter%5Btag%5D=payments');
+    expect(url.toString()).toContain('createdStart=2026-07-01T00%3A00%3A00.000Z');
+    expect(url.toString()).toContain('createdEnd=2026-07-02T00%3A00%3A00.000Z');
+  });
+
   it('preserves the base URL path prefix when building request URLs', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }),
@@ -102,7 +125,7 @@ describe('WikiApiClient', () => {
   });
 
   it('passes include and excerptLength through to search', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }));
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }));
     globalThis.fetch = fetchMock;
 
     const client = createClient();
@@ -111,6 +134,38 @@ describe('WikiApiClient', () => {
     const [url] = fetchMock.mock.calls[0] as [URL];
     expect(url.toString()).toContain('include=latestRevision');
     expect(url.toString()).toContain('excerptLength=50');
+  });
+
+  it('encodes the selected space and type filter for search and trees', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+
+    await client.searchPages({ q: 'payment', space: 'raw', filterType: 'chat-transcript' });
+    await client.getPageTree({ space: 'generated', filterType: 'concept' });
+
+    const [searchUrl] = fetchMock.mock.calls[0] as [URL];
+    const [treeUrl] = fetchMock.mock.calls[1] as [URL];
+    expect(searchUrl.toString()).toContain('space=raw');
+    expect(searchUrl.toString()).toContain('filter%5Btype%5D=chat-transcript');
+    expect(treeUrl.toString()).toContain('space=generated');
+    expect(treeUrl.toString()).toContain('filter%5Btype%5D=concept');
+  });
+
+  it('posts raw appends and scopes stats to the requested space', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({}), { status: 201 }));
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+
+    await client.appendRawEntry('page-id', { content: 'Follow-up', source: { channel: 'support' } });
+    await client.getStats({ space: 'raw' });
+
+    const [appendUrl, appendInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const [statsUrl] = fetchMock.mock.calls[1] as [URL];
+    expect(appendUrl.toString()).toBe('http://localhost:3000/api/v1/pages/page-id/appends');
+    expect(appendInit.method).toBe('POST');
+    expect(appendInit.body).toBe(JSON.stringify({ content: 'Follow-up', source: { channel: 'support' } }));
+    expect(statsUrl.toString()).toContain('space=raw');
   });
 
   it('passes created/updated date range filters through to search', async () => {

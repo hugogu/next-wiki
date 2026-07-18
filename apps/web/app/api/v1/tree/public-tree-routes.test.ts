@@ -40,6 +40,22 @@ describe('GET /api/v1/tree', () => {
     expect(publicContent.getPageTree).toHaveBeenCalledWith(expect.anything(), { status: 'all', pathPrefix: 'docs' });
   });
 
+  it('forwards the requested space and frontmatter type filter', async () => {
+    publicContent.getPageTree.mockResolvedValue({ root: { path: '', segment: '', title: null, pageId: null, status: null, children: [] }, pageCount: 0 });
+
+    const response = await treeRoute.GET(
+      new NextRequest('http://localhost/api/v1/tree?space=raw&filter%5Btype%5D=chat-transcript'),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publicContent.getPageTree).toHaveBeenCalledWith(expect.anything(), {
+      status: 'published',
+      space: 'raw',
+      'filter[type]': 'chat-transcript',
+    });
+  });
+
   it('rejects invalid pathPrefix values', async () => {
     const response = await treeRoute.GET(
       new NextRequest('http://localhost/api/v1/tree?pathPrefix=UPPERCASE'),

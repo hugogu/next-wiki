@@ -5,7 +5,8 @@ import * as schema from '@/server/db/schema';
 import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import { getRevisionMetadata } from '@/server/services/page-metadata';
-import { resolveSpace } from '@/server/services/spaces';
+import { getSpaceById, resolveSpace } from '@/server/services/spaces';
+import { assertSpaceKindAllowed } from '@/server/services/writing-mode';
 
 function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
@@ -37,13 +38,15 @@ export type ReadableCandidatePage = {
 export async function projectReadableCandidatePages(
   ctx: PermCtx,
   pageIds: readonly string[],
+  spaceId?: string,
 ): Promise<Map<string, ReadableCandidatePage>> {
   const ids = [...new Set(pageIds)];
   const result = new Map<string, ReadableCandidatePage>();
   if (ids.length === 0) return result;
 
-  const space = await resolveSpace();
+  const space = spaceId ? await getSpaceById(spaceId) : await resolveSpace();
   if (!space) return result;
+  await assertSpaceKindAllowed(space.kind);
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) return result;
 
   const rows = await db

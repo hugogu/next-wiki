@@ -6,6 +6,33 @@ export type PublicPageStatus = z.infer<typeof publicPageStatusSchema>;
 export const publicRevisionStatusSchema = z.enum(['draft', 'published']);
 export type PublicRevisionStatus = z.infer<typeof publicRevisionStatusSchema>;
 
+export const contentSpaceSchema = z.enum(['default', 'raw', 'generated']);
+export type ContentSpace = z.infer<typeof contentSpaceSchema>;
+
+export const publicPageKindSchema = z.enum(['native', 'link']);
+export type PublicPageKind = z.infer<typeof publicPageKindSchema>;
+
+export const publicContentNatureSchema = z.enum(['original', 'generated']);
+export type PublicContentNature = z.infer<typeof publicContentNatureSchema>;
+
+export const publicOriginSchema = z.object({
+  actorKind: z.enum(['human', 'machine']),
+  nature: publicContentNatureSchema,
+});
+export type PublicOrigin = z.infer<typeof publicOriginSchema>;
+
+export const publicRawInputKindSchema = z.enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note']);
+export type PublicRawInputKind = z.infer<typeof publicRawInputKindSchema>;
+
+export const publicRawSourceSchema = z.object({
+  channel: z.string().optional(),
+  url: z.string().url().optional(),
+  sessionId: z.string().optional(),
+  command: z.string().optional(),
+  occurredAt: z.string().datetime().optional(),
+});
+export type PublicRawSource = z.infer<typeof publicRawSourceSchema>;
+
 export const publicAuthorSchema = z.object({
   id: z.string().uuid().nullable(),
   displayName: z.string().nullable(),
@@ -23,12 +50,15 @@ export const publicRevisionSummarySchema = z.object({
   createdAt: z.string(),
   publishedAt: z.string().nullable(),
   canPublish: z.boolean(),
+  origin: publicOriginSchema.optional(),
 });
 export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 
 export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable().optional(),
+  linkTargetPageId: z.string().uuid().nullable().optional(),
+  source: publicRawSourceSchema.nullable().optional(),
 });
 export type PublicRevisionResource = z.infer<typeof publicRevisionResourceSchema>;
 
@@ -58,6 +88,11 @@ export const publicPageResourceSchema = z.object({
   path: pathSchema,
   locale: z.string(),
   title: z.string(),
+  kind: publicPageKindSchema.optional(),
+  linkTarget: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }).nullable().optional(),
+  origin: publicOriginSchema.optional(),
+  humanModified: z.boolean().optional(),
+  visibility: z.enum(['public', 'restricted']).optional(),
   // Omitted by the API for list/search results; present for single-page reads and writes.
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable().optional(),
@@ -84,6 +119,11 @@ export const publicPageListQuerySchema = z.object({
   q: z.string().min(1).max(200).optional(),
   path: pathSchema.optional(),
   pathPrefix: pathSchema.optional(),
+  space: contentSpaceSchema.optional(),
+  filterType: z.string().min(1).max(200).optional(),
+  filterTag: z.string().min(1).max(100).optional(),
+  createdStart: z.coerce.date().optional(),
+  createdEnd: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
@@ -101,7 +141,20 @@ export const publicPageCreateInputSchema = z.object({
   path: pathSchema,
   locale: z.string().min(1).max(20).optional(),
   title: z.string().min(1).max(200),
-  contentSource: z.string().min(1),
+  contentSource: z.string().default(''),
+  space: contentSpaceSchema.optional(),
+  nature: publicContentNatureSchema.optional(),
+  inputKind: publicRawInputKindSchema.optional(),
+  source: publicRawSourceSchema.optional(),
+  kind: publicPageKindSchema.optional(),
+  linkTargetPageId: z.string().uuid().optional(),
+}).superRefine((value, ctx) => {
+  if (value.kind === 'link' && !value.linkTargetPageId) {
+    ctx.addIssue({ code: 'custom', path: ['linkTargetPageId'], message: 'Link pages require a target page id' });
+  }
+  if (value.kind !== 'link' && value.linkTargetPageId) {
+    ctx.addIssue({ code: 'custom', path: ['kind'], message: 'Only link pages may include a target page id' });
+  }
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 
@@ -156,6 +209,8 @@ export const publicPageSearchQuerySchema = z.object({
   scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
   status: z.enum(['published', 'draft', 'all']).default('published'),
   pathPrefix: pathSchema.optional(),
+  space: contentSpaceSchema.optional(),
+  filterType: z.string().min(1).max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   include: z.array(publicPageIncludeSchema).default([]),
@@ -254,6 +309,8 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   title: z.string().nullable(),
   pageId: z.string().uuid().nullable(),
   status: publicPageStatusSchema.nullable(),
+  kind: publicPageKindSchema.nullable().optional(),
+  linkTarget: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }).nullable().optional(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
 export type PublicPageTreeNode = {
@@ -262,6 +319,8 @@ export type PublicPageTreeNode = {
   title: string | null;
   pageId: string | null;
   status: PublicPageStatus | null;
+  kind?: PublicPageKind | null;
+  linkTarget?: { pageId: string; path: string; title: string } | null;
   children: PublicPageTreeNode[];
 };
 
@@ -464,6 +523,8 @@ export class WikiApiClient {
     if (query.scope) params.set('scope', query.scope);
     if (query.status) params.set('status', query.status);
     if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
+    if (query.space) params.set('space', query.space);
+    if (query.filterType) params.set('filter[type]', query.filterType);
     if (query.limit) params.set('limit', String(query.limit));
     if (query.cursor) params.set('cursor', query.cursor);
     if (query.include?.length) params.set('include', query.include.join(','));
@@ -485,6 +546,11 @@ export class WikiApiClient {
     if (query.q) params.set('q', query.q);
     if (query.path) params.set('path', query.path);
     if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
+    if (query.space) params.set('space', query.space);
+    if (query.filterType) params.set('filter[type]', query.filterType);
+    if (query.filterTag) params.set('filter[tag]', query.filterTag);
+    if (query.createdStart) params.set('createdStart', query.createdStart.toISOString());
+    if (query.createdEnd) params.set('createdEnd', query.createdEnd.toISOString());
     if (query.limit) params.set('limit', String(query.limit));
     if (query.cursor) params.set('cursor', query.cursor);
     if (query.order) params.set('order', query.order);
@@ -492,10 +558,12 @@ export class WikiApiClient {
     return this.request<{ items: PublicPageResource[]; nextCursor: string | null }>(`/pages?${params.toString()}`);
   }
 
-  async getPageTree(query: { status?: 'published' | 'draft' | 'all'; pathPrefix?: string }): Promise<PublicPageTreeResponse> {
+  async getPageTree(query: { status?: 'published' | 'draft' | 'all'; pathPrefix?: string; space?: ContentSpace; filterType?: string }): Promise<PublicPageTreeResponse> {
     const params = new URLSearchParams();
     if (query.status) params.set('status', query.status);
     if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
+    if (query.space) params.set('space', query.space);
+    if (query.filterType) params.set('filter[type]', query.filterType);
     return this.request<PublicPageTreeResponse>(`/tree?${params.toString()}`);
   }
 
@@ -579,6 +647,13 @@ export class WikiApiClient {
     return this.request<PublicRevisionResource>(`/pages/${pageId}/revisions/${version}`);
   }
 
+  async appendRawEntry(pageId: string, input: { content: string; source?: PublicRawSource }): Promise<PublicRevisionResource> {
+    return this.request<PublicRevisionResource>(`/pages/${pageId}/appends`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
   async deletePage(pageId: string): Promise<void> {
     return this.request<void>(`/pages/${pageId}`, { method: 'DELETE' });
   }
@@ -598,9 +673,10 @@ export class WikiApiClient {
     });
   }
 
-  async getStats(options?: { includeOrphans?: boolean }): Promise<PublicStatsResponse> {
+  async getStats(options?: { includeOrphans?: boolean; space?: ContentSpace }): Promise<PublicStatsResponse> {
     const params = new URLSearchParams();
     if (options?.includeOrphans) params.set('include', 'orphans');
+    if (options?.space) params.set('space', options.space);
     return this.request<PublicStatsResponse>(`/stats?${params.toString()}`);
   }
 

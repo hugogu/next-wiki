@@ -121,7 +121,7 @@ export async function fullTextContentQuery(spaceId: string, q: string, window: n
 }
 
 async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidate[]> {
-  const spaceId = await getDefaultSpaceId();
+  const spaceId = query.spaceId ?? await getDefaultSpaceId();
   if (!spaceId) return [];
   const window = candidateWindow(query.limit);
 

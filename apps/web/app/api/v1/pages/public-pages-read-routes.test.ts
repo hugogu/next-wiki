@@ -85,4 +85,33 @@ describe('Public Wiki read routes', () => {
       include: [],
     });
   });
+
+  it('forwards space, type, tag, and creation-range filters', async () => {
+    publicContent.listPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const response = await listRoute.GET(
+      new NextRequest(
+        'http://localhost/api/v1/pages?space=generated&filter%5Btype%5D=Playbook&filter%5Btag%5D=incident&createdStart=2026-07-01T00%3A00%3A00.000Z&createdEnd=2026-07-31T00%3A00%3A00.000Z',
+      ),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publicContent.listPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      space: 'generated',
+      'filter[type]': 'Playbook',
+      'filter[tag]': ['incident'],
+      createdStart: new Date('2026-07-01T00:00:00.000Z'),
+      createdEnd: new Date('2026-07-31T00:00:00.000Z'),
+    }));
+  });
+
+  it('rejects an inverted creation range', async () => {
+    const response = await listRoute.GET(
+      new NextRequest('http://localhost/api/v1/pages?createdStart=2026-08-01T00%3A00%3A00.000Z&createdEnd=2026-07-01T00%3A00%3A00.000Z'),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(422);
+  });
 });

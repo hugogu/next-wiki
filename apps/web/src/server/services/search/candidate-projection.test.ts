@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { closeDb } from '@/server/db';
-import { buildAnonymousCtx } from '@/server/permissions';
-import { ensurePublicApiDefaultSpace } from '../../../../test/public-wiki-api-fixtures';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
+import { ensurePublicApiDefaultSpace, createPublicApiUser } from '../../../../test/public-wiki-api-fixtures';
 import { buildExcerpt, compactExcerpt, projectReadableCandidatePages } from './candidate-projection';
 import { createSearchFixtureCorpus, HIDDEN_TOKEN } from './test-support';
+import * as pageService from '@/server/services/pages';
+import * as revisionService from '@/server/services/revisions';
+import { seedWritingModeSpaces } from '@/server/seed';
+import { getSpaceBySlug } from '@/server/services/spaces';
+import { setModeInternal } from '@/server/services/writing-mode';
+import * as rawEntries from '@/server/services/raw-entries';
 
 describe('search candidate projection', () => {
   it('hydrates only published, readable pages and silently drops everything else', async () => {
@@ -62,6 +68,47 @@ describe('search candidate projection', () => {
     const entry = projected.get(corpus.pages.english.pageId);
     expect(entry?.contentSource).toContain('search architecture');
     expect(entry?.page).not.toHaveProperty('contentSource');
+  });
+
+  it('projects raw and generated candidates only for an admin in LLM Wiki mode', async () => {
+    await seedWritingModeSpaces();
+    const admin = await createPublicApiUser(`projection-admin-${randomUUID()}@example.com`, 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    const path = `projection-${randomUUID().slice(0, 8)}/generated-search`;
+
+    await setModeInternal('llm-wiki', admin.id);
+    try {
+      const created = await pageService.create(adminCtx, {
+        path,
+        title: 'Generated Search',
+        contentSource: '# Generated Search',
+      }, 'generated');
+      await revisionService.publish(adminCtx, { path, version: 1, space: 'generated' });
+      const generated = await getSpaceBySlug('generated');
+      const raw = await getSpaceBySlug('raw');
+      expect(generated).not.toBeNull();
+      expect(raw).not.toBeNull();
+
+      const rawEntry = await rawEntries.createEntry(adminCtx, {
+        path: `projection-${randomUUID().slice(0, 8)}/raw-search`,
+        title: 'Raw Search',
+        inputKind: 'manual-note',
+        content: 'Original raw search evidence',
+      });
+
+      const adminProjection = await projectReadableCandidatePages(adminCtx, [created.pageId], generated!.id);
+      expect(adminProjection.get(created.pageId)?.page.spaceSlug).toBe('generated');
+      const adminRawProjection = await projectReadableCandidatePages(adminCtx, [rawEntry.pageId], raw!.id);
+      expect(adminRawProjection.get(rawEntry.pageId)?.page.spaceSlug).toBe('raw');
+
+      const reader = await createPublicApiUser(`projection-reader-${randomUUID()}@example.com`, 'reader');
+      const readerProjection = await projectReadableCandidatePages(buildUserCtx(reader.id, 'reader'), [created.pageId], generated!.id);
+      expect(readerProjection.size).toBe(0);
+      const readerRawProjection = await projectReadableCandidatePages(buildUserCtx(reader.id, 'reader'), [rawEntry.pageId], raw!.id);
+      expect(readerRawProjection.size).toBe(0);
+    } finally {
+      await setModeInternal('copilot', admin.id);
+    }
   });
 });
 

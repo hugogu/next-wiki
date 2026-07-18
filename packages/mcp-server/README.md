@@ -92,12 +92,13 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 
 | Tool | Description |
 |---|---|
-| `search_wiki` | Search pages by keyword (optionally filter by frontmatter) |
+| `search_wiki` | Search a visible content space by keyword and frontmatter |
 | `submit_semantic_search` | Submit a natural-language semantic search |
 | `get_semantic_search_results` | Poll results from `submit_semantic_search` |
 | `list_pages` | List visible pages |
 | `get_page` | Get page details and Markdown source |
 | `create_page` | Create a new page |
+| `append_raw_entry` | Append an immutable chunk to a raw entry |
 | `save_draft` | Save a draft revision |
 | `update_page_properties` | Update page title/path |
 | `publish_page` | Publish a draft revision |
@@ -132,9 +133,30 @@ because auth, parameter validation, and permission checks are handled internally
 ### When to use these tools
 
 - **Knowledge retrieval**: `search_wiki`, `submit_semantic_search`, `get_semantic_search_results`, `list_pages`, `get_page`, `get_page_tree`, `find_similar`
-- **Content creation**: `create_page`, `save_draft`, `publish_page`, `batch_create_pages`, `batch_update_pages`, `batch_soft_delete_pages`
+- **Content creation**: `create_page`, `append_raw_entry`, `save_draft`, `publish_page`, `batch_create_pages`, `batch_update_pages`, `batch_soft_delete_pages`
 - **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`, `delete_page`, `get_backlinks`, `get_page_outbound_links`, `get_neighborhood`, `get_diff`, `get_stats`
 - **Media**: `upload_image` for inserting images into Markdown
+
+### LLM Wiki mode
+
+When an administrator enables LLM Wiki mode, collection tools accept a
+`space` argument: `default` is the public wiki, `raw` holds Admin-private
+append-only evidence, and `generated` holds Admin-private OKF concepts. Use
+`filterType` for a generated concept's frontmatter `type` or a raw entry's
+input kind; `list_pages` also accepts `filterTag`, `createdStart`, and
+`createdEnd`.
+
+For API-key-backed MCP calls in LLM Wiki mode, `create_page` defaults to the
+`generated` space. Pass `space: "default"` to create a public-wiki page. To
+create raw evidence, pass `space: "raw"`, an `inputKind`, and Markdown
+`contentSource`; later growth must use `append_raw_entry`. Raw content cannot
+be changed with `save_draft`, `update_page_properties`, or `delete_page`.
+
+Use `create_page` with `kind: "link"` and `linkTargetPageId` to publish a
+generated page at a wiki path. Page and revision results include provenance:
+`origin`, `humanModified`, and, where the caller is permitted, link-target or
+raw-source metadata. While a writing-mode switch is pending, mutations return
+`MODE_SWITCH_IN_PROGRESS`; read tools remain available.
 
 ### Memory conventions
 

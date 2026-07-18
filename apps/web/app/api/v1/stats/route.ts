@@ -17,6 +17,9 @@ export const GET = withPublicApi(async (request, _context, ctx) => {
   const parsed = parsePublicQuery(request, publicStatsQuerySchema);
   if (!parsed.ok) return parsed.response;
   return publicJson(
-    await publicContent.getStats(ctx, { includeOrphans: parsed.data.include === 'orphans' }),
+    await publicContent.getStats(ctx, {
+      includeOrphans: parsed.data.include === 'orphans',
+      space: parsed.data.space,
+    }),
   );
 });

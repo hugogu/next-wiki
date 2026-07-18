@@ -19,6 +19,8 @@ import { batchSoftDeletePages } from './batch-soft-delete-pages';
 import { listTags } from './list-tags';
 import { mergeTag } from './merge-tag';
 import { updatePageMetadata } from './update-page-metadata';
+import { appendRawEntry } from './append-raw-entry';
+import { createPage } from './create-page';
 
 const metadataFixture = { date: '2026-07-10', summary: 'Summary', tags: [] };
 
@@ -40,6 +42,7 @@ describe('tools', () => {
       publishPage: vi.fn(),
       listRevisions: vi.fn(),
       getRevision: vi.fn(),
+      appendRawEntry: vi.fn(),
       uploadImage: vi.fn(),
       getPageTree: vi.fn(),
       submitSemanticSearch: vi.fn(),
@@ -126,6 +129,27 @@ describe('tools', () => {
     expect(listPagesClient).toHaveBeenCalledWith(expect.objectContaining({ pathPrefix: 'docs' }));
   });
 
+  it('list_pages forwards writing-space filters to the client', async () => {
+    const listPagesClient = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ listPages: listPagesClient });
+
+    await listPages(client, {
+      space: 'generated',
+      filterType: 'concept',
+      filterTag: 'payments',
+      createdStart: '2026-07-01T00:00:00.000Z',
+      createdEnd: '2026-07-02T00:00:00.000Z',
+    });
+
+    expect(listPagesClient).toHaveBeenCalledWith(expect.objectContaining({
+      space: 'generated',
+      filterType: 'concept',
+      filterTag: 'payments',
+      createdStart: new Date('2026-07-01T00:00:00.000Z'),
+      createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+    }));
+  });
+
   it('search_wiki forwards pathPrefix to the client', async () => {
     const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
     const client = createClient({ searchPages });
@@ -133,6 +157,18 @@ describe('tools', () => {
     await searchWiki(client, { query: 'test', pathPrefix: 'docs' });
 
     expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({ pathPrefix: 'docs' }));
+  });
+
+  it('search_wiki forwards writing-space filters to the client', async () => {
+    const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ searchPages });
+
+    await searchWiki(client, { query: 'payment', space: 'raw', filterType: 'chat-transcript' });
+
+    expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({
+      space: 'raw',
+      filterType: 'chat-transcript',
+    }));
   });
 
   it('get_page_tree flattens the tree response', async () => {
@@ -197,6 +233,57 @@ describe('tools', () => {
     expect(batchCreatePagesClient).toHaveBeenCalledWith({ pages: [{ path: 'docs/a', title: 'A', contentSource: '# A' }] });
   });
 
+  it('batch_create_pages forwards a per-page content space', async () => {
+    const batchCreatePagesClient = vi.fn().mockResolvedValue({ created: [], count: 0 });
+    const client = createClient({ batchCreatePages: batchCreatePagesClient });
+
+    await batchCreatePages(client, { pages: [{ path: 'concepts/a', title: 'A', contentSource: '# A', space: 'generated' }] });
+
+    expect(batchCreatePagesClient).toHaveBeenCalledWith({
+      pages: [{ path: 'concepts/a', title: 'A', contentSource: '# A', space: 'generated' }],
+    });
+  });
+
+  it('create_page forwards raw and link creation metadata', async () => {
+    const createPageClient = vi.fn().mockResolvedValue({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      spaceSlug: 'raw',
+      path: 'inputs/case-1',
+      locale: 'en',
+      title: 'Case 1',
+      status: 'published',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      updatedAt: '',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+    const client = createClient({ createPage: createPageClient });
+
+    await createPage(client, {
+      path: 'inputs/case-1',
+      title: 'Case 1',
+      contentSource: 'Original evidence',
+      space: 'raw',
+      nature: 'original',
+      inputKind: 'chat-transcript',
+      source: { channel: 'support', sessionId: 'case-1' },
+      kind: 'native',
+    });
+
+    expect(createPageClient).toHaveBeenCalledWith({
+      path: 'inputs/case-1',
+      title: 'Case 1',
+      contentSource: 'Original evidence',
+      locale: undefined,
+      space: 'raw',
+      nature: 'original',
+      inputKind: 'chat-transcript',
+      source: { channel: 'support', sessionId: 'case-1' },
+      kind: 'native',
+      linkTargetPageId: undefined,
+    });
+  });
+
   it('get_stats forwards includeOrphans', async () => {
     const getStatsClient = vi.fn().mockResolvedValue({
       totalPages: 1,
@@ -209,6 +296,56 @@ describe('tools', () => {
     const client = createClient({ getStats: getStatsClient });
     await getStats(client, { includeOrphans: true });
     expect(getStatsClient).toHaveBeenCalledWith({ includeOrphans: true });
+  });
+
+  it('get_stats forwards space', async () => {
+    const getStatsClient = vi.fn().mockResolvedValue({
+      totalPages: 0,
+      publishedPages: 0,
+      draftPages: 0,
+      deletedPages: 0,
+      recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 },
+      directories: [],
+    });
+    const client = createClient({ getStats: getStatsClient });
+
+    await getStats(client, { space: 'generated' });
+
+    expect(getStatsClient).toHaveBeenCalledWith({ includeOrphans: undefined, space: 'generated' });
+  });
+
+  it('append_raw_entry forwards an immutable chunk and source metadata', async () => {
+    const appendRawEntryClient = vi.fn().mockResolvedValue({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      version: 2,
+      status: 'published',
+      contentType: 'text/markdown',
+      contentHash: 'hash',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      publishedAt: '',
+      canPublish: false,
+      origin: { actorKind: 'machine', nature: 'original' },
+      source: { channel: 'support', sessionId: 'case-1' },
+    });
+    const client = createClient({ appendRawEntry: appendRawEntryClient });
+
+    const result = await appendRawEntry(client, {
+      pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      content: 'Follow-up',
+      source: { channel: 'support', sessionId: 'case-1' },
+    });
+
+    expect(appendRawEntryClient).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', {
+      content: 'Follow-up',
+      source: { channel: 'support', sessionId: 'case-1' },
+    });
+    expect(result).toMatchObject({
+      revisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      origin: { actorKind: 'machine', nature: 'original' },
+      source: { channel: 'support', sessionId: 'case-1' },
+    });
   });
 
   it('find_similar forwards query', async () => {

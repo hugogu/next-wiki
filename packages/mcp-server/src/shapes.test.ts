@@ -44,6 +44,7 @@ describe('shape transformers', () => {
 
     expect(result.results[0]).toEqual({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      space: 'main',
       path: 'docs/test',
       title: 'Test',
       matchType: 'title',
@@ -107,6 +108,7 @@ describe('shape transformers', () => {
 
     expect(result.pages[0]).toEqual({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      space: 'main',
       path: 'docs/test',
       title: 'Test',
       status: 'published',
@@ -133,6 +135,54 @@ describe('shape transformers', () => {
       revisionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       version: 2,
       status: 'draft',
+    });
+  });
+
+  it('preserves page and revision provenance, link targets, and raw source metadata', async () => {
+    const { getPageResponse, getRevisionResponse } = await import('./shapes');
+    const page = getPageResponse({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      spaceSlug: 'generated',
+      path: 'concepts/payment',
+      locale: 'en',
+      title: 'Payment',
+      kind: 'link',
+      linkTarget: { pageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'concepts/source', title: 'Source' },
+      origin: { actorKind: 'machine', nature: 'generated' },
+      humanModified: true,
+      status: 'published',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      updatedAt: '',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+    const revision = getRevisionResponse({
+      id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      pageId: page.id,
+      version: 2,
+      status: 'published',
+      contentType: 'text/markdown',
+      contentHash: 'hash',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      publishedAt: '',
+      canPublish: false,
+      origin: { actorKind: 'human', nature: 'generated' },
+      linkTargetPageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      source: { channel: 'support', occurredAt: '2026-07-18T00:00:00.000Z' },
+    });
+
+    expect(page).toMatchObject({
+      space: 'generated',
+      kind: 'link',
+      linkTarget: { pageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+      origin: { actorKind: 'machine', nature: 'generated' },
+      humanModified: true,
+    });
+    expect(revision).toMatchObject({
+      origin: { actorKind: 'human', nature: 'generated' },
+      linkTargetPageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      source: { channel: 'support' },
     });
   });
 
