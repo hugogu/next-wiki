@@ -27,6 +27,15 @@ describe('spaces service', () => {
     expect(space?.kind).toBe('wiki');
   });
 
+  it('resolveSpace maps the reader-facing "wiki" alias to the default space', async () => {
+    // The nav/edit/new routes address the default space as `wiki` (ReaderSpace),
+    // but it is persisted with slug `default`. Without this alias every
+    // `/edit?space=wiki` and `/new?space=wiki` load 404s.
+    const space = await resolveSpace('wiki');
+    expect(space?.slug).toBe('default');
+    expect(space?.kind).toBe('wiki');
+  });
+
   it('resolveSpace resolves an explicit slug and returns null for unknown slugs', async () => {
     await db
       .insert(schema.spaces)

@@ -7,6 +7,14 @@ import { shouldUseDataCache } from '@/server/cache/public-cache';
 export const SPACE_CACHE_TAG = 'spaces';
 export const DEFAULT_SPACE_SLUG = 'default';
 
+/**
+ * Reader/UI-facing alias for the default wiki space. The navigation and page
+ * routes address spaces as `wiki | raw | generated` (see `ReaderSpace`), but the
+ * default space is persisted with slug `default`. `raw`/`generated` already match
+ * their stored slugs; only `wiki` needs mapping back to `default`.
+ */
+const WIKI_SPACE_ALIAS = 'wiki';
+
 export type SpaceRow = typeof schema.spaces.$inferSelect;
 export type SpaceKind = SpaceRow['kind'];
 
@@ -67,7 +75,8 @@ export async function listSpaces(): Promise<SpaceRow[]> {
 
 /** Resolve a space by slug, or the default space when omitted; null when the slug is unknown. */
 export async function resolveSpace(param?: string): Promise<SpaceRow | null> {
-  return getSpaceBySlug(param ?? DEFAULT_SPACE_SLUG);
+  const slug = !param || param === WIKI_SPACE_ALIAS ? DEFAULT_SPACE_SLUG : param;
+  return getSpaceBySlug(slug);
 }
 
 export function invalidateSpaceCache(): void {
