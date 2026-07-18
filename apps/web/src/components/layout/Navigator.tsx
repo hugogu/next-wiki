@@ -141,7 +141,29 @@ function TreeItem({
 
   return (
     <li>
-      <div className="group flex items-center">
+      <div className="group flex items-center" style={indent}>
+        {/*
+          Leading expand/collapse control. A node may be a page (with a link) and
+          still have children — e.g. a Wiki.js section index page that also nests
+          sub-pages. Rendering the chevron in its own column, independent of the
+          page/folder split below, lets those hybrid nodes be expanded instead of
+          hiding their subtree. Pure leaves get a spacer so labels stay aligned.
+        */}
+        {node.hasChildren ? (
+          <button
+            type="button"
+            onClick={() => onToggle(node.path)}
+            aria-expanded={isOpen}
+            aria-label={node.segment}
+            className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-foreground hover:bg-surface-elevated"
+          >
+            <ChevronRightIcon
+              className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+            />
+          </button>
+        ) : (
+          <span className="inline-block h-6 w-5 shrink-0" aria-hidden="true" />
+        )}
         {node.pageId ? (
           <Link
             href={getPageHref(node.path)}
@@ -151,7 +173,6 @@ function TreeItem({
                 ? 'bg-surface-elevated text-foreground font-medium'
                 : 'text-muted hover:text-foreground hover:bg-surface-elevated'
             }`}
-            style={indent}
             title={node.title ?? undefined}
           >
             <FileTextIcon className="h-4 w-4 shrink-0" />
@@ -162,13 +183,9 @@ function TreeItem({
             type="button"
             onClick={() => onToggle(node.path)}
             className="flex flex-1 min-w-0 items-center gap-xs rounded-md px-sm py-1 text-sm text-muted transition-colors hover:text-foreground hover:bg-surface-elevated"
-            style={indent}
             aria-expanded={isOpen}
             title={node.segment}
           >
-            <ChevronRightIcon
-              className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
-            />
             <FolderIcon className="h-4 w-4 shrink-0" />
             <span className="truncate">{node.segment}</span>
           </button>
@@ -189,7 +206,7 @@ function TreeItem({
         )}
       </div>
 
-      {node.pageId === null && node.hasChildren && isOpen && (
+      {node.hasChildren && isOpen && (
         <ul>
           {hasVisibleChildren ? (
             visibleChildren.map((child) => (
