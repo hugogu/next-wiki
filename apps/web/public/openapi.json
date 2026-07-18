@@ -2402,6 +2402,10 @@
           },
           "filterType": {
             "type": "string",
+            "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
+          },
+          "filter[type]": {
+            "type": "string",
             "description": "Filter to pages whose frontmatter type matches this value."
           },
           "limit": {
@@ -2427,6 +2431,16 @@
           "include": {
             "type": "string",
             "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+          },
+          "createdStart": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Include only pages created at or after this ISO 8601 timestamp."
+          },
+          "createdEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Include only pages created at or before this ISO 8601 timestamp."
           },
           "filter[tag]": {
             "oneOf": [
@@ -6850,6 +6864,98 @@
           "switchJobId"
         ],
         "description": "Writing mode settings available to administrators."
+      },
+      "WritingModeSwitchAccepted": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Queued LLM Wiki to Copilot migration job."
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "description": "Accepted asynchronous writing-mode switch."
+      },
+      "WritingModeSwitchInput": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "copilot",
+              "llm-wiki"
+            ],
+            "description": "Target instance writing mode."
+          },
+          "rawVisibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted"
+            ],
+            "description": "Required when returning to Copilot; visibility for moved raw pages."
+          },
+          "generatedVisibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted"
+            ],
+            "description": "Required when returning to Copilot; visibility for moved generated pages."
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "description": "Writing-mode transition request."
+      },
+      "WritingModeSwitchJobIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the writing-mode switch job."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Path parameters for a writing-mode switch job."
+      },
+      "WritingModeSwitchJobView": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "report": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "jobId",
+          "status",
+          "report"
+        ],
+        "description": "Writing-mode switch job status and completed migration report."
       }
     },
     "responses": {}
@@ -10430,6 +10536,16 @@
             "required": false,
             "schema": {
               "type": "string",
+              "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
+            },
+            "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
+          },
+          {
+            "in": "query",
+            "name": "filter[type]",
+            "required": false,
+            "schema": {
+              "type": "string",
               "description": "Filter to pages whose frontmatter type matches this value."
             },
             "description": "Filter to pages whose frontmatter type matches this value."
@@ -10481,6 +10597,28 @@
               "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
             },
             "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+          },
+          {
+            "in": "query",
+            "name": "createdStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Include only pages created at or after this ISO 8601 timestamp."
+            },
+            "description": "Include only pages created at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "createdEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Include only pages created at or before this ISO 8601 timestamp."
+            },
+            "description": "Include only pages created at or before this ISO 8601 timestamp."
           },
           {
             "in": "query",
@@ -11998,6 +12136,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WritingModeSettingsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-settings-writing-mode",
+        "summary": "Change the writing mode",
+        "description": "Switches to LLM Wiki immediately, or queues the transactional LLM Wiki to Copilot migration. Requires an Admin session.",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WritingModeSwitchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingModeSettingsView"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "HTTP 202",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingModeSwitchAccepted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/writing-mode/jobs/{id}": {
+      "get": {
+        "operationId": "get-settings-writing-mode-jobs-{id}",
+        "summary": "Get writing-mode switch status",
+        "description": "Returns the retained background-job state and migration report. Requires an Admin session.",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Identifier of the writing-mode switch job."
+            },
+            "description": "Identifier of the writing-mode switch job.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingModeSwitchJobView"
                 }
               }
             }

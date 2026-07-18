@@ -897,6 +897,10 @@ export const PublicPageListQuery = z
     filterType: z
       .string()
       .optional()
+      .describe('SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value.'),
+    'filter[type]': z
+      .string()
+      .optional()
       .describe('Filter to pages whose frontmatter type matches this value.'),
     limit: z.coerce
       .number()
@@ -918,6 +922,16 @@ export const PublicPageListQuery = z
       .describe(
         'Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead.',
       ),
+    createdStart: z
+      .string()
+      .datetime()
+      .optional()
+      .describe('Include only pages created at or after this ISO 8601 timestamp.'),
+    createdEnd: z
+      .string()
+      .datetime()
+      .optional()
+      .describe('Include only pages created at or before this ISO 8601 timestamp.'),
     'filter[tag]': z
       .union([z.string(), z.array(z.string())])
       .optional()
@@ -1749,3 +1763,27 @@ export const WritingModeSettingsView = z
     switchJobId: z.string().uuid().nullable().describe('Background job handling the pending switch, or null.'),
   })
   .describe('Writing mode settings available to administrators.');
+
+export const WritingModeSwitchInput = z
+  .object({
+    mode: z.enum(['copilot', 'llm-wiki']).describe('Target instance writing mode.'),
+    rawVisibility: z.enum(['public', 'restricted']).optional().describe('Required when returning to Copilot; visibility for moved raw pages.'),
+    generatedVisibility: z.enum(['public', 'restricted']).optional().describe('Required when returning to Copilot; visibility for moved generated pages.'),
+  })
+  .describe('Writing-mode transition request.');
+
+export const WritingModeSwitchAccepted = z
+  .object({ jobId: z.string().uuid().describe('Queued LLM Wiki to Copilot migration job.') })
+  .describe('Accepted asynchronous writing-mode switch.');
+
+export const WritingModeSwitchJobIdPathParams = z
+  .object({ id: z.string().uuid().describe('Identifier of the writing-mode switch job.') })
+  .describe('Path parameters for a writing-mode switch job.');
+
+export const WritingModeSwitchJobView = z
+  .object({
+    jobId: z.string().uuid(),
+    status: z.enum(['pending', 'running', 'completed', 'failed']),
+    report: z.record(z.unknown()).nullable(),
+  })
+  .describe('Writing-mode switch job status and completed migration report.');

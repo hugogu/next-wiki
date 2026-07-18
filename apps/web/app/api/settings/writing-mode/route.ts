@@ -42,7 +42,9 @@ const switchInputSchema = z.object({
  * @description Switches to LLM Wiki immediately, or queues the transactional LLM Wiki to Copilot migration. Requires an Admin session.
  * @tag Settings
  * @auth bearer
- * @response WritingModeSettingsView
+ * @body WritingModeSwitchInput
+ * @response 200:WritingModeSettingsView
+ * @response 202:WritingModeSwitchAccepted
  */
 export async function PUT(request: Request) {
   const parsed = parseJson(switchInputSchema, await request.json().catch(() => ({})));

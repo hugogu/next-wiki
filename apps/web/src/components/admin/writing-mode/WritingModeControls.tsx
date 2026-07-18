@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type { WritingMode } from '@next-wiki/shared';
@@ -46,6 +46,10 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
   const active = initial.pendingMode !== null || (job.data && ACTIVE_JOB_STATUSES.has(job.data.status));
   const failure = job.data?.status === 'failed';
   const conflictPaths = job.data?.report?.conflicts ?? [];
+
+  useEffect(() => {
+    if (job.data?.status === 'completed' || job.data?.status === 'failed') router.refresh();
+  }, [job.data?.status, router]);
 
   const enableLlmWiki = () => {
     setError(null);

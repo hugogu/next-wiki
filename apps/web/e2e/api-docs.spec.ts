@@ -29,6 +29,27 @@ test.describe('api docs', () => {
         }),
       ]),
     );
+    expect(body.paths['/v1/pages'].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'space', in: 'query' }),
+        expect.objectContaining({ name: 'filterType', in: 'query' }),
+        expect.objectContaining({ name: 'filter[tag]', in: 'query' }),
+        expect.objectContaining({ name: 'createdStart', in: 'query' }),
+        expect.objectContaining({ name: 'createdEnd', in: 'query' }),
+      ]),
+    );
+    expect(body.paths['/v1/pages/{id}/appends'].post.requestBody.content['application/json'].schema.$ref).toBe(
+      '#/components/schemas/PublicRawAppendInput',
+    );
+    expect(body.paths['/settings/writing-mode/jobs/{id}'].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'id',
+          in: 'path',
+          schema: expect.objectContaining({ type: 'string', format: 'uuid' }),
+        }),
+      ]),
+    );
     expect(body.paths['/v1/pages/{id}/revisions/{version}'].get.parameters).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

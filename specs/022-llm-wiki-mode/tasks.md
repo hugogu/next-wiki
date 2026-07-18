@@ -217,12 +217,12 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 **Purpose**: Documentation, API spec regeneration, and full verification
 
-- [ ] T062 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas, and verify `/api-docs` renders the new params/endpoints
+- [X] T062 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas, and verify `/api-docs` renders the new params/endpoints
 - [ ] T063 [P] Add Playwright e2e for onboarding mode selection and admin mode switch in `apps/web/e2e/writing-mode.spec.ts`
-- [ ] T064 [P] Update user-facing docs (wiki help pages/README section describing the two writing modes, Admin-private spaces, OKF export, switch-back write barrier, and MCP usage) in `README.md` and sample help content if affected
+- [X] T064 [P] Update user-facing docs (wiki help pages/README section describing the two writing modes, Admin-private spaces, OKF export, switch-back write barrier, and MCP usage) in `README.md` and sample help content if affected
 - [ ] T065 Validate public-content ISR/static generation end-to-end for link pages: cached body contains no session data or generated target metadata; anonymous page/tree/revision/sitemap projections contain no target/source provenance; target republish → link path revalidated; mode switch → all affected paths revalidated (constitution P12 + Public Content Delivery gate)
 - [ ] T066 Run the full quickstart.md validation (S1–S7 + OKF bundle validation + switch transaction failure drills) against `docker compose up -d --build`
-- [ ] T067 Final gates: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, and `pnpm db:generate` reporting "No schema changes"; anti-pattern scan per constitution compliance review (no second-class AI content paths, no verb URLs, no duplicate entry points, breadcrumbs present, TanStack Query owns job state)
+- [X] T067 Final gates: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, and `pnpm db:generate` reporting "No schema changes"; anti-pattern scan per constitution compliance review (no second-class AI content paths, no verb URLs, no duplicate entry points, breadcrumbs present, TanStack Query owns job state)
 
 ---
 

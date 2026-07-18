@@ -211,6 +211,30 @@ Per-app commands live under `apps/web`, e.g. `pnpm --filter @next-wiki/web test:
 for Playwright end-to-end tests. Database migrations use Drizzle:
 `pnpm db:generate` / `pnpm db:migrate`.
 
+## Writing modes
+
+First-run setup asks the administrator to choose one of two content-authoring
+models. The choice can later be reviewed and changed at `/admin/writing-mode`.
+
+- **Copilot** keeps human and AI work in the default wiki space. This is the
+  simplest option for collaborative editing.
+- **LLM Wiki** adds two Admin-only spaces: `raw` for append-only source
+  material, and `generated` for AI-produced OKF concepts. The public default
+  wiki stays separate. Administrators can publish a generated concept to a
+  public wiki path as a soft link.
+
+Switching from Copilot to LLM Wiki is immediate. Returning to Copilot queues a
+transactional migration: raw pages move under `raw/...`, generated pages under
+`generated/...`, and published soft links are materialized as ordinary wiki
+pages. The administrator chooses public or Admin-only visibility independently
+for raw and generated content. While the migration is pending, all content
+mutations return `MODE_SWITCH_IN_PROGRESS`; reads remain available. Conflicting
+paths receive deterministic numeric suffixes and are reported in the admin UI.
+Generated concepts retain their OKF frontmatter and can be exported through the
+normal transfer flow. MCP clients use the same `space` and `filterType`
+arguments described in [the MCP server guide](packages/mcp-server/README.md),
+including append-only raw-entry writes.
+
 ## Tech stack
 
 Next.js 16 (App Router) · TypeScript 5 · PostgreSQL + Drizzle ORM · pg-boss for

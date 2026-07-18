@@ -9,6 +9,15 @@ const idSchema = z.string().uuid();
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * @openapi
+ * @summary Get writing-mode switch status
+ * @description Returns the retained background-job state and migration report. Requires an Admin session.
+ * @tag Settings
+ * @auth bearer
+ * @pathParams WritingModeSwitchJobIdPathParams
+ * @response WritingModeSwitchJobView
+ */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Writing-mode switch not found', 404);
