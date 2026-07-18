@@ -267,10 +267,19 @@
     "create": {
       "metadataTitle": "New page",
       "defaultTitle": "Create a new page",
+      "rawInputKind": "Entry type",
+      "rawContent": "Entry content",
+      "rawKinds": {
+        "manualNote": "Manual note",
+        "chatTranscript": "Chat transcript",
+        "externalFetch": "External fetch",
+        "scriptRun": "Script run"
+      },
       "error": {
         "pathExists": "A page with this path already exists.",
         "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
         "forbidden": "You do not have permission to create pages.",
+        "rawContentRequired": "Raw entries require content.",
         "generic": "Failed to create page."
       },
       "submit": "Create"
@@ -401,6 +410,22 @@
       "weibo": "Weibo",
       "wechat": "WeChat",
       "discord": "Discord"
+    },
+    "indicators": {
+      "linkedFromGenerated": "Linked from generated",
+      "generatedHumanModified": "Generated, then human-modified"
+    },
+    "publishLink": {
+      "button": "Publish as link",
+      "title": "Publish generated page as link",
+      "description": "Choose the public Wiki path for this generated page.",
+      "pathLabel": "Wiki path",
+      "titleLabel": "Link title",
+      "submit": "Publish link",
+      "error": {
+        "pathExists": "A page with this path already exists.",
+        "generic": "Failed to publish the link."
+      }
     },
     "metadata": {
       "date": "Date",
@@ -1413,7 +1438,19 @@
       "closeButton": "Close navigator",
       "empty": "No published pages yet.",
       "loadError": "Failed to load. Click to retry.",
-      "addChild": "New page here"
+      "addChild": "New page here",
+      "spaces": {
+        "label": "Content space",
+        "wiki": "Wiki",
+        "generated": "Generated",
+        "raw": "Raw"
+      }
+    }
+  },
+  "space": {
+    "reader": {
+      "empty": "Select a page from the navigator.",
+      "breadcrumbs": "Breadcrumbs"
     }
   },
   "apiDocs": {

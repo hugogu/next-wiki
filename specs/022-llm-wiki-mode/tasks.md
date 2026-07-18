@@ -151,15 +151,15 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 5
 
-- [ ] T040 [P] [US5] Playwright e2e for space switching, breadcrumbs, and denial paths in `apps/web/e2e/spaces-navigation.spec.ts` (Admin sees switcher + navigates with route/tree-derived breadcrumbs; editor role gets no switcher and 404/403 on `/spaces/raw/...`; copilot mode hides all of it)
+- [X] T040 [P] [US5] Playwright e2e for space switching, breadcrumbs, and denial paths in `apps/web/e2e/spaces-navigation.spec.ts` (Admin sees switcher + navigates with route/tree-derived breadcrumbs; editor role gets no switcher and 404/403 on `/spaces/raw/...`; copilot mode hides all of it)
 
 ### Implementation for User Story 5
 
-- [ ] T041 [US5] Create authenticated reader route `apps/web/app/(user)/spaces/[space]/[...path]/page.tsx` (Admin-gated, resolves `space` param to raw/generated only, reuses reader components with a space context, renders breadcrumbs from route + page tree) plus a space-aware tree loader using `getPageTree({ space })`
-- [ ] T042 [US5] Add the space switcher to `apps/web/src/components/layout/Navigator.tsx` (visible only when mode is `llm-wiki` AND actor is admin; active state derived from URL; links to `/`, `/spaces/generated`, `/spaces/raw`) fed by a lightweight server-provided mode/role context outside the ISR body
-- [ ] T043 [US5] Make editor routes space-aware: `apps/web/app/(public)/new/page.tsx` and `apps/web/app/(public)/edit/[...path]/page.tsx` accept a space context and post to v1 with `space`; `apps/web/src/components/pages/NewPageDialog.tsx` and `EditPageForm.tsx` pass it through
-- [ ] T044 [US5] Add indicators per FR-016: "linked from generated" badge + target link on link pages, human-modified indicator on generated pages (authenticated-only components in `apps/web/src/components/pages/`), and a "Publish as link…" action + dialog (choose wiki path) on generated pages calling `POST /v1/pages` with `kind=link` — all composed outside cached public bodies, using the custom dialog primitives (no browser alerts)
-- [ ] T045 [P] [US5] Add en/zh strings for switcher, badges, and dialog in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [X] T041 [US5] Create authenticated reader route `apps/web/app/(user)/spaces/[space]/[...path]/page.tsx` (Admin-gated, resolves `space` param to raw/generated only, reuses reader components with a space context, renders breadcrumbs from route + page tree) plus a space-aware tree loader using `getPageTree({ space })`
+- [X] T042 [US5] Add the space switcher to `apps/web/src/components/layout/Navigator.tsx` (visible only when mode is `llm-wiki` AND actor is admin; active state derived from URL; links to `/`, `/spaces/generated`, `/spaces/raw`) fed by a lightweight server-provided mode/role context outside the ISR body
+- [X] T043 [US5] Make editor routes space-aware: `apps/web/app/(public)/new/page.tsx` and `apps/web/app/(public)/edit/[...path]/page.tsx` accept a space context and post to v1 with `space`; `apps/web/src/components/pages/NewPageDialog.tsx` and `EditPageForm.tsx` pass it through
+- [X] T044 [US5] Add indicators per FR-016: "linked from generated" badge + target link on link pages, human-modified indicator on generated pages (authenticated-only components in `apps/web/src/components/pages/`), and a "Publish as link…" action + dialog (choose wiki path) on generated pages calling `POST /v1/pages` with `kind=link` — all composed outside cached public bodies, using the custom dialog primitives (no browser alerts)
+- [X] T045 [P] [US5] Add en/zh strings for switcher, badges, and dialog in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Full cross-space navigation works with correct visibility per role and mode (quickstart S5)
 

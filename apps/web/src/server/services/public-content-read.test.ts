@@ -5,6 +5,7 @@ import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
+import { setModeInternal } from '@/server/services/writing-mode';
 
 const semanticSearch = vi.hoisted(() => ({
   getSemanticSearchResults: vi.fn(),
@@ -51,6 +52,17 @@ async function cleanup() {
   await db.delete(schema.pages);
   await db.delete(schema.sessions);
   await db.delete(schema.users);
+}
+
+async function ensurePrivateSpaces() {
+  await db
+    .insert(schema.spaces)
+    .values({ slug: 'raw', name: 'Raw', kind: 'raw', anonymousRead: false })
+    .onConflictDoNothing();
+  await db
+    .insert(schema.spaces)
+    .values({ slug: 'generated', name: 'Generated', kind: 'generated', anonymousRead: false })
+    .onConflictDoNothing();
 }
 
 describe('public content read facade', () => {
@@ -123,6 +135,43 @@ describe('public content read facade', () => {
     // Folders (beta, zebra) sort ahead of files (apple, mango); each group A→Z.
     expect(root.children.map((child) => child.segment)).toEqual(['beta', 'zebra', 'apple', 'mango']);
     expect(root.children.map((child) => child.pageId === null)).toEqual([true, true, false, false]);
+  });
+
+  it('resolves requested private spaces and denies them once Copilot mode is active', async () => {
+    const admin = await createPublicApiUser('space-reader-admin@example.com', 'admin');
+    const editor = await createPublicApiUser('space-reader-editor@example.com', 'editor');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    await ensurePrivateSpaces();
+    await setModeInternal('llm-wiki', admin.id);
+
+    await pageService.create(adminCtx, {
+      path: 'concepts/space-read', title: 'Generated space read', contentSource: '# Generated',
+    }, 'generated');
+    await publicContent.createPage(adminCtx, {
+      path: 'raw/space-read',
+      title: 'Raw space read',
+      contentSource: 'source material',
+      space: 'raw',
+      inputKind: 'manual-note',
+    });
+
+    await expect(publicContent.getPageByPath(adminCtx, 'concepts/space-read', [], 'generated')).resolves.toMatchObject({
+      spaceSlug: 'generated',
+      path: 'concepts/space-read',
+    });
+    await expect(publicContent.getPageByPath(adminCtx, 'concepts/space-read')).resolves.toBeNull();
+    await expect(publicContent.getPageByPath(buildUserCtx(editor.id, 'editor'), 'raw/space-read', [], 'raw')).resolves.toBeNull();
+
+    const generatedTree = await publicContent.getPageTree(adminCtx, { status: 'all', space: 'generated' });
+    expect(generatedTree.root.children[0]?.segment).toBe('concepts');
+
+    await setModeInternal('copilot', admin.id);
+    await expect(publicContent.getPageByPath(adminCtx, 'concepts/space-read', [], 'generated')).rejects.toMatchObject({
+      code: 'SPACE_UNAVAILABLE',
+    });
+    await expect(publicContent.getPageTree(adminCtx, { status: 'all', space: 'raw' })).rejects.toMatchObject({
+      code: 'SPACE_UNAVAILABLE',
+    });
   });
 
   it('hides draft-only pages from reader API keys', async () => {

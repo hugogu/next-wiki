@@ -1,6 +1,8 @@
 import type { Actor } from '@/server/permissions';
 import type { AiEntitlementView } from '@next-wiki/shared';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
+import type { ReaderSpace } from '@/lib/path';
+import type { WritingMode } from '@next-wiki/shared';
 
 export type PageContext = {
   pageId?: string;
@@ -17,6 +19,8 @@ export type PageContext = {
   translationLocales?: string[];
   /** The locale currently being viewed, or null when viewing the original. */
   currentLocale?: string | null;
+  /** Content space that owns the reader/editor route. */
+  space?: ReaderSpace;
 } | null;
 
 export type AppShellProps = {
@@ -44,6 +48,8 @@ export type AppShellProps = {
    * document body.
    */
   hydrateSession?: boolean;
+  space?: ReaderSpace;
+  writingMode?: WritingMode;
   footer?: React.ReactNode;
   siteName: string;
   children: React.ReactNode;

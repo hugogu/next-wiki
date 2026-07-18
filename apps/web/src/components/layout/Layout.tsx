@@ -8,6 +8,8 @@ import { getMyEntitlements } from '@/server/services/ai-entitlements';
 import { getSiteView } from '@/server/services/site-settings';
 import { Footer } from '@/components/ui/Footer';
 import { sparsifyTree } from '@/lib/page-tree';
+import type { ReaderSpace } from '@/lib/path';
+import { getMode } from '@/server/services/writing-mode';
 
 export async function Layout({
   children,
@@ -17,6 +19,7 @@ export async function Layout({
   fitViewport = false,
   skipPasswordGate = false,
   staticPublic = false,
+  space,
 }: {
   children: ReactNode;
   pageContext?: PageContext;
@@ -25,6 +28,7 @@ export async function Layout({
   fitViewport?: boolean;
   skipPasswordGate?: boolean;
   staticPublic?: boolean;
+  space?: ReaderSpace;
 }) {
   const actor = await authService.getCurrentActor();
 
@@ -40,13 +44,16 @@ export async function Layout({
   // start collapsed with a `hasChildren` flag so the client can lazy-load them
   // on expand via `/api/v1/tree?pathPrefix=…`. This keeps the initial HTML
   // payload proportional to sidebar depth instead of wiki size.
-  const treeResult = await publicContent.getCachedPublishedPageTree();
+  const treeResult = space && space !== 'wiki'
+    ? await publicContent.getPageTree({ actor }, { status: 'all', space })
+    : await publicContent.getCachedPublishedPageTree();
   const tree = sparsifyTree(treeResult.root, pageContext?.path);
   const aiEntitlements =
     actor.kind === 'user'
       ? await getMyEntitlements({ actor }).catch(() => null)
       : null;
   const site = await getSiteView();
+  const writingMode = staticPublic ? undefined : await getMode();
 
   return (
     <AppShell
@@ -58,6 +65,8 @@ export async function Layout({
       fitViewport={fitViewport}
       aiEntitlements={aiEntitlements}
       hydrateSession={staticPublic}
+      space={space}
+      writingMode={writingMode}
       footer={<Footer site={site} />}
       siteName={site.siteName}
     >

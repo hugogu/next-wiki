@@ -62,7 +62,7 @@ import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { getSpaceById, resolveSpace } from '@/server/services/spaces';
-import { assertNoSwitchInProgress, isLlmWikiMode } from '@/server/services/writing-mode';
+import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
 import * as rawEntries from '@/server/services/raw-entries';
 import * as linkPages from '@/server/services/link-pages';
 
@@ -295,6 +295,7 @@ async function getVisiblePage(ctx: PermCtx, predicate: SQL, include: readonly Pu
   if (!page) return null;
   const space = await getSpaceById(page.spaceId);
   if (!space) return null;
+  await assertSpaceKindAllowed(space.kind);
   return visiblePageResource(ctx, space, page, { ...DEFAULT_VISIBLE_PAGE_OPTIONS, include });
 }
 
@@ -373,6 +374,7 @@ function matchesTagFilters(page: PublicPageResource, filters: readonly string[])
 
 type ListPagesQuery = {
   status: 'published' | 'draft' | 'all' | 'deleted';
+  space?: string;
   q?: string;
   path?: string;
   pathPrefix?: string;
@@ -398,15 +400,16 @@ async function listPagesInternal(
   query: ListPagesQuery,
   options: { includeContent: boolean },
 ): Promise<PublicPageListResponse> {
-  const space = await resolveSpace();
+  const space = await resolveSpace(query.space);
   if (!space) return { items: [], nextCursor: null };
+  await assertSpaceKindAllowed(space.kind);
 
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { items: [], nextCursor: null };
   }
 
   if (query.path) {
-    const page = await getPageByPath(ctx, query.path, query.include);
+    const page = await getPageByPath(ctx, query.path, query.include, query.space);
     return { items: page ? [page] : [], nextCursor: null };
   }
 
@@ -561,9 +564,15 @@ export async function getPageById(ctx: PermCtx, id: string, include: readonly Pu
   return getVisiblePage(ctx, eq(schema.pages.id, id), include);
 }
 
-export async function getPageByPath(ctx: PermCtx, path: string, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
-  const space = await resolveSpace();
+export async function getPageByPath(
+  ctx: PermCtx,
+  path: string,
+  include: readonly PublicPageInclude[] = [],
+  spaceSlug?: string,
+): Promise<PublicPageResource | null> {
+  const space = await resolveSpace(spaceSlug);
   if (!space) return null;
+  await assertSpaceKindAllowed(space.kind);
   const page = await db.query.pages.findFirst({
     where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, path), isNull(schema.pages.deletedAt)),
   });
@@ -957,8 +966,9 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
 }
 
 export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Promise<PublicPageTreeResponse> {
-  const space = await resolveSpace();
+  const space = await resolveSpace(query.space);
   if (!space) return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };
+  await assertSpaceKindAllowed(space.kind);
 
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };

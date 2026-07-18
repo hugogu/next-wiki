@@ -9,6 +9,7 @@ import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
 import { PageEditProvider } from '@/components/pages/PageEditContext';
 import type { Actor } from '@/server/permissions';
 import type { AiEntitlementView } from '@next-wiki/shared';
+import type { WritingMode } from '@next-wiki/shared';
 
 type SessionUser = {
   id: string;
@@ -36,10 +37,13 @@ export function AppShell({
   footer,
   siteName,
   children,
+  space = 'wiki',
+  writingMode: initialWritingMode,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
   const [user, setUser] = useState<Actor>(initialUser);
   const [aiEntitlements, setAiEntitlements] = useState<AiEntitlementView | null | undefined>(initialAiEntitlements);
+  const [writingMode, setWritingMode] = useState<WritingMode | undefined>(initialWritingMode);
 
   useEffect(() => {
     if (!hydrateSession) return;
@@ -72,13 +76,38 @@ export function AppShell({
     };
   }, [hydrateSession]);
 
+  useEffect(() => {
+    if (user.kind !== 'user' || user.role !== 'admin') return;
+    let cancelled = false;
+
+    async function refreshWritingMode() {
+      try {
+        const response = await fetch('/api/settings/writing-mode', {
+          credentials: 'same-origin',
+        });
+        if (!response.ok || cancelled) return;
+        const settings = (await response.json()) as { mode?: unknown };
+        if ((settings.mode === 'copilot' || settings.mode === 'llm-wiki') && !cancelled) {
+          setWritingMode(settings.mode);
+        }
+      } catch {
+        // Server-rendered mode state remains usable when this optional refresh fails.
+      }
+    }
+
+    void refreshWritingMode();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const resolvedPageContext =
     pageContext && user.kind === 'user'
       ? {
           ...pageContext,
           // The static document cannot know page-specific permissions. This
           // only controls visibility; the edit route verifies authorization.
-          canEdit: pageContext.canEdit || user.role === 'admin' || user.role === 'editor',
+          canEdit: pageContext.canEdit || (hydrateSession && (user.role === 'admin' || user.role === 'editor')),
         }
       : pageContext;
 
@@ -95,6 +124,8 @@ export function AppShell({
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
             user={user}
+            space={space}
+            writingMode={writingMode}
           />
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer

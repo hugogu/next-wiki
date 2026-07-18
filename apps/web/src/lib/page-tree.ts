@@ -57,6 +57,8 @@ export function sparsifyTree(
       title: node.title,
       pageId: node.pageId,
       status: node.status,
+      kind: node.kind,
+      linkTarget: node.linkTarget,
       hasChildren: node.children.length > 0,
       children: keepFull ? node.children.map((c) => sparsify(c, false)) : [],
     };

@@ -868,11 +868,17 @@ export async function getPublishedForShare(pageId: string): Promise<LivePage | n
 }
 
 /**
- * Returns true if the caller is allowed to create pages in the default space.
+ * Returns true if the caller is allowed to create pages in the requested space.
  */
-export async function canCreate(ctx: PermCtx): Promise<boolean> {
-  const space = await resolveSpace();
+export async function canCreate(ctx: PermCtx, spaceSlug?: string): Promise<boolean> {
+  const space = await resolveSpace(spaceSlug);
   if (!space) return false;
+  try {
+    await assertSpaceKindAllowed(space.kind);
+  } catch (error) {
+    if (error instanceof DomainError && error.code === 'SPACE_UNAVAILABLE') return false;
+    throw error;
+  }
   return can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space));
 }
 
@@ -1237,10 +1243,16 @@ export async function updateProperties(
   return result;
 }
 
-export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableView | null> {
+export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string): Promise<EditableView | null> {
   const userId = getUserId(ctx);
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) return null;
+  try {
+    await assertSpaceKindAllowed(space.kind);
+  } catch (error) {
+    if (error instanceof DomainError && error.code === 'SPACE_UNAVAILABLE') return null;
+    throw error;
+  }
 
   const page = await db.query.pages.findFirst({
     where: and(

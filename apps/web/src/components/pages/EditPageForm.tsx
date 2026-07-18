@@ -18,7 +18,7 @@ import { useTranslation } from '@/i18n/client';
 import { apiPost, apiPatch, apiDelete, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
-import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getHistoryHref, getPageHref } from '@/lib/path';
+import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getSpaceHref, type ReaderSpace } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
@@ -36,7 +36,7 @@ type EditPageInitial = {
   metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
 };
 
-export function EditPageForm({ path, initial }: { path: string; initial: EditPageInitial }) {
+export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; initial: EditPageInitial; space?: ReaderSpace }) {
   const { t } = useTranslation();
   const setEditor = useSetEditor();
   const { goBack } = useHistory();
@@ -99,7 +99,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
           baseRevisionId: committedRevisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
-        window.location.href = getHistoryHref(committedPath);
+        window.location.href = getSpaceHref(space, committedPath);
       } catch (err) {
         const error = err as ApiError;
         if (error.code === 'STALE_REVISION') {
@@ -115,7 +115,7 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
         setIsSaving(false);
       }
     },
-    [committedPath, committedRevisionId, initial.pageId, initial.title, initialMetadata, metadata, t, writeMetadataToFrontmatter],
+    [committedPath, committedRevisionId, initial.pageId, initial.title, initialMetadata, metadata, space, t, writeMetadataToFrontmatter],
   );
 
   const handleSaveProperties = useCallback(async () => {
@@ -169,8 +169,8 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
   }, [handleSubmit, onSubmit]);
 
   const close = useCallback(() => {
-    goBack(getPageHref(committedPath));
-  }, [goBack, committedPath]);
+    goBack(getSpaceHref(space, committedPath));
+  }, [goBack, committedPath, space]);
 
   const toggleProperties = useCallback(() => {
     setPropertiesError(null);
@@ -187,13 +187,13 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
     setDeleteError(null);
     try {
       await apiDelete<void>(getPublicApiPageUrl(initial.pageId));
-      window.location.href = '/';
+      window.location.href = getSpaceHref(space);
     } catch (err) {
       const error = err as ApiError;
       setDeleteError(error.message || t('editor.delete.error'));
       setIsDeleting(false);
     }
-  }, [initial.pageId, t]);
+  }, [initial.pageId, space, t]);
 
   useEffect(() => {
     setEditor({

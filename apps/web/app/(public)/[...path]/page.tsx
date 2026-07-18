@@ -5,6 +5,7 @@ import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ShareButton } from '@/components/pages/ShareButton';
+import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
 import * as pageService from '@/server/services/pages';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import type { LivePage } from '@next-wiki/shared';
@@ -226,6 +227,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
                 <ShareButton pageId={page.pageId} title={page.title} />
               </div>
             )}
+            <ProvenanceIndicators pageId={page.pageId} />
             <PageMetadata
               date={page.metadata.date}
               summary={page.metadata.summary}

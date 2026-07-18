@@ -267,10 +267,19 @@
     "create": {
       "metadataTitle": "新建页面",
       "defaultTitle": "创建新页面",
+      "rawInputKind": "条目类型",
+      "rawContent": "条目内容",
+      "rawKinds": {
+        "manualNote": "手动笔记",
+        "chatTranscript": "聊天记录",
+        "externalFetch": "外部抓取",
+        "scriptRun": "脚本运行"
+      },
       "error": {
         "pathExists": "该路径的页面已存在。",
         "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
         "forbidden": "你没有权限创建页面。",
+        "rawContentRequired": "原始条目需要内容。",
         "generic": "创建页面失败。"
       },
       "submit": "创建"
@@ -401,6 +410,22 @@
       "weibo": "微博",
       "wechat": "微信",
       "discord": "Discord"
+    },
+    "indicators": {
+      "linkedFromGenerated": "链接到生成内容",
+      "generatedHumanModified": "已生成，后经人工修改"
+    },
+    "publishLink": {
+      "button": "发布为链接",
+      "title": "将生成页面发布为链接",
+      "description": "为此生成页面选择公开知识库路径。",
+      "pathLabel": "知识库路径",
+      "titleLabel": "链接标题",
+      "submit": "发布链接",
+      "error": {
+        "pathExists": "该路径的页面已存在。",
+        "generic": "发布链接失败。"
+      }
     },
     "metadata": {
       "date": "日期",
@@ -1413,7 +1438,19 @@
       "closeButton": "关闭导航",
       "empty": "暂无已发布页面。",
       "loadError": "加载失败，点击重试。",
-      "addChild": "在此新建页面"
+      "addChild": "在此新建页面",
+      "spaces": {
+        "label": "内容空间",
+        "wiki": "知识库",
+        "generated": "生成内容",
+        "raw": "原始内容"
+      }
+    }
+  },
+  "space": {
+    "reader": {
+      "empty": "从导航中选择一个页面。",
+      "breadcrumbs": "面包屑导航"
     }
   },
   "apiDocs": {

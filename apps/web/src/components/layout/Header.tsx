@@ -24,7 +24,15 @@ import {
 import { TranslatePageDialog } from '@/components/pages/TranslatePageDialog';
 import { apiPost } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
-import { getPageHref, getEditHref, getHistoryHref, getTranslatedPageHref, getPublicApiPagePublicationUrl } from '@/lib/path';
+import {
+  getPageHref,
+  getHistoryHref,
+  getPublicApiPagePublicationUrl,
+  getSpaceEditHref,
+  getSpaceHref,
+  getSpaceNewHref,
+  getTranslatedPageHref,
+} from '@/lib/path';
 import { translationLanguageName } from '@next-wiki/shared';
 import { HeaderHybridSearch } from '@/components/search/HeaderHybridSearch';
 
@@ -132,14 +140,14 @@ export function Header({
   // Translating a page targets the original source, so only offer it on the
   // original (not a translated view) and only to admins (manage_translations).
   const canTranslate =
-    role === 'admin' && Boolean(pageContext?.pageId) && !pageContext?.currentLocale;
+    role === 'admin' && (!pageContext?.space || pageContext.space === 'wiki') && Boolean(pageContext?.pageId) && !pageContext?.currentLocale;
 
   const handlePublish = async () => {
     if (!pageContext || !pageContext.pageId || !pageContext.canPublish || pageContext.status === 'published') return;
     setPublishing(true);
     try {
       await apiPost<Record<string, never>, unknown>(getPublicApiPagePublicationUrl(pageContext.pageId, pageContext.version), {});
-      window.location.href = getPageHref(pageContext.path);
+      window.location.href = getSpaceHref(pageContext.space ?? 'wiki', pageContext.path);
     } catch {
       setPublishing(false);
     }
@@ -207,12 +215,12 @@ export function Header({
           <>
             <div className="flex items-center gap-sm">
               {pageContext && pageContext.canEdit && (
-                <IconButton href={getEditHref(pageContext.path)} label={t('page.header.edit')}>
+                <IconButton href={getSpaceEditHref(pageContext.space ?? 'wiki', pageContext.path)} label={t('page.header.edit')}>
                   <EditIcon />
                 </IconButton>
               )}
 
-              {pageContext && isSignedIn && (
+              {pageContext && isSignedIn && (!pageContext.space || pageContext.space === 'wiki') && (
                 <IconButton href={getHistoryHref(pageContext.path)} label={t('page.header.history')}>
                   <HistoryIcon />
                 </IconButton>
@@ -256,7 +264,7 @@ export function Header({
                   </div>
                 </div>
               ) : pageContext ? (
-                <IconButton href={getPageHref(pageContext.path)} label={t('page.header.view')} active>
+                <IconButton href={getSpaceHref(pageContext.space ?? 'wiki', pageContext.path)} label={t('page.header.view')} active>
                   <EyeIcon />
                 </IconButton>
               ) : null}
@@ -265,7 +273,7 @@ export function Header({
                   <ChevronLeftIcon />
                 </IconButton>
               ) : isSignedIn && (role === 'editor' || role === 'admin') && (
-                <IconButton href="/new" label={t('page.header.newPage')}>
+                <IconButton href={getSpaceNewHref(pageContext?.space ?? 'wiki')} label={t('page.header.newPage')}>
                   <PlusIcon />
                 </IconButton>
               )}

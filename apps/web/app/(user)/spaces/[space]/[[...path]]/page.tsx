@@ -1,0 +1,142 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { Layout } from '@/components/ui/Layout';
+import { ContentRenderer } from '@/components/renderer/ContentRenderer';
+import { PageMetadata } from '@/components/pages/PageMetadata';
+import { PageSidebar } from '@/components/pages/PageSidebar';
+import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
+import { extractHeadings, injectHeadingIds } from '@/lib/html';
+import { getSpaceHref, type ReaderSpace } from '@/lib/path';
+import { getCurrentActor } from '@/server/services/auth';
+import * as publicContent from '@/server/services/public-content';
+import { isLlmWikiMode } from '@/server/services/writing-mode';
+import { renderMarkdown } from '@/server/pipeline';
+import { getDictionary, getStaticLocale } from '@/i18n/server';
+import { createAppFormatter } from '@/i18n/formatter';
+
+export const dynamic = 'force-dynamic';
+
+type Params = Promise<{ space: string; path?: string[] }>;
+
+function asPrivateSpace(value: string): Exclude<ReaderSpace, 'wiki'> | null {
+  return value === 'raw' || value === 'generated' ? value : null;
+}
+
+function spaceLabel(
+  t: ReturnType<typeof getDictionary>,
+  space: Exclude<ReaderSpace, 'wiki'>,
+): string {
+  return space === 'raw' ? t('layout.nav.spaces.raw') : t('layout.nav.spaces.generated');
+}
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const [resolved, locale] = await Promise.all([params, getStaticLocale()]);
+  const t = getDictionary(locale);
+  const space = asPrivateSpace(resolved.space);
+  const path = resolved.path?.map(decodeURIComponent).join('/') ?? '';
+  return { title: path || (space ? spaceLabel(t, space) : t('page.error.notFound')) };
+}
+
+export default async function SpaceReaderPage({ params }: { params: Params }) {
+  const [resolved, actor, locale] = await Promise.all([params, getCurrentActor(), getStaticLocale()]);
+  const t = getDictionary(locale);
+  const formatter = createAppFormatter(locale);
+  const space = asPrivateSpace(resolved.space);
+
+  if (!space || actor.kind !== 'user' || actor.role !== 'admin' || !(await isLlmWikiMode())) {
+    notFound();
+  }
+
+  const segments = resolved.path?.map(decodeURIComponent) ?? [];
+  const path = segments.join('/');
+
+  if (!path) {
+    return (
+      <Layout space={space}>
+        <div className="min-h-full px-lg py-2xl">
+          <h1 className="font-display text-2xl font-semibold">{spaceLabel(t, space)}</h1>
+          <p className="mt-sm text-muted">{t('space.reader.empty')}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const page = await publicContent.getPageByPath({ actor }, path, ['latestRevision'], space);
+  if (!page || page.status === 'deleted') notFound();
+
+  const bodyHtml = injectHeadingIds(renderMarkdown(page.contentSource ?? '').html);
+  const headings = extractHeadings(bodyHtml);
+  const createdAt = new Date(page.createdAt);
+  const latestRevision = page.latestRevision;
+  const status = latestRevision?.status === 'draft' ? 'draft' : page.status;
+  const pageContext = {
+    pageId: page.id,
+    path: page.path,
+    title: page.title,
+    status,
+    canEdit: space === 'generated',
+    canPublish: space === 'generated' && latestRevision?.status === 'draft' && latestRevision.canPublish,
+    version: latestRevision?.version ?? page.publishedRevision?.version ?? 1,
+    space,
+  };
+
+  return (
+    <Layout pageContext={pageContext} space={space}>
+      <div className="min-h-full flex flex-col">
+        {status === 'draft' && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-lg py-sm text-sm">
+            {t('page.read.draftBanner')}
+          </div>
+        )}
+        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_14rem]">
+          <article className="page-reader-article mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
+            <nav aria-label={t('space.reader.breadcrumbs')} className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted">
+              <Link className="hover:text-foreground" href={getSpaceHref(space)}>{spaceLabel(t, space)}</Link>
+              {segments.map((segment, index) => {
+                const segmentPath = segments.slice(0, index + 1).join('/');
+                const isCurrent = index === segments.length - 1;
+                return (
+                  <span key={segmentPath} className="flex items-center gap-xs">
+                    <span aria-hidden="true">/</span>
+                    {isCurrent ? (
+                      <span className="text-foreground" aria-current="page">{segment}</span>
+                    ) : (
+                      <Link className="hover:text-foreground" href={getSpaceHref(space, segmentPath)}>{segment}</Link>
+                    )}
+                  </span>
+                );
+              })}
+            </nav>
+            <ProvenanceIndicators
+              pageId={page.id}
+              targetTitle={page.title}
+              allowPublishLink={space === 'generated' && page.status === 'published'}
+            />
+            <PageMetadata
+              date={page.metadata?.date ?? null}
+              summary={page.metadata?.summary ?? null}
+              tags={[]}
+              labels={{
+                date: t('page.metadata.date'),
+                summary: t('page.metadata.summary'),
+                tags: t('page.metadata.tags'),
+              }}
+            />
+            <ContentRenderer html={bodyHtml} />
+            <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
+              {t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
+              {t('page.read.authorSuffix', { name: page.author.displayName ?? t('common.unknownAuthor') })}
+            </footer>
+          </article>
+          <PageSidebar
+            headings={headings}
+            tags={page.metadata?.tags ?? []}
+            tagsLabel={t('page.metadata.tags')}
+            outlineLabel={t('page.read.outline')}
+          />
+        </div>
+      </div>
+    </Layout>
+  );
+}

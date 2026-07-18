@@ -27,11 +27,12 @@ import {
   TagIcon,
   PlusIcon,
 } from '@/components/icons';
-import { getPageHref, leafTitleFromPath } from '@/lib/path';
+import { getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 import type { Actor } from '@/server/permissions';
 import { NavFooterMenu } from './NavFooterMenu';
+import type { WritingMode } from '@next-wiki/shared';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
 
@@ -77,6 +78,8 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
     title: node.title,
     pageId: node.pageId,
     status: node.status,
+    kind: node.kind,
+    linkTarget: node.linkTarget,
     hasChildren: node.children.length > 0,
     children: withHasChildrenFlag(node.children),
   }));
@@ -87,8 +90,9 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
  * the same shape as the server-rendered payload so callers can splice the
  * result into the existing tree without conversion.
  */
-async function fetchBranchChildren(pathPrefix: string): Promise<LazyPublicPageTreeNode[]> {
+async function fetchBranchChildren(pathPrefix: string, space: ReaderSpace): Promise<LazyPublicPageTreeNode[]> {
   const params = new URLSearchParams({ pathPrefix });
+  if (space !== 'wiki') params.set('space', space);
   const response = await fetch(`/api/v1/tree?${params.toString()}`, {
     headers: { accept: 'application/json' },
     credentials: 'same-origin',
@@ -111,6 +115,7 @@ function TreeItem({
   onLoad,
   canCreate,
   addChildLabel,
+  space,
 }: {
   node: LazyPublicPageTreeNode;
   currentPath?: string;
@@ -128,6 +133,7 @@ function TreeItem({
   /** Whether to show the per-row "new child page" button (editors/admins). */
   canCreate: boolean;
   addChildLabel: string;
+  space: ReaderSpace;
 }) {
   const loadState = getLoadState(node);
   const active = node.pageId !== null && node.path === currentPath;
@@ -166,7 +172,7 @@ function TreeItem({
         )}
         {node.pageId ? (
           <Link
-            href={getPageHref(node.path)}
+            href={getSpaceHref(space, node.path)}
             onClick={onNavigate}
             className={`flex flex-1 min-w-0 items-center gap-xs rounded-md px-sm py-1 text-sm transition-colors ${
               active
@@ -193,7 +199,7 @@ function TreeItem({
 
         {canCreate && (
           <Link
-            href={`/new?prefix=${encodeURIComponent(node.path)}`}
+            href={`${getSpaceNewHref(space)}${getSpaceNewHref(space).includes('?') ? '&' : '?'}prefix=${encodeURIComponent(node.path)}`}
             onClick={onNavigate}
             title={addChildLabel}
             aria-label={addChildLabel}
@@ -222,6 +228,7 @@ function TreeItem({
                 onLoad={onLoad}
                 canCreate={canCreate}
                 addChildLabel={addChildLabel}
+                space={space}
               />
             ))
           ) : loadState.status === 'loading' ? (
@@ -254,6 +261,8 @@ export function Navigator({
   isOpen,
   onClose,
   user,
+  space = 'wiki',
+  writingMode,
 }: {
   tree: LazyPublicPageTreeNode[];
   admin?: boolean;
@@ -262,11 +271,16 @@ export function Navigator({
   isOpen: boolean;
   onClose: () => void;
   user: Actor;
+  space?: ReaderSpace;
+  writingMode?: WritingMode;
 }) {
   const { t } = useTranslation();
   // Editors and admins may create pages, so they get the per-row "new child"
   // button that pre-fills the path prefix from the hovered node.
-  const canCreatePages = user.kind === 'user' && (user.role === 'admin' || user.role === 'editor');
+  const canCreatePages = user.kind === 'user' && (
+    space === 'wiki' ? user.role === 'admin' || user.role === 'editor' : user.role === 'admin'
+  );
+  const canSwitchSpaces = writingMode === 'llm-wiki' && user.kind === 'user' && user.role === 'admin' && !admin && !userCenter;
   const addChildLabel = t('layout.nav.addChild');
   const pathname = usePathname();
   const ADMIN_GROUPS: AdminNavGroup[] = [
@@ -433,7 +447,7 @@ export function Navigator({
       if (branchCache[path] || inflight.current.has(path)) return;
       inflight.current.add(path);
       setBranchLoad((prev) => ({ ...prev, [path]: 'loading' }));
-      fetchBranchChildren(path)
+      fetchBranchChildren(path, space)
         .then((children) => {
           setBranchCache((prev) => ({ ...prev, [path]: children }));
           setBranchLoad((prev) => {
@@ -453,7 +467,7 @@ export function Navigator({
           inflight.current.delete(path);
         });
     },
-    [branchCache],
+    [branchCache, space],
   );
 
   // Whenever a new branch is expanded for the first time, fire a fetch.
@@ -595,9 +609,33 @@ export function Navigator({
                 </div>
               ))}
             </div>
-          ) : tree.length === 0 ? (
-            <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
           ) : (
+            <>
+              {canSwitchSpaces && (
+                <div className="mb-md grid grid-cols-3 gap-1" aria-label={t('layout.nav.spaces.label')}>
+                  {(['wiki', 'generated', 'raw'] as const).map((candidate) => {
+                    const active = space === candidate;
+                    return (
+                      <Link
+                        key={candidate}
+                        href={getSpaceHref(candidate)}
+                        onClick={onClose}
+                        aria-current={active ? 'page' : undefined}
+                        className={`rounded-md px-2 py-1.5 text-center text-xs transition-colors ${
+                          active
+                            ? 'bg-primary text-primary-text'
+                            : 'text-muted hover:bg-surface-elevated hover:text-foreground'
+                        }`}
+                      >
+                        {t(`layout.nav.spaces.${candidate}`)}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+              {tree.length === 0 ? (
+            <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
+              ) : (
             <ul className="space-y-0.5">
               {tree.map((node) => (
                 <TreeItem
@@ -612,9 +650,12 @@ export function Navigator({
                   onLoad={loadBranch}
                   canCreate={canCreatePages}
                   addChildLabel={addChildLabel}
+                  space={space}
                 />
               ))}
             </ul>
+              )}
+            </>
           )}
         </nav>
 

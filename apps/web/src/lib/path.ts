@@ -6,8 +6,25 @@ function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
 
+export type ReaderSpace = 'wiki' | 'raw' | 'generated';
+
 export function getPageHref(path: string): string {
   return `/${encodePath(path)}`;
+}
+
+/** Canonical reader URL for a page in the selected content space. */
+export function getSpaceHref(space: ReaderSpace, path?: string): string {
+  if (space === 'wiki') return path ? getPageHref(path) : '/';
+  const root = `/spaces/${space}`;
+  return path ? `${root}/${encodePath(path)}` : root;
+}
+
+export function getSpaceNewHref(space: ReaderSpace): string {
+  return space === 'wiki' ? '/new' : `/new?space=${space}`;
+}
+
+export function getSpaceEditHref(space: ReaderSpace, path: string): string {
+  return space === 'wiki' ? getEditHref(path) : `/edit/${encodePath(path)}?space=${space}`;
 }
 
 /**

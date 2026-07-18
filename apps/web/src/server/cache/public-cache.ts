@@ -8,7 +8,7 @@ export const PUBLIC_CONTENT_CACHE_TAG = 'public-content';
 export const SITE_SHELL_CACHE_TAG = 'site-shell';
 
 export function shouldUseDataCache(): boolean {
-  return process.env.NODE_ENV !== 'test';
+  return process.env.NODE_ENV !== 'test' && process.env.NEXT_WIKI_E2E !== 'true';
 }
 
 export function invalidatePublicContentCache(): void {
