@@ -8,6 +8,7 @@ import { persistRevisionMetadata } from './page-metadata';
 import { syncRevisionAssetRefs } from './content-assets';
 import { addReplicationTasks, kickReplication } from './storage-replication';
 import { reconcilePageAcrossIndexes } from './ai-index';
+import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 type RunRow = typeof schema.translationRuns.$inferSelect;
 type ItemRow = typeof schema.translationRunItems.$inferSelect;
@@ -58,6 +59,8 @@ export async function writeTranslation(input: {
   const revisionId = randomUUID();
 
   const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     const source = await tx.query.pages.findFirst({
       where: and(eq(schema.pages.id, item.sourcePageId), isNull(schema.pages.deletedAt)),
     });

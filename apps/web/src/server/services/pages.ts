@@ -36,7 +36,8 @@ import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
-import { resolveSpace } from '@/server/services/spaces';
+import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
+import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
@@ -49,6 +50,18 @@ function getUserId(ctx: PermCtx): string | null {
 
 function actorKindOf(ctx: PermCtx): 'human' | 'machine' {
   return ctx.actor.kind === 'api_key' ? 'machine' : 'human';
+}
+
+/** 022 nature forcing: raw-space pages are original, link pages generated. */
+function deriveNature(input: {
+  spaceKind: SpaceKind;
+  kind: 'native' | 'link';
+  explicit?: 'original' | 'generated';
+  actorKind: 'human' | 'machine';
+}): 'original' | 'generated' {
+  if (input.spaceKind === 'raw') return 'original';
+  if (input.kind === 'link') return 'generated';
+  return input.explicit ?? (input.actorKind === 'machine' ? 'generated' : 'original');
 }
 
 function leafSlugFromPath(path: string): string {
@@ -843,10 +856,13 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
     throw new DomainError('FORBIDDEN', 'You do not have permission to delete this page');
   }
 
-  await db
-    .update(schema.pages)
-    .set({ deletedAt: new Date() })
-    .where(eq(schema.pages.id, page.id));
+  await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    await tx
+      .update(schema.pages)
+      .set({ deletedAt: new Date() })
+      .where(eq(schema.pages.id, page.id));
+  });
   invalidatePublicContentCache();
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
@@ -880,6 +896,8 @@ export async function create(
   const sourceMetadata = metadataFromSource(input.contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     const existing = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
@@ -901,7 +919,12 @@ export async function create(
         path: input.path,
         title: sourceMetadata.title,
         authorId: userId,
-        nature: input.nature ?? (ctx.actor.kind === 'api_key' ? 'generated' : 'original'),
+        nature: deriveNature({
+          spaceKind: space.kind,
+          kind: 'native',
+          explicit: input.nature,
+          actorKind: actorKindOf(ctx),
+        }),
       })
       .returning();
 
@@ -972,6 +995,8 @@ export async function newDraft(
     : metadataFromSource(input.contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
@@ -1077,6 +1102,8 @@ export async function updateProperties(
   }
 
   const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),

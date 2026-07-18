@@ -9,6 +9,7 @@ import { reconcilePageAcrossIndexes } from './ai-index';
 import { buildUserCtx } from '@/server/permissions';
 import { persistRevisionMetadata } from './page-metadata';
 import { resolveSpace } from '@/server/services/spaces';
+import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 export async function writeImportedPage(input: {
   actorUserId: string;
@@ -39,6 +40,8 @@ export async function writeImportedPage(input: {
   const revisionId = randomUUID();
   const { html, hash } = renderMarkdown(input.markdown);
   const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     let pageId: string;
     let versionNumber = 1;
     let restoredDeletedPage = false;

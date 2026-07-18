@@ -11,6 +11,7 @@ import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { resolveSpace } from '@/server/services/spaces';
+import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -28,6 +29,8 @@ export async function publish(
   await assertNotMigrating();
 
   const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
     const space = await resolveSpace();
     if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
