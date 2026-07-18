@@ -110,6 +110,7 @@ export async function writeTranslation(input: {
           locale: run.targetLocale,
           title: source.title,
           authorId: input.actorUserId,
+          nature: 'generated',
           translationGroupId: groupId,
           sourcePageId: source.id,
         })

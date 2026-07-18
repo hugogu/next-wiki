@@ -63,6 +63,7 @@ export async function writeImportedPage(input: {
           locale: input.locale,
           title: input.title,
           authorId: input.actorUserId,
+          nature: 'original',
         })
         .returning({ id: schema.pages.id });
       pageId = page!.id;
@@ -79,6 +80,7 @@ export async function writeImportedPage(input: {
       authorId: input.actorUserId,
       status: 'published',
       publishedAt: new Date(),
+      actorKind: 'machine',
     });
     const metadata = await persistRevisionMetadata(tx, {
       revisionId,
