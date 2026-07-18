@@ -22,6 +22,14 @@ In LLM Wiki mode the deployment exposes three content spaces:
 
 The writing mode is selected during first-run setup (before example-content generation, defaulting to Copilot) and can later be changed in admin settings. Switching from Copilot to LLM Wiki is non-destructive. Switching back requires migrating all raw and generated content into the wiki space as regular pages, and the system must clearly warn the operator before executing that migration.
 
+## Clarifications
+
+### Session 2026-07-18
+
+- Q: What is a raw entry in the domain model — a page in the raw space's page tree, or a distinct append-only record type? → A: Raw entries are pages in the raw space; append-only is enforced at the write path, and appending to an entry creates a new immutable revision while previously stored revisions remain byte-identical.
+- Q: How is "human vs machine" determined for the origin field and audit records? → A: Credential-based heuristic — session-authenticated (web UI) writes classify as human; API key, MCP, and integration-pipeline writes classify as machine/agent. A per-API-key "human-operated" override is deferred to a future phase.
+- Q: Can humans create new pages directly in the generated space? → A: Yes — the owner and Admins may create pages directly in the generated space; such pages are recorded with actor kind human and content nature original, and the origin field distinguishes them from machine-created pages.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Select Writing Mode During First-Run Setup (Priority: P1)
@@ -74,6 +82,7 @@ As the owner in LLM Wiki mode, I want AI-produced pages stored in the generated 
 3. **Given** a machine-produced generated page, **When** a human edits it, **Then** the audit record for that revision is marked as a human modification, distinguishable from machine modifications, and it remains answerable for every generated page whether it has ever been human-modified.
 4. **Given** LLM Wiki mode is active, **When** a page is created through MCP, **Then** the page lands in the generated space (not the wiki space).
 5. **Given** the generated space, **When** access is evaluated, **Then** by default only the owner can access and edit it, and Admin users can edit the generated and wiki spaces.
+6. **Given** a permitted human (owner or Admin) in LLM Wiki mode, **When** they create a page directly in the generated space, **Then** the page is stored in OKF-conformant form with its origin recorded as actor kind human and content nature original, distinguishable from machine-created pages.
 
 ---
 
@@ -156,6 +165,7 @@ As an Admin, I want to switch from Copilot to LLM Wiki without losing anything, 
 - Link page whose target is unpublished, deleted, or permission-restricted: the wiki path must stop serving the content and respond gracefully (not an error page exposing internals).
 - Multiple link pages at different wiki paths referencing the same generated target: allowed; each reflects the same current target content.
 - A human edits a machine-produced generated page, then the AI pipeline wants to regenerate it: the human-modified signal is available so regeneration flows can detect and avoid silently overwriting human work.
+- The owner edits a page through an MCP client: the revision records machine actor kind even though a human drove the client — an accepted, documented limitation of the credential-based heuristic until per-key overrides arrive in a future phase.
 - Owner or Admin attempts to edit or delete stored raw content through UI, API, or MCP: rejected in all cases; the append-only rule has no privileged exception.
 - MCP page creation in Copilot mode: lands in the wiki space exactly as today.
 - Anonymous request to a raw or generated URL in LLM Wiki mode: denied without disclosing existence.
@@ -175,12 +185,12 @@ As an Admin, I want to switch from Copilot to LLM Wiki without losing anything, 
 **Spaces in LLM Wiki mode**
 
 - **FR-004**: In `llm-wiki` mode the system MUST provide three content spaces: `raw`, `generated`, and the existing public `wiki` space.
-- **FR-005**: The `raw` space MUST be append-only: new entries MAY be created and new content MAY be appended to an existing entry, but previously stored content MUST NOT be modifiable or deletable by any actor, including owner and Admins.
+- **FR-005**: The `raw` space MUST be append-only: raw entries are pages in the raw space's page tree and follow the normal path, permission, and revision model. New entry pages MAY be created, and new content MAY be appended to an existing entry page as a new revision; any change to previously stored content — editing an entry, or deleting an entry or any of its prior revisions — MUST be rejected for every actor, including owner and Admins.
 - **FR-006**: The `raw` space MUST default to owner-only readability; authorized sources (channel integrations, the AI pipeline, the owner, and API/MCP clients with write scope) MUST be able to append entries.
 - **FR-007**: Each raw entry MUST record an input kind (chat transcript, external page original, script run output, or manual note) and available source metadata (origin channel, source URL, session reference, timestamps).
 - **FR-008**: Pages in the `generated` space MUST be stored as OKF-conformant concept documents (Markdown with parseable YAML frontmatter containing at least a non-empty `type` field), and the space MUST be exportable as a conformant OKF knowledge bundle.
-- **FR-009**: The `generated` space MUST default to owner-only access and editing; Admin users MUST be able to edit the `generated` and `wiki` spaces.
-- **FR-010**: Audit records MUST distinguish human modifications from machine (AI/agent) modifications on every revision, such that for every generated-space page it is answerable whether a human has ever manually modified it.
+- **FR-009**: The `generated` space MUST default to owner-only access and editing; Admin users MUST be able to edit the `generated` and `wiki` spaces. Actors with edit access to the `generated` space — including the owner and Admins via the web UI — MAY create pages directly in it; human-created pages there are recorded with actor kind human and content nature original.
+- **FR-010**: Audit records MUST distinguish human modifications from machine (AI/agent) modifications on every revision, such that for every generated-space page it is answerable whether a human has ever manually modified it. Actor kind is determined by credential type: session-authenticated (web UI) writes count as human; API key, MCP, and internal-pipeline writes count as machine/agent.
 
 **Wiki space and link pages**
 
@@ -196,7 +206,7 @@ As an Admin, I want to switch from Copilot to LLM Wiki without losing anything, 
 
 **API and MCP**
 
-- **FR-017**: The public REST API and MCP MUST expose, on every page and revision in every space, an origin field capturing actor kind (human versus machine/agent) and content nature (original versus AI-generated).
+- **FR-017**: The public REST API and MCP MUST expose, on every page and revision in every space, an origin field capturing actor kind (human versus machine/agent, derived from the credential type of the write) and content nature (original versus AI-generated).
 - **FR-018**: In `llm-wiki` mode, pages created via MCP MUST be created in the `generated` space; in `copilot` mode, MCP-created pages MUST continue to land in the `wiki` space.
 - **FR-019**: MCP MUST provide tools to list, filter, search, and read `raw` and `generated` content — including filtering generated pages by OKF frontmatter fields (`type`, `tags`) and raw entries by input kind and time range — always subject to the caller's permissions.
 - **FR-020**: API and MCP MUST accept appends of new raw entries from authorized callers and MUST reject any request to modify or delete existing raw content.
@@ -217,10 +227,10 @@ As an Admin, I want to switch from Copilot to LLM Wiki without losing anything, 
 
 - **Writing Mode**: Instance-level setting (`copilot` | `llm-wiki`); default `copilot`; chosen in onboarding, changeable in admin settings; governs which spaces exist and where agent-created content lands.
 - **Space**: A content partition with its own page tree and permission defaults. LLM Wiki mode comprises `raw` (append-only, owner-only), `generated` (OKF, owner-only by default), and `wiki` (public-facing).
-- **Raw Entry**: An immutable stored input in the raw space with input kind and source metadata; append-only growth; the evidential basis for generated pages.
-- **Generated Page**: An AI-produced page in the generated space stored as an OKF concept document (frontmatter `type` required); carries origin metadata and a derivable human-modified status.
+- **Raw Entry**: A page in the raw space's page tree holding an original input, with input kind and source metadata; growth is append-only (new entries, or new appended revisions on an existing entry) and stored revisions can never be edited or deleted; the evidential basis for generated pages.
+- **Generated Page**: A page in the generated space stored as an OKF concept document (frontmatter `type` required), created by machine writers or directly by permitted humans; carries origin metadata that distinguishes machine-generated from human-created pages, plus a derivable human-modified status.
 - **Link Page**: A wiki-space page that references a generated-space target instead of holding content; publishes the target's current content at its own path.
-- **Content Origin**: Per page/revision provenance: actor kind (human | machine) and content nature (original | generated); exposed through API, MCP, and audit views.
+- **Content Origin**: Per page/revision provenance: actor kind (human | machine, inferred from the credential type of the write — session-authenticated = human; API key, MCP, or pipeline = machine) and content nature (original | generated); exposed through API, MCP, and audit views.
 - **Audit Record**: The mutation trail for every revision, explicitly distinguishing human actors from machine actors.
 
 ## Success Criteria *(mandatory)*
@@ -249,3 +259,4 @@ As an Admin, I want to switch from Copilot to LLM Wiki without losing anything, 
 - Re-entering LLM Wiki mode after a switch-back starts with empty raw/generated spaces; previously migrated content remains as native wiki pages and is not moved back.
 - On switch-back, link pages are resolved into native pages holding the target's then-current content, ending the link relationship; migrated pages carry the per-space visibility (public or owner-only) chosen by the Admin in the confirmation step.
 - In Copilot mode the origin field is still recorded and exposed, even though the raw/generated structure is absent.
+- A per-API-key override designating a key as "human-operated" is deferred to a future phase; until then every API key and MCP write classifies as machine/agent.
