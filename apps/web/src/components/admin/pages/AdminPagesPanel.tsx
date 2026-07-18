@@ -10,11 +10,12 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { ArrowDownIcon, EditIcon, HistoryIcon, SearchIcon, SettingsIcon, XIcon } from '@/components/icons';
-import { getEditHref, getHistoryHref, getPageHref, getPropertiesHref } from '@/lib/path';
+import { ArrowDownIcon, EditIcon, HistoryIcon, SearchIcon, XIcon } from '@/components/icons';
+import { getEditHref, getHistoryHref, getPageHref } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
+import { PagePropertiesButton } from './PagePropertiesButton';
 
 type QueryMap = Record<string, string | undefined>;
 
@@ -225,9 +226,7 @@ export function AdminPagesPanel({
                     <IconLink href={getHistoryHref(page.path)} label={t('admin.pages.actions.history')}>
                       <HistoryIcon />
                     </IconLink>
-                    <IconLink href={getPropertiesHref(page.path)} label={t('admin.pages.actions.properties')}>
-                      <SettingsIcon />
-                    </IconLink>
+                    <PagePropertiesButton pageId={page.id} initialTitle={page.title} initialPath={page.path} />
                     <DeletePageButton pageId={page.id} title={page.title} />
                   </div>
                 </DataTableCell>

@@ -300,14 +300,6 @@
       }
     },
     "properties": {
-      "metadataTitle": "Properties: {path}",
-      "heading": "Page properties",
-      "description": "Configure the URL path and other settings for this page.",
-      "fields": {
-        "pathLabel": "URL path",
-        "pathPlaceholder": "path/to/page",
-        "pathHint": "Use slashes to create directories, e.g. {example}."
-      },
       "button": {
         "submitting": "Saving...",
         "submit": "Save properties"

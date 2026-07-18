@@ -96,10 +96,6 @@ export function getRevisionDiffHref(path: string, first: number, second: number,
   return `/revisions/${earlier}..${later}/${encodePath(path)}${query ? `?${query}` : ''}`;
 }
 
-export function getPropertiesHref(path: string): string {
-  return `/properties/${encodePath(path)}`;
-}
-
 export function getPublicApiPageUrl(id: string): string {
   return `/api/v1/pages/${encodeURIComponent(id)}`;
 }
