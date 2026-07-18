@@ -1,4 +1,4 @@
-import type { PgBoss } from 'pg-boss';
+import type { JobWithMetadata, PgBoss } from 'pg-boss';
 import { QUEUES, QUEUE_EXPIRE_SECONDS } from './runtime';
 import { runMigration } from './content-migration';
 import { runStorageCleanup } from './storage-cleanup';
@@ -33,6 +33,12 @@ import { findRecoverableTranslationRunIds } from '@/server/services/translations
 import { runPublicPageWarmup } from './public-page-warmup';
 import { runFeishuDeliveries, recoverStaleFeishuDeliveries } from './feishu-deliveries';
 import { runFeishuCleanup } from './feishu-cleanup';
+import {
+  clearWritingModeSwitchAfterTerminalFailure,
+  recoverWritingModeSwitch,
+  runWritingModeSwitch,
+  type WritingModeSwitchJobData,
+} from './writing-mode-switch';
 
 type JobBatch = { data: unknown }[];
 
@@ -139,6 +145,25 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.feishuCleanup, async () => {
     await runFeishuCleanup();
   });
+  await boss.work<WritingModeSwitchJobData>(
+    QUEUES.writingModeSwitch,
+    { includeMetadata: true },
+    async (jobs: JobWithMetadata<WritingModeSwitchJobData>[]) => {
+      const job = jobs[0];
+      if (!job) return undefined;
+      try {
+        return await runWritingModeSwitch(job.id, job.data);
+      } catch (error) {
+        // pg-boss invokes this handler once per retry. Clearing only on the
+        // final attempt leaves the write barrier in place while retries can
+        // still complete atomically.
+        if (job.retryCount >= job.retryLimit) {
+          await clearWritingModeSwitchAfterTerminalFailure(job.id);
+        }
+        throw error;
+      }
+    },
+  );
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
   await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});
@@ -191,6 +216,7 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     await boss.send(QUEUES.translation, { runId });
     logger.info('re-enqueued interrupted translation run', { runId });
   }
+  await recoverWritingModeSwitch(boss);
   // Recover Feishu deliveries left claimed by a worker that died mid-send, then
   // kick a delivery tick if any are due (FR-021/SC-005 restart recovery).
   const recoveredFeishu = await recoverStaleFeishuDeliveries();

@@ -1,8 +1,10 @@
-import { eq, sql } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { and, eq, sql } from 'drizzle-orm';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
+import { enqueue, getBoss, QUEUES } from '@/server/jobs/runtime';
 import type { PermCtx } from '@/server/permissions';
 import { shouldUseDataCache } from '@/server/cache/public-cache';
 import type { SpaceKind } from '@/server/services/spaces';
@@ -12,6 +14,11 @@ export const WRITING_MODE_CACHE_TAG = 'writing-mode';
 const SETTINGS_ID = 'default';
 
 export type WritingMode = typeof schema.writingModeSettings.$inferSelect.mode;
+export type WritingModeVisibility = 'public' | 'restricted';
+export type WritingModeSwitchOptions = {
+  rawVisibility: WritingModeVisibility;
+  generatedVisibility: WritingModeVisibility;
+};
 
 type SettingsRow = typeof schema.writingModeSettings.$inferSelect;
 type ContentTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -60,7 +67,14 @@ export async function setModeInternal(mode: WritingMode, userId: string | null):
     .values({ id: SETTINGS_ID, mode, updatedBy: userId, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: schema.writingModeSettings.id,
-      set: { mode, updatedBy: userId, updatedAt: new Date() },
+      set: {
+        mode,
+        pendingMode: null,
+        switchJobId: null,
+        switchOptions: null,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      },
     });
   invalidateWritingModeCache();
   return mode;
@@ -79,6 +93,17 @@ export type WritingModeSwitchState = {
   switchJobId: string | null;
 };
 
+export type SwitchModeResult =
+  | { status: 'unchanged'; mode: WritingMode }
+  | { status: 'updated'; mode: WritingMode }
+  | { status: 'pending'; jobId: string };
+
+export type WritingModeSwitchJobView = {
+  jobId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  report: Record<string, unknown> | null;
+};
+
 export async function getSwitchState(): Promise<WritingModeSwitchState> {
   const row = await readOrSeedSettings();
   return {
@@ -93,6 +118,7 @@ export async function beginPendingSwitch(
   mode: WritingMode,
   jobId: string,
   userId: string | null,
+  options: WritingModeSwitchOptions | null = null,
 ): Promise<void> {
   await db
     .insert(schema.writingModeSettings)
@@ -100,12 +126,19 @@ export async function beginPendingSwitch(
       id: SETTINGS_ID,
       pendingMode: mode,
       switchJobId: jobId,
+      switchOptions: options,
       updatedBy: userId,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: schema.writingModeSettings.id,
-      set: { pendingMode: mode, switchJobId: jobId, updatedBy: userId, updatedAt: new Date() },
+      set: {
+        pendingMode: mode,
+        switchJobId: jobId,
+        switchOptions: options,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      },
     });
   invalidateWritingModeCache();
 }
@@ -113,9 +146,136 @@ export async function beginPendingSwitch(
 export async function clearPendingSwitch(userId: string | null): Promise<void> {
   await db
     .update(schema.writingModeSettings)
-    .set({ pendingMode: null, switchJobId: null, updatedBy: userId, updatedAt: new Date() })
+    .set({ pendingMode: null, switchJobId: null, switchOptions: null, updatedBy: userId, updatedAt: new Date() })
     .where(eq(schema.writingModeSettings.id, SETTINGS_ID));
   invalidateWritingModeCache();
+}
+
+/** Clears only the pending transition owned by this job. This prevents a stale
+ * enqueue or worker failure from undoing a newer accepted switch. */
+export async function clearPendingSwitchIfMatches(jobId: string, userId: string | null): Promise<void> {
+  await db
+    .update(schema.writingModeSettings)
+    .set({ pendingMode: null, switchJobId: null, switchOptions: null, updatedBy: userId, updatedAt: new Date() })
+    .where(and(eq(schema.writingModeSettings.id, SETTINGS_ID), eq(schema.writingModeSettings.switchJobId, jobId)));
+  invalidateWritingModeCache();
+}
+
+function requireAdmin(ctx: PermCtx): string {
+  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to change the writing mode');
+  }
+  return ctx.actor.userId;
+}
+
+function validSwitchOptions(value: WritingModeSwitchOptions | undefined): value is WritingModeSwitchOptions {
+  return value?.rawVisibility !== undefined && value.generatedVisibility !== undefined;
+}
+
+/**
+ * Changes the instance writing mode. The forward transition has no data work;
+ * switching back records a durable pending marker before queueing the migration.
+ */
+export async function switchMode(
+  ctx: PermCtx,
+  target: WritingMode,
+  options?: WritingModeSwitchOptions,
+): Promise<SwitchModeResult> {
+  const userId = requireAdmin(ctx);
+  await readOrSeedSettings();
+
+  const jobId = randomUUID();
+  const decision = await db.transaction(async (tx) => {
+    await tx.execute(sql`select id from writing_mode_settings where id = ${SETTINGS_ID} for update`);
+    const settings = await tx.query.writingModeSettings.findFirst({
+      where: eq(schema.writingModeSettings.id, SETTINGS_ID),
+    });
+    if (!settings) throw new Error('Writing mode settings are unavailable');
+
+    if (settings.pendingMode) {
+      if (settings.pendingMode === target && settings.switchJobId) {
+        return { kind: 'existing' as const, jobId: settings.switchJobId };
+      }
+      throw new DomainError('MODE_SWITCH_IN_PROGRESS', 'A writing-mode switch is already in progress');
+    }
+
+    if (settings.mode === target) return { kind: 'unchanged' as const, mode: target };
+
+    if (settings.mode === 'copilot' && target === 'llm-wiki') {
+      await tx
+        .update(schema.writingModeSettings)
+        .set({ mode: target, updatedBy: userId, updatedAt: new Date() })
+        .where(eq(schema.writingModeSettings.id, SETTINGS_ID));
+      return { kind: 'updated' as const, mode: target };
+    }
+
+    if (settings.mode !== 'llm-wiki' || target !== 'copilot' || !validSwitchOptions(options)) {
+      throw new DomainError(
+        'MODE_SWITCH_INVALID',
+        'Switching from LLM Wiki to Copilot requires raw and generated visibility choices',
+      );
+    }
+
+    await tx
+      .update(schema.writingModeSettings)
+      .set({
+        pendingMode: target,
+        switchJobId: jobId,
+        switchOptions: options,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.writingModeSettings.id, SETTINGS_ID));
+    return { kind: 'created' as const, jobId };
+  });
+
+  if (decision.kind === 'unchanged') return { status: 'unchanged', mode: decision.mode };
+  if (decision.kind === 'updated') {
+    invalidateWritingModeCache();
+    return { status: 'updated', mode: decision.mode };
+  }
+  if (decision.kind === 'existing') return { status: 'pending', jobId: decision.jobId };
+
+  try {
+    const queued = await enqueue(
+      QUEUES.writingModeSwitch,
+      { rawVisibility: options!.rawVisibility, generatedVisibility: options!.generatedVisibility },
+      { id: decision.jobId },
+    );
+    if (!queued) throw new Error('The writing-mode switch queue is unavailable');
+  } catch (error) {
+    await clearPendingSwitchIfMatches(decision.jobId, userId);
+    throw new DomainError(
+      'JOB_QUEUE_UNAVAILABLE',
+      error instanceof Error ? error.message : 'The writing-mode switch queue is unavailable',
+    );
+  }
+
+  return { status: 'pending', jobId: decision.jobId };
+}
+
+/** Returns the retained pg-boss output for the admin switch-progress surface. */
+export async function getWritingModeSwitchJob(
+  ctx: PermCtx,
+  jobId: string,
+): Promise<WritingModeSwitchJobView | null> {
+  requireAdmin(ctx);
+  const boss = getBoss();
+  if (!boss) return { jobId, status: 'pending', report: null };
+  const job = await boss.getJobById(QUEUES.writingModeSwitch, jobId);
+  if (!job) return null;
+  const status = job.state === 'active'
+    ? 'running'
+    : job.state === 'completed'
+      ? 'completed'
+      : job.state === 'failed' || job.state === 'cancelled'
+        ? 'failed'
+        : 'pending';
+  return {
+    jobId,
+    status,
+    report: job.output && typeof job.output === 'object' ? job.output as Record<string, unknown> : null,
+  };
 }
 
 /**

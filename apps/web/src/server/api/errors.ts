@@ -106,6 +106,17 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 422);
     case 'JOB_QUEUE_UNAVAILABLE':
       return apiError(code, message, 503);
+    case 'SPACE_UNAVAILABLE':
+    case 'SPACE_FORBIDDEN':
+    case 'RAW_SPACE_IMMUTABLE':
+      return apiError(code, message, 403);
+    case 'MODE_SWITCH_IN_PROGRESS':
+      return apiError(code, message, 409);
+    case 'MODE_SWITCH_INVALID':
+    case 'OKF_TYPE_REQUIRED':
+    case 'OKF_RESERVED_PATH':
+    case 'LINK_TARGET_INVALID':
+      return apiError(code, message, 422);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

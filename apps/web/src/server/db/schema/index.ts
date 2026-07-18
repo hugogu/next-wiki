@@ -265,6 +265,12 @@ export const writingModeSettings = pgTable(
     // flips to null together when the switch completes (paired-null CHECK).
     pendingMode: writingModeEnum('pending_mode'),
     switchJobId: uuid('switch_job_id'),
+    // Inputs required to resume an accepted switch after a process dies between
+    // recording the pending state and enqueueing its pg-boss job.
+    switchOptions: jsonb('switch_options').$type<{
+      rawVisibility: 'public' | 'restricted';
+      generatedVisibility: 'public' | 'restricted';
+    } | null>(),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -1414,6 +1414,31 @@
       "modeDescriptions": {
         "copilot": "人工和 AI 内容在同一个维基空间中协作。",
         "llmWiki": "原始输入和生成知识保存在仅管理员可见的独立空间中。"
+      },
+      "changeLabel": "切换写作模式",
+      "switchToCopilot": "切换到 Copilot",
+      "switchToLlmWiki": "切换到 LLM Wiki",
+      "switching": "正在切换...",
+      "pending": "写作模式正在切换，内容修改已暂时暂停。",
+      "retry": "重试切换",
+      "visibility": {
+        "public": "公开",
+        "restricted": "仅管理员"
+      },
+      "dialog": {
+        "title": "切换到 Copilot",
+        "description": "将 LLM Wiki 内容迁移到默认知识库空间。",
+        "warning": "原始内容和生成内容会原地迁移，迁移完成前将暂停内容修改。",
+        "rawVisibility": "迁移后原始内容的可见性",
+        "generatedVisibility": "迁移后生成内容的可见性",
+        "confirm": "开始迁移"
+      },
+      "job": {
+        "pending": "正在等待迁移任务执行。",
+        "running": "正在迁移页面并实体化链接。",
+        "completed": "迁移已完成。",
+        "failed": "迁移失败，未提交任何页面迁移。",
+        "conflicts": "已重命名的目标路径"
       }
     }
   },

@@ -4,6 +4,7 @@ import { Layout } from '@/components/ui/Layout';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { getCurrentActor } from '@/server/services/auth';
 import { getSwitchState } from '@/server/services/writing-mode';
+import { WritingModeControls } from '@/components/admin/writing-mode/WritingModeControls';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,7 @@ export default async function AdminWritingModePage() {
           <p className="mt-xs text-base font-medium">{modeLabel}</p>
           <p className="mt-xs text-sm text-muted">{modeDescription}</p>
         </section>
+        <WritingModeControls initial={state} />
       </div>
     </Layout>
   );

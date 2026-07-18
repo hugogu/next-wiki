@@ -1414,6 +1414,31 @@
       "modeDescriptions": {
         "copilot": "People and AI collaborate in the same wiki space.",
         "llmWiki": "Original inputs and generated knowledge are kept in separate Admin-only spaces."
+      },
+      "changeLabel": "Change writing mode",
+      "switchToCopilot": "Switch to Copilot",
+      "switchToLlmWiki": "Switch to LLM Wiki",
+      "switching": "Switching...",
+      "pending": "A mode switch is running. Content changes are temporarily paused.",
+      "retry": "Retry switch",
+      "visibility": {
+        "public": "Public",
+        "restricted": "Admin-only"
+      },
+      "dialog": {
+        "title": "Switch to Copilot",
+        "description": "Move LLM Wiki content into the default wiki space.",
+        "warning": "Raw and generated pages will be moved in place. Content writes pause until this migration completes.",
+        "rawVisibility": "Raw content visibility after migration",
+        "generatedVisibility": "Generated content visibility after migration",
+        "confirm": "Start migration"
+      },
+      "job": {
+        "pending": "Waiting for the migration worker.",
+        "running": "Migrating pages and materializing links.",
+        "completed": "Migration completed.",
+        "failed": "Migration failed. No page moves were committed.",
+        "conflicts": "Renamed destination paths"
       }
     }
   },

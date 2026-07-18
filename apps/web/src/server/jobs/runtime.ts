@@ -29,6 +29,7 @@ export const QUEUES = {
   // periodic cleanup. Inert unless the integration is configured.
   feishuDelivery: 'feishu-delivery',
   feishuCleanup: 'feishu-cleanup',
+  writingModeSwitch: 'writing-mode-switch',
 } as const;
 
 /**
@@ -48,6 +49,7 @@ export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
   [QUEUES.migration]: 4 * 60 * 60,
   [QUEUES.gitExport]: 60 * 60,
   [QUEUES.translation]: 4 * 60 * 60,
+  [QUEUES.writingModeSwitch]: 4 * 60 * 60,
 };
 
 /**
