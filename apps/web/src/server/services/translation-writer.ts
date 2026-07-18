@@ -126,6 +126,7 @@ export async function writeTranslation(input: {
       authorId: input.actorUserId,
       status: 'published',
       publishedAt: new Date(),
+      actorKind: 'machine',
     });
     const metadata = await persistRevisionMetadata(tx, {
       revisionId,

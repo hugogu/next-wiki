@@ -47,6 +47,10 @@ function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
 }
 
+function actorKindOf(ctx: PermCtx): 'human' | 'machine' {
+  return ctx.actor.kind === 'api_key' ? 'machine' : 'human';
+}
+
 function leafSlugFromPath(path: string): string {
   return path.split('/').pop() ?? path;
 }
@@ -850,7 +854,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
 
 export async function create(
   ctx: PermCtx,
-  input: { path: string; title: string; contentSource: string },
+  input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated' },
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -897,6 +901,7 @@ export async function create(
         path: input.path,
         title: sourceMetadata.title,
         authorId: userId,
+        nature: input.nature ?? (ctx.actor.kind === 'api_key' ? 'generated' : 'original'),
       })
       .returning();
 
@@ -914,6 +919,7 @@ export async function create(
         contentHash: hash,
         authorId: userId,
         status: 'draft',
+        actorKind: actorKindOf(ctx),
       })
       .returning();
 
@@ -1013,6 +1019,7 @@ export async function newDraft(
         contentHash: hash,
         authorId: userId,
         status: 'draft',
+        actorKind: actorKindOf(ctx),
       })
       .returning();
 

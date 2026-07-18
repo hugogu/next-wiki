@@ -24,7 +24,7 @@ export const setupSamplePagesStatusSchema = z.enum([
 ]);
 export type SetupSamplePagesStatus = z.infer<typeof setupSamplePagesStatusSchema>;
 
-export const setupStepSchema = z.enum(['account', 'ai', 'sample_pages', 'summary', 'closed']);
+export const setupStepSchema = z.enum(['account', 'ai', 'writing_mode', 'sample_pages', 'summary', 'closed']);
 export type SetupStep = z.infer<typeof setupStepSchema>;
 
 export const setupPurposeResultStatusSchema = z.enum([

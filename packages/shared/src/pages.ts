@@ -72,6 +72,8 @@ export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 
 export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
+  // 022: optional until provenance projection lands for every revision route.
+  origin: z.object({ actorKind: z.enum(['human', 'machine']) }).optional(),
   frontmatter: z.record(z.unknown()).nullable(),
   metadata: z.object({
     date: z.string().nullable(),
@@ -102,6 +104,20 @@ export const publicPageResourceSchema = z.object({
   path: pathSchema,
   locale: z.string(),
   title: z.string(),
+  // 022: optional until the raw/generated/link resource assembly lands.
+  kind: z.enum(['native', 'link']).optional(),
+  linkTarget: z
+    .object({ pageId: z.string().uuid(), path: z.string(), title: z.string() })
+    .nullable()
+    .optional(),
+  origin: z
+    .object({
+      actorKind: z.enum(['human', 'machine']),
+      nature: z.enum(['original', 'generated']),
+    })
+    .optional(),
+  humanModified: z.boolean().optional(),
+  visibility: z.enum(['public', 'restricted']).optional(),
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
   metadata: z.object({
@@ -175,6 +191,9 @@ export const publicPageListQuerySchema = z.object({
   q: z.string().min(1).max(200).optional(),
   path: pathSchema.optional(),
   pathPrefix: pathSchema.optional(),
+  // 022: space slug + frontmatter `type` filter for multi-space listings.
+  space: z.string().optional(),
+  filterType: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
@@ -406,6 +425,9 @@ export type HybridPageSearchResponse = z.infer<typeof hybridPageSearchResponseSc
 export const publicPageTreeQuerySchema = z.object({
   status: z.enum(['published', 'draft', 'all']).default('published'),
   pathPrefix: pathSchema.optional(),
+  // 022: space slug + frontmatter `type` filter for multi-space trees.
+  space: z.string().optional(),
+  filterType: z.string().optional(),
 });
 export type PublicPageTreeQuery = z.infer<typeof publicPageTreeQuerySchema>;
 
