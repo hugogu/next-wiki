@@ -24,6 +24,13 @@ const INDEX_EMBED_BACKOFF_MS = [1_000, 4_000, 16_000];
 // completed but generation stuck at `building`).
 const STALE_RUNNING_THRESHOLD_MS = 5 * 60 * 1000;
 
+// Refresh the generation's denormalized progress counters every N pages during
+// a build. Without this the counters (which the admin UI renders) only update
+// once the whole run finishes, so a long rebuild shows 0/N the entire time and
+// looks stuck. refreshIndexCounters is a no-op for activation while pages remain
+// pending, so calling it mid-run only advances the counters.
+const PROGRESS_REFRESH_INTERVAL = 10;
+
 function isRetryableEmbedError(error: unknown): boolean {
   if (error instanceof AiProviderError) return error.retryable;
   // Network-level fetch failures (ECONNRESET, undici ConnectTimeoutError, etc.)
@@ -92,6 +99,7 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
   // Embeddings only bill input (prompt) tokens; accumulate across every page so
   // the run reports its real token usage instead of leaving the Usage panel at 0.
   let totalInputTokens = 0;
+  let processed = 0;
   for (const state of states) {
     // Cheap PK lookup per page — lets an admin cancel a long rebuild without
     // waiting for it to exhaust all 1396 pages.
@@ -99,6 +107,12 @@ export async function runIndexRebuildAction(actionId: string): Promise<void> {
       cancelled = true;
       break;
     }
+    // Publish incremental progress so the UI's counter moves during the build
+    // instead of sitting at 0 until the final refresh below.
+    if (processed > 0 && processed % PROGRESS_REFRESH_INTERVAL === 0) {
+      await refreshIndexCounters(generation.id);
+    }
+    processed += 1;
     await db.update(schema.aiPageIndexStates).set({ status: 'running', attempts: state.attempts + 1, updatedAt: new Date() }).where(and(eq(schema.aiPageIndexStates.generationId, generation.id), eq(schema.aiPageIndexStates.pageId, state.pageId)));
     try {
       if (!state.targetRevisionId) {

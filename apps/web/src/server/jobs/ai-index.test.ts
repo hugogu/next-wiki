@@ -131,6 +131,44 @@ describe('index rebuild worker', () => {
     expect((action?.usageMetadata as { inputTokens?: number }).inputTokens).toBe(42);
   });
 
+  it('publishes incremental progress counters during a long build, not only at the end', async () => {
+    // Add enough pages to cross the mid-run counter-refresh interval (10).
+    const extraPageIds: string[] = [];
+    for (let i = 0; i < 24; i += 1) {
+      const pid = randomUUID();
+      const rid = randomUUID();
+      extraPageIds.push(pid);
+      await db.insert(schema.pages).values({ id: pid, spaceId, slug: `p-${i}`, path: `p-${i}`, title: `P${i}`, authorId: userId, currentPublishedVersionId: rid, latestVersionId: rid });
+      await db.insert(schema.pageRevisions).values({ id: rid, pageId: pid, versionNumber: 1, contentSource: '# H\n\nBody.', contentHtml: '<p>Body.</p>', contentHash: `h-${i}`, authorId: userId, status: 'published', publishedAt: new Date() });
+      await db.insert(schema.aiPageIndexStates).values({ generationId, pageId: pid, targetRevisionId: rid, targetContentHash: `h-${i}`, status: 'pending' });
+    }
+
+    // Snapshot the generation's persisted completed-page counter on every embed
+    // call, i.e. while the run is still in flight.
+    const snapshots: number[] = [];
+    embed.mockImplementation(async () => {
+      const gen = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) });
+      snapshots.push(gen?.completedPages ?? 0);
+      return { vectors: [[0.1, 0.2, 0.3]], usage: { inputTokens: 1 } };
+    });
+
+    await runIndexRebuildAction(actionId);
+
+    // The counter advanced mid-run (before the final refresh), so the UI shows a
+    // moving bar instead of 0/N until completion.
+    expect(Math.max(...snapshots)).toBeGreaterThan(0);
+    expect(Math.min(...snapshots)).toBe(0); // the earliest pages saw a fresh 0
+    const gen = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.id, generationId) });
+    expect(gen?.completedPages).toBe(25);
+
+    for (const pid of extraPageIds) {
+      await db.delete(schema.aiKnowledgeChunks).where(eq(schema.aiKnowledgeChunks.pageId, pid));
+      await db.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, pid));
+      await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, pid));
+      await db.delete(schema.pages).where(eq(schema.pages.id, pid));
+    }
+  });
+
   it('marks the page failed when an error is not retryable', async () => {
     embed.mockRejectedValue(
       new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found', false),
