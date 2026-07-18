@@ -52,6 +52,10 @@ Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
   federated auth, and Markdown + frontmatter export — no proprietary lock-in
   in the critical path.
 
+## Architecture
+
+![Knowledge base home](docs/imgs/architecture.png)
+
 ## Quick start
 
 Prerequisites: [Docker](https://www.docker.com/) and Docker Compose.
