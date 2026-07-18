@@ -19,19 +19,31 @@ export function ModalDialog({
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Hold the latest onClose so the mount-only effect below never has to list it
+  // as a dependency. Re-running that effect on every render (which happens when
+  // the parent passes an inline onClose) would re-focus the dialog on every
+  // keystroke, stealing focus from the field the user is typing in.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    panelRef.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+    // Prefer the first form field. The close button is first in DOM order, so
+    // querying for buttons too would land initial focus on it instead of the
+    // input the user actually wants to fill in.
+    const field = panelRef.current?.querySelector<HTMLElement>('input, select, textarea');
+    (field ?? panelRef.current?.querySelector<HTMLElement>('button'))?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       previous?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div
