@@ -19,7 +19,7 @@ function getUserId(ctx: PermCtx): string | null {
 
 export async function publish(
   ctx: PermCtx,
-  input: { path: string; version: number; expectedRevisionId?: string },
+  input: { path: string; version: number; expectedRevisionId?: string; space?: string },
 ): Promise<{ versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -28,7 +28,7 @@ export async function publish(
 
   await assertNotMigrating();
 
-  const space = await resolveSpace();
+  const space = await resolveSpace(input.space);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   const result = await db.transaction(async (tx) => {
@@ -42,6 +42,7 @@ export async function publish(
       ),
     });
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries are published automatically');
 
     const revision = await tx.query.pageRevisions.findFirst({
       where: and(

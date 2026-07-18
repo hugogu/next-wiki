@@ -10,6 +10,7 @@ const publicContent = vi.hoisted(() => ({
   listRevisions: vi.fn(),
   getRevision: vi.fn(),
   publishRevision: vi.fn(),
+  deletePage: vi.fn(),
 }));
 
 vi.mock('@/server/api/audit-wrapper', () => ({
@@ -46,6 +47,32 @@ describe('Public Wiki write routes', () => {
     expect(publicContent.createPage).toHaveBeenCalledWith(expect.anything(), { path: 'docs/new', title: 'New', contentSource: '# New' }, []);
   });
 
+  it('accepts raw page creation fields and maps raw-space errors', async () => {
+    const input = {
+      path: 'raw/transcript',
+      title: 'Transcript',
+      contentSource: 'Hello from the chat.',
+      space: 'raw',
+      inputKind: 'chat-transcript',
+      source: { channel: 'support', sessionId: 'session-1' },
+    };
+    publicContent.createPage.mockResolvedValueOnce({ id: randomUUID() });
+    const created = await pagesRoute.POST(
+      request('POST', 'http://localhost/api/v1/pages', input),
+      { params: Promise.resolve({}) },
+    );
+    expect(created.status).toBe(201);
+    expect(publicContent.createPage).toHaveBeenCalledWith(expect.anything(), input, []);
+
+    publicContent.createPage.mockRejectedValueOnce(new DomainError('SPACE_UNAVAILABLE', 'raw unavailable'));
+    const unavailable = await pagesRoute.POST(
+      request('POST', 'http://localhost/api/v1/pages', input),
+      { params: Promise.resolve({}) },
+    );
+    expect(unavailable.status).toBe(403);
+    await expect(unavailable.json()).resolves.toMatchObject({ code: 'SPACE_UNAVAILABLE' });
+  });
+
   it('drafts and properties routes surface stale conflicts as 409', async () => {
     const id = randomUUID();
     publicContent.createDraft.mockRejectedValueOnce(new DomainError('STALE_REVISION', 'stale'));
@@ -61,6 +88,38 @@ describe('Public Wiki write routes', () => {
       { params: Promise.resolve({ id }) },
     );
     expect(properties.status).toBe(409);
+  });
+
+  it('maps raw immutability from draft, property, delete, and publication routes', async () => {
+    const id = randomUUID();
+    publicContent.createDraft.mockRejectedValueOnce(new DomainError('RAW_SPACE_IMMUTABLE', 'raw entry'));
+    const draft = await draftsRoute.POST(
+      request('POST', `http://localhost/api/v1/pages/${id}/drafts`, { title: 'T', contentSource: 'c' }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    publicContent.updateProperties.mockRejectedValueOnce(new DomainError('RAW_SPACE_IMMUTABLE', 'raw entry'));
+    const properties = await idRoute.PATCH(
+      request('PATCH', `http://localhost/api/v1/pages/${id}`, { title: 'T' }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    publicContent.deletePage.mockRejectedValueOnce(new DomainError('RAW_SPACE_IMMUTABLE', 'raw entry'));
+    const deleted = await idRoute.DELETE(
+      request('DELETE', `http://localhost/api/v1/pages/${id}`),
+      { params: Promise.resolve({ id }) },
+    );
+
+    publicContent.publishRevision.mockRejectedValueOnce(new DomainError('RAW_SPACE_IMMUTABLE', 'raw entry'));
+    const publication = await publicationRoute.POST(
+      request('POST', `http://localhost/api/v1/pages/${id}/revisions/1/publication`, {}),
+      { params: Promise.resolve({ id, version: '1' }) },
+    );
+
+    for (const response of [draft, properties, deleted, publication]) {
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+    }
   });
 
   it('accepts a database-only metadata override when creating a draft', async () => {

@@ -870,13 +870,13 @@ export async function canCreate(ctx: PermCtx): Promise<boolean> {
   return can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space));
 }
 
-export async function remove(ctx: PermCtx, path: string): Promise<void> {
+export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Promise<void> {
   const userId = getUserId(ctx);
   if (!userId) {
     throw new DomainError('UNAUTHORIZED', 'Sign in to delete pages');
   }
 
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   const page = await db.query.pages.findFirst({
@@ -891,6 +891,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
   });
 
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be deleted');
 
   const isAuthor = page.authorId === userId;
   if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
@@ -912,13 +913,14 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
 export async function create(
   ctx: PermCtx,
   input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated' },
+  spaceSlug?: string,
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
     throw new DomainError('UNAUTHORIZED', 'Sign in to create pages');
   }
 
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   if (!can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space))) {
@@ -1020,13 +1022,14 @@ export async function newDraft(
     baseContentHash?: string;
     metadata?: { date: string | null; summary: string | null; tags: string[] };
   },
+  spaceSlug?: string,
 ): Promise<{ versionId: string; versionNumber: number }> {
   const userId = getUserId(ctx);
   if (!userId) {
     throw new DomainError('UNAUTHORIZED', 'Sign in to edit pages');
   }
 
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   await assertNotMigrating();
@@ -1047,6 +1050,7 @@ export async function newDraft(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be edited');
 
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
@@ -1121,13 +1125,14 @@ export async function updateProperties(
   ctx: PermCtx,
   currentPath: string,
   input: { path?: string; title?: string; baseRevisionId?: string },
+  spaceSlug?: string,
 ): Promise<{ pageId: string; newPath: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
     throw new DomainError('UNAUTHORIZED', 'Sign in to edit page properties');
   }
 
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
   if (!input.path && !input.title) {
@@ -1155,6 +1160,7 @@ export async function updateProperties(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
 
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');

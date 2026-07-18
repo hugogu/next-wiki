@@ -61,8 +61,9 @@ import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevision
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
-import { resolveSpace } from '@/server/services/spaces';
+import { getSpaceById, resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
+import * as rawEntries from '@/server/services/raw-entries';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
@@ -254,25 +255,21 @@ async function visiblePageResource(
 }
 
 async function getVisiblePage(ctx: PermCtx, predicate: SQL, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
-  const space = await resolveSpace();
-  if (!space) return null;
   const page = await db.query.pages.findFirst({
     where: and(
-      eq(schema.pages.spaceId, space.id),
       predicate,
       isNull(schema.pages.deletedAt),
     ),
   });
   if (!page) return null;
+  const space = await getSpaceById(page.spaceId);
+  if (!space) return null;
   return visiblePageResource(ctx, space, page, { ...DEFAULT_VISIBLE_PAGE_OPTIONS, include });
 }
 
 async function getPageRowById(pageId: string): Promise<PageRow | null> {
-  const space = await resolveSpace();
-  if (!space) return null;
   return (await db.query.pages.findFirst({
     where: and(
-      eq(schema.pages.spaceId, space.id),
       eq(schema.pages.id, pageId),
       isNull(schema.pages.deletedAt),
     ),
@@ -306,7 +303,17 @@ async function visibleRevisionResource(
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(revision.id);
-  return { ...summary!, contentSource: options.includeContent ? content : undefined, frontmatter, metadata };
+  const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
+  return {
+    ...summary!,
+    contentSource: options.includeContent ? content : undefined,
+    frontmatter,
+    metadata,
+    origin: { actorKind: revision.actorKind, nature: page.nature },
+    source: canViewProvenance && space.kind === 'raw'
+      ? (revision.sourceMetadata as PublicRevisionResource['source'])
+      : null,
+  };
 }
 
 function extractFrontmatterFilters(query: {
@@ -523,7 +530,13 @@ export async function getPageById(ctx: PermCtx, id: string, include: readonly Pu
 }
 
 export async function getPageByPath(ctx: PermCtx, path: string, include: readonly PublicPageInclude[] = []): Promise<PublicPageResource | null> {
-  return getVisiblePage(ctx, eq(schema.pages.path, path), include);
+  const space = await resolveSpace();
+  if (!space) return null;
+  const page = await db.query.pages.findFirst({
+    where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, path), isNull(schema.pages.deletedAt)),
+  });
+  if (!page) return null;
+  return visiblePageResource(ctx, space, page, { ...DEFAULT_VISIBLE_PAGE_OPTIONS, include });
 }
 
 export async function createPage(
@@ -531,11 +544,21 @@ export async function createPage(
   input: PublicPageCreateInput,
   include: readonly PublicPageInclude[] = [],
 ): Promise<PublicPageResource> {
-  const created = await pageService.create(ctx, {
-    path: input.path,
-    title: input.title,
-    contentSource: input.contentSource,
-  });
+  const targetSpace = await resolveSpace(input.space);
+  if (!targetSpace) throw new DomainError('NOT_FOUND', 'Space not found');
+  const created = targetSpace.kind === 'raw'
+    ? await rawEntries.createEntry(ctx, {
+        path: input.path,
+        title: input.title,
+        inputKind: input.inputKind,
+        source: input.source,
+        content: input.contentSource,
+      })
+    : await pageService.create(ctx, {
+        path: input.path,
+        title: input.title,
+        contentSource: input.contentSource,
+      }, targetSpace.slug);
   const page = await getPageById(ctx, created.pageId, include);
   if (!page) throw new DomainError('NOT_FOUND', 'Created page is not visible');
   return page;
@@ -544,7 +567,9 @@ export async function createPage(
 export async function createDraft(ctx: PermCtx, pageId: string, input: PublicDraftCreateInput): Promise<PublicRevisionResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const created = await pageService.newDraft(ctx, page.path, input);
+  const space = await getSpaceById(page.spaceId);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  const created = await pageService.newDraft(ctx, page.path, input, space.slug);
   const revision = await getRevision(ctx, pageId, created.versionNumber);
   if (!revision) throw new DomainError('NOT_FOUND', 'Created revision is not visible');
   return revision;
@@ -558,6 +583,9 @@ export async function updateProperties(
 ): Promise<PublicPageResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getSpaceById(page.spaceId);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
   const metadataUpdated = input.title
     ? await updatePageMetadata(ctx, pageId, {
         baseRevisionId: input.baseRevisionId ?? page.latestVersionId!,
@@ -568,7 +596,7 @@ export async function updateProperties(
     ? await pageService.updateProperties(ctx, metadataUpdated?.path ?? page.path, {
         path: input.path,
         baseRevisionId: metadataUpdated?.latestRevision?.id ?? input.baseRevisionId,
-      })
+      }, space.slug)
     : { pageId, newPath: metadataUpdated?.path ?? page.path };
   const view = await getPageById(ctx, updated.pageId, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Updated page is not visible');
@@ -582,7 +610,7 @@ const LIST_REVISION_OPTIONS: VisibleRevisionOptions = { includeContent: false };
 export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicRevisionListQuery): Promise<PublicRevisionListResponse> {
   const page = await getPageRowById(pageId);
   if (!page) return { items: [], nextCursor: null };
-  const space = await resolveSpace();
+  const space = await getSpaceById(page.spaceId);
   if (!space) return { items: [], nextCursor: null };
   const cursor = decodePublicCursor(query.cursor);
   const rows = await db
@@ -614,7 +642,7 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
 export async function getRevision(ctx: PermCtx, pageId: string, version: number): Promise<PublicRevisionResource | null> {
   const page = await getPageRowById(pageId);
   if (!page) return null;
-  const space = await resolveSpace();
+  const space = await getSpaceById(page.spaceId);
   if (!space) return null;
   const revision = await db.query.pageRevisions.findFirst({
     where: and(
@@ -635,10 +663,13 @@ export async function publishRevision(
 ): Promise<PublicPageResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getSpaceById(page.spaceId);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   await revisionService.publish(ctx, {
     path: page.path,
     version,
     expectedRevisionId: input.expectedRevisionId,
+    space: space.slug,
   });
   const view = await getPageById(ctx, page.id, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Published page is not visible');
@@ -994,7 +1025,20 @@ function sortTreeChildren(node: PublicPageTreeNode): void {
 export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  await pageService.remove(ctx, page.path);
+  const space = await getSpaceById(page.spaceId);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  await pageService.remove(ctx, page.path, space.slug);
+}
+
+export async function appendRawEntry(
+  ctx: PermCtx,
+  pageId: string,
+  input: { content: string; source?: unknown },
+): Promise<PublicRevisionResource> {
+  const appended = await rawEntries.appendEntry(ctx, pageId, input);
+  const revision = await getRevision(ctx, pageId, appended.versionNumber);
+  if (!revision) throw new DomainError('NOT_FOUND', 'Appended revision is not visible');
+  return revision;
 }
 
 // ---------------------------------------------------------------------------
@@ -1733,7 +1777,8 @@ export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: Pu
   if (!page || !page.latestVersionId) throw new DomainError('NOT_FOUND', 'Page not found');
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? page.authorId === userId : false;
-  const space = await resolveSpace();
+  const space = await getSpaceById(page.spaceId);
+  if (space?.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
   if (!space || !userId || !can(ctx, 'edit', { kind: 'page', pageId }, pagePermissionOptions(space, page, { isAuthor }))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
   }
@@ -1745,7 +1790,7 @@ export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: Pu
     title: patched.metadata.title,
     contentSource: patched.source,
     baseRevisionId: input.baseRevisionId,
-  });
+  }, space.slug);
   const result = await getPageById(ctx, pageId, ['latestRevision']);
   if (!result) throw new DomainError('NOT_FOUND', 'Page not found');
   return result;

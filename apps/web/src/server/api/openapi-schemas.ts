@@ -960,8 +960,30 @@ export const PublicPageCreateInput = z
     locale: z.string().min(1).max(20).optional().describe('Locale of the page content (e.g. "en"). Defaults to the workspace default.'),
     title: z.string().min(1).max(200).describe('Human-readable page title.'),
     contentSource: z.string().optional().default('').describe('Markdown source of the initial page revision. Optional; defaults to an empty draft.'),
+    space: z.string().min(1).max(100).optional().describe('Target space slug. Raw entries require "raw" and an inputKind.'),
+    inputKind: z.enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note']).optional().describe('Required for raw entries; stored as the OKF frontmatter type.'),
+    source: z.object({
+      channel: z.string().min(1).max(200).optional(),
+      url: z.string().url().optional(),
+      sessionId: z.string().min(1).max(200).optional(),
+      command: z.string().min(1).max(10_000).optional(),
+      occurredAt: z.string().datetime().optional(),
+    }).optional().describe('Immutable source metadata for a raw entry.'),
   })
   .describe('Create a public wiki page.');
+
+export const PublicRawAppendInput = z
+  .object({
+    content: z.string().min(1).max(1_000_000).describe('Markdown chunk appended to a raw entry.'),
+    source: z.object({
+      channel: z.string().min(1).max(200).optional(),
+      url: z.string().url().optional(),
+      sessionId: z.string().min(1).max(200).optional(),
+      command: z.string().min(1).max(10_000).optional(),
+      occurredAt: z.string().datetime().optional(),
+    }).optional().describe('Immutable source metadata for this appended chunk.'),
+  })
+  .describe('Append an immutable chunk to a raw entry.');
 
 export const PublicDraftCreateInput = z
   .object({

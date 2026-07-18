@@ -285,13 +285,34 @@ export type AdminPageStats = {
   totalPageLinks: number;
 };
 
+export const rawInputKindSchema = z.enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note']);
+export type RawInputKind = z.infer<typeof rawInputKindSchema>;
+
+export const rawSourceSchema = z.object({
+  channel: z.string().min(1).max(200).optional(),
+  url: z.string().url().optional(),
+  sessionId: z.string().min(1).max(200).optional(),
+  command: z.string().min(1).max(10_000).optional(),
+  occurredAt: z.string().datetime().optional(),
+});
+export type RawSource = z.infer<typeof rawSourceSchema>;
+
 export const publicPageCreateInputSchema = z.object({
   path: pathSchema,
   locale: z.string().min(1).max(20).optional(),
   title: z.string().min(1).max(200),
   contentSource: z.string().default(''),
+  space: z.string().min(1).max(100).optional(),
+  inputKind: rawInputKindSchema.optional(),
+  source: rawSourceSchema.optional(),
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
+
+export const publicRawAppendInputSchema = z.object({
+  content: z.string().min(1).max(1_000_000),
+  source: rawSourceSchema.optional(),
+});
+export type PublicRawAppendInput = z.infer<typeof publicRawAppendInputSchema>;
 
 export const newPageDialogInputSchema = publicPageCreateInputSchema.pick({ path: true, title: true });
 export type NewPageDialogInput = z.infer<typeof newPageDialogInputSchema>;

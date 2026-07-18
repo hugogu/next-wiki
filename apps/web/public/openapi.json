@@ -2262,6 +2262,51 @@
             "type": "string",
             "default": "",
             "description": "Markdown source of the initial page revision. Optional; defaults to an empty draft."
+          },
+          "space": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Target space slug. Raw entries require \"raw\" and an inputKind."
+          },
+          "inputKind": {
+            "type": "string",
+            "enum": [
+              "chat-transcript",
+              "external-fetch",
+              "script-run",
+              "manual-note"
+            ],
+            "description": "Required for raw entries; stored as the OKF frontmatter type."
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "channel": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "sessionId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10000
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "description": "Immutable source metadata for a raw entry."
           }
         },
         "required": [
@@ -3088,6 +3133,50 @@
           }
         },
         "description": "Publish revision input."
+      },
+      "PublicRawAppendInput": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000,
+            "description": "Markdown chunk appended to a raw entry."
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "channel": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "sessionId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10000
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "description": "Immutable source metadata for this appended chunk."
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "description": "Append an immutable chunk to a raw entry."
       },
       "PublicRevisionDiffQuery": {
         "type": "object",
@@ -10754,6 +10843,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicBatchCreateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/appends": {
+      "post": {
+        "operationId": "post-v1-pages-{id}-appends",
+        "summary": "Append raw entry content",
+        "description": "Appends Markdown to a raw entry, creating and publishing an immutable next revision.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicRawAppendInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRevisionResource"
                 }
               }
             }

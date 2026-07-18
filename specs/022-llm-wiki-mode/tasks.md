@@ -85,15 +85,15 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Service tests for raw create/append/immutability in `apps/web/src/server/services/raw-entries.test.ts`: auto-publish, forced nature `original`, append concatenation, per-revision `source_metadata`, concurrent-append serialization (two appends → sequential version numbers), frontmatter `type`/initial source storage, mode guard rejects raw ops in copilot mode, pending-switch barrier rejects writes
-- [ ] T023 [P] [US2] Route tests in `apps/web/app/api/v1/pages/[id]/appends/route.test.ts` and create-with-`space=raw` cases in `apps/web/app/api/v1/pages/route.test.ts`: 201 create/append with complete revision origin/source, `RAW_SPACE_IMMUTABLE` on PATCH/DELETE/drafts/publication, `SPACE_UNAVAILABLE` in copilot mode, `SPACE_FORBIDDEN` for reader/editor keys, `MODE_SWITCH_IN_PROGRESS` while pending
+- [X] T022 [P] [US2] Service tests for raw create/append/immutability in `apps/web/src/server/services/raw-entries.test.ts`: auto-publish, forced nature `original`, append concatenation, per-revision `source_metadata`, concurrent-append serialization (two appends → sequential version numbers), frontmatter `type`/initial source storage, mode guard rejects raw ops in copilot mode, pending-switch barrier rejects writes
+- [X] T023 [P] [US2] Route tests in `apps/web/app/api/v1/pages/[id]/appends/route.test.ts` and create-with-`space=raw` cases in `apps/web/app/api/v1/pages/route.test.ts`: 201 create/append with complete revision origin/source, `RAW_SPACE_IMMUTABLE` on PATCH/DELETE/drafts/publication, `SPACE_UNAVAILABLE` in copilot mode, `SPACE_FORBIDDEN` for reader/editor keys, `MODE_SWITCH_IN_PROGRESS` while pending
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Implement `apps/web/src/server/services/raw-entries.ts`: `createEntry(ctx, { path, title, inputKind, source?, content })` (validates input kind, forces nature original, builds OKF frontmatter, persists any v1 `source_metadata`, auto-publishes) and `appendEntry(ctx, pageId, { content, source? })` (write-barrier transaction: load current content, concatenate with separator, insert next version with immutable `source_metadata`, publish immediately)
-- [ ] T025 [US2] Add raw-space immutability guards to `apps/web/src/server/services/pages.ts` (`newDraft`, `updateProperties`, `remove`) and `apps/web/src/server/services/revisions.ts` (unpublish path): when the page's space kind is `raw`, throw `RAW_SPACE_IMMUTABLE` for every actor
-- [ ] T026 [US2] Extend `POST /v1/pages` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/route.ts` to accept `space`, `inputKind`, `source`; route raw creates through `raw-entries.ts`
-- [ ] T027 [US2] Create append sub-resource `POST /v1/pages/[id]/appends` in `apps/web/app/api/v1/pages/[id]/appends/route.ts` (Zod body `{ content, source? }`, returns 201 revision resource) wired to `raw-entries.appendEntry`
+- [X] T024 [US2] Implement `apps/web/src/server/services/raw-entries.ts`: `createEntry(ctx, { path, title, inputKind, source?, content })` (validates input kind, forces nature original, builds OKF frontmatter, persists any v1 `source_metadata`, auto-publishes) and `appendEntry(ctx, pageId, { content, source? })` (write-barrier transaction: load current content, concatenate with separator, insert next version with immutable `source_metadata`, publish immediately)
+- [X] T025 [US2] Add raw-space immutability guards to `apps/web/src/server/services/pages.ts` (`newDraft`, `updateProperties`, `remove`) and `apps/web/src/server/services/revisions.ts` (unpublish path): when the page's space kind is `raw`, throw `RAW_SPACE_IMMUTABLE` for every actor
+- [X] T026 [US2] Extend `POST /v1/pages` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/route.ts` to accept `space`, `inputKind`, `source`; route raw creates through `raw-entries.ts`
+- [X] T027 [US2] Create append sub-resource `POST /v1/pages/[id]/appends` in `apps/web/app/api/v1/pages/[id]/appends/route.ts` (Zod body `{ content, source? }`, returns 201 revision resource) wired to `raw-entries.appendEntry`
 
 **Checkpoint**: Raw space behaves as an append-only evidence store through the API (quickstart S2)
 
