@@ -979,6 +979,7 @@ export async function create(
           explicit: input.nature,
           actorKind: actorKindOf(ctx),
         }),
+        visibility: space.kind === 'generated' ? 'restricted' : 'public',
       })
       .returning();
 

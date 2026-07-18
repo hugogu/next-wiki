@@ -2,8 +2,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
+import * as publicContent from '@/server/services/public-content';
 import { setModeInternal } from '@/server/services/writing-mode';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
 
@@ -92,5 +93,43 @@ describe('generated page service', () => {
     await expect(pageService.create(ctx, {
       path: 'concepts/copilot', title: 'Copilot', contentSource: '# Copilot',
     }, 'generated')).rejects.toMatchObject({ code: 'SPACE_UNAVAILABLE' });
+  });
+
+  it('defaults API-key creation to generated in LLM Wiki mode and projects provenance', async () => {
+    const { userId } = await createAdminUser();
+    const apiCtx = buildApiKeyCtx(userId, 'admin', ['create', 'view'], 'generated-api-key');
+    const sessionCtx = buildUserCtx(userId, 'admin');
+
+    const created = await publicContent.createPage(apiCtx, {
+      path: 'concepts/api-created', title: 'API created', contentSource: '# API created',
+    }, ['latestRevision']);
+    expect(created.spaceSlug).toBe('generated');
+    expect(created.origin).toEqual({ actorKind: 'machine', nature: 'generated' });
+    expect(created.humanModified).toBe(false);
+    expect(created.visibility).toBe('restricted');
+
+    const drafted = await pageService.newDraft(sessionCtx, 'concepts/api-created', {
+      title: 'API created', contentSource: '# Updated by a human', baseRevisionId: created.latestRevision?.id,
+    }, 'generated');
+    const page = await publicContent.getPageById(sessionCtx, created.id);
+    const firstRevision = await publicContent.getRevision(sessionCtx, created.id, 1);
+    const secondRevision = await publicContent.getRevision(sessionCtx, created.id, drafted.versionNumber);
+
+    expect(page?.origin).toEqual({ actorKind: 'machine', nature: 'generated' });
+    expect(page?.humanModified).toBe(true);
+    expect(firstRevision?.origin).toEqual({ actorKind: 'machine', nature: 'generated' });
+    expect(secondRevision?.origin).toEqual({ actorKind: 'human', nature: 'generated' });
+  });
+
+  it('keeps API-key creation in the default space in Copilot mode', async () => {
+    const { userId } = await createAdminUser();
+    await setModeInternal('copilot', userId);
+
+    const created = await publicContent.createPage(
+      buildApiKeyCtx(userId, 'admin', ['create', 'view'], 'copilot-api-key'),
+      { path: 'api/default', title: 'Default', contentSource: '# Default' },
+    );
+
+    expect(created.spaceSlug).toBe('default');
   });
 });

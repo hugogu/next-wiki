@@ -62,7 +62,7 @@ import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { getSpaceById, resolveSpace } from '@/server/services/spaces';
-import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
+import { assertNoSwitchInProgress, isLlmWikiMode } from '@/server/services/writing-mode';
 import * as rawEntries from '@/server/services/raw-entries';
 
 type PageRow = typeof schema.pages.$inferSelect;
@@ -137,6 +137,7 @@ function minimalDeletedPageResource(space: { slug: string }, page: PageRow): Pub
     path: page.path,
     locale: page.locale,
     title: page.title,
+    kind: page.kind,
     status: 'deleted',
     author: { id: null, displayName: null },
     frontmatter: null,
@@ -202,13 +203,32 @@ async function visiblePageResource(
   }
 
   const canSeeDraft = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }));
+  const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
 
-  const [publishedRow, latestRow] = await Promise.all([
+  const [publishedRow, latestRow, initialRevision, humanRevision, linkTarget] = await Promise.all([
     page.currentPublishedVersionId
       ? db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.currentPublishedVersionId) })
       : Promise.resolve(undefined),
     page.latestVersionId
       ? db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.latestVersionId) })
+      : Promise.resolve(undefined),
+    db.query.pageRevisions.findFirst({
+      where: and(
+        eq(schema.pageRevisions.pageId, page.id),
+        eq(schema.pageRevisions.versionNumber, 1),
+      ),
+    }),
+    db.query.pageRevisions.findFirst({
+      where: and(
+        eq(schema.pageRevisions.pageId, page.id),
+        eq(schema.pageRevisions.actorKind, 'human'),
+      ),
+    }),
+    canViewProvenance && page.linkTargetPageId
+      ? db.query.pages.findFirst({
+          columns: { id: true, path: true, title: true },
+          where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt)),
+        })
       : Promise.resolve(undefined),
   ]);
   const published = publishedRow ?? null;
@@ -241,6 +261,15 @@ async function visiblePageResource(
     path: page.path,
     locale: page.locale,
     title: page.title,
+    kind: page.kind,
+    linkTarget: canViewProvenance && page.linkTargetPageId
+      ? (linkTarget ? { pageId: linkTarget.id, path: linkTarget.path, title: linkTarget.title } : null)
+      : undefined,
+    origin: initialRevision
+      ? { actorKind: initialRevision.actorKind, nature: page.nature }
+      : undefined,
+    humanModified: humanRevision !== undefined,
+    visibility: canViewProvenance ? page.visibility : undefined,
     contentSource: options.includeContent ? content : undefined,
     frontmatter,
     metadata,
@@ -310,6 +339,7 @@ async function visibleRevisionResource(
     frontmatter,
     metadata,
     origin: { actorKind: revision.actorKind, nature: page.nature },
+    linkTargetPageId: canViewProvenance ? revision.linkTargetPageId : undefined,
     source: canViewProvenance && space.kind === 'raw'
       ? (revision.sourceMetadata as PublicRevisionResource['source'])
       : null,
@@ -544,7 +574,12 @@ export async function createPage(
   input: PublicPageCreateInput,
   include: readonly PublicPageInclude[] = [],
 ): Promise<PublicPageResource> {
-  const targetSpace = await resolveSpace(input.space);
+  const targetSpaceSlug = input.space ?? (
+    ctx.actor.kind === 'api_key' && await isLlmWikiMode()
+      ? 'generated'
+      : undefined
+  );
+  const targetSpace = await resolveSpace(targetSpaceSlug);
   if (!targetSpace) throw new DomainError('NOT_FOUND', 'Space not found');
   const created = targetSpace.kind === 'raw'
     ? await rawEntries.createEntry(ctx, {
