@@ -67,7 +67,14 @@ export type DomainErrorCode =
   | 'TRANSLATION_NOT_FOUND'
   | 'TRANSLATION_ALREADY_RUNNING'
   | 'SOURCE_NOT_TRANSLATABLE'
-  | 'JOB_QUEUE_UNAVAILABLE';
+  | 'JOB_QUEUE_UNAVAILABLE'
+  // Wiki writing modes (022).
+  | 'SPACE_UNAVAILABLE'
+  | 'SPACE_FORBIDDEN'
+  | 'RAW_SPACE_IMMUTABLE'
+  | 'OKF_TYPE_REQUIRED'
+  | 'LINK_TARGET_INVALID'
+  | 'MODE_SWITCH_INVALID';
 
 export class DomainError extends Error {
   constructor(

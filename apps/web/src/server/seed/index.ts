@@ -48,18 +48,46 @@ export async function seedDefaultSpace() {
       name: 'Default',
       defaultLocale: 'en',
       anonymousRead: true,
+      kind: 'wiki',
     })
     .returning();
   if (!created) throw new Error('Seed failed: could not create default space');
+}
+
+/**
+ * Ensure the raw and generated spaces exist alongside the default wiki space
+ * (022). Both are seeded in every writing mode so a copilot → llm-wiki switch
+ * is a zero-migration flip; permissions keep them admin-only until then.
+ * Idempotent and never touches the existing default space's anonymous_read.
+ */
+export async function seedWritingModeSpaces() {
+  await seedDefaultSpace();
+  const extraSpaces = [
+    { slug: 'raw', name: 'Raw', kind: 'raw' },
+    { slug: 'generated', name: 'Generated', kind: 'generated' },
+  ] as const;
+  for (const space of extraSpaces) {
+    const existing = await db.query.spaces.findFirst({
+      where: eq(schema.spaces.slug, space.slug),
+    });
+    if (existing) continue;
+    await db.insert(schema.spaces).values({
+      slug: space.slug,
+      name: space.name,
+      defaultLocale: 'en',
+      anonymousRead: false,
+      kind: space.kind,
+    });
+  }
 }
 
 export async function seedDatabase() {
   await seedDefaultStorageBackend();
   // Built-in system themes are core (read-only) data, seeded on every boot.
   await seedBuiltinSystemThemes();
-  // The default space is core infrastructure; seeded on every boot so the
-  // instance is writable right after first-run setup.
-  await seedDefaultSpace();
+  // The three writing-mode spaces are core infrastructure; seeded on every
+  // boot so the instance is writable right after first-run setup.
+  await seedWritingModeSpaces();
 
   // Demo/sample data only: a sample admin account and welcome page. This NEVER
   // runs in production unless explicitly opted in via NEXT_WIKI_SEED=true. The
