@@ -37,7 +37,8 @@ import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCa
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
-import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
+import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
+import { ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
 const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
@@ -878,6 +879,7 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
 
   const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
 
   const page = await db.query.pages.findFirst({
     where: and(
@@ -922,6 +924,11 @@ export async function create(
 
   const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+
+  if (space.kind === 'raw') {
+    throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries must be created through the append-only raw entry service');
+  }
 
   if (!can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to create pages');
@@ -931,12 +938,16 @@ export async function create(
   if (!pathCheck.success) {
     throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
   }
+  if (space.kind === 'generated') ensureOkfConceptPath(pathCheck.data);
 
   assertPathNotReserved(input.path);
 
   await assertNotMigrating();
   const revisionId = randomUUID();
-  const sourceMetadata = metadataFromSource(input.contentSource, input.title);
+  const contentSource = space.kind === 'generated'
+    ? ensureOkfConformance(input.contentSource, { title: input.title, now: new Date() })
+    : input.contentSource;
+  const sourceMetadata = metadataFromSource(contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -952,7 +963,7 @@ export async function create(
       throw new DomainError('CONFLICT', 'A page with this path already exists');
     }
 
-    const { html, hash } = renderMarkdown(input.contentSource);
+    const { html, hash } = renderMarkdown(contentSource);
 
     const [page] = await tx
       .insert(schema.pages)
@@ -980,7 +991,7 @@ export async function create(
         pageId: page.id,
         versionNumber: 1,
         contentType: 'text/markdown',
-        contentSource: input.contentSource,
+        contentSource,
         contentHtml: html,
         contentHash: hash,
         authorId: userId,
@@ -994,11 +1005,11 @@ export async function create(
     await persistRevisionMetadata(tx, {
       revisionId: revision.id,
       spaceId: space.id,
-      source: input.contentSource,
+      source: contentSource,
       fallbackTitle: sourceMetadata.title,
     });
 
-    await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
+    await syncRevisionAssetRefs(tx, revision.id, contentSource);
     await addReplicationTasks(tx, 'markdown', revision.id, hash);
 
     await tx
@@ -1031,12 +1042,17 @@ export async function newDraft(
 
   const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+  if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be edited');
 
   await assertNotMigrating();
   const revisionId = randomUUID();
+  const contentSource = space.kind === 'generated'
+    ? ensureOkfConformance(input.contentSource, { title: input.title, now: new Date() })
+    : input.contentSource;
   const sourceMetadata = input.metadata
     ? metadataFromInput(input.title, input.metadata)
-    : metadataFromSource(input.contentSource, input.title);
+    : metadataFromSource(contentSource, input.title);
 
   const created = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -1050,8 +1066,6 @@ export async function newDraft(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-    if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be edited');
-
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
@@ -1075,7 +1089,7 @@ export async function newDraft(
       .where(eq(schema.pageRevisions.pageId, page.id));
 
     const nextVersion = (maxResult[0]?.value ?? 0) + 1;
-    const { html, hash } = renderMarkdown(input.contentSource);
+    const { html, hash } = renderMarkdown(contentSource);
 
     const [revision] = await tx
       .insert(schema.pageRevisions)
@@ -1084,7 +1098,7 @@ export async function newDraft(
         pageId: page.id,
         versionNumber: nextVersion,
         contentType: 'text/markdown',
-        contentSource: input.contentSource,
+        contentSource,
         contentHtml: html,
         contentHash: hash,
         authorId: userId,
@@ -1098,12 +1112,12 @@ export async function newDraft(
     await persistRevisionMetadata(tx, {
       revisionId: revision.id,
       spaceId: space.id,
-      source: input.contentSource,
+      source: contentSource,
       fallbackTitle: sourceMetadata.title,
       metadata: input.metadata ? sourceMetadata : undefined,
     });
 
-    await syncRevisionAssetRefs(tx, revision.id, input.contentSource);
+    await syncRevisionAssetRefs(tx, revision.id, contentSource);
     await addReplicationTasks(tx, 'markdown', revision.id, hash);
 
     await tx
@@ -1134,6 +1148,8 @@ export async function updateProperties(
 
   const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+  if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
 
   if (!input.path && !input.title) {
     throw new DomainError('BAD_REQUEST', 'Provide path or title');
@@ -1145,6 +1161,7 @@ export async function updateProperties(
       throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
     }
     assertPathNotReserved(input.path);
+    if (space.kind === 'generated') ensureOkfConceptPath(pathCheck.data);
   }
 
   const result = await db.transaction(async (tx) => {
@@ -1160,8 +1177,6 @@ export async function updateProperties(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-    if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
-
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
