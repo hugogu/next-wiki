@@ -7,6 +7,7 @@ import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
+import { assertPathNotReserved } from '@/server/routes/reserved-paths';
 import { pathSchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
@@ -874,6 +875,8 @@ export async function create(
     throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
   }
 
+  assertPathNotReserved(input.path);
+
   await assertNotMigrating();
   const revisionId = randomUUID();
   const sourceMetadata = metadataFromSource(input.contentSource, input.title);
@@ -1069,6 +1072,7 @@ export async function updateProperties(
     if (!pathCheck.success) {
       throw new DomainError('BAD_REQUEST', pathCheck.error.issues[0]?.message ?? 'Invalid path');
     }
+    assertPathNotReserved(input.path);
   }
 
   const result = await db.transaction(async (tx) => {

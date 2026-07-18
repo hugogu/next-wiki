@@ -111,6 +111,8 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
         const error = err as ApiError;
         if (error.code === 'CONFLICT' || error.code === 'PAGE_PATH_CONFLICT') {
           setServerError(t('page.edit.error.pathExists'));
+        } else if (error.code === 'PAGE_PATH_RESERVED') {
+          setServerError(t('page.edit.error.pathReserved'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
           setServerError(t('page.edit.error.forbidden'));
         } else {

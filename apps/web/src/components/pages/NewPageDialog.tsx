@@ -50,6 +50,8 @@ export function NewPageDialog({
         const error = err as ApiError;
         if (error.code === 'CONFLICT') {
           setServerError(t('page.create.error.pathExists'));
+        } else if (error.code === 'PAGE_PATH_RESERVED') {
+          setServerError(t('page.create.error.pathReserved'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
           setServerError(t('page.create.error.forbidden'));
         } else {

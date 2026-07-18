@@ -253,6 +253,7 @@
       "defaultTitle": "Create a new page",
       "error": {
         "pathExists": "A page with this path already exists.",
+        "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
         "forbidden": "You do not have permission to create pages.",
         "generic": "Failed to create page."
       },
@@ -267,6 +268,7 @@
       "error": {
         "invalidPath": "The new path is invalid.",
         "pathExists": "A page with this path already exists.",
+        "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
         "forbidden": "You do not have permission to edit this page.",
         "generic": "Failed to save changes."
       }
@@ -286,6 +288,7 @@
       },
       "error": {
         "pathExists": "A page with this path already exists.",
+        "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
         "forbidden": "You do not have permission to edit page properties.",
         "generic": "Failed to update properties."
       }

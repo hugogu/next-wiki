@@ -253,6 +253,7 @@
       "defaultTitle": "创建新页面",
       "error": {
         "pathExists": "该路径的页面已存在。",
+        "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
         "forbidden": "你没有权限创建页面。",
         "generic": "创建页面失败。"
       },
@@ -267,6 +268,7 @@
       "error": {
         "invalidPath": "新路径无效。",
         "pathExists": "该路径的页面已存在。",
+        "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
         "forbidden": "你没有权限编辑此页面。",
         "generic": "保存失败。"
       }
@@ -286,6 +288,7 @@
       },
       "error": {
         "pathExists": "该路径的页面已存在。",
+        "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
         "forbidden": "你没有权限编辑页面属性。",
         "generic": "更新属性失败。"
       }

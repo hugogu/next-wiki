@@ -14,6 +14,7 @@ export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'PAGE_PATH_CONFLICT' // 409: batch update path collision (010-ai-curation-api)
+  | 'PAGE_PATH_RESERVED' // 409: page path shadows a built-in app/ route (new/edit/etc.)
   | 'STALE_REVISION'
   | 'REVISION_ALREADY_PUBLISHED'
   // Content storage (003).

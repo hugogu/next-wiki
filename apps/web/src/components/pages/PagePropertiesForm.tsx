@@ -28,6 +28,8 @@ export function PagePropertiesForm({ pageId, path }: { pageId: string; path: str
     onError: (err: ApiError) => {
       if (err.code === 'CONFLICT' || err.code === 'PAGE_PATH_CONFLICT') {
         setServerError(t('page.properties.error.pathExists'));
+      } else if (err.code === 'PAGE_PATH_RESERVED') {
+        setServerError(t('page.properties.error.pathReserved'));
       } else if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
         setServerError(t('page.properties.error.forbidden'));
       } else {

@@ -29,11 +29,17 @@ export const GET = withPublicApi(async (request, _context, ctx) => {
  * @openapi
  * @summary Create public wiki page
  * @description Creates a page through the stable Public Wiki Content API. contentSource is optional and defaults to an empty string, creating an empty draft that can be filled in with a subsequent draft-create call.
+ *
+ *   Returns 409 PAGE_PATH_RESERVED when the requested `path` would shadow a
+ *   built-in app/ route (e.g. `/new`, `/admin`, `/api/...`). The reserved set
+ *   is auto-discovered from the Next.js app directory at server startup, so
+ *   adding a new built-in route automatically protects that path.
  * @tag Pages
  * @auth bearer
  * @queryParams PublicPageIncludeQuery
  * @body PublicPageCreateInput
  * @response 201:PublicPageResource
+ * @response 409:PAGE_PATH_RESERVED
  */
 export const POST = withPublicApi(async (request, _context, ctx) => {
   const parsedQuery = parsePublicQuery(request, publicPageIncludeQuerySchema);

@@ -25,6 +25,9 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 404);
     case 'CONFLICT':
       return apiError(code, message, 409);
+    case 'PAGE_PATH_CONFLICT':
+    case 'PAGE_PATH_RESERVED':
+      return apiError(code, message, 409);
     case 'STALE_REVISION':
       return apiError(code, message, 409);
     case 'REVISION_ALREADY_PUBLISHED':

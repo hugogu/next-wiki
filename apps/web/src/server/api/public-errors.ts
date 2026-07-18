@@ -10,6 +10,7 @@ export type PublicApiErrorCode =
   | 'CONFLICT'
   | 'STALE_REVISION'
   | 'PAGE_PATH_CONFLICT'
+  | 'PAGE_PATH_RESERVED'
   | 'REVISION_ALREADY_PUBLISHED'
   | 'UNSUPPORTED_ASSET_TYPE'
   | 'ASSET_TOO_LARGE'
@@ -43,6 +44,8 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'CONFLICT', status: 409 };
     case 'PAGE_PATH_CONFLICT':
       return { code: 'PAGE_PATH_CONFLICT', status: 409 };
+    case 'PAGE_PATH_RESERVED':
+      return { code: 'PAGE_PATH_RESERVED', status: 409 };
     case 'STALE_REVISION':
       return { code: 'STALE_REVISION', status: 409 };
     case 'REVISION_ALREADY_PUBLISHED':

@@ -143,6 +143,47 @@ describe('pageService US3', () => {
       ).rejects.toThrow('already exists');
     });
 
+    it('rejects paths that shadow a built-in app route', async () => {
+      const editor = await createUser('editor-reserved@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      // Each of these maps to a real page.tsx / route.ts in apps/web/app/.
+      // A wiki page at any of these paths would never be reachable, so the
+      // service rejects them up front rather than letting users shoot
+      // themselves in the foot.
+      const reserved = [
+        { path: 'new', label: '/new' },
+        { path: 'admin/users', label: '/admin/users' },
+        { path: 'api/v1/pages', label: '/api/v1/pages' },
+        { path: 'auth/login', label: '/auth/login' },
+        { path: 'forbidden', label: '/forbidden' },
+        { path: 'healthz', label: '/healthz' },
+        { path: 'readyz', label: '/readyz' },
+        { path: 'setup', label: '/setup' },
+      ];
+
+      for (const { path, label } of reserved) {
+        await expect(
+          pageService.create(ctx, { path, title: 'T', contentSource: 'c' }),
+          `expected ${label} to be rejected`,
+        ).rejects.toMatchObject({ code: 'PAGE_PATH_RESERVED' });
+      }
+
+      // Paths under catch-all editor routes (e.g. /edit/foo) are also reserved.
+      await expect(
+        pageService.create(ctx, { path: 'edit/anything', title: 'T', contentSource: 'c' }),
+      ).rejects.toMatchObject({ code: 'PAGE_PATH_RESERVED' });
+
+      // And /edit alone is fine — there is no static /edit route, only
+      // /edit/[...path]/page.tsx.
+      const result = await pageService.create(ctx, {
+        path: 'edit',
+        title: 'Edit',
+        contentSource: 'c',
+      });
+      expect(result.pageId).toBeTruthy();
+    });
+
     it('denies anonymous and readers', async () => {
       const reader = await createUser('reader-create@example.com', 'reader');
 
@@ -333,6 +374,23 @@ describe('pageService US3', () => {
       await expect(pageService.remove(buildUserCtx(reader.id, 'reader'), 'deny-delete')).rejects.toThrow(
         'permission',
       );
+    });
+  });
+
+  describe('updateProperties', () => {
+    it('rejects renames that would shadow a built-in app route', async () => {
+      const editor = await createUser('editor-rename-reserved@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      await pageService.create(ctx, { path: 'rename-source', title: 'T', contentSource: 'c' });
+
+      await expect(
+        pageService.updateProperties(ctx, 'rename-source', { path: 'new' }),
+      ).rejects.toMatchObject({ code: 'PAGE_PATH_RESERVED' });
+
+      await expect(
+        pageService.updateProperties(ctx, 'rename-source', { path: 'api/v1/pages' }),
+      ).rejects.toMatchObject({ code: 'PAGE_PATH_RESERVED' });
     });
   });
 });
