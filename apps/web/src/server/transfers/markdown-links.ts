@@ -191,13 +191,19 @@ export function rewriteMarkdownLinks(
 }
 
 /**
- * Creates a replacer that strips locale routing prefixes from internal Wiki.js
- * links. Same-origin absolute URLs are converted to root-relative paths so
- * imported links point to the new wiki rather than the source host. External
- * URLs and links that already start with `/` but have no locale prefix are left
- * unchanged.
+ * Creates a replacer that normalises internal Wiki.js links. Same-origin
+ * absolute URLs are converted to root-relative paths so imported links point to
+ * the new wiki rather than the source host, and locale routing prefixes are
+ * stripped. When `pagePath` is supplied, relative links (e.g. `solar-system`)
+ * are resolved against it: Wiki.js treats a page's own path as the base
+ * directory, so a link written on `/astronomy` resolves to `/astronomy/...`
+ * rather than the site root. External URLs, anchors, and non-http schemes
+ * (`mailto:`, `tel:`, …) are left untouched.
  */
-export function createWikiJsLinkReplacer(baseUrl: string): (url: string) => string | null {
+export function createWikiJsLinkReplacer(
+  baseUrl: string,
+  pagePath?: string,
+): (url: string) => string | null {
   const baseUrlOrigin = new URL(baseUrl).origin;
   return (url) => {
     if (/^https?:\/\//i.test(url)) {
@@ -215,8 +221,24 @@ export function createWikiJsLinkReplacer(baseUrl: string): (url: string) => stri
         return null;
       }
     }
-    const stripped = stripLocalePrefix(url);
-    return stripped === url ? null : stripped;
+    // Root-relative path: only the locale prefix needs stripping.
+    if (url.startsWith('/')) {
+      const stripped = stripLocalePrefix(url);
+      return stripped === url ? null : stripped;
+    }
+    // Anchors, protocol-relative URLs, and scheme links (mailto:, tel:, …) are
+    // not page paths — leave them as-is.
+    if (url === '' || url.startsWith('#') || url.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(url)) {
+      return null;
+    }
+    // Relative page link: resolve it against the source page's path. Without a
+    // page path we cannot resolve it, so leave it unchanged.
+    if (!pagePath) return null;
+    const [, pathPart = '', suffix = ''] = /^([^?#]*)([?#].*)?$/.exec(url) ?? [];
+    if (pathPart === '') return null;
+    // Anchor at root so `..` segments can never escape above the wiki root.
+    const resolved = path.posix.normalize(path.posix.join('/', pagePath, pathPart));
+    return resolved + suffix;
   };
 }
 

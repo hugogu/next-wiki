@@ -254,7 +254,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     // prefixes (e.g. `/zh/docs/foo` or `https://wiki.host/zh/docs/foo`).
     // next-wiki stores locale as page metadata, so strip the prefix from the
     // same-origin/internal links while leaving external URLs untouched.
-    markdown = rewriteMarkdownLinks(markdown, createWikiJsLinkReplacer(source.baseUrl));
+    markdown = rewriteMarkdownLinks(markdown, createWikiJsLinkReplacer(source.baseUrl, page.path));
     const images = findMarkdownImages(markdown).sort((a, b) => b.start - a.start);
     for (const image of images) {
       try {

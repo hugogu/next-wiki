@@ -99,6 +99,50 @@ describe('createWikiJsLinkReplacer (005 Wiki.js import)', () => {
   it('leaves internal links without a locale prefix untouched', () => {
     expect(replace('/docs/foo')).toBeNull();
   });
+
+  it('leaves relative links untouched when no page path is given', () => {
+    expect(replace('solar-system')).toBeNull();
+    expect(replace('sub/page')).toBeNull();
+  });
+});
+
+describe('createWikiJsLinkReplacer relative resolution (page-path aware)', () => {
+  const replace = createWikiJsLinkReplacer('https://wiki.example.com', 'astronomy');
+
+  it('resolves a relative link against the page path (page acts as a directory)', () => {
+    expect(replace('solar-system')).toBe('/astronomy/solar-system');
+    expect(replace('sun')).toBe('/astronomy/sun');
+  });
+
+  it('resolves nested relative links', () => {
+    const nested = createWikiJsLinkReplacer('https://wiki.example.com', 'entertainment/board-games');
+    expect(nested('chess')).toBe('/entertainment/board-games/chess');
+    expect(nested('games/index')).toBe('/entertainment/board-games/games/index');
+  });
+
+  it('preserves query and fragment on a relative link', () => {
+    expect(replace('solar-system?x=1')).toBe('/astronomy/solar-system?x=1');
+    expect(replace('solar-system#top')).toBe('/astronomy/solar-system#top');
+  });
+
+  it('honours ../ and ./ segments without escaping the wiki root', () => {
+    expect(replace('./sun')).toBe('/astronomy/sun');
+    expect(replace('../other')).toBe('/other');
+    expect(replace('../../way/up')).toBe('/way/up');
+  });
+
+  it('still strips locale prefixes from root-relative and absolute links', () => {
+    expect(replace('/zh/docs/foo')).toBe('/docs/foo');
+    expect(replace('https://wiki.example.com/zh/docs/foo')).toBe('/docs/foo');
+  });
+
+  it('leaves anchors, external URLs, and scheme links untouched', () => {
+    expect(replace('#section')).toBeNull();
+    expect(replace('mailto:test@example.com')).toBeNull();
+    expect(replace('tel:+123')).toBeNull();
+    expect(replace('//cdn.example.com/x')).toBeNull();
+    expect(replace('https://other.example.com/docs')).toBeNull();
+  });
 });
 
 describe('findFrontmatterRelatedPages (010-ai-curation-api)', () => {
