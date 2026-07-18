@@ -65,7 +65,7 @@ export async function listSpaces(): Promise<SpaceRow[]> {
   return shouldUseDataCache() ? getCachedAllSpaces() : findAllSpaces();
 }
 
-/** Resolve a space by slug, falling back to the default space. */
+/** Resolve a space by slug, or the default space when omitted; null when the slug is unknown. */
 export async function resolveSpace(param?: string): Promise<SpaceRow | null> {
   return getSpaceBySlug(param ?? DEFAULT_SPACE_SLUG);
 }
