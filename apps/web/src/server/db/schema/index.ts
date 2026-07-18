@@ -192,6 +192,12 @@ export const pages = pgTable(
     linkTargetPageId: uuid('link_target_page_id'),
     nature: contentNatureEnum('nature').notNull().default('original'),
     visibility: pageVisibilityEnum('visibility').notNull().default('public'),
+    // Per-page authoring preference: when true, supported metadata (date,
+    // summary, tags) is also embedded as a `---` frontmatter block in the
+    // Markdown body; when false it is kept only in the structured projection.
+    // Persisted so the editor and admin properties dialogs agree instead of
+    // re-guessing from content shape on each edit.
+    writeMetadataToFrontmatter: boolean('write_metadata_to_frontmatter').notNull().default(false),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
