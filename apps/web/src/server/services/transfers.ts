@@ -19,6 +19,7 @@ import { isMigrationActive } from './migration';
 import { assertCanManageTransfers } from './transfer-sources';
 import { reconcilePageAcrossIndexes } from './ai-index';
 import { enqueueGitExport } from './git-export';
+import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
 const ACTIVE = ['queued', 'running'] as const;
@@ -344,6 +345,10 @@ export async function cleanupRun(ctx: PermCtx, id: string): Promise<TransferClea
       for (const pageId of toDelete) await reconcilePageAcrossIndexes(pageId, ctx);
       // One snapshot export reflects all the deletions.
       await enqueueGitExport('publish');
+      // Refresh the cached public page tree so the navigator drops the removed
+      // pages (and any now-empty folders) immediately instead of showing them
+      // until the tree cache's TTL expires — same as a normal page delete.
+      invalidatePublicContentCache();
       deletedPages = toDelete.length;
     }
   }
