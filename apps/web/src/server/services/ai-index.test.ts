@@ -125,6 +125,25 @@ describe('AI index lifecycle', () => {
     expect(dangling).toHaveLength(0);
   });
 
+  it('cancels outstanding rebuild jobs for prior generations when a new rebuild starts', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    // First rebuild leaves a queued action (no worker runs in tests), standing
+    // in for the backlog of incremental per-page rebuild jobs.
+    const first = await createIndexRebuild(ctx, 'test');
+    expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, first.action.id) }))
+      .toMatchObject({ status: 'queued', cancelRequested: false });
+
+    // A fresh full rebuild supersedes the prior generation, so its outstanding
+    // action is flagged cancelled (its worker run then early-returns without
+    // embedding) instead of blocking the new rebuild's job in the queue.
+    const second = await createIndexRebuild(ctx, 'test');
+    expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, first.action.id) }))
+      .toMatchObject({ cancelRequested: true });
+    // The new rebuild's own action must stay runnable.
+    expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, second.action.id) }))
+      .toMatchObject({ status: 'queued', cancelRequested: false });
+  });
+
   it('deletes an inactive generation but refuses the active one', async () => {
     const ctx = buildUserCtx(adminId, 'admin');
     const created = await createIndexRebuild(ctx, 'test');

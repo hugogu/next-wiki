@@ -131,6 +131,21 @@ export async function createIndexRebuild(ctx: PermCtx, reason = 'manual') {
     }
     return created!;
   });
+  // A fresh full rebuild re-indexes every page into a new generation, so any
+  // outstanding incremental rebuild work for prior generations is now moot.
+  // Flag it cancelled so this rebuild's job is not queued behind a backlog of
+  // superseded per-page jobs: each cancelled job's worker run early-returns
+  // without an embed call, so the queue drains fast and progress can advance.
+  await db
+    .update(schema.aiActions)
+    .set({ cancelRequested: true })
+    .where(
+      and(
+        eq(schema.aiActions.feature, 'index_rebuild'),
+        inArray(schema.aiActions.status, ['queued', 'running']),
+        ne(schema.aiActions.indexGenerationId, generation.id),
+      ),
+    );
   const action = await createAction(ctx, {
     feature: 'index_rebuild',
     input: { generationId: generation.id },
