@@ -155,6 +155,13 @@
       "when": 1784298262706,
       "tag": "0021_normal_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784344798596,
+      "tag": "0022_tranquil_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

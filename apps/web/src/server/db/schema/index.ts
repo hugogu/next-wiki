@@ -77,6 +77,12 @@ import {
   setupAiStatusEnum,
   setupSamplePagesStatusEnum,
   setupStepEnum,
+  writingModeEnum,
+  spaceKindEnum,
+  pageKindEnum,
+  actorKindEnum,
+  contentNatureEnum,
+  pageVisibilityEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -104,6 +110,7 @@ export const spaces = pgTable('spaces', {
   name: text('name').notNull(),
   defaultLocale: text('default_locale').notNull().default('en'),
   anonymousRead: boolean('anonymous_read').notNull().default(true),
+  kind: spaceKindEnum('kind').notNull().default('wiki'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -178,6 +185,13 @@ export const pages = pgTable(
     // the invariant is enforced in application code and by the partial unique.
     translationGroupId: uuid('translation_group_id'),
     sourcePageId: uuid('source_page_id'),
+    // 022: `link` pages render another page's published content at this path.
+    // Conceptually a FK to pages.id; app-enforced like
+    // current_published_version_id (see note above).
+    kind: pageKindEnum('kind').notNull().default('native'),
+    linkTargetPageId: uuid('link_target_page_id'),
+    nature: contentNatureEnum('nature').notNull().default('original'),
+    visibility: pageVisibilityEnum('visibility').notNull().default('public'),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -192,6 +206,7 @@ export const pages = pgTable(
       .on(t.translationGroupId, t.locale)
       .where(sql`${t.translationGroupId} is not null`),
     sourcePageIdx: index('pages_source_page_idx').on(t.sourcePageId),
+    linkTargetPageIdx: index('pages_link_target_page_idx').on(t.linkTargetPageId),
   }),
 );
 
@@ -214,6 +229,9 @@ export const pageRevisions = pgTable(
       .notNull()
       .references(() => users.id),
     status: revisionStatusEnum('status').notNull().default('draft'),
+    // 022: derived from the credential at write time (session=human;
+    // api_key/pipeline=machine).
+    actorKind: actorKindEnum('actor_kind').notNull().default('human'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -221,6 +239,23 @@ export const pageRevisions = pgTable(
     versionUnique: uniqueIndex().on(t.pageId, t.versionNumber),
     pageStatusCreatedIdx: index().on(t.pageId, t.status, t.createdAt),
     hashIdx: index().on(t.contentHash),
+  }),
+);
+
+// ---- Wiki writing modes (022) ----------------------------------------------
+
+/** Single-row writing-mode setting (id always 'default'), mirroring the
+ * setup_progress singleton pattern. */
+export const writingModeSettings = pgTable(
+  'writing_mode_settings',
+  {
+    id: text('id').primaryKey().default('default'),
+    mode: writingModeEnum('mode').notNull().default('copilot'),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    singletonId: check('writing_mode_settings_singleton_id', sql`${t.id} = 'default'`),
   }),
 );
 

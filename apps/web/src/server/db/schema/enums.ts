@@ -379,3 +379,17 @@ export const setupStepEnum = pgEnum('setup_step', [
   'summary',
   'closed',
 ]);
+
+// ---- Wiki writing modes (022) ----------------------------------------------
+
+export const writingModeEnum = pgEnum('writing_mode', ['copilot', 'llm-wiki']);
+
+export const spaceKindEnum = pgEnum('space_kind', ['wiki', 'raw', 'generated']);
+
+export const pageKindEnum = pgEnum('page_kind', ['native', 'link']);
+
+export const actorKindEnum = pgEnum('actor_kind', ['human', 'machine']);
+
+export const contentNatureEnum = pgEnum('content_nature', ['original', 'generated']);
+
+export const pageVisibilityEnum = pgEnum('page_visibility', ['public', 'restricted']);
