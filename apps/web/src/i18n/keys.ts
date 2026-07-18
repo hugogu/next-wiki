@@ -163,6 +163,7 @@ export const translationKeys = [
   "page.edit.error.invalidPath",
   "page.edit.error.pathExists",
   "page.edit.error.pathReserved",
+  "page.edit.error.stale",
   "page.edit.error.forbidden",
   "page.edit.error.generic",
   "page.properties.metadataTitle",

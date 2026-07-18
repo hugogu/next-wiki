@@ -269,6 +269,7 @@
         "invalidPath": "The new path is invalid.",
         "pathExists": "A page with this path already exists.",
         "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
+        "stale": "The page was updated in another tab or window. Please reopen it and retry.",
         "forbidden": "You do not have permission to edit this page.",
         "generic": "Failed to save changes."
       }

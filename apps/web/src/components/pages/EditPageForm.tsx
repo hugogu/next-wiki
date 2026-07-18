@@ -43,10 +43,18 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [propertiesError, setPropertiesError] = useState<string | null>(null);
+  const [propertiesSaving, setPropertiesSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [newPath, setNewPath] = useState(path);
+  // The path + revision id of the last successful properties PATCH. The page
+  // editor uses these for navigation and as the baseRevisionId for the
+  // subsequent draft save (which fails with STALE_REVISION if title was just
+  // updated through PATCH).
+  const [committedPath, setCommittedPath] = useState(path);
+  const [committedRevisionId, setCommittedRevisionId] = useState(initial.revisionId);
   const [initialMetadata] = useState(() => ({
     date: initial.metadata.date ?? '',
     summary: initial.metadata.summary ?? '',
@@ -74,21 +82,6 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
       setServerError(null);
       setIsSaving(true);
       try {
-        let editPath = path;
-        if (newPath !== path) {
-          const parsed = updatePagePropertiesSchema.safeParse({ path: newPath });
-          if (!parsed.success) {
-            setServerError(t('page.edit.error.invalidPath'));
-            setIsSaving(false);
-            return;
-          }
-          const body = publicPagePropertiesInputSchema.parse({
-            ...parsed.data,
-            baseRevisionId: initial.revisionId,
-          });
-          const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(getPublicApiPageUrl(initial.pageId), body);
-          editPath = res.path;
-        }
         const contentSource = writeMetadataToFrontmatter
           ? writeEditorMetadata(data.contentSource, data.title, metadata, {
               title: initial.title,
@@ -103,16 +96,16 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
             summary: metadata.summary.trim() || null,
             tags: metadata.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
           },
-          baseRevisionId: initial.revisionId,
+          baseRevisionId: committedRevisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
-        window.location.href = getHistoryHref(editPath);
+        window.location.href = getHistoryHref(committedPath);
       } catch (err) {
         const error = err as ApiError;
-        if (error.code === 'CONFLICT' || error.code === 'PAGE_PATH_CONFLICT') {
-          setServerError(t('page.edit.error.pathExists'));
-        } else if (error.code === 'PAGE_PATH_RESERVED') {
-          setServerError(t('page.edit.error.pathReserved'));
+        if (error.code === 'STALE_REVISION') {
+          // The properties panel already saved a new revision mid-edit; the
+          // user needs to retry so we resync to the latest base.
+          setServerError(t('page.edit.error.stale'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
           setServerError(t('page.edit.error.forbidden'));
         } else {
@@ -122,18 +115,65 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
         setIsSaving(false);
       }
     },
-    [path, newPath, initial.revisionId, initial.pageId, initial.title, initialMetadata, metadata, t, writeMetadataToFrontmatter],
+    [committedPath, committedRevisionId, initial.pageId, initial.title, initialMetadata, metadata, t, writeMetadataToFrontmatter],
   );
+
+  const handleSaveProperties = useCallback(async () => {
+    setPropertiesError(null);
+    const pathChanged = newPath !== committedPath;
+    if (!pathChanged) {
+      // Nothing on the path side has actually changed since the last commit
+      // (title edits in this panel save with the next draft). Just close.
+      setPropertiesOpen(false);
+      return;
+    }
+    const parsed = updatePagePropertiesSchema.safeParse({ path: newPath });
+    if (!parsed.success) {
+      setPropertiesError(parsed.error.issues[0]?.message ?? t('page.edit.error.invalidPath'));
+      return;
+    }
+    setPropertiesSaving(true);
+    try {
+      const body = publicPagePropertiesInputSchema.parse({
+        path: parsed.data.path,
+        baseRevisionId: committedRevisionId,
+      });
+      const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(
+        `${getPublicApiPageUrl(initial.pageId)}?include=latestRevision`,
+        body,
+      );
+      setCommittedPath(res.path);
+      setNewPath(res.path);
+      setCommittedRevisionId(res.latestRevision?.id ?? committedRevisionId);
+      setPropertiesOpen(false);
+    } catch (err) {
+      const error = err as ApiError;
+      if (error.code === 'CONFLICT' || error.code === 'PAGE_PATH_CONFLICT') {
+        setPropertiesError(t('page.properties.error.pathExists'));
+      } else if (error.code === 'PAGE_PATH_RESERVED') {
+        setPropertiesError(t('page.properties.error.pathReserved'));
+      } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
+        setPropertiesError(t('page.properties.error.forbidden'));
+      } else if (error.code === 'STALE_REVISION') {
+        setPropertiesError(t('page.edit.error.stale'));
+      } else {
+        setPropertiesError(error.message || t('page.properties.error.generic'));
+      }
+    } finally {
+      setPropertiesSaving(false);
+    }
+  }, [newPath, committedPath, committedRevisionId, initial.pageId, t]);
 
   const save = useCallback(() => {
     handleSubmit(onSubmit)();
   }, [handleSubmit, onSubmit]);
 
   const close = useCallback(() => {
-    goBack(getPageHref(path));
-  }, [goBack, path]);
+    goBack(getPageHref(committedPath));
+  }, [goBack, committedPath]);
 
   const toggleProperties = useCallback(() => {
+    setPropertiesError(null);
     setPropertiesOpen((open) => !open);
   }, []);
 
@@ -211,7 +251,11 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
             titleError={errors.title?.message}
             path={newPath}
             onPathChange={setNewPath}
-            pathError={newPath !== path && !updatePagePropertiesSchema.safeParse({ path: newPath }).success ? t('page.edit.validation.invalidPath') : undefined}
+            pathError={
+              newPath !== committedPath && !updatePagePropertiesSchema.safeParse({ path: newPath }).success
+                ? t('page.edit.validation.invalidPath')
+                : undefined
+            }
             date={metadata.date}
             onDateChange={(date) => setMetadata((current) => ({ ...current, date }))}
             tags={metadata.tags}
@@ -223,6 +267,9 @@ export function EditPageForm({ path, initial }: { path: string; initial: EditPag
               setFrontmatterPreferenceTouched(true);
               setWriteMetadataToFrontmatter(value);
             }}
+            error={propertiesError}
+            saving={propertiesSaving}
+            onSave={handleSaveProperties}
             onClose={toggleProperties}
           />
         )}
