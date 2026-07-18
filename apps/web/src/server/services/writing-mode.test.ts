@@ -1,0 +1,70 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { closeDb, db } from '@/server/db';
+import * as schema from '@/server/db/schema';
+import { DomainError } from '@/server/errors';
+import { buildUserCtx } from '@/server/permissions';
+import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
+import {
+  assertSpaceKindAllowed,
+  getMode,
+  isLlmWikiMode,
+  setMode,
+  setModeInternal,
+} from './writing-mode';
+
+describe('writing-mode service', () => {
+  beforeAll(async () => {
+    await resetSetupOnboardingState();
+  });
+
+  beforeEach(async () => {
+    await db.delete(schema.writingModeSettings);
+  });
+
+  afterAll(async () => {
+    await resetSetupOnboardingState();
+    await closeDb();
+  });
+
+  it('getMode seeds the singleton row with copilot when absent', async () => {
+    await expect(getMode()).resolves.toBe('copilot');
+    const row = await db.query.writingModeSettings.findFirst();
+    expect(row?.mode).toBe('copilot');
+  });
+
+  it('setModeInternal flips the mode and getMode observes it', async () => {
+    await expect(getMode()).resolves.toBe('copilot');
+    await setModeInternal('llm-wiki', null);
+    await expect(getMode()).resolves.toBe('llm-wiki');
+    await expect(isLlmWikiMode()).resolves.toBe(true);
+    await setModeInternal('copilot', null);
+    await expect(isLlmWikiMode()).resolves.toBe(false);
+  });
+
+  it('setMode requires an admin session actor', async () => {
+    const { userId } = await createAdminUser();
+    await expect(setMode(buildUserCtx(userId, 'editor'), 'llm-wiki')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    } satisfies Partial<DomainError>);
+    await expect(setMode(buildUserCtx(userId, 'admin'), 'llm-wiki')).resolves.toBe('llm-wiki');
+    await expect(getMode()).resolves.toBe('llm-wiki');
+  });
+
+  it('assertSpaceKindAllowed rejects raw/generated in copilot mode', async () => {
+    await expect(getMode()).resolves.toBe('copilot');
+    await expect(assertSpaceKindAllowed('wiki')).resolves.toBeUndefined();
+    await expect(assertSpaceKindAllowed('raw')).rejects.toMatchObject({
+      code: 'SPACE_UNAVAILABLE',
+    } satisfies Partial<DomainError>);
+    await expect(assertSpaceKindAllowed('generated')).rejects.toMatchObject({
+      code: 'SPACE_UNAVAILABLE',
+    } satisfies Partial<DomainError>);
+  });
+
+  it('assertSpaceKindAllowed allows every space kind in llm-wiki mode', async () => {
+    await setModeInternal('llm-wiki', null);
+    await expect(assertSpaceKindAllowed('wiki')).resolves.toBeUndefined();
+    await expect(assertSpaceKindAllowed('raw')).resolves.toBeUndefined();
+    await expect(assertSpaceKindAllowed('generated')).resolves.toBeUndefined();
+  });
+});
