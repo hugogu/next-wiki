@@ -375,6 +375,7 @@ export const setupSamplePagesStatusEnum = pgEnum('setup_sample_pages_status', [
 export const setupStepEnum = pgEnum('setup_step', [
   'account',
   'ai',
+  'writing_mode',
   'sample_pages',
   'summary',
   'closed',

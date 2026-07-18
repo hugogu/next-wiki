@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, type PermCtx, getActorUserId } from '@/server/permissions';
+import { can, type PermCtx, getActorUserId, pagePermissionOptions } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { assertNotMigrating } from '@/server/services/migration';
 import { enqueueGitExport } from '@/server/services/git-export';
@@ -56,7 +56,12 @@ export async function publish(
     }
 
     const isAuthor = revision.authorId === userId;
-    if (!can(ctx, 'publish', { kind: 'revision', pageId: page.id, version: input.version }, { isAuthor })) {
+    if (!can(
+      ctx,
+      'publish',
+      { kind: 'revision', pageId: page.id, version: input.version },
+      pagePermissionOptions(space, page, { isAuthor }),
+    )) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to publish this revision');
     }
 

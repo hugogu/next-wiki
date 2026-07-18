@@ -1,6 +1,6 @@
 import { asc, eq, isNull } from 'drizzle-orm';
 import type { PermCtx } from '@/server/permissions';
-import { can } from '@/server/permissions';
+import { can, pagePermissionOptions } from '@/server/permissions';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
@@ -45,6 +45,9 @@ export async function loadReadableFullContext(
       revisionHash: schema.pageRevisions.contentHash,
       content: schema.pageRevisions.contentSource,
       anonymousRead: schema.spaces.anonymousRead,
+      spaceKind: schema.spaces.kind,
+      visibility: schema.pages.visibility,
+      authorId: schema.pages.authorId,
     })
     .from(schema.pages)
     .innerJoin(schema.spaces, eq(schema.pages.spaceId, schema.spaces.id))
@@ -52,8 +55,18 @@ export async function loadReadableFullContext(
     .where(isNull(schema.pages.deletedAt))
     .orderBy(asc(schema.pages.path), asc(schema.pages.locale));
 
+  const actorUserId = ctx.actor.kind === 'anonymous' ? null : ctx.actor.userId;
   const readable = rows.filter((row) =>
-    can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: row.anonymousRead }),
+    can(
+      ctx,
+      'read',
+      { kind: 'page', pageId: row.pageId },
+      pagePermissionOptions(
+        { kind: row.spaceKind, anonymousRead: row.anonymousRead },
+        { visibility: row.visibility },
+        { isAuthor: actorUserId ? row.authorId === actorUserId : false },
+      ),
+    ),
   );
   const sources = readable.map((row, index) => ({
     id: `S${index + 1}`,

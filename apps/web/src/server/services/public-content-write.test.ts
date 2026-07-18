@@ -1,10 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
 import * as publicContent from '@/server/services/public-content';
+import { beginPendingSwitch, clearPendingSwitch } from '@/server/services/writing-mode';
 import {
   createPublicApiUser,
   ensurePublicApiDefaultSpace,
@@ -106,6 +109,28 @@ describe('public content write facade', () => {
         baseRevisionId: created.versionId,
       }),
     ).rejects.toMatchObject({ code: 'STALE_REVISION' });
+  });
+
+  it('omits restricted pages from non-admin public reads and lists', async () => {
+    const editor = await createPublicApiUser('public-restricted-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-restricted-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildUserCtx(reader.id, 'reader');
+    const created = await pageService.create(editorCtx, {
+      path: 'public/restricted',
+      title: 'Restricted',
+      contentSource: '# Restricted',
+    });
+    await revisions.publish(editorCtx, { path: 'public/restricted', version: 1 });
+    await db.update(schema.pages).set({ visibility: 'restricted' }).where(eq(schema.pages.id, created.pageId));
+
+    await expect(publicContent.getPageById(readerCtx, created.pageId)).resolves.toBeNull();
+    await expect(publicContent.listPages(readerCtx, {
+      status: 'published',
+      limit: 20,
+      order: 'path',
+      include: [],
+    })).resolves.toMatchObject({ items: [] });
   });
 });
 
@@ -318,5 +343,25 @@ describe('public content batch soft-delete facade (US5)', () => {
     await expect(
       publicContent.batchSoftDeletePages(readerCtx, { pageIds: ids }, { dryRun: false }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('rejects each batch deletion while a writing-mode switch is pending', async () => {
+    const editor = await createPublicApiUser('batch-delete-pending-editor@example.com', 'editor');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const apiCtx = buildApiKeyCtx(editor.id, 'editor', ['view', 'delete'], 'editor-key');
+    const [pageId] = await seedPublished(editorCtx, 1, 'batch-del/pending');
+
+    await beginPendingSwitch('llm-wiki', randomUUID(), editor.id);
+    try {
+      await expect(
+        publicContent.batchSoftDeletePages(apiCtx, { pageIds: [pageId!] }, { dryRun: false }),
+      ).resolves.toMatchObject({
+        successCount: 0,
+        failureCount: 1,
+        results: [{ pageId, status: 'failed', error: { code: 'MODE_SWITCH_IN_PROGRESS' } }],
+      });
+    } finally {
+      await clearPendingSwitch(editor.id);
+    }
   });
 });

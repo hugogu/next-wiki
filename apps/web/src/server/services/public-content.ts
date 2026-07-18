@@ -39,7 +39,7 @@ import type {
   PublicRevisionResource,
 } from '@next-wiki/shared';
 import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagination';
-import { buildAnonymousCtx, can, getActorUserId, type PermCtx } from '@/server/permissions';
+import { buildAnonymousCtx, can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { mapPublicDomainErrorCode } from '@/server/api/public-errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
@@ -66,6 +66,7 @@ import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
+type SpaceRow = Pick<typeof schema.spaces.$inferSelect, 'id' | 'slug' | 'anonymousRead' | 'defaultLocale' | 'kind'>;
 
 function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
@@ -150,7 +151,7 @@ async function author(id: string | null) {
   return { id, displayName: row?.displayName ?? null };
 }
 
-async function revisionSummary(ctx: PermCtx, page: PageRow, revision: RevisionRow | null) {
+async function revisionSummary(ctx: PermCtx, space: SpaceRow, page: PageRow, revision: RevisionRow | null) {
   if (!revision) return null;
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? revision.authorId === userId : false;
@@ -164,7 +165,7 @@ async function revisionSummary(ctx: PermCtx, page: PageRow, revision: RevisionRo
     author: await author(revision.authorId),
     createdAt: revision.createdAt.toISOString(),
     publishedAt: revision.publishedAt?.toISOString() ?? null,
-    canPublish: can(ctx, 'publish', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, { isAuthor }),
+    canPublish: can(ctx, 'publish', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, pagePermissionOptions(space, page, { isAuthor })),
   };
 }
 
@@ -189,17 +190,17 @@ const DEFAULT_VISIBLE_PAGE_OPTIONS: VisiblePageOptions = {
 
 async function visiblePageResource(
   ctx: PermCtx,
-  space: { slug: string; anonymousRead: boolean; defaultLocale: string },
+  space: SpaceRow,
   page: PageRow,
   options: VisiblePageOptions = DEFAULT_VISIBLE_PAGE_OPTIONS,
 ): Promise<PublicPageResource | null> {
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  const userId = getActorUserId(ctx);
+  const isPageAuthor = userId ? page.authorId === userId : false;
+  if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }))) {
     return null;
   }
 
-  const userId = getActorUserId(ctx);
-  const isPageAuthor = userId ? page.authorId === userId : false;
-  const canSeeDraft = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor: isPageAuthor });
+  const canSeeDraft = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }));
 
   const [publishedRow, latestRow] = await Promise.all([
     page.currentPublishedVersionId
@@ -227,8 +228,8 @@ async function visiblePageResource(
   const [content, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
     readMarkdownFromDatabase(current),
     author(page.authorId),
-    wantsLatest ? revisionSummary(ctx, page, visibleLatest) : Promise.resolve(undefined),
-    wantsPublished ? revisionSummary(ctx, page, published) : Promise.resolve(undefined),
+    wantsLatest ? revisionSummary(ctx, space, page, visibleLatest) : Promise.resolve(undefined),
+    wantsPublished ? revisionSummary(ctx, space, page, published) : Promise.resolve(undefined),
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(current.id);
@@ -286,17 +287,21 @@ const DEFAULT_VISIBLE_REVISION_OPTIONS: VisibleRevisionOptions = { includeConten
 
 async function visibleRevisionResource(
   ctx: PermCtx,
+  space: SpaceRow,
   page: PageRow,
   revision: RevisionRow,
   options: VisibleRevisionOptions = DEFAULT_VISIBLE_REVISION_OPTIONS,
 ): Promise<PublicRevisionResource | null> {
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? revision.authorId === userId : false;
-  if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, { isAuthor })) {
+  if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
+    return null;
+  }
+  if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: revision.versionNumber }, pagePermissionOptions(space, page, { isAuthor }))) {
     return null;
   }
   const [summary, content] = await Promise.all([
-    revisionSummary(ctx, page, revision),
+    revisionSummary(ctx, space, page, revision),
     readMarkdownFromDatabase(revision),
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
@@ -357,7 +362,7 @@ async function listPagesInternal(
   const space = await resolveSpace();
   if (!space) return { items: [], nextCursor: null };
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { items: [], nextCursor: null };
   }
 
@@ -367,7 +372,7 @@ async function listPagesInternal(
   }
 
   const canSeeDeleted = query.status === 'deleted' || query.status === 'all'
-    ? can(ctx, 'delete', { kind: 'page_list' })
+    ? can(ctx, 'delete', { kind: 'page_list' }, spacePermissionOptions(space))
     : false;
 
   const cursor = decodePublicCursor(query.cursor);
@@ -408,14 +413,14 @@ async function listPagesInternal(
       ctx,
       'read_draft',
       { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 },
-      { isAuthor: false },
+      pagePermissionOptions(space, { visibility: 'public' }, { isAuthor: false }),
     );
     const canSeeOwnDraft = actorUserId
       ? can(
           ctx,
           'read_draft',
           { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 },
-          { isAuthor: true },
+          pagePermissionOptions(space, { visibility: 'public' }, { isAuthor: true }),
         )
       : false;
     if (canSeeEveryDraft) {
@@ -577,6 +582,8 @@ const LIST_REVISION_OPTIONS: VisibleRevisionOptions = { includeContent: false };
 export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicRevisionListQuery): Promise<PublicRevisionListResponse> {
   const page = await getPageRowById(pageId);
   if (!page) return { items: [], nextCursor: null };
+  const space = await resolveSpace();
+  if (!space) return { items: [], nextCursor: null };
   const cursor = decodePublicCursor(query.cursor);
   const rows = await db
     .select()
@@ -590,7 +597,7 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
     (row) => !query.status || query.status === 'all' || row.status === query.status,
   );
   const resolved = await Promise.all(
-    candidates.map((row) => visibleRevisionResource(ctx, page, row, LIST_REVISION_OPTIONS)),
+    candidates.map((row) => visibleRevisionResource(ctx, space, page, row, LIST_REVISION_OPTIONS)),
   );
 
   const items: PublicRevisionResource[] = [];
@@ -607,6 +614,8 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
 export async function getRevision(ctx: PermCtx, pageId: string, version: number): Promise<PublicRevisionResource | null> {
   const page = await getPageRowById(pageId);
   if (!page) return null;
+  const space = await resolveSpace();
+  if (!space) return null;
   const revision = await db.query.pageRevisions.findFirst({
     where: and(
       eq(schema.pageRevisions.pageId, page.id),
@@ -614,7 +623,7 @@ export async function getRevision(ctx: PermCtx, pageId: string, version: number)
     ),
   });
   if (!revision) return null;
-  return visibleRevisionResource(ctx, page, revision);
+  return visibleRevisionResource(ctx, space, page, revision);
 }
 
 export async function publishRevision(
@@ -856,7 +865,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
   const space = await resolveSpace();
   if (!space) return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { root: emptyNode(query.pathPrefix ?? ''), pageCount: 0 };
   }
 
@@ -882,6 +891,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
       path: schema.pages.path,
       title: schema.pages.title,
       authorId: schema.pages.authorId,
+      visibility: schema.pages.visibility,
       currentPublishedVersionId: schema.pages.currentPublishedVersionId,
     })
     .from(schema.pages)
@@ -895,10 +905,9 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     const status: Row['status'] = row.currentPublishedVersionId ? 'published' : 'draft';
     if (query.status === 'draft' && status !== 'draft') continue;
     if (query.status === 'published' && status !== 'published') continue;
-    if (status === 'draft') {
-      const isAuthor = userId ? row.authorId === userId : false;
-      if (!can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, { isAuthor })) continue;
-    }
+    const isAuthor = userId ? row.authorId === userId : false;
+    if (!can(ctx, 'read', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) continue;
+    if (status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     visible.push({ id: row.id, path: row.path, title: row.title, status });
   }
 
@@ -1007,7 +1016,16 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
 
   const space = await resolveSpace();
   if (!space) return { items: [] };
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    return { items: [] };
+  }
+  const userId = getActorUserId(ctx);
+  if (!can(
+    ctx,
+    'read',
+    { kind: 'page', pageId: targetPage.id },
+    pagePermissionOptions(space, targetPage, { isAuthor: userId ? targetPage.authorId === userId : false }),
+  )) {
     return { items: [] };
   }
 
@@ -1056,8 +1074,6 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
 // 010: AI Curation API — outbound links & graph traversal
 // ---------------------------------------------------------------------------
 
-type SpaceRow = { id: string; slug: string; anonymousRead: boolean; defaultLocale: string };
-
 async function findPageRowByPathAnyStatus(spaceId: string, targetPath: string): Promise<PageRow | null> {
   return (
     (await db.query.pages.findFirst({
@@ -1096,8 +1112,8 @@ async function resolveLinkTarget(
     const userId = getActorUserId(ctx);
     const isAuthor = userId ? row.authorId === userId : false;
     const canSeeDeleted =
-      can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, { isAuthor }) ||
-      can(ctx, 'delete', { kind: 'page_list' });
+      can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, pagePermissionOptions(space, row, { isAuthor })) ||
+      can(ctx, 'delete', { kind: 'page_list' }, spacePermissionOptions(space));
     if (!canSeeDeleted) return { kind: 'omit' };
     return { kind: 'dangling', item: { source, targetPath, targetStatus: 'deleted', linkText } };
   }
@@ -1324,7 +1340,7 @@ function toItemError(error: unknown): { code: string; message: string } {
 
 async function batchUpdateOneItem(
   ctx: PermCtx,
-  space: { id: string },
+  space: SpaceRow,
   item: PublicPageBatchUpdateItemInput,
   dryRun: boolean,
 ): Promise<PublicBatchItemResult> {
@@ -1335,7 +1351,7 @@ async function batchUpdateOneItem(
 
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? page.authorId === userId : false;
-  if (!userId || !can(ctx, 'edit', { kind: 'page', pageId: page.id }, { isAuthor })) {
+  if (!userId || !can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
   }
   if (page.latestVersionId !== item.baseRevisionId) {
@@ -1445,11 +1461,11 @@ async function batchUpdateOneItem(
 }
 
 export async function batchUpdatePages(ctx: PermCtx, input: PublicPageBatchUpdateInput, options: { dryRun: boolean }): Promise<PublicPageBatchUpdateResult> {
-  if (!can(ctx, 'edit', { kind: 'page_list' })) {
-    throw new DomainError('FORBIDDEN', 'This API key cannot edit pages');
-  }
   const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  if (!can(ctx, 'edit', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    throw new DomainError('FORBIDDEN', 'This API key cannot edit pages');
+  }
 
   const results: PublicBatchItemResult[] = [];
   for (const item of input.items) {
@@ -1463,7 +1479,7 @@ export async function batchUpdatePages(ctx: PermCtx, input: PublicPageBatchUpdat
   return { results, successCount, failureCount: results.length - successCount, dryRun: options.dryRun || undefined };
 }
 
-async function batchSoftDeleteOneItem(ctx: PermCtx, space: { id: string }, pageId: string, dryRun: boolean): Promise<PublicBatchItemResult> {
+async function batchSoftDeleteOneItem(ctx: PermCtx, space: SpaceRow, pageId: string, dryRun: boolean): Promise<PublicBatchItemResult> {
   const page = await db.query.pages.findFirst({
     where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)),
   });
@@ -1471,7 +1487,7 @@ async function batchSoftDeleteOneItem(ctx: PermCtx, space: { id: string }, pageI
 
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? page.authorId === userId : false;
-  if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, { isAuthor })) {
+  if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to delete this page');
   }
 
@@ -1479,7 +1495,10 @@ async function batchSoftDeleteOneItem(ctx: PermCtx, space: { id: string }, pageI
     return { pageId: page.id, status: 'success', preview: { path: page.path, title: page.title } };
   }
 
-  await db.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, page.id));
+  await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    await tx.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, page.id));
+  });
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
   return { pageId: page.id, status: 'success' };
@@ -1490,12 +1509,12 @@ export async function batchSoftDeletePages(ctx: PermCtx, input: PublicPageBatchD
   // authorship is only knowable per-page, not at the batch boundary. FR-025
   // instead requires a flat Editor/Admin + delete-scope gate here (Reader
   // keys always rejected); per-item authorship is still enforced below.
-  const isReaderOrAnonymous = ctx.actor.kind === 'anonymous' || ctx.actor.role === 'reader';
-  if (isReaderOrAnonymous || !can(ctx, 'delete', { kind: 'page_list' }, { isAuthor: true })) {
-    throw new DomainError('FORBIDDEN', 'This API key cannot delete pages');
-  }
   const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  const isReaderOrAnonymous = ctx.actor.kind === 'anonymous' || ctx.actor.role === 'reader';
+  if (isReaderOrAnonymous || !can(ctx, 'delete', { kind: 'page_list' }, { ...spacePermissionOptions(space), isAuthor: true })) {
+    throw new DomainError('FORBIDDEN', 'This API key cannot delete pages');
+  }
 
   const results: PublicBatchItemResult[] = [];
   for (const pageId of input.pageIds) {
@@ -1531,8 +1550,11 @@ export async function getStats(
   if (!space) {
     return { totalPages: 0, publishedPages: 0, draftPages: 0, deletedPages: 0, recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 }, directories: [] };
   }
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    return { totalPages: 0, publishedPages: 0, draftPages: 0, deletedPages: 0, recentActivity: { createdInLast7Days: 0, updatedInLast7Days: 0 }, directories: [] };
+  }
 
-  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 }, { isAuthor: false });
+  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 }, pagePermissionOptions(space, { visibility: 'public' }, { isAuthor: false }));
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -1542,6 +1564,7 @@ export async function getStats(
       path: schema.pages.path,
       title: schema.pages.title,
       authorId: schema.pages.authorId,
+      visibility: schema.pages.visibility,
       currentPublishedVersionId: schema.pages.currentPublishedVersionId,
       deletedAt: schema.pages.deletedAt,
       createdAt: schema.pages.createdAt,
@@ -1560,6 +1583,8 @@ export async function getStats(
 
   const userId = getActorUserId(ctx);
   for (const row of allRows) {
+    const isAuthor = userId ? row.authorId === userId : false;
+    if (!can(ctx, 'read', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     if (row.deletedAt) {
       deletedPages += 1;
       continue;
@@ -1570,8 +1595,7 @@ export async function getStats(
       visiblePublishedPaths.add(row.path);
     } else {
       if (!canSeeDrafts) continue;
-      const isAuthor = userId ? row.authorId === userId : false;
-      if (!can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, { isAuthor })) continue;
+      if (!can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, pagePermissionOptions(space, row, { isAuthor }))) continue;
       draftPages += 1;
     }
     if (row.createdAt >= sevenDaysAgo) createdInLast7Days += 1;
@@ -1664,12 +1688,12 @@ export async function findSimilar(
   const space = await resolveSpace();
   if (!space) return { results: [], threshold };
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { results: [], threshold };
   }
 
   const rows = await db
-    .select({ id: schema.pages.id, path: schema.pages.path, title: schema.pages.title })
+    .select({ id: schema.pages.id, path: schema.pages.path, title: schema.pages.title, authorId: schema.pages.authorId, visibility: schema.pages.visibility })
     .from(schema.pages)
     .where(
       and(
@@ -1680,7 +1704,10 @@ export async function findSimilar(
     );
 
   const results: PublicSimilarResult[] = [];
+  const userId = getActorUserId(ctx);
   for (const row of rows) {
+    const isAuthor = userId ? row.authorId === userId : false;
+    if (!can(ctx, 'read', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     let score = 0;
     let components = 0;
     if (input.path) {
@@ -1706,7 +1733,8 @@ export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: Pu
   if (!page || !page.latestVersionId) throw new DomainError('NOT_FOUND', 'Page not found');
   const userId = getActorUserId(ctx);
   const isAuthor = userId ? page.authorId === userId : false;
-  if (!userId || !can(ctx, 'edit', { kind: 'page', pageId }, { isAuthor })) {
+  const space = await resolveSpace();
+  if (!space || !userId || !can(ctx, 'edit', { kind: 'page', pageId }, pagePermissionOptions(space, page, { isAuthor }))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
   }
   const latest = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.latestVersionId) });

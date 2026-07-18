@@ -6,7 +6,7 @@
 
 ```bash
 docker compose up -d --build        # app + worker + postgres (AGENTS.md standard)
-# migration 0022 applies at boot; seed ensures default/raw/generated spaces
+# migrations 0022 through 0024 apply at boot; seed ensures default/raw/generated spaces
 ```
 
 Automated checks while developing:

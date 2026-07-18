@@ -2,7 +2,7 @@
 
 **Date**: 2026-07-18 | **Plan**: [plan.md](plan.md) | **Research**: [research.md](research.md)
 
-All changes are produced by editing `apps/web/src/server/db/schema/{enums.ts,index.ts}` and running `pnpm db:generate` (never hand-authored SQL — AGENTS.md rule). One migration (`0022_*`) covers everything below.
+All changes are produced by editing `apps/web/src/server/db/schema/{enums.ts,index.ts}` and running `pnpm db:generate` (never hand-authored SQL — AGENTS.md rule). The foundational changes are recorded in the generated `0022_*`, `0023_*`, and `0024_*` migrations.
 
 ## New enums (`enums.ts`)
 

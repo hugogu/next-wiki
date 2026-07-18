@@ -36,6 +36,29 @@ export type CanOptions = {
   visibility?: PageVisibility;
 };
 
+type SpacePermissionSource = {
+  kind: SpaceKind;
+  anonymousRead: boolean;
+};
+
+type PagePermissionSource = {
+  visibility: PageVisibility;
+};
+
+/** Build permission inputs from the resolved space rather than call-site defaults. */
+export function spacePermissionOptions(space: SpacePermissionSource): Pick<CanOptions, 'anonymousRead' | 'spaceKind'> {
+  return { anonymousRead: space.anonymousRead, spaceKind: space.kind };
+}
+
+/** Include concrete page visibility whenever a permission targets that page. */
+export function pagePermissionOptions(
+  space: SpacePermissionSource,
+  page: PagePermissionSource,
+  options: Omit<CanOptions, 'anonymousRead' | 'spaceKind' | 'visibility'> = {},
+): CanOptions {
+  return { ...spacePermissionOptions(space), visibility: page.visibility, ...options };
+}
+
 export type Action =
   | 'read'
   | 'read_draft'

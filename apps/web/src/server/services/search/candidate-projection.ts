@@ -2,7 +2,7 @@ import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { PublicPageResource } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, type PermCtx } from '@/server/permissions';
+import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import { getRevisionMetadata } from '@/server/services/page-metadata';
 import { resolveSpace } from '@/server/services/spaces';
@@ -44,7 +44,7 @@ export async function projectReadableCandidatePages(
 
   const space = await resolveSpace();
   if (!space) return result;
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) return result;
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) return result;
 
   const rows = await db
     .select({
@@ -67,6 +67,15 @@ export async function projectReadableCandidatePages(
     ));
 
   for (const row of rows) {
+    const userId = getActorUserId(ctx);
+    if (!can(
+      ctx,
+      'read',
+      { kind: 'page', pageId: row.page.id },
+      pagePermissionOptions(space, row.page, { isAuthor: userId ? row.page.authorId === userId : false }),
+    )) {
+      continue;
+    }
     const { frontmatter } = parsePageFrontmatter(row.contentSource ?? '');
     result.set(row.page.id, {
       contentSource: row.contentSource,

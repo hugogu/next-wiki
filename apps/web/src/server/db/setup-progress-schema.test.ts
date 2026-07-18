@@ -39,6 +39,15 @@ describe('setup_progress schema', () => {
     ).rejects.toThrow(/setup_progress_singleton_id/);
   });
 
+  it('accepts writing_mode as a persisted onboarding step', async () => {
+    const [row] = await db
+      .update(schema.setupProgress)
+      .set({ currentStep: 'writing_mode' })
+      .where(eq(schema.setupProgress.id, 'default'))
+      .returning();
+    expect(row?.currentStep).toBe('writing_mode');
+  });
+
   it('references the admin user and ai action with set-null behavior', async () => {
     const { userId } = await createAdminUser();
     const expiresAt = new Date(Date.now() + 60_000);

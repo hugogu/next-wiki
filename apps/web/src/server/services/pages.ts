@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, and, isNull, desc, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildAnonymousCtx, can, type PermCtx, getActorUserId } from '@/server/permissions';
+import { buildAnonymousCtx, can, type PermCtx, getActorUserId, pagePermissionOptions, spacePermissionOptions } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
@@ -199,14 +199,17 @@ export async function listPublished(
   const space = await resolveSpace();
   if (!space) return [];
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return [];
   }
 
   const query = db
     .select({
+      pageId: schema.pages.id,
       path: schema.pages.path,
       title: schema.pages.title,
+      authorId: schema.pages.authorId,
+      visibility: schema.pages.visibility,
       authorDisplayName: schema.users.displayName,
       revisionId: schema.pageRevisions.id,
       contentHtml: schema.pageRevisions.contentHtml,
@@ -233,7 +236,16 @@ export async function listPublished(
   const limited = options.limit != null ? query.limit(options.limit) : query;
   const paged = options.offset != null ? limited.offset(options.offset) : limited;
   const rows = await paged;
-  const revisionIds = rows.map((row) => row.revisionId);
+  const userId = getUserId(ctx);
+  const readableRows = rows.filter((row) =>
+    can(
+      ctx,
+      'read',
+      { kind: 'page', pageId: row.pageId },
+      pagePermissionOptions(space, row, { isAuthor: userId ? row.authorId === userId : false }),
+    ),
+  );
+  const revisionIds = readableRows.map((row) => row.revisionId);
   const metadataRows = revisionIds.length
     ? await db
         .select({ revisionId: schema.pageRevisionMetadata.revisionId, summary: schema.pageRevisionMetadata.summary })
@@ -242,7 +254,7 @@ export async function listPublished(
     : [];
   const summaryByRevisionId = new Map(metadataRows.map((row) => [row.revisionId, row.summary]));
 
-  return rows.map((r) => ({
+  return readableRows.map((r) => ({
       path: r.path,
       title: r.title,
       authorDisplayName: r.authorDisplayName,
@@ -257,12 +269,12 @@ export async function countPublished(ctx: PermCtx): Promise<number> {
   const space = await resolveSpace();
   if (!space) return 0;
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return 0;
   }
 
-  const [row] = await db
-    .select({ value: count() })
+  const rows = await db
+    .select({ id: schema.pages.id, authorId: schema.pages.authorId, visibility: schema.pages.visibility })
     .from(schema.pages)
     .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
     .where(
@@ -273,7 +285,15 @@ export async function countPublished(ctx: PermCtx): Promise<number> {
       ),
     );
 
-  return row?.value ?? 0;
+  const userId = getUserId(ctx);
+  return rows.filter((page) =>
+    can(
+      ctx,
+      'read',
+      { kind: 'page', pageId: page.id },
+      pagePermissionOptions(space, page, { isAuthor: userId ? page.authorId === userId : false }),
+    ),
+  ).length;
 }
 
 const readCachedHomePageSummary = unstable_cache(
@@ -489,7 +509,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
   const space = await resolveSpace();
   if (!space) return null;
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return null;
   }
 
@@ -509,6 +529,10 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
 
   const userId = getUserId(ctx);
   const isAuthor = userId ? page.authorId === userId : false;
+
+  if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
+    return null;
+  }
 
   if (page.currentPublishedVersionId) {
     const revision = await db.query.pageRevisions.findFirst({
@@ -538,7 +562,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     };
   }
 
-  if (!can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor })) {
+  if (!can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor }))) {
     return null;
   }
 
@@ -606,7 +630,7 @@ export async function getLiveTranslation(
   });
   if (!language || !language.enabled || language.retiredAt) return { kind: 'not_found' };
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { kind: 'not_found' };
   }
 
@@ -621,6 +645,15 @@ export async function getLiveTranslation(
   });
   // A hidden or unpublished source reveals nothing — treated as not found.
   if (!source || !source.currentPublishedVersionId) return { kind: 'not_found' };
+  const actorUserId = getUserId(ctx);
+  if (!can(
+    ctx,
+    'read',
+    { kind: 'page', pageId: source.id },
+    pagePermissionOptions(space, source, { isAuthor: actorUserId ? source.authorId === actorUserId : false }),
+  )) {
+    return { kind: 'not_found' };
+  }
 
   const group = await db.query.translationGroups.findFirst({
     where: eq(schema.translationGroups.sourcePageId, source.id),
@@ -642,6 +675,14 @@ export async function getLiveTranslation(
   });
   if (!translation || !translation.currentPublishedVersionId) {
     return { kind: 'unavailable', sourcePath: source.path, freshness: state?.freshnessStatus ?? null };
+  }
+  if (!can(
+    ctx,
+    'read',
+    { kind: 'page', pageId: translation.id },
+    pagePermissionOptions(space, translation, { isAuthor: actorUserId ? translation.authorId === actorUserId : false }),
+  )) {
+    return { kind: 'not_found' };
   }
 
   const revision = await db.query.pageRevisions.findFirst({
@@ -691,7 +732,7 @@ export async function getPublishedTranslationLocales(sourcePath: string): Promis
       isNull(schema.pages.translationGroupId),
     ),
   });
-  if (!source || !source.currentPublishedVersionId) return [];
+  if (!source || !source.currentPublishedVersionId || space.kind !== 'wiki' || source.visibility !== 'public') return [];
   const group = await db.query.translationGroups.findFirst({
     where: eq(schema.translationGroups.sourcePageId, source.id),
   });
@@ -791,7 +832,7 @@ export async function getPublishedForShare(pageId: string): Promise<LivePage | n
     ),
   });
 
-  if (!page || !page.currentPublishedVersionId) return null;
+  if (!page || !page.currentPublishedVersionId || space.kind !== 'wiki' || page.visibility !== 'public') return null;
 
   const revision = await db.query.pageRevisions.findFirst({
     where: eq(schema.pageRevisions.id, page.currentPublishedVersionId),
@@ -826,7 +867,7 @@ export async function getPublishedForShare(pageId: string): Promise<LivePage | n
 export async function canCreate(ctx: PermCtx): Promise<boolean> {
   const space = await resolveSpace();
   if (!space) return false;
-  return can(ctx, 'create', { kind: 'page_list' });
+  return can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space));
 }
 
 export async function remove(ctx: PermCtx, path: string): Promise<void> {
@@ -852,7 +893,7 @@ export async function remove(ctx: PermCtx, path: string): Promise<void> {
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
 
   const isAuthor = page.authorId === userId;
-  if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, { isAuthor })) {
+  if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to delete this page');
   }
 
@@ -880,7 +921,7 @@ export async function create(
   const space = await resolveSpace();
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
 
-  if (!can(ctx, 'create', { kind: 'page_list' })) {
+  if (!can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to create pages');
   }
 
@@ -1007,7 +1048,7 @@ export async function newDraft(
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
 
-    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id })) {
+    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
 
@@ -1115,7 +1156,7 @@ export async function updateProperties(
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
 
-    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id })) {
+    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
 
@@ -1179,7 +1220,7 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
   if (!page) return null;
 
   const isAuthor = userId ? page.authorId === userId : false;
-  if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, { isAuthor })) {
+  if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
     return null;
   }
 
@@ -1197,9 +1238,9 @@ export async function getForEdit(ctx: PermCtx, path: string): Promise<EditableVi
     ctx,
     'publish',
     { kind: 'revision', pageId: page.id, version: revision.versionNumber },
-    { isAuthor: isRevisionAuthor },
+    pagePermissionOptions(space, page, { isAuthor: isRevisionAuthor }),
   );
-  const canDelete = can(ctx, 'delete', { kind: 'page', pageId: page.id }, { isAuthor });
+  const canDelete = can(ctx, 'delete', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }));
 
   return {
     pageId: page.id,
@@ -1236,7 +1277,7 @@ export async function getHistory(ctx: PermCtx, path: string): Promise<RevisionSu
   if (!page) return [];
 
   const isAuthor = userId ? page.authorId === userId : false;
-  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, { isAuthor });
+  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor }));
 
   if (!userId) {
     return [];
@@ -1264,7 +1305,7 @@ export async function getHistory(ctx: PermCtx, path: string): Promise<RevisionSu
         ctx,
         'publish',
         { kind: 'revision', pageId: page.id, version: r.version },
-        { isAuthor },
+        pagePermissionOptions(space, page, { isAuthor }),
       );
 
       return {
@@ -1310,7 +1351,7 @@ export async function getRevision(
   if (!revision) return null;
 
   const isAuthor = userId ? revision.authorId === userId : false;
-  if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version }, { isAuthor })) {
+  if (revision.status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version }, pagePermissionOptions(space, page, { isAuthor }))) {
     return null;
   }
 

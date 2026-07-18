@@ -16,7 +16,7 @@ Primary technical approach: extend the existing multi-space-ready schema (`space
 
 **Primary Dependencies**: Next.js 16 App Router, React 19.2, Drizzle ORM, pg-boss, Zod, `yaml` (frontmatter, already used by 005), unified/remark pipeline, @modelcontextprotocol/sdk (`packages/mcp-server`)
 
-**Storage**: PostgreSQL 16 (existing instance, pgvector present); all new state in existing DB via one generated migration (`pnpm db:generate`, next index 0022)
+**Storage**: PostgreSQL 16 (existing instance, pgvector present); all new state in existing DB via generated Drizzle migrations (`pnpm db:generate`, beginning at index 0022)
 
 **Testing**: Vitest (unit/integration, `pnpm --filter @next-wiki/web test`), Playwright e2e (`test:e2e`)
 
@@ -28,7 +28,7 @@ Primary technical approach: extend the existing multi-space-ready schema (`space
 
 **Constraints**: raw space append-only must hold under concurrent appends (per-page version increment inside a transaction, existing `newDraft` pattern); source metadata for each append must remain immutable on its revision; no new external services or default dependencies (constitution P1); OKF v0.1 conformance applies both to generated page sources and the emitted bundle, including reserved-filename rules; switch-back must be atomic with stable page/revision identities and no concurrent content writes; `pnpm db:generate` is the only way to produce the migration (AGENTS.md rule)
 
-**Scale/Scope**: 3 spaces; ~10 services to de-hardcode from `DEFAULT_SPACE_SLUG`; 1 schema migration touching 3 tables + 1 new singleton table + 6 enums; collection/search/create v1 routes extended + 1 new append sub-resource + 2 settings/setup endpoints; MCP: 6 tools extended + 1 new tool; one additional OKF archive writer on the existing transfer queue; Navigator/setup wizard/admin UI additions; 1 new pg-boss queue
+**Scale/Scope**: 3 spaces; ~10 services to de-hardcode from `DEFAULT_SPACE_SLUG`; foundational schema migrations touching 3 tables + 1 new singleton table + 6 enums and the existing setup-step enum; collection/search/create v1 routes extended + 1 new append sub-resource + 2 settings/setup endpoints; MCP: 6 tools extended + 1 new tool; one additional OKF archive writer on the existing transfer queue; Navigator/setup wizard/admin UI additions; 1 new pg-boss queue
 
 ## Constitution Check
 
@@ -81,7 +81,7 @@ apps/web/
 │   │                                      #  pages.kind/link_target_page_id/nature/visibility;
 │   │                                      #  page_revisions.actor_kind/source_metadata/link_target;
 │   │                                      #  writing_mode_settings + pending switch state
-│   ├── db/migrations/0022_*.sql           # via pnpm db:generate ONLY
+│   ├── db/migrations/0022_*..0024_*.sql   # via pnpm db:generate ONLY
 │   ├── permissions/index.ts               # +spaceKind input, admin-only + raw rules
 │   ├── services/
 │   │   ├── spaces.ts                      # NEW: space registry/resolver (replaces ~10 getDefaultSpace copies)

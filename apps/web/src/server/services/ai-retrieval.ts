@@ -3,7 +3,7 @@ import type { AiSearchResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
-import { buildUserCtx, can } from '@/server/permissions';
+import { buildUserCtx, can, spacePermissionOptions } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { exactCosineSearch, type VectorMatch } from '@/server/ai/retrieval/vector-search';
@@ -55,7 +55,7 @@ export async function readPermissionFilteredVectorCandidates(
   limit: number,
 ): Promise<VectorMatch[]> {
   const space = await resolveSpace();
-  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false })) return [];
+  if (!space || !can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) return [];
   return exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
 }
 
