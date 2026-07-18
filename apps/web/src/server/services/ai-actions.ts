@@ -48,6 +48,12 @@ type CreateActionInput = {
   questionMode?: AiQuestionMode | null;
   requestMetadata?: Record<string, unknown>;
   allowWhenDisabled?: boolean;
+  /**
+   * pg-boss job priority (higher runs first). Lets a user-triggered full index
+   * rebuild jump ahead of a backlog of low-priority incremental reconcile jobs
+   * instead of waiting behind them at the queue's modest fetch rate.
+   */
+  priority?: number;
 };
 
 function expiry(hours: number): Date {
@@ -122,7 +128,10 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
     return action!;
   });
   const expireSeconds = expireSecondsForFeature(input.feature);
-  await enqueue(queueForFeature(input.feature), { actionId: created.id }, expireSeconds ? { expireInSeconds: expireSeconds } : undefined);
+  await enqueue(queueForFeature(input.feature), { actionId: created.id }, {
+    ...(expireSeconds ? { expireInSeconds: expireSeconds } : {}),
+    ...(input.priority !== undefined ? { priority: input.priority } : {}),
+  });
   return {
     id: created.id,
     feature: input.feature,

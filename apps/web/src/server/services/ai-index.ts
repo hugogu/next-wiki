@@ -188,6 +188,10 @@ export async function createIndexRebuild(ctx: PermCtx, reason = 'manual') {
     modelId: selected.model.id,
     indexGenerationId: generation.id,
     requestMetadata: { reason, totalPages: pages.length },
+    // Jump ahead of any backlog of low-priority incremental reconcile jobs so a
+    // user-triggered full rebuild starts promptly instead of waiting behind
+    // them at the ai-index queue's modest fetch rate.
+    priority: 100,
   });
   return { action, generation: await toView(generation) };
 }
