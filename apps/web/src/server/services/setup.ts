@@ -6,7 +6,6 @@ import type {
   SetupSamplePageResult,
   SetupSamplePagesStatus,
   SetupStateView,
-  SetupStep,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -171,7 +170,7 @@ export async function recordAiTerminal(outcome: {
   });
 }
 
-function nextStepAfterAi(progress: SetupProgressRow): SetupStep {
+function nextStepAfterAi(progress: SetupProgressRow): 'sample_pages' | 'summary' {
   return progress.samplePagesStatus === 'not_started' ? 'sample_pages' : 'summary';
 }
 
