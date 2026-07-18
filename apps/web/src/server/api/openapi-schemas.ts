@@ -701,9 +701,27 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
   origin: z
     .object({
       actorKind: z.enum(['human', 'machine']).describe('Whether this revision was written through a session (human) or an API key/pipeline (machine).'),
+      nature: z.enum(['original', 'generated']).describe('Creation-time classification of the page: original human input or generated content.'),
     })
     .optional()
     .describe('Provenance of this revision. Omitted until provenance projection lands for every revision route.'),
+  linkTargetPageId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .describe('Immutable link target recorded on link create/retarget revisions.'),
+  source: z
+    .object({
+      channel: z.string().optional().describe('Ingestion channel of a raw chunk.'),
+      url: z.string().optional().describe('Source URL of a raw chunk.'),
+      sessionId: z.string().optional().describe('Ingestion session identifier of a raw chunk.'),
+      command: z.string().optional().describe('Ingestion command of a raw chunk.'),
+      occurredAt: z.string().datetime().optional().describe('Timestamp when the raw chunk was captured (ISO 8601).'),
+    })
+    .nullable()
+    .optional()
+    .describe('Immutable raw-source metadata of a raw create/append chunk.'),
   frontmatter: z
     .record(z.unknown())
     .nullable()
