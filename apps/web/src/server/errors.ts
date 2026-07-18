@@ -73,8 +73,10 @@ export type DomainErrorCode =
   | 'SPACE_FORBIDDEN'
   | 'RAW_SPACE_IMMUTABLE'
   | 'OKF_TYPE_REQUIRED'
+  | 'OKF_RESERVED_PATH'
   | 'LINK_TARGET_INVALID'
-  | 'MODE_SWITCH_INVALID';
+  | 'MODE_SWITCH_INVALID'
+  | 'MODE_SWITCH_IN_PROGRESS';
 
 export class DomainError extends Error {
   constructor(

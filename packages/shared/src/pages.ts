@@ -74,6 +74,19 @@ export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
   // 022: optional until provenance projection lands for every revision route.
   origin: z.object({ actorKind: z.enum(['human', 'machine']) }).optional(),
+  // 022: immutable link target recorded on link create/retarget revisions.
+  linkTargetPageId: z.string().uuid().nullable().optional(),
+  // 022: immutable raw-source metadata of a raw create/append chunk.
+  source: z
+    .object({
+      channel: z.string().optional(),
+      url: z.string().optional(),
+      sessionId: z.string().optional(),
+      command: z.string().optional(),
+      occurredAt: z.string().datetime().optional(),
+    })
+    .nullable()
+    .optional(),
   frontmatter: z.record(z.unknown()).nullable(),
   metadata: z.object({
     date: z.string().nullable(),
