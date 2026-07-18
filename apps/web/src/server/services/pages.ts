@@ -31,6 +31,7 @@ import {
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
+import { parseFrontmatter } from '@/server/metadata/frontmatter';
 import { buildPageDescription } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, invalidatePublicLinkPaths, shouldUseDataCache } from '@/server/cache/public-cache';
@@ -994,6 +995,7 @@ export async function create(
           actorKind: actorKindOf(ctx),
         }),
         visibility: space.kind === 'generated' ? 'restricted' : 'public',
+        writeMetadataToFrontmatter: parseFrontmatter(contentSource).hasValidFrontmatter,
       })
       .returning();
 
@@ -1047,6 +1049,7 @@ export async function newDraft(
     baseRevisionId?: string;
     baseContentHash?: string;
     metadata?: { date: string | null; summary: string | null; tags: string[] };
+    writeMetadataToFrontmatter?: boolean;
   },
   spaceSlug?: string,
 ): Promise<{ versionId: string; versionNumber: number }> {
@@ -1065,6 +1068,11 @@ export async function newDraft(
   const contentSource = space.kind === 'generated'
     ? ensureOkfConformance(input.contentSource, { title: input.title, now: new Date() })
     : input.contentSource;
+  // Persist the page's frontmatter-embedding preference. Editors pass it
+  // explicitly; other writers (API/AI) leave it undefined, so derive it from
+  // whether the submitted content actually embeds a frontmatter block.
+  const writeMetadataToFrontmatter =
+    input.writeMetadataToFrontmatter ?? parseFrontmatter(contentSource).hasValidFrontmatter;
   const sourceMetadata = input.metadata
     ? metadataFromInput(input.title, input.metadata)
     : metadataFromSource(contentSource, input.title);
@@ -1141,6 +1149,7 @@ export async function newDraft(
       .set({
         title: sourceMetadata.title,
         latestVersionId: revision.id,
+        writeMetadataToFrontmatter,
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, page.id));
@@ -1302,6 +1311,7 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
     status: revision.status,
     canPublish,
     canDelete,
+    writeMetadataToFrontmatter: page.writeMetadataToFrontmatter,
     metadata,
   };
 }

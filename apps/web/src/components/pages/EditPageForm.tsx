@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   newDraftBodySchema,
   type NewDraftBody,
-  publicDraftCreateInputSchema,
   type PublicDraftCreateInput,
   publicPagePropertiesInputSchema,
   type PublicPagePropertiesInput,
@@ -23,7 +22,7 @@ import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { hasEditorFrontmatter, writeEditorMetadata } from '@/lib/page-frontmatter';
+import { buildDraftBody } from '@/lib/page-frontmatter';
 
 type EditPageInitial = {
   pageId: string;
@@ -34,6 +33,7 @@ type EditPageInitial = {
   canDelete: boolean;
   latestVersion: number;
   metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
+  writeMetadataToFrontmatter: boolean;
 };
 
 export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; initial: EditPageInitial; space?: ReaderSpace }) {
@@ -61,8 +61,9 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     tags: initial.metadata.tags.map((tag) => tag.name).join(', '),
   }));
   const [metadata, setMetadata] = useState(initialMetadata);
-  const [writeMetadataToFrontmatter, setWriteMetadataToFrontmatter] = useState(() => hasEditorFrontmatter(initial.contentSource));
-  const [frontmatterPreferenceTouched, setFrontmatterPreferenceTouched] = useState(false);
+  // Initialized from the page's persisted preference (022) rather than
+  // re-guessed from content, so this dialog and the admin one always agree.
+  const [writeMetadataToFrontmatter, setWriteMetadataToFrontmatter] = useState(initial.writeMetadataToFrontmatter);
 
   const {
     handleSubmit,
@@ -82,20 +83,12 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
       setServerError(null);
       setIsSaving(true);
       try {
-        const contentSource = writeMetadataToFrontmatter
-          ? writeEditorMetadata(data.contentSource, data.title, metadata, {
-              title: initial.title,
-              metadata: initialMetadata,
-            }, { forceFrontmatter: !hasEditorFrontmatter(data.contentSource) })
-          : data.contentSource;
-        const draftBody = publicDraftCreateInputSchema.parse({
-          ...data,
-          contentSource,
-          metadata: writeMetadataToFrontmatter ? undefined : {
-            date: metadata.date.trim() || null,
-            summary: metadata.summary.trim() || null,
-            tags: metadata.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-          },
+        const draftBody = buildDraftBody({
+          title: data.title,
+          contentSource: data.contentSource,
+          metadata,
+          baseline: { title: initial.title, metadata: initialMetadata },
+          writeMetadataToFrontmatter,
           baseRevisionId: committedRevisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
@@ -237,10 +230,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
           pageId={initial.pageId}
           revisionId={initial.revisionId}
           value={contentSource}
-          onChange={(v) => {
-            setValue('contentSource', v, { shouldValidate: true });
-            if (!frontmatterPreferenceTouched) setWriteMetadataToFrontmatter(hasEditorFrontmatter(v));
-          }}
+          onChange={(v) => setValue('contentSource', v, { shouldValidate: true })}
           disabled={isSaving}
         />
 
@@ -263,10 +253,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
             summary={metadata.summary}
             onSummaryChange={(summary) => setMetadata((current) => ({ ...current, summary }))}
             writeMetadataToFrontmatter={writeMetadataToFrontmatter}
-            onWriteMetadataToFrontmatterChange={(value) => {
-              setFrontmatterPreferenceTouched(true);
-              setWriteMetadataToFrontmatter(value);
-            }}
+            onWriteMetadataToFrontmatterChange={setWriteMetadataToFrontmatter}
             error={propertiesError}
             saving={propertiesSaving}
             onSave={handleSaveProperties}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasEditorFrontmatter, readEditorMetadata, writeEditorMetadata } from './page-frontmatter';
+import { buildDraftBody, hasEditorFrontmatter, readEditorMetadata, writeEditorMetadata } from './page-frontmatter';
 
 const authoredFrontmatter = `---
 title: 用官方 actions/runner 跑自托管 GitHub Actions：Docker 化踩坑实录
@@ -57,5 +57,40 @@ describe('editor frontmatter persistence', () => {
     expect(hasEditorFrontmatter(source)).toBe(false);
     expect(hasEditorFrontmatter(result)).toBe(true);
     expect(result).toContain('tags:\n  - devops\n  - docker');
+  });
+});
+
+describe('buildDraftBody', () => {
+  const metadata = { date: '2026-07-10', summary: 'Summary', tags: 'docker, devops' };
+  const baseline = { title: 'Guide', metadata: { date: '', summary: '', tags: '' } };
+
+  it('embeds metadata into the body and sends the flag when the preference is on', () => {
+    const body = buildDraftBody({
+      title: 'Guide',
+      contentSource: '# Body\n',
+      metadata,
+      baseline,
+      writeMetadataToFrontmatter: true,
+    });
+
+    expect(body.writeMetadataToFrontmatter).toBe(true);
+    // Metadata rides in the content frontmatter, not the structured field.
+    expect(body.metadata).toBeUndefined();
+    expect(hasEditorFrontmatter(body.contentSource)).toBe(true);
+    expect(body.contentSource).toContain('summary: Summary');
+  });
+
+  it('keeps the body clean and sends structured metadata when the preference is off', () => {
+    const body = buildDraftBody({
+      title: 'Guide',
+      contentSource: '# Body\n',
+      metadata,
+      baseline,
+      writeMetadataToFrontmatter: false,
+    });
+
+    expect(body.writeMetadataToFrontmatter).toBe(false);
+    expect(hasEditorFrontmatter(body.contentSource)).toBe(false);
+    expect(body.metadata).toEqual({ date: '2026-07-10', summary: 'Summary', tags: ['docker', 'devops'] });
   });
 });

@@ -58,7 +58,7 @@ export default async function EditPage({
   return (
     <Layout pageContext={pageContext} fitViewport space={space}>
       <div className="h-full flex flex-col">
-        <EditPageForm path={path} space={space} initial={{ pageId: view.pageId, revisionId: view.revisionId, title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, canDelete: view.canDelete, latestVersion: view.latestVersion, metadata: view.metadata }} />
+        <EditPageForm path={path} space={space} initial={{ pageId: view.pageId, revisionId: view.revisionId, title: view.title, contentSource: view.contentSource, canPublish: view.canPublish, canDelete: view.canDelete, latestVersion: view.latestVersion, metadata: view.metadata, writeMetadataToFrontmatter: view.writeMetadataToFrontmatter }} />
       </div>
     </Layout>
   );

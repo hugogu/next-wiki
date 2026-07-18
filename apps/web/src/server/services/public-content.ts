@@ -281,6 +281,7 @@ async function visiblePageResource(
     visibility: canViewProvenance ? page.visibility : undefined,
     contentSource: options.includeContent ? content : undefined,
     frontmatter,
+    writeMetadataToFrontmatter: page.writeMetadataToFrontmatter,
     metadata,
     status: published ? 'published' : 'draft',
     author: pageAuthor,

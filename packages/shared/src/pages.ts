@@ -145,6 +145,7 @@ export const publicPageResourceSchema = z.object({
   visibility: z.enum(['public', 'restricted']).optional(),
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
+  writeMetadataToFrontmatter: z.boolean().optional(),
   metadata: z.object({
     date: z.string().nullable(),
     summary: z.string().nullable(),
@@ -351,6 +352,11 @@ export const publicDraftCreateInputSchema = z.object({
     tags: z.array(z.string().min(1).max(100)).max(50),
     summary: z.string().max(2000).nullable(),
   }).optional(),
+  // Per-page authoring preference persisted onto the page: whether supported
+  // metadata is also embedded as a frontmatter block in the Markdown body.
+  // Omitted by non-editor writers (API/AI), in which case it is derived from
+  // the submitted content.
+  writeMetadataToFrontmatter: z.boolean().optional(),
 });
 export type PublicDraftCreateInput = z.infer<typeof publicDraftCreateInputSchema>;
 

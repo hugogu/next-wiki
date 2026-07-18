@@ -68,6 +68,7 @@ export const editableViewSchema = z.object({
   status: revisionStatusSchema,
   canPublish: z.boolean(),
   canDelete: z.boolean(),
+  writeMetadataToFrontmatter: z.boolean(),
   metadata: z.object({
     date: z.string().nullable(),
     summary: z.string().nullable(),

@@ -1,4 +1,5 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { publicDraftCreateInputSchema, type PublicDraftCreateInput } from '@next-wiki/shared';
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n(?:\r?\n)?([\s\S]*)$/;
 
@@ -72,4 +73,38 @@ export function writeEditorMetadata(
     frontmatter.tags = metadata.tags.split(',').map((tag) => tag.trim()).filter(Boolean);
   }
   return `---\n${stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()}\n---\n\n${body}`;
+}
+
+/**
+ * Build a draft-create payload from the properties-dialog inputs. Single source
+ * of truth shared by the split editor and the admin properties dialog so the
+ * two behave identically: when `writeMetadataToFrontmatter` is on, metadata is
+ * embedded into the Markdown body; otherwise it is sent as structured metadata.
+ */
+export function buildDraftBody(args: {
+  title: string;
+  contentSource: string;
+  metadata: EditorMetadata;
+  baseline: EditorMetadataBaseline;
+  writeMetadataToFrontmatter: boolean;
+  baseRevisionId?: string;
+}): PublicDraftCreateInput {
+  const contentSource = args.writeMetadataToFrontmatter
+    ? writeEditorMetadata(args.contentSource, args.title, args.metadata, args.baseline, {
+        forceFrontmatter: !hasEditorFrontmatter(args.contentSource),
+      })
+    : args.contentSource;
+  return publicDraftCreateInputSchema.parse({
+    title: args.title,
+    contentSource,
+    metadata: args.writeMetadataToFrontmatter
+      ? undefined
+      : {
+          date: args.metadata.date.trim() || null,
+          summary: args.metadata.summary.trim() || null,
+          tags: args.metadata.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        },
+    writeMetadataToFrontmatter: args.writeMetadataToFrontmatter,
+    baseRevisionId: args.baseRevisionId,
+  });
 }

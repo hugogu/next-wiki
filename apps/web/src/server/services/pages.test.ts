@@ -295,6 +295,35 @@ describe('pageService US3', () => {
       const view = await pageService.getForEdit(buildUserCtx(reader.id, 'reader'), 'get-edit2');
       expect(view).toBeNull();
     });
+
+    it('persists the frontmatter-embedding preference: explicit on save, derived on create', async () => {
+      const editor = await createUser('editor-getedit-fm@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      // Plain content → derived preference is off.
+      await pageService.create(ctx, { path: 'fm-pref', title: 'T', contentSource: 'body' });
+      let view = await pageService.getForEdit(ctx, 'fm-pref');
+      expect(view?.writeMetadataToFrontmatter).toBe(false);
+
+      // An explicit editor save overrides the derivation and persists it.
+      await pageService.newDraft(ctx, 'fm-pref', {
+        title: 'T',
+        contentSource: 'body',
+        baseRevisionId: view!.revisionId,
+        writeMetadataToFrontmatter: true,
+      });
+      view = await pageService.getForEdit(ctx, 'fm-pref');
+      expect(view?.writeMetadataToFrontmatter).toBe(true);
+
+      // A writer that omits the flag (API/AI) derives it from the content.
+      await pageService.newDraft(ctx, 'fm-pref', {
+        title: 'T',
+        contentSource: 'plain body without frontmatter',
+        baseRevisionId: view!.revisionId,
+      });
+      view = await pageService.getForEdit(ctx, 'fm-pref');
+      expect(view?.writeMetadataToFrontmatter).toBe(false);
+    });
   });
 
   describe('getHistory', () => {
