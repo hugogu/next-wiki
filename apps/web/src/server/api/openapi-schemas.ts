@@ -698,6 +698,12 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
     .string()
     .optional()
     .describe('Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list.'),
+  origin: z
+    .object({
+      actorKind: z.enum(['human', 'machine']).describe('Whether this revision was written through a session (human) or an API key/pipeline (machine).'),
+    })
+    .optional()
+    .describe('Provenance of this revision. Omitted until provenance projection lands for every revision route.'),
   frontmatter: z
     .record(z.unknown())
     .nullable()
@@ -727,6 +733,34 @@ export const PublicPageResource = z
     path: PublicPagePath,
     locale: z.string().describe('Locale of the page content (e.g. "en", "zh").'),
     title: z.string().describe('Human-readable page title.'),
+    kind: z
+      .enum(['native', 'link'])
+      .optional()
+      .describe('Page kind: a native content page or a softlink page rendering a generated target. Omitted until space-aware resource assembly lands.'),
+    linkTarget: z
+      .object({
+        pageId: z.string().uuid().describe('Target page identifier of a softlink page.'),
+        path: z.string().describe('Target page path.'),
+        title: z.string().describe('Target page title.'),
+      })
+      .nullable()
+      .optional()
+      .describe('Resolved softlink target, projected only for permitted callers; null for native pages.'),
+    origin: z
+      .object({
+        actorKind: z.enum(['human', 'machine']).describe('Whether the page was created through a session (human) or an API key/pipeline (machine).'),
+        nature: z.enum(['original', 'generated']).describe('Creation-time classification: original human input or generated content.'),
+      })
+      .optional()
+      .describe('Creation provenance of the page. Omitted until space-aware resource assembly lands.'),
+    humanModified: z
+      .boolean()
+      .optional()
+      .describe('Whether any revision of the page was written by a human actor. Omitted until space-aware resource assembly lands.'),
+    visibility: z
+      .enum(['public', 'restricted'])
+      .optional()
+      .describe('Page visibility: public within its space rules, or restricted to administrators.'),
     contentSource: z
       .string()
       .optional()
@@ -839,6 +873,14 @@ export const PublicPageListQuery = z
     pathPrefix: PublicPagePath.optional().describe(
       'Directory prefix to list all pages under a subtree (e.g. "docs" matches "docs/a", "docs/b", "docs"). Cannot be combined with path.',
     ),
+    space: z
+      .string()
+      .optional()
+      .describe('Space slug to list pages from. Defaults to the default wiki space.'),
+    filterType: z
+      .string()
+      .optional()
+      .describe('Filter to pages whose frontmatter type matches this value.'),
     limit: z.coerce
       .number()
       .int()
@@ -1300,6 +1342,14 @@ export const PublicPageTreeQuery = z
     pathPrefix: PublicPagePath.optional().describe(
       'Directory prefix to scope the tree to a subtree (e.g. "docs" returns only the docs/ branch).',
     ),
+    space: z
+      .string()
+      .optional()
+      .describe('Space slug to build the tree from. Defaults to the default wiki space.'),
+    filterType: z
+      .string()
+      .optional()
+      .describe('Filter to pages whose frontmatter type matches this value.'),
   })
   .describe('Public page tree query parameters.');
 
@@ -1506,7 +1556,7 @@ export const SetupStateView = z
   .object({
     needed: z.boolean().describe('Whether first-run onboarding still has incomplete steps.'),
     currentStep: z
-      .enum(['account', 'ai', 'sample_pages', 'summary', 'closed'])
+      .enum(['account', 'ai', 'writing_mode', 'sample_pages', 'summary', 'closed'])
       .describe('Current onboarding step.'),
     accountStatus: z.enum(['needed', 'created']).optional().describe('Initial Admin account status.'),
     aiStatus: z
@@ -1617,7 +1667,7 @@ export const SetupAiBootstrapResult = z
         message: z.string(),
       })
       .optional(),
-    nextStep: z.enum(['account', 'ai', 'sample_pages', 'summary', 'closed']).optional(),
+    nextStep: z.enum(['account', 'ai', 'writing_mode', 'sample_pages', 'summary', 'closed']).optional(),
   })
   .describe('OpenRouter AI bootstrap result. Never contains credentials.');
 
@@ -1640,6 +1690,6 @@ export const SetupSamplePagesResult = z
         }),
       )
       .describe('Per-page generation outcome.'),
-    nextStep: z.enum(['account', 'ai', 'sample_pages', 'summary', 'closed']).optional(),
+    nextStep: z.enum(['account', 'ai', 'writing_mode', 'sample_pages', 'summary', 'closed']).optional(),
   })
   .describe('Sample/help page generation result.');
