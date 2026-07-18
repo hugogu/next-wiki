@@ -31,5 +31,5 @@
 
 ## Notes
 
-- All items pass. FR-022 clarification resolved on 2026-07-18: on switch-back, the Admin chooses migrated content visibility per source space (public or owner-only, independently for raw-origin and generated-origin material) within the mandatory confirmation step.
+- All items pass. FR-022 clarification resolved on 2026-07-18: on switch-back, the Admin chooses migrated content visibility per source space (public or Admin-only, independently for raw-origin and generated-origin material) within the mandatory confirmation step.
 - "Space", "revision", "permission", "REST API", and "MCP" are existing product domain surfaces (per constitution and spec 007), not new implementation choices. "OKF" is the user-mandated external format standard.

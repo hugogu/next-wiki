@@ -13,7 +13,7 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-**Conventions**: Schema changes ONLY via `pnpm db:generate` (never hand-authored SQL). After each logical group, run `pnpm lint && pnpm typecheck` and commit. API changes must regenerate OpenAPI via next-open-api (T044).
+**Conventions**: Schema changes ONLY via `pnpm db:generate` (never hand-authored SQL). After each logical group, run `pnpm lint && pnpm typecheck` and commit. API changes must regenerate OpenAPI via next-open-api (T062).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -38,16 +38,16 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [ ] T003 Add the 6 enums (`writing_mode`, `space_kind`, `page_kind`, `actor_kind`, `content_nature`, `page_visibility`) to `apps/web/src/server/db/schema/enums.ts`
-- [ ] T004 Extend schema in `apps/web/src/server/db/schema/index.ts`: `spaces.kind`; `pages.kind`/`link_target_page_id`/`nature`/`visibility` (+ index on `link_target_page_id`); `page_revisions.actor_kind`; new singleton table `writing_mode_settings` with `CHECK (id = 'default')` per data-model.md
+- [ ] T004 Extend schema in `apps/web/src/server/db/schema/index.ts`: `spaces.kind`; `pages.kind`/`link_target_page_id`/`nature`/`visibility` (+ target index and `kind='link'` iff target non-null CHECK); `page_revisions.actor_kind`/`source_metadata`/`link_target_page_id`; new singleton table `writing_mode_settings` with `pending_mode`/`switch_job_id`, `CHECK (id = 'default')`, and paired-null CHECK per data-model.md
 - [ ] T005 Run `pnpm db:generate` to produce migration `0022_*`, verify a second run reports "No schema changes", and confirm boot migration applies cleanly via `docker compose up -d --build`
 - [ ] T006 Implement space resolver in `apps/web/src/server/services/spaces.ts` (`getSpaceBySlug`, `getSpaceByKind`, `listSpaces`, `resolveSpace(param?)` defaulting to slug `default`) with `unstable_cache` and a `SPACE_CACHE_TAG` invalidation helper
 - [ ] T007 Replace all hardcoded `getDefaultSpace()` / `DEFAULT_SPACE_SLUG` copies with the resolver in `apps/web/src/server/services/{pages.ts,revisions.ts,public-content.ts,tags.ts,translations.ts,ai-retrieval.ts,public-ai.ts,transfer-page-writer.ts,transfer-export.ts}`, `apps/web/src/server/services/search/candidate-projection.ts`, `apps/web/src/server/services/search/engines/lexical-shared.ts`, and `apps/web/src/server/jobs/transfer-preview.ts` (behavior unchanged when no space is specified)
-- [ ] T008 Implement writing-mode settings in `apps/web/src/server/services/writing-mode.ts`: `getMode()` (cached), `setMode()` internal, guards `requireSpaceKindAccess(ctx, space)` that deny raw/generated when mode is `copilot`
+- [ ] T008 Implement writing-mode settings in `apps/web/src/server/services/writing-mode.ts`: `getMode()` (cached), `getSwitchState()`, internal state updates, `requireSpaceKindAccess(ctx, space)`, and a transaction helper that takes the singleton-row `FOR SHARE` lock as the first DB lock for every content mutation and throws `MODE_SWITCH_IN_PROGRESS` when `pending_mode` is set
 - [ ] T009 Update `apps/web/src/server/seed/index.ts` to idempotently ensure spaces `default` (kind wiki), `raw` (kind raw, `anonymous_read=false`), `generated` (kind generated, `anonymous_read=false`) on boot in all modes
-- [ ] T010 Extend `can()` in `apps/web/src/server/permissions/index.ts`: page-list/page resources accept `spaceKind`; rules — raw: read/create admin-only, edit/delete/publish denied for all actors; generated: read/create/edit/publish/delete admin-only; wiki unchanged; add `visibility==='restricted'` ⇒ admin-only read/edit for concrete pages
-- [ ] T011 Derive and persist `actor_kind` (session→human, api_key/internal→machine) and `nature` (explicit param wins; machine→generated, human→original) in write paths `apps/web/src/server/services/pages.ts` (`create`, `newDraft`) and `apps/web/src/server/services/translation-writer.ts` (pass `machine`)
-- [ ] T012 [P] Update shared Zod contracts in `packages/shared/src/pages.ts` (resource fields `kind`, `linkTarget`, `origin { actorKind, nature }`, `humanModified`, `visibility`; query params `space`, `filterType`), `packages/shared/src/setup.ts` (step enum gains `writing_mode` between `ai` and `sample_pages`), and export new error codes `SPACE_UNAVAILABLE`, `SPACE_FORBIDDEN`, `RAW_SPACE_IMMUTABLE`, `OKF_TYPE_REQUIRED`, `LINK_TARGET_INVALID`, `MODE_SWITCH_INVALID`
-- [ ] T013 [P] Foundational Vitest coverage: space resolver caching in `apps/web/src/server/services/spaces.test.ts`, `can()` space-kind matrix in `apps/web/src/server/permissions/index.test.ts`, and writing-mode guards in `apps/web/src/server/services/writing-mode.test.ts`
+- [ ] T010 Extend `can()` in `apps/web/src/server/permissions/index.ts`: page-list/page resources accept `spaceKind`; rules — raw: read/create Admin-only, edit/delete/publish denied for all actors; generated: read/create/edit/publish/delete Admin-only; wiki unchanged; add `visibility==='restricted'` ⇒ Admin-only read/edit for concrete pages
+- [ ] T011 Apply the mode-row write transaction helper to all content mutation chokepoints in `apps/web/src/server/services/pages.ts` and `revisions.ts` (create/draft/property/delete/publish/unpublish) plus internal translation/import writers; derive and persist `actor_kind` (session→human, api_key/internal→machine) and stable `nature` (raw=`original`, link=`generated`, otherwise explicit or machine→generated/human→original)
+- [ ] T012 [P] Update shared Zod contracts in `packages/shared/src/pages.ts` (page/revision fields `kind`, permission-projected current `linkTarget`, permission-projected revision `linkTargetPageId`/`source` where source supports optional ISO 8601 `occurredAt`, `origin { actorKind, nature }`, `humanModified`, `visibility`; list query params `space`, `filterType`, `filterTag`, `createdStart`, `createdEnd`), `packages/shared/src/setup.ts` (step enum gains `writing_mode` between `ai` and `sample_pages`), and export new error codes `SPACE_UNAVAILABLE`, `SPACE_FORBIDDEN`, `RAW_SPACE_IMMUTABLE`, `OKF_TYPE_REQUIRED`, `OKF_RESERVED_PATH`, `LINK_TARGET_INVALID`, `MODE_SWITCH_INVALID`, `MODE_SWITCH_IN_PROGRESS`
+- [ ] T013 [P] Foundational Vitest coverage: space resolver caching in `apps/web/src/server/services/spaces.test.ts`, `can()` space-kind matrix in `apps/web/src/server/permissions/index.test.ts`, and writing-mode guard/row-lock tests in `apps/web/src/server/services/writing-mode.test.ts` (in-flight write drains before pending state; later write rejected)
 
 **Checkpoint**: Migration applied, three spaces seeded, permissions/mode guards green — user story implementation can now begin
 
@@ -85,12 +85,12 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Service tests for raw create/append/immutability in `apps/web/src/server/services/raw-entries.test.ts`: auto-publish, append concatenation, concurrent-append serialization (two appends → sequential version numbers), frontmatter `type`/`source` storage, mode guard rejects raw ops in copilot mode
-- [ ] T023 [P] [US2] Route tests in `apps/web/app/api/v1/pages/[id]/appends/route.test.ts` and create-with-`space=raw` cases in `apps/web/app/api/v1/pages/route.test.ts`: 201 create/append, `RAW_SPACE_IMMUTABLE` on PATCH/DELETE/drafts/publication, `SPACE_UNAVAILABLE` in copilot mode, `SPACE_FORBIDDEN` for reader/editor keys
+- [ ] T022 [P] [US2] Service tests for raw create/append/immutability in `apps/web/src/server/services/raw-entries.test.ts`: auto-publish, forced nature `original`, append concatenation, per-revision `source_metadata`, concurrent-append serialization (two appends → sequential version numbers), frontmatter `type`/initial source storage, mode guard rejects raw ops in copilot mode, pending-switch barrier rejects writes
+- [ ] T023 [P] [US2] Route tests in `apps/web/app/api/v1/pages/[id]/appends/route.test.ts` and create-with-`space=raw` cases in `apps/web/app/api/v1/pages/route.test.ts`: 201 create/append with complete revision origin/source, `RAW_SPACE_IMMUTABLE` on PATCH/DELETE/drafts/publication, `SPACE_UNAVAILABLE` in copilot mode, `SPACE_FORBIDDEN` for reader/editor keys, `MODE_SWITCH_IN_PROGRESS` while pending
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Implement `apps/web/src/server/services/raw-entries.ts`: `createEntry(ctx, { path, title, inputKind, source, content })` (validates input kind, builds OKF frontmatter, auto-publishes v1) and `appendEntry(ctx, pageId, { content, source? })` (transaction: load current content, concatenate with separator, insert next version, publish immediately)
+- [ ] T024 [US2] Implement `apps/web/src/server/services/raw-entries.ts`: `createEntry(ctx, { path, title, inputKind, source?, content })` (validates input kind, forces nature original, builds OKF frontmatter, persists any v1 `source_metadata`, auto-publishes) and `appendEntry(ctx, pageId, { content, source? })` (write-barrier transaction: load current content, concatenate with separator, insert next version with immutable `source_metadata`, publish immediately)
 - [ ] T025 [US2] Add raw-space immutability guards to `apps/web/src/server/services/pages.ts` (`newDraft`, `updateProperties`, `remove`) and `apps/web/src/server/services/revisions.ts` (unpublish path): when the page's space kind is `raw`, throw `RAW_SPACE_IMMUTABLE` for every actor
 - [ ] T026 [US2] Extend `POST /v1/pages` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/route.ts` to accept `space`, `inputKind`, `source`; route raw creates through `raw-entries.ts`
 - [ ] T027 [US2] Create append sub-resource `POST /v1/pages/[id]/appends` in `apps/web/app/api/v1/pages/[id]/appends/route.ts` (Zod body `{ content, source? }`, returns 201 revision resource) wired to `raw-entries.appendEntry`
@@ -107,15 +107,15 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 3
 
-- [ ] T028 [P] [US3] Unit tests for OKF validate/inject matrix in `apps/web/src/server/services/okf.test.ts` (no block → inject; valid → unchanged + unknown keys preserved; missing/empty `type` → reject; unparseable → reject)
-- [ ] T029 [P] [US3] Integration tests in `apps/web/src/server/services/pages.test.ts` (generated-space create/draft runs OKF hook) and `apps/web/src/server/services/public-content.test.ts` (`humanModified` true only after a session-actor revision; api_key create without `space` targets generated in llm-wiki mode, default space in copilot mode)
+- [ ] T028 [P] [US3] Unit tests for OKF validation and archive writing in `apps/web/src/server/services/okf.test.ts` and `apps/web/src/server/transfers/okf-archive-writer.test.ts`: no block → inject; valid → unchanged + unknown keys preserved; missing/empty `type` or unparseable YAML → reject; `index`/`log` path leaf → `OKF_RESERVED_PATH`; emitted concepts preserve source frontmatter and the bundle passes the OKF v0.1 checklist
+- [ ] T029 [P] [US3] Integration tests in `apps/web/src/server/services/pages.test.ts`, `apps/web/src/server/services/public-content.test.ts`, and transfer export tests: generated create/draft runs OKF source hooks; create and path-changing property updates reject normalized `index`/`log` leaves; `humanModified` changes only after a session-actor revision; page origin uses v1 actor while every revision includes its actor + page nature; api_key create without `space` targets generated in llm-wiki mode/default in copilot; generated OKF export uses latest draft or published revision without portable-wrapper frontmatter
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Implement `apps/web/src/server/services/okf.ts`: `ensureOkfConformance(source, { title, now })` using the existing `yaml` dependency per contracts/okf-conformance.md
-- [ ] T031 [US3] Invoke the OKF hook from `create`/`newDraft` in `apps/web/src/server/services/pages.ts` when the target space kind is `generated`; map rejections to `OKF_TYPE_REQUIRED`
+- [ ] T030 [US3] Implement `apps/web/src/server/services/okf.ts`: `ensureOkfConceptPath(path)` and `ensureOkfConformance(source, { title, now })` using the existing `yaml` dependency; implement `apps/web/src/server/transfers/okf-archive-writer.ts` to preserve concept frontmatter and validate emitted Markdown per contracts/okf-conformance.md
+- [ ] T031 [US3] Invoke the OKF source hook from `create`/`newDraft` and the normalized-path hook from `create`/path-changing `updateProperties` in `apps/web/src/server/services/pages.ts` for generated pages; extend `site_export` options in `packages/shared/src/transfers.ts`, `apps/web/src/server/services/transfers.ts`, `apps/web/src/server/services/transfer-export.ts`, and `apps/web/src/server/jobs/transfer-export.ts` with the Admin-only `{ space:'generated', format:'okf' }` branch using latest revisions and the dedicated writer, preserving the options on retry
 - [ ] T032 [US3] Add the creation-time space default rule in `apps/web/src/server/services/public-content.ts` `createPage`: api_key actor + llm-wiki mode + no explicit `space` ⇒ `generated` (FR-018); session actor keeps `default`
-- [ ] T033 [US3] Compute `humanModified` (EXISTS human-actor revision) and assemble `origin`/`nature` fields in the page resource builders in `apps/web/src/server/services/public-content.ts`
+- [ ] T033 [US3] Compute `humanModified` (EXISTS human-actor revision) and assemble page/revision provenance in `apps/web/src/server/services/public-content.ts`: page actor from version 1, revision actor from that row, stable page nature on both, and Admin-only projection of current page `linkTarget`, historical revision `linkTargetPageId`, and raw revision `source` (null for unauthorized/public callers even after migration)
 
 **Checkpoint**: Generated space is OKF-conformant with complete provenance (quickstart S3)
 
@@ -129,15 +129,15 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 4
 
-- [ ] T034 [P] [US4] Service tests in `apps/web/src/server/services/link-pages.test.ts`: create validation (target generated-space, native, live; no chains/self), retarget writes revision, delete link spares target
-- [ ] T035 [P] [US4] Read-path tests in `apps/web/src/server/services/pages.test.ts` for `getLive` link resolution (serves target's current published revision at link path; 404 when target unpublished/deleted) and invalidation fan-out coverage in `apps/web/src/server/cache/public-cache.test.ts`
+- [ ] T034 [P] [US4] Service tests in `apps/web/src/server/services/link-pages.test.ts`: create validation (target generated-space, native, live; no chains/self), forced nature `generated`, create/retarget revisions preserve their historical `link_target_page_id`, delete link spares target
+- [ ] T035 [P] [US4] Read-path tests in `apps/web/src/server/services/pages.test.ts` for `getLive` link resolution (serves target's current published revision at link path; 404 when target unpublished/deleted), anonymous resource/sitemap projection tests proving target id/path/title are not disclosed, and invalidation fan-out coverage in `apps/web/src/server/cache/public-cache.test.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Implement `apps/web/src/server/services/link-pages.ts`: `createLinkPage(ctx, { path, title?, targetPageId })` (validates target, creates live page with a `NULL`-source revision recording the target), `retargetLinkPage(ctx, pageId, targetPageId)` (new retarget revision), `deleteLinkPage` (soft-delete link only), `listLiveLinksForTarget(targetPageId)`
+- [ ] T036 [US4] Implement `apps/web/src/server/services/link-pages.ts`: `createLinkPage(ctx, { path, title?, targetPageId })` (validates target, creates live page with a `NULL`-source revision whose `link_target_page_id` records the target), `retargetLinkPage(ctx, pageId, targetPageId)` (new revision preserving the new target), `deleteLinkPage` (soft-delete link only), `listLiveLinksForTarget(targetPageId)`
 - [ ] T037 [US4] Extend `getLive` and cached variants (`getCachedPublicLivePage`) in `apps/web/src/server/services/pages.ts` to resolve `kind='link'`: load target's current published revision, return its content under the link page's path/title; return not-found when the target is unpublished/deleted
 - [ ] T038 [US4] Add link fan-out invalidation in `apps/web/src/server/cache/public-cache.ts` and call sites (`revisions.ts` publish/unpublish, `pages.ts` remove/updateProperties): after target mutations, `revalidatePath` every live link path from `listLiveLinksForTarget`
-- [ ] T039 [US4] Support `kind=link` + `linkTargetPageId` in `POST /v1/pages` and retarget via `PATCH /v1/pages/[id]` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/[id]/route.ts`; include `kind`/`linkTarget` in tree (`getPageTree`) and sitemap (`apps/web/app/sitemap.ts`) responses
+- [ ] T039 [US4] Support `kind=link` + `linkTargetPageId` in `POST /v1/pages` and retarget via `PATCH /v1/pages/[id]` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/[id]/route.ts`; include `kind` and permission-projected `linkTarget` in page/tree resources, while sitemap output contains only the public wiki link URL and never generated target metadata
 
 **Checkpoint**: Softlink publishing works end-to-end with correct ISR behavior (quickstart S4)
 
@@ -151,11 +151,11 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 5
 
-- [ ] T040 [P] [US5] Playwright e2e for space switching and denial paths in `apps/web/e2e/spaces-navigation.spec.ts` (admin sees switcher + navigates; editor role gets no switcher and 404/403 on `/spaces/raw/...`; copilot mode hides all of it)
+- [ ] T040 [P] [US5] Playwright e2e for space switching, breadcrumbs, and denial paths in `apps/web/e2e/spaces-navigation.spec.ts` (Admin sees switcher + navigates with route/tree-derived breadcrumbs; editor role gets no switcher and 404/403 on `/spaces/raw/...`; copilot mode hides all of it)
 
 ### Implementation for User Story 5
 
-- [ ] T041 [US5] Create authenticated reader route `apps/web/app/(user)/spaces/[space]/[...path]/page.tsx` (admin-gated, resolves `space` param to raw/generated only, reuses reader components with a space context) plus a space-aware tree loader using `getPageTree({ space })`
+- [ ] T041 [US5] Create authenticated reader route `apps/web/app/(user)/spaces/[space]/[...path]/page.tsx` (Admin-gated, resolves `space` param to raw/generated only, reuses reader components with a space context, renders breadcrumbs from route + page tree) plus a space-aware tree loader using `getPageTree({ space })`
 - [ ] T042 [US5] Add the space switcher to `apps/web/src/components/layout/Navigator.tsx` (visible only when mode is `llm-wiki` AND actor is admin; active state derived from URL; links to `/`, `/spaces/generated`, `/spaces/raw`) fed by a lightweight server-provided mode/role context outside the ISR body
 - [ ] T043 [US5] Make editor routes space-aware: `apps/web/app/(public)/new/page.tsx` and `apps/web/app/(public)/edit/[...path]/page.tsx` accept a space context and post to v1 with `space`; `apps/web/src/components/pages/NewPageDialog.tsx` and `EditPageForm.tsx` pass it through
 - [ ] T044 [US5] Add indicators per FR-016: "linked from generated" badge + target link on link pages, human-modified indicator on generated pages (authenticated-only components in `apps/web/src/components/pages/`), and a "Publish as link…" action + dialog (choose wiki path) on generated pages calling `POST /v1/pages` with `kind=link` — all composed outside cached public bodies, using the custom dialog primitives (no browser alerts)
@@ -173,16 +173,16 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 6
 
-- [ ] T046 [P] [US6] API tests for `space`/`filterType` on list/tree/search in `apps/web/app/api/v1/pages/route.test.ts`, `apps/web/app/api/v1/tree/route.test.ts`, `apps/web/app/api/v1/search/pages/route.test.ts` (filtering correctness + permission denial without existence leak)
+- [ ] T046 [P] [US6] API tests for `space`/`filterType` plus list `filterTag`/`createdStart`/`createdEnd` in `apps/web/app/api/v1/pages/route.test.ts`, `apps/web/app/api/v1/tree/route.test.ts`, and `apps/web/app/api/v1/search/pages/route.test.ts`, plus ID-addressed route coverage (collection filtering correctness, complete page/revision origin + raw source shapes, resolved-resource permission checks, permission projection of link targets, denial without existence leak)
 - [ ] T047 [P] [US6] Search projection tests for space-kind visibility in `apps/web/src/server/services/search/candidate-projection.test.ts` (raw/generated candidates visible to admin only; wiki unchanged)
-- [ ] T048 [P] [US6] MCP unit tests in `packages/mcp-server/src/tools/append-raw-entry.test.ts` and schema/shape tests for the extended tools in `packages/mcp-server/src/shapes.test.ts`
+- [ ] T048 [P] [US6] MCP unit tests in `packages/mcp-server/src/tools/append-raw-entry.test.ts` and schema/shape tests for extended tools in `packages/mcp-server/src/shapes.test.ts`: list filter forwarding, complete origin fields, current page and historical revision link targets, raw append source, and pending-switch errors
 
 ### Implementation for User Story 6
 
-- [ ] T049 [US6] Wire `space` + `filterType` (frontmatter `type`, matching the existing `filterStatus`/`filterOwner` channel) through `apps/web/src/server/services/public-content.ts` (`listPages`, `getPageTree`, `searchPages`, `getStats`) and the corresponding `apps/web/app/api/v1/**/route.ts` query schemas
+- [ ] T049 [US6] Wire `space` + `filterType` (frontmatter `type`) through `apps/web/src/server/services/public-content.ts` (`listPages`, `getPageTree`, `searchPages`, `getStats`) and corresponding collection/search `apps/web/app/api/v1/**/route.ts` query schemas; ensure `listPages` also forwards existing tag filtering plus `createdStart`/`createdEnd`, while ID-addressed page/revision/backlink/link/diff routes stay parameter-compatible and enforce the resolved resource's space kind
 - [ ] T050 [US6] Make `apps/web/src/server/services/search/candidate-projection.ts` and `apps/web/src/server/services/search/engines/{postgres-tsvector.ts,postgres-trigram.ts}` space-parameterized with per-space-kind visibility (wiki: anonymousRead; raw/generated: admin-only + mode check); vector retrieval left unchanged per research D8
-- [ ] T051 [US6] Extend MCP tools in `packages/mcp-server/src/tools/` with optional `space` (list_pages, get_page_tree, get_page, search_wiki, list_revisions, get_revision, get_backlinks, get_stats) and `filterType` (list_pages, search_wiki), threading params through `packages/mcp-server/src/api-client.ts`
-- [ ] T052 [US6] Add `nature`, `inputKind`/`source`, and `kind`/`linkTargetPageId` args to `create_page` (and per-item `space` to `batch_create_pages`) in `packages/mcp-server/src/tools/create-page.ts` and `batch-create-pages.ts`
+- [ ] T051 [US6] Extend MCP collection/search tools in `packages/mcp-server/src/tools/` with optional `space` (`list_pages`, `get_page_tree`, `search_wiki`, `get_stats`), `filterType` (`list_pages`, `search_wiki`), and list-page `filterTag`/`createdStart`/`createdEnd`, threading params through `packages/mcp-server/src/api-client.ts`; keep ID-addressed tool inputs unchanged and verify they can read permitted raw/generated resources by UUID
+- [ ] T052 [US6] Add `nature`, `inputKind`/`source`, and `kind`/`linkTargetPageId` args to `create_page` (and per-item `space` to `batch_create_pages`) in `packages/mcp-server/src/tools/create-page.ts` and `batch-create-pages.ts`, documenting raw/link forced-nature rules
 - [ ] T053 [US6] Create `append_raw_entry` tool in `packages/mcp-server/src/tools/append-raw-entry.ts`, register it in `packages/mcp-server/src/server.ts`, and flatten its result in `packages/mcp-server/src/shapes.ts`
 - [ ] T054 [P] [US6] Update `packages/mcp-server/README.md` tool table + agent notes for spaces, OKF filtering, and raw immutability
 
@@ -198,15 +198,15 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 7
 
-- [ ] T055 [P] [US7] Job tests in `apps/web/src/server/jobs/writing-mode-switch.test.ts`: migration copies pages+revisions with original version numbers/authors/actor_kind/timestamps, path-conflict suffixing, visibility mapping, link materialization, flip-last ordering, idempotent retry
-- [ ] T056 [P] [US7] Route tests for `PUT /api/settings/writing-mode` in `apps/web/app/api/settings/writing-mode/route.test.ts` (forward switch synchronous; switch-back requires visibility choices → `MODE_SWITCH_INVALID` without them; returns `202 { jobId }`; admin-only)
+- [ ] T055 [P] [US7] Job tests in `apps/web/src/server/jobs/writing-mode-switch.test.ts`: one transaction moves raw/generated page rows in place with stable page/revision ids and related records, deterministic conflict suffixing + report mapping, visibility mapping, live-link in-place materialization with pre-generated revision id, retained historical target, and replication task across transaction-bound DatabaseStore and external-store mocks, unavailable-link soft delete, full DB rollback on migration/content-store failure with external orphan left unreachable, mode flip + pending clear, cache invalidation/replication kick after commit
+- [ ] T056 [P] [US7] Route/service concurrency tests for `PUT /api/settings/writing-mode` in `apps/web/app/api/settings/writing-mode/route.test.ts`: forward switch synchronous; switch-back requires visibility choices; returns `202 { jobId }`; duplicate request returns same job; conflicting request/content mutation returns `MODE_SWITCH_IN_PROGRESS`; in-flight write finishes before pending state; null/failed enqueue conditionally clears pending; Admin-only
 
 ### Implementation for User Story 7
 
-- [ ] T057 [US7] Add queue `writing-mode-switch` to `apps/web/src/server/jobs/runtime.ts` (QUEUES + expiry override) and implement the migration handler in `apps/web/src/server/jobs/writing-mode-switch.ts` per research D10 (raw→`raw/…`, generated→`generated/…`, link materialization, setting flip last, progress on the job record, idempotent page-level skips)
-- [ ] T058 [US7] Register the queue + handler in `apps/web/src/server/jobs/register.ts` and add boot-recovery re-enqueue for interrupted switch jobs
-- [ ] T059 [US7] Implement `switchMode(target, { rawVisibility, generatedVisibility })` in `apps/web/src/server/services/writing-mode.ts` (validate transition + choices, forward flip + cache invalidation, switch-back enqueue) and expose `PUT /api/settings/writing-mode` in `apps/web/app/api/settings/writing-mode/route.ts`
-- [ ] T060 [US7] Build the switch-back confirmation dialog in `apps/web/src/components/admin/writing-mode/SwitchModeDialog.tsx` (migration warning text, independent visibility selects for raw and generated, confirm/cancel) wired into the admin page from T020 with job-status polling on `202`
+- [ ] T057 [US7] Add queue `writing-mode-switch` to `apps/web/src/server/jobs/runtime.ts` (QUEUES + expiry override) and implement `apps/web/src/server/jobs/writing-mode-switch.ts` per research D10: lock pending setting, compute paths, move rows in place, materialize links using the content-store read router plus pre-generated revision ids (`DatabaseStore(tx)` for Database, external-first for Local/S3) and transactional storage-replication tasks, soft-delete unavailable links, flip mode + clear pending in one DB transaction, persist progress and conflict-path mappings in the job report, then invalidate affected public paths and kick replication only after commit
+- [ ] T058 [US7] Register the queue + handler in `apps/web/src/server/jobs/register.ts`; add boot recovery that verifies a pending row's stored job id is absent before re-enqueuing that exact id, plus terminal-failure cleanup that conditionally clears pending state after transaction rollback
+- [ ] T059 [US7] Implement `switchMode(target, { rawVisibility, generatedVisibility })` in `apps/web/src/server/services/writing-mode.ts` (validate transition + choices, forward flip + cache invalidation, pre-generate switch job UUID, mode-row update, pg-boss enqueue with `{ id }`, conditional pending cleanup on immediate enqueue failure, duplicate/conflict handling) and expose complete switch state through `GET|PUT /api/settings/writing-mode`
+- [ ] T060 [US7] Build the switch-back confirmation dialog in `apps/web/src/components/admin/writing-mode/SwitchModeDialog.tsx` (migration warning text, independent public/Admin-only visibility selects, confirm/cancel) wired into T020; poll job status with TanStack Query, surface failure/retry and final conflict-path report state, and disable all content mutation controls through the shared pending-mode context while reads remain available
 - [ ] T061 [P] [US7] Add en/zh strings for the dialog, warning, and job status in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Both switch directions behave per spec with zero content loss (quickstart S7)
@@ -219,10 +219,10 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 - [ ] T062 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas, and verify `/api-docs` renders the new params/endpoints
 - [ ] T063 [P] Add Playwright e2e for onboarding mode selection and admin mode switch in `apps/web/e2e/writing-mode.spec.ts`
-- [ ] T064 [P] Update user-facing docs (wiki help pages/README section describing the two writing modes, spaces, and MCP usage) in `README.md` and sample help content if affected
-- [ ] T065 Validate public-content ISR/static generation end-to-end for link pages: cached body contains no session data; target republish → link path revalidated; mode switch → all affected paths revalidated (constitution P12 + Public Content Delivery gate)
-- [ ] T066 Run the full quickstart.md validation (S1–S7 + failure drills) against `docker compose up -d --build`
-- [ ] T067 Final gates: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, and `pnpm db:generate` reporting "No schema changes"; anti-pattern scan per constitution compliance review (no second-class AI content paths, no verb URLs, no duplicate entry points)
+- [ ] T064 [P] Update user-facing docs (wiki help pages/README section describing the two writing modes, Admin-private spaces, OKF export, switch-back write barrier, and MCP usage) in `README.md` and sample help content if affected
+- [ ] T065 Validate public-content ISR/static generation end-to-end for link pages: cached body contains no session data or generated target metadata; anonymous page/tree/revision/sitemap projections contain no target/source provenance; target republish → link path revalidated; mode switch → all affected paths revalidated (constitution P12 + Public Content Delivery gate)
+- [ ] T066 Run the full quickstart.md validation (S1–S7 + OKF bundle validation + switch transaction failure drills) against `docker compose up -d --build`
+- [ ] T067 Final gates: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, and `pnpm db:generate` reporting "No schema changes"; anti-pattern scan per constitution compliance review (no second-class AI content paths, no verb URLs, no duplicate entry points, breadcrumbs present, TanStack Query owns job state)
 
 ---
 
@@ -253,9 +253,9 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Parallel Opportunities
 
-- Phase 2: T012, T013 parallel after T003–T011 land (T003→T004→T005 sequential; T006 before T007; T008–T011 parallel among themselves after T005)
+- Phase 2: T012 and the test scaffolding in T013 can start in parallel; T003→T004→T005 are sequential, T006 precedes T007, and T011 depends on the T008 write-barrier helper
 - US2–US5 can proceed fully in parallel after Phase 2 (different services/routes/components)
-- US6 read-side (T049–T051) parallel with US2–US4; T052/T053 wait on US2's append endpoint contract (already fixed in contracts/)
+- US6 read-side (T049–T051) and create-tool work (T052) can run parallel with US2–US4; T053 waits on US2's append endpoint contract
 - Within stories: test tasks [P] together; i18n tasks [P] always
 
 ---

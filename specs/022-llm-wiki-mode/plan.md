@@ -6,9 +6,9 @@
 
 ## Summary
 
-Add an instance-level writing mode (`copilot` default, `llm-wiki`) to next-wiki. In LLM Wiki mode the deployment runs three content spaces on the existing page/revision machinery: `raw` (append-only, admin-only evidence store), `generated` (OKF-conformant, admin-only AI working store with human/machine audit distinction), and the existing public `wiki` space, which gains softlink "link pages" that publish generated content at wiki paths without copying. The mode is chosen in first-run onboarding (new step before sample pages) and switchable in admin settings; switching back migrates raw/generated pages into the wiki space as native pages under `raw/…` / `generated/…` prefixes via a pg-boss job, with per-source-space visibility choice and a mandatory confirmation. REST v1 and MCP gain space-scoped access plus an origin field (actor kind / content nature) on pages and revisions.
+Add an instance-level writing mode (`copilot` default, `llm-wiki`) to next-wiki. In LLM Wiki mode the deployment runs three content spaces on the existing page/revision machinery: `raw` (append-only, Admin-private evidence store), `generated` (OKF-conformant, Admin-private AI working store with human/machine audit distinction), and the existing public `wiki` space, which gains softlink "link pages" that publish generated content at wiki paths without copying. The mode is chosen in first-run onboarding (new step before sample pages) and switchable in admin settings. Switching back establishes a content-write barrier, then transactionally moves raw/generated pages in place into the wiki space under `raw/…` / `generated/…` prefixes and materializes valid link pages without changing page or revision identities. REST v1 and MCP gain space-scoped access, durable per-append source metadata, and an origin field (actor kind / content nature) on pages and revisions; the transfer service gains a generated-space OKF export that preserves each concept's source frontmatter.
 
-Primary technical approach: extend the existing multi-space-ready schema (`spaces.kind`, `pages.kind` + `link_target_page_id` + `nature` + `visibility`, `page_revisions.actor_kind`), enforce space-kind rules inside the existing `can()` chokepoint and page services, de-hardcode `DEFAULT_SPACE_SLUG` behind a space resolver, and expose everything through the existing REST v1 facade and MCP tool registry.
+Primary technical approach: extend the existing multi-space-ready schema (`spaces.kind`, `pages.kind` + `link_target_page_id` + `nature` + `visibility`, `page_revisions.actor_kind` + `source_metadata` + `link_target_page_id`, and pending-switch fields on `writing_mode_settings`), enforce space-kind rules inside the existing `can()` chokepoint and page services, de-hardcode `DEFAULT_SPACE_SLUG` behind a space resolver, and expose everything through the existing REST v1 facade and MCP tool registry. All content mutations take a shared lock on the writing-mode row; switch-back takes the conflicting update lock, marks the switch pending, and runs the move/link conversion/mode flip in one worker transaction.
 
 ## Technical Context
 
@@ -24,11 +24,11 @@ Primary technical approach: extend the existing multi-space-ready schema (`space
 
 **Project Type**: web-service (pnpm workspaces + Turborepo monorepo)
 
-**Performance Goals**: no new targets beyond existing baselines — public pages static/ISR (`revalidate=300`), search coordinator p95 < 1s, mode-switch migration processed as a background job with progress polling
+**Performance Goals**: no new targets beyond existing baselines — public pages static/ISR (`revalidate=300`), search coordinator p95 < 1s, mode-switch migration processed as a background job with TanStack Query progress polling; reads remain available while content writes are paused
 
-**Constraints**: raw space append-only must hold under concurrent appends (per-page version increment inside a transaction, existing `newDraft` pattern); no new external services or default dependencies (constitution P1); OKF v0.1 conformance at page-source level for the generated space; `pnpm db:generate` is the only way to produce the migration (AGENTS.md rule)
+**Constraints**: raw space append-only must hold under concurrent appends (per-page version increment inside a transaction, existing `newDraft` pattern); source metadata for each append must remain immutable on its revision; no new external services or default dependencies (constitution P1); OKF v0.1 conformance applies both to generated page sources and the emitted bundle, including reserved-filename rules; switch-back must be atomic with stable page/revision identities and no concurrent content writes; `pnpm db:generate` is the only way to produce the migration (AGENTS.md rule)
 
-**Scale/Scope**: 3 spaces; ~10 services to de-hardcode from `DEFAULT_SPACE_SLUG`; 1 schema migration touching 3 tables + 1 new singleton table + 5 enums; ~8 v1 route groups extended + 1 new append sub-resource + 2 settings/setup endpoints; MCP: ~7 tools extended + 1 new tool; Navigator/setup wizard/admin UI additions; 1 new pg-boss queue
+**Scale/Scope**: 3 spaces; ~10 services to de-hardcode from `DEFAULT_SPACE_SLUG`; 1 schema migration touching 3 tables + 1 new singleton table + 6 enums; collection/search/create v1 routes extended + 1 new append sub-resource + 2 settings/setup endpoints; MCP: 6 tools extended + 1 new tool; one additional OKF archive writer on the existing transfer queue; Navigator/setup wizard/admin UI additions; 1 new pg-boss queue
 
 ## Constitution Check
 
@@ -37,18 +37,20 @@ Primary technical approach: extend the existing multi-space-ready schema (`space
 | Principle / Mandate | Verdict | Notes |
 |---|---|---|
 | P1 Simple deployment | PASS | No new services or default dependencies; singleton settings table only |
-| P2 AI-native, never vendor-locked | PASS | OKF is an open format, not a vendor; no LLM calls added by this feature |
+| P2 AI-native, never vendor-locked | PASS | OKF is an open format, not a vendor; no LLM calls added by this feature; generated pages retain the normal draft→publish confirmation flow |
 | P3 Portable AI memory | PASS | raw/generated are permission-scoped and retrieval-visible through the same services; AI-authored and human-authored content share identical tables, revision model, and permission checks — separation is by *space kind* (an organizational partition), never by parallel storage or unversioned write paths, so the "AI content as second-class" anti-pattern is not triggered |
 | P4 Rendering pipeline | PASS | Link pages resolve target content through the normal revision/render path; no renderer changes |
-| P5 Permissions first-class | PASS | Space-kind rules are evaluated inside the `can()` chokepoint (new `spaceKind` input) plus service guards; anonymous read remains the per-space `anonymousRead` flag; raw/generated default to admin-only |
+| P5 Permissions first-class | PASS | Space-kind rules are evaluated inside the `can()` chokepoint (new `spaceKind` input) plus service guards; anonymous read remains the per-space `anonymousRead` flag; raw/generated default to Admin-only |
+| P6 Style system & UI consistency | PASS | New controls compose existing `src/components/ui/` primitives and design tokens; no feature-local primitives or inline visual constants |
 | P7 Async-first | PASS | Mode-switch migration runs as a pg-boss job (`writing-mode-switch` queue) registered explicitly in `jobs/register.ts`; API returns job id, UI polls status |
-| P8 Version everything | PASS | Raw appends and link retargets create immutable revisions; migration preserves revision history (same version numbers, authors, timestamps); page deletion stays soft — raw simply forbids it |
+| P8 Version everything | PASS | Raw appends and link retargets create immutable revisions; migration moves pages in place so page/revision identifiers and all related records remain unchanged; link materialization adds a machine-authored immutable revision; page deletion stays soft — raw simply forbids it |
 | P9 Open standards | PASS | OKF v0.1 for generated space; REST + OpenAPI extended; no proprietary protocol |
 | P10 Explicit over implicit | PASS | New queue registered in `register.ts`; new routes/services explicitly imported; no runtime discovery |
-| P11 Native navigation & unified entries | PASS | Space selection is URL-addressable (`/spaces/[space]/...` for raw/generated; wiki paths unchanged); link pages are canonical at their wiki path only |
+| P11 Native navigation & unified entries | PASS | Space selection is URL-addressable (`/spaces/[space]/...` for raw/generated; wiki paths unchanged); authenticated space routes render route/tree-derived breadcrumbs; link pages are canonical at their wiki path only |
 | P12 Public reading static by default | PASS | Link pages render through the existing `(public)/[...path]` ISR route; see gate below |
 | API architecture mandate | PASS | All new surface goes through the shared service layer + Zod schemas in `packages/shared`; MCP wraps the same v1 API; `can()` never bypassed |
-| Public Content Delivery gate | PASS | **Representation**: link pages are anonymously readable and render through the existing `force-static` + `revalidate=300` `(public)/[...path]` route — the cached body contains only the resolved target content (no session data). **Invalidation**: publishing/unpublishing/deleting/retitling a generated target calls `invalidatePublicContentCache()` (existing tag + root-layout path) **plus** `revalidatePath` for every live link page whose `link_target_page_id` equals the target; creating/deleting/retargeting a link page invalidates its own wiki path and the nav tree. The space switcher and link badge are personalized controls composed outside the cached document body. raw/generated spaces never enter the public cache |
+| Frontend Data Flow mandate | PASS | Space selection is URL-derived and job status is server state polled through TanStack Query; no server state is placed in Zustand |
+| Public Content Delivery gate | PASS | **Representation**: link pages are anonymously readable and render through the existing `force-static` + `revalidate=300` `(public)/[...path]` route — the cached body contains only the resolved target content (no session data or generated target path/title). Public resources and sitemap entries expose the wiki link URL but not target metadata. **Invalidation**: publishing/unpublishing/deleting/retitling a generated target calls `invalidatePublicContentCache()` (existing tag + root-layout path) **plus** `revalidatePath` for every live link page whose `link_target_page_id` equals the target; creating/deleting/retargeting a link page invalidates its own wiki path and the nav tree. The space switcher and link badge are personalized controls composed outside the cached document body. raw/generated spaces never enter the public cache |
 
 Gate result: **PASS — no violations, no justifications required.**
 
@@ -77,23 +79,28 @@ apps/web/
 │   ├── db/schema/{index.ts,enums.ts}      # +space_kind,page_kind,actor_kind,content_nature,
 │   │                                      #  page_visibility,writing_mode enums; spaces.kind;
 │   │                                      #  pages.kind/link_target_page_id/nature/visibility;
-│   │                                      #  page_revisions.actor_kind; writing_mode_settings
+│   │                                      #  page_revisions.actor_kind/source_metadata/link_target;
+│   │                                      #  writing_mode_settings + pending switch state
 │   ├── db/migrations/0022_*.sql           # via pnpm db:generate ONLY
 │   ├── permissions/index.ts               # +spaceKind input, admin-only + raw rules
 │   ├── services/
 │   │   ├── spaces.ts                      # NEW: space registry/resolver (replaces ~10 getDefaultSpace copies)
-│   │   ├── writing-mode.ts                # NEW: mode singleton get/switch + guard helpers
+│   │   ├── writing-mode.ts                # NEW: mode singleton, write barrier, switch helpers
 │   │   ├── raw-entries.ts                 # NEW: create/append guards, input-kind metadata
 │   │   ├── link-pages.ts                  # NEW: create/retarget/delete link pages, target fan-out
+│   │   ├── okf.ts                         # NEW: concept/path + bundle conformance
 │   │   ├── pages.ts / revisions.ts / public-content.ts  # space-aware, link resolution, provenance
 │   │   ├── search/candidate-projection.ts + engines/    # space-kind-aware projection
+│   │   ├── transfer-export.ts             # space-aware snapshot for portable/OKF exports
 │   │   └── setup.ts                       # +writing_mode step transitions
-│   ├── jobs/{runtime.ts,register.ts,writing-mode-switch.ts}  # NEW queue + handler
+│   ├── jobs/{runtime.ts,register.ts,writing-mode-switch.ts,transfer-export.ts}
+│   │                                               # NEW switch queue + OKF export branch
+│   ├── transfers/okf-archive-writer.ts            # NEW: preserves concept frontmatter
 │   └── seed/index.ts                      # ensure raw/generated spaces exist (all modes)
 ├── app/
 │   ├── api/v1/...                         # +space query param; +pages/[id]/appends; +settings/writing-mode
 │   ├── api/setup/writing-mode/route.ts    # NEW
-│   ├── (public)/spaces/[space]/[...path]/ # NEW authenticated raw/generated reader routes
+│   ├── (user)/spaces/[space]/[...path]/   # NEW authenticated raw/generated reader routes
 │   ├── (admin)/admin/writing-mode/page.tsx# NEW admin page + confirm dialog
 │   └── setup/                             # +WritingModeStep (before sample_pages)
 ├── src/components/
@@ -105,7 +112,7 @@ apps/web/
 packages/shared/src/                       # page/revision resource + query schemas (origin, kind,
                                            # linkTarget, space filters), setup step enum
 packages/mcp-server/src/                   # space params on read/create tools, +append_raw_entry,
-                                           # filterType for OKF type filtering
+                                           # list filters + provenance/resource shaping
 ```
 
 **Structure Decision**: Follows the binding monorepo layout (constitution Project Structure mandate). All server logic in `apps/web/src/server/`; shared Zod contracts in `packages/shared/`; MCP surface in `packages/mcp-server/`; UI primitives remain in `src/components/ui/` — feature components only compose them.
@@ -127,4 +134,4 @@ packages/mcp-server/src/                   # space params on read/create tools, 
 
 ## Post-design Constitution re-check
 
-Re-evaluated after Phase 1 design: all gates above still PASS. Design introduces no new violations: singleton settings table follows the `setup_progress` CHECK-constraint pattern; the migration job follows the explicit-registration rule; public delivery keeps personalized controls out of the ISR body.
+Re-evaluated after Phase 1 design: all gates above still PASS. Design introduces no new violations: singleton settings table follows the `setup_progress` CHECK-constraint pattern; every content write participates in the mode-row barrier; the migration job follows the explicit-registration rule and commits atomically; authenticated space routes include breadcrumbs; TanStack Query owns job polling; public delivery keeps personalized controls out of the ISR body.

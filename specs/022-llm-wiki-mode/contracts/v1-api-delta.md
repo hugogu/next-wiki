@@ -4,7 +4,7 @@
 
 All changes are additive unless noted. Zod schemas in `packages/shared` are the source of truth; OpenAPI JSON regenerates via `next-openapi-gen` (repo rule: update docs via next-open-api on API changes). Every endpoint enforces writing-mode and space-kind permission rules (research D9): raw/generated return `403` (writes) / `404`-equivalent denial without existence leak (reads) when the mode is `copilot` or the caller lacks access.
 
-## Query parameter: `space`
+## List/search query parameters
 
 Added to: `GET /v1/pages`, `GET /v1/tree`, `GET|POST /v1/search/pages`, `GET /v1/stats`.
 
@@ -12,7 +12,9 @@ Added to: `GET /v1/pages`, `GET /v1/tree`, `GET|POST /v1/search/pages`, `GET /v1
 |---|---|---|---|
 | `space` | string slug: `default` \| `raw` \| `generated` | `default` | Filters the result set to one space |
 
-`GET /v1/pages/[id]`, revisions, backlinks, links, diff: no param needed (id-addressed), but responses now carry the space context (already: `spaceSlug`) and new fields below.
+`GET /v1/pages` additionally accepts `filter[type]`, the existing `filter[tag]`, and `createdStart` / `createdEnd` ISO 8601 timestamps. The creation-time pair follows the same ordering validation already used by search. For raw pages, `filter[type]` is the input-kind filter because input kinds are stored as frontmatter `type`.
+
+`GET /v1/pages/[id]`, revisions, backlinks, links, and diff remain ID-addressed and add no redundant `space` parameter. They derive space-kind permission checks from the resolved resource and return the same not-found response for inaccessible content. Responses carry the space context (already: `spaceSlug`) and the new fields below.
 
 ## Resource field additions (`publicPageResourceSchema`, `publicRevisionResourceSchema`)
 
@@ -29,9 +31,17 @@ Page resource:
 }
 ```
 
-Revision resource adds: `"origin": { "actorKind": "human | machine" }`.
+Revision resource adds:
 
-Rules: `linkTarget` present only when `kind="link"` and target live; `humanModified` = any human revision exists; `visibility` included for admin callers, omitted otherwise.
+```jsonc
+{
+  "origin": { "actorKind": "human | machine", "nature": "original | generated" },
+  "source": null | { "channel": "string?", "url": "string?", "sessionId": "string?", "command": "string?", "occurredAt": "ISO 8601 string?" },
+  "linkTargetPageId": "uuid | null"
+}
+```
+
+Rules: page `origin.actorKind` comes from version 1; revision `origin.actorKind` comes from that revision; both use the stable `pages.nature`. Raw pages force nature `original`; link pages force nature `generated`. `source` is populated only for raw create/append revisions. Revision `linkTargetPageId` records the historical target for link create/retarget/materialization revisions. Page `linkTarget`, revision `linkTargetPageId`, and revision `source` are Admin-only provenance fields: unauthorized/public projections return null and never disclose generated target identifiers/paths/titles or append metadata, including after a page is migrated into a public wiki. `humanModified` = any human revision exists; `visibility` is included for Admin callers and omitted otherwise.
 
 ## Create page — `POST /v1/pages` (extended)
 
@@ -40,9 +50,9 @@ New optional body fields:
 | Field | Type | Notes |
 |---|---|---|
 | `space` | slug | Target space. Default: `default`; **when actor is an API key and mode is `llm-wiki`, default becomes `generated`** (FR-018). Session callers keep `default` |
-| `nature` | `original` \| `generated` | Explicit override; default derived from actor kind (machine→generated, human→original) |
+| `nature` | `original` \| `generated` | Explicit override for native wiki/generated pages; default derived from actor kind (machine→generated, human→original). Raw forces `original`; link forces `generated` |
 | `inputKind` | `chat-transcript` \| `external-fetch` \| `script-run` \| `manual-note` | **Required when `space=raw`**; stored as OKF `type` |
-| `source` | object (`channel?`, `url?`, `sessionId?`, `command?`) | Optional raw source metadata, stored in frontmatter |
+| `source` | object (`channel?`, `url?`, `sessionId?`, `command?`, `occurredAt?` ISO 8601) | Optional raw source metadata, stored in frontmatter |
 | `linkTargetPageId` | uuid | **Required when creating a link page** (`kind=link`); target must be a live generated-space native page. `content` is ignored for link creation |
 | `kind` | `native` \| `link` | Default `native`; `link` only valid in the wiki space in `llm-wiki` mode |
 
@@ -54,7 +64,7 @@ Appends content to a raw entry. `403` if the page is not in the raw space or the
 
 Request: `{ "content": "markdown chunk (required, non-empty)", "source": { … } (optional) }`
 
-Response `201`: revision resource of the new published revision (`versionNumber` incremented; `origin.actorKind` per credential).
+Response `201`: revision resource of the new published revision (`versionNumber` incremented; `origin.actorKind` per credential; stable `origin.nature=original`; `source` equals this append's metadata).
 
 ## Rejected operations on raw pages (all actors)
 
@@ -68,7 +78,7 @@ Response `201`: revision resource of the new published revision (`versionNumber`
 
 ## New: writing mode settings (admin)
 
-`GET /api/settings/writing-mode` → `{ "mode": "copilot | llm-wiki" }` (admin only).
+`GET /api/settings/writing-mode` → `{ "mode": "copilot | llm-wiki", "pendingMode": "copilot | llm-wiki | null", "switchJobId": "uuid | null" }` (Admin only).
 
 `PUT /api/settings/writing-mode` body:
 
@@ -78,7 +88,9 @@ Response `201`: revision resource of the new published revision (`versionNumber`
   "generatedVisibility": "public | restricted" }
 ```
 
-Response: `{ "mode": "llm-wiki" }` for forward switch; `202 { "jobId": "uuid" }` for switch-back (migration enqueued; poll existing job-status surface). Switching within the same mode is a no-op `200`.
+Response: `{ "mode": "llm-wiki" }` for forward switch; `202 { "jobId": "uuid" }` for switch-back (migration enqueued; poll existing job-status surface). Repeating the same pending switch returns the existing job id with 202 instead of enqueuing a duplicate. Switching within the same stable mode is a no-op `200`; a conflicting request while another switch is pending returns `409 MODE_SWITCH_IN_PROGRESS`.
+
+After a switch-back is accepted, every content mutation endpoint returns `409 MODE_SWITCH_IN_PROGRESS` until the migration commits or terminal failure rolls it back. Read endpoints remain available.
 
 ## New: setup step (first-run)
 
@@ -92,5 +104,7 @@ Response: `{ "mode": "llm-wiki" }` for forward switch; `202 { "jobId": "uuid" }`
 | `SPACE_FORBIDDEN` | 403 | caller lacks access to the addressed space |
 | `RAW_SPACE_IMMUTABLE` | 403 | edit/delete/unpublish attempted on a raw entry |
 | `OKF_TYPE_REQUIRED` | 422 | generated-space write with frontmatter missing `type` |
+| `OKF_RESERVED_PATH` | 422 | generated-space concept path ends in reserved `index` or `log` |
 | `LINK_TARGET_INVALID` | 422 | link target missing, not generated-space, deleted, or itself a link |
-| `MODE_SWITCH_INVALID` | 422 | missing visibility choices or no-op/invalid transition |
+| `MODE_SWITCH_INVALID` | 422 | missing visibility choices or invalid transition |
+| `MODE_SWITCH_IN_PROGRESS` | 409 | content mutation or conflicting mode change attempted while a switch is pending/running |
