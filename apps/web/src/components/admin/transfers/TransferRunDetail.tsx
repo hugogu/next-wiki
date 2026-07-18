@@ -21,7 +21,7 @@ const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warn
  * straight to the page it created, stripping the leading locale segment that
  * the wiki serves via metadata rather than the URL.
  */
-function importedPageHref(item: TransferItemView): string | null {
+export function importedPageHref(item: TransferItemView): string | null {
   if (item.kind !== 'page' || !item.targetKey) return null;
   const path = item.displayName.split('/').slice(1).join('/');
   return path ? getPageHref(path) : null;

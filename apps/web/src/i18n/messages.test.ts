@@ -10,6 +10,28 @@ describe('next-intl message catalogs', () => {
     expect(getMessagePath('admin.ai.providers.empty', enMessages)).toBe('admin.ai.providers.empty.__value');
   });
 
+  it('resolves model-detector labels that regressed as flat dotted keys', () => {
+    // These were stored as flat `"source.openrouter"` / `"detector.openrouter"`
+    // keys, which next-intl (a nested-path resolver) could not reach, so the
+    // admin UI rendered the raw key. They must resolve to real labels in both
+    // locales.
+    const cases: Array<[string, string]> = [
+      ['admin.ai.modelDetector.source.openrouter', 'OpenRouter'],
+      ['admin.ai.modelDetector.source.cloudflare', 'Cloudflare Workers AI'],
+      ['admin.ai.models.detector.openrouter', 'OpenRouter'],
+      ['admin.ai.models.detector.cloudflare', 'Cloudflare'],
+    ];
+    for (const messages of [enMessages, zhMessages]) {
+      const translate = createTranslator({ locale: 'en', messages });
+      for (const [key, expected] of cases) {
+        const resolved = translate(getMessagePath(key, messages) as never);
+        // Regression guard: an unreachable key resolves to the key itself.
+        expect(resolved).not.toBe(key);
+        expect(resolved).toBe(expected);
+      }
+    }
+  });
+
   it('formats ICU interpolation, plural and select messages', () => {
     const translate = createTranslator({
       locale: 'en',

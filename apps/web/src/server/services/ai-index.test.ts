@@ -1,10 +1,19 @@
 import { randomUUID } from 'node:crypto';
+import { vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
+import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { createIndexRebuild, cancelIndexGeneration, deleteIndexGeneration, reconcilePageAcrossIndexes, refreshIndexCounters, retryIndexPages } from './ai-index';
+
+// Spy on enqueue (a no-op in tests without a live pg-boss) to assert the
+// pg-boss job options a rebuild is queued with.
+vi.mock('@/server/jobs/runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/jobs/runtime')>()),
+  enqueue: vi.fn(),
+}));
 
 describe('AI index lifecycle', () => {
   let adminId: string;
@@ -219,6 +228,17 @@ describe('AI index lifecycle', () => {
     expect(
       await db.query.aiActions.findFirst({ where: eq(schema.aiActions.indexGenerationId, generationId) }),
     ).toBeUndefined();
+  });
+
+  it('enqueues a full rebuild with elevated pg-boss priority so it jumps incremental backlog', async () => {
+    const ctx = buildUserCtx(adminId, 'admin');
+    vi.mocked(enqueue).mockClear();
+    const created = await createIndexRebuild(ctx, 'test');
+    expect(enqueue).toHaveBeenCalledWith(
+      QUEUES.aiIndex,
+      { actionId: created.action.id },
+      expect.objectContaining({ priority: 100 }),
+    );
   });
 
   it('cancels a queued build and finalizes it so it does not stay building', async () => {

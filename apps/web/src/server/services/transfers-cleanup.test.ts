@@ -1,10 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
+import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { cleanupRun } from './transfers';
+
+// Spy on the public-content cache buster (a no-op under NODE_ENV=test otherwise)
+// so we can assert cleanup refreshes the navigation tree after deleting pages.
+vi.mock('@/server/cache/public-cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/cache/public-cache')>()),
+  invalidatePublicContentCache: vi.fn(),
+}));
 
 const TRUNCATE =
   'TRUNCATE TABLE transfer_items, transfer_runs, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
@@ -84,6 +92,22 @@ describe('transfer run cleanup', () => {
 
     // Re-running deletes nothing more.
     expect((await cleanupRun(ctx, runId)).deletedPages).toBe(0);
+  });
+
+  it('refreshes the public page tree cache only when it actually deletes pages', async () => {
+    const { adminId, runId } = await seedRun('completed');
+    const ctx = buildUserCtx(adminId, 'admin');
+
+    vi.mocked(invalidatePublicContentCache).mockClear();
+    expect((await cleanupRun(ctx, runId)).deletedPages).toBe(2);
+    // The navigator (and every static shell embedding the tree) must drop the
+    // removed pages immediately, so the cache is busted exactly once.
+    expect(invalidatePublicContentCache).toHaveBeenCalledTimes(1);
+
+    // A no-op re-run deletes nothing and must not needlessly bust the cache.
+    vi.mocked(invalidatePublicContentCache).mockClear();
+    expect((await cleanupRun(ctx, runId)).deletedPages).toBe(0);
+    expect(invalidatePublicContentCache).not.toHaveBeenCalled();
   });
 
   it('refuses to clean up a run that is not a finished import', async () => {
