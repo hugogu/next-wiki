@@ -2307,6 +2307,19 @@
               }
             },
             "description": "Immutable source metadata for a raw entry."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native",
+              "link"
+            ],
+            "description": "Page kind. Use link only for an Admin-managed wiki softlink."
+          },
+          "linkTargetPageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Required when kind is link. The target must be a live generated-space native page."
           }
         },
         "required": [
@@ -2564,9 +2577,14 @@
             "type": "string",
             "format": "uuid",
             "description": "Expected current revision id, used for optimistic concurrency control."
+          },
+          "linkTargetPageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "New live generated target for an existing link page."
           }
         },
-        "description": "Update page properties. Provide at least one of path or title."
+        "description": "Update page properties. Provide at least one of path, title, or linkTargetPageId."
       },
       "PublicPageResource": {
         "type": "object",
@@ -2597,7 +2615,7 @@
               "native",
               "link"
             ],
-            "description": "Page kind: a native content page or a softlink page rendering a generated target. Omitted until space-aware resource assembly lands."
+            "description": "Page kind: a native content page or a softlink page rendering a generated target."
           },
           "linkTarget": {
             "type": [
@@ -2624,7 +2642,7 @@
               "path",
               "title"
             ],
-            "description": "Resolved softlink target, projected only for permitted callers; null for native pages."
+            "description": "Resolved softlink target, projected only to Admin callers. Null for native pages and omitted for other callers."
           },
           "origin": {
             "type": "object",
@@ -2650,11 +2668,11 @@
               "actorKind",
               "nature"
             ],
-            "description": "Creation provenance of the page. Omitted until space-aware resource assembly lands."
+            "description": "Creation provenance of the page."
           },
           "humanModified": {
             "type": "boolean",
-            "description": "Whether any revision of the page was written by a human actor. Omitted until space-aware resource assembly lands."
+            "description": "Whether any revision of the page was written by a human actor."
           },
           "visibility": {
             "type": "string",
@@ -2803,6 +2821,7 @@
           "path",
           "locale",
           "title",
+          "kind",
           "frontmatter",
           "status",
           "author",
@@ -3365,7 +3384,7 @@
               "actorKind",
               "nature"
             ],
-            "description": "Provenance of this revision. Omitted until provenance projection lands for every revision route."
+            "description": "Provenance of this revision."
           },
           "linkTargetPageId": {
             "type": [

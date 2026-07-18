@@ -305,6 +305,15 @@ export const publicPageCreateInputSchema = z.object({
   space: z.string().min(1).max(100).optional(),
   inputKind: rawInputKindSchema.optional(),
   source: rawSourceSchema.optional(),
+  kind: z.enum(['native', 'link']).optional(),
+  linkTargetPageId: z.string().uuid().optional(),
+}).superRefine((value, ctx) => {
+  if (value.kind === 'link' && !value.linkTargetPageId) {
+    ctx.addIssue({ code: 'custom', path: ['linkTargetPageId'], message: 'Link pages require a target page id' });
+  }
+  if (value.kind !== 'link' && value.linkTargetPageId) {
+    ctx.addIssue({ code: 'custom', path: ['kind'], message: 'Only link pages may include a target page id' });
+  }
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 
@@ -314,7 +323,7 @@ export const publicRawAppendInputSchema = z.object({
 });
 export type PublicRawAppendInput = z.infer<typeof publicRawAppendInputSchema>;
 
-export const newPageDialogInputSchema = publicPageCreateInputSchema.pick({ path: true, title: true });
+export const newPageDialogInputSchema = z.object({ path: pathSchema, title: z.string().min(1).max(200) });
 export type NewPageDialogInput = z.infer<typeof newPageDialogInputSchema>;
 
 export const publicDraftCreateInputSchema = z.object({
@@ -333,9 +342,10 @@ export type PublicDraftCreateInput = z.infer<typeof publicDraftCreateInputSchema
 export const publicPagePropertiesInputSchema = z.object({
   path: pathSchema.optional(),
   title: z.string().min(1).max(200).optional(),
+  linkTargetPageId: z.string().uuid().optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).refine((value) => value.path || value.title, {
-  message: 'Provide path or title',
+}).refine((value) => value.path || value.title || value.linkTargetPageId, {
+  message: 'Provide path, title, or link target',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 
@@ -477,6 +487,8 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   title: z.string().nullable(),
   pageId: z.string().uuid().nullable(),
   status: publicPageStatusSchema.nullable(),
+  kind: z.enum(['native', 'link']).nullable().optional(),
+  linkTarget: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }).nullable().optional(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
 export type PublicPageTreeNode = {
@@ -485,6 +497,8 @@ export type PublicPageTreeNode = {
   title: string | null;
   pageId: string | null;
   status: PublicPageStatus | null;
+  kind?: 'native' | 'link' | null;
+  linkTarget?: { pageId: string; path: string; title: string } | null;
   children: PublicPageTreeNode[];
 };
 

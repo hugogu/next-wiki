@@ -1,4 +1,5 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
+import { getPageHref } from '@/lib/path';
 
 /** Shared data cache for anonymous, publicly readable wiki content. */
 export const PUBLIC_CONTENT_CACHE_TAG = 'public-content';
@@ -17,6 +18,12 @@ export function invalidatePublicContentCache(): void {
   // root layout ensures path, title, translation, and tree mutations refresh
   // both the affected document and every static shell that contains its tree.
   revalidatePath('/', 'layout');
+}
+
+/** Revalidate every public softlink that renders a changed generated target. */
+export function invalidatePublicLinkPaths(paths: readonly string[]): void {
+  if (!shouldUseDataCache()) return;
+  for (const path of new Set(paths)) revalidatePath(getPageHref(path));
 }
 
 export function invalidateSiteShellCache(): void {

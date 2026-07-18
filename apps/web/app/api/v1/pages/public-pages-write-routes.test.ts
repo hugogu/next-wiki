@@ -73,6 +73,34 @@ describe('Public Wiki write routes', () => {
     await expect(unavailable.json()).resolves.toMatchObject({ code: 'SPACE_UNAVAILABLE' });
   });
 
+  it('accepts link creation and retarget inputs', async () => {
+    const id = randomUUID();
+    const targetPageId = randomUUID();
+    const nextTargetPageId = randomUUID();
+    const createInput = {
+      path: 'docs/payments', title: 'Payments', kind: 'link', linkTargetPageId: targetPageId,
+    };
+    publicContent.createPage.mockResolvedValueOnce({ id });
+    const created = await pagesRoute.POST(
+      request('POST', 'http://localhost/api/v1/pages', createInput),
+      { params: Promise.resolve({}) },
+    );
+    expect(created.status).toBe(201);
+    expect(publicContent.createPage).toHaveBeenCalledWith(
+      expect.anything(), { ...createInput, contentSource: '' }, [],
+    );
+
+    publicContent.updateProperties.mockResolvedValueOnce({ id });
+    const retargeted = await idRoute.PATCH(
+      request('PATCH', `http://localhost/api/v1/pages/${id}`, { linkTargetPageId: nextTargetPageId }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(retargeted.status).toBe(200);
+    expect(publicContent.updateProperties).toHaveBeenCalledWith(
+      expect.anything(), id, { linkTargetPageId: nextTargetPageId }, [],
+    );
+  });
+
   it('drafts and properties routes surface stale conflicts as 409', async () => {
     const id = randomUUID();
     publicContent.createDraft.mockRejectedValueOnce(new DomainError('STALE_REVISION', 'stale'));

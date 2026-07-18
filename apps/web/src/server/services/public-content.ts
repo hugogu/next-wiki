@@ -64,6 +64,7 @@ import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/pub
 import { getSpaceById, resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, isLlmWikiMode } from '@/server/services/writing-mode';
 import * as rawEntries from '@/server/services/raw-entries';
+import * as linkPages from '@/server/services/link-pages';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
@@ -246,12 +247,13 @@ async function visiblePageResource(
   // Content is always read server-side so `frontmatter` (FR-011) can be
   // derived on every response; `options.includeContent` only controls
   // whether the raw Markdown is included in the returned shape.
-  const [content, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
-    readMarkdownFromDatabase(current),
+  const [contentRow, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
+    page.kind === 'link' ? Promise.resolve('') : readMarkdownFromDatabase(current),
     author(page.authorId),
     wantsLatest ? revisionSummary(ctx, space, page, visibleLatest) : Promise.resolve(undefined),
     wantsPublished ? revisionSummary(ctx, space, page, published) : Promise.resolve(undefined),
   ]);
+  const content = contentRow ?? '';
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(current.id);
 
@@ -328,7 +330,7 @@ async function visibleRevisionResource(
   }
   const [summary, content] = await Promise.all([
     revisionSummary(ctx, space, page, revision),
-    readMarkdownFromDatabase(revision),
+    page.kind === 'link' ? Promise.resolve('') : readMarkdownFromDatabase(revision),
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(revision.id);
@@ -575,13 +577,22 @@ export async function createPage(
   include: readonly PublicPageInclude[] = [],
 ): Promise<PublicPageResource> {
   const targetSpaceSlug = input.space ?? (
-    ctx.actor.kind === 'api_key' && await isLlmWikiMode()
+    input.kind !== 'link' && ctx.actor.kind === 'api_key' && await isLlmWikiMode()
       ? 'generated'
       : undefined
   );
   const targetSpace = await resolveSpace(targetSpaceSlug);
   if (!targetSpace) throw new DomainError('NOT_FOUND', 'Space not found');
-  const created = targetSpace.kind === 'raw'
+  if (input.kind === 'link' && targetSpace.kind !== 'wiki') {
+    throw new DomainError('LINK_TARGET_INVALID', 'Link pages must be created in the wiki space');
+  }
+  const created = input.kind === 'link'
+    ? await linkPages.createLinkPage(ctx, {
+        path: input.path,
+        title: input.title,
+        targetPageId: input.linkTargetPageId!,
+      })
+    : targetSpace.kind === 'raw'
     ? await rawEntries.createEntry(ctx, {
         path: input.path,
         title: input.title,
@@ -621,6 +632,24 @@ export async function updateProperties(
   const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
+  if (page.kind === 'link') {
+    if (input.path || input.title) {
+      await pageService.updateProperties(ctx, page.path, {
+        path: input.path,
+        title: input.title,
+        baseRevisionId: input.baseRevisionId,
+      }, space.slug);
+    }
+    if (input.linkTargetPageId) {
+      await linkPages.retargetLinkPage(ctx, page.id, input.linkTargetPageId, {
+        expectedRevisionId: input.baseRevisionId,
+      });
+    }
+    const view = await getPageById(ctx, page.id, include);
+    if (!view) throw new DomainError('NOT_FOUND', 'Updated page is not visible');
+    return view;
+  }
+  if (input.linkTargetPageId) throw new DomainError('LINK_TARGET_INVALID', 'Only link pages may be retargeted');
   const metadataUpdated = input.title
     ? await updatePageMetadata(ctx, pageId, {
         baseRevisionId: input.baseRevisionId ?? page.latestVersionId!,
@@ -958,15 +987,25 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
       title: schema.pages.title,
       authorId: schema.pages.authorId,
       visibility: schema.pages.visibility,
+      kind: schema.pages.kind,
+      linkTargetPageId: schema.pages.linkTargetPageId,
       currentPublishedVersionId: schema.pages.currentPublishedVersionId,
     })
     .from(schema.pages)
     .where(and(...conditions))
     .orderBy(schema.pages.path);
 
-  type Row = { id: string; path: string; title: string; status: 'draft' | 'published' };
+  type Row = {
+    id: string;
+    path: string;
+    title: string;
+    status: 'draft' | 'published';
+    kind: 'native' | 'link';
+    linkTarget: { pageId: string; path: string; title: string } | null;
+  };
   const visible: Row[] = [];
   const userId = getActorUserId(ctx);
+  const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
   for (const row of rows) {
     const status: Row['status'] = row.currentPublishedVersionId ? 'published' : 'draft';
     if (query.status === 'draft' && status !== 'draft') continue;
@@ -974,7 +1013,20 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     const isAuthor = userId ? row.authorId === userId : false;
     if (!can(ctx, 'read', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     if (status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, pagePermissionOptions(space, row, { isAuthor }))) continue;
-    visible.push({ id: row.id, path: row.path, title: row.title, status });
+    const target = canViewProvenance && row.linkTargetPageId
+      ? await db.query.pages.findFirst({
+          columns: { id: true, path: true, title: true },
+          where: and(eq(schema.pages.id, row.linkTargetPageId), isNull(schema.pages.deletedAt)),
+        })
+      : null;
+    visible.push({
+      id: row.id,
+      path: row.path,
+      title: row.title,
+      status,
+      kind: row.kind,
+      linkTarget: target ? { pageId: target.id, path: target.path, title: target.title } : null,
+    });
   }
 
   return { root: buildTree(visible, query.pathPrefix), pageCount: visible.length };
@@ -1002,7 +1054,14 @@ function lastSegment(path: string): string {
   return index === -1 ? path : path.slice(index + 1);
 }
 
-function buildTree(pages: { id: string; path: string; title: string; status: 'draft' | 'published' }[], pathPrefix?: string): PublicPageTreeNode {
+function buildTree(pages: {
+  id: string;
+  path: string;
+  title: string;
+  status: 'draft' | 'published';
+  kind: 'native' | 'link';
+  linkTarget: { pageId: string; path: string; title: string } | null;
+}[], pathPrefix?: string): PublicPageTreeNode {
   const prefix = pathPrefix ?? '';
   const root: PublicPageTreeNode = { path: prefix, segment: lastSegment(prefix), title: null, pageId: null, status: null, children: [] };
 
@@ -1026,6 +1085,8 @@ function buildTree(pages: { id: string; path: string; title: string; status: 'dr
         child.title = page.title;
         child.pageId = page.id;
         child.status = page.status;
+        child.kind = page.kind;
+        child.linkTarget = page.linkTarget;
       }
       current = child;
     }
@@ -1062,6 +1123,10 @@ export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  if (page.kind === 'link') {
+    await linkPages.deleteLinkPage(ctx, page.id);
+    return;
+  }
   await pageService.remove(ctx, page.path, space.slug);
 }
 
@@ -1814,6 +1879,7 @@ export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: Pu
   const isAuthor = userId ? page.authorId === userId : false;
   const space = await getSpaceById(page.spaceId);
   if (space?.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
+  if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages do not have editable content metadata');
   if (!space || !userId || !can(ctx, 'edit', { kind: 'page', pageId }, pagePermissionOptions(space, page, { isAuthor }))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
   }

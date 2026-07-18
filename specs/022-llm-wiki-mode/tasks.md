@@ -129,15 +129,15 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ### Tests for User Story 4
 
-- [ ] T034 [P] [US4] Service tests in `apps/web/src/server/services/link-pages.test.ts`: create validation (target generated-space, native, live; no chains/self), forced nature `generated`, create/retarget revisions preserve their historical `link_target_page_id`, delete link spares target
-- [ ] T035 [P] [US4] Read-path tests in `apps/web/src/server/services/pages.test.ts` for `getLive` link resolution (serves target's current published revision at link path; 404 when target unpublished/deleted), anonymous resource/sitemap projection tests proving target id/path/title are not disclosed, and invalidation fan-out coverage in `apps/web/src/server/cache/public-cache.test.ts`
+- [X] T034 [P] [US4] Service tests in `apps/web/src/server/services/link-pages.test.ts`: create validation (target generated-space, native, live; no chains/self), forced nature `generated`, create/retarget revisions preserve their historical `link_target_page_id`, delete link spares target
+- [X] T035 [P] [US4] Read-path tests in `apps/web/src/server/services/pages.test.ts` for `getLive` link resolution (serves target's current published revision at link path; 404 when target unpublished/deleted), anonymous resource/sitemap projection tests proving target id/path/title are not disclosed, and invalidation fan-out coverage in `apps/web/src/server/cache/public-cache.test.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Implement `apps/web/src/server/services/link-pages.ts`: `createLinkPage(ctx, { path, title?, targetPageId })` (validates target, creates live page with a `NULL`-source revision whose `link_target_page_id` records the target), `retargetLinkPage(ctx, pageId, targetPageId)` (new revision preserving the new target), `deleteLinkPage` (soft-delete link only), `listLiveLinksForTarget(targetPageId)`
-- [ ] T037 [US4] Extend `getLive` and cached variants (`getCachedPublicLivePage`) in `apps/web/src/server/services/pages.ts` to resolve `kind='link'`: load target's current published revision, return its content under the link page's path/title; return not-found when the target is unpublished/deleted
-- [ ] T038 [US4] Add link fan-out invalidation in `apps/web/src/server/cache/public-cache.ts` and call sites (`revisions.ts` publish/unpublish, `pages.ts` remove/updateProperties): after target mutations, `revalidatePath` every live link path from `listLiveLinksForTarget`
-- [ ] T039 [US4] Support `kind=link` + `linkTargetPageId` in `POST /v1/pages` and retarget via `PATCH /v1/pages/[id]` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/[id]/route.ts`; include `kind` and permission-projected `linkTarget` in page/tree resources, while sitemap output contains only the public wiki link URL and never generated target metadata
+- [X] T036 [US4] Implement `apps/web/src/server/services/link-pages.ts`: `createLinkPage(ctx, { path, title?, targetPageId })` (validates target, creates live page with a `NULL`-source revision whose `link_target_page_id` records the target), `retargetLinkPage(ctx, pageId, targetPageId)` (new revision preserving the new target), `deleteLinkPage` (soft-delete link only), `listLiveLinksForTarget(targetPageId)`
+- [X] T037 [US4] Extend `getLive` and cached variants (`getCachedPublicLivePage`) in `apps/web/src/server/services/pages.ts` to resolve `kind='link'`: load target's current published revision, return its content under the link page's path/title; return not-found when the target is unpublished/deleted
+- [X] T038 [US4] Add link fan-out invalidation in `apps/web/src/server/cache/public-cache.ts` and call sites (`revisions.ts` publish/unpublish, `pages.ts` remove/updateProperties): after target mutations, `revalidatePath` every live link path from `listLiveLinksForTarget`
+- [X] T039 [US4] Support `kind=link` + `linkTargetPageId` in `POST /v1/pages` and retarget via `PATCH /v1/pages/[id]` in `apps/web/src/server/services/public-content.ts` and `apps/web/app/api/v1/pages/[id]/route.ts`; include `kind` and permission-projected `linkTarget` in page/tree resources, while sitemap output contains only the public wiki link URL and never generated target metadata
 
 **Checkpoint**: Softlink publishing works end-to-end with correct ISR behavior (quickstart S4)
 

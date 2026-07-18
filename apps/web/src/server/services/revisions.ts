@@ -7,11 +7,12 @@ import { assertNotMigrating } from '@/server/services/migration';
 import { enqueueGitExport } from '@/server/services/git-export';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { invalidateTranslationsForSource } from '@/server/services/translations';
-import { invalidatePublicContentCache } from '@/server/cache/public-cache';
+import { invalidatePublicContentCache, invalidatePublicLinkPaths } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
+import { listLiveLinksForTarget } from '@/server/services/link-pages';
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -44,6 +45,7 @@ export async function publish(
     });
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
     if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries are published automatically');
+    if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are published when created or retargeted');
 
     const revision = await tx.query.pageRevisions.findFirst({
       where: and(
@@ -84,7 +86,9 @@ export async function publish(
 
     return { versionId: revision.id, pageId: page.id };
   });
+  const linkedPaths = await listLiveLinksForTarget(result.pageId);
   invalidatePublicContentCache();
+  invalidatePublicLinkPaths(linkedPaths);
   await enqueuePublicPageWarmup(getPageHref(input.path));
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);

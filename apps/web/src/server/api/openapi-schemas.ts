@@ -704,7 +704,7 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
       nature: z.enum(['original', 'generated']).describe('Creation-time classification of the page: original human input or generated content.'),
     })
     .optional()
-    .describe('Provenance of this revision. Omitted until provenance projection lands for every revision route.'),
+    .describe('Provenance of this revision.'),
   linkTargetPageId: z
     .string()
     .uuid()
@@ -753,8 +753,7 @@ export const PublicPageResource = z
     title: z.string().describe('Human-readable page title.'),
     kind: z
       .enum(['native', 'link'])
-      .optional()
-      .describe('Page kind: a native content page or a softlink page rendering a generated target. Omitted until space-aware resource assembly lands.'),
+      .describe('Page kind: a native content page or a softlink page rendering a generated target.'),
     linkTarget: z
       .object({
         pageId: z.string().uuid().describe('Target page identifier of a softlink page.'),
@@ -763,18 +762,18 @@ export const PublicPageResource = z
       })
       .nullable()
       .optional()
-      .describe('Resolved softlink target, projected only for permitted callers; null for native pages.'),
+      .describe('Resolved softlink target, projected only to Admin callers. Null for native pages and omitted for other callers.'),
     origin: z
       .object({
         actorKind: z.enum(['human', 'machine']).describe('Whether the page was created through a session (human) or an API key/pipeline (machine).'),
         nature: z.enum(['original', 'generated']).describe('Creation-time classification: original human input or generated content.'),
-      })
-      .optional()
-      .describe('Creation provenance of the page. Omitted until space-aware resource assembly lands.'),
+    })
+    .optional()
+    .describe('Creation provenance of the page.'),
     humanModified: z
       .boolean()
       .optional()
-      .describe('Whether any revision of the page was written by a human actor. Omitted until space-aware resource assembly lands.'),
+      .describe('Whether any revision of the page was written by a human actor.'),
     visibility: z
       .enum(['public', 'restricted'])
       .optional()
@@ -969,6 +968,8 @@ export const PublicPageCreateInput = z
       command: z.string().min(1).max(10_000).optional(),
       occurredAt: z.string().datetime().optional(),
     }).optional().describe('Immutable source metadata for a raw entry.'),
+    kind: z.enum(['native', 'link']).optional().describe('Page kind. Use link only for an Admin-managed wiki softlink.'),
+    linkTargetPageId: z.string().uuid().optional().describe('Required when kind is link. The target must be a live generated-space native page.'),
   })
   .describe('Create a public wiki page.');
 
@@ -1015,8 +1016,9 @@ export const PublicPagePropertiesInput = z
       .uuid()
       .optional()
       .describe('Expected current revision id, used for optimistic concurrency control.'),
+    linkTargetPageId: z.string().uuid().optional().describe('New live generated target for an existing link page.'),
   })
-  .describe('Update page properties. Provide at least one of path or title.');
+  .describe('Update page properties. Provide at least one of path, title, or linkTargetPageId.');
 
 export const PublicRevisionListQuery = z
   .object({

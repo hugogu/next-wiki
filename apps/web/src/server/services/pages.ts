@@ -33,12 +33,13 @@ import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { buildPageDescription } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
-import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
+import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, invalidatePublicLinkPaths, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
+import { listLiveLinksForTarget } from '@/server/services/link-pages';
 
 const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
@@ -535,6 +536,35 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
     return null;
   }
 
+  if (page.kind === 'link') {
+    if (!page.linkTargetPageId) return null;
+    const target = await db.query.pages.findFirst({
+      where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt)),
+    });
+    if (!target?.currentPublishedVersionId) return null;
+    const revision = await db.query.pageRevisions.findFirst({
+      where: eq(schema.pageRevisions.id, target.currentPublishedVersionId),
+    });
+    if (!revision) return null;
+    const author = await db.query.users.findFirst({ where: eq(schema.users.id, page.authorId) });
+    const metadata = await getRevisionMetadata(revision.id);
+    return {
+      pageId: page.id,
+      revisionId: revision.id,
+      path: page.path,
+      title: page.title,
+      contentHtml: revision.contentHtml,
+      contentHash: revision.contentHash,
+      version: revision.versionNumber,
+      publishedAt: revision.publishedAt?.toISOString() ?? null,
+      authorDisplayName: author?.displayName ?? null,
+      authorId: page.authorId,
+      status: 'published',
+      createdAt: page.createdAt.toISOString(),
+      metadata,
+    };
+  }
+
   if (page.currentPublishedVersionId) {
     const revision = await db.query.pageRevisions.findFirst({
       where: eq(schema.pageRevisions.id, page.currentPublishedVersionId),
@@ -834,32 +864,7 @@ export async function getPublishedForShare(pageId: string): Promise<LivePage | n
   });
 
   if (!page || !page.currentPublishedVersionId || space.kind !== 'wiki' || page.visibility !== 'public') return null;
-
-  const revision = await db.query.pageRevisions.findFirst({
-    where: eq(schema.pageRevisions.id, page.currentPublishedVersionId),
-  });
-  if (!revision) return null;
-
-  const author = await db.query.users.findFirst({
-    where: eq(schema.users.id, page.authorId),
-  });
-  const metadata = await getRevisionMetadata(revision.id);
-
-  return {
-    pageId: page.id,
-    revisionId: revision.id,
-    path: page.path,
-    title: page.title,
-    contentHtml: revision.contentHtml,
-    contentHash: revision.contentHash,
-    version: revision.versionNumber,
-    publishedAt: revision.publishedAt?.toISOString() ?? null,
-    authorDisplayName: author?.displayName ?? null,
-    authorId: page.authorId,
-    status: 'published',
-    createdAt: page.createdAt.toISOString(),
-    metadata,
-  };
+  return getLive(buildAnonymousCtx(), page.path);
 }
 
 /**
@@ -894,6 +899,7 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
 
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be deleted');
+  if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages must be deleted through the link page service');
 
   const isAuthor = page.authorId === userId;
   if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
@@ -907,7 +913,9 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
       .set({ deletedAt: new Date() })
       .where(eq(schema.pages.id, page.id));
   });
+  const linkedPaths = await listLiveLinksForTarget(page.id);
   invalidatePublicContentCache();
+  invalidatePublicLinkPaths(linkedPaths);
   await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
 }
@@ -1067,6 +1075,7 @@ export async function newDraft(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages cannot have content drafts');
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
@@ -1178,6 +1187,9 @@ export async function updateProperties(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (page.kind === 'link' && (ctx.actor.kind === 'anonymous' || ctx.actor.role !== 'admin')) {
+      throw new DomainError('FORBIDDEN', 'Only Admins can manage link pages');
+    }
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
@@ -1216,7 +1228,9 @@ export async function updateProperties(
       isPublished: page.currentPublishedVersionId !== null,
     };
   });
+  const linkedPaths = await listLiveLinksForTarget(result.pageId);
   invalidatePublicContentCache();
+  invalidatePublicLinkPaths([...linkedPaths, ...(result.isPublished ? [currentPath, result.newPath] : [])]);
   if (result.isPublished) await enqueuePublicPageWarmup(getPageHref(result.newPath));
   if (result.newPath !== currentPath) await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
