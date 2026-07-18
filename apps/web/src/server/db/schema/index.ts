@@ -207,6 +207,10 @@ export const pages = pgTable(
       .where(sql`${t.translationGroupId} is not null`),
     sourcePageIdx: index('pages_source_page_idx').on(t.sourcePageId),
     linkTargetPageIdx: index('pages_link_target_page_idx').on(t.linkTargetPageId),
+    linkKindTargetPair: check(
+      'pages_link_kind_target_pair',
+      sql`(${t.kind} = 'link') = (${t.linkTargetPageId} is not null)`,
+    ),
   }),
 );
 
@@ -232,6 +236,12 @@ export const pageRevisions = pgTable(
     // 022: derived from the credential at write time (session=human;
     // api_key/pipeline=machine).
     actorKind: actorKindEnum('actor_kind').notNull().default('human'),
+    // 022: immutable raw source metadata for a raw create/append chunk; null
+    // for non-raw revisions.
+    sourceMetadata: jsonb('source_metadata'),
+    // 022: immutable link target recorded on link create/retarget revisions.
+    // Conceptually a FK to pages.id; app-enforced (see pages note above).
+    linkTargetPageId: uuid('link_target_page_id'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -251,11 +261,19 @@ export const writingModeSettings = pgTable(
   {
     id: text('id').primaryKey().default('default'),
     mode: writingModeEnum('mode').notNull().default('copilot'),
+    // Non-null only while an async mode switch is pending/running; the pair
+    // flips to null together when the switch completes (paired-null CHECK).
+    pendingMode: writingModeEnum('pending_mode'),
+    switchJobId: uuid('switch_job_id'),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     singletonId: check('writing_mode_settings_singleton_id', sql`${t.id} = 'default'`),
+    switchPair: check(
+      'writing_mode_settings_switch_pair',
+      sql`(${t.pendingMode} is null) = (${t.switchJobId} is null)`,
+    ),
   }),
 );
 

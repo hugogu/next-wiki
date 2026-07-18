@@ -162,6 +162,13 @@
       "when": 1784344798596,
       "tag": "0022_tranquil_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784350445932,
+      "tag": "0023_old_baron_strucker",
+      "breakpoints": true
     }
   ]
 }
