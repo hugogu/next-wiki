@@ -16,6 +16,14 @@ export type PublicApiErrorCode =
   | 'ASSET_TOO_LARGE'
   | 'RATE_LIMITED'
   | 'INDEX_NOT_READY'
+  | 'SPACE_UNAVAILABLE'
+  | 'SPACE_FORBIDDEN'
+  | 'RAW_SPACE_IMMUTABLE'
+  | 'OKF_TYPE_REQUIRED'
+  | 'OKF_RESERVED_PATH'
+  | 'LINK_TARGET_INVALID'
+  | 'MODE_SWITCH_INVALID'
+  | 'MODE_SWITCH_IN_PROGRESS'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -59,6 +67,22 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'RATE_LIMITED', status: 429 };
     case 'INDEX_NOT_READY':
       return { code: 'INDEX_NOT_READY', status: 409 };
+    case 'SPACE_UNAVAILABLE':
+      return { code: 'SPACE_UNAVAILABLE', status: 403 };
+    case 'SPACE_FORBIDDEN':
+      return { code: 'SPACE_FORBIDDEN', status: 403 };
+    case 'RAW_SPACE_IMMUTABLE':
+      return { code: 'RAW_SPACE_IMMUTABLE', status: 403 };
+    case 'MODE_SWITCH_IN_PROGRESS':
+      return { code: 'MODE_SWITCH_IN_PROGRESS', status: 409 };
+    case 'MODE_SWITCH_INVALID':
+      return { code: 'MODE_SWITCH_INVALID', status: 422 };
+    case 'OKF_TYPE_REQUIRED':
+      return { code: 'OKF_TYPE_REQUIRED', status: 422 };
+    case 'OKF_RESERVED_PATH':
+      return { code: 'OKF_RESERVED_PATH', status: 422 };
+    case 'LINK_TARGET_INVALID':
+      return { code: 'LINK_TARGET_INVALID', status: 422 };
     default:
       return { code: 'VALIDATION_FAILED', status: 422 };
   }
