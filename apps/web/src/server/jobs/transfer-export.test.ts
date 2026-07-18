@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { capturePublishedSnapshot } from '@/server/services/transfer-export';
+import { captureGeneratedSnapshot, capturePublishedSnapshot } from '@/server/services/transfer-export';
 import { sha256, ONE_PIXEL_PNG } from '../../../test/transfer-fixtures';
 import { runTransferExport } from './transfer-export';
 
@@ -14,7 +14,11 @@ import { runTransferExport } from './transfer-export';
 const archiveWriter = vi.hoisted(() => ({
   writePortableArchive: vi.fn(),
 }));
+const okfArchiveWriter = vi.hoisted(() => ({
+  writeOkfArchive: vi.fn(),
+}));
 vi.mock('@/server/transfers/archive-writer', () => archiveWriter);
+vi.mock('@/server/transfers/okf-archive-writer', () => okfArchiveWriter);
 
 const ASSET_BYTES = ONE_PIXEL_PNG;
 const ASSET_HASH = sha256(ASSET_BYTES);
@@ -30,6 +34,7 @@ async function truncate(): Promise<void> {
 const seed = {
   user: randomUUID(),
   space: randomUUID(),
+  generatedSpace: randomUUID(),
   assetShared: randomUUID(),
   assetMissing: randomUUID(),
   pubA: randomUUID(),
@@ -42,6 +47,9 @@ const seed = {
   revB: randomUUID(),
   deletedE: randomUUID(),
   revE: randomUUID(),
+  generatedPage: randomUUID(),
+  generatedPublished: randomUUID(),
+  generatedDraft: randomUUID(),
 };
 
 beforeAll(async () => {
@@ -58,6 +66,13 @@ beforeAll(async () => {
     slug: 'default',
     name: 'Default',
     anonymousRead: true,
+  });
+  await db.insert(schema.spaces).values({
+    id: seed.generatedSpace,
+    slug: 'generated',
+    name: 'Generated',
+    kind: 'generated',
+    anonymousRead: false,
   });
 
   // A shared local image referenced by multiple published pages.
@@ -194,9 +209,50 @@ beforeAll(async () => {
     publishedAt: new Date('2026-01-05T00:00:00.000Z'),
   });
 
+  const generatedPublishedSource = '---\ntype: Service\n---\n\n# Published';
+  const generatedDraftSource = '---\ntype: Service\ncustom: unchanged\n---\n\n# Latest draft';
+  await db.insert(schema.pages).values({
+    id: seed.generatedPage,
+    spaceId: seed.generatedSpace,
+    slug: 'payments',
+    path: 'concepts/payments',
+    title: 'Payments',
+    authorId: seed.user,
+    currentPublishedVersionId: seed.generatedPublished,
+    latestVersionId: seed.generatedDraft,
+    nature: 'generated',
+    visibility: 'restricted',
+  });
+  await db.insert(schema.pageRevisions).values([
+    {
+      id: seed.generatedPublished,
+      pageId: seed.generatedPage,
+      versionNumber: 1,
+      contentSource: generatedPublishedSource,
+      contentHtml: '<h1>Published</h1>',
+      contentHash: sha256(generatedPublishedSource),
+      authorId: seed.user,
+      status: 'published',
+      publishedAt: new Date('2026-01-06T00:00:00.000Z'),
+    },
+    {
+      id: seed.generatedDraft,
+      pageId: seed.generatedPage,
+      versionNumber: 2,
+      contentSource: generatedDraftSource,
+      contentHtml: '<h1>Latest draft</h1>',
+      contentHash: sha256(generatedDraftSource),
+      authorId: seed.user,
+      status: 'draft',
+    },
+  ]);
+
   archiveWriter.writePortableArchive.mockResolvedValue({
     stored: { storageKey: 'mock.zip', sizeBytes: 42, contentHash: 'f'.repeat(64) },
     manifest: { pages: [], assets: [], files: [] },
+  });
+  okfArchiveWriter.writeOkfArchive.mockResolvedValue({
+    stored: { storageKey: 'mock-okf.zip', sizeBytes: 24, contentHash: 'e'.repeat(64) },
   });
 });
 
@@ -256,6 +312,19 @@ describe('capturePublishedSnapshot', () => {
   });
 });
 
+describe('captureGeneratedSnapshot', () => {
+  it('selects the latest generated revision, including drafts', async () => {
+    const snapshot = await captureGeneratedSnapshot();
+    expect(snapshot.spaceSlug).toBe('generated');
+    expect(snapshot.pages).toMatchObject([{
+      id: seed.generatedPage,
+      revisionId: seed.generatedDraft,
+      path: 'concepts/payments',
+      markdown: expect.stringContaining('custom: unchanged'),
+    }]);
+  });
+});
+
 describe('runTransferExport', () => {
   it('finalizes a site_export run as completed with counts and a ready artifact', async () => {
     archiveWriter.writePortableArchive.mockClear();
@@ -311,6 +380,29 @@ describe('runTransferExport', () => {
       where: eq(schema.transferArtifacts.runId, run!.id),
     });
     expect(artifact).toBeUndefined();
+  });
+
+  it('writes generated OKF exports from latest drafts without the portable writer', async () => {
+    archiveWriter.writePortableArchive.mockClear();
+    okfArchiveWriter.writeOkfArchive.mockClear();
+    const [run] = await db
+      .insert(schema.transferRuns)
+      .values({
+        kind: 'site_export',
+        actorUserId: seed.user,
+        options: { space: 'generated', format: 'okf' },
+        expiresAt: new Date(Date.now() + 72 * 3_600_000),
+      })
+      .returning();
+
+    await runTransferExport(run!.id);
+
+    expect(okfArchiveWriter.writeOkfArchive).toHaveBeenCalledWith(expect.objectContaining({
+      pages: [expect.objectContaining({ revisionId: seed.generatedDraft })],
+    }));
+    expect(archiveWriter.writePortableArchive).not.toHaveBeenCalled();
+    const artifact = await db.query.transferArtifacts.findFirst({ where: eq(schema.transferArtifacts.runId, run!.id) });
+    expect(artifact?.originalFilename).toMatch(/^next-wiki-okf-export-/);
   });
 
   it('ignores runs whose kind is not site_export', async () => {

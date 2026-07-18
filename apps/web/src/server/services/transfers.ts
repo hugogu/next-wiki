@@ -123,7 +123,7 @@ export async function create(
   let sourceArtifactId: string | null =
     'sourceArtifactId' in input ? input.sourceArtifactId : null;
   const previewRunId: string | null = 'previewRunId' in input ? input.previewRunId : null;
-  let options: Record<string, unknown> = 'options' in input ? input.options : {};
+  let options: Record<string, unknown> = 'options' in input ? (input.options ?? {}) : {};
   let sourceFingerprint: string | null = null;
 
   if (previewRunId) {
@@ -397,7 +397,12 @@ export async function retry(ctx: PermCtx, id: string): Promise<TransferRunAccept
   }
   const input =
     row.kind === 'site_export'
-      ? ({ kind: 'site_export' } as const)
+      ? ({
+          kind: 'site_export',
+          ...(Object.keys(row.options as Record<string, unknown>).length
+            ? { options: row.options as { space: 'generated'; format: 'okf' } }
+            : {}),
+        } as const)
       : row.kind === 'archive_import'
         ? ({ kind: 'archive_import', previewRunId: row.previewRunId! } as const)
         : row.kind === 'wikijs_import'

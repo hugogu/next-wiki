@@ -27,22 +27,27 @@ export type ExportPage = {
   assetIds: string[];
 };
 
-export async function capturePublishedSnapshot(): Promise<{
+export type ExportSnapshot = {
   instanceId: string;
   spaceSlug: string;
   capturedAt: string;
   pages: ExportPage[];
   assets: ExportAsset[];
-}> {
-  const space = await resolveSpace();
-  if (!space) throw new Error('Default space not found');
+};
+
+async function captureSnapshot(
+  spaceSlug: string | undefined,
+  revisionColumn: typeof schema.pages.currentPublishedVersionId | typeof schema.pages.latestVersionId,
+): Promise<ExportSnapshot> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) throw new Error(`${spaceSlug ?? 'Default'} space not found`);
   const capturedAt = new Date();
   const rows = await db
     .select({ page: schema.pages, revision: schema.pageRevisions })
     .from(schema.pages)
     .innerJoin(
       schema.pageRevisions,
-      eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id),
+      eq(revisionColumn, schema.pageRevisions.id),
     )
     .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)))
     .orderBy(schema.pages.locale, schema.pages.path);
@@ -101,4 +106,16 @@ export async function capturePublishedSnapshot(): Promise<{
     pages,
     assets,
   };
+}
+
+export async function capturePublishedSnapshot(): Promise<ExportSnapshot> {
+  return captureSnapshot(undefined, schema.pages.currentPublishedVersionId);
+}
+
+/** Generated exports intentionally capture drafts, so each concept's latest source is portable. */
+export async function captureGeneratedSnapshot(): Promise<ExportSnapshot> {
+  const space = await resolveSpace('generated');
+  if (!space || space.kind !== 'generated') throw new Error('Generated space not found');
+  const snapshot = await captureSnapshot('generated', schema.pages.latestVersionId);
+  return snapshot;
 }

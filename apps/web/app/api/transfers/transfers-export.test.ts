@@ -65,6 +65,24 @@ describe('transfer export REST routes', () => {
     );
   });
 
+  it('accepts the generated OKF site export option', async () => {
+    const runId = randomUUID();
+    transfers.create.mockResolvedValue({ id: runId, status: 'queued' });
+
+    const response = await listRoute.POST(
+      jsonRequest('POST', 'http://localhost/api/transfers', {
+        kind: 'site_export', options: { space: 'generated', format: 'okf' },
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(202);
+    expect(transfers.create).toHaveBeenCalledWith(
+      { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
+      { kind: 'site_export', options: { space: 'generated', format: 'okf' } },
+    );
+  });
+
   it('rejects a non-admin actor with 403', async () => {
     vi.mocked(createApiContext).mockResolvedValueOnce({
       actor: { kind: 'user', userId: 'editor', role: 'editor' },

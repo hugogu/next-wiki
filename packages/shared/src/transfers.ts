@@ -83,6 +83,12 @@ export const transferOptionsSchema = z.object({
 });
 export type TransferOptions = z.infer<typeof transferOptionsSchema>;
 
+export const generatedOkfExportOptionsSchema = z.object({
+  space: z.literal('generated'),
+  format: z.literal('okf'),
+});
+export type GeneratedOkfExportOptions = z.infer<typeof generatedOkfExportOptionsSchema>;
+
 export const transferSourceCreateSchema = z.object({
   type: transferSourceTypeSchema.default('wikijs'),
   name: z.string().trim().min(1).max(100),
@@ -139,7 +145,10 @@ export const transferArtifactViewSchema = z.object({
 export type TransferArtifactView = z.infer<typeof transferArtifactViewSchema>;
 
 export const transferRunCreateSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('site_export') }),
+  z.object({
+    kind: z.literal('site_export'),
+    options: generatedOkfExportOptionsSchema.optional(),
+  }),
   z.object({
     kind: z.literal('archive_preview'),
     sourceArtifactId: z.string().uuid(),
