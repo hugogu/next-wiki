@@ -76,6 +76,8 @@ export function NewPageDialog({
           setServerError(t('page.create.error.pathReserved'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
           setServerError(t('page.create.error.forbidden'));
+        } else if (error.code === 'RAW_CATEGORY_REQUIRED') {
+          setServerError(t('page.create.error.rawCategoryRequired'));
         } else {
           setServerError(error.message || t('page.create.error.generic'));
         }

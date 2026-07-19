@@ -280,6 +280,7 @@
         "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
         "forbidden": "你没有权限创建页面。",
         "rawContentRequired": "原始条目需要内容。",
+        "rawCategoryRequired": "尚未配置默认原始分类。请让管理员先创建分类,再添加原始条目。",
         "generic": "创建页面失败。"
       },
       "submit": "创建"
@@ -1479,6 +1480,9 @@
         "retireMessage": "退休\"{name}\"?现有条目保持归档,但不再接受新条目。",
         "deleteTitle": "删除分类",
         "deleteMessage": "删除\"{name}\"?此操作不可撤销,且仅在没有条目引用时允许。"
+      },
+      "error": {
+        "hasEntries": "该分类仍被原始条目引用,无法删除。请改为停用。"
       }
     }
   },

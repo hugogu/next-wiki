@@ -280,6 +280,7 @@
         "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
         "forbidden": "You do not have permission to create pages.",
         "rawContentRequired": "Raw entries require content.",
+        "rawCategoryRequired": "No default raw category is configured. Ask an administrator to create one before adding raw entries.",
         "generic": "Failed to create page."
       },
       "submit": "Create"
@@ -1479,6 +1480,9 @@
         "retireMessage": "Retire \"{name}\"? Existing entries stay filed, but it will no longer accept new entries.",
         "deleteTitle": "Delete category",
         "deleteMessage": "Delete \"{name}\"? This cannot be undone and is only allowed when no entries reference it."
+      },
+      "error": {
+        "hasEntries": "This category cannot be deleted while raw entries still reference it. Retire it instead."
       }
     }
   },

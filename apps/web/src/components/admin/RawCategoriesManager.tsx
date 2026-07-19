@@ -59,7 +59,12 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
       setForm(null);
       setConfirm(null);
     } catch (e) {
-      setError((e as ApiError).message ?? String(e));
+      const apiError = e as ApiError;
+      setError(
+        apiError.code === 'RAW_CATEGORY_HAS_ENTRIES'
+          ? t('admin.rawCategories.error.hasEntries')
+          : (apiError.message ?? String(e)),
+      );
     } finally {
       setPending(false);
     }
