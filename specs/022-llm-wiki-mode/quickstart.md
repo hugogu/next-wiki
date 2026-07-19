@@ -96,7 +96,8 @@ With an MCP client (e.g. OpenCode configured per `packages/mcp-server/README.md`
 3. `list_pages(space="raw", filterCategoryId="<uuid>")` → only entries filed under the chosen category.
 4. `list_pages(space="generated", filterType="Playbook", filterTag="incident")` → matching generated pages with `origin`/`humanModified` fields; OKF `filterType` is generated-space only.
 5. `create_page({title, contentSource})` (no space) → lands in `generated`; `append_raw_entry(pageId, chunk, { contentType, originalBytes?, source? })` → new revision with complete `origin`, `contentType`, append `source`, and nullable `originalAsset`.
-6. Repeat with a reader-scoped key → raw/generated operations denied.
+6. `POST /v1/search/semantic` with an admin key → returns matching chunks across **wiki + raw + generated** (raw entries' extracted-text layer is indexed automatically by the existing `ai-index` job; semantic retrieval works for raw without a new index job). Repeat with an anonymous key → only wiki-space chunks are returned, even when raw/generated chunks exist in the shared index.
+7. Repeat 1–5 with a reader-scoped key → raw/generated operations denied.
 
 ## S7 — Mode switching (US7, SC-002, SC-008)
 

@@ -56,7 +56,7 @@ New optional body fields:
 | `nature` | `original` \| `generated` | Explicit override for native wiki/generated pages; default derived from actor kind (machine→generated, human→original). Raw forces `original`; link forces `generated` |
 | `inputKind` | `chat-transcript` \| `external-fetch` \| `script-run` \| `manual-note` | **Required when `space=raw`**; stored in `source_metadata`, NOT in the body |
 | `categoryId` | uuid | **Required when `space=raw`** unless the admin has configured a default raw category (then applied silently if omitted). Must reference a non-retired `raw_categories` row; immutable after creation |
-| `contentType` | string (`text/markdown` \| `text/plain` \| `text/html` \| `application/json` \| `application/pdf` \| `text/x-log` \| `image/*` …) | **Required when `space=raw`** and the body is not markdown; defaults to `text/markdown`. Stored on the revision; verifies byte-payload via content sniffing when an `originalAssetId` or `originalBytes` is supplied |
+| `contentType` | string (RFC 2046 MIME type) | **Required when `space=raw`** and the body is not markdown; defaults to `text/markdown`. Validated against RFC 2046 grammar by the service layer and a DB `CHECK` constraint; the service layer MAY restrict raw creates to a curated allowlist (`text/markdown`, `text/plain`, `text/html`, `application/json`, `application/pdf`, `text/x-log`, `image/*`). Stored on the revision; verifies byte-payload via content sniffing when an `originalAssetId` or `originalBytes` is supplied |
 | `content` | string (extracted text) | Required unless `originalBytes` is supplied and server-side extraction is enabled; the extracted-text representation used for retrieval/rendering/AI. NOT modified, reformatted, or OKF-injected; stored verbatim |
 | `originalBytes` | base64 string \| multipart upload | Optional raw-only payload (PDF, HTML, JSON export, image, raw log). Stored through the existing `content_assets` abstraction (Database/Local/S3); its sha256 is recorded on the revision. When `content` is omitted the server derives the extracted text via the existing content pipeline before publishing the revision |
 | `source` | object (`channel?`, `url?`, `sessionId?`, `command?`, `occurredAt?` ISO 8601) | Optional raw source metadata, stored in `source_metadata` (NOT in body) |
@@ -89,6 +89,12 @@ Categories are referenced from raw-entry create/append through `categoryId`; aut
 ## Rejected operations on raw pages (all actors)
 
 `POST /v1/pages/[id]/drafts`, `PATCH /v1/pages/[id]`, `PATCH /v1/pages/[id]/metadata`, `DELETE /v1/pages/[id]`, `POST …/publication` (unpublish) → `403` with error code `RAW_SPACE_IMMUTABLE`.
+
+## Semantic search — space-kind-aware retrieval
+
+`POST /v1/search/semantic` and `GET /v1/search/semantic/[id]` (existing 010 surfaces) MUST enforce space-kind visibility on candidates: chunks belonging to `raw` or `generated` space pages are returned only to callers permitted to read those spaces (Admins and Admin-backed write-scoped keys). Anonymous and non-Admin callers receive wiki-space candidates only, even when raw/generated chunks exist in the shared `ai_knowledge_chunks` index. The existing semantic search request body gains an optional `space` parameter (same slug set as `GET /v1/pages`); when omitted, the response includes the union of spaces the caller can read.
+
+Pre-022 retrieval gates only on the default space's `anonymousRead` — a behavior that becomes a leak vector once raw/generated carry chunks. This feature MUST replace that gate with a per-candidate space-kind check (`ai-retrieval.ts:readPermissionFilteredVectorCandidates`).
 
 ## Link page operations
 
