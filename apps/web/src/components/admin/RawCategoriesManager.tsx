@@ -19,11 +19,11 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import {
-  FlameIcon,
+  EditIcon,
   InboxIcon,
-  PencilIcon,
   PlusIcon,
   StarIcon,
+  TrashIcon,
 } from '@/components/icons';
 import { apiDelete, apiGet, apiPatch, apiPost, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
@@ -168,7 +168,7 @@ export function RawCategoriesManager({
                           });
                         }}
                       >
-                        <PencilIcon className="h-5 w-5" aria-hidden="true" />
+                        <EditIcon className="h-5 w-5" aria-hidden="true" />
                       </Button>
                     </Tooltip>
                     {!category.isDefault && !category.isRetired && (
@@ -210,7 +210,7 @@ export function RawCategoriesManager({
                           setConfirm({ kind: 'delete', category });
                         }}
                       >
-                        <FlameIcon className="h-5 w-5" aria-hidden="true" />
+                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
                       </Button>
                     </Tooltip>
                   </div>

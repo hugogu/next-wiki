@@ -26,6 +26,8 @@ import {
   SearchIcon,
   TagIcon,
   PlusIcon,
+  PenSparkIcon,
+  LayersIcon,
 } from '@/components/icons';
 import { getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
@@ -294,7 +296,7 @@ export function Navigator({
         },
         { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
         ...(writingMode === 'llm-wiki'
-          ? [{ href: '/admin/raw-categories', label: t('admin.nav.rawCategories'), icon: <TagIcon className="shrink-0" /> }]
+          ? [{ href: '/admin/raw-categories', label: t('admin.nav.rawCategories'), icon: <LayersIcon className="shrink-0" /> }]
           : []),
         {
           href: '/admin/search',
@@ -339,7 +341,7 @@ export function Navigator({
         {
           href: '/admin/writing-mode',
           label: t('admin.nav.writingMode'),
-          icon: <SettingsIcon className="shrink-0" />,
+          icon: <PenSparkIcon className="shrink-0" />,
         },
         {
           href: '/admin/users',
