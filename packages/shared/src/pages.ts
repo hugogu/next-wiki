@@ -21,6 +21,19 @@ export const pathSchema = z
     message: 'Path cannot contain consecutive slashes',
   });
 
+/**
+ * RFC 2046 MIME type (`type/subtype`, structured `+suffix` allowed). Parameters
+ * (`; …`) are stripped by the service layer before storage, so this validates a
+ * bare type/subtype and mirrors the `page_revisions.content_type` DB CHECK. The
+ * zero-dep shared package keeps this a regex; the service layer parses with a
+ * standard MIME library and may apply a curated allowlist for raw creates.
+ */
+export const mimeTypeSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*\/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$/, {
+    message: 'Content type must be a valid MIME type (type/subtype)',
+  });
+
 /** Accepts a single query value or repeated occurrences of the same key and
  * normalizes both to a string array; OR-combined by the caller. */
 export const frontmatterFilterListSchema = z
@@ -61,7 +74,8 @@ export const publicRevisionSummarySchema = z.object({
   pageId: z.string().uuid(),
   version: z.number().int().min(1),
   status: publicRevisionStatusSchema,
-  contentType: z.literal('text/markdown'),
+  // 022 (Phase 11): open MIME type — raw revisions carry the original format.
+  contentType: mimeTypeSchema,
   contentHash: z.string(),
   author: publicAuthorSchema,
   createdAt: z.string(),
@@ -99,6 +113,20 @@ export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
     })
     .nullable()
     .optional(),
+  // 022 (Phase 11): dual-track raw storage — reference to the immutable original
+  // bytes stored via content_assets. Null for revisions with no original blob.
+  originalAsset: z
+    .object({
+      id: z.string().uuid(),
+      contentType: mimeTypeSchema,
+      sizeBytes: z.number().int().nonnegative(),
+      contentHash: z.string(),
+    })
+    .nullable()
+    .optional(),
+  // 022 (Phase 11): raw taxonomy category of the owning page (page-level, echoed
+  // on the revision resource for MCP convenience). Null for non-raw pages.
+  categoryId: z.string().uuid().nullable().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
   metadata: z.object({
     date: z.string().nullable(),
@@ -321,6 +349,10 @@ export const publicPageCreateInputSchema = z.object({
   nature: z.enum(['original', 'generated']).optional(),
   inputKind: rawInputKindSchema.optional(),
   source: rawSourceSchema.optional(),
+  // 022 (Phase 11): raw dual-track + taxonomy inputs.
+  contentType: mimeTypeSchema.optional(),
+  originalBytes: z.string().optional(),
+  categoryId: z.string().uuid().optional(),
   kind: z.enum(['native', 'link']).optional(),
   linkTargetPageId: z.string().uuid().optional(),
 }).superRefine((value, ctx) => {
@@ -336,6 +368,9 @@ export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 export const publicRawAppendInputSchema = z.object({
   content: z.string().min(1).max(1_000_000),
   source: rawSourceSchema.optional(),
+  // 022 (Phase 11): an appended chunk may carry its own original format/bytes.
+  contentType: mimeTypeSchema.optional(),
+  originalBytes: z.string().optional(),
 });
 export type PublicRawAppendInput = z.infer<typeof publicRawAppendInputSchema>;
 

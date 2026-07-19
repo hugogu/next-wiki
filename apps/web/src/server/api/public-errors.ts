@@ -24,6 +24,11 @@ export type PublicApiErrorCode =
   | 'LINK_TARGET_INVALID'
   | 'MODE_SWITCH_INVALID'
   | 'MODE_SWITCH_IN_PROGRESS'
+  | 'RAW_CONTENT_TYPE_INVALID'
+  | 'RAW_CONTENT_TYPE_MISMATCH'
+  | 'RAW_CATEGORY_REQUIRED'
+  | 'RAW_CATEGORY_RETIRED'
+  | 'RAW_CATEGORY_HAS_ENTRIES'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -83,6 +88,16 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'OKF_RESERVED_PATH', status: 422 };
     case 'LINK_TARGET_INVALID':
       return { code: 'LINK_TARGET_INVALID', status: 422 };
+    case 'RAW_CONTENT_TYPE_INVALID':
+      return { code: 'RAW_CONTENT_TYPE_INVALID', status: 422 };
+    case 'RAW_CONTENT_TYPE_MISMATCH':
+      return { code: 'RAW_CONTENT_TYPE_MISMATCH', status: 422 };
+    case 'RAW_CATEGORY_REQUIRED':
+      return { code: 'RAW_CATEGORY_REQUIRED', status: 422 };
+    case 'RAW_CATEGORY_RETIRED':
+      return { code: 'RAW_CATEGORY_RETIRED', status: 422 };
+    case 'RAW_CATEGORY_HAS_ENTRIES':
+      return { code: 'RAW_CATEGORY_HAS_ENTRIES', status: 409 };
     default:
       return { code: 'VALIDATION_FAILED', status: 422 };
   }

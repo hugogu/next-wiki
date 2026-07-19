@@ -19,7 +19,6 @@ import {
   apiKeyScopeEnum,
   cleanupStatusEnum,
   contentAssetKindEnum,
-  contentTypeEnum,
   migrationStatusEnum,
   revisionStatusEnum,
   storageBackendPurposeEnum,
@@ -160,6 +159,35 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
+// ---- Raw space taxonomy (022 Phase 11) -------------------------------------
+
+/** Admin-managed taxonomy filing every raw entry under exactly one immutable
+ * category. `is_default` (at most one) is applied silently when a raw create
+ * omits an explicit category. Categories are retired rather than deleted while
+ * entries still reference them. */
+export const rawCategories = pgTable(
+  'raw_categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description'),
+    isDefault: boolean('is_default').notNull().default(false),
+    isRetired: boolean('is_retired').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    slugUnique: uniqueIndex('raw_categories_slug_unique').on(t.slug),
+    nameUnique: uniqueIndex('raw_categories_name_unique').on(t.name),
+    // At most one default category across the taxonomy.
+    singleDefault: uniqueIndex('raw_categories_single_default')
+      .on(t.isDefault)
+      .where(sql`${t.isDefault} = true`),
+  }),
+);
+
 export const pages = pgTable(
   'pages',
   {
@@ -192,6 +220,10 @@ export const pages = pgTable(
     linkTargetPageId: uuid('link_target_page_id'),
     nature: contentNatureEnum('nature').notNull().default('original'),
     visibility: pageVisibilityEnum('visibility').notNull().default('public'),
+    // 022 (Phase 11): every raw entry is filed under exactly one immutable
+    // admin-managed category. Nullable at the DB layer (non-raw pages are
+    // legitimately NULL); the NOT NULL rule for raw is service-enforced.
+    rawCategoryId: uuid('raw_category_id').references(() => rawCategories.id, { onDelete: 'restrict' }),
     // Per-page authoring preference: when true, supported metadata (date,
     // summary, tags) is also embedded as a `---` frontmatter block in the
     // Markdown body; when false it is kept only in the structured projection.
@@ -229,7 +261,10 @@ export const pageRevisions = pgTable(
       .references(() => pages.id),
     versionNumber: integer('version_number').notNull(),
     locale: text('locale').notNull().default('en'),
-    contentType: contentTypeEnum('content_type').notNull().default('text/markdown'),
+    // 022 (Phase 11): open MIME-type string (was a `text/markdown` enum). Wiki
+    // and generated revisions keep defaulting to markdown; raw revisions carry
+    // the original source format. Grammar enforced by the CHECK below.
+    contentType: text('content_type').notNull().default('text/markdown'),
     // Nullable since 003: the Database backend keeps markdown here, while
     // Local/S3 backends store it externally keyed by revision id.
     contentSource: text('content_source'),
@@ -248,6 +283,11 @@ export const pageRevisions = pgTable(
     // 022: immutable link target recorded on link create/retarget revisions.
     // Conceptually a FK to pages.id; app-enforced (see pages note above).
     linkTargetPageId: uuid('link_target_page_id'),
+    // 022 (Phase 11): dual-track raw storage. The extracted text lives in
+    // content_source (default surface for search/AI); the original bytes are
+    // stored through content_assets and referenced here immutably. Null for
+    // non-raw revisions and raw revisions whose body is already plain text.
+    originalAssetId: uuid('original_asset_id').references(() => contentAssets.id, { onDelete: 'restrict' }),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -255,6 +295,14 @@ export const pageRevisions = pgTable(
     versionUnique: uniqueIndex().on(t.pageId, t.versionNumber),
     pageStatusCreatedIdx: index().on(t.pageId, t.status, t.createdAt),
     hashIdx: index().on(t.contentHash),
+    originalAssetIdx: index('page_revisions_original_asset_idx').on(t.originalAssetId),
+    // RFC 2046 grammar: type "/" subtype (structured "+" suffix allowed).
+    // Parameters (";" …) are stripped by the service layer before storage, so
+    // the stored value is always a bare type/subtype.
+    contentTypeGrammar: check(
+      'page_revisions_content_type_grammar',
+      sql`${t.contentType} ~ '^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$'`,
+    ),
   }),
 );
 

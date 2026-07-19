@@ -680,7 +680,7 @@ export const PublicRevisionSummary = z
     pageId: z.string().uuid().describe('Identifier of the page this revision belongs to.'),
     version: z.number().int().min(1).describe('Monotonically increasing revision version, starting at 1.'),
     status: z.enum(['draft', 'published']).describe('Revision lifecycle state: an unpublished draft or a published revision.'),
-    contentType: z.literal('text/markdown').describe('Content media type of the revision body. Always text/markdown.'),
+    contentType: z.string().describe('MIME type of the revision body (RFC 2046 type/subtype). Wiki/generated revisions are text/markdown; raw revisions carry the original source format.'),
     contentHash: z.string().describe('Content hash of the Markdown source, used for optimistic concurrency control.'),
     author: PublicAuthor,
     createdAt: z.string().datetime().describe('Timestamp when the revision was created (ISO 8601).'),
@@ -729,6 +729,22 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
     .nullable()
     .optional()
     .describe('Immutable raw-source metadata of a raw create/append chunk.'),
+  originalAsset: z
+    .object({
+      id: z.string().uuid().describe('Content-asset id of the immutable original bytes.'),
+      contentType: z.string().describe('MIME type of the original bytes.'),
+      sizeBytes: z.number().int().nonnegative().describe('Size of the original bytes.'),
+      contentHash: z.string().describe('sha256 of the original bytes.'),
+    })
+    .nullable()
+    .optional()
+    .describe('Dual-track raw storage reference to the immutable original bytes, or null when the body is already plain text.'),
+  categoryId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .describe('Raw taxonomy category of the owning page (echoed here for convenience). Null for non-raw pages.'),
   frontmatter: z
     .record(z.unknown())
     .nullable()
@@ -993,6 +1009,9 @@ export const PublicPageCreateInput = z
       command: z.string().min(1).max(10_000).optional(),
       occurredAt: z.string().datetime().optional(),
     }).optional().describe('Immutable source metadata for a raw entry.'),
+    contentType: z.string().optional().describe('MIME type of a raw entry body (RFC 2046). Required when the body is not markdown; defaults to text/markdown.'),
+    originalBytes: z.string().optional().describe('Optional base64 raw payload (PDF, HTML, JSON, image, log) stored via content_assets; its sha256 is recorded on the revision.'),
+    categoryId: z.string().uuid().optional().describe('Raw taxonomy category id. Required when space=raw unless an admin default is configured; immutable after creation.'),
     kind: z.enum(['native', 'link']).optional().describe('Page kind. Use link only for an Admin-managed wiki softlink.'),
     linkTargetPageId: z.string().uuid().optional().describe('Required when kind is link. The target must be a live generated-space native page.'),
   })
@@ -1008,6 +1027,8 @@ export const PublicRawAppendInput = z
       command: z.string().min(1).max(10_000).optional(),
       occurredAt: z.string().datetime().optional(),
     }).optional().describe('Immutable source metadata for this appended chunk.'),
+    contentType: z.string().optional().describe('MIME type of the appended chunk body (RFC 2046). Defaults to text/markdown.'),
+    originalBytes: z.string().optional().describe('Optional base64 original payload for this chunk, stored via content_assets.'),
   })
   .describe('Append an immutable chunk to a raw entry.');
 

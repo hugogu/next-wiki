@@ -116,7 +116,13 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'OKF_TYPE_REQUIRED':
     case 'OKF_RESERVED_PATH':
     case 'LINK_TARGET_INVALID':
+    case 'RAW_CONTENT_TYPE_INVALID':
+    case 'RAW_CONTENT_TYPE_MISMATCH':
+    case 'RAW_CATEGORY_REQUIRED':
+    case 'RAW_CATEGORY_RETIRED':
       return apiError(code, message, 422);
+    case 'RAW_CATEGORY_HAS_ENTRIES':
+      return apiError(code, message, 409);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

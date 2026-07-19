@@ -190,6 +190,13 @@
       "when": 1784390138307,
       "tag": "0026_sour_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1784444821955,
+      "tag": "0027_far_freak",
+      "breakpoints": true
     }
   ]
 }

@@ -76,7 +76,13 @@ export type DomainErrorCode =
   | 'OKF_RESERVED_PATH'
   | 'LINK_TARGET_INVALID'
   | 'MODE_SWITCH_INVALID'
-  | 'MODE_SWITCH_IN_PROGRESS';
+  | 'MODE_SWITCH_IN_PROGRESS'
+  // Raw space dual-track storage + taxonomy (022 Phase 11).
+  | 'RAW_CONTENT_TYPE_INVALID'
+  | 'RAW_CONTENT_TYPE_MISMATCH'
+  | 'RAW_CATEGORY_REQUIRED'
+  | 'RAW_CATEGORY_RETIRED'
+  | 'RAW_CATEGORY_HAS_ENTRIES';
 
 export class DomainError extends Error {
   constructor(
