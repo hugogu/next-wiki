@@ -54,8 +54,12 @@ export async function readPermissionFilteredVectorCandidates(
   queryVector: number[],
   limit: number,
 ): Promise<VectorMatch[]> {
+  // Gate on the default space's page_list read, but never hard-fail when the
+  // row is somehow absent: fall back to a non-anonymous default so an Admin
+  // still retrieves (matching the pre-multi-space behavior).
   const space = await resolveSpace();
-  if (!space || !can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) return [];
+  const options = space ? spacePermissionOptions(space) : { anonymousRead: false };
+  if (!can(ctx, 'read', { kind: 'page_list' }, options)) return [];
   return exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
 }
 
