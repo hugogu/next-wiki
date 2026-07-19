@@ -128,7 +128,10 @@ export function HeaderHybridSearch() {
 
   return (
     <>
-      <div className="absolute left-1/2 z-[70] w-[min(42rem,48vw)] -translate-x-1/2 max-lg:w-[min(28rem,42vw)]">
+      {/* Only raise above modal overlays (z-50) while the search dropdown is
+          open and needs to clear its own backdrop; otherwise stay below them so
+          an open dialog dims the search box like the rest of the page. */}
+      <div className={`absolute left-1/2 ${open ? 'z-[70]' : 'z-30'} w-[min(42rem,48vw)] -translate-x-1/2 max-lg:w-[min(28rem,42vw)]`}>
         <label className="sr-only" htmlFor="header-hybrid-search">{t('header.search.label')}</label>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute left-sm top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
