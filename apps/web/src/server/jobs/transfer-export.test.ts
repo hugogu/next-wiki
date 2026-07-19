@@ -315,7 +315,7 @@ describe('capturePublishedSnapshot', () => {
 describe('captureGeneratedSnapshot', () => {
   it('selects the latest generated revision, including drafts', async () => {
     const snapshot = await captureGeneratedSnapshot();
-    expect(snapshot.spaceSlug).toBe('generated');
+    expect(snapshot.pages[0]?.spaceSlug).toBe('generated');
     expect(snapshot.pages).toMatchObject([{
       id: seed.generatedPage,
       revisionId: seed.generatedDraft,
@@ -344,10 +344,10 @@ describe('runTransferExport', () => {
     });
     expect(updated!.status).toBe('completed');
     expect(updated!.phase).toBe('completed');
-    // 3 published pages + 1 unique shared asset.
-    expect(updated!.totalItems).toBe(4);
-    expect(updated!.processedItems).toBe(4);
-    expect(updated!.createdItems).toBe(4);
+    // 3 published wiki pages + 1 generated page + 1 unique shared asset.
+    expect(updated!.totalItems).toBe(5);
+    expect(updated!.processedItems).toBe(5);
+    expect(updated!.createdItems).toBe(5);
     expect(updated!.reportArtifactId).not.toBeNull();
 
     const artifact = await db.query.transferArtifacts.findFirst({

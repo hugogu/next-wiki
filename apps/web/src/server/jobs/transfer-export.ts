@@ -3,8 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
-import { captureGeneratedSnapshot, capturePublishedSnapshot } from '@/server/services/transfer-export';
-import { writePortableArchive, type PortablePageInput } from '@/server/transfers/archive-writer';
+import { captureFullSnapshot, captureGeneratedSnapshot } from '@/server/services/transfer-export';
+import { writePortableArchive } from '@/server/transfers/archive-writer';
 import { writeOkfArchive } from '@/server/transfers/okf-archive-writer';
 import { markRunTerminal } from '@/server/services/transfers';
 import { logger } from '@/server/logger';
@@ -30,20 +30,11 @@ export async function runTransferExport(runId: string): Promise<void> {
   try {
     const snapshot = isGeneratedOkfExport
       ? await captureGeneratedSnapshot()
-      : await capturePublishedSnapshot();
+      : await captureFullSnapshot();
 
-    const spaceKind: PortablePageInput['spaceKind'] = isGeneratedOkfExport
-      ? 'generated'
-      : 'wiki';
-    const spaceSlug: string = isGeneratedOkfExport
-      ? 'generated'
-      : 'default';
-
-    const pages: PortablePageInput[] = snapshot.pages.map((page) => ({
-      ...page,
-      spaceKind,
-      spaceSlug,
-    }));
+    // Each ExportPage carries its own spaceKind/spaceSlug so the writer can
+    // dispatch frontmatter / contentType per page without a single space hint.
+    const pages = snapshot.pages;
 
     await db
       .update(schema.transferRuns)

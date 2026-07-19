@@ -71,6 +71,9 @@ describe('OKF archive writer', () => {
         id: 'page-1', revisionId: 'revision-1', path: 'concepts/payments', locale: 'en', title: 'Payments',
         markdown: source, contentHash: sha256(source), publishedAt: null,
         createdAt: '2026-07-18T00:00:00.000Z', updatedAt: '2026-07-18T00:00:00.000Z', assetIds: [assetId],
+      spaceKind: 'wiki' as const,
+      spaceSlug: 'default',
+      markdownContentType: 'text/markdown',
       }],
       assets: [{
         id: assetId, contentHash: imageHash, contentType: 'image/png', sizeBytes: image.length, bytes: image,

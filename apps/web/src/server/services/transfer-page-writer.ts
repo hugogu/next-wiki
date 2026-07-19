@@ -10,6 +10,214 @@ import { buildUserCtx } from '@/server/permissions';
 import { persistRevisionMetadata } from './page-metadata';
 import { resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
+import { ensureOkfConformance } from '@/server/services/okf';
+
+export async function writeImportedRawEntry(input: {
+  actorUserId: string;
+  page: {
+    path: string;
+    locale: string;
+    title: string;
+    body: string;
+    contentType: string;
+    inputKind?: 'chat-transcript' | 'external-fetch' | 'script-run' | 'manual-note' | null;
+    rawSource?: Record<string, unknown> | null;
+    originalAssetId?: string | null;
+  };
+  action: 'create' | 'replace' | 'skip';
+}): Promise<{ pageId: string | null; revisionId: string | null; action: typeof input.action }> {
+  const space = await resolveSpace('raw');
+  if (!space || space.kind !== 'raw') throw new Error('Raw space not found');
+  const existing = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, input.page.path),
+      eq(schema.pages.locale, input.page.locale),
+    ),
+  });
+  if (existing && input.action === 'skip') return { pageId: existing.id, revisionId: null, action: 'skip' };
+  if (existing && !existing.deletedAt && input.action === 'create') {
+    return { pageId: existing.id, revisionId: null, action: 'skip' };
+  }
+  const revisionId = randomUUID();
+  const contentSource = input.page.body;
+  const { html, hash } = renderMarkdown(contentSource);
+  const contentType = input.page.contentType || 'text/plain';
+  const sourceMetadata: Record<string, unknown> = {};
+  if (input.page.inputKind) sourceMetadata.inputKind = input.page.inputKind;
+  if (input.page.rawSource) Object.assign(sourceMetadata, input.page.rawSource);
+  // Resolve the default category before the transaction so the tx can pass a
+  // plain category-id; transactions don't share the db query type.
+  const defaultCategory = await db.query.rawCategories.findFirst({
+    where: and(
+      eq(schema.rawCategories.isDefault, true),
+      eq(schema.rawCategories.isRetired, false),
+    ),
+  });
+  if (!defaultCategory) throw new Error('No default raw category is configured — cannot import raw entries');
+
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    const categoryId = defaultCategory.id;
+    let pageId: string;
+    let versionNumber = 1;
+    if (existing) {
+      const versions = await tx
+        .select({ value: max(schema.pageRevisions.versionNumber) })
+        .from(schema.pageRevisions)
+        .where(eq(schema.pageRevisions.pageId, existing.id));
+      versionNumber = (versions[0]?.value ?? 0) + 1;
+      pageId = existing.id;
+    } else {
+      const [page] = await tx
+        .insert(schema.pages)
+        .values({
+          spaceId: space.id,
+          slug: input.page.path.split('/').at(-1) ?? input.page.path,
+          path: input.page.path,
+          locale: input.page.locale,
+          title: input.page.title,
+          authorId: input.actorUserId,
+          nature: 'original',
+          visibility: 'restricted',
+          rawCategoryId: categoryId,
+        })
+        .returning({ id: schema.pages.id });
+      pageId = page!.id;
+    }
+    await tx.insert(schema.pageRevisions).values({
+      id: revisionId,
+      pageId,
+      versionNumber,
+      contentType,
+      contentSource,
+      contentHtml: html,
+      contentHash: hash,
+      authorId: input.actorUserId,
+      status: 'published',
+      publishedAt: new Date(),
+      actorKind: 'machine',
+      sourceMetadata,
+      originalAssetId: input.page.originalAssetId ?? null,
+    });
+    await syncRevisionAssetRefs(tx, revisionId, contentSource);
+    await addReplicationTasks(tx, 'markdown', revisionId, hash);
+    await tx
+      .update(schema.pages)
+      .set({
+        currentPublishedVersionId: revisionId,
+        latestVersionId: revisionId,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, pageId));
+    return { pageId };
+  });
+  await kickReplication();
+  await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
+  return {
+    pageId: result.pageId,
+    revisionId,
+    action: existing && input.action !== 'replace' ? 'replace' : 'create',
+  };
+}
+
+export async function writeImportedGeneratedPage(input: {
+  actorUserId: string;
+  page: {
+    path: string;
+    locale: string;
+    title: string;
+    body: string;
+  };
+  action: 'create' | 'replace' | 'skip';
+}): Promise<{ pageId: string | null; revisionId: string | null; action: typeof input.action }> {
+  const space = await resolveSpace('generated');
+  if (!space || space.kind !== 'generated') throw new Error('Generated space not found');
+  const existing = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, input.page.path),
+      eq(schema.pages.locale, input.page.locale),
+    ),
+  });
+  if (existing && input.action === 'skip') return { pageId: existing.id, revisionId: null, action: 'skip' };
+  if (existing && !existing.deletedAt && input.action === 'create') {
+    return { pageId: existing.id, revisionId: null, action: 'skip' };
+  }
+  const revisionId = randomUUID();
+  const now = new Date();
+  const contentSource = ensureOkfConformance(input.page.body, {
+    title: input.page.title,
+    now,
+  });
+  const { html, hash } = renderMarkdown(contentSource);
+
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    let pageId: string;
+    let versionNumber = 1;
+    if (existing) {
+      const versions = await tx
+        .select({ value: max(schema.pageRevisions.versionNumber) })
+        .from(schema.pageRevisions)
+        .where(eq(schema.pageRevisions.pageId, existing.id));
+      versionNumber = (versions[0]?.value ?? 0) + 1;
+      pageId = existing.id;
+    } else {
+      const [page] = await tx
+        .insert(schema.pages)
+        .values({
+          spaceId: space.id,
+          slug: input.page.path.split('/').at(-1) ?? input.page.path,
+          path: input.page.path,
+          locale: input.page.locale,
+          title: input.page.title,
+          authorId: input.actorUserId,
+          nature: 'generated',
+        })
+        .returning({ id: schema.pages.id });
+      pageId = page!.id;
+    }
+    await tx.insert(schema.pageRevisions).values({
+      id: revisionId,
+      pageId,
+      versionNumber,
+      contentType: 'text/markdown',
+      contentSource,
+      contentHtml: html,
+      contentHash: hash,
+      authorId: input.actorUserId,
+      status: 'published',
+      publishedAt: now,
+      actorKind: 'machine',
+    });
+    const metadata = await persistRevisionMetadata(tx, {
+      revisionId,
+      spaceId: space.id,
+      source: contentSource,
+      fallbackTitle: input.page.title,
+    });
+    await syncRevisionAssetRefs(tx, revisionId, contentSource);
+    await addReplicationTasks(tx, 'markdown', revisionId, hash);
+    await tx
+      .update(schema.pages)
+      .set({
+        title: metadata.title,
+        currentPublishedVersionId: revisionId,
+        latestVersionId: revisionId,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, pageId));
+    return { pageId };
+  });
+  await kickReplication();
+  await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
+  return {
+    pageId: result.pageId,
+    revisionId,
+    action: existing && input.action !== 'replace' ? 'replace' : 'create',
+  };
+}
 
 export async function writeImportedPage(input: {
   actorUserId: string;

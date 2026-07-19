@@ -80,6 +80,7 @@ async function buildArchiveAndRun(opts: {
       assetIds: [] as string[],
       spaceKind: 'wiki' as const,
       spaceSlug: 'default',
+      markdownContentType: 'text/markdown',
     };
   });
   const assets = (opts.assets ?? []).map((a) => ({

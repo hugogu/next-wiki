@@ -7,7 +7,7 @@ import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { parsePage } from '@/server/transfers/manifest';
 import { rewriteMarkdownImages, rewriteMarkdownLinks } from '@/server/transfers/markdown-links';
 import { writeImportedAsset } from '@/server/services/transfer-asset-writer';
-import { writeImportedPage } from '@/server/services/transfer-page-writer';
+import { writeImportedPage, writeImportedRawEntry, writeImportedGeneratedPage } from '@/server/services/transfer-page-writer';
 import { isRunCancelRequested, markRunPaused, markRunTerminal, readRunControlSignal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import { WikiJsClient, wikiJsTagNames } from '@/server/transfers/wikijs-client';
@@ -122,25 +122,53 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
       const targetId = assetTargets.get(resolved);
       return targetId ? `/api/assets/${targetId}` : null;
     });
-    const result = await writeImportedPage({
-      actorUserId: run.actorUserId!,
-      path: page.path,
-      locale: page.locale,
-      title: page.title,
-      markdown,
-      action,
-    });
-    if (result.action === 'create') created += 1;
-    else if (result.action === 'replace') replaced += 1;
+    let writeResult: { pageId: string | null; revisionId: string | null; action: 'create' | 'replace' | 'skip' };
+    if (page.spaceKind === 'raw') {
+      writeResult = await writeImportedRawEntry({
+        actorUserId: run.actorUserId!,
+        page: {
+          path: page.path,
+          locale: page.locale,
+          title: page.title,
+          body: markdown,
+          contentType: parsed.frontmatter.contentType,
+          inputKind: parsed.frontmatter.inputKind,
+          rawSource: parsed.frontmatter.rawSource,
+        },
+        action,
+      });
+    } else if (page.spaceKind === 'generated') {
+      writeResult = await writeImportedGeneratedPage({
+        actorUserId: run.actorUserId!,
+        page: {
+          path: page.path,
+          locale: page.locale,
+          title: page.title,
+          body: markdown,
+        },
+        action,
+      });
+    } else {
+      writeResult = await writeImportedPage({
+        actorUserId: run.actorUserId!,
+        path: page.path,
+        locale: page.locale,
+        title: page.title,
+        markdown,
+        action,
+      });
+    }
+    if (writeResult.action === 'create') created += 1;
+    else if (writeResult.action === 'replace') replaced += 1;
     else skipped += 1;
     processed += 1;
-    if (result.pageId) {
+    if (writeResult.pageId) {
       await db.insert(schema.transferPageMappings).values({
         sourceType: 'archive',
         sourceIdentity,
         sourcePageKey: page.id,
         sourceFingerprint: page.contentHash,
-        targetPageId: result.pageId,
+        targetPageId: writeResult.pageId,
         targetPath: page.path,
         targetLocale: page.locale,
         lastRunId: run.id,
@@ -152,7 +180,7 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
         ],
         set: {
           sourceFingerprint: page.contentHash,
-          targetPageId: result.pageId,
+          targetPageId: writeResult.pageId,
           targetPath: page.path,
           targetLocale: page.locale,
           lastRunId: run.id,
@@ -166,8 +194,8 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
       sourceKey: page.id,
       sourceFingerprint: page.contentHash,
       displayName: `${page.locale}/${page.path}`,
-      targetKey: result.pageId,
-      action: result.action,
+      targetKey: writeResult.pageId,
+      action: writeResult.action,
       status: 'completed',
       metadata: { entry: page.entry },
       finishedAt: new Date(),

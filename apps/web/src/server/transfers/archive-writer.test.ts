@@ -32,6 +32,7 @@ describe('portable archive writer', () => {
       assetIds: ['00000000-0000-0000-0000-000000000001'],
       spaceKind: 'wiki' as const,
       spaceSlug: 'default',
+      markdownContentType: 'text/markdown',
     });
     const result = await writePortableArchive({
       storageKey: '00000000-0000-0000-0000-000000000099.zip',

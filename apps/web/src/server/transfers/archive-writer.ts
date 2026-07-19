@@ -34,19 +34,12 @@ function extensionForType(contentType: string): string {
   return 'bin';
 }
 
-export type PortablePageInput = ExportPage & {
-  spaceKind: 'wiki' | 'generated' | 'raw';
-  spaceSlug: string;
-  inputKind?: 'chat-transcript' | 'external-fetch' | 'script-run' | 'manual-note' | null;
-  rawSource?: Record<string, unknown> | null;
-};
-
 export async function writePortableArchive(input: {
   storageKey: string;
   instanceId: string;
   productVersion: string;
   capturedAt: string;
-  pages: PortablePageInput[];
+  pages: ExportPage[];
   assets: ExportAsset[];
   store?: TransferArtifactStore;
 }): Promise<{ stored: StoredArtifact; manifest: NormalizedPortableManifest }> {
@@ -89,7 +82,7 @@ export async function writePortableArchive(input: {
       path: page.path,
       locale: page.locale,
       title: page.title,
-      contentType: page.spaceKind === 'raw' ? page.markdownContentType ?? 'text/plain' : 'text/markdown',
+      contentType: page.markdownContentType,
       contentHash: page.contentHash,
       publishedAt: page.publishedAt,
       createdAt: page.createdAt,
@@ -108,7 +101,7 @@ export async function writePortableArchive(input: {
       path: page.path,
       locale: page.locale,
       title: page.title,
-      contentType: page.spaceKind === 'raw' ? (page.markdownContentType ?? 'text/plain') : 'text/markdown',
+      contentType: page.markdownContentType,
       contentHash: page.contentHash,
       sizeBytes: Buffer.byteLength(page.markdown),
       revisionId: page.revisionId,
