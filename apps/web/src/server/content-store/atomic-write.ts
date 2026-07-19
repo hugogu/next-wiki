@@ -88,6 +88,11 @@ export function isUploadExpired(createdAt: Date, ttlHours: number, now: Date = n
  * Ids of abandoned uploads: live assets that no revision references and whose
  * upload TTL has elapsed. These are reclaimed by orphan cleanup (US3); the
  * grace period is the same TTL that bounds the uploader's temporary read access.
+ *
+ * A reference is either an inline content_asset_refs row (images embedded in a
+ * revision) OR a raw revision's immutable original_asset_id (022 dual-track
+ * storage) — both are excluded so raw original bytes are never reclaimed while
+ * still referenced.
  */
 export async function listAbandonedUploadIds(
   ttlHours: number,
@@ -106,6 +111,12 @@ export async function listAbandonedUploadIds(
             .select({ one: sql`1` })
             .from(schema.contentAssetRefs)
             .where(eq(schema.contentAssetRefs.assetId, schema.contentAssets.id)),
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(schema.pageRevisions)
+            .where(eq(schema.pageRevisions.originalAssetId, schema.contentAssets.id)),
         ),
       ),
     );

@@ -355,6 +355,10 @@ async function visibleRevisionResource(
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(revision.id);
   const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
+  // Dual-track: expose the immutable original-bytes reference to Admins only.
+  const originalAsset = canViewProvenance && revision.originalAssetId
+    ? await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, revision.originalAssetId) })
+    : null;
   return {
     ...summary!,
     contentSource: options.includeContent ? content : undefined,
@@ -362,10 +366,21 @@ async function visibleRevisionResource(
     metadata,
     origin: { actorKind: revision.actorKind, nature: page.nature },
     linkTargetPageId: canViewProvenance ? revision.linkTargetPageId : null,
-    source: canViewProvenance && space.kind === 'raw'
-      ? (revision.sourceMetadata as PublicRevisionResource['source'])
-      : null,
+    source: canViewProvenance && space.kind === 'raw' ? projectRawSource(revision.sourceMetadata) : null,
+    originalAsset: originalAsset
+      ? { id: originalAsset.id, contentType: originalAsset.contentType, sizeBytes: originalAsset.sizeBytes, contentHash: originalAsset.contentHash }
+      : canViewProvenance ? null : undefined,
+    categoryId: canViewProvenance ? (page.rawCategoryId ?? null) : undefined,
   };
+}
+
+/** Project a raw revision's stored source_metadata into the API `source` shape,
+ * dropping the internal `inputKind` key (which is not part of the source object). */
+function projectRawSource(meta: unknown): PublicRevisionResource['source'] {
+  if (!meta || typeof meta !== 'object') return null;
+  const source: Record<string, unknown> = { ...(meta as Record<string, unknown>) };
+  delete source.inputKind;
+  return source as PublicRevisionResource['source'];
 }
 
 function extractFrontmatterFilters(query: {
@@ -642,6 +657,9 @@ export async function createPage(
         inputKind: input.inputKind,
         source: input.source,
         content: input.contentSource,
+        contentType: input.contentType,
+        originalBytes: input.originalBytes,
+        categoryId: input.categoryId,
       })
     : await pageService.create(ctx, {
         path: input.path,
@@ -1201,7 +1219,7 @@ export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
 export async function appendRawEntry(
   ctx: PermCtx,
   pageId: string,
-  input: { content: string; source?: unknown },
+  input: { content: string; source?: unknown; contentType?: unknown; originalBytes?: unknown },
 ): Promise<PublicRevisionResource> {
   const appended = await rawEntries.appendEntry(ctx, pageId, input);
   const revision = await getRevision(ctx, pageId, appended.versionNumber);

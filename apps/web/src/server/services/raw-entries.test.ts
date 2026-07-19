@@ -7,9 +7,13 @@ import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as publicContent from '@/server/services/public-content';
 import * as rawEntries from '@/server/services/raw-entries';
+import * as rawCategories from '@/server/services/raw-categories';
 import * as revisions from '@/server/services/revisions';
 import { beginPendingSwitch, clearPendingSwitch, setModeInternal } from '@/server/services/writing-mode';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
+
+// A tiny but signature-valid PDF payload (starts with %PDF-).
+const PDF_BYTES = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n', 'latin1');
 
 async function ensureRawSpace() {
   const [space] = await db
@@ -17,7 +21,7 @@ async function ensureRawSpace() {
     .values({ slug: 'raw', name: 'Raw', kind: 'raw', anonymousRead: false })
     .onConflictDoNothing()
     .returning();
-  return space ?? await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'raw') });
+  return space ?? (await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'raw') }))!;
 }
 
 async function createUser(email: string, role: 'editor' | 'reader') {
@@ -29,7 +33,7 @@ async function createUser(email: string, role: 'editor' | 'reader') {
   return user;
 }
 
-async function createRawEntry(
+function createRawEntry(
   ctx: ReturnType<typeof buildUserCtx>,
   path = 'raw/evidence',
   content = 'Initial transcript chunk.',
@@ -38,20 +42,24 @@ async function createRawEntry(
     path,
     title: 'Evidence',
     inputKind: 'chat-transcript',
-    source: {
-      channel: 'support',
-      sessionId: 'session-1',
-      occurredAt: '2026-07-18T08:00:00.000Z',
-    },
+    source: { channel: 'support', sessionId: 'session-1', occurredAt: '2026-07-18T08:00:00.000Z' },
     content,
   });
 }
 
 describe('raw entries service', () => {
+  let adminCtx: ReturnType<typeof buildUserCtx>;
+  let adminId: string;
+
   beforeEach(async () => {
     await resetSetupOnboardingState();
     await ensureRawSpace();
     await setModeInternal('llm-wiki', null);
+    const created = await createAdminUser();
+    adminId = created.userId;
+    adminCtx = buildUserCtx(adminId, 'admin');
+    // Every raw entry needs a category; a default lets create omit an explicit id.
+    await rawCategories.createCategory(adminCtx, { name: 'Support', slug: 'support', isDefault: true });
   });
 
   afterAll(async () => {
@@ -59,67 +67,111 @@ describe('raw entries service', () => {
     await closeDb();
   });
 
-  it('creates an original, restricted, auto-published entry with OKF source metadata', async () => {
-    const { userId } = await createAdminUser();
-    const ctx = buildUserCtx(userId, 'admin');
-    const created = await createRawEntry(ctx, 'raw/evidence', 'Initial transcript chunk.\n');
+  it('stores the body byte-identical (no OKF frontmatter) with source in metadata', async () => {
+    const body = 'Initial transcript chunk.\nSecond line.\n';
+    const created = await createRawEntry(adminCtx, 'raw/evidence', body);
 
     const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, created.versionId) });
 
     expect(page).toMatchObject({ path: 'raw/evidence', nature: 'original', visibility: 'restricted' });
-    expect(page?.latestVersionId).toBe(created.versionId);
-    expect(page?.currentPublishedVersionId).toBe(created.versionId);
-    expect(revision).toMatchObject({ versionNumber: 1, status: 'published', sourceMetadata: {
-      channel: 'support', sessionId: 'session-1', occurredAt: '2026-07-18T08:00:00.000Z',
-    } });
-    expect(revision?.contentSource).toContain('type: chat-transcript');
-    expect(revision?.contentSource).toContain('channel: support');
-    expect(revision?.contentSource).toContain('sessionId: session-1');
-    expect(revision?.contentSource).not.toContain('source:\n');
+    expect(page?.rawCategoryId).toEqual(expect.any(String));
+    // Body is preserved verbatim: no `---` frontmatter, no `type:` injection.
+    expect(revision?.contentSource).toBe(body);
+    expect(revision?.contentSource).not.toContain('type: chat-transcript');
+    expect(revision?.contentType).toBe('text/markdown');
+    // inputKind + source live in source_metadata, never in the body.
+    expect(revision?.sourceMetadata).toMatchObject({
+      inputKind: 'chat-transcript', channel: 'support', sessionId: 'session-1',
+    });
 
-    const resource = await publicContent.getRevision(ctx, created.pageId, 1);
+    const resource = await publicContent.getRevision(adminCtx, created.pageId, 1);
     expect(resource).toMatchObject({
-      status: 'published',
       origin: { actorKind: 'human', nature: 'original' },
       source: { channel: 'support', sessionId: 'session-1' },
+      categoryId: page?.rawCategoryId,
     });
+    // The internal inputKind key is not leaked into the API `source` object.
+    expect(resource?.source).not.toHaveProperty('inputKind');
   });
 
-  it('appends a new published revision without changing previous bytes', async () => {
-    const { userId } = await createAdminUser();
-    const ctx = buildUserCtx(userId, 'admin');
-    const created = await createRawEntry(ctx, 'raw/evidence', 'Initial transcript chunk.\n');
+  it('stores original bytes via content_assets referenced by original_asset_id', async () => {
+    const created = await rawEntries.createEntry(adminCtx, {
+      path: 'raw/report',
+      title: 'Report',
+      inputKind: 'external-fetch',
+      content: 'Extracted text of the report.',
+      contentType: 'application/pdf',
+      originalBytes: PDF_BYTES.toString('base64'),
+    });
+    const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, created.versionId) });
+    expect(revision?.contentType).toBe('application/pdf');
+    expect(revision?.contentSource).toBe('Extracted text of the report.');
+    expect(revision?.originalAssetId).toEqual(expect.any(String));
+
+    const asset = await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, revision!.originalAssetId!) });
+    expect(asset).toMatchObject({ kind: 'raw', contentType: 'application/pdf', sizeBytes: PDF_BYTES.length });
+
+    const resource = await publicContent.getRevision(adminCtx, created.pageId, 1);
+    expect(resource?.originalAsset).toMatchObject({ id: revision?.originalAssetId, contentType: 'application/pdf' });
+  });
+
+  it('rejects a declared content type that disagrees with the uploaded bytes', async () => {
+    await expect(
+      rawEntries.createEntry(adminCtx, {
+        path: 'raw/mismatch', title: 'Mismatch', inputKind: 'external-fetch',
+        content: 'text', contentType: 'text/plain', originalBytes: PDF_BYTES.toString('base64'),
+      }),
+    ).rejects.toMatchObject({ code: 'RAW_CONTENT_TYPE_MISMATCH' });
+  });
+
+  it('requires a category when no default is configured', async () => {
+    // Retire the default so no default remains.
+    const [cat] = await db.select().from(schema.rawCategories);
+    await rawCategories.retireCategory(adminCtx, cat!.id);
+    await expect(createRawEntry(adminCtx, 'raw/no-cat')).rejects.toMatchObject({ code: 'RAW_CATEGORY_REQUIRED' });
+  });
+
+  it('rejects a retired explicit category', async () => {
+    const cat = await rawCategories.createCategory(adminCtx, { name: 'Legacy', slug: 'legacy' });
+    await rawCategories.retireCategory(adminCtx, cat.id);
+    await expect(
+      rawEntries.createEntry(adminCtx, {
+        path: 'raw/retired', title: 'R', inputKind: 'manual-note', content: 'x', categoryId: cat.id,
+      }),
+    ).rejects.toMatchObject({ code: 'RAW_CATEGORY_RETIRED' });
+  });
+
+  it('appends a new published revision, preserving prior bytes and attaching a new asset', async () => {
+    const created = await createRawEntry(adminCtx, 'raw/evidence', 'Initial transcript chunk.\n');
     const initial = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, created.versionId) });
     if (!initial?.contentSource) throw new Error('Missing initial raw source');
 
-    const appended = await rawEntries.appendEntry(ctx, created.pageId, {
-      content: '\nFollow-up transcript chunk.',
+    const appended = await rawEntries.appendEntry(adminCtx, created.pageId, {
+      content: 'Follow-up chunk.',
       source: { channel: 'support', sessionId: 'session-1', occurredAt: '2026-07-18T09:00:00.000Z' },
+      contentType: 'application/pdf',
+      originalBytes: PDF_BYTES.toString('base64'),
     });
-    const revisionsByVersion = await db
+    const rows = await db
       .select()
       .from(schema.pageRevisions)
       .where(eq(schema.pageRevisions.pageId, created.pageId))
       .orderBy(asc(schema.pageRevisions.versionNumber));
 
     expect(appended.versionNumber).toBe(2);
-    expect(revisionsByVersion).toHaveLength(2);
-    expect(revisionsByVersion[0]?.contentSource).toBe(initial.contentSource);
-    expect(revisionsByVersion[1]).toMatchObject({ status: 'published', sourceMetadata: {
-      channel: 'support', sessionId: 'session-1', occurredAt: '2026-07-18T09:00:00.000Z',
-    } });
-    expect(revisionsByVersion[1]?.contentSource).toBe(`${initial.contentSource}\n\n---\n\n\nFollow-up transcript chunk.`);
+    // Version 1 bytes are untouched.
+    expect(rows[0]?.contentSource).toBe(initial.contentSource);
+    expect(rows[1]?.contentSource).toBe(`${initial.contentSource}\n\n---\n\nFollow-up chunk.`);
+    expect(rows[1]?.originalAssetId).toEqual(expect.any(String));
+    expect(rows[1]?.originalAssetId).not.toBe(rows[0]?.originalAssetId);
   });
 
   it('serializes concurrent appends into sequential versions', async () => {
-    const { userId } = await createAdminUser();
-    const ctx = buildUserCtx(userId, 'admin');
-    const created = await createRawEntry(ctx);
-
+    const created = await createRawEntry(adminCtx);
     const [first, second] = await Promise.all([
-      rawEntries.appendEntry(ctx, created.pageId, { content: 'Concurrent chunk A.' }),
-      rawEntries.appendEntry(ctx, created.pageId, { content: 'Concurrent chunk B.' }),
+      rawEntries.appendEntry(adminCtx, created.pageId, { content: 'Concurrent chunk A.' }),
+      rawEntries.appendEntry(adminCtx, created.pageId, { content: 'Concurrent chunk B.' }),
     ]);
     const rows = await db
       .select()
@@ -134,37 +186,31 @@ describe('raw entries service', () => {
   });
 
   it('rejects every regular mutation path for raw entries', async () => {
-    const { userId } = await createAdminUser();
-    const ctx = buildUserCtx(userId, 'admin');
-    const created = await createRawEntry(ctx);
-
-    await expect(pageService.newDraft(ctx, 'raw/evidence', { title: 'Changed', contentSource: 'Changed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
-    await expect(pageService.updateProperties(ctx, 'raw/evidence', { path: 'raw/renamed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
-    await expect(pageService.remove(ctx, 'raw/evidence', 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
-    await expect(revisions.publish(ctx, { path: 'raw/evidence', version: 1, space: 'raw' })).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
-    await expect(publicContent.updatePageMetadata(ctx, created.pageId, { baseRevisionId: created.versionId, title: 'Changed' })).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+    const created = await createRawEntry(adminCtx);
+    await expect(pageService.newDraft(adminCtx, 'raw/evidence', { title: 'Changed', contentSource: 'Changed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+    await expect(pageService.updateProperties(adminCtx, 'raw/evidence', { path: 'raw/renamed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+    await expect(pageService.remove(adminCtx, 'raw/evidence', 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+    await expect(revisions.publish(adminCtx, { path: 'raw/evidence', version: 1, space: 'raw' })).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+    await expect(publicContent.updatePageMetadata(adminCtx, created.pageId, { baseRevisionId: created.versionId, title: 'Changed' })).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
   });
 
   it('denies non-admin API keys while allowing an admin-backed key', async () => {
-    const { userId } = await createAdminUser();
     const editor = await createUser('raw-editor@example.com', 'editor');
     const reader = await createUser('raw-reader@example.com', 'reader');
     const input = { path: 'raw/api-key', title: 'API Key', inputKind: 'manual-note', content: 'A note.' };
 
     await expect(rawEntries.createEntry(buildApiKeyCtx(editor.id, 'editor', ['create'], 'editor-key'), input)).rejects.toMatchObject({ code: 'SPACE_FORBIDDEN' });
     await expect(rawEntries.createEntry(buildApiKeyCtx(reader.id, 'reader', ['create'], 'reader-key'), input)).rejects.toMatchObject({ code: 'SPACE_FORBIDDEN' });
-    await expect(rawEntries.createEntry(buildApiKeyCtx(userId, 'admin', ['create'], 'admin-key'), input)).resolves.toMatchObject({ pageId: expect.any(String) });
+    await expect(rawEntries.createEntry(buildApiKeyCtx(adminId, 'admin', ['create'], 'admin-key'), input)).resolves.toMatchObject({ pageId: expect.any(String) });
   });
 
   it('rejects raw writes outside LLM Wiki mode and while a switch is pending', async () => {
-    const { userId } = await createAdminUser();
-    const ctx = buildUserCtx(userId, 'admin');
-    await setModeInternal('copilot', userId);
-    await expect(createRawEntry(ctx, 'raw/copilot')).rejects.toMatchObject({ code: 'SPACE_UNAVAILABLE' });
+    await setModeInternal('copilot', adminId);
+    await expect(createRawEntry(adminCtx, 'raw/copilot')).rejects.toMatchObject({ code: 'SPACE_UNAVAILABLE' });
 
-    await setModeInternal('llm-wiki', userId);
-    await beginPendingSwitch('copilot', randomUUID(), userId);
-    await expect(createRawEntry(ctx, 'raw/pending')).rejects.toMatchObject({ code: 'MODE_SWITCH_IN_PROGRESS' });
-    await clearPendingSwitch(userId);
+    await setModeInternal('llm-wiki', adminId);
+    await beginPendingSwitch('copilot', randomUUID(), adminId);
+    await expect(createRawEntry(adminCtx, 'raw/pending')).rejects.toMatchObject({ code: 'MODE_SWITCH_IN_PROGRESS' });
+    await clearPendingSwitch(adminId);
   });
 });

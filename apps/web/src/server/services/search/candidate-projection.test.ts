@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
-import { closeDb } from '@/server/db';
+import { closeDb, db } from '@/server/db';
+import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { ensurePublicApiDefaultSpace, createPublicApiUser } from '../../../../test/public-wiki-api-fixtures';
 import { buildExcerpt, compactExcerpt, projectReadableCandidatePages } from './candidate-projection';
@@ -88,6 +89,8 @@ describe('search candidate projection', () => {
       const raw = await getSpaceBySlug('raw');
       expect(generated).not.toBeNull();
       expect(raw).not.toBeNull();
+      // Raw entries require a category; a default lets create omit an explicit id.
+      await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true }).onConflictDoNothing();
 
       const rawEntry = await rawEntries.createEntry(adminCtx, {
         path: `projection-${randomUUID().slice(0, 8)}/raw-search`,

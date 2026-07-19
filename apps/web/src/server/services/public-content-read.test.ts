@@ -143,6 +143,8 @@ describe('public content read facade', () => {
     const adminCtx = buildUserCtx(admin.id, 'admin');
     await ensurePrivateSpaces();
     await setModeInternal('llm-wiki', admin.id);
+    // Raw entries require a category; a default lets the create omit an explicit id.
+    await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true });
 
     await pageService.create(adminCtx, {
       path: 'concepts/space-read', title: 'Generated space read', contentSource: '# Generated',

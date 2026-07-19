@@ -22,6 +22,11 @@ async function ensureWritingSpaces() {
       { slug: 'generated', name: 'Generated', kind: 'generated', anonymousRead: false },
     ])
     .onConflictDoNothing();
+  // Raw entries require a category; a default lets create omit an explicit id.
+  await db
+    .insert(schema.rawCategories)
+    .values({ name: 'General', slug: 'general', isDefault: true })
+    .onConflictDoNothing();
 }
 
 async function createPublishedGenerated(
