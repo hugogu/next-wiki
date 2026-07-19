@@ -1,10 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSignInSubmit } from './test-helpers';
 
 async function login(page: Page) {
   await page.goto('/auth/login');
   await page.getByLabel('Email').fill('admin@example.com');
   await page.getByLabel('Password').fill('admin123');
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await clickSignInSubmit(page);
   await page.waitForURL('/');
 }
 

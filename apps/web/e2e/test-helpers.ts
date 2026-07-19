@@ -18,3 +18,11 @@ export async function revokeAllApiKeys(page: Page): Promise<void> {
     keys.filter((key) => !key.revokedAt).map((key) => page.request.delete(`/api/api-keys/${key.id}`)),
   );
 }
+
+/**
+ * Clicks the form's "Sign in" submit button. Scoped to `<form>` to avoid the
+ * sidebar "Sign in" trigger button (NavFooterMenu) in strict-mode locators.
+ */
+export async function clickSignInSubmit(page: Page): Promise<void> {
+  await page.locator('form').getByRole('button', { name: /sign in/i }).click();
+}

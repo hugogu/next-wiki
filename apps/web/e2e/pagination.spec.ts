@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { revokeAllApiKeys } from './test-helpers';
+import {revokeAllApiKeys, clickSignInSubmit} from './test-helpers';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -8,7 +8,7 @@ async function login(page: Page, email: string, password: string) {
   await page.goto('/auth/login');
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await clickSignInSubmit(page);
   await page.waitForURL('/');
 }
 

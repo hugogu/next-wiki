@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSignInSubmit } from './test-helpers';
 
 /**
  * Admin AI Model Capability Detector coverage.
@@ -31,7 +32,7 @@ async function login(page: Page, email: string, password: string) {
   await page.goto('/auth/login');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await clickSignInSubmit(page);
   await page.waitForURL('/');
 }
 
