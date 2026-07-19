@@ -46,6 +46,9 @@ export const frontmatterHasFlagSchema = z
   .optional()
   .transform((value) => (value === undefined ? undefined : value === 'true'));
 
+export const rawInputKindSchema = z.enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note']);
+export type RawInputKind = z.infer<typeof rawInputKindSchema>;
+
 export const newDraftBodySchema = z.object({
   title: z.string().min(1).max(200),
   contentSource: z.string().min(1),
@@ -251,6 +254,10 @@ export const publicPageListQuerySchema = z.object({
   // Kept for SDK callers that use a camelCase property before it is encoded
   // as the public `filter[type]` query parameter.
   filterType: z.string().min(1).max(200).optional(),
+  // 022 (Phase 11): raw-only filter dimensions, independent from filterType
+  // (the OKF/frontmatter type). inputKind + category live outside the body.
+  filterInputKind: rawInputKindSchema.optional(),
+  filterCategoryId: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
   order: z.enum(['path', 'recent']).default('path'),
@@ -327,9 +334,6 @@ export type AdminPageStats = {
   totalEdits: number;
   totalPageLinks: number;
 };
-
-export const rawInputKindSchema = z.enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note']);
-export type RawInputKind = z.infer<typeof rawInputKindSchema>;
 
 export const rawSourceSchema = z.object({
   channel: z.string().min(1).max(200).optional(),
@@ -432,6 +436,8 @@ export const publicPageSearchQuerySchema = z
     space: z.string().optional(),
     'filter[type]': z.string().min(1).max(200).optional(),
     filterType: z.string().min(1).max(200).optional(),
+    filterInputKind: rawInputKindSchema.optional(),
+    filterCategoryId: z.string().uuid().optional(),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     cursor: z.string().optional(),
     include: publicIncludeQuerySchema,

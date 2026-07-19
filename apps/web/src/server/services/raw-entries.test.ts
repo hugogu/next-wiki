@@ -10,6 +10,7 @@ import * as rawEntries from '@/server/services/raw-entries';
 import * as rawCategories from '@/server/services/raw-categories';
 import * as revisions from '@/server/services/revisions';
 import { beginPendingSwitch, clearPendingSwitch, setModeInternal } from '@/server/services/writing-mode';
+import { publicPageListQuerySchema } from '@next-wiki/shared';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
 
 // A tiny but signature-valid PDF payload (starts with %PDF-).
@@ -202,6 +203,30 @@ describe('raw entries service', () => {
     await expect(rawEntries.createEntry(buildApiKeyCtx(editor.id, 'editor', ['create'], 'editor-key'), input)).rejects.toMatchObject({ code: 'SPACE_FORBIDDEN' });
     await expect(rawEntries.createEntry(buildApiKeyCtx(reader.id, 'reader', ['create'], 'reader-key'), input)).rejects.toMatchObject({ code: 'SPACE_FORBIDDEN' });
     await expect(rawEntries.createEntry(buildApiKeyCtx(adminId, 'admin', ['create'], 'admin-key'), input)).resolves.toMatchObject({ pageId: expect.any(String) });
+  });
+
+  it('filters raw listings by inputKind and categoryId independently from filterType', async () => {
+    const ops = await rawCategories.createCategory(adminCtx, { name: 'Ops', slug: 'ops' });
+    await rawEntries.createEntry(adminCtx, {
+      path: 'raw/chat', title: 'Chat', inputKind: 'chat-transcript', content: 'chat evidence',
+    });
+    await rawEntries.createEntry(adminCtx, {
+      path: 'raw/script', title: 'Script', inputKind: 'script-run', content: 'script output', categoryId: ops.id,
+    });
+
+    const list = (params: Record<string, unknown>) =>
+      publicContent.listPages(adminCtx, publicPageListQuerySchema.parse({ space: 'raw', ...params }));
+
+    const byKind = await list({ filterInputKind: 'script-run' });
+    expect(byKind.items.map((p) => p.path)).toEqual(['raw/script']);
+
+    const byCategory = await list({ filterCategoryId: ops.id });
+    expect(byCategory.items.map((p) => p.path)).toEqual(['raw/script']);
+
+    // filterType (frontmatter type) is a separate dimension: raw bodies carry no
+    // frontmatter, so filtering by it returns nothing rather than matching inputKind.
+    const byType = await list({ filterType: 'script-run' });
+    expect(byType.items).toHaveLength(0);
   });
 
   it('rejects raw writes outside LLM Wiki mode and while a switch is pending', async () => {

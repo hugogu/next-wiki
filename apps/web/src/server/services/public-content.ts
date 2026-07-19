@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, type SQL } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -429,6 +429,8 @@ type ListPagesQuery = {
   updatedStart?: Date;
   updatedEnd?: Date;
   filterType?: string;
+  filterInputKind?: string;
+  filterCategoryId?: string;
   tagFilters?: string[];
   frontmatterFilters?: FrontmatterFilters;
 };
@@ -482,6 +484,21 @@ async function listPagesInternal(
   if (query.createdEnd) conditions.push(lte(schema.pages.createdAt, query.createdEnd));
   if (query.updatedStart) conditions.push(gte(schema.pages.updatedAt, query.updatedStart));
   if (query.updatedEnd) conditions.push(lte(schema.pages.updatedAt, query.updatedEnd));
+  // 022 (Phase 11): raw-only dimensions, independent from the frontmatter type
+  // filter. Category is a page column; inputKind lives in the create revision's
+  // source_metadata, so match any revision of the page carrying it.
+  if (query.filterCategoryId) conditions.push(eq(schema.pages.rawCategoryId, query.filterCategoryId));
+  if (query.filterInputKind) {
+    conditions.push(exists(
+      db
+        .select({ one: sql`1` })
+        .from(schema.pageRevisions)
+        .where(and(
+          eq(schema.pageRevisions.pageId, schema.pages.id),
+          sql`${schema.pageRevisions.sourceMetadata} ->> 'inputKind' = ${query.filterInputKind}`,
+        )),
+    ));
+  }
   if (query.q) {
     const pattern = likePattern(query.q);
     conditions.push(
@@ -929,6 +946,8 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
       updatedStart: query.updatedStart,
       updatedEnd: query.updatedEnd,
       filterType: extractTypeFilter(query),
+      filterInputKind: query.filterInputKind,
+      filterCategoryId: query.filterCategoryId,
       tagFilters: extractTagFilters(query),
       frontmatterFilters: extractFrontmatterFilters(query),
     },

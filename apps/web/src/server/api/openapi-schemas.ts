@@ -930,6 +930,15 @@ export const PublicPageListQuery = z
       .string()
       .optional()
       .describe('Filter to pages whose frontmatter type matches this value.'),
+    filterInputKind: z
+      .enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note'])
+      .optional()
+      .describe('Raw-only: filter raw entries by their captured inputKind. Independent from filterType (the OKF/frontmatter type).'),
+    filterCategoryId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe('Raw-only: filter raw entries by their raw_categories taxonomy id. Independent from filterType.'),
     limit: z.coerce
       .number()
       .int()
@@ -1137,6 +1146,15 @@ export const PublicPageSearchQuery = z
       .max(200)
       .optional()
       .describe('SDK-friendly alias for filter[type].'),
+    filterInputKind: z
+      .enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note'])
+      .optional()
+      .describe('Raw-only: filter raw entries by inputKind, independent from filterType.'),
+    filterCategoryId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe('Raw-only: filter raw entries by raw_categories taxonomy id, independent from filterType.'),
     limit: z.coerce
       .number()
       .int()
