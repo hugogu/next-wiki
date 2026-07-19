@@ -35,10 +35,10 @@ async function makeAsset(opts: { createdAt?: Date }): Promise<string> {
 
 async function clearContent() {
   await db.delete(schema.contentAssetRefs);
-  await db.delete(schema.contentBlobs);
-  await db.delete(schema.contentAssets);
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
+  await db.delete(schema.contentBlobs);
+  await db.delete(schema.contentAssets);
 }
 
 beforeAll(async () => {
@@ -103,6 +103,30 @@ describe('runOrphanCleanup with the Database backend', () => {
     expect(keptRecent!.deletedAt).toBeNull();
     const keptRef = await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, referenced) });
     expect(keptRef!.deletedAt).toBeNull();
+  });
+
+  it('preserves raw original-byte assets referenced by original_asset_id past the upload TTL', async () => {
+    const originalBytes = await makeAsset({ createdAt: TWO_DAYS_AGO() });
+    const abandoned = await makeAsset({ createdAt: TWO_DAYS_AGO() });
+
+    const [page] = await db
+      .insert(schema.pages)
+      .values({ spaceId, slug: 's', path: `o/${randomUUID()}`, title: 'T', authorId: userId })
+      .returning();
+    await db
+      .insert(schema.pageRevisions)
+      .values({ pageId: page!.id, versionNumber: 1, contentSource: 'x', contentHtml: '<p>x</p>', contentHash: 'h', authorId: userId, originalAssetId: originalBytes });
+
+    const result = await runOrphanCleanup();
+    expect(result.reclaimedUploads).toBe(1);
+
+    const reclaimed = await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, abandoned) });
+    expect(reclaimed!.deletedAt).not.toBeNull();
+
+    const kept = await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, originalBytes) });
+    expect(kept!.deletedAt).toBeNull();
+    const blob = await db.query.contentBlobs.findFirst({ where: eq(schema.contentBlobs.assetId, originalBytes) });
+    expect(blob).toBeDefined();
   });
 });
 
