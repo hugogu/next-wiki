@@ -22,7 +22,10 @@ type CategoryRow = typeof schema.rawCategories.$inferSelect;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function assertAdmin(ctx: PermCtx): string {
-  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+  // Admin sessions and Admin-backed API keys may manage the taxonomy (agents
+  // building raw content need to create/list categories through the v1 API/MCP).
+  const role = ctx.actor.kind === 'anonymous' ? null : ctx.actor.role;
+  if (role !== 'admin') {
     throw new DomainError('FORBIDDEN', 'You do not have permission to manage raw categories');
   }
   const userId = getActorUserId(ctx);

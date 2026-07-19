@@ -1041,6 +1041,33 @@ export const PublicRawAppendInput = z
   })
   .describe('Append an immutable chunk to a raw entry.');
 
+export const PublicRawCategory = z
+  .object({
+    id: z.string().uuid().describe('Stable category identifier; use as categoryId when creating raw entries.'),
+    name: z.string().describe('Human-readable category name.'),
+    slug: z.string().describe('URL-safe category slug.'),
+    description: z.string().nullable().describe('Optional description, or null.'),
+    isDefault: z.boolean().describe('Whether this category is applied when a raw create omits categoryId.'),
+    isRetired: z.boolean().describe('Retired categories keep existing entries but accept no new ones.'),
+    entryCount: z.number().int().nonnegative().describe('Number of raw entries currently filed under this category.'),
+    createdAt: z.string().datetime().describe('Timestamp when the category was created (ISO 8601).'),
+    updatedAt: z.string().datetime().describe('Timestamp when the category was last updated (ISO 8601).'),
+  })
+  .describe('A raw taxonomy category.');
+
+export const PublicRawCategoryListResponse = z
+  .object({ items: z.array(PublicRawCategory).describe('All raw taxonomy categories.') })
+  .describe('Raw taxonomy listing.');
+
+export const PublicRawCategoryCreateInput = z
+  .object({
+    name: z.string().min(1).max(100).describe('Human-readable category name.'),
+    slug: z.string().min(1).max(100).describe('URL-safe slug (lowercase letters, numbers, hyphens).'),
+    description: z.string().max(2000).nullish().describe('Optional description.'),
+    isDefault: z.boolean().optional().describe('Apply as the default category for raw creates that omit categoryId.'),
+  })
+  .describe('Create a raw taxonomy category.');
+
 export const PublicDraftCreateInput = z
   .object({
     title: z.string().min(1).max(200).describe('Human-readable title for the draft revision.'),

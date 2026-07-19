@@ -30,18 +30,6 @@ async function setWritingMode(mode: 'copilot' | 'llm-wiki') {
   }
 }
 
-async function ensureDefaultCategory() {
-  const sql = database();
-  try {
-    await sql`
-      INSERT INTO raw_categories (name, slug, is_default)
-      VALUES ('General', 'general', true)
-      ON CONFLICT (slug) DO UPDATE SET is_default = true`;
-  } finally {
-    await sql.end({ timeout: 5 });
-  }
-}
-
 async function seedRawEntry(
   path: string,
   title: string,
@@ -53,7 +41,7 @@ async function seedRawEntry(
   try {
     const [admin] = await sql<{ id: string }[]>`SELECT id FROM users WHERE email = ${ADMIN_EMAIL}`;
     const [space] = await sql<{ id: string }[]>`SELECT id FROM spaces WHERE slug = 'raw'`;
-    const [category] = await sql<{ id: string }[]>`SELECT id FROM raw_categories WHERE slug = 'general'`;
+    const [category] = await sql<{ id: string }[]>`SELECT id FROM raw_categories WHERE is_default = true LIMIT 1`;
     const slug = path.split('/').at(-1)!;
     const [page] = await sql<{ id: string }[]>`
       INSERT INTO pages (space_id, slug, path, title, author_id, nature, visibility, raw_category_id)
@@ -91,7 +79,7 @@ async function clearRaw() {
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw'))`;
     await sql`DELETE FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw')`;
     await sql`DELETE FROM content_assets WHERE kind = 'raw'`;
-    await sql`DELETE FROM raw_categories`;
+    await sql`DELETE FROM raw_categories WHERE slug <> 'reference'`;
   } finally {
     await sql.end({ timeout: 5 });
   }
@@ -108,7 +96,6 @@ async function login(page: Page) {
 test.describe('raw content renderer + taxonomy', () => {
   test.beforeEach(async () => {
     await setWritingMode('llm-wiki');
-    await ensureDefaultCategory();
     await seedRawEntry('e2e/json', 'JSON entry', 'application/json', '{"b":2,"a":1}');
     await seedRawEntry('e2e/log', 'Log entry', 'text/x-log', 'line one\nline two');
     await seedRawEntry('e2e/md', 'Markdown entry', 'text/markdown', '# Heading\n\nBody text.');
@@ -158,7 +145,7 @@ test.describe('raw content renderer + taxonomy', () => {
     await page.goto('/admin/raw-categories');
 
     await expect(page.getByRole('heading', { name: /raw categories/i })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'general', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'reference', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: /new category/i }).click();
     const dialog = page.getByRole('dialog');

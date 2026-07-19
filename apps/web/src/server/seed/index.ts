@@ -81,6 +81,31 @@ export async function seedWritingModeSpaces() {
 }
 
 /**
+ * Ensure the built-in `reference` raw category exists (022 Phase 11) so raw
+ * writes succeed out of the box without an admin first creating a category. It
+ * becomes the default only when no default is configured yet, so an admin's own
+ * default choice is never overridden. Idempotent.
+ */
+export async function seedRawCategories() {
+  const existing = await db.query.rawCategories.findFirst({
+    where: eq(schema.rawCategories.slug, 'reference'),
+  });
+  if (existing) return;
+  const currentDefault = await db.query.rawCategories.findFirst({
+    where: eq(schema.rawCategories.isDefault, true),
+  });
+  await db
+    .insert(schema.rawCategories)
+    .values({
+      name: 'Reference',
+      slug: 'reference',
+      description: 'General reference material — the built-in default raw category.',
+      isDefault: !currentDefault,
+    })
+    .onConflictDoNothing();
+}
+
+/**
  * Ensure the writing-mode settings singleton exists (022). Seeding the row at
  * boot lets the content-write barrier's `SELECT … FOR SHARE` lock it even on a
  * fresh database, so `beginPendingSwitch` drains in-flight writes instead of
@@ -100,6 +125,7 @@ export async function seedDatabase() {
   // The three writing-mode spaces are core infrastructure; seeded on every
   // boot so the instance is writable right after first-run setup.
   await seedWritingModeSpaces();
+  await seedRawCategories();
   await seedWritingModeSettings();
 
   // Demo/sample data only: a sample admin account and welcome page. This NEVER

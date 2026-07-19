@@ -369,6 +369,34 @@ export const publicPageCreateInputSchema = z.object({
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 
+// 022 (Phase 11): raw taxonomy exposed through the public v1 API + MCP so agents
+// can discover and create categories while building raw content.
+export const publicRawCategorySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().nullable(),
+  isDefault: z.boolean(),
+  isRetired: z.boolean(),
+  entryCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type PublicRawCategory = z.infer<typeof publicRawCategorySchema>;
+
+export const publicRawCategoryListResponseSchema = z.object({
+  items: z.array(publicRawCategorySchema),
+});
+export type PublicRawCategoryListResponse = z.infer<typeof publicRawCategoryListResponseSchema>;
+
+export const publicRawCategoryCreateInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  slug: slugSchema,
+  description: z.string().max(2000).nullish(),
+  isDefault: z.boolean().optional(),
+});
+export type PublicRawCategoryCreateInput = z.infer<typeof publicRawCategoryCreateInputSchema>;
+
 export const publicRawAppendInputSchema = z.object({
   content: z.string().min(1).max(1_000_000),
   source: rawSourceSchema.optional(),

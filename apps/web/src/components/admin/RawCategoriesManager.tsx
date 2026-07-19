@@ -9,6 +9,14 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Switch } from '@/components/ui/Switch';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
 import { apiDelete, apiGet, apiPatch, apiPost, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -79,31 +87,31 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
       {categories.length === 0 ? (
         <p className="text-sm text-muted">{t('admin.rawCategories.empty')}</p>
       ) : (
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-muted">
-              <th className="py-sm pr-md font-medium">{t('admin.rawCategories.columns.name')}</th>
-              <th className="py-sm pr-md font-medium">{t('admin.rawCategories.columns.slug')}</th>
-              <th className="py-sm pr-md font-medium">{t('admin.rawCategories.columns.entries')}</th>
-              <th className="py-sm pr-md font-medium">{t('admin.rawCategories.columns.status')}</th>
-              <th className="py-sm font-medium">{t('admin.rawCategories.columns.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeader>{t('admin.rawCategories.columns.name')}</DataTableHeader>
+              <DataTableHeader>{t('admin.rawCategories.columns.slug')}</DataTableHeader>
+              <DataTableHeader align="right">{t('admin.rawCategories.columns.entries')}</DataTableHeader>
+              <DataTableHeader>{t('admin.rawCategories.columns.status')}</DataTableHeader>
+              <DataTableHeader align="right">{t('admin.rawCategories.columns.actions')}</DataTableHeader>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
             {categories.map((category) => (
-              <tr key={category.id} className="border-b border-border align-top">
-                <td className="py-sm pr-md font-medium">{category.name}</td>
-                <td className="py-sm pr-md font-mono text-muted">{category.slug}</td>
-                <td className="py-sm pr-md tabular-nums">{category.entryCount}</td>
-                <td className="py-sm pr-md">
+              <DataTableRow key={category.id}>
+                <DataTableCell className="font-medium">{category.name}</DataTableCell>
+                <DataTableCell className="font-mono text-muted">{category.slug}</DataTableCell>
+                <DataTableCell align="right" className="tabular-nums">{category.entryCount}</DataTableCell>
+                <DataTableCell>
                   {category.isDefault && <StatusBadge tone="info">{t('admin.rawCategories.status.default')}</StatusBadge>}
                   {category.isRetired && <StatusBadge tone="neutral">{t('admin.rawCategories.status.retired')}</StatusBadge>}
                   {!category.isDefault && !category.isRetired && (
                     <StatusBadge tone="success">{t('admin.rawCategories.status.active')}</StatusBadge>
                   )}
-                </td>
-                <td className="py-sm">
-                  <div className="flex flex-wrap gap-sm">
+                </DataTableCell>
+                <DataTableCell align="right">
+                  <div className="flex flex-wrap justify-end gap-sm">
                     <Button variant="ghost" onClick={() => { setError(null); setForm({ id: category.id, name: category.name, slug: category.slug, description: category.description ?? '', isDefault: category.isDefault }); }}>
                       {t('admin.rawCategories.actions.rename')}
                     </Button>
@@ -121,11 +129,11 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
                       {t('admin.rawCategories.actions.delete')}
                     </Button>
                   </div>
-                </td>
-              </tr>
+                </DataTableCell>
+              </DataTableRow>
             ))}
-          </tbody>
-        </table>
+          </DataTableBody>
+        </DataTable>
       )}
 
       {form && (
