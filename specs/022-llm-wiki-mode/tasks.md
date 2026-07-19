@@ -256,7 +256,7 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 - [X] T081 [US6] Update `packages/mcp-server/src/tools/create-page.ts`, `append-raw-entry.ts`, `list_pages`/`search_wiki` shapes, and add new `list_raw_categories` tool registered in `packages/mcp-server/src/server.ts`; flatten results in `packages/mcp-server/src/shapes.ts`; thread `contentType`/`originalBytes`/`categoryId`/`filterInputKind`/`filterCategoryId` through `api-client.ts`.
 - [X] T082 [P] [US6] Update `packages/mcp-server/README.md` tool table + agent notes: raw entries preserve original format (no OKF), dual-track storage explained, `filterInputKind`/`filterCategoryId` independent from `filterType`, `list_raw_categories` for taxonomy discovery, semantic retrieval works for raw (admin-only) per T086.
 - [X] T083 [P] Add en/zh strings for raw renderer dispatcher, raw categories admin page, and new error messages in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`.
-- [ ] T084 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas from this revision.
+- [X] T084 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas from this revision.
 - [ ] **T085 Final gates**: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, `pnpm test:e2e`, and `pnpm db:generate` reporting "No schema changes"; full quickstart.md S2/S3/S5/S6 re-validation against `docker compose up -d --build`.
 
 ### Cross-cutting tasks added during the 2026-07-19 review pass

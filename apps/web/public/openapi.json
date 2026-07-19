@@ -1083,6 +1083,10 @@
             "maximum": 20,
             "default": 20,
             "description": "Maximum number of fused results to return (1-20). Defaults to 20."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space slug to search within. Defaults to the default wiki space."
           }
         },
         "required": [
@@ -1360,6 +1364,7 @@
         ],
         "description": "Simple OK response"
       },
+      "PAGE_PATH_RESERVED": {},
       "paramsSchema": {
         "type": "object",
         "properties": {
@@ -1846,6 +1851,10 @@
               "summary"
             ],
             "description": "Optional structured metadata override. When present, metadata is stored on the revision without requiring equivalent Markdown frontmatter."
+          },
+          "writeMetadataToFrontmatter": {
+            "type": "boolean",
+            "description": "Per-page preference: whether supported metadata is also embedded as a frontmatter block. Omitted by API/AI writers, in which case it is derived from the submitted content."
           }
         },
         "required": [
@@ -2269,6 +2278,14 @@
             "maxLength": 100,
             "description": "Target space slug. Raw entries require \"raw\" and an inputKind."
           },
+          "nature": {
+            "type": "string",
+            "enum": [
+              "original",
+              "generated"
+            ],
+            "description": "Explicit creation-time classification; defaults from the actor (human=original, machine=generated)."
+          },
           "inputKind": {
             "type": "string",
             "enum": [
@@ -2307,6 +2324,19 @@
               }
             },
             "description": "Immutable source metadata for a raw entry."
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME type of a raw entry body (RFC 2046). Required when the body is not markdown; defaults to text/markdown."
+          },
+          "originalBytes": {
+            "type": "string",
+            "description": "Optional base64 raw payload (PDF, HTML, JSON, image, log) stored via content_assets; its sha256 is recorded on the revision."
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Raw taxonomy category id. Required when space=raw unless an admin default is configured; immutable after creation."
           },
           "kind": {
             "type": "string",
@@ -2407,6 +2437,21 @@
           "filter[type]": {
             "type": "string",
             "description": "Filter to pages whose frontmatter type matches this value."
+          },
+          "filterInputKind": {
+            "type": "string",
+            "enum": [
+              "chat-transcript",
+              "external-fetch",
+              "script-run",
+              "manual-note"
+            ],
+            "description": "Raw-only: filter raw entries by their captured inputKind. Independent from filterType (the OKF/frontmatter type)."
+          },
+          "filterCategoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Raw-only: filter raw entries by their raw_categories taxonomy id. Independent from filterType."
           },
           "limit": {
             "default": 20,
@@ -2708,6 +2753,10 @@
             "additionalProperties": {},
             "description": "Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed."
           },
+          "writeMetadataToFrontmatter": {
+            "type": "boolean",
+            "description": "Per-page authoring preference: whether supported metadata is also embedded as a frontmatter block in the Markdown body."
+          },
           "metadata": {
             "type": "object",
             "properties": {
@@ -2835,7 +2884,6 @@
           "path",
           "locale",
           "title",
-          "kind",
           "frontmatter",
           "status",
           "author",
@@ -2903,6 +2951,37 @@
               }
             ],
             "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space slug to search within. Defaults to the default wiki space."
+          },
+          "filter[type]": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
+          "filterType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "SDK-friendly alias for filter[type]."
+          },
+          "filterInputKind": {
+            "type": "string",
+            "enum": [
+              "chat-transcript",
+              "external-fetch",
+              "script-run",
+              "manual-note"
+            ],
+            "description": "Raw-only: filter raw entries by inputKind, independent from filterType."
+          },
+          "filterCategoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Raw-only: filter raw entries by raw_categories taxonomy id, independent from filterType."
           },
           "limit": {
             "default": 20,
@@ -3083,6 +3162,44 @@
             ],
             "description": "Page status when a page exists, otherwise null."
           },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "native",
+              "link"
+            ],
+            "description": "Page kind when a page exists at this node: native or a softlink page."
+          },
+          "linkTarget": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pageId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Target page identifier of a softlink page."
+              },
+              "path": {
+                "type": "string",
+                "description": "Target page path."
+              },
+              "title": {
+                "type": "string",
+                "description": "Target page title."
+              }
+            },
+            "required": [
+              "pageId",
+              "path",
+              "title"
+            ],
+            "description": "Resolved softlink target, projected only to Admin callers."
+          },
           "children": {
             "type": "array",
             "items": {
@@ -3126,9 +3243,17 @@
             "type": "string",
             "description": "Space slug to build the tree from. Defaults to the default wiki space."
           },
+          "filter[type]": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
           "filterType": {
             "type": "string",
-            "description": "Filter to pages whose frontmatter type matches this value."
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "SDK-friendly alias for filter[type]."
           }
         },
         "description": "Public page tree query parameters."
@@ -3204,12 +3329,130 @@
               }
             },
             "description": "Immutable source metadata for this appended chunk."
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME type of the appended chunk body (RFC 2046). Defaults to text/markdown."
+          },
+          "originalBytes": {
+            "type": "string",
+            "description": "Optional base64 original payload for this chunk, stored via content_assets."
           }
         },
         "required": [
           "content"
         ],
         "description": "Append an immutable chunk to a raw entry."
+      },
+      "PublicRawCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable category identifier; use as categoryId when creating raw entries."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable category name."
+          },
+          "slug": {
+            "type": "string",
+            "description": "URL-safe category slug."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional description, or null."
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Whether this category is applied when a raw create omits categoryId."
+          },
+          "isRetired": {
+            "type": "boolean",
+            "description": "Retired categories keep existing entries but accept no new ones."
+          },
+          "entryCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of raw entries currently filed under this category."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the category was created (ISO 8601)."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the category was last updated (ISO 8601)."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "isDefault",
+          "isRetired",
+          "entryCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "A raw taxonomy category."
+      },
+      "PublicRawCategoryCreateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Human-readable category name."
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "URL-safe slug (lowercase letters, numbers, hyphens)."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "Optional description."
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Apply as the default category for raw creates that omit categoryId."
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "description": "Create a raw taxonomy category."
+      },
+      "PublicRawCategoryListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicRawCategory"
+            },
+            "description": "All raw taxonomy categories."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "Raw taxonomy listing."
       },
       "PublicRevisionDiffQuery": {
         "type": "object",
@@ -3341,10 +3584,7 @@
           },
           "contentType": {
             "type": "string",
-            "enum": [
-              "text/markdown"
-            ],
-            "description": "Content media type of the revision body. Always text/markdown."
+            "description": "MIME type of the revision body (RFC 2046 type/subtype). Wiki/generated revisions are text/markdown; raw revisions carry the original source format."
           },
           "contentHash": {
             "type": "string",
@@ -3369,10 +3609,6 @@
           "canPublish": {
             "type": "boolean",
             "description": "Whether the current caller is allowed to publish this revision."
-          },
-          "contentSource": {
-            "type": "string",
-            "description": "Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list."
           },
           "origin": {
             "type": "object",
@@ -3399,6 +3635,10 @@
               "nature"
             ],
             "description": "Provenance of this revision."
+          },
+          "contentSource": {
+            "type": "string",
+            "description": "Markdown source of the revision. Present only on GET /pages/{id}/revisions/{version}; omitted from the revision list."
           },
           "linkTargetPageId": {
             "type": [
@@ -3437,6 +3677,47 @@
               }
             },
             "description": "Immutable raw-source metadata of a raw create/append chunk."
+          },
+          "originalAsset": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Content-asset id of the immutable original bytes."
+              },
+              "contentType": {
+                "type": "string",
+                "description": "MIME type of the original bytes."
+              },
+              "sizeBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Size of the original bytes."
+              },
+              "contentHash": {
+                "type": "string",
+                "description": "sha256 of the original bytes."
+              }
+            },
+            "required": [
+              "id",
+              "contentType",
+              "sizeBytes",
+              "contentHash"
+            ],
+            "description": "Dual-track raw storage reference to the immutable original bytes, or null when the body is already plain text."
+          },
+          "categoryId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Raw taxonomy category of the owning page (echoed here for convenience). Null for non-raw pages."
           },
           "frontmatter": {
             "type": [
@@ -3538,10 +3819,7 @@
           },
           "contentType": {
             "type": "string",
-            "enum": [
-              "text/markdown"
-            ],
-            "description": "Content media type of the revision body. Always text/markdown."
+            "description": "MIME type of the revision body (RFC 2046 type/subtype). Wiki/generated revisions are text/markdown; raw revisions carry the original source format."
           },
           "contentHash": {
             "type": "string",
@@ -3566,6 +3844,32 @@
           "canPublish": {
             "type": "boolean",
             "description": "Whether the current caller is allowed to publish this revision."
+          },
+          "origin": {
+            "type": "object",
+            "properties": {
+              "actorKind": {
+                "type": "string",
+                "enum": [
+                  "human",
+                  "machine"
+                ],
+                "description": "Whether this revision was written through a session (human) or an API key/pipeline (machine)."
+              },
+              "nature": {
+                "type": "string",
+                "enum": [
+                  "original",
+                  "generated"
+                ],
+                "description": "Creation-time classification of the page: original human input or generated content."
+              }
+            },
+            "required": [
+              "actorKind",
+              "nature"
+            ],
+            "description": "Provenance of this revision, projected when the caller may read it."
           }
         },
         "required": [
@@ -3822,6 +4126,10 @@
             "type": "string",
             "description": "Directory prefix to restrict matching to pages under a subtree."
           },
+          "space": {
+            "type": "string",
+            "description": "Restrict to one space the caller can read. Omit for the union of readable spaces (raw/generated only for Admins)."
+          },
           "scope": {
             "type": "string",
             "enum": [
@@ -3974,6 +4282,10 @@
               "orphans"
             ],
             "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space slug to report stats for. Defaults to the default wiki space."
           }
         },
         "description": "Wiki stats query parameters."
@@ -4256,6 +4568,44 @@
           "name"
         ],
         "description": "New name for a reusable tag."
+      },
+      "RawCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isRetired": {
+            "type": "boolean"
+          },
+          "entryCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "isDefault",
+          "isRetired",
+          "entryCount"
+        ]
       },
       "RegisterInput": {
         "type": "object",
@@ -10462,239 +10812,7 @@
         "tags": [
           "Pages"
         ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "published",
-                "draft",
-                "all",
-                "deleted"
-              ],
-              "default": "published",
-              "description": "Filter pages by lifecycle state. Defaults to published."
-            },
-            "description": "Filter pages by lifecycle state. Defaults to published."
-          },
-          {
-            "in": "query",
-            "name": "q",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200,
-              "description": "Optional free-text query to filter pages by path or title."
-            },
-            "description": "Optional free-text query to filter pages by path or title."
-          },
-          {
-            "in": "query",
-            "name": "path",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PublicPagePath"
-                }
-              ],
-              "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
-            },
-            "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
-          },
-          {
-            "in": "query",
-            "name": "pathPrefix",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PublicPagePath"
-                }
-              ],
-              "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
-            },
-            "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
-          },
-          {
-            "in": "query",
-            "name": "space",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Space slug to list pages from. Defaults to the default wiki space."
-            },
-            "description": "Space slug to list pages from. Defaults to the default wiki space."
-          },
-          {
-            "in": "query",
-            "name": "filterType",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
-            },
-            "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
-          },
-          {
-            "in": "query",
-            "name": "filter[type]",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Filter to pages whose frontmatter type matches this value."
-            },
-            "description": "Filter to pages whose frontmatter type matches this value."
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            },
-            "description": "Maximum number of pages to return per request (1-100). Defaults to 20."
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Opaque pagination cursor returned by a previous response."
-            },
-            "description": "Opaque pagination cursor returned by a previous response."
-          },
-          {
-            "in": "query",
-            "name": "order",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "path",
-                "recent"
-              ],
-              "default": "path",
-              "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
-            },
-            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
-          },
-          {
-            "in": "query",
-            "name": "include",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
-            },
-            "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
-          },
-          {
-            "in": "query",
-            "name": "createdStart",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Include only pages created at or after this ISO 8601 timestamp."
-            },
-            "description": "Include only pages created at or after this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "createdEnd",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Include only pages created at or before this ISO 8601 timestamp."
-            },
-            "description": "Include only pages created at or before this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "filter[tag]",
-            "required": false,
-            "schema": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
-            },
-            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
-          },
-          {
-            "in": "query",
-            "name": "filter[status]",
-            "required": false,
-            "schema": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
-            },
-            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
-          },
-          {
-            "in": "query",
-            "name": "filter[owner]",
-            "required": false,
-            "schema": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
-            },
-            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
-          },
-          {
-            "in": "query",
-            "name": "filter[has_frontmatter]",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ],
-              "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
-            },
-            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
-          }
-        ],
+        "parameters": [],
         "security": [
           {
             "BearerAuth": []
@@ -10753,6 +10871,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAGE_PATH_RESERVED"
                 }
               }
             }
@@ -11412,6 +11540,101 @@
         }
       }
     },
+    "/v1/raw-categories": {
+      "get": {
+        "operationId": "get-v1-raw-categories",
+        "summary": "List raw categories",
+        "description": "Lists the admin-managed raw taxonomy. Every raw entry is filed under exactly one immutable category; use these ids as `categoryId` when creating raw entries. Admin-scoped; available only in LLM Wiki mode.",
+        "tags": [
+          "Raw"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRawCategoryListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-v1-raw-categories",
+        "summary": "Create a raw category",
+        "description": "Creates a raw taxonomy category. Set `isDefault` to have it applied when a raw entry is created without an explicit `categoryId`. Admin-scoped; available only in LLM Wiki mode.",
+        "tags": [
+          "Raw"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicRawCategoryCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRawCategory"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/raw-assets/{id}": {
+      "get": {
+        "operationId": "get-raw-assets-{id}",
+        "summary": "Serve a raw entry's immutable original bytes. Admin-only via the asset's raw",
+        "description": "",
+        "tags": [
+          "Raw-assets"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/v1/pages/{id}/revisions": {
       "get": {
         "operationId": "get-v1-pages-{id}-revisions",
@@ -11726,6 +11949,67 @@
               "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
             },
             "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Space slug to search within. Defaults to the default wiki space."
+            },
+            "description": "Space slug to search within. Defaults to the default wiki space."
+          },
+          {
+            "in": "query",
+            "name": "filter[type]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Filter to pages whose frontmatter type matches this value."
+            },
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
+          {
+            "in": "query",
+            "name": "filterType",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "SDK-friendly alias for filter[type]."
+            },
+            "description": "SDK-friendly alias for filter[type]."
+          },
+          {
+            "in": "query",
+            "name": "filterInputKind",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chat-transcript",
+                "external-fetch",
+                "script-run",
+                "manual-note"
+              ],
+              "description": "Raw-only: filter raw entries by inputKind, independent from filterType."
+            },
+            "description": "Raw-only: filter raw entries by inputKind, independent from filterType."
+          },
+          {
+            "in": "query",
+            "name": "filterCategoryId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Raw-only: filter raw entries by raw_categories taxonomy id, independent from filterType."
+            },
+            "description": "Raw-only: filter raw entries by raw_categories taxonomy id, independent from filterType."
           },
           {
             "in": "query",
@@ -12115,6 +12399,50 @@
         }
       }
     },
+    "/settings/raw-categories": {
+      "get": {
+        "operationId": "get-settings-raw-categories",
+        "summary": "Admin taxonomy for raw entries. Admin-only; unavailable in Copilot mode.",
+        "description": "",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-settings-raw-categories",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RawCategory"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/settings/writing-mode": {
       "get": {
         "operationId": "get-settings-writing-mode",
@@ -12184,6 +12512,65 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/settings/raw-categories/{id}": {
+      "patch": {
+        "operationId": "patch-settings-raw-categories-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-settings-raw-categories-{id}",
+        "summary": "Hard delete; rejected with RAW_CATEGORY_HAS_ENTRIES (409) while entries still",
+        "description": "",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -12384,6 +12771,16 @@
               "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
             },
             "description": "Optional additional report; \"orphans\" lists pages with zero inbound links."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Space slug to report stats for. Defaults to the default wiki space."
+            },
+            "description": "Space slug to report stats for. Defaults to the default wiki space."
           }
         ],
         "security": [
@@ -14728,13 +15125,27 @@
           },
           {
             "in": "query",
+            "name": "filter[type]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Filter to pages whose frontmatter type matches this value."
+            },
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
+          {
+            "in": "query",
             "name": "filterType",
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Filter to pages whose frontmatter type matches this value."
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "SDK-friendly alias for filter[type]."
             },
-            "description": "Filter to pages whose frontmatter type matches this value."
+            "description": "SDK-friendly alias for filter[type]."
           }
         ],
         "security": [
@@ -15266,6 +15677,12 @@
     },
     {
       "name": "Public-openapi.json"
+    },
+    {
+      "name": "Raw"
+    },
+    {
+      "name": "Raw-assets"
     },
     {
       "name": "Revisions"
