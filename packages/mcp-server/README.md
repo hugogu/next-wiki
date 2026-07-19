@@ -97,8 +97,10 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `get_semantic_search_results` | Poll results from `submit_semantic_search` |
 | `list_pages` | List visible pages |
 | `get_page` | Get page details and Markdown source |
-| `create_page` | Create a new page |
+| `create_page` | Create a new page (raw entries: verbatim body + optional original bytes) |
 | `append_raw_entry` | Append an immutable chunk to a raw entry |
+| `list_raw_categories` | List the raw taxonomy categories (LLM Wiki mode) |
+| `create_raw_category` | Create a raw taxonomy category (LLM Wiki mode) |
 | `save_draft` | Save a draft revision |
 | `update_page_properties` | Update page title/path |
 | `publish_page` | Publish a draft revision |
@@ -134,6 +136,7 @@ because auth, parameter validation, and permission checks are handled internally
 
 - **Knowledge retrieval**: `search_wiki`, `submit_semantic_search`, `get_semantic_search_results`, `list_pages`, `get_page`, `get_page_tree`, `find_similar`
 - **Content creation**: `create_page`, `append_raw_entry`, `save_draft`, `publish_page`, `batch_create_pages`, `batch_update_pages`, `batch_soft_delete_pages`
+- **Raw taxonomy**: `list_raw_categories`, `create_raw_category`
 - **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`, `delete_page`, `get_backlinks`, `get_page_outbound_links`, `get_neighborhood`, `get_diff`, `get_stats`
 - **Media**: `upload_image` for inserting images into Markdown
 
@@ -141,16 +144,31 @@ because auth, parameter validation, and permission checks are handled internally
 
 When an administrator enables LLM Wiki mode, collection tools accept a
 `space` argument: `default` is the public wiki, `raw` holds Admin-private
-append-only evidence, and `generated` holds Admin-private OKF concepts. Use
-`filterType` for a generated concept's frontmatter `type` or a raw entry's
-input kind; `list_pages` also accepts `filterTag`, `createdStart`, and
-`createdEnd`.
+append-only evidence, and `generated` holds Admin-private OKF concepts.
+
+Raw entries are **not** OKF-validated: their body is stored verbatim (no
+frontmatter injection, no Markdown conversion). Filter dimensions are
+independent — `filterType` matches a generated concept's frontmatter `type`
+only, while raw entries are filtered by `filterInputKind` (how they were
+captured) and `filterCategoryId` (their taxonomy). `list_pages` also accepts
+`filterTag`, `createdStart`, and `createdEnd`.
+
+Every raw entry is filed under exactly one immutable **category**. Discover the
+taxonomy with `list_raw_categories` and create new categories with
+`create_raw_category`; pass a `categoryId` on `create_page` (or rely on the
+built-in `reference` default).
 
 For API-key-backed MCP calls in LLM Wiki mode, `create_page` defaults to the
 `generated` space. Pass `space: "default"` to create a public-wiki page. To
-create raw evidence, pass `space: "raw"`, an `inputKind`, and Markdown
-`contentSource`; later growth must use `append_raw_entry`. Raw content cannot
-be changed with `save_draft`, `update_page_properties`, or `delete_page`.
+create raw evidence, pass `space: "raw"`, an `inputKind`, and the extracted-text
+`contentSource`. A raw entry may carry its original bytes (PDF, HTML, JSON,
+image, log) via `contentType` + base64 `originalBytes` — the bytes are stored
+immutably alongside the extracted text (dual-track storage). Later growth must
+use `append_raw_entry`. Raw content cannot be changed with `save_draft`,
+`update_page_properties`, or `delete_page`.
+
+Semantic search (`submit_semantic_search`) covers raw and generated content too,
+but raw/generated results are returned to Admin-scoped callers only.
 
 Use `create_page` with `kind: "link"` and `linkTargetPageId` to publish a
 generated page at a wiki path. Page and revision results include provenance:

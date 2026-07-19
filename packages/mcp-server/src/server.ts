@@ -32,6 +32,8 @@ import { mergeTag, mergeTagSchema } from './tools/merge-tag';
 import { getTagMutation, getTagMutationSchema } from './tools/get-tag-mutation';
 import { updatePageMetadata, updatePageMetadataSchema } from './tools/update-page-metadata';
 import { appendRawEntry, appendRawEntrySchema } from './tools/append-raw-entry';
+import { listRawCategories, listRawCategoriesSchema } from './tools/list-raw-categories';
+import { createRawCategory, createRawCategorySchema } from './tools/create-raw-category';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
   const server = new McpServer({
@@ -97,8 +99,16 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await createPage(client, args)) }],
   }));
 
-  server.tool('append_raw_entry', 'Append an immutable Markdown chunk to a raw entry. Existing raw content cannot be edited or deleted.', appendRawEntrySchema, async (args) => ({
+  server.tool('append_raw_entry', 'Append an immutable chunk to a raw entry (extracted text, optional original bytes). Existing raw content cannot be edited or deleted.', appendRawEntrySchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await appendRawEntry(client, args)) }],
+  }));
+
+  server.tool('list_raw_categories', 'List the raw taxonomy categories. Use their ids as categoryId when creating raw entries. LLM Wiki mode, Admin-scoped.', listRawCategoriesSchema, async () => ({
+    content: [{ type: 'text', text: JSON.stringify(await listRawCategories(client)) }],
+  }));
+
+  server.tool('create_raw_category', 'Create a raw taxonomy category. Set isDefault to apply it when a raw entry omits categoryId. LLM Wiki mode, Admin-scoped.', createRawCategorySchema, async (args) => ({
+    content: [{ type: 'text', text: JSON.stringify(await createRawCategory(client, args)) }],
   }));
 
   server.tool('save_draft', 'Save a new draft revision of an existing page.', saveDraftSchema, async (args) => ({

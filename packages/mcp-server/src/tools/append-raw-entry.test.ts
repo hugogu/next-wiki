@@ -38,6 +38,21 @@ describe('append_raw_entry', () => {
     });
   });
 
+  it('forwards contentType and original bytes for a non-markdown chunk', async () => {
+    const appendMock = vi.fn().mockResolvedValue({
+      id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', pageId, version: 3, status: 'published',
+      contentType: 'application/pdf', contentHash: 'h', author: { id: null, displayName: null },
+      createdAt: '2026-07-18T00:00:00.000Z', publishedAt: '2026-07-18T00:00:00.000Z', canPublish: false,
+    });
+    const client = { appendRawEntry: appendMock } as unknown as WikiApiClient;
+
+    await appendRawEntry(client, { pageId, content: 'extracted', contentType: 'application/pdf', originalBytes: 'JVBERi0=' });
+
+    expect(appendMock).toHaveBeenCalledWith(pageId, {
+      content: 'extracted', source: undefined, contentType: 'application/pdf', originalBytes: 'JVBERi0=',
+    });
+  });
+
   it('returns pending-switch errors without rewriting them', async () => {
     const pending = new WikiApiClientError('Writing mode switch is in progress', 409, 'MODE_SWITCH_IN_PROGRESS');
     const client = {

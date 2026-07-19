@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   listPagesResponse,
+  listRawCategoriesResponse,
   publishPageResponse,
   saveDraftResponse,
   searchWikiResponse,
@@ -183,6 +184,85 @@ describe('shape transformers', () => {
       origin: { actorKind: 'human', nature: 'generated' },
       linkTargetPageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       source: { channel: 'support' },
+    });
+  });
+
+  it('exposes dual-track raw fields on the revision resource', async () => {
+    const { getRevisionResponse } = await import('./shapes');
+    const revision = getRevisionResponse({
+      id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      version: 1,
+      status: 'published',
+      contentType: 'application/pdf',
+      contentHash: 'hash',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      publishedAt: '',
+      canPublish: false,
+      originalAsset: {
+        id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        contentType: 'application/pdf',
+        sizeBytes: 1024,
+        contentHash: 'asset-hash',
+      },
+      categoryId: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    });
+
+    expect(revision).toMatchObject({
+      contentType: 'application/pdf',
+      originalAsset: { id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', sizeBytes: 1024 },
+      categoryId: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    });
+
+    const markdownRevision = getRevisionResponse({
+      id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      version: 2,
+      status: 'published',
+      contentType: 'text/markdown',
+      contentHash: 'hash',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      publishedAt: '',
+      canPublish: false,
+      originalAsset: null,
+      categoryId: null,
+    });
+
+    expect(markdownRevision.originalAsset).toBeNull();
+    expect(markdownRevision.categoryId).toBeNull();
+  });
+
+  it('flattens raw category list response', () => {
+    const result = listRawCategoriesResponse({
+      items: [
+        {
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          name: 'Reference',
+          slug: 'reference',
+          description: 'Default reference material',
+          isDefault: true,
+          isRetired: false,
+          entryCount: 3,
+          createdAt: '2026-07-01T00:00:00Z',
+          updatedAt: '2026-07-01T00:00:00Z',
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      categories: [
+        {
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          name: 'Reference',
+          slug: 'reference',
+          description: 'Default reference material',
+          isDefault: true,
+          isRetired: false,
+          entryCount: 3,
+        },
+      ],
     });
   });
 

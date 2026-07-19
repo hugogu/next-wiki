@@ -8,9 +8,29 @@ import type {
   PublicPageSearchResponse,
   PublicPageTreeNode,
   PublicPageTreeResponse,
+  PublicRawCategory,
   PublicRevisionResource,
   PublicSemanticSearchAction,
 } from './api-client';
+
+/** Flatten a raw taxonomy category for LLM comprehension. */
+export function rawCategoryShape(category: PublicRawCategory) {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    description: category.description,
+    isDefault: category.isDefault,
+    isRetired: category.isRetired,
+    entryCount: category.entryCount,
+  };
+}
+
+export function listRawCategoriesResponse(source: { items: PublicRawCategory[] }): {
+  categories: ReturnType<typeof rawCategoryShape>[];
+} {
+  return { categories: source.items.map(rawCategoryShape) };
+}
 
 export type SearchWikiResult = {
   id: string;
@@ -42,6 +62,8 @@ function revisionProvenance(source: PublicRevisionResource) {
     ...(source.origin ? { origin: source.origin } : {}),
     ...(source.linkTargetPageId !== undefined ? { linkTargetPageId: source.linkTargetPageId } : {}),
     ...(source.source !== undefined ? { source: source.source } : {}),
+    ...(source.originalAsset !== undefined ? { originalAsset: source.originalAsset } : {}),
+    ...(source.categoryId !== undefined ? { categoryId: source.categoryId } : {}),
   };
 }
 
@@ -159,6 +181,8 @@ export function saveDraftResponse(source: PublicRevisionResource): {
   origin?: PublicRevisionResource['origin'];
   linkTargetPageId?: string | null;
   source?: PublicRevisionResource['source'];
+  originalAsset?: PublicRevisionResource['originalAsset'];
+  categoryId?: string | null;
 } {
   return {
     revisionId: source.id,
@@ -222,6 +246,8 @@ export type RevisionListItem = {
   origin?: PublicRevisionResource['origin'];
   linkTargetPageId?: string | null;
   source?: PublicRevisionResource['source'];
+  originalAsset?: PublicRevisionResource['originalAsset'];
+  categoryId?: string | null;
 };
 
 export function listRevisionsResponse(source: { items: PublicRevisionResource[]; nextCursor: string | null }): {
@@ -257,6 +283,8 @@ export function getRevisionResponse(source: PublicRevisionResource): {
   origin?: PublicRevisionResource['origin'];
   linkTargetPageId?: string | null;
   source?: PublicRevisionResource['source'];
+  originalAsset?: PublicRevisionResource['originalAsset'];
+  categoryId?: string | null;
 } {
   return {
     id: source.id,

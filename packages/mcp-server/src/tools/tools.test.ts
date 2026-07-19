@@ -163,11 +163,48 @@ describe('tools', () => {
     const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
     const client = createClient({ searchPages });
 
-    await searchWiki(client, { query: 'payment', space: 'raw', filterType: 'chat-transcript' });
+    await searchWiki(client, { query: 'payment', space: 'generated', filterType: 'concept' });
+
+    expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({
+      space: 'generated',
+      filterType: 'concept',
+    }));
+  });
+
+  it('search_wiki wires raw filters independently from filterType', async () => {
+    const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ searchPages });
+
+    await searchWiki(client, {
+      query: 'payment',
+      space: 'raw',
+      filterInputKind: 'chat-transcript',
+      filterCategoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    });
 
     expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({
       space: 'raw',
-      filterType: 'chat-transcript',
+      filterInputKind: 'chat-transcript',
+      filterCategoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      filterType: undefined,
+    }));
+  });
+
+  it('list_pages wires raw filters independently from filterType', async () => {
+    const listPagesClient = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ listPages: listPagesClient });
+
+    await listPages(client, {
+      space: 'raw',
+      filterInputKind: 'external-fetch',
+      filterCategoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    });
+
+    expect(listPagesClient).toHaveBeenCalledWith(expect.objectContaining({
+      space: 'raw',
+      filterInputKind: 'external-fetch',
+      filterCategoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      filterType: undefined,
     }));
   });
 
@@ -262,23 +299,29 @@ describe('tools', () => {
     await createPage(client, {
       path: 'inputs/case-1',
       title: 'Case 1',
-      contentSource: 'Original evidence',
+      contentSource: 'Extracted evidence',
       space: 'raw',
       nature: 'original',
-      inputKind: 'chat-transcript',
+      inputKind: 'external-fetch',
       source: { channel: 'support', sessionId: 'case-1' },
+      contentType: 'application/pdf',
+      originalBytes: 'JVBERi0=',
+      categoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       kind: 'native',
     });
 
     expect(createPageClient).toHaveBeenCalledWith({
       path: 'inputs/case-1',
       title: 'Case 1',
-      contentSource: 'Original evidence',
+      contentSource: 'Extracted evidence',
       locale: undefined,
       space: 'raw',
       nature: 'original',
-      inputKind: 'chat-transcript',
+      inputKind: 'external-fetch',
       source: { channel: 'support', sessionId: 'case-1' },
+      contentType: 'application/pdf',
+      originalBytes: 'JVBERi0=',
+      categoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       kind: 'native',
       linkTargetPageId: undefined,
     });

@@ -83,7 +83,10 @@ server is named `next-wiki`, the tools are:
 | `next-wiki_search_wiki` | Search pages by keyword |
 | `next-wiki_list_pages` | List visible pages |
 | `next-wiki_get_page` | Read a page including Markdown source |
-| `next-wiki_create_page` | Create a new page with initial draft |
+| `next-wiki_create_page` | Create a new page with initial draft (raw: verbatim body + optional original bytes) |
+| `next-wiki_append_raw_entry` | Append an immutable chunk to a raw entry |
+| `next-wiki_list_raw_categories` | List the raw taxonomy categories (LLM Wiki mode) |
+| `next-wiki_create_raw_category` | Create a raw taxonomy category (LLM Wiki mode) |
 | `next-wiki_save_draft` | Save a new draft revision |
 | `next-wiki_update_page_properties` | Update title/path |
 | `next-wiki_publish_page` | Publish a draft revision |
