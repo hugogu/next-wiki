@@ -273,9 +273,13 @@ async function visiblePageResource(
     locale: page.locale,
     title: page.title,
     kind: page.kind,
-    linkTarget: canViewProvenance && page.linkTargetPageId
-      ? (linkTarget ? { pageId: linkTarget.id, path: linkTarget.path, title: linkTarget.title } : null)
-      : null,
+    // Provenance-gated: omitted entirely for callers who may not see link
+    // targets, null for a native page, the resolved target for an Admin.
+    linkTarget: canViewProvenance
+      ? (page.linkTargetPageId
+          ? (linkTarget ? { pageId: linkTarget.id, path: linkTarget.path, title: linkTarget.title } : null)
+          : null)
+      : undefined,
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
     visibility: canViewProvenance ? page.visibility : undefined,
