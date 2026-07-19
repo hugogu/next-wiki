@@ -1,22 +1,13 @@
 import { createHash } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
-  portableArchiveManifestSchema,
-  type PortableArchiveManifest,
+  normalizePortableManifest,
+  portablePageFrontmatterSchema,
+  type NormalizedPortableManifest,
+  type PortablePageFrontmatter,
 } from '@next-wiki/shared';
 
-export type PageFrontmatter = {
-  nextWikiArchiveVersion: 1;
-  sourcePageId: string;
-  sourceRevisionId: string;
-  path: string;
-  locale: string;
-  title: string;
-  contentType: 'text/markdown';
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+export type { PortablePageFrontmatter };
 
 export function sha256(value: string | Buffer): string {
   return createHash('sha256').update(value).digest('hex');
@@ -32,26 +23,49 @@ export function pageEntryPath(locale: string, canonicalPath: string): string {
   return `pages/${cleanLocale}/${cleanPath || '_root'}.md`;
 }
 
-export function serializePage(frontmatter: PageFrontmatter, markdown: string): string {
-  const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd();
+export function serializePage(fm: PortablePageFrontmatter, markdown: string): string {
+  const yaml = stringifyYaml(fm, { lineWidth: 0 }).trimEnd();
   return `---\n${yaml}\n---\n\n${markdown}`;
 }
 
-export function parsePage(value: string): { frontmatter: PageFrontmatter; markdown: string } {
+export function parsePage(value: string): { frontmatter: PortablePageFrontmatter; markdown: string } {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n(?:\r?\n)?([\s\S]*)$/.exec(value);
   if (!match) throw new Error('Portable page is missing YAML frontmatter');
-  const frontmatter = parseYaml(match[1]!) as PageFrontmatter;
-  if (frontmatter.nextWikiArchiveVersion !== 1) {
-    throw new Error('Unsupported portable page version');
+  const raw = parseYaml(match[1]!) as Record<string, unknown>;
+  // Accept both v1 and v2 frontmatter; lift v1 to v2 shape so the import pipeline
+  // uses a single type.
+  if (raw.nextWikiArchiveVersion === 1) {
+    return {
+      frontmatter: {
+        nextWikiArchiveVersion: 2,
+        sourcePageId: String(raw.sourcePageId ?? ''),
+        sourceRevisionId: String(raw.sourceRevisionId ?? ''),
+        spaceKind: 'wiki',
+        spaceSlug: 'default',
+        path: String(raw.path ?? ''),
+        locale: String(raw.locale ?? ''),
+        title: String(raw.title ?? ''),
+        contentType: String(raw.contentType ?? 'text/markdown'),
+        contentHash: String(raw.contentHash ?? ''),
+        publishedAt: raw.publishedAt === null ? null : String(raw.publishedAt ?? ''),
+        createdAt: String(raw.createdAt ?? ''),
+        updatedAt: String(raw.updatedAt ?? ''),
+        inputKind: null,
+        rawSource: null,
+      },
+      markdown: match[2] ?? '',
+    };
   }
+  // Already v2 — validate with shared schema.
+  const frontmatter = portablePageFrontmatterSchema.parse(raw);
   return { frontmatter, markdown: match[2] ?? '' };
 }
 
-export function validateManifest(input: unknown): PortableArchiveManifest {
-  return portableArchiveManifestSchema.parse(input);
+export function validateManifest(input: unknown): NormalizedPortableManifest {
+  return normalizePortableManifest(input);
 }
 
-export function stableManifest(manifest: PortableArchiveManifest): PortableArchiveManifest {
+export function stableManifest(manifest: NormalizedPortableManifest): NormalizedPortableManifest {
   return {
     ...manifest,
     pages: [...manifest.pages].sort(

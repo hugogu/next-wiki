@@ -4,25 +4,33 @@ import {
   parsePage,
   serializePage,
   stableManifest,
-  type PageFrontmatter,
+  type PortablePageFrontmatter,
 } from './manifest';
 
 describe('portable archive manifest', () => {
   it('round trips YAML frontmatter and original Markdown', () => {
-    const frontmatter: PageFrontmatter = {
-      nextWikiArchiveVersion: 1,
+    const frontmatter: PortablePageFrontmatter = {
+      nextWikiArchiveVersion: 2,
       sourcePageId: 'page-1',
       sourceRevisionId: 'revision-1',
+      spaceKind: 'wiki',
+      spaceSlug: 'default',
       path: 'engineering/auth',
       locale: 'en',
       title: 'Auth: "Guide"',
       contentType: 'text/markdown',
+      contentHash: 'a'.repeat(64),
       publishedAt: '2026-06-21T00:00:00.000Z',
       createdAt: '2026-06-20T00:00:00.000Z',
       updatedAt: '2026-06-21T00:00:00.000Z',
+      inputKind: null,
+      rawSource: null,
     };
     const markdown = '# Heading\n\n![x](/api/assets/00000000-0000-0000-0000-000000000000)';
-    expect(parsePage(serializePage(frontmatter, markdown))).toEqual({ frontmatter, markdown });
+    const serialized = serializePage(frontmatter, markdown);
+    const parsed = parsePage(serialized);
+    expect(parsed.frontmatter).toMatchObject(frontmatter);
+    expect(parsed.markdown).toBe(markdown);
   });
 
   it('encodes page path segments and sorts inventories deterministically', () => {
@@ -31,10 +39,10 @@ describe('portable archive manifest', () => {
     );
     const base = {
       format: 'next-wiki-portable' as const,
-      version: 1 as const,
+      version: 2 as const,
       createdAt: '2026-06-21T00:00:00.000Z',
-      source: { instanceId: 'x', product: 'next-wiki' as const, version: '1' },
-      snapshot: { spaceSlug: 'default', capturedAt: '2026-06-21T00:00:00.000Z' },
+      source: { instanceId: 'x', product: 'next-wiki' as const, version: '1', writingMode: 'llm-wiki' as const },
+      snapshot: { capturedAt: '2026-06-21T00:00:00.000Z', spaces: [{ slug: 'default', kind: 'wiki' as const, pageCount: 0 }] },
       counts: { pages: 0, assets: 0 },
       pages: [],
       assets: [],

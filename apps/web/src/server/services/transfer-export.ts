@@ -25,6 +25,12 @@ export type ExportPage = {
   createdAt: string;
   updatedAt: string;
   assetIds: string[];
+  /** Body content type: 'text/markdown' for wiki/generated, the raw entry's
+   * declared contentType for raw entries (e.g. 'text/plain', 'application/json'). */
+  markdownContentType?: string;
+  /** Raw provenance — absent for wiki/generated pages. */
+  inputKind?: 'chat-transcript' | 'external-fetch' | 'script-run' | 'manual-note' | null;
+  rawSource?: Record<string, unknown> | null;
 };
 
 export type ExportSnapshot = {

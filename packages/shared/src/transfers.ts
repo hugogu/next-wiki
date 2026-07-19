@@ -267,51 +267,143 @@ export const transferItemListSchema = z.object({
 export type TransferItemList = z.infer<typeof transferItemListSchema>;
 
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
+
+/** Shared page frontmatter written into portable .md files (v2 manifest). */
+export const portablePageFrontmatterSchema = z.object({
+  nextWikiArchiveVersion: z.literal(2),
+  sourcePageId: z.string().min(1),
+  sourceRevisionId: z.string().min(1),
+  spaceKind: z.enum(['wiki', 'generated', 'raw']),
+  spaceSlug: z.string().min(1),
+  path: z.string().min(1),
+  locale: z.string().min(1),
+  title: z.string().min(1),
+  contentType: z.string().min(1),
+  contentHash: sha256Schema,
+  publishedAt: nullableIsoDateSchema,
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+  // Raw-only: provenance retained verbatim for round-trip; absent for wiki/generated.
+  inputKind: z
+    .enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note'])
+    .nullable()
+    .optional(),
+  // Raw-only capture-source (channel/url/sessionId/...) — tolerated as a passthrough
+  // object so v1 imports of older OKF or raw pages can round-trip through future writers.
+  rawSource: z.record(z.unknown()).nullable().optional(),
+});
+export type PortablePageFrontmatter = z.infer<typeof portablePageFrontmatterSchema>;
+
 export const portableFileSchema = z.object({
   entry: z.string().min(1),
   sha256: sha256Schema,
   sizeBytes: nonNegativeInt,
 });
-export const portablePageSchema = z.object({
-  id: z.string().min(1),
-  entry: z.string().min(1),
-  path: z.string().min(1),
-  locale: z.string().min(1),
-  title: z.string().min(1),
-  contentType: z.literal('text/markdown'),
-  contentHash: sha256Schema,
-  sizeBytes: nonNegativeInt,
-  revisionId: z.string().min(1),
-  publishedAt: nullableIsoDateSchema,
+
+/** v1 archive reader. Treated as the historical wiki-only shape; parsed manifests
+ * are normalized into the v2 shape so the rest of the pipeline can ignore the
+ * version discriminator. */
+export const portableArchiveManifestSchemaV1 = z.object({
+  format: z.literal('next-wiki-portable'),
+  version: z.literal(1),
   createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-  assetIds: z.array(sha256Schema),
+  source: z.object({
+    instanceId: z.string().min(1),
+    product: z.literal('next-wiki'),
+    version: z.string().min(1),
+  }),
+  snapshot: z.object({
+    spaceSlug: z.string().min(1),
+    capturedAt: isoDateSchema,
+  }),
+  counts: z.object({ pages: nonNegativeInt, assets: nonNegativeInt }),
+  pages: z.array(
+    z.object({
+      id: z.string().min(1),
+      entry: z.string().min(1),
+      path: z.string().min(1),
+      locale: z.string().min(1),
+      title: z.string().min(1),
+      contentType: z.literal('text/markdown'),
+      contentHash: sha256Schema,
+      sizeBytes: nonNegativeInt,
+      revisionId: z.string().min(1),
+      publishedAt: nullableIsoDateSchema,
+      createdAt: isoDateSchema,
+      updatedAt: isoDateSchema,
+      assetIds: z.array(sha256Schema),
+    }),
+  ),
+  assets: z.array(
+    z.object({
+      id: sha256Schema,
+      entry: z.string().min(1),
+      contentHash: sha256Schema,
+      contentType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']),
+      sizeBytes: nonNegativeInt,
+      sourceAssetId: z.string().min(1).optional(),
+    }),
+  ),
+  files: z.array(portableFileSchema),
 });
-export const portableAssetSchema = z.object({
-  id: sha256Schema,
-  entry: z.string().min(1),
-  contentHash: sha256Schema,
-  contentType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']),
-  sizeBytes: nonNegativeInt,
-  sourceAssetId: z.string().min(1).optional(),
-});
-export const portableArchiveManifestSchema = z
+export type PortableArchiveManifestV1 = z.infer<typeof portableArchiveManifestSchemaV1>;
+
+/** v2 archive writer. Captures wiki + raw + generated content with full
+ * mode-aware metadata; assets accept any MIME (raw original-bytes may be
+ * arbitrary application/ * types, not just images). */
+export const portableArchiveManifestSchemaV2 = z
   .object({
     format: z.literal('next-wiki-portable'),
-    version: z.literal(1),
+    version: z.literal(2),
     createdAt: isoDateSchema,
     source: z.object({
       instanceId: z.string().min(1),
       product: z.literal('next-wiki'),
       version: z.string().min(1),
+      writingMode: z.enum(['copilot', 'llm-wiki']),
     }),
     snapshot: z.object({
-      spaceSlug: z.string().min(1),
       capturedAt: isoDateSchema,
+      spaces: z
+        .array(
+          z.object({
+            slug: z.string().min(1),
+            kind: z.enum(['wiki', 'generated', 'raw']),
+            pageCount: nonNegativeInt,
+          }),
+        )
+        .min(1),
     }),
     counts: z.object({ pages: nonNegativeInt, assets: nonNegativeInt }),
-    pages: z.array(portablePageSchema),
-    assets: z.array(portableAssetSchema),
+    pages: z.array(
+      z.object({
+        id: z.string().min(1),
+        entry: z.string().min(1),
+        spaceKind: z.enum(['wiki', 'generated', 'raw']),
+        spaceSlug: z.string().min(1),
+        path: z.string().min(1),
+        locale: z.string().min(1),
+        title: z.string().min(1),
+        contentType: z.string().min(1),
+        contentHash: sha256Schema,
+        sizeBytes: nonNegativeInt,
+        revisionId: z.string().min(1),
+        publishedAt: nullableIsoDateSchema,
+        createdAt: isoDateSchema,
+        updatedAt: isoDateSchema,
+        assetIds: z.array(sha256Schema),
+      }),
+    ),
+    assets: z.array(
+      z.object({
+        id: sha256Schema,
+        entry: z.string().min(1),
+        contentHash: sha256Schema,
+        contentType: z.string().min(1),
+        sizeBytes: nonNegativeInt,
+        sourceAssetId: z.string().min(1).optional(),
+      }),
+    ),
     files: z.array(portableFileSchema),
   })
   .superRefine((manifest, ctx) => {
@@ -322,6 +414,127 @@ export const portableArchiveManifestSchema = z
       ctx.addIssue({ code: 'custom', path: ['counts', 'assets'], message: 'Asset count mismatch' });
     }
   });
+export type PortableArchiveManifestV2 = z.infer<typeof portableArchiveManifestSchemaV2>;
+
+/** Normalized portable manifest. Both v1 and v2 archives parse into this shape
+ * so downstream consumers (preview, import, page writer) never branch on the
+ * source version. */
+export interface NormalizedPortableManifest {
+  format: 'next-wiki-portable';
+  version: 2;
+  createdAt: string;
+  source: {
+    instanceId: string;
+    product: 'next-wiki';
+    version: string;
+    writingMode: 'copilot' | 'llm-wiki';
+  };
+  snapshot: {
+    capturedAt: string;
+    spaces: Array<{ slug: string; kind: 'wiki' | 'generated' | 'raw'; pageCount: number }>;
+  };
+  counts: { pages: number; assets: number };
+  pages: Array<{
+    id: string;
+    entry: string;
+    spaceKind: 'wiki' | 'generated' | 'raw';
+    spaceSlug: string;
+    path: string;
+    locale: string;
+    title: string;
+    contentType: string;
+    contentHash: string;
+    sizeBytes: number;
+    revisionId: string;
+    publishedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    assetIds: string[];
+  }>;
+  assets: Array<{
+    id: string;
+    entry: string;
+    contentHash: string;
+    contentType: string;
+    sizeBytes: number;
+    sourceAssetId?: string;
+  }>;
+  files: Array<{ entry: string; sha256: string; sizeBytes: number }>;
+}
+
+export function normalizePortableManifest(input: unknown): NormalizedPortableManifest {
+  // Brute-force discriminate: try v2 first, fall back to v1. Branches are
+  // local casts because zod's discriminatedUnion does not always pin literals
+  // through nested object shapes.
+  const v2 = portableArchiveManifestSchemaV2.safeParse(input);
+  if (v2.success) return v2.data;
+  const v1 = portableArchiveManifestSchemaV1.safeParse(input);
+  if (!v1.success) {
+    const issue = v2.error.issues[0];
+    throw new Error(`Unrecognized portable manifest: ${issue?.message ?? 'invalid shape'}`);
+  }
+  return liftV1Manifest(v1.data);
+}
+
+function liftV1Manifest(v1: PortableArchiveManifestV1): NormalizedPortableManifest {
+  return {
+    format: 'next-wiki-portable',
+    version: 2,
+    createdAt: v1.createdAt,
+    source: {
+      instanceId: v1.source.instanceId,
+      product: v1.source.product,
+      version: v1.source.version,
+      writingMode: 'llm-wiki',
+    },
+    snapshot: {
+      capturedAt: v1.snapshot.capturedAt,
+      spaces: [{ slug: v1.snapshot.spaceSlug, kind: 'wiki', pageCount: v1.pages.length }],
+    },
+    counts: v1.counts,
+    pages: v1.pages.map((page) => ({
+      id: page.id,
+      entry: page.entry,
+      spaceKind: 'wiki',
+      spaceSlug: v1.snapshot.spaceSlug,
+      path: page.path,
+      locale: page.locale,
+      title: page.title,
+      contentType: page.contentType,
+      contentHash: page.contentHash,
+      sizeBytes: page.sizeBytes,
+      revisionId: page.revisionId,
+      publishedAt: page.publishedAt,
+      createdAt: page.createdAt,
+      updatedAt: page.updatedAt,
+      assetIds: page.assetIds,
+    })),
+    assets: v1.assets.map((asset) => ({
+      id: asset.id,
+      entry: asset.entry,
+      contentHash: asset.contentHash,
+      contentType: asset.contentType,
+      sizeBytes: asset.sizeBytes,
+      sourceAssetId: asset.sourceAssetId,
+    })),
+    files: v1.files,
+  };
+}
+
+/** Backwards-compatible alias retained for callers that only need parsing to
+ * a zod-validated object. Prefer `normalizePortableManifest` for new code. */
+export const portableArchiveManifestSchema = z
+  .union([portableArchiveManifestSchemaV1, portableArchiveManifestSchemaV2])
+  .superRefine((manifest, ctx) => {
+    const counts = manifest.counts;
+    if (counts.pages !== manifest.pages.length) {
+      ctx.addIssue({ code: 'custom', path: ['counts', 'pages'], message: 'Page count mismatch' });
+    }
+    if (counts.assets !== manifest.assets.length) {
+      ctx.addIssue({ code: 'custom', path: ['counts', 'assets'], message: 'Asset count mismatch' });
+    }
+  });
+
 export type PortableArchiveManifest = z.infer<typeof portableArchiveManifestSchema>;
 
 export const TRANSFER_ERROR_CODES = [
@@ -341,4 +554,6 @@ export const TRANSFER_ERROR_CODES = [
   'SOURCE_INVALID_RESPONSE',
   'SOURCE_TIMEOUT',
   'RUN_NOT_ACTIVE',
+  'CROSS_MODE_IMPORT',
+  'CROSS_MODE_SKIP',
 ] as const;

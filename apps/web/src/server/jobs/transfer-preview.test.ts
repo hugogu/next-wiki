@@ -78,6 +78,8 @@ async function buildArchiveAndRun(opts: {
       createdAt: NOW,
       updatedAt: NOW,
       assetIds: [] as string[],
+      spaceKind: 'wiki' as const,
+      spaceSlug: 'default',
     };
   });
   const assets = (opts.assets ?? []).map((a) => ({
@@ -91,7 +93,6 @@ async function buildArchiveAndRun(opts: {
     storageKey,
     instanceId: 'test-instance',
     productVersion: '1.0.0',
-    spaceSlug: 'default',
     capturedAt: NOW,
     pages,
     assets,

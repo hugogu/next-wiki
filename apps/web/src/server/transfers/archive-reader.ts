@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { open, type Entry, type ZipFile } from 'yauzl';
 import {
-  portableArchiveManifestSchema,
-  type PortableArchiveManifest,
+  normalizePortableManifest,
+  type NormalizedPortableManifest,
 } from '@next-wiki/shared';
 import { env } from '@/server/config';
 import { DomainError } from '@/server/errors';
@@ -142,7 +142,7 @@ export async function inspectPortableArchive(
   filePath: string,
   limits: ArchiveLimits = DEFAULT_LIMITS,
 ): Promise<{
-  manifest: PortableArchiveManifest;
+  manifest: NormalizedPortableManifest;
   readEntry: (entry: string, maxBytes?: number) => Promise<Buffer>;
 }> {
   let entries: Map<string, Entry>;
@@ -154,9 +154,9 @@ export async function inspectPortableArchive(
   }
   if (!entries.has('manifest.json')) invalid('Archive manifest is missing');
   const manifestBytes = await readNamedEntry(filePath, 'manifest.json', 10 * 1024 * 1024);
-  let manifest: PortableArchiveManifest;
+  let manifest: NormalizedPortableManifest;
   try {
-    manifest = portableArchiveManifestSchema.parse(JSON.parse(manifestBytes.toString('utf8')));
+    manifest = normalizePortableManifest(JSON.parse(manifestBytes.toString('utf8')));
   } catch {
     throw new DomainError('INVALID_ARCHIVE', 'Archive manifest is invalid');
   }

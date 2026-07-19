@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
 import { captureGeneratedSnapshot, capturePublishedSnapshot } from '@/server/services/transfer-export';
-import { writePortableArchive } from '@/server/transfers/archive-writer';
+import { writePortableArchive, type PortablePageInput } from '@/server/transfers/archive-writer';
 import { writeOkfArchive } from '@/server/transfers/okf-archive-writer';
 import { markRunTerminal } from '@/server/services/transfers';
 import { logger } from '@/server/logger';
@@ -31,6 +31,20 @@ export async function runTransferExport(runId: string): Promise<void> {
     const snapshot = isGeneratedOkfExport
       ? await captureGeneratedSnapshot()
       : await capturePublishedSnapshot();
+
+    const spaceKind: PortablePageInput['spaceKind'] = isGeneratedOkfExport
+      ? 'generated'
+      : 'wiki';
+    const spaceSlug: string = isGeneratedOkfExport
+      ? 'generated'
+      : 'default';
+
+    const pages: PortablePageInput[] = snapshot.pages.map((page) => ({
+      ...page,
+      spaceKind,
+      spaceSlug,
+    }));
+
     await db
       .update(schema.transferRuns)
       .set({
@@ -61,9 +75,8 @@ export async function runTransferExport(runId: string): Promise<void> {
           storageKey,
           instanceId: snapshot.instanceId,
           productVersion: process.env.npm_package_version ?? '0.1.0',
-          spaceSlug: snapshot.spaceSlug,
           capturedAt: snapshot.capturedAt,
-          pages: snapshot.pages,
+          pages,
           assets: snapshot.assets,
         });
     await db

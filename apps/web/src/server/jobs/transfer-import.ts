@@ -17,6 +17,19 @@ import { localizeWikiJsImage } from '@/server/services/transfer-wikijs-assets';
 import { createWikiJsLinkReplacer } from '@/server/transfers/markdown-links';
 import { patchMetadata } from '@/server/services/page-metadata';
 import { enqueueGitExport } from '@/server/services/git-export';
+import { getSpaceByKind } from '@/server/services/spaces';
+import type { NormalizedPortableManifest } from '@next-wiki/shared';
+
+async function availableKinds(): Promise<Set<NormalizedPortableManifest['pages'][number]['spaceKind']>> {
+  const available: Set<NormalizedPortableManifest['pages'][number]['spaceKind']> = new Set(['wiki']);
+  const [rawList, generatedList] = await Promise.all([
+    getSpaceByKind('raw'),
+    getSpaceByKind('generated'),
+  ]);
+  if (rawList.length > 0) available.add('raw');
+  if (generatedList.length > 0) available.add('generated');
+  return available;
+}
 
 async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
   const preview = run.previewRunId
@@ -30,6 +43,7 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
   const inspected = await inspectPortableArchive(transferArtifactStore.pathFor(artifact.storageKey));
   const sourceIdentity = artifact.contentHash ?? artifact.id;
   const assetTargets = new Map<string, string>();
+  const kinds = await availableKinds();
 
   for (const asset of inspected.manifest.assets) {
     const existing = await db.query.transferAssetMappings.findFirst({
@@ -73,13 +87,33 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
   let created = 0;
   let replaced = 0;
   let skipped = 0;
+  let crossModeSkips = 0;
   let processed = inspected.manifest.assets.length;
   for (const page of inspected.manifest.pages) {
     const plan = previewItems.find((item) => item.sourceKey === page.id);
     const action = (plan?.action ?? 'skip') as 'create' | 'replace' | 'skip';
-    // `run` is a snapshot from job start; poll the live flag so cancelling
-    // mid-import actually stops it rather than only fixing the final status.
     if (await isRunCancelRequested(run.id)) break;
+
+    if (!kinds.has(page.spaceKind)) {
+      skipped += 1;
+      crossModeSkips += 1;
+      processed += 1;
+      await db.insert(schema.transferItems).values({
+        runId: run.id,
+        kind: 'page',
+        sourceKey: page.id,
+        sourceFingerprint: page.contentHash,
+        displayName: `${page.locale}/${page.path}`,
+        action: 'skip',
+        status: 'warning',
+        warningCode: 'CROSS_MODE_SKIP',
+        warningMessage: `Space "${page.spaceKind}" not available in current writing mode; skipping import`,
+        metadata: { entry: page.entry, spaceKind: page.spaceKind },
+        finishedAt: new Date(),
+      }).onConflictDoNothing();
+      continue;
+    }
+
     const bytes = await inspected.readEntry(page.entry);
     const parsed = parsePage(bytes.toString('utf8'));
     const markdown = rewriteMarkdownImages(parsed.markdown, (url) => {
@@ -148,16 +182,19 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
     }).where(eq(schema.transferRuns.id, run.id));
   }
   const latest = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
-  await markRunTerminal(run.id, latest?.cancelRequested ? 'cancelled' : 'completed', {
+  const wasCancelled = latest?.cancelRequested;
+  const status = wasCancelled ? 'cancelled'
+    : crossModeSkips > 0 ? 'completed_with_warnings'
+    : 'completed';
+  await markRunTerminal(run.id, status, {
     totalItems: inspected.manifest.pages.length + inspected.manifest.assets.length,
     processedItems: processed,
     createdItems: created,
     replacedItems: replaced,
     skippedItems: skipped,
+    warningItems: crossModeSkips > 0 ? crossModeSkips : undefined,
   });
-  // A full snapshot export reconciles every imported page; one sync at the end
-  // is sufficient and avoids a git commit per page.
-  if (processed > 0 && !latest?.cancelRequested) {
+  if (processed > 0 && !wasCancelled) {
     await enqueueGitExport('manual');
   }
 }

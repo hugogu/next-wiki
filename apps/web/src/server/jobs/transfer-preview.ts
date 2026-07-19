@@ -8,9 +8,22 @@ import { markRunTerminal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import { WikiJsClient, computeWikiJsPageFingerprint } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
-import { resolveSpace } from '@/server/services/spaces';
+import { getSpaceByKind, resolveSpace } from '@/server/services/spaces';
+import { getMode } from '@/server/services/writing-mode';
+import type { NormalizedPortableManifest } from '@next-wiki/shared';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
+
+async function availableKinds(): Promise<Set<NormalizedPortableManifest['pages'][number]['spaceKind']>> {
+  const available: Set<NormalizedPortableManifest['pages'][number]['spaceKind']> = new Set(['wiki']);
+  const [rawList, generatedList] = await Promise.all([
+    getSpaceByKind('raw'),
+    getSpaceByKind('generated'),
+  ]);
+  if (rawList.length > 0) available.add('raw');
+  if (generatedList.length > 0) available.add('generated');
+  return available;
+}
 
 async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   const artifact = run.sourceArtifactId
@@ -23,9 +36,15 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   const strategy = (run.options as { conflictStrategy?: string }).conflictStrategy ?? 'skip';
+  const currentMode = await getMode();
+  const sourceMode = inspected.manifest.source.writingMode;
+  const hasModeMismatch = sourceMode !== currentMode;
+  const kinds = await availableKinds();
+
   let created = 0;
   let replaced = 0;
   let skipped = 0;
+  let crossModeSkips = 0;
   const items: (typeof schema.transferItems.$inferInsert)[] = [];
   for (const page of inspected.manifest.pages) {
     const bytes = await inspected.readEntry(page.entry);
@@ -36,6 +55,25 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       parsed.frontmatter.sourcePageId !== page.id
     ) {
       throw new Error(`Page frontmatter mismatch: ${page.entry}`);
+    }
+    if (!kinds.has(page.spaceKind)) {
+      skipped += 1;
+      crossModeSkips += 1;
+      items.push({
+        runId: run.id,
+        kind: 'page',
+        sourceKey: page.id,
+        sourceFingerprint: page.contentHash,
+        displayName: `${page.locale}/${page.path}`,
+        targetKey: `${page.locale}/${page.path}`,
+        action: 'skip',
+        status: 'warning',
+        warningCode: 'CROSS_MODE_SKIP',
+        warningMessage: `Space "${page.spaceKind}" not available in ${currentMode} mode`,
+        metadata: { entry: page.entry, title: page.title, spaceKind: page.spaceKind },
+        finishedAt: new Date(),
+      });
+      continue;
     }
     const existing = await db.query.pages.findFirst({
       where: and(
@@ -78,14 +116,19 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
     });
   }
   if (items.length) await db.insert(schema.transferItems).values(items).onConflictDoNothing();
-  await markRunTerminal(run.id, 'completed', {
+  const result: Record<string, unknown> = {
     sourceFingerprint: artifact.contentHash,
     totalItems: items.length,
     processedItems: items.length,
     createdItems: created,
     replacedItems: replaced,
     skippedItems: skipped,
-  });
+    warningItems: crossModeSkips > 0 ? crossModeSkips : undefined,
+  };
+  if (hasModeMismatch) {
+    result.warningMessage = `Archive was exported from ${sourceMode} mode; current instance is in ${currentMode} mode. Some content may be skipped.`;
+  }
+  await markRunTerminal(run.id, hasModeMismatch || crossModeSkips > 0 ? 'completed_with_warnings' : 'completed', result);
 }
 
 async function flushPreviewItems(

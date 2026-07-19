@@ -30,12 +30,13 @@ describe('portable archive writer', () => {
       createdAt: now,
       updatedAt: now,
       assetIds: ['00000000-0000-0000-0000-000000000001'],
+      spaceKind: 'wiki' as const,
+      spaceSlug: 'default',
     });
     const result = await writePortableArchive({
       storageKey: '00000000-0000-0000-0000-000000000099.zip',
       instanceId: 'instance',
       productVersion: '1',
-      spaceSlug: 'default',
       capturedAt: now,
       pages: [page('2', 'b'), page('1', 'a')],
       assets: [{
