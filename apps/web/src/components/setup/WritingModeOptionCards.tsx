@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type { WritingMode } from '@next-wiki/shared';
-import { ShieldIcon, UsersIcon } from '@/components/icons';
+import { LayersIcon, PenSparkIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
@@ -24,7 +24,7 @@ const MODE_OPTIONS: readonly ModeOption[] = [
       'setup.writingMode.copilot.features.feature2',
       'setup.writingMode.copilot.features.feature3',
     ] as const,
-    icon: <UsersIcon className="h-6 w-6" aria-hidden="true" />,
+    icon: <PenSparkIcon className="h-6 w-6" aria-hidden="true" />,
   },
   {
     id: 'llm-wiki',
@@ -35,7 +35,7 @@ const MODE_OPTIONS: readonly ModeOption[] = [
       'setup.writingMode.llmWiki.features.feature2',
       'setup.writingMode.llmWiki.features.feature3',
     ] as const,
-    icon: <ShieldIcon className="h-6 w-6" aria-hidden="true" />,
+    icon: <LayersIcon className="h-6 w-6" aria-hidden="true" />,
   },
 ];
 

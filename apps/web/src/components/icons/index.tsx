@@ -644,3 +644,67 @@ export function ScrollSyncIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+/** Pen nib with a sparkle — Writing Mode "Copilot" (AI-assisted co-writing). */
+export function PenSparkIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M15.5 6.5l2 2" />
+      <path d="M18.5 3.5l1.5 1.5a2 2 0 0 1 0 2.83L9 18.66l-4 1 1-4L16.5 5.21a2 2 0 0 1 2 1.29z" />
+      <path d="M4 20l3-3" />
+      <path d="M14 4l-2 2" />
+    </Icon>
+  );
+}
+
+/** Stacked layers — Writing Mode "LLM Wiki" (multi-space knowledge storage). */
+export function LayersIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </Icon>
+  );
+}
+
+/** Pencil with eraser — Raw Categories "Rename". */
+export function PencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20h4l10-10-4-4L4 16v4z" />
+      <path d="M14 6l4 4" />
+      <path d="M13 7l-6 6" />
+      <path d="M16 4l4 4" />
+    </Icon>
+  );
+}
+
+/** Five-pointed star — Raw Categories "Set as default". */
+export function StarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <polygon points="12 3 14.5 9 21 9.5 16 14 17.5 20.5 12 17 6.5 20.5 8 14 3 9.5 9.5 9" />
+    </Icon>
+  );
+}
+
+/** Inbox tray with arrow — Raw Categories "Retire". */
+export function InboxIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </Icon>
+  );
+}
+
+/** Flame — Raw Categories "Delete" (destructive). */
+export function FlameIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2c1 3 3 4 5 6s3 4 3 6.5a8 8 0 0 1-16 0c0-2 1-3.5 2.2-4.6C7.4 8.7 8.5 7 8.5 5c0-1 .4-2 1.2-3 0 1.6 1 3 2.3 3.4" />
+      <path d="M9 17c.5 1 1.6 1.5 3 1.5s2.5-.5 3-1.5c-.5.4-1.4.7-2.5.7s-2-.3-2.5-.7" />
+    </Icon>
+  );
+}

@@ -19,11 +19,11 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import {
-  ArchiveIcon,
-  CheckIcon,
-  EditIcon,
+  FlameIcon,
+  InboxIcon,
+  PencilIcon,
   PlusIcon,
-  TrashIcon,
+  StarIcon,
 } from '@/components/icons';
 import { apiDelete, apiGet, apiPatch, apiPost, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
@@ -168,7 +168,7 @@ export function RawCategoriesManager({
                           });
                         }}
                       >
-                        <EditIcon className="h-5 w-5" aria-hidden="true" />
+                        <PencilIcon className="h-5 w-5" aria-hidden="true" />
                       </Button>
                     </Tooltip>
                     {!category.isDefault && !category.isRetired && (
@@ -181,7 +181,7 @@ export function RawCategoriesManager({
                             void run(() => apiPatch(`/api/settings/raw-categories/${category.id}`, { isDefault: true }))
                           }
                         >
-                          <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                          <StarIcon className="h-5 w-5" aria-hidden="true" />
                         </Button>
                       </Tooltip>
                     )}
@@ -196,7 +196,7 @@ export function RawCategoriesManager({
                             setConfirm({ kind: 'retire', category });
                           }}
                         >
-                          <ArchiveIcon className="h-5 w-5" aria-hidden="true" />
+                          <InboxIcon className="h-5 w-5" aria-hidden="true" />
                         </Button>
                       </Tooltip>
                     )}
@@ -210,7 +210,7 @@ export function RawCategoriesManager({
                           setConfirm({ kind: 'delete', category });
                         }}
                       >
-                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                        <FlameIcon className="h-5 w-5" aria-hidden="true" />
                       </Button>
                     </Tooltip>
                   </div>
