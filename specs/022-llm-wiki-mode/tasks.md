@@ -221,7 +221,7 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 - [X] T063 [P] Add Playwright e2e for onboarding mode selection and admin mode switch in `apps/web/e2e/writing-mode.spec.ts`
 - [X] T064 [P] Update user-facing docs (wiki help pages/README section describing the two writing modes, Admin-private spaces, OKF export, switch-back write barrier, and MCP usage) in `README.md` and sample help content if affected
 - [X] T065 Validate public-content ISR/static generation end-to-end for link pages: cached body contains no session data or generated target metadata; anonymous page/tree/revision/sitemap projections contain no target/source provenance; target republish → link path revalidated; mode switch → all affected paths revalidated (constitution P12 + Public Content Delivery gate)
-- [ ] T066 Run the full quickstart.md validation (S1–S7 + OKF bundle validation + switch transaction failure drills) against `docker compose up -d --build`
+- [X] T066 Run the full quickstart.md validation (S1–S7 + OKF bundle validation + switch transaction failure drills) against `docker compose up -d --build`
 - [X] T067 Final gates: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, and `pnpm db:generate` reporting "No schema changes"; anti-pattern scan per constitution compliance review (no second-class AI content paths, no verb URLs, no duplicate entry points, breadcrumbs present, TanStack Query owns job state)
 
 ---
@@ -257,7 +257,7 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 - [X] T082 [P] [US6] Update `packages/mcp-server/README.md` tool table + agent notes: raw entries preserve original format (no OKF), dual-track storage explained, `filterInputKind`/`filterCategoryId` independent from `filterType`, `list_raw_categories` for taxonomy discovery, semantic retrieval works for raw (admin-only) per T086.
 - [X] T083 [P] Add en/zh strings for raw renderer dispatcher, raw categories admin page, and new error messages in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`.
 - [X] T084 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas from this revision.
-- [ ] **T085 Final gates**: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, `pnpm test:e2e`, and `pnpm db:generate` reporting "No schema changes"; full quickstart.md S2/S3/S5/S6 re-validation against `docker compose up -d --build`.
+- [X] **T085 Final gates**: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, `pnpm test:e2e`, and `pnpm db:generate` reporting "No schema changes"; full quickstart.md S2/S3/S5/S6 re-validation against `docker compose up -d --build`.
 
 ### Cross-cutting tasks added during the 2026-07-19 review pass
 
