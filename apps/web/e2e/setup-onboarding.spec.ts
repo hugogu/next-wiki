@@ -170,6 +170,16 @@ async function completeAccountStep(page: Page) {
   await expect(page.getByText(/set up ai with openrouter/i)).toBeVisible({ timeout: 15_000 });
 }
 
+/**
+ * The writing-mode step sits between AI setup and example pages. Accept the
+ * default (Copilot) and advance to the sample-pages step.
+ */
+async function passWritingModeStep(page: Page) {
+  await expect(page.getByRole('heading', { name: /choose a writing mode/i })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await expect(page.getByText(/generate example and help pages/i)).toBeVisible({ timeout: 15_000 });
+}
+
 let fixture: Server;
 
 test.beforeAll(async () => {
@@ -220,7 +230,7 @@ test.describe('US2/US3: skip AI and skip examples', () => {
     await completeAccountStep(page);
 
     await page.getByRole('button', { name: /skip ai setup/i }).click();
-    await expect(page.getByText(/generate example and help pages/i)).toBeVisible({ timeout: 15_000 });
+    await passWritingModeStep(page);
 
     await page.getByRole('button', { name: /skip example pages/i }).click();
     await expect(page.getByText(/setup complete/i)).toBeVisible({ timeout: 15_000 });
@@ -249,7 +259,7 @@ test.describe('US3: generate examples', () => {
   }) => {
     await completeAccountStep(page);
     await page.getByRole('button', { name: /skip ai setup/i }).click();
-    await expect(page.getByText(/generate example and help pages/i)).toBeVisible({ timeout: 15_000 });
+    await passWritingModeStep(page);
 
     // A user-authored page at a canonical help path is never overwritten.
     await insertUserAuthoredPage('help/markdown-syntax', 'My markdown notes', 'User notes');
@@ -284,7 +294,7 @@ test.describe('US3: generate examples', () => {
   test('declining examples creates no optional help pages', async ({ page }) => {
     await completeAccountStep(page);
     await page.getByRole('button', { name: /skip ai setup/i }).click();
-    await expect(page.getByText(/generate example and help pages/i)).toBeVisible({ timeout: 15_000 });
+    await passWritingModeStep(page);
     await page.getByRole('button', { name: /skip example pages/i }).click();
     await expect(page.getByText(/setup complete/i)).toBeVisible({ timeout: 15_000 });
 
@@ -313,13 +323,15 @@ test.describe('US2: OpenRouter bootstrap', () => {
       timeout: 15_000,
     });
 
-    // Terminal bootstrap advances to the sample-pages step; per-purpose
-    // results are summarized at the end.
-    await expect(page.getByText(/generate example and help pages/i)).toBeVisible({ timeout: 180_000 });
+    // Terminal bootstrap advances to the writing-mode step, ahead of examples.
+    await expect(page.getByRole('heading', { name: /choose a writing mode/i })).toBeVisible({ timeout: 180_000 });
 
     // Refresh resumes safely at the same step (no duplicate submit).
     await page.reload();
-    await expect(page.getByText(/generate example and help pages/i)).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { name: /choose a writing mode/i })).toBeVisible({ timeout: 60_000 });
+
+    // Accepting the default mode advances to the sample-pages step.
+    await passWritingModeStep(page);
 
     await page.getByRole('button', { name: /skip example pages/i }).click();
     await expect(page.getByText(/setup complete/i)).toBeVisible({ timeout: 15_000 });

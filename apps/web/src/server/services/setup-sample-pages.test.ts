@@ -12,6 +12,7 @@ import {
 
 const cache = vi.hoisted(() => ({
   invalidatePublicContentCache: vi.fn(),
+  invalidatePublicLinkPaths: vi.fn(),
   invalidateSiteShellCache: vi.fn(),
   shouldUseDataCache: () => false,
   PUBLIC_CONTENT_CACHE_TAG: 'public-content',
