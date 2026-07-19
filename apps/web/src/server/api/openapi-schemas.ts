@@ -690,6 +690,13 @@ export const PublicRevisionSummary = z
       .nullable()
       .describe('Timestamp when the revision was published (ISO 8601), or null if still a draft.'),
     canPublish: z.boolean().describe('Whether the current caller is allowed to publish this revision.'),
+    origin: z
+      .object({
+        actorKind: z.enum(['human', 'machine']).describe('Whether this revision was written through a session (human) or an API key/pipeline (machine).'),
+        nature: z.enum(['original', 'generated']).describe('Creation-time classification of the page: original human input or generated content.'),
+      })
+      .optional()
+      .describe('Provenance of this revision, projected when the caller may read it.'),
   })
   .describe('Public page revision metadata.');
 
@@ -753,6 +760,7 @@ export const PublicPageResource = z
     title: z.string().describe('Human-readable page title.'),
     kind: z
       .enum(['native', 'link'])
+      .optional()
       .describe('Page kind: a native content page or a softlink page rendering a generated target.'),
     linkTarget: z
       .object({
@@ -786,6 +794,10 @@ export const PublicPageResource = z
       .record(z.unknown())
       .nullable()
       .describe('Parsed YAML frontmatter from the leading --- block of the Markdown source, or null if absent/malformed.'),
+    writeMetadataToFrontmatter: z
+      .boolean()
+      .optional()
+      .describe('Per-page authoring preference: whether supported metadata is also embedded as a frontmatter block in the Markdown body.'),
     metadata: z
       .object({
         date: z.string().nullable().describe('Calendar date from supported frontmatter, or null when absent.'),
@@ -922,14 +934,12 @@ export const PublicPageListQuery = z
       .describe(
         'Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead.',
       ),
-    createdStart: z
-      .string()
-      .datetime()
+    createdStart: z.coerce
+      .date()
       .optional()
       .describe('Include only pages created at or after this ISO 8601 timestamp.'),
-    createdEnd: z
-      .string()
-      .datetime()
+    createdEnd: z.coerce
+      .date()
       .optional()
       .describe('Include only pages created at or before this ISO 8601 timestamp.'),
     'filter[tag]': z
@@ -974,6 +984,7 @@ export const PublicPageCreateInput = z
     title: z.string().min(1).max(200).describe('Human-readable page title.'),
     contentSource: z.string().optional().default('').describe('Markdown source of the initial page revision. Optional; defaults to an empty draft.'),
     space: z.string().min(1).max(100).optional().describe('Target space slug. Raw entries require "raw" and an inputKind.'),
+    nature: z.enum(['original', 'generated']).optional().describe('Explicit creation-time classification; defaults from the actor (human=original, machine=generated).'),
     inputKind: z.enum(['chat-transcript', 'external-fetch', 'script-run', 'manual-note']).optional().describe('Required for raw entries; stored as the OKF frontmatter type.'),
     source: z.object({
       channel: z.string().min(1).max(200).optional(),
@@ -1018,6 +1029,10 @@ export const PublicDraftCreateInput = z
       tags: z.array(z.string().min(1).max(100)).max(50),
       summary: z.string().max(2000).nullable(),
     }).optional().describe('Optional structured metadata override. When present, metadata is stored on the revision without requiring equivalent Markdown frontmatter.'),
+    writeMetadataToFrontmatter: z
+      .boolean()
+      .optional()
+      .describe('Per-page preference: whether supported metadata is also embedded as a frontmatter block. Omitted by API/AI writers, in which case it is derived from the submitted content.'),
   })
   .describe('Create a draft revision for an existing public page.');
 
@@ -1085,6 +1100,22 @@ export const PublicPageSearchQuery = z
     pathPrefix: PublicPagePath.optional().describe(
       'Directory prefix to restrict matching to pages under a subtree (e.g. "docs" matches "docs/a", "docs/b").',
     ),
+    space: z
+      .string()
+      .optional()
+      .describe('Space slug to search within. Defaults to the default wiki space.'),
+    'filter[type]': z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Filter to pages whose frontmatter type matches this value.'),
+    filterType: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('SDK-friendly alias for filter[type].'),
     limit: z.coerce
       .number()
       .int()
@@ -1162,6 +1193,7 @@ export const HybridSearchQueryInput = z
     searchSessionId: z.string().uuid().describe('Client-generated overlay session identifier owning this attempt.'),
     q: z.string().trim().min(2).max(200).describe('Free-text search query (minimum two characters).'),
     limit: z.number().int().min(1).max(20).optional().default(20).describe('Maximum number of fused results to return (1-20). Defaults to 20.'),
+    space: z.string().optional().describe('Space slug to search within. Defaults to the default wiki space.'),
   })
   .describe('Run or resume one idempotent Header hybrid search attempt.');
 
@@ -1384,6 +1416,20 @@ export const PublicPageTreeNode: z.ZodType<{
     title: z.string().nullable().describe('Page title when a page exists at this path, otherwise null.'),
     pageId: z.string().uuid().nullable().describe('Page id when a page exists at this path, otherwise null.'),
     status: z.enum(['draft', 'published', 'deleted']).nullable().describe('Page status when a page exists, otherwise null.'),
+    kind: z
+      .enum(['native', 'link'])
+      .nullable()
+      .optional()
+      .describe('Page kind when a page exists at this node: native or a softlink page.'),
+    linkTarget: z
+      .object({
+        pageId: z.string().uuid().describe('Target page identifier of a softlink page.'),
+        path: z.string().describe('Target page path.'),
+        title: z.string().describe('Target page title.'),
+      })
+      .nullable()
+      .optional()
+      .describe('Resolved softlink target, projected only to Admin callers.'),
     children: z.array(z.lazy(() => PublicPageTreeNode)).describe('Child nodes ordered by path segment.'),
   })
   .describe('A single node in the public wiki page directory tree.');
@@ -1402,10 +1448,18 @@ export const PublicPageTreeQuery = z
       .string()
       .optional()
       .describe('Space slug to build the tree from. Defaults to the default wiki space.'),
-    filterType: z
+    'filter[type]': z
       .string()
+      .min(1)
+      .max(200)
       .optional()
       .describe('Filter to pages whose frontmatter type matches this value.'),
+    filterType: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('SDK-friendly alias for filter[type].'),
   })
   .describe('Public page tree query parameters.');
 
@@ -1529,6 +1583,7 @@ export const PublicRevisionDiffResponse = z
 export const PublicStatsQuery = z
   .object({
     include: z.enum(['orphans']).optional().describe('Optional additional report; "orphans" lists pages with zero inbound links.'),
+    space: z.string().optional().describe('Space slug to report stats for. Defaults to the default wiki space.'),
   })
   .describe('Wiki stats query parameters.');
 
