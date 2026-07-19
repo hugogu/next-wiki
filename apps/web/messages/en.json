@@ -190,11 +190,21 @@
       "saving": "Saving...",
       "copilot": {
         "title": "Copilot",
-        "description": "Use one collaborative wiki space for people and AI."
+        "description": "Use one collaborative wiki space for people and AI.",
+        "features": {
+          "feature1": "One collaborative space",
+          "feature2": "Editors and AI write side-by-side",
+          "feature3": "No special entry points or hidden spaces"
+        }
       },
       "llmWiki": {
         "title": "LLM Wiki",
-        "description": "Keep original inputs and generated knowledge in separate Admin-only spaces."
+        "description": "Keep original inputs and generated knowledge in separate Admin-only spaces.",
+        "features": {
+          "feature1": "Originals + generated content in isolated spaces",
+          "feature2": "Raw entries preserve their original format",
+          "feature3": "Admin-only access for raw and generated"
+        }
       }
     },
     "samplePages": {
@@ -1451,6 +1461,7 @@
         "name": "Name",
         "slug": "Slug",
         "entries": "Entries",
+        "created": "Created",
         "status": "Status",
         "actions": "Actions"
       },

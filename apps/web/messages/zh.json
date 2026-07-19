@@ -190,11 +190,21 @@
       "saving": "正在保存...",
       "copilot": {
         "title": "Copilot",
-        "description": "在同一个协作维基空间中管理人工和 AI 内容。"
+        "description": "在同一个协作维基空间中管理人工和 AI 内容。",
+        "features": {
+          "feature1": "同一协作空间",
+          "feature2": "人类和 AI 并行书写",
+          "feature3": "无需特殊入口或隐藏空间"
+        }
       },
       "llmWiki": {
         "title": "LLM Wiki",
-        "description": "将原始输入和生成知识放在仅管理员可见的独立空间中。"
+        "description": "将原始输入和生成知识放在仅管理员可见的独立空间中。",
+        "features": {
+          "feature1": "原始材料与生成内容存放在独立空间",
+          "feature2": "原始条目保留其原格式",
+          "feature3": "原始与生成空间仅对管理员可见"
+        }
       }
     },
     "samplePages": {
@@ -1451,6 +1461,7 @@
         "name": "名称",
         "slug": "标识",
         "entries": "条目数",
+        "created": "创建时间",
         "status": "状态",
         "actions": "操作"
       },
