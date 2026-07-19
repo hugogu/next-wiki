@@ -560,7 +560,8 @@
       "providers": "提供商",
       "feishu": "飞书",
       "bots": "机器人",
-      "writingMode": "写作模式"
+      "writingMode": "写作模式",
+      "rawCategories": "原始分类"
     },
     "searchSettings": {
       "title": "搜索设置",
@@ -1438,6 +1439,46 @@
         "completed": "迁移已完成。",
         "failed": "迁移失败，未提交任何页面迁移。",
         "conflicts": "已重命名的目标路径"
+      }
+    },
+    "rawCategories": {
+      "metadataTitle": "原始分类",
+      "title": "原始分类",
+      "description": "管理为每个原始条目归档的分类法,每个条目恰好归入一个不可变分类。",
+      "empty": "还没有分类。添加原始条目前请先创建一个。",
+      "columns": {
+        "name": "名称",
+        "slug": "标识",
+        "entries": "条目数",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "status": {
+        "default": "默认",
+        "retired": "已退休",
+        "active": "启用"
+      },
+      "actions": {
+        "create": "新建分类",
+        "rename": "重命名",
+        "setDefault": "设为默认",
+        "retire": "退休",
+        "delete": "删除"
+      },
+      "dialog": {
+        "title": "新建分类",
+        "editTitle": "编辑分类",
+        "name": "名称",
+        "slug": "标识",
+        "description": "描述",
+        "default": "设为默认分类",
+        "submit": "保存"
+      },
+      "confirm": {
+        "retireTitle": "退休分类",
+        "retireMessage": "退休\"{name}\"?现有条目保持归档,但不再接受新条目。",
+        "deleteTitle": "删除分类",
+        "deleteMessage": "删除\"{name}\"?此操作不可撤销,且仅在没有条目引用时允许。"
       }
     }
   },

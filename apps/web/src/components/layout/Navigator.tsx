@@ -293,6 +293,9 @@ export function Navigator({
           icon: <FileTextIcon className="shrink-0" />,
         },
         { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
+        ...(writingMode === 'llm-wiki'
+          ? [{ href: '/admin/raw-categories', label: t('admin.nav.rawCategories'), icon: <TagIcon className="shrink-0" /> }]
+          : []),
         {
           href: '/admin/search',
           label: t('admin.nav.search'),

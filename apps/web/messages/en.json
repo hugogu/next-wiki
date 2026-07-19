@@ -560,7 +560,8 @@
       "providers": "Providers",
       "feishu": "Feishu",
       "bots": "Bots",
-      "writingMode": "Writing Mode"
+      "writingMode": "Writing Mode",
+      "rawCategories": "Raw categories"
     },
     "searchSettings": {
       "title": "Search Settings",
@@ -1438,6 +1439,46 @@
         "completed": "Migration completed.",
         "failed": "Migration failed. No page moves were committed.",
         "conflicts": "Renamed destination paths"
+      }
+    },
+    "rawCategories": {
+      "metadataTitle": "Raw categories",
+      "title": "Raw categories",
+      "description": "Manage the taxonomy that files every raw entry under exactly one immutable category.",
+      "empty": "No categories yet. Create one before adding raw entries.",
+      "columns": {
+        "name": "Name",
+        "slug": "Slug",
+        "entries": "Entries",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "default": "Default",
+        "retired": "Retired",
+        "active": "Active"
+      },
+      "actions": {
+        "create": "New category",
+        "rename": "Rename",
+        "setDefault": "Set default",
+        "retire": "Retire",
+        "delete": "Delete"
+      },
+      "dialog": {
+        "title": "New category",
+        "editTitle": "Edit category",
+        "name": "Name",
+        "slug": "Slug",
+        "description": "Description",
+        "default": "Apply as the default category",
+        "submit": "Save"
+      },
+      "confirm": {
+        "retireTitle": "Retire category",
+        "retireMessage": "Retire \"{name}\"? Existing entries stay filed, but it will no longer accept new entries.",
+        "deleteTitle": "Delete category",
+        "deleteMessage": "Delete \"{name}\"? This cannot be undone and is only allowed when no entries reference it."
       }
     }
   },
