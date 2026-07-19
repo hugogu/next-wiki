@@ -6,9 +6,9 @@
 
 ## Summary
 
-Add an instance-level writing mode (`copilot` default, `llm-wiki`) to next-wiki. In LLM Wiki mode the deployment runs three content spaces on the existing page/revision machinery: `raw` (append-only, Admin-private evidence store), `generated` (OKF-conformant, Admin-private AI working store with human/machine audit distinction), and the existing public `wiki` space, which gains softlink "link pages" that publish generated content at wiki paths without copying. The mode is chosen in first-run onboarding (new step before sample pages) and switchable in admin settings. Switching back establishes a content-write barrier, then transactionally moves raw/generated pages in place into the wiki space under `raw/…` / `generated/…` prefixes and materializes valid link pages without changing page or revision identities. REST v1 and MCP gain space-scoped access, durable per-append source metadata, and an origin field (actor kind / content nature) on pages and revisions; the transfer service gains a generated-space OKF export that preserves each concept's source frontmatter.
+Add an instance-level writing mode (`copilot` default, `llm-wiki`) to next-wiki. In LLM Wiki mode the deployment runs three content spaces on the existing page/revision machinery: `raw` (append-only, Admin-private evidence store that preserves original source format byte-identical — no OKF injection, no markdown conversion — and stores a dual-track form of extracted text + original bytes), `generated` (OKF-conformant, Admin-private AI working store with human/machine audit distinction), and the existing public `wiki` space, which gains softlink "link pages" that publish generated content at wiki paths without copying. Raw entries are filed under an admin-managed category taxonomy (`raw_categories`) that AI curation jobs and any future auto-archive workflows use as the primary filing dimension. The mode is chosen in first-run onboarding (new step before sample pages) and switchable in admin settings. Switching back establishes a content-write barrier, then transactionally moves raw/generated pages in place into the wiki space under `raw/…` / `generated/…` prefixes and materializes valid link pages without changing page or revision identities. REST v1 and MCP gain space-scoped access, durable per-append source metadata (stored in `page_revisions.source_metadata`, NOT in the body), an origin field (actor kind / content nature) on pages and revisions, raw-specific filters (`filterInputKind`, `filterCategoryId`) that are independent from the generated-space OKF `filterType`, and an admin API + MCP tool for the raw category taxonomy; the transfer service gains a generated-space OKF export that preserves each concept's source frontmatter.
 
-Primary technical approach: extend the existing multi-space-ready schema (`spaces.kind`, `pages.kind` + `link_target_page_id` + `nature` + `visibility`, `page_revisions.actor_kind` + `source_metadata` + `link_target_page_id`, and pending-switch fields on `writing_mode_settings`), enforce space-kind rules inside the existing `can()` chokepoint and page services, de-hardcode `DEFAULT_SPACE_SLUG` behind a space resolver, and expose everything through the existing REST v1 facade and MCP tool registry. All content mutations take a shared lock on the writing-mode row; switch-back takes the conflicting update lock, marks the switch pending, and runs the move/link conversion/mode flip in one worker transaction.
+Primary technical approach: extend the existing multi-space-ready schema (`spaces.kind`, `pages.kind` + `link_target_page_id` + `nature` + `visibility` + `raw_category_id`, `page_revisions.actor_kind` + `source_metadata` + `original_asset_id` + `link_target_page_id` + a broadened open-string `content_type`, the new `raw_categories` table, and pending-switch fields on `writing_mode_settings`), enforce space-kind rules inside the existing `can()` chokepoint and page services, de-hardcode `DEFAULT_SPACE_SLUG` behind a space resolver, and expose everything through the existing REST v1 facade and MCP tool registry. Raw entry storage reuses the existing 003 content-store architecture: extracted text in `page_revisions.content_source` (default surface for search/AI) and original bytes in `content_assets` referenced via `page_revisions.original_asset_id` (default surface for verbatim viewing/download). All content mutations take a shared lock on the writing-mode row; switch-back takes the conflicting update lock, marks the switch pending, and runs the move/link conversion/mode flip in one worker transaction.
 
 ## Technical Context
 
@@ -26,9 +26,9 @@ Primary technical approach: extend the existing multi-space-ready schema (`space
 
 **Performance Goals**: no new targets beyond existing baselines — public pages static/ISR (`revalidate=300`), search coordinator p95 < 1s, mode-switch migration processed as a background job with TanStack Query progress polling; reads remain available while content writes are paused
 
-**Constraints**: raw space append-only must hold under concurrent appends (per-page version increment inside a transaction, existing `newDraft` pattern); source metadata for each append must remain immutable on its revision; no new external services or default dependencies (constitution P1); OKF v0.1 conformance applies both to generated page sources and the emitted bundle, including reserved-filename rules; switch-back must be atomic with stable page/revision identities and no concurrent content writes; `pnpm db:generate` is the only way to produce the migration (AGENTS.md rule)
+**Constraints**: raw space append-only must hold under concurrent appends (per-page version increment inside a transaction, existing `newDraft` pattern); source metadata for each append must remain immutable on its revision; **raw entry bodies must preserve original source format byte-identical (no OKF injection, no markdown conversion) and OKF conformance applies to the generated space only** (2026-07-19 clarification); raw entry storage is dual-track (extracted text in `content_source`, original bytes in `content_assets` referenced via `original_asset_id`) and MUST reuse the existing 003 content-store backends without a new storage subsystem; every raw entry has exactly one immutable `raw_category_id`; no new external services or default dependencies (constitution P1); OKF v0.1 conformance applies both to generated page sources and the emitted bundle, including reserved-filename rules; switch-back must be atomic with stable page/revision identities and no concurrent content writes; `pnpm db:generate` is the only way to produce the migration (AGENTS.md rule)
 
-**Scale/Scope**: 3 spaces; ~10 services to de-hardcode from `DEFAULT_SPACE_SLUG`; foundational schema migrations touching 3 tables + 1 new singleton table + 6 enums and the existing setup-step enum; collection/search/create v1 routes extended + 1 new append sub-resource + 2 settings/setup endpoints; MCP: 6 tools extended + 1 new tool; one additional OKF archive writer on the existing transfer queue; Navigator/setup wizard/admin UI additions; 1 new pg-boss queue
+**Scale/Scope**: 3 spaces; ~10 services to de-hardcode from `DEFAULT_SPACE_SLUG`; foundational schema migrations touching 3 tables + 1 new singleton table + 1 new `raw_categories` table + 6 enums (+ broadening of `page_revisions.content_type` from closed enum to open string) and the existing setup-step enum; collection/search/create v1 routes extended + 1 new append sub-resource + 2 settings/setup endpoints + 1 raw-category admin API surface; MCP: 6 tools extended + 2 new tools (`append_raw_entry`, `list_raw_categories`); one additional OKF archive writer on the existing transfer queue; raw reader UI gains content-type-aware renderer dispatch (PDF/HTML/JSON/image/log/markdown/plain) and verbatim-download affordance; Navigator/setup wizard/admin UI additions; 1 new pg-boss queue
 
 ## Constitution Check
 
@@ -78,41 +78,48 @@ apps/web/
 ├── src/server/
 │   ├── db/schema/{index.ts,enums.ts}      # +space_kind,page_kind,actor_kind,content_nature,
 │   │                                      #  page_visibility,writing_mode enums; spaces.kind;
-│   │                                      #  pages.kind/link_target_page_id/nature/visibility;
-│   │                                      #  page_revisions.actor_kind/source_metadata/link_target;
-│   │                                      #  writing_mode_settings + pending switch state
-│   ├── db/migrations/0022_*..0024_*.sql   # via pnpm db:generate ONLY
+│   │                                      #  pages.kind/link_target_page_id/nature/visibility/raw_category_id;
+│   │                                      #  page_revisions.actor_kind/source_metadata/original_asset_id/link_target;
+│   │                                      #  page_revisions.content_type broadened from enum to open text;
+│   │                                      #  raw_categories table; writing_mode_settings + pending switch state
+│   ├── db/migrations/0022_*..0025_*.sql   # via pnpm db:generate ONLY (0025 = raw dual-track + categories)
 │   ├── permissions/index.ts               # +spaceKind input, admin-only + raw rules
 │   ├── services/
 │   │   ├── spaces.ts                      # NEW: space registry/resolver (replaces ~10 getDefaultSpace copies)
 │   │   ├── writing-mode.ts                # NEW: mode singleton, write barrier, switch helpers
-│   │   ├── raw-entries.ts                 # NEW: create/append guards, input-kind metadata
+│   │   ├── raw-entries.ts                 # NEW: create/append guards, dual-track storage, input-kind metadata
+│   │   ├── raw-categories.ts              # NEW: admin taxonomy CRUD, retire/replace, default handling
 │   │   ├── link-pages.ts                  # NEW: create/retarget/delete link pages, target fan-out
-│   │   ├── okf.ts                         # NEW: concept/path + bundle conformance
-│   │   ├── pages.ts / revisions.ts / public-content.ts  # space-aware, link resolution, provenance
-│   │   ├── search/candidate-projection.ts + engines/    # space-kind-aware projection
+│   │   ├── okf.ts                         # NEW: concept/path + bundle conformance (generated-only)
+│   │   ├── pages.ts / revisions.ts / public-content.ts  # space-aware, link resolution, provenance, raw-immutable guards
+│   │   ├── search/candidate-projection.ts + engines/    # space-kind-aware projection, filterInputKind/filterCategoryId
 │   │   ├── transfer-export.ts             # space-aware snapshot for portable/OKF exports
 │   │   └── setup.ts                       # +writing_mode step transitions
 │   ├── jobs/{runtime.ts,register.ts,writing-mode-switch.ts,transfer-export.ts}
 │   │                                               # NEW switch queue + OKF export branch
 │   ├── transfers/okf-archive-writer.ts            # NEW: preserves concept frontmatter
-│   └── seed/index.ts                      # ensure raw/generated spaces exist (all modes)
+│   └── seed/index.ts                      # ensure raw/generated spaces + empty raw_categories (all modes)
 ├── app/
-│   ├── api/v1/...                         # +space query param; +pages/[id]/appends; +settings/writing-mode
+│   ├── api/v1/...                         # +space query param; +filterInputKind/filterCategoryId on /pages and /search/pages;
+│   │                                      # +pages/[id]/appends; +settings/writing-mode; +settings/raw-categories (admin CRUD)
 │   ├── api/setup/writing-mode/route.ts    # NEW
-│   ├── (user)/spaces/[space]/[...path]/   # NEW authenticated raw/generated reader routes
+│   ├── (user)/spaces/[space]/[...path]/   # NEW authenticated raw/generated reader routes (content-type-aware renderer dispatch)
 │   ├── (admin)/admin/writing-mode/page.tsx# NEW admin page + confirm dialog
+│   ├── (admin)/admin/raw-categories/...   # NEW admin taxonomy CRUD page
 │   └── setup/                             # +WritingModeStep (before sample_pages)
 ├── src/components/
 │   ├── layout/Navigator.tsx               # +space switcher (admin, llm-wiki mode)
-│   ├── pages/                             # link badge, human-modified indicator
+│   ├── pages/                             # link badge, human-modified indicator, raw-content renderer dispatcher
+│   │                                      # (PDF / HTML / JSON / image / log / markdown / plain + Download original)
+│   ├── admin/RawCategoriesManager.tsx     # NEW
 │   └── setup/WritingModeStep.tsx          # NEW
 └── src/i18n/locales/{en.ts,zh.ts}         # new strings
 
-packages/shared/src/                       # page/revision resource + query schemas (origin, kind,
-                                           # linkTarget, space filters), setup step enum
-packages/mcp-server/src/                   # space params on read/create tools, +append_raw_entry,
-                                           # list filters + provenance/resource shaping
+packages/shared/src/                       # page/revision resource + query schemas (origin, kind, linkTarget,
+                                            # originalAsset, categoryId, contentType, space filters, filterInputKind,
+                                            # filterCategoryId), setup step enum, raw category resource, new error codes
+packages/mcp-server/src/                   # space params on read/create tools, +append_raw_entry, +list_raw_categories,
+                                            # list filters + provenance/resource shaping
 ```
 
 **Structure Decision**: Follows the binding monorepo layout (constitution Project Structure mandate). All server logic in `apps/web/src/server/`; shared Zod contracts in `packages/shared/`; MCP surface in `packages/mcp-server/`; UI primitives remain in `src/components/ui/` — feature components only compose them.

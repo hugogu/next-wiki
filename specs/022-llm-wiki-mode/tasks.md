@@ -226,6 +226,40 @@ description: "Task list for 022 Wiki Writing Modes (Copilot / LLM Wiki)"
 
 ---
 
+## Phase 11: Raw Space Spec Revision (2026-07-19 clarification)
+
+**Purpose**: Bring implementation in line with the 2026-07-19 clarification — raw entries preserve original source format byte-identical (no OKF injection), use dual-track storage (extracted text in `content_source` + original bytes in `content_assets`), and are filed under an admin-managed `raw_categories` taxonomy. Affects US2 (raw create/append), US3 (OKF hook must NOT fire on raw), US5 (raw reader renderer dispatch), US6 (filter dimensions and `list_raw_categories` tool), and the foundational schema migration. UI is also affected (admin taxonomy page, raw content renderer dispatcher).
+
+**Conventions**: Schema changes ONLY via `pnpm db:generate` (migration `0025_*`). After each logical group, run `pnpm lint && pnpm typecheck` and commit. API changes must regenerate OpenAPI via next-open-api.
+
+### Tests for the revision
+
+- [ ] T068 [P] [US2] Update `apps/web/src/server/services/raw-entries.test.ts`: raw create with `contentType` other than `text/markdown` preserves body byte-identical (no `---\ntype: …` frontmatter injected); raw create with `originalBytes` stores the asset via `content_assets` and references it via `original_asset_id` (sha256 recorded, immutable); declared `contentType` that disagrees with `originalBytes` magic-bytes → `RAW_CONTENT_TYPE_MISMATCH`; raw create without `categoryId` and no admin default → `RAW_CATEGORY_REQUIRED`; raw create with retired `categoryId` → `RAW_CATEGORY_RETIRED`; raw append with `originalBytes` attaches a NEW asset row (prior revision's asset untouched); append-only immutability holds for both extracted text AND original bytes
+- [ ] T069 [P] [US3] Update `apps/web/src/server/services/okf.test.ts` and `pages.test.ts`: OKF hook does NOT fire when `space.kind='raw'` regardless of `contentType`; raw body is never reformatted; `filterInputKind` and `filterCategoryId` are independent from `filterType`
+- [ ] T070 [P] [US5] Playwright e2e additions in `apps/web/e2e/spaces-navigation.spec.ts`: raw entry with `contentType=application/pdf` renders through a PDF viewer + "Download original" affordance; raw entry with `contentType=application/json` renders through a JSON viewer; raw entry with `contentType=text/x-log` renders in monospace; markdown entry still renders through the markdown renderer
+- [ ] T071 [P] [US6] Update `packages/mcp-server/src/tools/append-raw-entry.test.ts` and schema/shape tests in `packages/mcp-server/src/shapes.test.ts`: tool accepts `contentType` + optional `originalBytes`; revision resource exposes `contentType`, nullable `originalAsset`, nullable `categoryId`; `list_raw_categories` tool returns taxonomy; `filterInputKind` and `filterCategoryId` are wired and independent from `filterType`
+- [ ] T072 [P] [US2] Service tests for `apps/web/src/server/services/raw-categories.test.ts`: at most one `is_default=true` (partial unique); retire sets `is_retired=true`; delete rejects with `RAW_CATEGORY_HAS_ENTRIES` when entries reference; slug/name uniqueness; default applied silently on raw create when no explicit `categoryId`
+
+### Implementation for the revision
+
+- [ ] T073 [US2] Schema migration `0025_*` via `pnpm db:generate`: broaden `page_revisions.content_type` from enum to open text (NOT NULL only); add `page_revisions.original_asset_id` (uuid NULL FK → `content_assets.id` ON DELETE RESTRICT); add `pages.raw_category_id` (uuid NULL FK → `raw_categories.id` ON DELETE RESTRICT); new `raw_categories` table (id, name, slug, description, is_default, is_retired, created_at, updated_at, updated_by) with partial unique index on `is_default=true` and unique indexes on slug/name. Verify a second `pnpm db:generate` reports "No schema changes"
+- [ ] T074 [US2] Update `apps/web/src/server/services/raw-entries.ts` per FR-007/FR-007a/FR-007b: skip the OKF hook entirely; verify caller-supplied `contentType` against `originalBytes` magic-bytes (reject `RAW_CONTENT_TYPE_MISMATCH`); store extracted text in `content_source` and original bytes via `content_assets` referenced by `original_asset_id`; require `categoryId` (or apply admin default) at create and reject on retired categories; preserve body byte-identical (no frontmatter, no markdown conversion)
+- [ ] T075 [US2] Implement `apps/web/src/server/services/raw-categories.ts`: admin CRUD (create, list with `entryCount`, update name/slug/description/is_default, retire/delete with `RAW_CATEGORY_HAS_ENTRIES` protection); partial unique enforcement for `is_default`; backfill: if raw entries exist with NULL `raw_category_id` on first admin-created `is_default=true` category, migrate them onto it idempotently
+- [ ] T076 [US2] Add admin API surface `apps/web/app/api/settings/raw-categories/...` per `contracts/v1-api-delta.md`: GET list (with `entryCount`), POST create, PATCH update, DELETE retire (or reject with `RAW_CATEGORY_HAS_ENTRIES`); admin-only; `SPACE_UNAVAILABLE` in copilot mode
+- [ ] T077 [US3] Update `apps/web/src/server/services/okf.ts` and call sites: the OKF hook MUST short-circuit when `space.kind !== 'generated'`; add a regression test that raw and wiki pages bypass the hook
+- [ ] T078 [US2] Update `apps/web/app/api/v1/pages/route.ts` and `apps/web/app/api/v1/pages/[id]/appends/route.ts`: accept `contentType`, `originalBytes`, `categoryId`; thread them through the service; report `originalAsset` and `categoryId` on revision resources; add `filterInputKind` and `filterCategoryId` to `GET /v1/pages` and `/v1/search/pages`
+- [ ] T079 [US5] Implement raw content renderer dispatcher in `apps/web/src/components/pages/raw-content/`: PDF viewer (`application/pdf`), JSON viewer (`application/json`), monospace log view (`text/x-log`), image viewer (`image/*`), sanitized HTML (`text/html`), markdown (`text/markdown`), plain-text default; plus a "Download original" affordance when `originalAsset` is non-null; wire into `apps/web/app/(user)/spaces/[space]/[...path]/page.tsx`
+- [ ] T080 [US5] Build `apps/web/app/(admin)/admin/raw-categories/page.tsx` + `apps/web/src/components/admin/RawCategoriesManager.tsx`: list categories with entry counts; create/rename/retire; mark/unmark default; report retired state clearly; composed of existing UI primitives, no browser alerts
+- [ ] T081 [US6] Update `packages/mcp-server/src/tools/create-page.ts`, `append-raw-entry.ts`, `list_pages`/`search_wiki` shapes, and add new `list_raw_categories` tool registered in `packages/mcp-server/src/server.ts`; flatten results in `packages/mcp-server/src/shapes.ts`; thread `contentType`/`originalBytes`/`categoryId`/`filterInputKind`/`filterCategoryId` through `api-client.ts`
+- [ ] T082 [P] [US6] Update `packages/mcp-server/README.md` tool table + agent notes: raw entries preserve original format (no OKF), dual-track storage explained, `filterInputKind`/`filterCategoryId` independent from `filterType`, `list_raw_categories` for taxonomy discovery
+- [ ] T083 [P] Add en/zh strings for raw renderer dispatcher, raw categories admin page, and new error messages in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
+- [ ] T084 Regenerate and commit OpenAPI output via next-open-api (`apps/web/public/openapi.json`) covering all v1 deltas from this revision
+- [ ] T085 Final gates: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @next-wiki/web test`, `pnpm test:e2e`, and `pnpm db:generate` reporting "No schema changes"; full quickstart.md S2/S3/S5/S6 re-validation against `docker compose up -d --build`
+
+**Checkpoint**: Raw entries preserve original source format byte-identical, dual-track storage works (extracted text + original bytes), admin-managed taxonomy is in place, OKF hooks fire only on generated space, UI dispatches renderers by content type, MCP exposes independent filter dimensions (quickstart S2/S3/S5/S6 as revised).
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

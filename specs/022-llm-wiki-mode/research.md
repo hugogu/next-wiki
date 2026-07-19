@@ -30,20 +30,20 @@ All Technical Context unknowns resolved. No NEEDS CLARIFICATION remains. Codebas
 
 **Alternatives considered**: Column on `site_settings` — rejected: writing mode governs content topology, not appearance; a focused table keeps the switch transaction small and the service boundary clean.
 
-## D4: Raw space append-only semantics — create + server-side append only, auto-published
+## D4: Raw space append-only semantics — create + server-side append only, auto-published, original-format-preserving
 
 **Decision**: Raw entries are pages (clarification Q1) with these rules enforced in the service layer (`services/raw-entries.ts` wrapping `pages.ts`):
 
-- **Create**: allowed (Admin, Admin-backed write-scoped keys) with initial content + input kind + source metadata; the first revision is **published immediately** (raw has no draft workflow) and page nature is forced to `original` regardless of credential kind.
-- **Append**: the caller submits only the *new chunk*; the service concatenates `current content + separator + chunk` inside the same transaction that increments `version_number` (existing `newDraft` serialization pattern), and publishes the new revision immediately. Prior revisions are never touched (P8 keeps them immutable).
-- **Edit / delete / unpublish**: rejected for **every** actor (FR-005) — `pages.ts` guards block `newDraft` (replace-style), `updateProperties` (title edits allowed? — no: path/title frozen after create), and `remove` when the page's space `kind='raw'`; `can()` additionally denies `edit`/`delete` on raw-space pages so API surfaces fail fast.
+- **Create**: allowed (Admin, Admin-backed write-scoped keys) with initial content + input kind + source metadata + assigned category; the first revision is **published immediately** (raw has no draft workflow) and page nature is forced to `original` regardless of credential kind.
+- **Append**: the caller submits only the *new chunk* (plus an optional `originalBytes` payload); the service concatenates `current extracted text + separator + chunk` inside the same transaction that increments `version_number` (existing `newDraft` serialization pattern), respecting `contentType`, and publishes the new revision immediately. Any `originalBytes` payload is stored as a new immutable `content_assets` row referenced from the new revision via `original_asset_id`. Prior revisions (text + bytes) are never touched (P8 keeps them immutable).
+- **Edit / delete / unpublish**: rejected for **every** actor (FR-005) — `pages.ts` guards block `newDraft` (replace-style), `updateProperties` (path/title frozen after create), and `remove` when the page's space `kind='raw'`; `can()` additionally denies `edit`/`delete` on raw-space pages so API surfaces fail fast.
 - Concurrent appends serialize on the per-page version transaction; the loser retries (existing stale-base mechanism).
 
-Input kind + initial source metadata are stored in page frontmatter (OKF-style), so entry-level filtering uses frontmatter keys (consistent with D8). Every raw revision also stores nullable `source_metadata` JSONB containing the metadata for the initial write or appended chunk. This preserves append-level provenance without rewriting the existing frontmatter or introducing a separate raw-entry table.
+Input kind (`chat-transcript` / `external-fetch` / `script-run` / `manual-note`) and source metadata (`channel`, `url`, `sessionId`, `command`, `occurredAt`) live exclusively in `page_revisions.source_metadata`. They MUST NOT be encoded into the body, MUST NOT be parsed as OKF frontmatter, and MUST NOT be stored as the OKF `type` field. Raw entry bodies preserve their original source format byte-identical (see D14 for the dual-track storage decision and D15 for the raw category taxonomy). Filter channels for raw entries are `filterInputKind` and `filterCategoryId` — independent dimensions, never aliased onto the OKF `filterType` channel (which applies to the generated space only).
 
-**Rationale**: Server-side concatenation makes "stored bytes never change" structurally guaranteed rather than convention-based; auto-publish avoids a meaningless draft state for evidence records.
+**Rationale**: Server-side concatenation makes "stored bytes never change" structurally guaranteed rather than convention-based; auto-publish avoids a meaningless draft state for evidence records. Keeping raw bodies format-agnostic (no OKF, no markdown conversion) preserves the original material's evidential value — the whole point of the raw space.
 
-**Alternatives considered**: (a) Client submits full new content, server verifies prefix — rejected: wasteful and race-prone. (b) Append via draft revisions published later — rejected: drafts imply editability. (c) Store input kind in a new column — rejected: frontmatter keeps pages schema generic and matches OKF conventions; filter needs are met by frontmatter filters already present in search/list APIs (`filterStatus`, `filterOwner` pattern).
+**Alternatives considered**: (a) Client submits full new content, server verifies prefix — rejected: wasteful and race-prone. (b) Append via draft revisions published later — rejected: drafts imply editability. (c) Store input kind in a new column — rejected as a *frontmatter* approach in earlier drafts, but **D15 now stores category in a column** (`pages.raw_category_id`) because category is admin-managed structure rather than source-derived metadata, so it belongs in the relational model with referential integrity. Input kind and source metadata remain in `source_metadata` JSONB because they are caller-supplied and per-revision. (d) Inject OKF frontmatter into raw entries — **rejected in the 2026-07-19 clarification**: OKF conformance is generated-space only, and reformatting raw material would destroy the evidential value the raw space exists to preserve.
 
 ## D5: Generated space OKF conformance — validate on write, inject minimal frontmatter when absent
 
@@ -96,12 +96,12 @@ Input kind + initial source metadata are stored in page frontmatter (OKF-style),
 
 - Lexical engines (tsvector, pg_trgm) and the legacy ILIKE path become space-parameterized (they already take `spaceId`; wire them to the resolver instead of `getDefaultSpaceId`).
 - `candidate-projection.ts` enforces per-space visibility: wiki → existing `anonymousRead` logic; raw/generated → admin-only (and mode check). Search/MCP callers get raw/generated hits only when permitted (FR-019, SC-009).
-- Generated-space filtering by OKF `type`/`tags` reuses the existing frontmatter filter channel (`filterStatus`/`filterOwner` pattern in `listPages`/`searchPages`) with a new `filterType` key while preserving `filterTag`. `listPages` also gains `createdStart`/`createdEnd`, matching the existing search date filters, so raw entries can be listed by input kind and creation-time range without inventing a second endpoint.
-- `ai_knowledge_chunks` / vector retrieval: unchanged in this feature (no `spaceId` on chunks today); semantic search remains wiki-scoped. Recorded as a known limitation for a later AI-retrieval feature.
+- Generated-space filtering by OKF `type`/`tags` reuses the existing frontmatter filter channel (`filterStatus`/`filterOwner` pattern in `listPages`/`searchPages`) with a new `filterType` key while preserving `filterTag`. **`filterType` applies to the generated space only — raw entries are not OKF-conformant and their `inputKind` lives in `source_metadata` (D4).** Raw entry filtering adds two independent dimensions: `filterInputKind` (`chat-transcript`/`external-fetch`/`script-run`/`manual-note`, matched against `source_metadata->>'inputKind'`) and `filterCategoryId` (matched against `pages.raw_category_id`, see D15). `listPages` also gains `createdStart`/`createdEnd`, matching the existing search date filters.
+- `ai_knowledge_chunks` / vector retrieval: unchanged in this feature (no `spaceId` on chunks today); semantic search remains wiki-scoped. Recorded as a known limitation for a later AI-retrieval feature. The extracted-text layer of raw entries (D14) is the surface that any future raw-aware semantic index would consume.
 
-**Rationale**: Minimal change to the search architecture mandate (engines stay replaceable behind the coordinator); permission safety stays in exactly one place (projection).
+**Rationale**: Minimal change to the search architecture mandate (engines stay replaceable behind the coordinator); permission safety stays in exactly one place (projection). Keeping `filterType` (OKF) and `filterInputKind`/`filterCategoryId` (raw) as separate channels avoids conflating two unrelated dimensions and respects the 2026-07-19 clarification that raw is not OKF-validated.
 
-**Alternatives considered**: (a) Add `spaceId` to chunks + re-index — rejected for this feature: large migration + re-embedding cost, and the AI curation feature (010) is the right home. (b) Exclude raw/generated from search indexes — rejected: FR-019 requires MCP search over them.
+**Alternatives considered**: (a) Add `spaceId` to chunks + re-index — rejected for this feature: large migration + re-embedding cost, and the AI curation feature (010) is the right home. (b) Exclude raw/generated from search indexes — rejected: FR-019 requires MCP search over them. (c) Reuse `filterType` for raw `inputKind` — **rejected in the 2026-07-19 clarification**: raw entries have no OKF `type`, and the two filters describe different dimensions (source type vs OKF concept type).
 
 ## D9: Permissions — space-kind rules inside `can()` + per-page `visibility` for migration
 
@@ -158,7 +158,7 @@ Input kind + initial source metadata are stored in page frontmatter (OKF-style),
 - Add optional `space` to collection/search tools `list_pages`, `get_page_tree`, `search_wiki`, and `get_stats`. ID-addressed tools (`get_page`, revisions, backlinks, links, diff) need no new argument because page/revision UUIDs are globally unique and the API enforces the resolved resource's space permission.
 - `create_page`: optional `space`; server-side default per D11 (generated in LLM Wiki mode for key callers).
 - `search_wiki`: add `filterType` alongside the existing `filterTag`/`filterStatus`/`filterOwner` and date filters.
-- `list_pages`: add `filterType`, `filterTag`, `createdStart`, and `createdEnd`; raw filtering uses `filterType=chat-transcript|external-fetch|script-run|manual-note` (raw input kinds are stored as the OKF `type` — one filter channel, D4).
+- `list_pages`: add `filterType`, `filterInputKind`, `filterCategoryId`, `filterTag`, `createdStart`, and `createdEnd`; raw filtering uses `filterInputKind=chat-transcript|external-fetch|script-run|manual-note` (independent dimension — raw entries are NOT OKF-conformant and `inputKind` lives in `source_metadata` per D4) and `filterCategoryId` (D15); `filterType` applies to the generated space only (OKF `type`).
 - New tool `append_raw_entry(pageId, content, source?)` → `POST /v1/pages/[id]/appends`.
 - `save_draft`/`update_page_properties`/`delete_page` against raw pages return the API's 403 (tool surfaces the error).
 
@@ -183,16 +183,73 @@ Input kind + initial source metadata are stored in page frontmatter (OKF-style),
 
 ---
 
+## D14: Raw entry storage — dual-track (extracted text + original bytes)
+
+**Decision** (per the 2026-07-19 clarification): Each raw revision stores **two layers**, both reusing the existing 003 content-store architecture without a new storage subsystem:
+
+1. **Extracted text** in `page_revisions.content_source` (DB text), with `page_revisions.content_type` declaring the format. This is the default surface for lexical search (tsvector/pg_trgm), AI pipeline ingestion, MCP/API read, and the default reader view. The text is **not** OKF-injected, **not** markdown-converted, and **not** semantically rewritten — it preserves the original structure byte-identical for the chunks the caller supplied.
+2. **Original bytes** (when present) in `content_assets` (Database/Local/S3, already supported by 003), referenced from `page_revisions.original_asset_id` with an immutable `sha256` and the original `contentType`. This is the default surface for verbatim viewing and download. PDFs render through a viewer, images through an image viewer, JSON through a JSON viewer, HTML through sanitized HTML, logs through monospace, etc.
+
+Write path (`services/raw-entries.ts`):
+
+- Caller passes `content` (extracted text) **and/or** `originalBytes`. The declared `contentType` MUST match the bytes' magic-bytes/content sniffing — mismatch is rejected with `RAW_CONTENT_TYPE_MISMATCH` (rather than storing a mislabeled revision).
+- If only `originalBytes` is supplied, the server derives the extracted text via the existing content pipeline before publishing the revision (PDF text extraction, HTML→text, JSON pretty-print, image OCR placeholder). If extraction is unavailable for that content type, the revision stores the original bytes alone and search indexing records the entry as `text-extraction-pending` (an operational status, not a hard failure).
+- The asset row is created before the revision and never modified; `original_asset_id` is immutable on the revision.
+- Append concatenates only the extracted-text layer (`current + separator + chunk`, respecting `contentType`); original-byte payloads are attached as **new** asset rows on the new revision (prior revisions' assets are never touched).
+
+Read path:
+
+- API/MCP default to returning the extracted text (`content_source`). The original-bytes asset is reachable through `originalAsset { assetId, contentType, size, sha256 }` on the revision resource; clients fetch the bytes through the existing `/v1/assets/[id]` surface (or a raw-specific download route).
+- The reader UI dispatches by `contentType`: PDF viewer (`application/pdf`), image viewer (`image/*`), JSON viewer (`application/json`), monospace log view (`text/x-log`), sanitized HTML (`text/html`), markdown (`text/markdown`), plain text default (`text/plain`). The renderer selector is driven entirely by stored fields and never infers format from the body. A "Download original" affordance is always present when `originalAsset` is non-null.
+
+`content_type` migration: the column was a closed enum (`text/markdown` only) under 003; this feature broadens it to an open `text` with `NOT NULL` only. Wiki/generated pages keep defaulting to `text/markdown`; raw entries use the original format. Existing rows are unaffected.
+
+**Rationale**: Raw's three consumers (AI ingestion, lexical search, human viewing) have incompatible needs — LLM wants clean text, tsvector wants tokenizable text, humans want to see the original artifact byte-identical. Dual-track is the smallest honest implementation: the existing `content_source` already serves text consumers, and `content_assets` already serves binary consumers. No new subsystem, no parallel storage path (which would trigger the P3 anti-pattern).
+
+**Alternatives considered**: (a) Store raw as DB-only text and discard non-markdown formats — rejected: destroys evidential value and breaks FR-007a. (b) Store raw as file-only and skip DB text — rejected: tsvector/pgvector and the existing `getLive`/cached-read path require DB-resident text; pushing them to read external files on every hit would regress read latency and break the existing 003 fallback contract. (c) New `raw_entries` table with its own storage model — rejected: creates the parallel-path anti-pattern P3 explicitly forbids; raw entries are still pages with revisions, permissions, and audit, and reusing `pages`/`page_revisions` keeps every existing service (search, link fan-out, switch-back migration) working unchanged. (d) Make original-byte storage mandatory — rejected: `manual-note` entries typically have no original bytes; forcing an asset row would be ceremony.
+
+## D15: Raw categories — admin-managed taxonomy for filing and AI curation
+
+**Decision** (per the 2026-07-19 clarification): Introduce an admin-managed `raw_categories` table (slug, name, description, `is_default`, `is_retired`). Every raw entry has exactly one `raw_category_id`, assigned at create and immutable thereafter (consistent with the append-only rule). Categories are filed via `pages.raw_category_id` (FK → `raw_categories.id`, `ON DELETE RESTRICT`); the per-page assignment is independent of `inputKind` (source type, stored in `source_metadata`) and of the entry's free-form path.
+
+Lifecycle:
+
+- **Create**: Admin seeds categories through `/api/settings/raw-categories`. At most one is `is_default=true` (partial unique index); raw creates without explicit `categoryId` silently use the default if present, else reject with `RAW_CATEGORY_REQUIRED`.
+- **Retire**: `DELETE` does not remove a category — it sets `is_retired=true`. Retired categories are not selectable for new entries but remain queryable for existing ones; `DELETE` rejects with `RAW_CATEGORY_HAS_ENTRIES` when entries are still assigned (admin must retire instead). This preserves historical query integrity (you can always ask "what's in category X?" even after X stops accepting new entries).
+- **Rename**: `PATCH` updates display fields without affecting assignments (per-entry assignment references the id, not the slug/name).
+- **Migration backfill**: on existing deployments the table is seeded empty; existing raw entries that pre-date the taxonomy are migrated onto the first admin-created `is_default=true` category. The migration is one-shot and idempotent.
+
+Filters:
+
+- `filter[categoryId]` on `GET /v1/pages` and the MCP `list_pages`/`search_wiki` tools — independent dimension from `filterInputKind`. Both are independent from OKF `filter[type]` (generated-space only).
+
+Why a column and not frontmatter/JSONB:
+
+- Categories are admin-managed structural metadata, not source-derived content. They need referential integrity (FK), uniqueness (slug), and lifecycle (retire vs delete). Putting them in `source_metadata` JSONB would lose all three; putting them in frontmatter would force raw bodies to carry frontmatter (which FR-007a forbids). The column is the smallest honest fit.
+
+Why per-entry immutability:
+
+- The category captures "where this evidence was filed at the time it was captured", which is itself provenance. Allowing post-hoc re-filing would let an admin rewrite history. Re-filing is therefore done by retiring the old category and creating a new entry — the append-only model already enforces this for content, and the same rule applies to classification.
+
+**Rationale**: Raw entries are useless without a filing dimension that survives across sources (chat vs fetch vs script vs note) and across `inputKind` (source type). Admin-managed taxonomy keeps the dimension explicit and stable for AI curation jobs (010) and any future auto-archive workflows. Per-entry immutability preserves the evidential semantics of the raw space.
+
+**Alternatives considered**: (a) Free-form tags via the existing tag system — rejected: tags are caller-supplied and per-page; they cannot enforce a controlled taxonomy or support retire/counts lifecycle. (b) Path-prefix convention (e.g., `chats/`, `runs/`) — rejected: would conflict with the free-form path and prevent the AI curation pipeline from re-organizing material; path is also where the user wants readable slugs, not a taxonomy axis. (c) Defer categories to the AI curation feature (010) — rejected: the filing dimension must exist before AI curation runs, otherwise the first raw entries have nowhere to be filed and the AI curation pipeline has nothing to key off. (d) Allow LLM-suggested categories at write time — deferred to 010; this feature provides the taxonomy CRUD, the per-entry assignment, and the filter surface only.
+
+---
+
 ## Resolved requirement mapping (spot check)
 
 | Spec requirement | Decisions |
 |---|---|
 | FR-001/002/003 mode setting + onboarding + copilot parity | D3, D13 |
 | FR-004–007 raw space | D1, D4, D9 |
-| FR-008 OKF generated space | D5 |
+| FR-007a raw byte-identical preservation + dual-track storage | D4, D14 |
+| FR-007b raw dual-track storage | D14 |
+| FR-007c raw category taxonomy | D15 |
+| FR-008 OKF generated space (generated-only, raw NOT OKF) | D5 |
 | FR-009 generated permissions / FR-010 audit distinction | D7, D9 |
 | FR-011–014 link pages + public reach | D6, D11 |
-| FR-015/016 navigation & indicators | D13 |
-| FR-017–020 API/MCP origin + raw/generated support | D7, D11, D12 |
+| FR-015/016 navigation & indicators (incl. raw renderer dispatch) | D13, D14 |
+| FR-017–020 API/MCP origin + raw/generated support (incl. filterInputKind/filterCategoryId) | D7, D8, D11, D12 |
 | FR-021–023 mode switching + migration + link materialization | D10, D9 |
 | SC-001–009 | verified via quickstart.md scenarios |

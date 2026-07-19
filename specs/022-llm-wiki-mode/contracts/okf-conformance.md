@@ -4,6 +4,8 @@
 
 Every page in the `generated` space is an OKF concept document. The unit of stored conformance is the page's Markdown source; the unit of interchange conformance is the generated-space OKF export defined below. The existing portable exporter is not an OKF exporter because it adds next-wiki transport frontmatter ahead of the concept source.
 
+**OKF applies to the `generated` space only.** The `wiki` and `raw` spaces MUST NOT be OKF-validated. Raw entry bodies preserve their original source format byte-identical and MUST NOT have OKF frontmatter injected (see `spec.md` FR-007 / FR-007a / FR-007b and the 2026-07-19 clarification). The `inputKind` and `source` metadata on raw entries live exclusively in `page_revisions.source_metadata` and are exposed via the revision resource; they are never encoded into the body, never parsed as OKF frontmatter, and never reused as the OKF `type` filter channel.
+
 ## Page source shape
 
 ```markdown
@@ -22,6 +24,8 @@ resource: <URI, optional>
 
 ## Write-time behavior (`services/okf.ts`, invoked from `pages.create` / `pages.newDraft` and path-changing `pages.updateProperties` when `space.kind = 'generated'`)
 
+This hook fires ONLY when the resolved space kind is `generated`. It MUST NOT fire for `raw` or `wiki` pages — raw bodies are preserved byte-identical regardless of content type, and wiki pages are unconstrained.
+
 | Input | Result |
 |---|---|
 | Path whose normalized final segment is `index` or `log` | Reject `422 OKF_RESERVED_PATH`; these names have reserved bundle semantics and are not concept documents |
@@ -30,18 +34,9 @@ resource: <URI, optional>
 | Frontmatter present, `type` missing/empty | Reject `422 OKF_TYPE_REQUIRED` |
 | Unparseable YAML block | Reject `422 OKF_TYPE_REQUIRED` with parse detail |
 
-## Raw entries reuse the same channel
+## Raw entries do NOT reuse this channel
 
-Raw input kinds map onto OKF `type` so one filter (`filterType`) serves both spaces (research D4/D12):
-
-| `inputKind` | Stored frontmatter `type` |
-|---|---|
-| `chat-transcript` | `chat-transcript` |
-| `external-fetch` | `external-fetch` |
-| `script-run` | `script-run` |
-| `manual-note` | `manual-note` |
-
-Initial `source` metadata (`channel`, `url`, `sessionId`, `command`, `occurredAt`) is stored as additional frontmatter keys. The initial revision and every append revision also store that chunk's metadata in immutable `page_revisions.source_metadata`; appended chunks update the body only and never rewrite the stored frontmatter or bytes of prior revisions.
+Raw input kinds and source metadata (`channel`, `url`, `sessionId`, `command`, `occurredAt`) are stored exclusively in `page_revisions.source_metadata` and exposed via the revision resource. They MUST NOT be injected into the raw body, MUST NOT be parsed as OKF frontmatter, and MUST NOT be stored as the OKF `type` field. Raw entries are filtered by an independent `inputKind`/category channel (see `contracts/v1-api-delta.md` and `contracts/mcp-tools-delta.md`), not by `filter[type]`.
 
 ## Generated-space bundle export
 
@@ -79,4 +74,4 @@ JSON manifests, reports, and binary assets may coexist in the ZIP because OKF co
 
 - No `type` taxonomy registry (producer-defined per OKF).
 - No synthesized `index.md`/`log.md` (they are optional and may be added later with their required reserved-file structure).
-- No OKF validation of wiki or raw spaces (raw reuses the format; wiki pages are unconstrained).
+- No OKF validation of wiki or raw spaces — wiki pages are unconstrained, and raw entries preserve their original source format byte-identical without OKF frontmatter or format conversion.
