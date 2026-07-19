@@ -3,7 +3,7 @@ import type { AiSearchResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
-import { buildUserCtx, can, spacePermissionOptions } from '@/server/permissions';
+import { buildUserCtx, can } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { exactCosineSearch, type VectorMatch } from '@/server/ai/retrieval/vector-search';
@@ -19,6 +19,7 @@ export type SemanticSearchInput = {
   limit: number;
   pathPrefix?: string;
   frontmatterFilters?: FrontmatterFilters;
+  space?: string;
 };
 
 export async function createSemanticSearch(ctx: PermCtx, input: SemanticSearchInput) {
@@ -47,20 +48,40 @@ function matchesPathPrefix(path: string, pathPrefix: string | undefined): boolea
   return path === pathPrefix || path.startsWith(`${pathPrefix}/`);
 }
 
-/** Shared, permission-gated vector candidate reader for semantic actions. */
+/** Whether the caller may read a specific vector candidate, decided per its own
+ * space kind + page visibility rather than one default space. Raw/generated
+ * candidates reach Admins only; wiki candidates follow the space's anonymousRead
+ * and the page's restricted flag — the same rules `can()` enforces for reads. */
+function canReadCandidate(ctx: PermCtx, match: VectorMatch): boolean {
+  return can(
+    ctx,
+    'read',
+    { kind: 'page', pageId: match.pageId },
+    { spaceKind: match.spaceKind, anonymousRead: match.spaceAnonymousRead, visibility: match.visibility },
+  );
+}
+
+/**
+ * Shared vector candidate reader for semantic actions, filtered per candidate.
+ * Chunks from raw/generated pages live in the same shared index as wiki chunks,
+ * so a single default-space gate would leak them; each candidate is instead
+ * checked against its own space. An optional `space` slug narrows results to
+ * one space the caller can read.
+ */
 export async function readPermissionFilteredVectorCandidates(
   ctx: PermCtx,
   generationId: string,
   queryVector: number[],
   limit: number,
+  space?: string,
 ): Promise<VectorMatch[]> {
-  // Gate on the default space's page_list read, but never hard-fail when the
-  // row is somehow absent: fall back to a non-anonymous default so an Admin
-  // still retrieves (matching the pre-multi-space behavior).
-  const space = await resolveSpace();
-  const options = space ? spacePermissionOptions(space) : { anonymousRead: false };
-  if (!can(ctx, 'read', { kind: 'page_list' }, options)) return [];
-  return exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
+  const targetSlug = space ? (await resolveSpace(space))?.slug : undefined;
+  if (space && !targetSlug) return [];
+  const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
+  return matches.filter((match) => {
+    if (targetSlug && match.spaceSlug !== targetSlug) return false;
+    return canReadCandidate(ctx, match);
+  });
 }
 
 export async function retrieve(
@@ -68,9 +89,9 @@ export async function retrieve(
   generationId: string,
   queryVector: number[],
   limit: number,
-  filters?: { pathPrefix?: string; frontmatter?: FrontmatterFilters },
+  filters?: { pathPrefix?: string; frontmatter?: FrontmatterFilters; space?: string },
 ): Promise<AiSearchResult[]> {
-  const readable = await readPermissionFilteredVectorCandidates(ctx, generationId, queryVector, limit);
+  const readable = await readPermissionFilteredVectorCandidates(ctx, generationId, queryVector, limit, filters?.space);
   const chunksByPage = new Map<string, VectorMatch[]>();
   for (const match of readable) {
     if (!matchesPathPrefix(match.path, filters?.pathPrefix)) continue;
@@ -141,6 +162,7 @@ export async function runSemanticSearchAction(actionId: string): Promise<void> {
   const results = await retrieve(ctx, generation.id, output.vectors[0]!, input.limit, {
     pathPrefix: input.pathPrefix,
     frontmatter: input.frontmatterFilters,
+    space: input.space,
   });
   await appendActionEvent(actionId, 'search_results', { results });
   await finishAction(actionId, 'completed', { resultMetadata: { resultCount: results.length }, usageMetadata: output.usage ?? {} });

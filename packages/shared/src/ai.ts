@@ -479,6 +479,9 @@ export const publicSemanticSearchSubmitInputSchema = z.object({
   q: z.string().trim().min(1).max(8_000),
   limit: z.number().int().min(1).max(50).default(10),
   pathPrefix: z.string().optional(),
+  // 022 (Phase 11): narrow to one space the caller can read; when omitted the
+  // response is the union of readable spaces (raw/generated only for Admins).
+  space: z.string().optional(),
   scope: z.enum(['path', 'title', 'content', 'all']).default('all').optional(),
   filterTag: z.union([z.string(), z.array(z.string())]).optional(),
   filterStatus: z.union([z.string(), z.array(z.string())]).optional(),

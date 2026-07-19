@@ -1300,6 +1300,7 @@ export const PublicSemanticSearchSubmitInput = z
     q: z.string().trim().min(1).max(8_000).describe('Free-text semantic search query.'),
     limit: z.number().int().min(1).max(50).optional().default(10).describe('Maximum number of results to return (1-50). Defaults to 10.'),
     pathPrefix: z.string().optional().describe('Directory prefix to restrict matching to pages under a subtree.'),
+    space: z.string().optional().describe('Restrict to one space the caller can read. Omit for the union of readable spaces (raw/generated only for Admins).'),
     scope: z
       .enum(['path', 'title', 'content', 'all'])
       .optional()

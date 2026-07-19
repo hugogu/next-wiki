@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { exactCosineSearch } from '@/server/ai/retrieval/vector-search';
-import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import { readPermissionFilteredVectorCandidates, retrieve } from './ai-retrieval';
 import * as publicAi from './public-ai';
 
@@ -107,6 +107,68 @@ describe('AI vector retrieval', () => {
     await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revisionId));
     await db.delete(schema.pages).where(eq(schema.pages.id, pageId));
     await db.delete(schema.spaces).where(eq(schema.spaces.id, spaceId));
+    await removeAiTestUser(userId);
+  });
+
+  it('returns raw/generated candidates only to Admins, wiki to everyone (022 space-kind gate)', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('admin');
+    const [provider] = await db.insert(schema.aiProviders).values({
+      name: 'Space-kind fixture', kind: 'openai_compatible', baseUrl: 'https://example.com',
+      credentialsEncrypted: 'encrypted', createdBy: userId, updatedBy: userId,
+    }).returning();
+    const [model] = await db.insert(schema.aiModels).values({
+      providerId: provider!.id, externalId: 'embed', displayName: 'Embed', availability: 'available', embeddingDimensions: 3,
+    }).returning();
+    const [generation] = await db.insert(schema.aiIndexGenerations).values({
+      modelId: model!.id, embeddingDimensions: 3, chunkerVersion: 'test', status: 'ready', isActive: true,
+    }).returning();
+
+    const seedChunk = async (kind: 'wiki' | 'raw' | 'generated', anonymousRead: boolean) => {
+      const spaceId = randomUUID();
+      await db.insert(schema.spaces).values({ id: spaceId, slug: `sk-${kind}-${spaceId.slice(0, 8)}`, name: kind, kind, anonymousRead });
+      const pageId = randomUUID();
+      const revisionId = randomUUID();
+      await db.insert(schema.pages).values({
+        id: pageId, spaceId, slug: `p-${kind}`, path: `p-${kind}`, title: kind,
+        authorId: userId, nature: kind === 'raw' ? 'original' : 'generated',
+        visibility: kind === 'wiki' ? 'public' : 'restricted',
+        currentPublishedVersionId: revisionId, latestVersionId: revisionId,
+      });
+      await db.insert(schema.pageRevisions).values({
+        id: revisionId, pageId, versionNumber: 1, contentSource: `${kind} content`,
+        contentHtml: `<p>${kind}</p>`, contentHash: `hash-${kind}`, authorId: userId, status: 'published', publishedAt: new Date(),
+      });
+      await db.insert(schema.aiKnowledgeChunks).values({
+        generationId: generation!.id, pageId, revisionId, chunkIndex: 0,
+        contentText: `${kind} content`, contentHash: `chunk-${kind}`, byteCount: 12, embedding: [1, 0, 0],
+      });
+      return pageId;
+    };
+
+    const wikiPage = await seedChunk('wiki', true);
+    const rawPage = await seedChunk('raw', false);
+    const generatedPage = await seedChunk('generated', false);
+
+    const adminResults = await retrieve(buildUserCtx(userId, 'admin'), generation!.id, [1, 0, 0], 10);
+    expect(new Set(adminResults.map((r) => r.pageId))).toEqual(new Set([wikiPage, rawPage, generatedPage]));
+
+    // Anonymous callers see the wiki candidate only, even though raw/generated
+    // chunks live in the same shared index.
+    const anonResults = await retrieve(buildAnonymousCtx(), generation!.id, [1, 0, 0], 10);
+    expect(anonResults.map((r) => r.pageId)).toEqual([wikiPage]);
+
+    // The optional space filter narrows an Admin to a single space.
+    const rawOnly = await readPermissionFilteredVectorCandidates(buildUserCtx(userId, 'admin'), generation!.id, [1, 0, 0], 10, (await db.query.spaces.findFirst({ where: eq(schema.spaces.kind, 'raw') }))!.slug);
+    expect(rawOnly.map((c) => c.pageId)).toEqual([rawPage]);
+
+    await clearAiData();
+    for (const pid of [wikiPage, rawPage, generatedPage]) {
+      const pg = await db.query.pages.findFirst({ where: eq(schema.pages.id, pid) });
+      await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, pid));
+      await db.delete(schema.pages).where(eq(schema.pages.id, pid));
+      if (pg) await db.delete(schema.spaces).where(eq(schema.spaces.id, pg.spaceId));
+    }
     await removeAiTestUser(userId);
   });
 });

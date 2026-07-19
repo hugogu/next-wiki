@@ -51,6 +51,7 @@ export async function submitSemanticSearch(ctx: PermCtx, input: PublicSemanticSe
     limit: input.limit,
     pathPrefix: input.pathPrefix,
     frontmatterFilters: extractFrontmatterFilters(input),
+    space: input.space,
   };
   const accepted = await createSemanticSearch(ctx, searchInput);
 
