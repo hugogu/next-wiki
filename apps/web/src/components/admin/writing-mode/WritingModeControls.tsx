@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { WritingMode } from '@next-wiki/shared';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { WritingModeOptionCards } from '@/components/setup/WritingModeOptionCards';
 import { apiGet, useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import { SwitchModeDialog } from './SwitchModeDialog';
@@ -66,8 +67,12 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
   };
 
   return (
-    <section className="max-w-3xl border-b border-border py-md">
-      <div className="flex flex-wrap items-center justify-between gap-md">
+    <section className="max-w-4xl space-y-md border-t border-border py-lg">
+      <WritingModeOptionCards
+        selectedMode={initial.mode}
+        selectedBadgeKey="admin.writingMode.currentLabel"
+      />
+      <div className="flex flex-wrap items-center justify-between gap-md border-t border-border pt-md">
         <div>
           <h2 className="text-sm font-medium">{t('admin.writingMode.changeLabel')}</h2>
           {active && <p className="mt-xs text-sm text-muted">{t('admin.writingMode.pending')}</p>}
@@ -84,7 +89,7 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
       </div>
       {error && <Alert>{error}</Alert>}
       {job.data && (
-        <div className="mt-md space-y-sm text-sm">
+        <div className="space-y-sm text-sm">
           <p className={failure ? 'text-danger' : 'text-muted'}>
             {t(`admin.writingMode.job.${job.data.status}`)}
           </p>
