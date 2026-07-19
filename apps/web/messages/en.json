@@ -432,8 +432,15 @@
     }
   },
   "space": {
-    "error": {
-      "defaultNotFound": "Default space not found"
+    "reader": {
+      "empty": "Select a page from the navigator.",
+      "breadcrumbs": "Breadcrumbs",
+      "raw": {
+        "download": "Download original",
+        "pdfTitle": "PDF preview",
+        "imageAlt": "Raw image",
+        "noViewer": "No dedicated viewer for this content type; showing the extracted text."
+      }
     }
   },
   "editor": {
@@ -1462,12 +1469,6 @@
         "generated": "Generated",
         "raw": "Raw"
       }
-    }
-  },
-  "space": {
-    "reader": {
-      "empty": "Select a page from the navigator.",
-      "breadcrumbs": "Breadcrumbs"
     }
   },
   "apiDocs": {

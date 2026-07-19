@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
+import { RawContentRenderer } from '@/components/pages/raw-content/RawContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
@@ -69,6 +70,11 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
   const headings = extractHeadings(bodyHtml);
   const createdAt = new Date(page.createdAt);
   const latestRevision = page.latestRevision;
+  // Raw entries dispatch their renderer by content type from the current
+  // revision (which also carries the original-bytes reference for viewers).
+  const rawRevision = space === 'raw'
+    ? await publicContent.getRevision({ actor }, page.id, latestRevision?.version ?? page.publishedRevision?.version ?? 1)
+    : null;
   const status = latestRevision?.status === 'draft' ? 'draft' : page.status;
   const pageContext = {
     pageId: page.id,
@@ -123,7 +129,22 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                 tags: t('page.metadata.tags'),
               }}
             />
-            <ContentRenderer html={bodyHtml} />
+            {space === 'raw' && rawRevision ? (
+              <RawContentRenderer
+                contentType={rawRevision.contentType}
+                contentSource={rawRevision.contentSource ?? page.contentSource ?? ''}
+                originalAssetId={rawRevision.originalAsset?.id ?? null}
+                markdownHtml={bodyHtml}
+                labels={{
+                  download: t('space.reader.raw.download'),
+                  pdfTitle: t('space.reader.raw.pdfTitle'),
+                  imageAlt: t('space.reader.raw.imageAlt'),
+                  noViewer: t('space.reader.raw.noViewer'),
+                }}
+              />
+            ) : (
+              <ContentRenderer html={bodyHtml} />
+            )}
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
               {t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
               {t('page.read.authorSuffix', { name: page.author.displayName ?? t('common.unknownAuthor') })}

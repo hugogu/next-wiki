@@ -3,11 +3,12 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as publicContent from '@/server/services/public-content';
 import * as rawEntries from '@/server/services/raw-entries';
 import * as rawCategories from '@/server/services/raw-categories';
+import * as contentAssets from '@/server/services/content-assets';
 import * as revisions from '@/server/services/revisions';
 import { beginPendingSwitch, clearPendingSwitch, setModeInternal } from '@/server/services/writing-mode';
 import { publicPageListQuerySchema } from '@next-wiki/shared';
@@ -115,6 +116,25 @@ describe('raw entries service', () => {
 
     const resource = await publicContent.getRevision(adminCtx, created.pageId, 1);
     expect(resource?.originalAsset).toMatchObject({ id: revision?.originalAssetId, contentType: 'application/pdf' });
+  });
+
+  it('serves original bytes to Admins only via getServableRawAsset', async () => {
+    const created = await rawEntries.createEntry(adminCtx, {
+      path: 'raw/served', title: 'Served', inputKind: 'external-fetch',
+      content: 'extracted', contentType: 'application/pdf', originalBytes: PDF_BYTES.toString('base64'),
+    });
+    const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, created.versionId) });
+    const assetId = revision!.originalAssetId!;
+
+    const admin = await contentAssets.getServableRawAsset(adminCtx, assetId);
+    expect(admin.kind).toBe('ok');
+    if (admin.kind === 'ok') {
+      expect(admin.contentType).toBe('application/pdf');
+      expect(admin.bytes.equals(PDF_BYTES)).toBe(true);
+    }
+
+    // Non-admins (and anonymous) get a not_found with no existence leak.
+    await expect(contentAssets.getServableRawAsset(buildAnonymousCtx(), assetId)).resolves.toEqual({ kind: 'not_found' });
   });
 
   it('rejects a declared content type that disagrees with the uploaded bytes', async () => {

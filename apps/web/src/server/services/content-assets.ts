@@ -175,6 +175,64 @@ async function canReadAsset(
   return false;
 }
 
+export type ServableRawAsset =
+  | { kind: 'ok'; bytes: Buffer; contentType: string }
+  | { kind: 'not_found' }
+  | { kind: 'unavailable' };
+
+/**
+ * Whether the caller may read a raw original-bytes asset — decided by the raw
+ * page(s) that reference it via `page_revisions.original_asset_id`. Raw pages are
+ * Admin-only, so this is effectively an Admin gate, but it is expressed through
+ * the same `can()` read rule as the page for consistency.
+ */
+async function canReadRawAsset(ctx: PermCtx, asset: typeof schema.contentAssets.$inferSelect): Promise<boolean> {
+  const rows = await db
+    .select({
+      pageId: schema.pages.id,
+      anonymousRead: schema.spaces.anonymousRead,
+      spaceKind: schema.spaces.kind,
+      visibility: schema.pages.visibility,
+    })
+    .from(schema.pageRevisions)
+    .innerJoin(schema.pages, eq(schema.pageRevisions.pageId, schema.pages.id))
+    .innerJoin(schema.spaces, eq(schema.pages.spaceId, schema.spaces.id))
+    .where(and(eq(schema.pageRevisions.originalAssetId, asset.id), isNull(schema.pages.deletedAt)));
+
+  for (const row of rows) {
+    if (can(ctx, 'read', { kind: 'page', pageId: row.pageId }, { spaceKind: row.spaceKind, anonymousRead: row.anonymousRead, visibility: row.visibility })) {
+      return true;
+    }
+  }
+
+  const userId = getActorUserId(ctx);
+  if (rows.length === 0 && userId !== null && asset.createdBy === userId && !isUploadExpired(asset.createdAt, env.CONTENT_UPLOAD_TTL_HOURS)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Resolve a raw entry's immutable original bytes for serving/download. Reuses the
+ * shared content-store read path (Database or external backend), always serving
+ * through this app so the content type and download disposition are controlled;
+ * raw assets are Admin-only and low-traffic, so no S3 redirect is used.
+ */
+export async function getServableRawAsset(ctx: PermCtx, assetId: string): Promise<ServableRawAsset> {
+  const asset = await db.query.contentAssets.findFirst({
+    where: and(eq(schema.contentAssets.id, assetId), isNull(schema.contentAssets.deletedAt)),
+  });
+  if (!asset) return { kind: 'not_found' };
+  if (!(await canReadRawAsset(ctx, asset))) return { kind: 'not_found' };
+  try {
+    const { bytes } = await readImageWithFallback(asset);
+    return { kind: 'ok', bytes, contentType: asset.contentType };
+  } catch (error) {
+    if (error instanceof ContentStoreError) return { kind: 'unavailable' };
+    throw error;
+  }
+}
+
 /**
  * Synchronize `content_asset_refs` for a revision to exactly the assets its
  * Markdown references. Runs in the same transaction as the revision write so

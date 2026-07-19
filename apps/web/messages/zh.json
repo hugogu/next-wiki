@@ -432,8 +432,15 @@
     }
   },
   "space": {
-    "error": {
-      "defaultNotFound": "默认空间不存在"
+    "reader": {
+      "empty": "从导航中选择一个页面。",
+      "breadcrumbs": "面包屑导航",
+      "raw": {
+        "download": "下载原件",
+        "pdfTitle": "PDF 预览",
+        "imageAlt": "原始图片",
+        "noViewer": "该内容类型没有专用查看器,显示提取的文本。"
+      }
     }
   },
   "editor": {
@@ -1462,12 +1469,6 @@
         "generated": "生成内容",
         "raw": "原始内容"
       }
-    }
-  },
-  "space": {
-    "reader": {
-      "empty": "从导航中选择一个页面。",
-      "breadcrumbs": "面包屑导航"
     }
   },
   "apiDocs": {
