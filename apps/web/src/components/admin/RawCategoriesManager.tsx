@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Switch } from '@/components/ui/Switch';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Tooltip } from '@/components/ui/Tooltip';
 import {
   DataTable,
   DataTableBody,
@@ -17,6 +18,13 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
+import {
+  ArchiveIcon,
+  CheckIcon,
+  EditIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@/components/icons';
 import { apiDelete, apiGet, apiPatch, apiPost, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -28,14 +36,29 @@ type RawCategory = {
   isDefault: boolean;
   isRetired: boolean;
   entryCount: number;
+  createdAt: string;
 };
 
 type FormState = { id: string | null; name: string; slug: string; description: string; isDefault: boolean };
 
 const EMPTY_FORM: FormState = { id: null, name: '', slug: '', description: '', isDefault: false };
 
-export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
-  const { t } = useTranslation();
+function formatCreatedAt(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+export function RawCategoriesManager({
+  initial,
+  title,
+  description,
+}: {
+  initial: RawCategory[];
+  title: string;
+  description: string;
+}) {
+  const { t, locale } = useTranslation();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'retire' | 'delete'; category: RawCategory } | null>(null);
@@ -83,11 +106,19 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
   return (
     <section className="max-w-4xl space-y-md">
       {error && <Alert>{error}</Alert>}
-      <div className="flex justify-end">
-        <Button onClick={() => { setError(null); setForm({ ...EMPTY_FORM }); }}>
-          {t('admin.rawCategories.actions.create')}
-        </Button>
-      </div>
+
+      <header className="flex items-start justify-between gap-md">
+        <div>
+          <h1 className="font-display text-xl font-semibold">{title}</h1>
+          <p className="mt-xs max-w-3xl text-sm text-muted">{description}</p>
+        </div>
+        <Tooltip label={t('admin.rawCategories.actions.create')}>
+          <Button onClick={() => { setError(null); setForm({ ...EMPTY_FORM }); }}>
+            <PlusIcon className="h-4 w-4" aria-hidden="true" />
+            {t('admin.rawCategories.actions.create')}
+          </Button>
+        </Tooltip>
+      </header>
 
       {categories.length === 0 ? (
         <p className="text-sm text-muted">{t('admin.rawCategories.empty')}</p>
@@ -98,6 +129,7 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
               <DataTableHeader>{t('admin.rawCategories.columns.name')}</DataTableHeader>
               <DataTableHeader>{t('admin.rawCategories.columns.slug')}</DataTableHeader>
               <DataTableHeader align="right">{t('admin.rawCategories.columns.entries')}</DataTableHeader>
+              <DataTableHeader>{t('admin.rawCategories.columns.created')}</DataTableHeader>
               <DataTableHeader>{t('admin.rawCategories.columns.status')}</DataTableHeader>
               <DataTableHeader align="right">{t('admin.rawCategories.columns.actions')}</DataTableHeader>
             </DataTableRow>
@@ -108,6 +140,9 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
                 <DataTableCell className="font-medium">{category.name}</DataTableCell>
                 <DataTableCell className="font-mono text-muted">{category.slug}</DataTableCell>
                 <DataTableCell align="right" className="tabular-nums">{category.entryCount}</DataTableCell>
+                <DataTableCell className="whitespace-nowrap text-muted">
+                  {formatCreatedAt(category.createdAt, locale)}
+                </DataTableCell>
                 <DataTableCell>
                   {category.isDefault && <StatusBadge tone="info">{t('admin.rawCategories.status.default')}</StatusBadge>}
                   {category.isRetired && <StatusBadge tone="neutral">{t('admin.rawCategories.status.retired')}</StatusBadge>}
@@ -116,23 +151,68 @@ export function RawCategoriesManager({ initial }: { initial: RawCategory[] }) {
                   )}
                 </DataTableCell>
                 <DataTableCell align="right">
-                  <div className="flex flex-wrap justify-end gap-sm">
-                    <Button variant="ghost" onClick={() => { setError(null); setForm({ id: category.id, name: category.name, slug: category.slug, description: category.description ?? '', isDefault: category.isDefault }); }}>
-                      {t('admin.rawCategories.actions.rename')}
-                    </Button>
-                    {!category.isDefault && !category.isRetired && (
-                      <Button variant="ghost" onClick={() => void run(() => apiPatch(`/api/settings/raw-categories/${category.id}`, { isDefault: true }))}>
-                        {t('admin.rawCategories.actions.setDefault')}
+                  <div className="flex flex-wrap justify-end gap-xs">
+                    <Tooltip label={t('admin.rawCategories.actions.rename')}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('admin.rawCategories.actions.rename')}
+                        onClick={() => {
+                          setError(null);
+                          setForm({
+                            id: category.id,
+                            name: category.name,
+                            slug: category.slug,
+                            description: category.description ?? '',
+                            isDefault: category.isDefault,
+                          });
+                        }}
+                      >
+                        <EditIcon className="h-5 w-5" aria-hidden="true" />
                       </Button>
+                    </Tooltip>
+                    {!category.isDefault && !category.isRetired && (
+                      <Tooltip label={t('admin.rawCategories.actions.setDefault')}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('admin.rawCategories.actions.setDefault')}
+                          onClick={() =>
+                            void run(() => apiPatch(`/api/settings/raw-categories/${category.id}`, { isDefault: true }))
+                          }
+                        >
+                          <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                        </Button>
+                      </Tooltip>
                     )}
                     {!category.isRetired && (
-                      <Button variant="ghost" onClick={() => { setError(null); setConfirm({ kind: 'retire', category }); }}>
-                        {t('admin.rawCategories.actions.retire')}
-                      </Button>
+                      <Tooltip label={t('admin.rawCategories.actions.retire')}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('admin.rawCategories.actions.retire')}
+                          onClick={() => {
+                            setError(null);
+                            setConfirm({ kind: 'retire', category });
+                          }}
+                        >
+                          <ArchiveIcon className="h-5 w-5" aria-hidden="true" />
+                        </Button>
+                      </Tooltip>
                     )}
-                    <Button variant="ghost" onClick={() => { setError(null); setConfirm({ kind: 'delete', category }); }}>
-                      {t('admin.rawCategories.actions.delete')}
-                    </Button>
+                    <Tooltip label={t('admin.rawCategories.actions.delete')}>
+                      <Button
+                        size="icon"
+                        variant="danger"
+                        aria-label={t('admin.rawCategories.actions.delete')}
+                        onClick={() => {
+                          setError(null);
+                          setConfirm({ kind: 'delete', category });
+                        }}
+                      >
+                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                      </Button>
+                    </Tooltip>
                   </div>
                 </DataTableCell>
               </DataTableRow>

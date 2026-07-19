@@ -25,11 +25,11 @@ export default async function AdminRawCategoriesPage() {
   return (
     <Layout admin>
       <div className="space-y-md px-lg py-md">
-        <div>
-          <h1 className="font-display text-xl font-semibold">{t('admin.rawCategories.title')}</h1>
-          <p className="mt-xs max-w-3xl text-sm text-muted">{t('admin.rawCategories.description')}</p>
-        </div>
-        <RawCategoriesManager initial={categories} />
+        <RawCategoriesManager
+          initial={categories}
+          title={t('admin.rawCategories.title')}
+          description={t('admin.rawCategories.description')}
+        />
       </div>
     </Layout>
   );
