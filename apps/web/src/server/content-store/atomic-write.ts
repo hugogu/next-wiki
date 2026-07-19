@@ -6,16 +6,22 @@ import { DatabaseStore } from './database-store';
 import type { ContentStore } from './types';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 
-export type NewImageAsset = {
+export type NewAsset = {
+  /** Free-form label; `content_type` (MIME) is the real type source of truth.
+   * Defaults to `image` for the historical image-upload callers. */
+  kind?: string;
   bytes: Buffer;
   contentType: string;
   contentHash: string;
   sizeBytes: number;
   createdBy: string | null;
 };
+export type NewImageAsset = NewAsset;
 
 /**
- * Persist an uploaded image's bytes and `content_assets` metadata atomically.
+ * Persist an asset's bytes and `content_assets` metadata atomically, reusing the
+ * same storage compatibility layer for images and raw original bytes alike — the
+ * store's put/delete methods move opaque bytes regardless of MIME type.
  *
  * - **Database backend**: bytes (`content_blobs`) and metadata (`content_assets`)
  *   are written in one transaction (plan D3a).
@@ -24,16 +30,17 @@ export type NewImageAsset = {
  *   object is best-effort deleted; an unsuccessful compensation leaves only an
  *   unreferenced object that bounded orphan cleanup reclaims.
  */
-export async function writeImageAsset(
+export async function writeAsset(
   store: ContentStore,
-  asset: NewImageAsset,
+  asset: NewAsset,
 ): Promise<{ id: string }> {
+  const kind = asset.kind ?? 'image';
   if (store instanceof DatabaseStore) {
     const created = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(schema.contentAssets)
         .values({
-          kind: 'image',
+          kind,
           contentHash: asset.contentHash,
           contentType: asset.contentType,
           sizeBytes: asset.sizeBytes,
@@ -55,7 +62,7 @@ export async function writeImageAsset(
   try {
     await db.insert(schema.contentAssets).values({
       id,
-      kind: 'image',
+      kind,
       contentHash: asset.contentHash,
       contentType: asset.contentType,
       sizeBytes: asset.sizeBytes,
@@ -68,6 +75,9 @@ export async function writeImageAsset(
   }
   return { id };
 }
+
+/** Back-compat alias for the image-upload callers (kind defaults to `image`). */
+export const writeImageAsset = writeAsset;
 
 /** True if an asset created at `createdAt` is past the abandoned-upload TTL. */
 export function isUploadExpired(createdAt: Date, ttlHours: number, now: Date = new Date()): boolean {

@@ -18,7 +18,6 @@ import { isNull } from 'drizzle-orm';
 import {
   apiKeyScopeEnum,
   cleanupStatusEnum,
-  contentAssetKindEnum,
   migrationStatusEnum,
   revisionStatusEnum,
   storageBackendPurposeEnum,
@@ -709,7 +708,7 @@ export const contentAssets = pgTable(
   'content_assets',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    kind: contentAssetKindEnum('kind').notNull().default('image'),
+    kind: text('kind').notNull().default('image'),
     contentHash: text('content_hash').notNull(),
     contentType: text('content_type').notNull(),
     sizeBytes: integer('size_bytes').notNull(),

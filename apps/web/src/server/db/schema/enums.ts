@@ -34,7 +34,9 @@ export const storageBackendPurposeEnum = pgEnum('storage_backend_purpose', [
   'git_export',
 ]);
 
-export const contentAssetKindEnum = pgEnum('content_asset_kind', ['image']);
+// 022 (Phase 11): content_assets.kind is an open label, not a closed enum — the
+// same asset infrastructure now stores raw original bytes of any MIME type, and
+// `content_assets.content_type` (a MIME string) is the real type source of truth.
 
 export const migrationStatusEnum = pgEnum('migration_status', [
   'pending',
