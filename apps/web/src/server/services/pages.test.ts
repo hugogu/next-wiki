@@ -124,6 +124,24 @@ describe('pageService US3', () => {
       expect(page?.slug).toBe('intro');
     });
 
+    it('stores the body verbatim in the wiki space: OKF injection is generated-only', async () => {
+      const editor = await createUser('editor-no-okf@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const body = '# Plain\n\nNo frontmatter, no type.';
+
+      const result = await pageService.create(ctx, {
+        path: 'no-okf',
+        title: 'No OKF',
+        contentSource: body,
+      });
+
+      const revision = await db.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, result.versionId),
+      });
+      expect(revision?.contentSource).toBe(body);
+      expect(revision?.contentSource).not.toContain('type:');
+    });
+
     it('rejects invalid path format', async () => {
       const editor = await createUser('editor-slug@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
