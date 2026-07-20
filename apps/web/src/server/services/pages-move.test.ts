@@ -70,6 +70,26 @@ describe('pages.moveToSpace', () => {
     expect(rows[1]!.contentSource).toContain('This was actually AI-generated.');
   });
 
+  it('derives an OKF type from the path when imported frontmatter lacks one', async () => {
+    // Wiki.js-style import: has frontmatter, but no `type`.
+    const imported = '---\ntitle: Imported\nauthor: legacy\n---\n\n# Imported doc';
+    const created = await publishedWikiPage(adminCtx, 'guides/setup/install', imported);
+
+    await pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated' });
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
+    const rows = await db
+      .select()
+      .from(schema.pageRevisions)
+      .where(eq(schema.pageRevisions.pageId, created.pageId))
+      .orderBy(asc(schema.pageRevisions.versionNumber));
+    // The parent path becomes the type; the original keys and body are preserved.
+    expect(rows[1]!.contentSource).toContain('type: guides/setup');
+    expect(rows[1]!.contentSource).toContain('author: legacy');
+    expect(rows[1]!.contentSource).toContain('# Imported doc');
+    expect(page).toMatchObject({ nature: 'generated' });
+  });
+
   it('moves an already-OKF-conformant page without adding a revision', async () => {
     const okf = '---\ntype: Concept\ntitle: Ready\n---\n\nAlready conformant.';
     const created = await publishedWikiPage(adminCtx, 'imported/ready', okf);

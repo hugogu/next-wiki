@@ -118,8 +118,9 @@ test.describe('admin cross-space page move', () => {
     // The page now lives in generated, admin-only, with injected OKF frontmatter.
     await expect.poll(async () => (await readMovedPage(pageId))?.slug).toBe('generated');
     const moved = await readMovedPage(pageId);
-    expect(moved).toMatchObject({ nature: 'generated', visibility: 'restricted' });
-    expect(moved.source).toMatch(/^---\ntype: /);
-    expect(moved.source).toContain('This wiki page was actually AI generated.');
+    expect(moved).toBeTruthy();
+    expect(moved!).toMatchObject({ nature: 'generated', visibility: 'restricted' });
+    expect(moved!.source).toMatch(/^---\ntype: /);
+    expect(moved!.source).toContain('This wiki page was actually AI generated.');
   });
 });

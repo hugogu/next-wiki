@@ -39,7 +39,7 @@ import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
-import { ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
+import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 import { listLiveLinksForTarget } from '@/server/services/link-pages';
 
 const ADMIN_PAGE_SIZE = 25;
@@ -1334,7 +1334,13 @@ export async function moveToSpace(
       const current = await tx.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, primaryRevId) });
       if (current) {
         const original = await readMarkdownWithFallback(current);
-        const conformant = ensureOkfConformance(original, { title: page.title, now: new Date() });
+        // Bulk moves must never fail for the want of a type; derive one from the
+        // page path when the (often Wiki.js-imported) frontmatter lacks it.
+        const conformant = ensureOkfConformance(original, {
+          title: page.title,
+          now: new Date(),
+          fallbackType: deriveOkfTypeFromPath(page.path),
+        });
         if (conformant !== original) {
           const revisionId = randomUUID();
           const { html, hash } = renderMarkdown(conformant);
