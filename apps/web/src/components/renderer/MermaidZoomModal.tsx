@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { SVGProps } from 'react';
 import {
   TransformWrapper,
   TransformComponent,
   useControls,
 } from 'react-zoom-pan-pinch';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { PlusIcon } from '@/components/icons';
 import { CodeBlock } from './CodeBlock';
 import { mermaidThemeVariables } from './mermaid-theme';
 import { useTranslation } from '@/i18n/client';
@@ -56,8 +58,10 @@ export function MermaidZoomModal({
         const svg = containerRef.current?.querySelector('svg');
         if (!svg) setFailed(true);
       })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.error('[MermaidZoomModal] mermaid.run failed:', err);
+        setFailed(true);
       });
 
     return () => {
@@ -151,42 +155,23 @@ function ZoomControls() {
   );
 }
 
-// Minimal inline icons so we don't add new exports to the shared icon set just
-// for this toolbar. They match the shared `Icon` wrapper's style (24x24
-// viewBox, 2px stroke, rounded caps) but at 16px display size.
-function PlusIcon({ className }: { className?: string }) {
+// Minimal inline icon for zoom-out; the shared icon set doesn't export a
+// MinusIcon, and adding one just for this toolbar would be over-scope.
+// Matches the shared `Icon` wrapper's style (24x24 viewBox, 2px stroke,
+// rounded caps) at 16px display size.
+function MinusIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      className={className}
       xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
-}
-
-function MinusIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      {...props}
     >
       <path d="M5 12h14" />
     </svg>
