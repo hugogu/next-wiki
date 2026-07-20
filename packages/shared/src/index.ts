@@ -69,6 +69,8 @@ export const editableViewSchema = z.object({
   canPublish: z.boolean(),
   canDelete: z.boolean(),
   writeMetadataToFrontmatter: z.boolean(),
+  kind: z.enum(['native', 'link']).optional(),
+  linkTargetPageId: z.string().uuid().nullable().optional(),
   metadata: z.object({
     date: z.string().nullable(),
     summary: z.string().nullable(),

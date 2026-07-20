@@ -642,7 +642,8 @@
       "status": {
         "draft": "Draft",
         "published": "Published",
-        "deleted": "Deleted"
+        "deleted": "Deleted",
+        "linked": "linked"
       },
       "actions": {
         "view": "View page",

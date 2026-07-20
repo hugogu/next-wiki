@@ -642,7 +642,8 @@
       "status": {
         "draft": "草稿",
         "published": "已发布",
-        "deleted": "已删除"
+        "deleted": "已删除",
+        "linked": "链接"
       },
       "actions": {
         "view": "查看页面",

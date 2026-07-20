@@ -7,6 +7,7 @@ import { RawContentRenderer } from '@/components/pages/raw-content/RawContentRen
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
+import { PublishLinkButton } from '@/components/pages/PublishLinkButton';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { getSpaceHref, type ReaderSpace } from '@/lib/path';
 import { getCurrentActor } from '@/server/services/auth';
@@ -97,6 +98,11 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
         )}
         <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_14rem]">
           <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
+            {space === 'generated' && page.status === 'published' && (
+              <div className="absolute right-lg top-md z-10">
+                <PublishLinkButton pageId={page.id} targetTitle={page.title} currentPath={page.path} />
+              </div>
+            )}
             <nav aria-label={t('space.reader.breadcrumbs')} className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted">
               <Link className="hover:text-foreground" href={getSpaceHref(space)}>{spaceLabel(t, space)}</Link>
               {segments.map((segment, index) => {
@@ -113,13 +119,8 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                   </span>
                 );
               })}
+              <ProvenanceIndicators pageId={page.id} className="flex items-center gap-xs" />
             </nav>
-            <ProvenanceIndicators
-              pageId={page.id}
-              targetTitle={page.title}
-              currentPath={page.path}
-              allowPublishLink={space === 'generated' && page.status === 'published'}
-            />
             <PageMetadata
               date={page.metadata?.date ?? null}
               summary={page.metadata?.summary ?? null}

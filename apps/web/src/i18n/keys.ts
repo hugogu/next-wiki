@@ -424,6 +424,7 @@ export const translationKeys = [
   "admin.pages.status.draft",
   "admin.pages.status.published",
   "admin.pages.status.deleted",
+  "admin.pages.status.linked",
   "admin.pages.actions.view",
   "admin.pages.actions.edit",
   "admin.pages.actions.move",

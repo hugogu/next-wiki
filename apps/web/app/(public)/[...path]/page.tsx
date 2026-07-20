@@ -227,7 +227,6 @@ export default async function PageRead({ params }: { params: PageParams }) {
                 <ShareButton pageId={page.pageId} title={page.title} />
               </div>
             )}
-            <ProvenanceIndicators pageId={page.pageId} />
             <PageMetadata
               date={page.metadata.date}
               summary={page.metadata.summary}
@@ -240,8 +239,11 @@ export default async function PageRead({ params }: { params: PageParams }) {
             />
             <ContentRenderer html={bodyHtml} />
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
-              {t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
-              {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}
+              <div className="flex flex-wrap items-center gap-sm">
+                <span>{t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
+                {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}</span>
+                <ProvenanceIndicators pageId={page.pageId} />
+              </div>
             </footer>
           </article>
           <PageSidebar

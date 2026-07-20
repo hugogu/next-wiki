@@ -37,7 +37,7 @@ import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, invalidatePublicLinkPaths, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
-import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
+import { getSpaceById, resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 import { listLiveLinksForTarget } from '@/server/services/link-pages';
@@ -1426,6 +1426,42 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
 
   if (!page) return null;
 
+  // For link pages, redirect editing to the linked target's generated page.
+  if (page.kind === 'link' && page.linkTargetPageId) {
+    const targetPage = await db.query.pages.findFirst({
+      where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt), isNull(schema.pages.translationGroupId)),
+    });
+    if (!targetPage) return null;
+    const targetSpace = await getSpaceById(targetPage.spaceId);
+    if (!targetSpace) return null;
+    if (!can(ctx, 'edit', { kind: 'page', pageId: targetPage.id }, pagePermissionOptions(targetSpace, targetPage, { isAuthor: userId ? targetPage.authorId === userId : false }))) {
+      return null;
+    }
+    const targetRevision = targetPage.latestVersionId
+      ? await db.query.pageRevisions.findFirst({
+          where: eq(schema.pageRevisions.id, targetPage.latestVersionId),
+        })
+      : null;
+    if (!targetRevision) return null;
+    const targetMetadata = await getRevisionMetadata(targetRevision.id);
+    const targetIsAuthor = userId ? targetRevision.authorId === userId : false;
+    const targetCanPublish = can(ctx, 'publish', { kind: 'revision', pageId: targetPage.id, version: targetRevision.versionNumber }, pagePermissionOptions(targetSpace, targetPage, { isAuthor: targetIsAuthor }));
+    const targetCanDelete = can(ctx, 'delete', { kind: 'page', pageId: targetPage.id }, pagePermissionOptions(targetSpace, targetPage, { isAuthor: targetIsAuthor }));
+    return {
+      pageId: targetPage.id,
+      revisionId: targetRevision.id,
+      path: targetPage.path,
+      title: targetPage.title,
+      contentSource: await readMarkdownFromDatabase(targetRevision),
+      latestVersion: targetRevision.versionNumber,
+      status: targetRevision.status,
+      canPublish: targetCanPublish,
+      canDelete: targetCanDelete,
+      writeMetadataToFrontmatter: targetPage.writeMetadataToFrontmatter,
+      metadata: targetMetadata,
+    };
+  }
+
   const isAuthor = userId ? page.authorId === userId : false;
   if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
     return null;
@@ -1456,12 +1492,14 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
     title: page.title,
     // Editing reads the authoritative source directly: blocking the page load
     // on a remote replica (e.g. S3) is not worth it for the small markdown body.
-    contentSource: await readMarkdownFromDatabase(revision),
+    contentSource: page.kind === 'link' ? '' : await readMarkdownFromDatabase(revision),
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,
     canDelete,
     writeMetadataToFrontmatter: page.writeMetadataToFrontmatter,
+    kind: page.kind,
+    linkTargetPageId: page.linkTargetPageId,
     metadata,
   };
 }

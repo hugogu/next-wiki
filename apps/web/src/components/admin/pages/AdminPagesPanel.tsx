@@ -221,8 +221,11 @@ export function AdminPagesPanel({
                   </div>
                 </DataTableCell>
                 <DataTableCell>
-                  <span className="rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
+                  <span className="inline-flex items-center gap-xs rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
                     {t(`admin.pages.status.${page.status}` as TranslationKey)}
+                    {page.kind === 'link' && (
+                      <span className="text-muted/70">({t('admin.pages.status.linked')})</span>
+                    )}
                   </span>
                 </DataTableCell>
                 <DataTableCell className="text-muted">
