@@ -1520,7 +1520,13 @@
     },
     "mermaid": {
       "diagramButton": "图表",
-      "codeButton": "代码"
+      "codeButton": "代码",
+      "expandButton": "在弹窗中打开",
+      "modalTitle": "图表",
+      "modalDescription": "拖动平移，滚动缩放。使用工具栏按钮放大、缩小或重置。",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "reset": "重置视图"
     },
     "plot": {
       "button": "绘制函数图像",
