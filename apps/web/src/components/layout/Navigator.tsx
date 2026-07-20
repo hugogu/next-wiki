@@ -295,9 +295,11 @@ export function Navigator({
           icon: <FileTextIcon className="shrink-0" />,
         },
         { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
-        ...(writingMode === 'llm-wiki'
-          ? [{ href: '/admin/raw-categories', label: t('admin.nav.rawCategories'), icon: <LayersIcon className="shrink-0" /> }]
-          : []),
+        {
+          href: '/admin/writing-mode',
+          label: t('admin.nav.writingMode'),
+          icon: <PenSparkIcon className="shrink-0" />,
+        },
         {
           href: '/admin/search',
           label: t('admin.nav.search'),
@@ -338,11 +340,9 @@ export function Navigator({
           label: t('admin.nav.appearance'),
           icon: <SlidersIcon className="shrink-0" />,
         },
-        {
-          href: '/admin/writing-mode',
-          label: t('admin.nav.writingMode'),
-          icon: <PenSparkIcon className="shrink-0" />,
-        },
+        ...(writingMode === 'llm-wiki'
+          ? [{ href: '/admin/raw-categories', label: t('admin.nav.rawCategories'), icon: <LayersIcon className="shrink-0" /> }]
+          : []),
         {
           href: '/admin/users',
           label: t('admin.nav.users'),
