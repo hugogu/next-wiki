@@ -83,7 +83,7 @@ export function MermaidZoomModal({
           </pre>
         </CodeBlock>
       ) : (
-        <div className="h-[75vh] w-full overflow-hidden rounded border border-border bg-surface">
+        <div className="h-[60vh] w-full overflow-hidden rounded border border-border bg-surface">
           <TransformWrapper
             minScale={0.2}
             maxScale={4}
