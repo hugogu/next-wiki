@@ -15,6 +15,7 @@ import { visit } from 'unist-util-visit';
 import { env } from '@/server/config';
 import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
+import { normalizeDisplayMath } from './normalize-display-math';
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -171,7 +172,7 @@ function wrapCodeBlocks(tree: Root) {
 }
 
 export function renderMarkdown(source: string): { html: string; hash: string } {
-  const body = markdownBody(source);
+  const body = normalizeDisplayMath(markdownBody(source));
   const html = unified()
     .use(remarkParse)
     .use(remarkMath)
