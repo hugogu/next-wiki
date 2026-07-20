@@ -21,10 +21,12 @@ export function ProvenanceIndicators({
   pageId,
   allowPublishLink = false,
   targetTitle,
+  currentPath,
 }: {
   pageId: string;
   allowPublishLink?: boolean;
   targetTitle?: string;
+  currentPath?: string;
 }) {
   const { t } = useTranslation();
   const [page, setPage] = useState<PublicPageResource | null>(null);
@@ -59,30 +61,38 @@ export function ProvenanceIndicators({
 
   const linkTarget = page?.kind === 'link' ? page.linkTarget : null;
   const wasHumanModified = page?.kind === 'native' && page.origin?.nature === 'generated' && page.humanModified;
+  const showPublishLink = allowPublishLink && page?.status === 'published';
 
-  if (!linkTarget && !wasHumanModified && !allowPublishLink) return null;
+  if (!linkTarget && !wasHumanModified && !showPublishLink) return null;
 
   return (
-    <div className="mb-lg flex flex-wrap items-center gap-sm" data-testid="page-provenance-indicators">
-      {linkTarget && (
-        <Link href={getSpaceHref('generated', linkTarget.path)}>
-          <StatusBadge tone="info">{t('page.indicators.linkedFromGenerated')}</StatusBadge>
-        </Link>
+    <>
+      {showPublishLink && (
+        <div className="absolute right-lg top-md z-10">
+          <Button variant="secondary" onClick={() => setDialogOpen(true)}>
+            <LinkIcon className="mr-xs h-4 w-4" />
+            {t('page.publishLink.button')}
+          </Button>
+        </div>
       )}
-      {wasHumanModified && <StatusBadge tone="warning">{t('page.indicators.generatedHumanModified')}</StatusBadge>}
-      {allowPublishLink && page?.status === 'published' && (
-        <Button variant="secondary" onClick={() => setDialogOpen(true)}>
-          <LinkIcon className="mr-xs h-4 w-4" />
-          {t('page.publishLink.button')}
-        </Button>
+      {(linkTarget || wasHumanModified) && (
+        <div className="mb-lg flex flex-wrap items-center gap-sm" data-testid="page-provenance-indicators">
+          {linkTarget && (
+            <Link href={getSpaceHref('generated', linkTarget.path)}>
+              <StatusBadge tone="info">{t('page.indicators.linkedFromGenerated')}</StatusBadge>
+            </Link>
+          )}
+          {wasHumanModified && <StatusBadge tone="warning">{t('page.indicators.generatedHumanModified')}</StatusBadge>}
+        </div>
       )}
       {dialogOpen && (
         <PublishAsLinkDialog
           targetPageId={pageId}
           targetTitle={targetTitle ?? page?.title ?? ''}
+          currentPath={currentPath}
           onClose={() => setDialogOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }

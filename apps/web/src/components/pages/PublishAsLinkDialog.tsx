@@ -10,17 +10,23 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 
+function deriveDefaultPath(currentPath: string): string {
+  return currentPath.replace(/^generated\//, '');
+}
+
 export function PublishAsLinkDialog({
   targetPageId,
   targetTitle,
+  currentPath,
   onClose,
 }: {
   targetPageId: string;
   targetTitle: string;
+  currentPath?: string;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [path, setPath] = useState('');
+  const [path, setPath] = useState(() => deriveDefaultPath(currentPath ?? ''));
   const [title, setTitle] = useState(targetTitle);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

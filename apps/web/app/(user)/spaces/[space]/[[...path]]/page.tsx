@@ -96,7 +96,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
           </div>
         )}
         <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_14rem]">
-          <article className="page-reader-article mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
+          <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
             <nav aria-label={t('space.reader.breadcrumbs')} className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted">
               <Link className="hover:text-foreground" href={getSpaceHref(space)}>{spaceLabel(t, space)}</Link>
               {segments.map((segment, index) => {
@@ -117,6 +117,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
             <ProvenanceIndicators
               pageId={page.id}
               targetTitle={page.title}
+              currentPath={page.path}
               allowPublishLink={space === 'generated' && page.status === 'published'}
             />
             <PageMetadata
