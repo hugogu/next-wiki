@@ -82,7 +82,9 @@ export type DomainErrorCode =
   | 'RAW_CONTENT_TYPE_MISMATCH'
   | 'RAW_CATEGORY_REQUIRED'
   | 'RAW_CATEGORY_RETIRED'
-  | 'RAW_CATEGORY_HAS_ENTRIES';
+  | 'RAW_CATEGORY_HAS_ENTRIES'
+  // Cross-space page move (admin reclassification).
+  | 'PAGE_SPACE_MOVE_INVALID';
 
 export class DomainError extends Error {
   constructor(

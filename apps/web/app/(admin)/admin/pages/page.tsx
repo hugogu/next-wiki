@@ -4,6 +4,7 @@ import { Layout } from '@/components/ui/Layout';
 import { AdminPagesPanel } from '@/components/admin/pages/AdminPagesPanel';
 import { getCurrentActor } from '@/server/services/auth';
 import * as pageService from '@/server/services/pages';
+import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ type AdminPagesSearchParams = Promise<{
   path?: string;
   dateFrom?: string;
   dateTo?: string;
+  space?: string;
 }>;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -47,8 +49,10 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
     path: first(params.path),
     dateFrom: first(params.dateFrom),
     dateTo: first(params.dateTo),
+    space: first(params.space),
   };
 
+  const moveEnabled = await isLlmWikiMode();
   const list = await pageService.listAdminPages(
     { actor },
     {
@@ -62,6 +66,8 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
         path: query.path,
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
+        // Only honor the space filter in LLM Wiki mode.
+        space: moveEnabled ? query.space : undefined,
       },
     },
   );
@@ -71,7 +77,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
   return (
     <Layout admin>
       <div className="px-lg py-md">
-        <AdminPagesPanel t={t} list={list} query={query} />
+        <AdminPagesPanel t={t} list={list} query={query} moveEnabled={moveEnabled} />
       </div>
     </Layout>
   );

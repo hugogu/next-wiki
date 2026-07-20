@@ -627,7 +627,8 @@
         "dateFrom": "更新开始日期",
         "dateTo": "更新结束日期",
         "apply": "应用筛选",
-        "reset": "重置"
+        "reset": "重置",
+        "space": "空间"
       },
       "table": {
         "title": "标题",
@@ -648,7 +649,8 @@
         "edit": "编辑页面",
         "history": "查看历史",
         "properties": "页面属性",
-        "delete": "删除页面"
+        "delete": "删除页面",
+        "move": "移动到其他空间"
       },
       "delete": {
         "title": "删除页面?",
@@ -660,6 +662,21 @@
       "sortBy": "按 {column} 排序",
       "pagination": {
         "summary": "共 {total} 个页面，第 {page} / {pages} 页"
+      },
+      "spaces": {
+        "wiki": "Wiki",
+        "generated": "Generated"
+      },
+      "move": {
+        "title": "移动到 {space}",
+        "description": "将\"{title}\"移动到 {space} 空间。内容格式会自动适配（移入 Generated 时自动添加 OKF frontmatter）。",
+        "visibilityLabel": "移动后的可见性",
+        "visibility": {
+          "public": "公开",
+          "restricted": "仅管理员"
+        },
+        "confirm": "移动页面",
+        "error": "无法移动页面。"
       }
     },
     "appearance": {

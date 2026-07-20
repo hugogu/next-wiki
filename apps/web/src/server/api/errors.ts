@@ -120,6 +120,7 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'RAW_CONTENT_TYPE_MISMATCH':
     case 'RAW_CATEGORY_REQUIRED':
     case 'RAW_CATEGORY_RETIRED':
+    case 'PAGE_SPACE_MOVE_INVALID':
       return apiError(code, message, 422);
     case 'RAW_CATEGORY_HAS_ENTRIES':
       return apiError(code, message, 409);

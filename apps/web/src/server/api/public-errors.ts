@@ -29,6 +29,7 @@ export type PublicApiErrorCode =
   | 'RAW_CATEGORY_REQUIRED'
   | 'RAW_CATEGORY_RETIRED'
   | 'RAW_CATEGORY_HAS_ENTRIES'
+  | 'PAGE_SPACE_MOVE_INVALID'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -98,6 +99,8 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'RAW_CATEGORY_RETIRED', status: 422 };
     case 'RAW_CATEGORY_HAS_ENTRIES':
       return { code: 'RAW_CATEGORY_HAS_ENTRIES', status: 409 };
+    case 'PAGE_SPACE_MOVE_INVALID':
+      return { code: 'PAGE_SPACE_MOVE_INVALID', status: 422 };
     default:
       return { code: 'VALIDATION_FAILED', status: 422 };
   }

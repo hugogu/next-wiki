@@ -90,6 +90,7 @@ function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilter
     ...(filters.path?.trim() ? { path: filters.path.trim() } : {}),
     ...(filters.dateFrom?.trim() ? { dateFrom: filters.dateFrom.trim() } : {}),
     ...(filters.dateTo?.trim() ? { dateTo: filters.dateTo.trim() } : {}),
+    ...(filters.space?.trim() ? { space: filters.space.trim() } : {}),
   };
 }
 
@@ -333,7 +334,10 @@ export async function listAdminPages(
   } = {},
 ): Promise<AdminPageListResult> {
   assertAdmin(ctx);
-  const space = await resolveSpace();
+  // 022: an admin may list any content space (raw/generated only in LLM Wiki
+  // mode, enforced by assertSpaceKindAllowed); default wiki when unspecified.
+  const space = await resolveSpace(options.filters?.space);
+  if (space) await assertSpaceKindAllowed(space.kind);
   if (!space) {
     return {
       items: [],
@@ -375,6 +379,8 @@ export async function listAdminPages(
           path: schema.pages.path,
           title: schema.pages.title,
           currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+          kind: schema.pages.kind,
+          nature: schema.pages.nature,
           authorDisplayName: schema.users.displayName,
           authorEmail: schema.users.email,
           editCount: count(schema.pageRevisions.id),
@@ -404,6 +410,8 @@ export async function listAdminPages(
           path: schema.pages.path,
           title: schema.pages.title,
           currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+          kind: schema.pages.kind,
+          nature: schema.pages.nature,
           authorDisplayName: schema.users.displayName,
           authorEmail: schema.users.email,
           createdAt: schema.pages.createdAt,
@@ -459,6 +467,9 @@ export async function listAdminPages(
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       tags: tagsByPageId.get(row.id) ?? [],
+      spaceSlug: space.slug,
+      kind: row.kind,
+      nature: row.nature,
     })),
     totalItems,
     currentPage: safePage,
@@ -1250,6 +1261,139 @@ export async function updateProperties(
   if (result.newPath !== currentPath) await enqueueGitExport('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   return result;
+}
+
+/**
+ * Move a native page to another content space (Admin, LLM Wiki mode), adapting
+ * the content format automatically: moving into the generated space injects OKF
+ * frontmatter when absent (as a new machine-authored revision) and validates the
+ * concept path; moving into the wiki space needs no transform. Raw is not a valid
+ * target (append-only evidence). Reclassifies `nature`/`visibility` for the
+ * destination — the primary use is filing AI-generated wiki imports as generated.
+ */
+export async function moveToSpace(
+  ctx: PermCtx,
+  pageId: string,
+  input: { targetSpace: 'default' | 'generated'; visibility?: 'public' | 'restricted' },
+): Promise<{ pageId: string; targetSpace: string; path: string }> {
+  assertAdmin(ctx);
+  const userId = getUserId(ctx)!;
+
+  const target = await resolveSpace(input.targetSpace);
+  if (!target) throw new DomainError('NOT_FOUND', 'Target space not found');
+  await assertSpaceKindAllowed(target.kind);
+  if (target.kind === 'raw') {
+    throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'Pages cannot be moved into the append-only raw space');
+  }
+
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
+    const page = await tx.query.pages.findFirst({
+      where: and(eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt), isNull(schema.pages.translationGroupId)),
+    });
+    if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+
+    const source = await tx.query.spaces.findFirst({ where: eq(schema.spaces.id, page.spaceId) });
+    if (!source) throw new DomainError('NOT_FOUND', 'Source space not found');
+    await assertSpaceKindAllowed(source.kind);
+
+    if (source.id === target.id) throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'The page is already in this space');
+    if (source.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be moved between spaces');
+    if (page.kind === 'link') throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'Link pages cannot be moved between spaces');
+    if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(source, page, { isAuthor: page.authorId === userId }))) {
+      throw new DomainError('FORBIDDEN', 'You do not have permission to move this page');
+    }
+
+    // Moving a generated page that is published as a wiki link would strand the
+    // link; the admin must remove the link first.
+    if (source.kind === 'generated') {
+      const links = await listLiveLinksForTarget(page.id);
+      if (links.length > 0) {
+        throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'This page is published through a wiki link; remove the link before moving it');
+      }
+    }
+
+    if (target.kind === 'generated') ensureOkfConceptPath(page.path);
+
+    const conflict = await tx.query.pages.findFirst({
+      where: and(
+        eq(schema.pages.spaceId, target.id),
+        eq(schema.pages.path, page.path),
+        eq(schema.pages.locale, page.locale),
+        isNull(schema.pages.translationGroupId),
+      ),
+    });
+    if (conflict) throw new DomainError('PAGE_PATH_CONFLICT', 'A page with this path already exists in the target space');
+
+    // Content-format adaptation: only the generated space requires OKF; inject it
+    // when the live/latest content lacks it, as a new revision preserving status.
+    const primaryRevId = page.currentPublishedVersionId ?? page.latestVersionId;
+    let movedRevisionId: string | null = null;
+    if (target.kind === 'generated' && primaryRevId) {
+      const current = await tx.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, primaryRevId) });
+      if (current) {
+        const original = await readMarkdownWithFallback(current);
+        const conformant = ensureOkfConformance(original, { title: page.title, now: new Date() });
+        if (conformant !== original) {
+          const revisionId = randomUUID();
+          const { html, hash } = renderMarkdown(conformant);
+          const versionRows = await tx
+            .select({ value: max(schema.pageRevisions.versionNumber) })
+            .from(schema.pageRevisions)
+            .where(eq(schema.pageRevisions.pageId, page.id));
+          const [revision] = await tx
+            .insert(schema.pageRevisions)
+            .values({
+              id: revisionId,
+              pageId: page.id,
+              versionNumber: (versionRows[0]?.value ?? 0) + 1,
+              locale: page.locale,
+              contentType: 'text/markdown',
+              contentSource: conformant,
+              contentHtml: html,
+              contentHash: hash,
+              authorId: userId,
+              status: current.status,
+              actorKind: 'machine',
+              publishedAt: current.status === 'published' ? new Date() : null,
+            })
+            .returning();
+          if (!revision) throw new Error('Failed to write OKF-conformant revision');
+          await persistRevisionMetadata(tx, { revisionId: revision.id, spaceId: target.id, source: conformant, fallbackTitle: page.title });
+          await syncRevisionAssetRefs(tx, revision.id, conformant);
+          await addReplicationTasks(tx, 'markdown', revision.id, hash);
+          movedRevisionId = revision.id;
+        }
+      }
+    }
+
+    const visibility = input.visibility ?? (target.kind === 'generated' ? 'restricted' : 'public');
+    await tx
+      .update(schema.pages)
+      .set({
+        spaceId: target.id,
+        // Reclassify to the destination's nature when moving into generated;
+        // keep the existing provenance when moving back to the wiki.
+        nature: target.kind === 'generated' ? 'generated' : page.nature,
+        visibility,
+        ...(movedRevisionId && primaryRevId === page.latestVersionId ? { latestVersionId: movedRevisionId } : {}),
+        ...(movedRevisionId && primaryRevId === page.currentPublishedVersionId ? { currentPublishedVersionId: movedRevisionId } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, page.id));
+
+    return { pageId: page.id, path: page.path, isPublished: page.currentPublishedVersionId !== null || movedRevisionId !== null };
+  });
+
+  invalidatePublicContentCache();
+  // The public path flips visibility on a move to/from the wiki space; revalidate
+  // it so anonymous ISR reflects the new state either way.
+  if (result.isPublished) invalidatePublicLinkPaths([result.path]);
+  await reconcilePageAcrossIndexes(result.pageId, ctx);
+  await enqueueGitExport('publish');
+  await kickReplication();
+  return { pageId: result.pageId, targetSpace: target.slug, path: result.path };
 }
 
 export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string): Promise<EditableView | null> {

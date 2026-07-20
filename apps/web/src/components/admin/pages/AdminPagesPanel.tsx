@@ -11,11 +11,17 @@ import {
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
 import { ArrowDownIcon, EditIcon, HistoryIcon, SearchIcon, XIcon } from '@/components/icons';
-import { getEditHref, getHistoryHref, getPageHref } from '@/lib/path';
+import { getHistoryHref, getSpaceEditHref, getSpaceHref, type ReaderSpace } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
 import { PagePropertiesButton } from './PagePropertiesButton';
+import { MovePageButton } from './MovePageButton';
+
+/** Admin list uses default|generated slugs; map to the reader-space vocabulary. */
+function readerSpaceOf(slug: string): ReaderSpace {
+  return slug === 'generated' ? 'generated' : slug === 'raw' ? 'raw' : 'wiki';
+}
 
 type QueryMap = Record<string, string | undefined>;
 
@@ -100,11 +106,17 @@ export function AdminPagesPanel({
   t,
   list,
   query,
+  moveEnabled = false,
 }: {
   t: TranslateFunction;
   list: AdminPageListResult;
   query: QueryMap;
+  /** LLM Wiki mode: enables the space filter and cross-space move action. */
+  moveEnabled?: boolean;
 }) {
+  const currentSpace = list.filters.space === 'generated' ? 'generated' : 'default';
+  const targetSpace = currentSpace === 'generated' ? 'default' : 'generated';
+  const targetSpaceLabel = t(targetSpace === 'generated' ? 'admin.pages.spaces.generated' : 'admin.pages.spaces.wiki');
   return (
     <div className="space-y-md">
       <div className="grid gap-md lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.8fr)] lg:items-start">
@@ -115,9 +127,25 @@ export function AdminPagesPanel({
         <AdminPageStats />
       </div>
 
+      {moveEnabled && (
+        <form action="/admin/pages" className="flex flex-wrap items-center gap-sm">
+          <span className="text-xs font-medium text-muted">{t('admin.pages.filters.space')}</span>
+          {(['default', 'generated'] as const).map((slug) => (
+            <Link
+              key={slug}
+              href={buildAdminPagesHref({ sort: list.sort, direction: list.direction }, { space: slug === 'default' ? undefined : slug })}
+              className={`rounded-md border px-sm py-xs text-sm ${currentSpace === slug ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted hover:text-foreground'}`}
+            >
+              {t(slug === 'generated' ? 'admin.pages.spaces.generated' : 'admin.pages.spaces.wiki')}
+            </Link>
+          ))}
+        </form>
+      )}
+
       <form action="/admin/pages">
         <input type="hidden" name="sort" value={list.sort} />
         <input type="hidden" name="direction" value={list.direction} />
+        {currentSpace !== 'default' && <input type="hidden" name="space" value={currentSpace} />}
         <div className="grid items-end gap-sm md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.7fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_auto_auto]">
           <label className="space-y-xs">
             <span className="text-xs font-medium text-muted">{t('admin.pages.filters.keyword')}</span>
@@ -196,7 +224,7 @@ export function AdminPagesPanel({
               <DataTableRow key={page.id}>
                 <DataTableCell className="max-w-sm font-medium">
                   <Link
-                    href={getPageHref(page.path)}
+                    href={getSpaceHref(readerSpaceOf(page.spaceSlug), page.path)}
                     className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <HighlightedText text={page.title} keyword={list.filters.keyword} />
@@ -220,13 +248,21 @@ export function AdminPagesPanel({
                 </DataTableCell>
                 <DataTableCell align="right">
                   <div className="flex items-center justify-end gap-xs">
-                    <IconLink href={getEditHref(page.path)} label={t('admin.pages.actions.edit')}>
+                    <IconLink href={getSpaceEditHref(readerSpaceOf(page.spaceSlug), page.path)} label={t('admin.pages.actions.edit')}>
                       <EditIcon />
                     </IconLink>
                     <IconLink href={getHistoryHref(page.path)} label={t('admin.pages.actions.history')}>
                       <HistoryIcon />
                     </IconLink>
                     <PagePropertiesButton pageId={page.id} initialTitle={page.title} initialPath={page.path} />
+                    {moveEnabled && page.kind === 'native' && (
+                      <MovePageButton
+                        pageId={page.id}
+                        title={page.title}
+                        targetSpace={targetSpace}
+                        targetSpaceLabel={targetSpaceLabel}
+                      />
+                    )}
                     <DeletePageButton pageId={page.id} title={page.title} />
                   </div>
                 </DataTableCell>

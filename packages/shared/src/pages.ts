@@ -303,6 +303,11 @@ export type AdminPageListItem = {
   updatedAt: string;
   /** Tags on the page's latest revision. */
   tags: { id: string; name: string; normalizedName: string }[];
+  // 022: which space the page lives in, its kind, and stable nature — so the
+  // admin list can offer a cross-space move with the right target options.
+  spaceSlug: string;
+  kind: 'native' | 'link';
+  nature: 'original' | 'generated';
 };
 
 export type AdminPageListFilters = {
@@ -316,7 +321,18 @@ export type AdminPageListFilters = {
   path?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** 022: which content space to list (default wiki when omitted). */
+  space?: string;
 };
+
+/** 022: move a page to another content space (Admin, LLM Wiki mode). Raw is not
+ * a valid target — it is an append-only evidence store. Content format is
+ * auto-adapted (OKF frontmatter injected when moving into the generated space). */
+export const pageMoveInputSchema = z.object({
+  targetSpace: z.enum(['default', 'generated']),
+  visibility: z.enum(['public', 'restricted']).optional(),
+});
+export type PageMoveInput = z.infer<typeof pageMoveInputSchema>;
 
 export type AdminPageListResult = {
   items: AdminPageListItem[];

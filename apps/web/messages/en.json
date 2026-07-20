@@ -627,7 +627,8 @@
         "dateFrom": "Updated from",
         "dateTo": "Updated to",
         "apply": "Apply filters",
-        "reset": "Reset"
+        "reset": "Reset",
+        "space": "Space"
       },
       "table": {
         "title": "Title",
@@ -648,7 +649,8 @@
         "edit": "Edit page",
         "history": "View history",
         "properties": "Page properties",
-        "delete": "Delete page"
+        "delete": "Delete page",
+        "move": "Move to another space"
       },
       "delete": {
         "title": "Delete page?",
@@ -660,6 +662,21 @@
       "sortBy": "Sort by {column}",
       "pagination": {
         "summary": "{total} pages, page {page} of {pages}"
+      },
+      "spaces": {
+        "wiki": "Wiki",
+        "generated": "Generated"
+      },
+      "move": {
+        "title": "Move to {space}",
+        "description": "Move \"{title}\" to the {space} space. The content format is adapted automatically (OKF frontmatter is added when moving into Generated).",
+        "visibilityLabel": "Visibility after moving",
+        "visibility": {
+          "public": "Public",
+          "restricted": "Admin-only"
+        },
+        "confirm": "Move page",
+        "error": "Could not move the page."
       }
     },
     "appearance": {
