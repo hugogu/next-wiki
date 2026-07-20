@@ -202,6 +202,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
     sourcePath: resolved.sourcePath,
     translationLocales,
     currentLocale: isTranslation ? resolved.locale : null,
+    linkTargetPath: page.linkTargetPath,
   };
 
   const bodyHtml = injectHeadingIds(page.contentHtml);

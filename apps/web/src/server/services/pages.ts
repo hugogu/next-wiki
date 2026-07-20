@@ -573,6 +573,7 @@ export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | nu
       authorId: page.authorId,
       status: 'published',
       createdAt: page.createdAt.toISOString(),
+      linkTargetPath: target.path,
       metadata,
     };
   }

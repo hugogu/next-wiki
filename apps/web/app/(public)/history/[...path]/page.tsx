@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { HistoryRevisionSelector } from '@/components/pages/HistoryRevisionSelector';
-import { getPagePathFromParams, getPageHref, getHistoryHref, parseRevisionPair } from '@/lib/path';
+import { getPagePathFromParams, getPageHref, getHistoryHref, getSpaceHref, parseRevisionPair } from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -52,13 +52,22 @@ export default async function HistoryPage({
     redirect(`${getHistoryHref(path)}?${next}`);
   }
 
-  const [revisions, page, canEdit] = await Promise.all([
-    pageService.getHistory({ actor }, path),
+  const [page, canEdit] = await Promise.all([
     pageService.getLive({ actor }, path),
     pageService.canCreate({ actor }),
   ]);
 
-  if (revisions.length === 0 && !page) {
+  if (!page) {
+    notFound();
+  }
+
+  if (page.linkTargetPath) {
+    redirect(getSpaceHref('generated', page.linkTargetPath));
+  }
+
+  const revisions = await pageService.getHistory({ actor }, path);
+
+  if (revisions.length === 0) {
     notFound();
   }
 

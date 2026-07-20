@@ -215,13 +215,23 @@ export function Header({
           <>
             <div className="flex items-center gap-sm">
               {pageContext && pageContext.canEdit && (
-                <IconButton href={getSpaceEditHref(pageContext.space ?? 'wiki', pageContext.path)} label={t('page.header.edit')}>
+                <IconButton
+                  href={pageContext.linkTargetPath
+                    ? getSpaceEditHref('generated', pageContext.linkTargetPath)
+                    : getSpaceEditHref(pageContext.space ?? 'wiki', pageContext.path)}
+                  label={t('page.header.edit')}
+                >
                   <EditIcon />
                 </IconButton>
               )}
 
               {pageContext && isSignedIn && (!pageContext.space || pageContext.space === 'wiki') && (
-                <IconButton href={getHistoryHref(pageContext.path)} label={t('page.header.history')}>
+                <IconButton
+                  href={pageContext.linkTargetPath
+                    ? getSpaceHref('generated', pageContext.linkTargetPath)
+                    : getHistoryHref(pageContext.path)}
+                  label={pageContext.linkTargetPath ? t('page.header.view') : t('page.header.history')}
+                >
                   <HistoryIcon />
                 </IconButton>
               )}

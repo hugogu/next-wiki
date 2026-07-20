@@ -50,6 +50,7 @@ export const livePageSchema = z.object({
   authorId: z.string(),
   status: revisionStatusSchema,
   createdAt: z.string(),
+  linkTargetPath: z.string().optional(),
   metadata: z.object({
     date: z.string().nullable(),
     summary: z.string().nullable(),

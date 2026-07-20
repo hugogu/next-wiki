@@ -21,6 +21,8 @@ export type PageContext = {
   currentLocale?: string | null;
   /** Content space that owns the reader/editor route. */
   space?: ReaderSpace;
+  /** When the page is a link, the canonical path of the target generated page. */
+  linkTargetPath?: string;
 } | null;
 
 export type AppShellProps = {
