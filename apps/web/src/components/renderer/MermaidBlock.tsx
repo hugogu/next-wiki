@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CodeBlock } from './CodeBlock';
+import { MermaidZoomModal } from './MermaidZoomModal';
+import { ExpandIcon } from '@/components/icons';
 import { mermaidThemeVariables } from './mermaid-theme';
 import { useTranslation } from '@/i18n/client';
 
 export function MermaidBlock({ children, source }: { children: React.ReactNode; source: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'diagram' | 'code'>('diagram');
+  const [zoomOpen, setZoomOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,12 +63,25 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
       </div>
 
       {mode === 'diagram' ? (
-        <div ref={containerRef}>{children}</div>
+        <div className="relative group" data-mermaid-canvas="">
+          <button
+            type="button"
+            onClick={() => setZoomOpen(true)}
+            aria-label={t('renderer.mermaid.expandButton')}
+            title={t('renderer.mermaid.expandButton')}
+            className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded text-muted bg-surface border border-border hover:text-foreground hover:bg-surface-elevated transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+          >
+            <ExpandIcon className="w-4 h-4" />
+          </button>
+          <div ref={containerRef}>{children}</div>
+        </div>
       ) : (
         <CodeBlock source={source}>
           <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `\u003cpre\u003e\u003ccode\u003e${source}\u003c/code\u003e\u003c/pre\u003e` }} />
         </CodeBlock>
       )}
+
+      {zoomOpen && <MermaidZoomModal source={source} onClose={() => setZoomOpen(false)} />}
     </div>
   );
 }
