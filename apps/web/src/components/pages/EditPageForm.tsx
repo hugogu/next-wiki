@@ -17,7 +17,7 @@ import { useTranslation } from '@/i18n/client';
 import { apiPost, apiPatch, apiDelete, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
-import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getSpaceHref, type ReaderSpace } from '@/lib/path';
+import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getSpaceHref, getSpaceHistoryHref, type ReaderSpace } from '@/lib/path';
 import { SplitMarkdownEditor } from '@/components/editor/SplitMarkdownEditor';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { Alert } from '@/components/ui/Alert';
@@ -92,7 +92,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
           baseRevisionId: committedRevisionId,
         });
         await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
-        window.location.href = getSpaceHref(space, committedPath);
+        window.location.href = getSpaceHistoryHref(space, committedPath);
       } catch (err) {
         const error = err as ApiError;
         if (error.code === 'STALE_REVISION') {
