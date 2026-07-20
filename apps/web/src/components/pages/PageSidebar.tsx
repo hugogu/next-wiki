@@ -17,7 +17,7 @@ export function PageSidebar({ headings, tags, tagsLabel, outlineLabel }: PageSid
 
   return (
     <aside
-      className="hidden min-w-0 space-y-md border-l border-border px-md py-md xl:sticky xl:top-0 xl:block xl:max-h-screen xl:overflow-y-auto"
+      className="scrollbar-hidden hidden min-w-0 space-y-md border-l border-border px-md py-md xl:sticky xl:top-0 xl:block xl:max-h-screen xl:overflow-y-auto"
       aria-label={outlineLabel}
     >
       {hasTags && (

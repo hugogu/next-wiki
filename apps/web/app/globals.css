@@ -476,3 +476,12 @@ html.dark .prose .hljs-punctuation {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-muted);
 }
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
