@@ -718,3 +718,13 @@ export function FlameIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function FunctionPlotIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20V4" />
+      <path d="M4 20h16" />
+      <path d="M4 16c3 0 4-9 7-9s4 6 8 2" />
+    </Icon>
+  );
+}

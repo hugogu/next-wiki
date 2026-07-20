@@ -1521,6 +1521,12 @@
     "mermaid": {
       "diagramButton": "图表",
       "codeButton": "代码"
+    },
+    "plot": {
+      "button": "绘制函数图像",
+      "title": "函数图像",
+      "description": "所选公式的交互式图像。拖动平移，滚动缩放。",
+      "error": "无法绘制该公式的图像。"
     }
   },
   "layout": {

@@ -1521,6 +1521,12 @@
     "mermaid": {
       "diagramButton": "Diagram",
       "codeButton": "Code"
+    },
+    "plot": {
+      "button": "Plot this function",
+      "title": "Function plot",
+      "description": "Interactive graph of the selected formula. Drag to pan, scroll to zoom.",
+      "error": "This formula could not be plotted."
     }
   },
   "layout": {

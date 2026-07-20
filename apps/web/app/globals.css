@@ -221,6 +221,67 @@ article .prose > h1:first-child {
   overflow-y: hidden;
 }
 
+/* Hover-to-plot: a small icon button appears at the top-right of a plottable
+   formula. The wrapper establishes a positioning context so the badge can float
+   over the formula corner without disturbing inline layout. */
+.fx-plot-group {
+  position: relative;
+}
+
+.fx-plot-mount {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.fx-plot-btn {
+  position: absolute;
+  top: -0.6em;
+  right: -0.6em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: var(--radius-sm, 0.25rem);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, color 120ms ease;
+  cursor: pointer;
+}
+
+.fx-plot-group:hover .fx-plot-btn,
+.fx-plot-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.fx-plot-btn:hover {
+  color: var(--color-foreground);
+  border-color: var(--color-border-strong);
+}
+
+/* Keep function-plot's d3 output legible against the active theme. */
+.fx-plot-canvas text {
+  fill: var(--color-foreground);
+  font-family: var(--font-body);
+}
+
+.fx-plot-canvas .domain,
+.fx-plot-canvas .tick line,
+.fx-plot-canvas .function-plot .origin line {
+  stroke: var(--color-border-strong);
+}
+
+.fx-plot-canvas .function-plot .grid path,
+.fx-plot-canvas .function-plot .grid line {
+  stroke: var(--color-border);
+  opacity: 0.35;
+}
+
 .prose pre {
   background-color: var(--color-surface-elevated);
   color: var(--color-foreground);

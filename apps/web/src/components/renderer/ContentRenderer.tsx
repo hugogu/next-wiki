@@ -7,6 +7,7 @@ import { messages } from '@/i18n/catalog';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { CodeBlock } from './CodeBlock';
 import { MermaidBlock } from './MermaidBlock';
+import { MathPlotLayer } from './MathPlotLayer';
 import { defaultLocale, type Locale, isLocale } from '@/i18n/config';
 
 function getLocaleFromDocument(): Locale {
@@ -92,6 +93,7 @@ export function ContentRenderer({ html }: { html: string }) {
   return (
     <div ref={containerRef}>
       <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: html }} />
+      <MathPlotLayer containerRef={containerRef} html={html} locale={locale} />
     </div>
   );
 }
