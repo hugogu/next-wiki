@@ -48,12 +48,17 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await page.waitForURL(`/edit/${path}`);
   await page.locator('.cm-content').fill(initialContent);
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.waitForURL(`/history/${path}`);
+  await page.waitForURL(`/history/${path}?compare=1..2`);
 
   await page.goto(`/edit/${path}`);
   await page.locator('.cm-content').fill(changedContent);
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.waitForURL(`/history/${path}`);
+  await page.waitForURL(`/history/${path}?compare=2..3`);
+
+  // Reset to the neutral (no comparison selected) state so the manual
+  // selection flow below exercises the click-to-select UI from scratch,
+  // rather than the post-save default pair.
+  await page.goto(`/history/${path}`);
 
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Compare' })).toHaveCount(0);

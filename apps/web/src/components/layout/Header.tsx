@@ -43,6 +43,7 @@ function IconButton({
   label,
   children,
   active = false,
+  highlight = false,
   disabled = false,
 }: {
   href?: string;
@@ -50,13 +51,16 @@ function IconButton({
   label: string;
   children: React.ReactNode;
   active?: boolean;
+  highlight?: boolean;
   disabled?: boolean;
 }) {
   const baseClass =
     'inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-40 disabled:cursor-not-allowed';
   const stateClass = active
     ? 'bg-primary text-primary-text'
-    : 'text-muted hover:text-foreground hover:bg-surface-elevated';
+    : highlight
+      ? 'text-primary hover:bg-surface-elevated'
+      : 'text-muted hover:text-foreground hover:bg-surface-elevated';
 
   if (href) {
     return (
@@ -98,7 +102,12 @@ function EditorHeaderActions({ editor }: { editor: NonNullable<ReturnType<typeof
   const { t } = useTranslation();
   return (
     <>
-      <IconButton onClick={editor.save} label={t('editor.header.save')} disabled={editor.isSaving}>
+      <IconButton
+        onClick={editor.save}
+        label={t('editor.header.save')}
+        disabled={editor.isSaving || !editor.hasChanges}
+        highlight={editor.hasChanges && !editor.isSaving}
+      >
         <SaveIcon />
       </IconButton>
       <IconButton onClick={editor.close} label={t('editor.header.close')}>

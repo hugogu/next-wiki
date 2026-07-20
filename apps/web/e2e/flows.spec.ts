@@ -85,7 +85,7 @@ test.describe('publish workflow', () => {
     await createPage(page, path, 'Publish Flow Test');
     await fillEditor(page, 'draft content');
     await savePage(page);
-    await page.waitForURL(`/history/${path}`);
+    await page.waitForURL(`/history/${path}?compare=1..2`);
 
     const readerContext = await browser.newContext();
     const readerPage = await readerContext.newPage();
@@ -102,7 +102,7 @@ test.describe('publish workflow', () => {
     await page.goto(`/edit/${path}`);
     await fillEditor(page, 'updated draft content');
     await savePage(page);
-    await page.waitForURL(`/history/${path}`);
+    await page.waitForURL(`/history/${path}?compare=2..3`);
 
     await readerPage.goto(`/${path}`);
     await expect(readerPage.locator('text=draft content')).toBeVisible();

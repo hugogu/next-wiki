@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -78,6 +78,17 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   const title = watch('title');
   const contentSource = watch('contentSource');
 
+  const hasChanges = useMemo(
+    () =>
+      title !== initial.title ||
+      contentSource !== initial.contentSource ||
+      metadata.date !== initialMetadata.date ||
+      metadata.summary !== initialMetadata.summary ||
+      metadata.tags !== initialMetadata.tags ||
+      writeMetadataToFrontmatter !== initial.writeMetadataToFrontmatter,
+    [title, contentSource, metadata, initialMetadata, initial.title, initial.contentSource, writeMetadataToFrontmatter, initial.writeMetadataToFrontmatter],
+  );
+
   const onSubmit = useCallback(
     async (data: NewDraftBody) => {
       setServerError(null);
@@ -91,8 +102,12 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
           writeMetadataToFrontmatter,
           baseRevisionId: committedRevisionId,
         });
-        await apiPost<PublicDraftCreateInput, PublicRevisionResource>(getPublicApiPageDraftsUrl(initial.pageId), draftBody);
-        window.location.href = getSpaceHistoryHref(space, committedPath);
+        const revision = await apiPost<PublicDraftCreateInput, PublicRevisionResource>(
+          getPublicApiPageDraftsUrl(initial.pageId),
+          draftBody,
+        );
+        const compare = revision.version > 1 ? `${revision.version - 1}..${revision.version}` : undefined;
+        window.location.href = getSpaceHistoryHref(space, committedPath, compare);
       } catch (err) {
         const error = err as ApiError;
         if (error.code === 'STALE_REVISION') {
@@ -193,6 +208,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
       title: title || '',
       defaultTitle: t('page.edit.defaultTitle'),
       isSaving,
+      hasChanges,
       propertiesOpen,
       toggleProperties,
       save,
@@ -204,6 +220,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   }, [
     title,
     isSaving,
+    hasChanges,
     propertiesOpen,
     toggleProperties,
     save,

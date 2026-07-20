@@ -6,6 +6,7 @@ type EditorState = {
   title: string;
   defaultTitle: string;
   isSaving: boolean;
+  hasChanges: boolean;
   propertiesOpen: boolean;
   toggleProperties: () => void;
   save: () => void;
