@@ -63,7 +63,7 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
       </div>
 
       {mode === 'diagram' ? (
-        <div className="relative group" data-mermaid-canvas="">
+        <div className="relative group">
           <button
             type="button"
             onClick={() => setZoomOpen(true)}
@@ -74,14 +74,13 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
             <ExpandIcon className="w-4 h-4" />
           </button>
           <div ref={containerRef}>{children}</div>
+          {zoomOpen && <MermaidZoomModal source={source} onClose={() => setZoomOpen(false)} />}
         </div>
       ) : (
         <CodeBlock source={source}>
           <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `\u003cpre\u003e\u003ccode\u003e${source}\u003c/code\u003e\u003c/pre\u003e` }} />
         </CodeBlock>
       )}
-
-      {zoomOpen && <MermaidZoomModal source={source} onClose={() => setZoomOpen(false)} />}
     </div>
   );
 }
