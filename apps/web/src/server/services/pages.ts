@@ -519,8 +519,8 @@ export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
   };
 }
 
-export async function getLive(ctx: PermCtx, path: string): Promise<LivePage | null> {
-  const space = await resolveSpace();
+export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): Promise<LivePage | null> {
+  const space = await resolveSpace(spaceSlug);
   if (!space) return null;
 
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
@@ -1505,9 +1505,9 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
   };
 }
 
-export async function getHistory(ctx: PermCtx, path: string): Promise<RevisionSummary[]> {
+export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string): Promise<RevisionSummary[]> {
   const userId = getUserId(ctx);
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) return [];
 
   const page = await db.query.pages.findFirst({
@@ -1570,9 +1570,10 @@ export async function getRevision(
   ctx: PermCtx,
   path: string,
   version: number,
+  spaceSlug?: string,
 ): Promise<RevisionView | null> {
   const userId = getUserId(ctx);
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) return null;
 
   const page = await db.query.pages.findFirst({

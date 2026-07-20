@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { HistoryRevisionSelector } from '@/components/pages/HistoryRevisionSelector';
-import { getPagePathFromParams, getPageHref, getHistoryHref, getSpaceHref, parseRevisionPair } from '@/lib/path';
+import { getPagePathFromParams, getPageHref, getHistoryHref, getSpaceHistoryHref, parseRevisionPair, type ReaderSpace } from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -36,6 +36,9 @@ export default async function HistoryPage({
   const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
   const query = await searchParams;
+  const spaceParam = typeof query.space === 'string' ? query.space : undefined;
+  const space: ReaderSpace | undefined =
+    spaceParam === 'generated' ? 'generated' : spaceParam === 'raw' ? 'raw' : spaceParam === 'wiki' ? 'wiki' : undefined;
   const compareValue = typeof query.compare === 'string' ? query.compare : '';
   const pair = parseRevisionPair(compareValue);
   const selectedValue = typeof query.selected === 'string' ? query.selected : '';
@@ -49,11 +52,11 @@ export default async function HistoryPage({
       if (typeof value === 'string') next.set(key, value);
     });
     next.set('compare', `${pair.earlier}..${pair.later}`);
-    redirect(`${getHistoryHref(path)}?${next}`);
+    redirect(`${getHistoryHref(path)}${next.toString() ? `?${next}` : ''}`);
   }
 
   const [page, canEdit] = await Promise.all([
-    pageService.getLive({ actor }, path),
+    pageService.getLive({ actor }, path, space),
     pageService.canCreate({ actor }),
   ]);
 
@@ -61,11 +64,11 @@ export default async function HistoryPage({
     notFound();
   }
 
-  if (page.linkTargetPath) {
-    redirect(getSpaceHref('generated', page.linkTargetPath));
+  if (page.linkTargetPath && !space) {
+    redirect(`${getSpaceHistoryHref('generated', page.linkTargetPath)}`);
   }
 
-  const revisions = await pageService.getHistory({ actor }, path);
+  const revisions = await pageService.getHistory({ actor }, path, space);
 
   if (revisions.length === 0) {
     notFound();
@@ -86,12 +89,12 @@ export default async function HistoryPage({
   const [comparedRevisions, selectedRevision] = await Promise.all([
     pair
       ? Promise.all([
-          pageService.getRevision({ actor }, path, pair.earlier),
-          pageService.getRevision({ actor }, path, pair.later),
+          pageService.getRevision({ actor }, path, pair.earlier, space),
+          pageService.getRevision({ actor }, path, pair.later, space),
         ])
       : Promise.resolve([undefined, undefined]),
     selectedVersion
-      ? pageService.getRevision({ actor }, path, selectedVersion)
+      ? pageService.getRevision({ actor }, path, selectedVersion, space)
       : Promise.resolve(undefined),
   ]);
   const visibleVersions = new Set(revisions.map((revision) => revision.version));

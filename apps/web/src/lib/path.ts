@@ -48,6 +48,11 @@ export function getHistoryHref(path: string): string {
   return `/history/${encodePath(path)}`;
 }
 
+export function getSpaceHistoryHref(space: ReaderSpace, path: string): string {
+  if (space === 'wiki') return getHistoryHref(path);
+  return `/history/${encodePath(path)}?space=${space}`;
+}
+
 export function getRevisionHref(path: string, version: number): string {
   return `/revisions/${version}/${encodePath(path)}`;
 }
