@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { ShareButton } from '@/components/pages/ShareButton';
+import { TagList } from '@/components/pages/TagList';
 import * as pageService from '@/server/services/pages';
 import { getPageHref } from '@/lib/path';
 import { getDictionary, getLocale } from '@/i18n/server';
@@ -62,15 +63,21 @@ export default async function SharePage({ params }: { params: ShareParams }) {
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-lg py-xl">
-        <h1 className="mb-lg font-display text-2xl font-semibold text-foreground">{page.title}</h1>
         <PageMetadata
-          {...page.metadata}
+          date={page.metadata.date}
+          summary={page.metadata.summary}
+          tags={[]}
           labels={{
             date: t('page.metadata.date'),
             summary: t('page.metadata.summary'),
             tags: t('page.metadata.tags'),
           }}
         />
+        {page.metadata.tags.length > 0 && (
+          <div className="mb-lg">
+            <TagList tags={page.metadata.tags} ariaLabel={t('page.metadata.tags')} />
+          </div>
+        )}
         <ContentRenderer html={page.contentHtml} />
         <footer className="mt-2xl border-t border-border pt-md text-sm text-muted">
           {t('page.read.createdOn', { date: createdAt.toLocaleDateString(locale) })}
