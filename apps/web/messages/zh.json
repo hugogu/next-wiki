@@ -647,8 +647,6 @@
       "actions": {
         "view": "查看页面",
         "edit": "编辑页面",
-        "history": "查看历史",
-        "properties": "页面属性",
         "delete": "删除页面",
         "move": "移动到其他空间"
       },

@@ -6,7 +6,7 @@ import { ModalDialog } from '@/components/ui/ModalDialog';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import { ImportIcon } from '@/components/icons';
+import { MoveIcon } from '@/components/icons';
 import { apiPost, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import { ADMIN_PAGES_CHANGED_EVENT } from './AdminPageStats';
@@ -60,7 +60,7 @@ export function MovePageButton({
         title={t('admin.pages.actions.move')}
         className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
       >
-        <ImportIcon />
+        <MoveIcon />
       </button>
       {open && (
         <ModalDialog

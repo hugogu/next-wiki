@@ -10,12 +10,11 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { ArrowDownIcon, EditIcon, HistoryIcon, SearchIcon, XIcon } from '@/components/icons';
-import { getHistoryHref, getSpaceEditHref, getSpaceHref, type ReaderSpace } from '@/lib/path';
+import { ArrowDownIcon, SearchIcon, XIcon } from '@/components/icons';
+import { getSpaceHref, type ReaderSpace } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
-import { PagePropertiesButton } from './PagePropertiesButton';
 import { MovePageButton } from './MovePageButton';
 
 /** Admin list uses default|generated slugs; map to the reader-space vocabulary. */
@@ -68,19 +67,6 @@ function SortHeader({
           className={`h-3.5 w-3.5 ${list.direction === 'asc' ? 'rotate-180' : ''}`}
         />
       )}
-    </Link>
-  );
-}
-
-function IconLink({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      aria-label={label}
-      title={label}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-    >
-      {children}
     </Link>
   );
 }
@@ -248,13 +234,6 @@ export function AdminPagesPanel({
                 </DataTableCell>
                 <DataTableCell align="right">
                   <div className="flex items-center justify-end gap-xs">
-                    <IconLink href={getSpaceEditHref(readerSpaceOf(page.spaceSlug), page.path)} label={t('admin.pages.actions.edit')}>
-                      <EditIcon />
-                    </IconLink>
-                    <IconLink href={getHistoryHref(page.path)} label={t('admin.pages.actions.history')}>
-                      <HistoryIcon />
-                    </IconLink>
-                    <PagePropertiesButton pageId={page.id} initialTitle={page.title} initialPath={page.path} />
                     {moveEnabled && page.kind === 'native' && (
                       <MovePageButton
                         pageId={page.id}

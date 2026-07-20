@@ -114,6 +114,16 @@ export function ImportIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function MoveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M22 12H2" />
+      <path d="M5 9l-3 3 3 3" />
+      <path d="M19 15l3-3-3-3" />
+    </Icon>
+  );
+}
+
 export function LogOutIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

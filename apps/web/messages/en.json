@@ -647,8 +647,6 @@
       "actions": {
         "view": "View page",
         "edit": "Edit page",
-        "history": "View history",
-        "properties": "Page properties",
         "delete": "Delete page",
         "move": "Move to another space"
       },
