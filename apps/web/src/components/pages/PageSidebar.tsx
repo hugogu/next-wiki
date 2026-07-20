@@ -27,7 +27,7 @@ export function PageSidebar({ headings, tags, tagsLabel, outlineLabel }: PageSid
         </div>
       )}
       {hasOutline && (
-        <nav className="flex max-h-[60vh] flex-col rounded-lg border border-border bg-surface">
+        <nav className="flex max-h-[80vh] flex-col rounded-lg border border-border bg-surface">
           <p className="border-b border-border p-sm text-sm font-medium text-foreground">{outlineLabel}</p>
           <ul className="flex-1 overflow-y-auto p-sm">
             {headings.map((heading) => (

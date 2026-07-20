@@ -217,7 +217,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
             {t('page.read.draftBanner')}
           </div>
         )}
-        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <article
             className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md"
             data-has-share={showShare || undefined}
