@@ -3,19 +3,31 @@
  * function-plot's built-in evaluator (`built-in-math-eval`) can plot.
  *
  * This is deliberately *not* a complete LaTeX parser. It recognizes the common
- * shapes that describe a plottable function of one variable — polynomials,
- * fractions, roots, trig/exp/log, absolute value via functions — and rewrites
- * them into infix math. Anything it does not understand yields `null`, and the
- * caller simply does not offer a plot for that formula. Being conservative is
- * the point: a missing plot icon is fine, a wrong plot is not.
+ * shapes that describe either a plottable function of one variable
+ * (polynomials, fractions, roots, trig/exp/log) or an implicit x–y relation
+ * (e.g. a circle), and rewrites them into infix math. Anything it does not
+ * understand yields `null`, and the caller simply does not offer a plot for
+ * that formula. Being conservative is the point: a missing plot icon is fine,
+ * a wrong plot is not.
  */
 
-export interface PlottableExpression {
-  /** Expression rewritten in terms of `x`, ready for function-plot's `fn`. */
-  expr: string;
-  /** The original variable symbol (e.g. `t`) before it was normalized to `x`. */
-  variable: string;
-}
+export type PlottableExpression =
+  | {
+      /** An explicit single-variable function `y = f(x)` (polyline plot). */
+      kind: 'function';
+      /** Expression rewritten in terms of `x`, ready for function-plot's `fn`. */
+      expr: string;
+      /** The original variable symbol (e.g. `t`) before it was normalized to `x`. */
+      variable: string;
+    }
+  | {
+      /** An implicit relation in the x–y plane (e.g. a circle); plotted as the
+       *  boundary curve `f(x, y) = 0`. */
+      kind: 'implicit';
+      /** Expression in terms of `x` and `y`, ready for function-plot's implicit
+       *  `fn` (the left-hand side once the relation is moved to `… = 0`). */
+      expr: string;
+    };
 
 /** Function names understood by `built-in-math-eval` (function-plot's parser). */
 const KNOWN_FUNCTIONS = new Set([
@@ -261,49 +273,106 @@ function isWellFormed(expr: string): boolean {
 }
 
 /**
- * Parse a LaTeX math source into a plottable single-variable expression, or
- * `null` if it is not a function of exactly one variable that we can render.
+ * A formula is "trivial" if it has no operation or function call — a lone
+ * variable (`$x$`, or `f(z) = y`) would only ever plot the line y = x, which is
+ * noise next to prose. A leading unary minus does not count.
  */
-export function parsePlottableTex(tex: string): PlottableExpression | null {
-  let source = tex.trim();
-  if (!source) return null;
+const isTrivial = (expr: string): boolean => !/[+\-*/^(]/.test(expr.replace(/^-/, ''));
 
-  // If it is an equation/definition (`y = ...`, `f(x) = ...`), plot the RHS.
-  // More than one `=` is a chained relation, not a function.
-  const equals = source.split('=');
-  if (equals.length === 2) source = equals[1]!;
-  else if (equals.length > 2) return null;
-
-  let infix: string;
-  try {
-    infix = transform(source);
-  } catch {
-    return null;
-  }
-
-  const tokens = tokenize(infix);
-  if (!tokens) return null;
-
-  const variables = new Set<string>();
+/** Collect the distinct single-letter variables used by a token stream. */
+function variablesOf(tokens: Token[]): Set<string> {
+  const vars = new Set<string>();
   for (const t of tokens) {
-    if (t.type === 'id' && t.kind === 'var') variables.add(t.value);
+    if (t.type === 'id' && t.kind === 'var') vars.add(t.value);
   }
-  if (variables.size !== 1) return null;
-  const variable = [...variables][0]!;
+  return vars;
+}
 
+/**
+ * Join tokens back into an infix string, inserting implicit multiplication
+ * (`2x` -> `2*x`, `)(` -> `)*(`). When `renameVar` is set, every variable is
+ * rewritten to it (used to normalize a single variable to `x`).
+ */
+function assemble(tokens: Token[], renameVar: string | null): string {
   let expr = '';
   for (let k = 0; k < tokens.length; k++) {
     const t = tokens[k]!;
     if (k > 0 && isValueEnd(tokens[k - 1]!) && isValueStart(t)) expr += '*';
-    expr += t.type === 'id' && t.kind === 'var' ? 'x' : t.value;
+    expr += t.type === 'id' && t.kind === 'var' && renameVar ? renameVar : t.value;
+  }
+  return expr;
+}
+
+/** Relation operators that turn an expression into a curve/region, not `y=f(x)`. */
+const RELATION = /\\(?:leq|geq|le|ge|lt|gt)(?![a-zA-Z])|<=|>=|<|>|=/;
+
+/** Try to read an explicit single-variable function `y = f(x)`. */
+function tryFunction(source: string): PlottableExpression | null {
+  // `y = ...` / `f(x) = ...`: plot the RHS. More than one `=` is a chained
+  // relation, which is not a function.
+  const equals = source.split('=');
+  if (equals.length > 2) return null;
+  const rhs = equals.length === 2 ? equals[1]! : source;
+
+  let infix: string;
+  try {
+    infix = transform(rhs);
+  } catch {
+    return null;
+  }
+  const tokens = tokenize(infix);
+  if (!tokens) return null;
+
+  const variables = variablesOf(tokens);
+  if (variables.size !== 1) return null;
+
+  const expr = assemble(tokens, 'x');
+  if (!isWellFormed(expr) || isTrivial(expr)) return null;
+
+  return { kind: 'function', expr, variable: [...variables][0]! };
+}
+
+/**
+ * Try to read an implicit relation in the x–y plane (e.g. `x^2 + y^2 = 1`, or
+ * an inequality like `… \leq …`). Both are plotted as the boundary curve
+ * `f(x, y) = 0`; function-plot does not shade inequality regions.
+ */
+function tryImplicit(source: string): PlottableExpression | null {
+  const sides = source.split(RELATION);
+  if (sides.length !== 2) return null; // needs exactly one relation
+
+  let lhs: string;
+  let rhs: string;
+  try {
+    lhs = transform(sides[0]!);
+    rhs = transform(sides[1]!);
+  } catch {
+    return null;
   }
 
-  if (!isWellFormed(expr)) return null;
+  const tokens = tokenize(`(${lhs})-(${rhs})`);
+  if (!tokens) return null;
 
-  // Skip trivial formulas: a lone variable (e.g. `$x$`, or `f(z) = y`) would
-  // only ever plot the line y = x, which is noise next to prose. Require some
-  // actual operation or function call. A leading unary minus does not count.
-  if (!/[+\-*/^(]/.test(expr.replace(/^-/, ''))) return null;
+  // An implicit curve genuinely lives in the x–y plane: it must involve `y`
+  // (otherwise it is a function or a lone vertical line) and nothing but x/y.
+  const variables = variablesOf(tokens);
+  if (!variables.has('y')) return null;
+  for (const v of variables) if (v !== 'x' && v !== 'y') return null;
 
-  return { expr, variable };
+  const expr = assemble(tokens, null);
+  if (!isWellFormed(expr) || isTrivial(expr)) return null;
+
+  return { kind: 'implicit', expr };
+}
+
+/**
+ * Parse a LaTeX math source into a plottable expression, or `null` if it is not
+ * something we can render: an explicit single-variable function `y = f(x)`, or
+ * an implicit x–y relation (its boundary curve). Being conservative is the
+ * point — a missing plot icon is fine, a wrong plot is not.
+ */
+export function parsePlottableTex(tex: string): PlottableExpression | null {
+  const source = tex.trim();
+  if (!source) return null;
+  return tryFunction(source) ?? tryImplicit(source);
 }

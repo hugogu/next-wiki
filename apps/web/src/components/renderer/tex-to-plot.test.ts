@@ -12,8 +12,7 @@ function evalAt(expr: string, x: number): number {
 describe('parsePlottableTex', () => {
   it('handles polynomials with implicit multiplication', () => {
     const r = parsePlottableTex('2x^2 - 3x + 1');
-    expect(r).not.toBeNull();
-    expect(r!.variable).toBe('x');
+    expect(r).toMatchObject({ kind: 'function', variable: 'x' });
     expect(evalAt(r!.expr, 2)).toBeCloseTo(2 * 4 - 3 * 2 + 1);
   });
 
@@ -60,9 +59,7 @@ describe('parsePlottableTex', () => {
 
   it('normalizes a non-x variable to x', () => {
     const r = parsePlottableTex('t^2 + 1');
-    expect(r).not.toBeNull();
-    expect(r!.variable).toBe('t');
-    expect(r!.expr).toBe('x^(2)+1');
+    expect(r).toMatchObject({ kind: 'function', variable: 't', expr: 'x^(2)+1' });
   });
 
   it('strips \\left \\right and cdot', () => {
@@ -101,5 +98,34 @@ describe('parsePlottableTex', () => {
 
   it('rejects empty input', () => {
     expect(parsePlottableTex('   ')).toBeNull();
+  });
+
+  describe('implicit x–y relations', () => {
+    const evalXY = (expr: string, x: number, y: number): number =>
+      compile(expr).eval({ x, y });
+
+    it('recognizes an implicit circle from an equation', () => {
+      const r = parsePlottableTex('x^2 + y^2 = 1');
+      expect(r).toMatchObject({ kind: 'implicit' });
+      // The boundary curve f(x, y) = 0 is zero exactly on the unit circle.
+      expect(evalXY(r!.expr, 1, 0)).toBeCloseTo(0);
+      expect(evalXY(r!.expr, 0, 1)).toBeCloseTo(0);
+      expect(evalXY(r!.expr, 0, 0)).toBeCloseTo(-1);
+    });
+
+    it('treats an inequality as its boundary curve', () => {
+      for (const tex of ['x^2 + y^2 \\leq 1', 'x^2 + y^2 \\geq 1', 'y > x^2']) {
+        const r = parsePlottableTex(tex);
+        expect(r).toMatchObject({ kind: 'implicit' });
+      }
+    });
+
+    it('rejects relations that do not involve y', () => {
+      expect(parsePlottableTex('x^2 = 4')).toBeNull();
+    });
+
+    it('rejects relations with a third variable', () => {
+      expect(parsePlottableTex('x^2 + y^2 + z^2 = 1')).toBeNull();
+    });
   });
 });

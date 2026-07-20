@@ -17,6 +17,7 @@ const MOUNT_CLASS = 'fx-plot-mount';
 interface PlotTarget {
   mount: HTMLElement;
   expr: string;
+  kind: 'function' | 'implicit';
   tex: string;
 }
 
@@ -62,7 +63,7 @@ export function MathPlotLayer({
       mount.className = MOUNT_CLASS;
       group.appendChild(mount);
 
-      found.push({ mount, expr: parsed.expr, tex });
+      found.push({ mount, expr: parsed.expr, kind: parsed.kind, tex });
     });
 
     setTargets(found);
@@ -114,7 +115,7 @@ function PlotModal({ target, onClose }: { target: PlotTarget; onClose: () => voi
       description={t('renderer.plot.description')}
       onClose={onClose}
     >
-      <FunctionPlot expr={target.expr} />
+      <FunctionPlot expr={target.expr} kind={target.kind} />
     </ModalDialog>
   );
 }
