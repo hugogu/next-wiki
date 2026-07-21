@@ -40,6 +40,7 @@ export function RawContentRenderer({
   labels,
   rawCategorySystemKey = null,
   conversation = null,
+  showConversationStatus = true,
 }: {
   contentType: string;
   contentSource: string;
@@ -52,6 +53,9 @@ export function RawContentRenderer({
   /** 023: the captured conversation snapshot, pre-validated by the caller
    * (null when unavailable/invalid — triggers the fallback notice below). */
   conversation?: ConversationSessionViewModel | null;
+  /** 023: false when the caller already renders the status badge elsewhere
+   * (e.g. next to the page breadcrumb) — see ConversationSessionView. */
+  showConversationStatus?: boolean;
 }) {
   // 023: the built-in Conversation category dispatches to the shared chat
   // view instead of generic type-based rendering, matching AI Chat History
@@ -60,7 +64,7 @@ export function RawContentRenderer({
   // snapshot here is a data-integrity fallback, not a permission leak.
   if (rawCategorySystemKey === 'conversation') {
     return conversation ? (
-      <ConversationSessionView conversation={conversation} />
+      <ConversationSessionView conversation={conversation} showStatus={showConversationStatus} />
     ) : (
       <p className="text-sm text-muted" data-testid="raw-content-conversation-invalid">{labels.invalidConversation}</p>
     );

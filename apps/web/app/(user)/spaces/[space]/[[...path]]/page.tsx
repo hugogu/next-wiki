@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { RawContentRenderer } from '@/components/pages/raw-content/RawContentRenderer';
+import { ConversationStatusBadge } from '@/components/chat/ConversationSessionView';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
@@ -132,6 +133,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                 );
               })}
               <ProvenanceIndicators pageId={page.id} className="flex items-center gap-xs" />
+              {conversation && <ConversationStatusBadge status={conversation.status} className="ml-auto" />}
             </nav>
             <PageMetadata
               date={page.metadata?.date ?? null}
@@ -158,6 +160,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                 }}
                 rawCategorySystemKey={rawCategorySystemKey}
                 conversation={conversation}
+                showConversationStatus={false}
               />
             ) : (
               <ContentRenderer html={bodyHtml} />

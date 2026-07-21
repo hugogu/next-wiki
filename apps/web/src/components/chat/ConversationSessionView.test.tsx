@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ConversationSessionViewModel } from '@next-wiki/shared';
 import { ApplicationI18nProvider } from '@/components/i18n/ApplicationI18nProvider';
 import { getMessages } from '@/i18n/catalog';
-import { ConversationSessionView } from './ConversationSessionView';
+import { ConversationSessionView, ConversationStatusBadge } from './ConversationSessionView';
 
 function conversation(overrides: Partial<ConversationSessionViewModel> = {}): ConversationSessionViewModel {
   return {
@@ -66,5 +66,25 @@ describe('ConversationSessionView', () => {
     }));
     expect(html).toContain('Considering the docker-compose file...');
     expect(html).toContain('Deploy Guide');
+  });
+
+  it('omits its own status badge when showStatus is false, for a caller placing it elsewhere', () => {
+    const html = renderToStaticMarkup(
+      <ApplicationI18nProvider initialLocale="en" messages={getMessages('en')}>
+        <ConversationSessionView conversation={conversation()} showStatus={false} />
+      </ApplicationI18nProvider>,
+    );
+    expect(html).not.toContain('Completed');
+    expect(html).toContain('Where is the deployment config?');
+  });
+
+  it('ConversationStatusBadge renders the localized status independently, with an optional className', () => {
+    const html = renderToStaticMarkup(
+      <ApplicationI18nProvider initialLocale="en" messages={getMessages('en')}>
+        <ConversationStatusBadge status="running" className="ml-auto" />
+      </ApplicationI18nProvider>,
+    );
+    expect(html).toContain('Running');
+    expect(html).toContain('ml-auto');
   });
 });

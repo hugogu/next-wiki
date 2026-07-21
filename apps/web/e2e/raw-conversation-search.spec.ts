@@ -185,6 +185,12 @@ test.describe('Raw Conversation Search (023)', () => {
     await expect(article.getByText(answer)).toBeVisible();
     await expect(page.locator('[data-testid="raw-content"]')).toHaveCount(0);
 
+    // The status badge sits next to the breadcrumb (rendered once, not
+    // duplicated on its own line above the question).
+    const breadcrumb = page.getByRole('navigation', { name: /breadcrumb/i });
+    await expect(breadcrumb.getByText('Completed')).toBeVisible();
+    await expect(page.getByText('Completed', { exact: true })).toHaveCount(1);
+
     // AI Chat History lists the captured session with an immutable delete.
     await page.goto('/user-center/ai-sessions');
     const row = page.getByRole('row', { name: new RegExp(question) });
@@ -193,6 +199,22 @@ test.describe('Raw Conversation Search (023)', () => {
     await expect(deleteButton).toBeDisabled();
     const openRawLink = row.getByRole('link', { name: /open raw page/i });
     await expect(openRawLink).toHaveAttribute('href', `/spaces/raw/${seeded.path}`);
+  });
+
+  test('the header search box (no explicit space) still surfaces a captured conversation', async ({ page }) => {
+    const uniqueTerm = `moearchitecture${Date.now()}`;
+    const seeded = await seedCapturedConversation(`What is ${uniqueTerm}?`, `${uniqueTerm} is a mixture-of-experts design.`);
+    await login(page);
+
+    // This is exactly what HeaderHybridSearch.tsx sends — no `space` field.
+    const search = await page.request.post('/api/v1/search/pages', {
+      data: { kind: 'query', searchRecordId: randomUUID(), searchSessionId: randomUUID(), q: uniqueTerm, limit: 20 },
+    });
+    expect(search.ok()).toBe(true);
+    const body = await search.json();
+    const hit = body.items.find((item: { page: { path: string } }) => item.page.path === seeded.path);
+    expect(hit).toBeTruthy();
+    expect(hit.page.spaceSlug).toBe('raw');
   });
 
   test('an Admin can find a captured conversation via Raw-space search and open it', async ({ page }) => {

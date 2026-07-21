@@ -590,6 +590,81 @@ describe('public content read facade', () => {
     await setModeInternal('copilot', null);
   });
 
+  it('surfaces a Raw Conversation match as a supplement to a default (space-less) Admin search (023)', async () => {
+    await setModeInternal('llm-wiki', null);
+    const [rawSpace] = await db
+      .insert(schema.spaces)
+      .values({ slug: 'raw', name: 'Raw', kind: 'raw', anonymousRead: false })
+      .onConflictDoNothing()
+      .returning();
+    const raw = rawSpace ?? (await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'raw') }))!;
+    const admin = await createPublicApiUser('public-raw-supplement-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    await db.insert(schema.searchSettings).values({
+      id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: false,
+    });
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+      capabilitySnapshot: { full_text: true, fuzzy: true, semantic: false },
+    });
+
+    const uniqueTerm = `moearchitecture${Date.now()}`;
+    const [page] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: raw.id, slug: 'conv', path: `conversations/e2e/${Date.now()}`, title: `Conversation: ${uniqueTerm}`,
+        authorId: admin.id, nature: 'original', visibility: 'restricted',
+      })
+      .returning();
+    const [revision] = await db
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: page!.id, versionNumber: 1, contentType: 'text/markdown',
+        contentSource: `# Question\n\nWhat is ${uniqueTerm}?\n\n# Answer\n\n${uniqueTerm} is a mixture-of-experts design.`,
+        contentHtml: '<p>x</p>', contentHash: 'hash', authorId: admin.id, status: 'published', actorKind: 'machine',
+        publishedAt: new Date(),
+      })
+      .returning();
+    await db.update(schema.pages).set({ currentPublishedVersionId: revision!.id, latestVersionId: revision!.id }).where(eq(schema.pages.id, page!.id));
+
+    // No `space` in the request — this is exactly what the header search box sends.
+    const result = await publicContent.hybridSearchPages(adminCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: uniqueTerm, limit: 20,
+    });
+
+    expect(result.items.some((item) => item.page.path === page!.path)).toBe(true);
+    const hit = result.items.find((item) => item.page.path === page!.path);
+    expect(hit?.page.spaceSlug).toBe('raw');
+
+    await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revision!.id));
+    await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
+    await setModeInternal('copilot', null);
+  });
+
+  it('never runs the Raw supplement for a non-Admin or outside LLM Wiki mode (023)', async () => {
+    await setModeInternal('llm-wiki', null);
+    await ensurePrivateSpaces();
+    const reader = await createPublicApiUser('public-raw-supplement-reader@example.com', 'reader');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    await db.insert(schema.searchSettings).values({
+      id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: false,
+    });
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+      capabilitySnapshot: { full_text: true, fuzzy: true, semantic: false },
+    });
+
+    // A reader cannot read Raw at all — the supplement must not run (and must
+    // not throw), regardless of what content exists there.
+    await expect(publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'anything', limit: 20,
+    })).resolves.toBeTruthy();
+
+    await setModeInternal('copilot', null);
+  });
+
   it('rejects a non-Admin explicitly searching the raw space before any candidate is touched', async () => {
     await setModeInternal('llm-wiki', null);
     await ensurePrivateSpaces();

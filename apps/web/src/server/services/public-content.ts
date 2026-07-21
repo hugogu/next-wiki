@@ -973,6 +973,49 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
   return { items, nextCursor: pages.nextCursor };
 }
 
+// 023: the header search box (and any other caller) never sends an explicit
+// `space`, and the primary coordinated run above is always scoped to exactly
+// one space (the default wiki space when omitted). Without this, Raw content
+// — including captured Raw Conversation pages — could never appear from the
+// normal search box no matter how well it was indexed. This supplement adds
+// a small, fixed number of keyword-only Raw-space matches on top of the
+// primary results, so Raw content is never silently crowded out by unrelated
+// wiki noise filling the requested limit. Semantic is skipped here (no
+// durable search record is created for this lightweight pass, and semantic
+// retrieval requires one to start/resume).
+const RAW_SUPPLEMENT_LIMIT = 3;
+
+async function supplementRawSpaceResults(
+  ctx: PermCtx,
+  input: HybridSearchQueryInput,
+  primarySpaceSlug: string,
+  settings: Awaited<ReturnType<typeof getSearchSettings>>,
+): Promise<Awaited<ReturnType<typeof runCoordinatedSearch>>['items']> {
+  if (input.space || primarySpaceSlug === 'raw') return [];
+  if (!(await isLlmWikiMode())) return [];
+  const rawSpace = await resolveSpace('raw');
+  if (!rawSpace || rawSpace.kind !== 'raw') return [];
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(rawSpace))) return [];
+
+  try {
+    const supplement = await runCoordinatedSearch(ctx, {
+      q: input.q.trim(),
+      limit: RAW_SUPPLEMENT_LIMIT,
+      snapshot: { full_text: settings.fullTextSearchEnabled, fuzzy: settings.fuzzySearchEnabled, semantic: false },
+      excerpt: { windowSize: settings.excerptLength, show: settings.showExcerpts },
+      minRelevanceScore: settings.minRelevanceScore,
+      immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
+      spaceId: rawSpace.id,
+      spaceSlug: rawSpace.slug,
+    });
+    return supplement.items;
+  } catch (error) {
+    // A failed supplement must never break the primary (wiki) search.
+    console.error('Failed to run supplementary Raw space search:', error);
+    return [];
+  }
+}
+
 /**
  * Header-only hybrid operation on the existing feature-013 POST resource.
  * All retrieval flows through the search coordinator: enabled capabilities
@@ -1036,12 +1079,15 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     ? result.engineStates.map((state) => (state.capability === 'semantic' ? { ...state, state: 'unavailable' as const } : state))
     : result.engineStates;
 
+  const rawSupplement = await supplementRawSpaceResults(ctx, input, space.slug, settings);
+  const mergedItems = [...result.items, ...rawSupplement];
+
   if (record) {
     try {
       await searchAnalytics.updateSearchRecord(record.id, {
         keywordResultCount: result.keywordReadableCount,
         semanticResultCount: result.semanticReadableCount,
-        resultCount: result.items.length,
+        resultCount: mergedItems.length,
         semanticState,
         semanticActionId: result.semanticContinuationRef,
       });
@@ -1054,7 +1100,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     searchRecordId: record?.id ?? input.searchRecordId,
     semanticState,
     engineStates,
-    items: result.items.map(({ field: _field, ...item }) => item),
+    items: mergedItems.map(({ field: _field, ...item }) => item),
   };
 }
 
