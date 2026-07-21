@@ -750,11 +750,15 @@
           }
         }
       },
-      "save": "保存",
-      "saved": "统计设置已保存。",
-      "saveFailed": "保存统计设置失败。",
+      "save": "应用",
+      "saved": "统计设置已应用。",
+      "saveFailed": "应用统计设置失败。",
       "invalidTrackingId": "跟踪 ID 格式不正确。",
-      "enabledRequiresTrackingId": "启用时需要填写有效的跟踪 ID。"
+      "enabledRequiresTrackingId": "启用时需要填写有效的跟踪 ID。",
+      "status": {
+        "enabled": "已启用",
+        "disabled": "未启用"
+      }
     },
     "site": {
       "title": "站点信息",

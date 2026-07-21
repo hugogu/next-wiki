@@ -734,7 +734,7 @@
       "allDisabled": "All analytics providers are currently disabled. No tracking scripts will be loaded.",
       "providers": {
         "baidu_tongji": {
-          "label": "Baidu Tongji (百度统计)",
+          "label": "Baidu Tongji",
           "description": "Baidu's web analytics service.",
           "trackingId": {
             "label": "Tracking ID",
@@ -750,11 +750,15 @@
           }
         }
       },
-      "save": "Save",
-      "saved": "Analytics settings saved.",
-      "saveFailed": "Failed to save analytics settings.",
+      "save": "Apply",
+      "saved": "Analytics settings applied.",
+      "saveFailed": "Failed to apply analytics settings.",
       "invalidTrackingId": "Tracking ID does not match the expected format.",
-      "enabledRequiresTrackingId": "Enable requires a valid Tracking ID."
+      "enabledRequiresTrackingId": "Enable requires a valid Tracking ID.",
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      }
     },
     "site": {
       "title": "Site information",

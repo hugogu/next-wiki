@@ -501,6 +501,8 @@ export const translationKeys = [
   "admin.analytics.saveFailed",
   "admin.analytics.invalidTrackingId",
   "admin.analytics.enabledRequiresTrackingId",
+  "admin.analytics.status.enabled",
+  "admin.analytics.status.disabled",
   "admin.site.title",
   "admin.site.description",
   "admin.site.name.label",

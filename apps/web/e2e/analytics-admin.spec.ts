@@ -32,7 +32,7 @@ test.describe('admin analytics settings', () => {
     });
   });
 
-  test('admin configures a provider and saves', async ({ page }) => {
+  test('admin configures a provider and applies', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/analytics');
 
@@ -40,9 +40,9 @@ test.describe('admin analytics settings', () => {
 
     await page.getByLabel('Tracking ID', { exact: true }).fill(VALID_BAIDU_ID);
     await page.getByRole('switch', { name: /Baidu Tongji/i }).click();
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Apply' }).click();
 
-    await expect(page.getByText('Analytics settings saved.')).toBeVisible();
+    await expect(page.getByText('Analytics settings applied.')).toBeVisible();
     await expect(page.getByRole('switch', { name: /Baidu Tongji/i })).toHaveAttribute('aria-checked', 'true');
   });
 

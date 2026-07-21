@@ -23,7 +23,7 @@ export const analyticsProviderEnum = pgEnum('analytics_provider', [
 **Postgres type name**: `analytics_provider` (snake_case, per project convention).
 
 **Values**:
-- `baidu_tongji` - Baidu Tongji (百度统计)
+- `baidu_tongji` - Baidu Tongji
 - `google_analytics` - Google Analytics (GA4)
 
 **Mirrored Zod enum** in `packages/shared/src/analytics.ts`:

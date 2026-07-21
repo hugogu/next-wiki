@@ -166,7 +166,7 @@ MUST stay in sync).
       "allDisabled": "All analytics providers are currently disabled. No tracking scripts will be loaded.",
       "providers": {
         "baidu_tongji": {
-          "label": "Baidu Tongji (百度统计)",
+          "label": "Baidu Tongji",
           "description": "Baidu's web analytics service.",
           "trackingId": {
             "label": "Tracking ID",

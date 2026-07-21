@@ -97,7 +97,7 @@ be public.
   "providers": [
     {
       "provider": "baidu_tongji",
-      "label": "Baidu Tongji (百度统计)",
+      "label": "Baidu Tongji",
       "description": "Baidu's web analytics service.",
       "enabled": true,
       "trackingId": "abcdef0123456789abcdef0123456789",

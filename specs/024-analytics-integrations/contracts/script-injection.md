@@ -129,7 +129,7 @@ type AnalyticsProviderDefinition = {
 const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
   {
     provider: 'baidu_tongji',
-    label: 'Baidu Tongji (百度统计)',
+    label: 'Baidu Tongji',
     description: "Baidu's web analytics service.",
     trackingIdFormatHint: '32-character hex string',
     trackingIdPattern: /^[a-f0-9]{32}$/i,
