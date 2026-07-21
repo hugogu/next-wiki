@@ -50,6 +50,9 @@ export type SearchWikiResult = {
   linkTarget?: PublicPageResource['linkTarget'];
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  /** 025: the bot channel a captured Raw Conversation result came from (e.g.
+   * 'feishu'); absent/null for non-conversation results and legacy captures. */
+  conversationChannel?: PublicPageResource['conversationChannel'];
 };
 
 function pageProvenance(source: PublicPageResource) {
@@ -59,6 +62,7 @@ function pageProvenance(source: PublicPageResource) {
     ...(source.linkTarget !== undefined ? { linkTarget: source.linkTarget } : {}),
     ...(source.origin ? { origin: source.origin } : {}),
     ...(source.humanModified !== undefined ? { humanModified: source.humanModified } : {}),
+    ...(source.conversationChannel !== undefined ? { conversationChannel: source.conversationChannel } : {}),
   };
 }
 

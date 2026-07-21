@@ -43,7 +43,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'search_wiki',
-    'Search wiki pages by keyword. Results include frontmatter; use filterTag for structured page tags and filterStatus/filterOwner/filterHasFrontmatter for frontmatter fields.',
+    'Search wiki pages by keyword. Results include frontmatter; use filterTag for structured page tags and filterStatus/filterOwner/filterHasFrontmatter for frontmatter fields. Captured Raw Conversation results carry a conversationChannel field ("wiki-ai" or "feishu") identifying the bot channel the turn came from; absent for non-conversation results.',
     searchWikiSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await searchWiki(client, args)) }],

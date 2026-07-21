@@ -120,6 +120,10 @@ export const publicPageResourceSchema = z.object({
   origin: publicOriginSchema.optional(),
   humanModified: z.boolean().optional(),
   visibility: z.enum(['public', 'restricted']).optional(),
+  rawCategorySystemKey: z.string().nullable().optional(),
+  // 025: capture channel for a Conversation Raw page (e.g. 'feishu'); absent
+  // or null for non-conversation pages and legacy captures.
+  conversationChannel: z.enum(['wiki-ai', 'feishu']).nullable().optional(),
   // Omitted by the API for list/search results; present for single-page reads and writes.
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable().optional(),
