@@ -2,6 +2,7 @@
 - Use `docker compose up -d --build` for testing
 - Only Editor or Admin can edit page. 
 - When there is API changes, update docs via next-open-api.
+- **Commit workflow**: commit changes directly without asking. When a unit of work is ready (spec edit, task completion, fix, refactor, plan update), stage the relevant files and create a commit in the same turn. Do not wait for explicit "commit it". Do not push unless explicitly asked. Skip auto-commit only for in-progress or experimental work that the user might want to amend.
 
 ## UI Design Principles
 
