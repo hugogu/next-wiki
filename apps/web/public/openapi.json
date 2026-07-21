@@ -796,7 +796,7 @@
           "sourceKey": {
             "type": "string",
             "enum": [
-              "wiki-ai-conversations"
+              "ai-conversations"
             ],
             "description": "Stable registered Content Data Source key."
           },
@@ -2906,6 +2906,17 @@
               "null"
             ],
             "description": "Built-in raw category key (e.g. 'conversation') for a raw page filed under a system category; null/omitted otherwise."
+          },
+          "conversationChannel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "wiki-ai",
+              "feishu"
+            ],
+            "description": "Capture channel for a Conversation raw page (025); null/omitted for non-conversation pages and legacy captures that predate the field."
           },
           "contentSource": {
             "type": "string",

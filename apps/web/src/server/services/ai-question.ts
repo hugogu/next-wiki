@@ -1,5 +1,5 @@
 import { and, eq, isNull } from 'drizzle-orm';
-import { WIKI_AI_CONVERSATIONS_SOURCE_KEY, type AiQuestionMode } from '@next-wiki/shared';
+import { AI_CONVERSATIONS_SOURCE_KEY, type AiQuestionMode } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
@@ -65,10 +65,10 @@ export async function createWikiQuestion(
   await assertAiFeature(ctx, 'question');
   await validateCurrentPage(ctx, input.currentPage);
   const { model, provider } = await getAssignedModel('wiki_text');
-  // 023: capture eligibility is decided once, at create time, from the
-  // Wiki AI Conversations data-source setting — later toggles only affect
+  // 023/025: capture eligibility is decided once, at create time, from the
+  // AI Conversations data-source setting — later toggles only affect
   // conversations created after the change (see content-data-sources.ts).
-  const captureEnabled = await isDataSourceEnabled(WIKI_AI_CONVERSATIONS_SOURCE_KEY);
+  const captureEnabled = await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
   return createAction(ctx, {
     feature: 'wiki_question',
     input,

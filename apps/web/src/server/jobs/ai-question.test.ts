@@ -190,7 +190,7 @@ describe('Wiki question worker', () => {
 
     await db
       .insert(schema.contentDataSourceSettings)
-      .values({ sourceKey: 'wiki-ai-conversations', enabled: true });
+      .values({ sourceKey: 'ai-conversations', enabled: true });
 
     const enabledAction = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
       question: 'Where is the answer, again?',
@@ -203,11 +203,29 @@ describe('Wiki question worker', () => {
     await db
       .update(schema.contentDataSourceSettings)
       .set({ enabled: false })
-      .where(eq(schema.contentDataSourceSettings.sourceKey, 'wiki-ai-conversations'));
+      .where(eq(schema.contentDataSourceSettings.sourceKey, 'ai-conversations'));
 
     // Toggling back off never rewrites the already-created action's status.
     const stillPending = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, enabledAction.id) });
     expect(stillPending?.rawConversationCaptureStatus).toBe('pending');
+  });
+
+  it('falls back to the legacy wiki-ai-conversations row when the renamed key has not been migrated yet (025)', async () => {
+    // No row for either key may survive from a previous test in this file
+    // (contentDataSourceSettings is not part of clearAiData's truncate set),
+    // so this test owns its own clean slate rather than depending on order.
+    await db.delete(schema.contentDataSourceSettings);
+    await db
+      .insert(schema.contentDataSourceSettings)
+      .values({ sourceKey: 'wiki-ai-conversations', enabled: true });
+
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Does the legacy alias still enable capture?',
+      mode: 'full',
+      currentPage: { pageId, revisionId },
+    });
+    const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
+    expect(row?.rawConversationCaptureStatus).toBe('pending');
   });
 
   it('requests a bounded output budget, never the whole context window', async () => {

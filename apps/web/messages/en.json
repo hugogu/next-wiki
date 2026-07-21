@@ -34,7 +34,8 @@
       "source": {
         "keyword": "Keyword",
         "semantic": "Vector",
-        "conversation": "Conversation"
+        "conversation": "Conversation",
+        "feishu": "Feishu"
       }
     }
   },
@@ -1438,7 +1439,10 @@
     },
     "bots": {
       "title": "Bots",
-      "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation."
+      "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation.",
+      "tabs": {
+        "general": "General"
+      }
     },
     "feishu": {
       "connect": {
@@ -1560,9 +1564,9 @@
         "unavailable": "This source can't be enabled until Raw content is available in the current writing mode."
       },
       "sources": {
-        "wikiAiConversations": {
-          "label": "Wiki AI Conversations",
-          "description": "Capture new Wiki AI chats as Raw Conversation pages in the built-in Conversation category."
+        "aiConversations": {
+          "label": "AI Conversations",
+          "description": "Capture every AI conversation — Wiki AI and Feishu bot — as Raw Conversation pages in the built-in Conversation category."
         }
       }
     }

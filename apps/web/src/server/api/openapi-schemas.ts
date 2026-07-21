@@ -807,6 +807,11 @@ export const PublicPageResource = z
       .nullable()
       .optional()
       .describe("Built-in raw category key (e.g. 'conversation') for a raw page filed under a system category; null/omitted otherwise."),
+    conversationChannel: z
+      .enum(['wiki-ai', 'feishu'])
+      .nullable()
+      .optional()
+      .describe('Capture channel for a Conversation raw page (025); null/omitted for non-conversation pages and legacy captures that predate the field.'),
     contentSource: z
       .string()
       .optional()
@@ -1077,7 +1082,7 @@ export const PublicRawCategoryCreateInput = z
 
 export const ContentDataSourceItem = z
   .object({
-    sourceKey: z.enum(['wiki-ai-conversations']).describe('Stable registered Content Data Source key.'),
+    sourceKey: z.enum(['ai-conversations']).describe('Stable registered Content Data Source key.'),
     category: z.literal('content').describe('Data source category grouping.'),
     label: z.string().describe('Human-readable label.'),
     description: z.string().describe('Human-readable description.'),

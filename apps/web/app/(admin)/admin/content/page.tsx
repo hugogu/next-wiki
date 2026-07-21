@@ -1,29 +1,13 @@
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { Layout } from '@/components/ui/Layout';
-import { getDictionary, getLocale } from '@/i18n/server';
-import { getCurrentActor } from '@/server/services/auth';
-import { listDataSources } from '@/server/services/content-data-sources';
-import { ContentDataSourcesPanel } from '@/components/admin/ContentDataSourcesPanel';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
-  return { title: getDictionary(locale)('admin.content.metadataTitle') };
-}
-
-export default async function AdminContentPage() {
-  const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || actor.role !== 'admin') notFound();
-
-  const items = await listDataSources({ actor });
-
-  return (
-    <Layout admin>
-      <div className="space-y-md px-lg py-md">
-        <ContentDataSourcesPanel initial={items} />
-      </div>
-    </Layout>
-  );
+/**
+ * 025: the Data Sources editor moved into Bots' General settings so there is
+ * one canonical writable location for the AI Conversations toggle (see
+ * `BotsTabs`). This route is kept only as a redirect for old bookmarks/links
+ * — it must never render a second writable editor (constitution P11).
+ */
+export default function AdminContentPage() {
+  redirect('/admin/bots?tab=general');
 }

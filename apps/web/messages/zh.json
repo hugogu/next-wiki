@@ -34,7 +34,8 @@
       "source": {
         "keyword": "关键字",
         "semantic": "向量",
-        "conversation": "对话"
+        "conversation": "对话",
+        "feishu": "飞书"
       }
     }
   },
@@ -1438,7 +1439,10 @@
     },
     "bots": {
       "title": "机器人",
-      "description": "连接聊天机器人，让团队成员在聊天中直接向 Wiki 提问、搜索页面并接收更新通知。"
+      "description": "连接聊天机器人，让团队成员在聊天中直接向 Wiki 提问、搜索页面并接收更新通知。",
+      "tabs": {
+        "general": "通用"
+      }
     },
     "feishu": {
       "connect": {
@@ -1560,9 +1564,9 @@
         "unavailable": "当前写作模式下原始内容不可用,无法启用该数据源。"
       },
       "sources": {
-        "wikiAiConversations": {
-          "label": "Wiki AI 对话",
-          "description": "将新的 Wiki AI 对话采集为内置「对话」分类下的原始页面。"
+        "aiConversations": {
+          "label": "AI 对话",
+          "description": "将每一次 AI 对话——无论来自 Wiki AI 还是飞书机器人——采集为内置「对话」分类下的原始页面。"
         }
       }
     }

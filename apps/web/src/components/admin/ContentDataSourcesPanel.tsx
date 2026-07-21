@@ -17,9 +17,9 @@ const QUERY_KEY = ['content-data-sources'];
  * which exist mainly for API/MCP consumers. Unregistered future keys fall back
  * to the server-provided strings so the panel never renders blank. */
 const SOURCE_COPY: Record<string, { labelKey: TranslationKey; descriptionKey: TranslationKey }> = {
-  'wiki-ai-conversations': {
-    labelKey: 'admin.contentDataSources.sources.wikiAiConversations.label',
-    descriptionKey: 'admin.contentDataSources.sources.wikiAiConversations.description',
+  'ai-conversations': {
+    labelKey: 'admin.contentDataSources.sources.aiConversations.label',
+    descriptionKey: 'admin.contentDataSources.sources.aiConversations.description',
   },
 };
 

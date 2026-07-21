@@ -12,7 +12,7 @@ import * as collection from './route';
 import * as item from './[sourceKey]/route';
 
 const jsonRequest = (body: unknown) =>
-  new NextRequest('http://localhost/api/settings/content-data-sources/wiki-ai-conversations', {
+  new NextRequest('http://localhost/api/settings/content-data-sources/ai-conversations', {
     method: 'PATCH', body: JSON.stringify(body), headers: { 'content-type': 'application/json' },
   });
 
@@ -23,10 +23,10 @@ describe('admin content-data-sources API', () => {
   });
 
   it('lists registered sources', async () => {
-    service.listDataSources.mockResolvedValue([{ sourceKey: 'wiki-ai-conversations', enabled: false }]);
+    service.listDataSources.mockResolvedValue([{ sourceKey: 'ai-conversations', enabled: false }]);
     const response = await collection.GET();
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ items: [{ sourceKey: 'wiki-ai-conversations', enabled: false }] });
+    await expect(response.json()).resolves.toEqual({ items: [{ sourceKey: 'ai-conversations', enabled: false }] });
   });
 
   it('maps FORBIDDEN (non-Admin) to 403', async () => {
@@ -36,17 +36,17 @@ describe('admin content-data-sources API', () => {
   });
 
   it('updates a source', async () => {
-    service.updateDataSource.mockResolvedValue({ sourceKey: 'wiki-ai-conversations', enabled: true });
+    service.updateDataSource.mockResolvedValue({ sourceKey: 'ai-conversations', enabled: true });
     const response = await item.PATCH(jsonRequest({ enabled: true }), {
-      params: Promise.resolve({ sourceKey: 'wiki-ai-conversations' }),
+      params: Promise.resolve({ sourceKey: 'ai-conversations' }),
     });
     expect(response.status).toBe(200);
-    expect(service.updateDataSource).toHaveBeenCalledWith(expect.anything(), 'wiki-ai-conversations', { enabled: true });
+    expect(service.updateDataSource).toHaveBeenCalledWith(expect.anything(), 'ai-conversations', { enabled: true });
   });
 
   it('rejects a malformed body', async () => {
     const response = await item.PATCH(jsonRequest({ enabled: 'yes' }), {
-      params: Promise.resolve({ sourceKey: 'wiki-ai-conversations' }),
+      params: Promise.resolve({ sourceKey: 'ai-conversations' }),
     });
     expect(response.status).toBe(400);
     expect(service.updateDataSource).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe('admin content-data-sources API', () => {
   it('maps DATA_SOURCE_UNAVAILABLE to 409', async () => {
     service.updateDataSource.mockRejectedValueOnce(new DomainError('DATA_SOURCE_UNAVAILABLE', 'copilot mode'));
     const response = await item.PATCH(jsonRequest({ enabled: true }), {
-      params: Promise.resolve({ sourceKey: 'wiki-ai-conversations' }),
+      params: Promise.resolve({ sourceKey: 'ai-conversations' }),
     });
     expect(response.status).toBe(409);
   });

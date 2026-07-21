@@ -43,7 +43,7 @@ async function setDataSourceEnabled(enabled: boolean) {
   try {
     await sql`
       INSERT INTO content_data_source_settings (source_key, enabled)
-      VALUES ('wiki-ai-conversations', ${enabled})
+      VALUES ('ai-conversations', ${enabled})
       ON CONFLICT (source_key) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`;
   } finally {
     await sql.end({ timeout: 5 });
@@ -123,7 +123,7 @@ async function clearSeededData() {
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw'))`;
     await sql`DELETE FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw')`;
     await sql`DELETE FROM raw_categories WHERE system_key = 'conversation'`;
-    await sql`DELETE FROM content_data_source_settings WHERE source_key = 'wiki-ai-conversations'`;
+    await sql`DELETE FROM content_data_source_settings WHERE source_key IN ('ai-conversations', 'wiki-ai-conversations')`;
   } finally {
     await sql.end({ timeout: 5 });
   }
@@ -155,21 +155,28 @@ test.describe('Raw Conversation Search (023)', () => {
     await setWritingMode('copilot');
   });
 
-  test('admin toggles the Wiki AI Conversations data source', async ({ page }) => {
+  test('admin toggles the AI Conversations data source from Bots General', async ({ page }) => {
     await login(page);
-    await page.goto('/admin/content');
+    await page.goto('/admin/bots?tab=general');
 
-    await expect(page.getByText('Wiki AI Conversations')).toBeVisible();
-    const toggle = page.getByRole('switch', { name: 'Wiki AI Conversations' });
+    await expect(page.getByText('AI Conversations')).toBeVisible();
+    const toggle = page.getByRole('switch', { name: 'AI Conversations' });
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
 
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     await page.reload();
-    await expect(page.getByRole('switch', { name: 'Wiki AI Conversations' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('switch', { name: 'AI Conversations' })).toHaveAttribute('aria-checked', 'true');
 
-    await page.getByRole('switch', { name: 'Wiki AI Conversations' }).click();
-    await expect(page.getByRole('switch', { name: 'Wiki AI Conversations' })).toHaveAttribute('aria-checked', 'false');
+    await page.getByRole('switch', { name: 'AI Conversations' }).click();
+    await expect(page.getByRole('switch', { name: 'AI Conversations' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('the former Content settings location redirects to Bots General instead of duplicating the editor', async ({ page }) => {
+    await login(page);
+    await page.goto('/admin/content');
+    await page.waitForURL('**/admin/bots?tab=general');
+    await expect(page.getByText('AI Conversations')).toBeVisible();
   });
 
   test('a captured conversation renders via the shared conversation view and cannot be deleted from history', async ({ page }) => {

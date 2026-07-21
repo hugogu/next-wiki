@@ -18,10 +18,10 @@ function renderWithI18n(children: React.ReactNode): string {
 
 function item(overrides: Partial<ContentDataSourceItem> = {}): ContentDataSourceItem {
   return {
-    sourceKey: 'wiki-ai-conversations',
+    sourceKey: 'ai-conversations',
     category: 'content',
-    label: 'Wiki AI Conversations',
-    description: 'Capture new Wiki AI chats as Raw Conversation pages.',
+    label: 'AI Conversations',
+    description: 'Capture every AI conversation — Wiki AI and Feishu bot — as Raw Conversation pages.',
     enabled: false,
     available: true,
     unavailableReason: null,
@@ -33,8 +33,8 @@ function item(overrides: Partial<ContentDataSourceItem> = {}): ContentDataSource
 describe('ContentDataSourcesPanel', () => {
   it('renders the localized label/description and an unchecked switch when disabled', () => {
     const html = renderWithI18n(<ContentDataSourcesPanel initial={[item({ enabled: false })]} />);
-    expect(html).toContain('Wiki AI Conversations');
-    expect(html).toContain('Capture new Wiki AI chats as Raw Conversation pages');
+    expect(html).toContain('AI Conversations');
+    expect(html).toContain('Capture every AI conversation');
     expect(html).toContain('aria-checked="false"');
     expect(html).not.toContain('Unavailable');
   });

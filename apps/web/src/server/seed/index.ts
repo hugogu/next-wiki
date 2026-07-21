@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { WIKI_AI_CONVERSATIONS_SOURCE_KEY } from '@next-wiki/shared';
+import { AI_CONVERSATIONS_SOURCE_KEY } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
@@ -121,14 +121,16 @@ export async function seedConversationCategory() {
 }
 
 /**
- * Ensure the Wiki AI Conversations Content Data Source row exists, disabled
- * by default (023). Existing deployments never start capturing conversations
- * without an explicit Admin opt-in.
+ * Ensure the AI Conversations Content Data Source row exists, disabled by
+ * default (023, renamed 025). Existing deployments never start capturing
+ * conversations without an explicit Admin opt-in. Fresh deployments only ever
+ * see the canonical key — the legacy `wiki-ai-conversations` row is never
+ * seeded because there is no pre-025 state to migrate.
  */
 export async function seedContentDataSources() {
   await db
     .insert(schema.contentDataSourceSettings)
-    .values({ sourceKey: WIKI_AI_CONVERSATIONS_SOURCE_KEY, enabled: false })
+    .values({ sourceKey: AI_CONVERSATIONS_SOURCE_KEY, enabled: false })
     .onConflictDoNothing();
 }
 

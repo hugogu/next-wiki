@@ -1,28 +1,58 @@
 'use client';
 
-import type { FeishuConfigView } from '@next-wiki/shared';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type { ContentDataSourceItem, FeishuConfigView } from '@next-wiki/shared';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { FeishuIntegrationPanel } from '@/components/admin/feishu/FeishuIntegrationPanel';
+import { ContentDataSourcesPanel } from '@/components/admin/ContentDataSourcesPanel';
 import { useTranslation } from '@/i18n/client';
 
-type BotProviderTab = 'feishu';
+type BotsTab = 'general' | 'feishu';
+const TABS: BotsTab[] = ['general', 'feishu'];
+
+function parseTab(value: string | null): BotsTab {
+  return TABS.includes(value as BotsTab) ? (value as BotsTab) : 'general';
+}
 
 /**
- * Second-level bot provider tabs inside the Bots admin page. Feishu is the
- * first provider; future providers (Slack, Telegram, …) register here as
- * additional tabs.
+ * Second-level tabs inside the Bots admin page. `general` (025) holds the
+ * shared, channel-agnostic AI Conversations Data Source — the single
+ * writable location for that toggle (see ContentDataSourcesPanel). Feishu is
+ * the first provider tab; future providers (Slack, Telegram, …) register here
+ * as additional tabs. The selected tab is restorable from the URL
+ * (`?tab=general` / `?tab=feishu`) like the AI admin tabs.
  */
-export function BotsTabs({ feishuConfig }: { feishuConfig: FeishuConfigView }) {
+export function BotsTabs({
+  feishuConfig,
+  dataSources,
+}: {
+  feishuConfig: FeishuConfigView;
+  dataSources: ContentDataSourceItem[];
+}) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selected = parseTab(searchParams.get('tab'));
+  const selectTab = (tab: BotsTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   return (
-    <SettingsTabs<'feishu'>
-      tabs={[{ id: 'feishu', label: t('admin.nav.feishu') }]}
-      selected="feishu"
-      onSelect={() => undefined}
+    <SettingsTabs<BotsTab>
+      tabs={[
+        { id: 'general', label: t('admin.bots.tabs.general') },
+        { id: 'feishu', label: t('admin.nav.feishu') },
+      ]}
+      selected={selected}
+      onSelect={selectTab}
     >
-      <FeishuIntegrationPanel initial={feishuConfig} />
+      {selected === 'general' && <ContentDataSourcesPanel initial={dataSources} />}
+      {selected === 'feishu' && <FeishuIntegrationPanel initial={feishuConfig} />}
     </SettingsTabs>
   );
 }
 
-export type { BotProviderTab };
+export type { BotsTab };
