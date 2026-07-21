@@ -13,6 +13,8 @@ export type RawCategory = {
   description: string | null;
   isDefault: boolean;
   isRetired: boolean;
+  systemKey: string | null;
+  isSystem: boolean;
   entryCount: number;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +58,8 @@ function toView(row: CategoryRow, entryCount: number): RawCategory {
     description: row.description,
     isDefault: row.isDefault,
     isRetired: row.isRetired,
+    systemKey: row.systemKey,
+    isSystem: row.systemKey !== null,
     entryCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -157,6 +161,11 @@ export async function retireCategory(ctx: PermCtx, id: string): Promise<RawCateg
   const userId = assertAdmin(ctx);
   await assertSpaceKindAllowed('raw');
   const updated = await db.transaction(async (tx) => {
+    const existing = await tx.query.rawCategories.findFirst({ where: eq(schema.rawCategories.id, id) });
+    if (!existing) throw new DomainError('NOT_FOUND', 'Raw category not found');
+    if (existing.systemKey) {
+      throw new DomainError('RAW_CATEGORY_SYSTEM_PROTECTED', 'This built-in category cannot be retired');
+    }
     const [row] = await tx
       .update(schema.rawCategories)
       .set({ isRetired: true, isDefault: false, updatedBy: userId, updatedAt: new Date() })
@@ -169,18 +178,70 @@ export async function retireCategory(ctx: PermCtx, id: string): Promise<RawCateg
 }
 
 /** Hard delete is only allowed while no entry references the category; otherwise
- * the admin must retire it. */
+ * the admin must retire it. Built-in (system) categories can never be deleted. */
 export async function deleteCategory(ctx: PermCtx, id: string): Promise<void> {
   assertAdmin(ctx);
   await assertSpaceKindAllowed('raw');
   await db.transaction(async (tx) => {
     const existing = await tx.query.rawCategories.findFirst({ where: eq(schema.rawCategories.id, id) });
     if (!existing) throw new DomainError('NOT_FOUND', 'Raw category not found');
+    if (existing.systemKey) {
+      throw new DomainError('RAW_CATEGORY_SYSTEM_PROTECTED', 'This built-in category cannot be deleted');
+    }
     if ((await countEntries(tx, id)) > 0) {
       throw new DomainError('RAW_CATEGORY_HAS_ENTRIES', 'Retire this category instead — raw entries still reference it');
     }
     await tx.delete(schema.rawCategories).where(eq(schema.rawCategories.id, id));
   });
+}
+
+/** Looks up a built-in category by its stable system key (independent of the
+ * admin-editable name/slug). */
+export async function getCategoryBySystemKey(systemKey: string, tx?: Tx): Promise<CategoryRow | undefined> {
+  const conn = tx ?? db;
+  return conn.query.rawCategories.findFirst({ where: eq(schema.rawCategories.systemKey, systemKey) });
+}
+
+/** Reverse lookup for renderer dispatch: given a page's raw_category_id,
+ * returns its stable system_key (e.g. 'conversation'), or null for a
+ * user-managed category or an unknown id. */
+export async function getCategorySystemKeyById(categoryId: string): Promise<string | null> {
+  const row = await db.query.rawCategories.findFirst({
+    where: eq(schema.rawCategories.id, categoryId),
+    columns: { systemKey: true },
+  });
+  return row?.systemKey ?? null;
+}
+
+/**
+ * Ensures a built-in, protected category exists for the given system key,
+ * creating it with the provided defaults on first use. Idempotent and safe
+ * under concurrent callers (falls back to a re-read on a unique-violation
+ * race rather than erroring).
+ */
+export async function ensureSystemCategory(
+  systemKey: string,
+  defaults: { name: string; slug: string; description?: string | null },
+): Promise<CategoryRow> {
+  const existing = await getCategoryBySystemKey(systemKey);
+  if (existing) return existing;
+  try {
+    const [row] = await db
+      .insert(schema.rawCategories)
+      .values({
+        name: defaults.name,
+        slug: defaults.slug,
+        description: defaults.description ?? null,
+        systemKey,
+      })
+      .returning();
+    if (!row) throw new Error(`Failed to create built-in raw category '${systemKey}'`);
+    return row;
+  } catch (error) {
+    const again = await getCategoryBySystemKey(systemKey);
+    if (again) return again;
+    throw error;
+  }
 }
 
 /**

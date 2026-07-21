@@ -1,11 +1,13 @@
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { WIKI_AI_CONVERSATIONS_SOURCE_KEY } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
 import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
 import { DEFAULT_SPACE_SLUG } from '@/server/services/spaces';
 import { WELCOME_PAGE_SOURCE } from '@/server/services/setup-sample-page-definitions';
+import { ensureSystemCategory } from '@/server/services/raw-categories';
 import { env } from '@/server/config';
 
 /**
@@ -106,6 +108,31 @@ export async function seedRawCategories() {
 }
 
 /**
+ * Ensure the built-in Conversation raw category exists (023), independent of
+ * the general `reference` default category, so capture always has a stable
+ * filing target. Protected from retirement/deletion by `system_key`.
+ */
+export async function seedConversationCategory() {
+  await ensureSystemCategory('conversation', {
+    name: 'Conversation',
+    slug: 'conversation',
+    description: 'Captured Wiki AI conversations — the built-in Conversation category.',
+  });
+}
+
+/**
+ * Ensure the Wiki AI Conversations Content Data Source row exists, disabled
+ * by default (023). Existing deployments never start capturing conversations
+ * without an explicit Admin opt-in.
+ */
+export async function seedContentDataSources() {
+  await db
+    .insert(schema.contentDataSourceSettings)
+    .values({ sourceKey: WIKI_AI_CONVERSATIONS_SOURCE_KEY, enabled: false })
+    .onConflictDoNothing();
+}
+
+/**
  * Ensure the writing-mode settings singleton exists (022). Seeding the row at
  * boot lets the content-write barrier's `SELECT … FOR SHARE` lock it even on a
  * fresh database, so `beginPendingSwitch` drains in-flight writes instead of
@@ -126,6 +153,8 @@ export async function seedDatabase() {
   // boot so the instance is writable right after first-run setup.
   await seedWritingModeSpaces();
   await seedRawCategories();
+  await seedConversationCategory();
+  await seedContentDataSources();
   await seedWritingModeSettings();
 
   // Demo/sample data only: a sample admin account and welcome page. This NEVER

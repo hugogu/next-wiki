@@ -58,6 +58,17 @@ describe('semantic engine (pgvector + AI action lifecycle)', () => {
     expect(publicAi.submitSemanticSearch).toHaveBeenCalledWith(ctx, { q: 'conceptual paraphrase', limit: 20, scope: 'all' });
   });
 
+  it('forwards the coordinator-resolved space slug (023 Raw semantic search)', async () => {
+    publicAi.submitSemanticSearch.mockResolvedValue({ id: 'action-raw' });
+
+    await engine.run(ctx, { ...query(), spaceSlug: 'raw' });
+
+    expect(publicAi.submitSemanticSearch).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ space: 'raw' }),
+    );
+  });
+
   it('continues reporting pending while the action is still running', async () => {
     publicAi.getSemanticSearchResults.mockResolvedValue({ status: 'running', items: [] });
     const outcome = await engine.run(ctx, query({ continuationRef: 'action-run' }));

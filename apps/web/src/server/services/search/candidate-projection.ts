@@ -58,10 +58,14 @@ export async function projectReadableCandidatePages(
         displayName: schema.users.displayName,
         email: schema.users.email,
       },
+      // 023: built-in category key (e.g. 'conversation') for raw candidates,
+      // so a captured Raw Conversation result can carry a source cue.
+      rawCategorySystemKey: schema.rawCategories.systemKey,
     })
     .from(schema.pages)
     .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
     .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+    .leftJoin(schema.rawCategories, eq(schema.pages.rawCategoryId, schema.rawCategories.id))
     .where(and(
       eq(schema.pages.spaceId, space.id),
       isNull(schema.pages.deletedAt),
@@ -92,6 +96,7 @@ export async function projectReadableCandidatePages(
         metadata: row.page.currentPublishedVersionId ? await getRevisionMetadata(row.page.currentPublishedVersionId) : undefined,
         status: 'published',
         author: { id: row.author.id, displayName: row.author.displayName ?? row.author.email },
+        rawCategorySystemKey: row.rawCategorySystemKey,
         createdAt: row.page.createdAt.toISOString(),
         updatedAt: row.page.updatedAt.toISOString(),
         links: links(row.page),

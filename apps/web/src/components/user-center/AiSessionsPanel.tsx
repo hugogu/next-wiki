@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import type { AiActionEvent, AiActionStatus, AiSessionListResponse, AiSessionSummary } from '@next-wiki/shared';
+import type { AiActionEvent, AiActionStatus, AiSessionListResponse, AiSessionSummary, RawConversationPointer } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 import { apiGet, apiDelete } from '@/lib/api/client';
@@ -17,11 +17,9 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
-import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, SearchIcon, SparklesIcon, TrashIcon } from '@/components/icons';
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, LinkIcon, SearchIcon, SparklesIcon, TrashIcon } from '@/components/icons';
 import { useChatStore } from '@/components/chat/chat-store';
-import { ChatAnswer } from '@/components/chat/ChatAnswer';
-import { ChatCitations } from '@/components/chat/ChatCitations';
-import { ChatThinking } from '@/components/chat/ChatThinking';
+import { ConversationSessionView } from '@/components/chat/ConversationSessionView';
 import { reconstructSessionFromEvents, type ReconstructedSession } from '@/components/chat/reconstruct-session';
 
 const PAGE_SIZE = 20;
@@ -36,8 +34,31 @@ const STATUS_LABELS: Record<AiActionStatus, TranslationKey> = {
 };
 const STATUSES = Object.keys(STATUS_LABELS) as AiActionStatus[];
 
+/**
+ * 023: a captured session's canonical content lives in its Raw Conversation
+ * page, which outlives the event log's retention window. Preferring
+ * `rawConversation.conversation` here means "view" and "continue" always see
+ * the durable record instead of silently resuming from an empty
+ * reconstruction once events have expired. Legacy (never-captured) sessions
+ * are unaffected — they keep reconstructing from the event log exactly as
+ * before.
+ */
 async function fetchDetail(id: string): Promise<ReconstructedSession> {
-  const { events } = await apiGet<{ events: AiActionEvent[] }>(`/api/ai/sessions/${id}`);
+  const { events, rawConversation } = await apiGet<{
+    events: AiActionEvent[];
+    rawConversation: RawConversationPointer | null;
+  }>(`/api/ai/sessions/${id}`);
+  const captured = rawConversation?.conversation;
+  if (captured) {
+    return {
+      question: captured.question,
+      answer: captured.answer,
+      thinking: captured.thinking,
+      citations: captured.citations,
+      insufficient: captured.insufficient,
+      errorMessage: captured.errorMessage,
+    };
+  }
   return reconstructSessionFromEvents(events);
 }
 
@@ -226,12 +247,23 @@ export function AiSessionsPanel({ initial }: { initial: AiSessionListResponse })
                       >
                         <SparklesIcon />
                       </Button>
+                      {session.rawConversation && (
+                        <a
+                          href={session.rawConversation.url}
+                          title={t('userCenter.aiSessions.openRawPage')}
+                          aria-label={t('userCenter.aiSessions.openRawPage')}
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-transparent font-medium text-muted transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          <LinkIcon />
+                        </a>
+                      )}
                       <Button
                         type="button"
                         variant="danger"
                         onClick={() => setDeleteTarget(session)}
-                        title={t('userCenter.aiSessions.delete')}
-                        aria-label={t('userCenter.aiSessions.delete')}
+                        disabled={Boolean(session.rawConversation)}
+                        title={session.rawConversation ? t('userCenter.aiSessions.captureImmutable') : t('userCenter.aiSessions.delete')}
+                        aria-label={session.rawConversation ? t('userCenter.aiSessions.captureImmutable') : t('userCenter.aiSessions.delete')}
                       >
                         <TrashIcon />
                       </Button>
@@ -268,18 +300,17 @@ export function AiSessionsPanel({ initial }: { initial: AiSessionListResponse })
             <p className="text-sm text-muted">{t('userCenter.aiSessions.loading')}</p>
           ) : (
             <div className="space-y-sm">
-              <div className="rounded-md bg-primary p-sm text-sm text-primary-text">{detail.question}</div>
-              <div className="space-y-sm rounded-md bg-surface-elevated p-sm text-sm">
-                {detail.thinking && <ChatThinking thinking={detail.thinking} />}
-                {detail.insufficient ? (
-                  <p className="text-muted">{t('ai.chat.insufficient')}</p>
-                ) : detail.errorMessage ? (
-                  <p className="text-danger">{detail.errorMessage}</p>
-                ) : (
-                  <ChatAnswer text={detail.answer} citations={detail.citations} done />
-                )}
-                <ChatCitations citations={detail.citations} />
-              </div>
+              <ConversationSessionView
+                conversation={{
+                  status: viewing.status,
+                  question: detail.question,
+                  answer: detail.answer,
+                  thinking: detail.thinking,
+                  citations: detail.citations,
+                  insufficient: detail.insufficient,
+                  errorMessage: detail.errorMessage,
+                }}
+              />
               <div className="flex justify-end">
                 <Button type="button" onClick={() => void handleContinue(viewing)} disabled={continuingId === viewing.id}>
                   <SparklesIcon />

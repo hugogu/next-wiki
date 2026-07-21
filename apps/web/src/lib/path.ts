@@ -8,6 +8,14 @@ function encodePath(path: string): string {
 
 export type ReaderSpace = 'wiki' | 'raw' | 'generated';
 
+/** Maps a space's slug (e.g. from a search result) to the reader-space
+ * vocabulary used by getSpaceHref/getSpaceEditHref/etc. Every space besides
+ * the two special ones is a 'wiki' space (there is only one today, slug
+ * 'default', but any other wiki-kind slug should still resolve here). */
+export function readerSpaceFromSlug(slug: string): ReaderSpace {
+  return slug === 'generated' ? 'generated' : slug === 'raw' ? 'raw' : 'wiki';
+}
+
 export function getPageHref(path: string): string {
   return `/${encodePath(path)}`;
 }

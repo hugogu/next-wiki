@@ -39,6 +39,7 @@ import {
   runWritingModeSwitch,
   type WritingModeSwitchJobData,
 } from './writing-mode-switch';
+import { runRawConversationCapture } from './raw-conversation-capture';
 
 type JobBatch = { data: unknown }[];
 
@@ -164,6 +165,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
       }
     },
   );
+  await boss.work(QUEUES.rawConversationCapture, async (jobs: JobBatch) => {
+    for (const job of jobs) await runRawConversationCapture(job.data);
+  });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });
   await boss.schedule(QUEUES.aiCleanup, '*/15 * * * *', {});

@@ -30,6 +30,8 @@ export type CoordinatedSearchInput = {
   immediateSearchTimeoutMs: number;
   /** Resolved content space for every engine and the permission projection. */
   spaceId?: string;
+  /** Same space, by slug (see SearchEngineQuery.spaceSlug). */
+  spaceSlug?: string;
   /**
    * Durable attempt identity. When present the coordinator creates/resumes one
    * run per enabled capability and lets the semantic engine start or resume
@@ -194,6 +196,7 @@ async function executeEngine(
     limit: input.limit,
     deadlineMs: input.immediateSearchTimeoutMs,
     spaceId: input.spaceId,
+    spaceSlug: input.spaceSlug,
     attempt: input.attempt
       ? { searchRecordId: input.attempt.searchRecordId, continuationRef: run?.continuationRef ?? null }
       : undefined,

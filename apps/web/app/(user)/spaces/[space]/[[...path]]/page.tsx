@@ -12,6 +12,8 @@ import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { getSpaceHref, type ReaderSpace } from '@/lib/path';
 import { getCurrentActor } from '@/server/services/auth';
 import * as publicContent from '@/server/services/public-content';
+import { getCategorySystemKeyById } from '@/server/services/raw-categories';
+import { getLatestConversationSnapshot } from '@/server/services/raw-conversations';
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { renderMarkdown } from '@/server/pipeline';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
@@ -75,6 +77,16 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
   // revision (which also carries the original-bytes reference for viewers).
   const rawRevision = space === 'raw'
     ? await publicContent.getRevision({ actor }, page.id, latestRevision?.version ?? page.publishedRevision?.version ?? 1)
+    : null;
+  // 023: dispatch to the shared conversation view for the built-in
+  // Conversation category. The snapshot is read from the current published
+  // revision (not re-derived from live events), so it matches whatever the
+  // capture worker last committed.
+  const rawCategorySystemKey = rawRevision?.categoryId
+    ? await getCategorySystemKeyById(rawRevision.categoryId)
+    : null;
+  const conversation = rawCategorySystemKey === 'conversation'
+    ? await getLatestConversationSnapshot(page.id)
     : null;
   const status = latestRevision?.status === 'draft' ? 'draft' : page.status;
   const pageContext = {
@@ -142,7 +154,10 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                   pdfTitle: t('space.reader.raw.pdfTitle'),
                   imageAlt: t('space.reader.raw.imageAlt'),
                   noViewer: t('space.reader.raw.noViewer'),
+                  invalidConversation: t('space.reader.raw.invalidConversation'),
                 }}
+                rawCategorySystemKey={rawCategorySystemKey}
+                conversation={conversation}
               />
             ) : (
               <ContentRenderer html={bodyHtml} />

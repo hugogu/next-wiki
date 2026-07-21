@@ -398,3 +398,13 @@ export const actorKindEnum = pgEnum('actor_kind', ['human', 'machine']);
 export const contentNatureEnum = pgEnum('content_nature', ['original', 'generated']);
 
 export const pageVisibilityEnum = pgEnum('page_visibility', ['public', 'restricted']);
+
+// ---- Raw Conversation Search (023) -----------------------------------------
+
+export const rawConversationCaptureStatusEnum = pgEnum('raw_conversation_capture_status', [
+  'not_applicable',
+  'pending',
+  'captured',
+  'failed',
+  'disabled',
+]);

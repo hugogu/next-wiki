@@ -116,6 +116,8 @@ export async function retrieve(
       chunkId: best.chunkId,
       excerpt: combinedExcerpt,
       score: best.score,
+      spaceSlug: best.spaceSlug,
+      rawCategorySystemKey: best.rawCategorySystemKey,
     };
   });
 

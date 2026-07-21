@@ -28,6 +28,7 @@ import {
   PlusIcon,
   PenSparkIcon,
   LayersIcon,
+  LinkIcon,
 } from '@/components/icons';
 import { getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
@@ -304,6 +305,11 @@ export function Navigator({
           href: '/admin/search',
           label: t('admin.nav.search'),
           icon: <SearchIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/content',
+          label: t('admin.nav.contentDataSources'),
+          icon: <LinkIcon className="shrink-0" />,
         },
       ],
     },

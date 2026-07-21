@@ -1,11 +1,12 @@
 import { and, eq, isNull } from 'drizzle-orm';
-import type { AiQuestionMode } from '@next-wiki/shared';
+import { WIKI_AI_CONVERSATIONS_SOURCE_KEY, type AiQuestionMode } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction } from './ai-actions';
+import { isDataSourceEnabled } from './content-data-sources';
 
 export async function getAssignedModel(purpose: 'wiki_text' | 'wiki_embedding' | 'wiki_image') {
   const rows = await db
@@ -64,6 +65,10 @@ export async function createWikiQuestion(
   await assertAiFeature(ctx, 'question');
   await validateCurrentPage(ctx, input.currentPage);
   const { model, provider } = await getAssignedModel('wiki_text');
+  // 023: capture eligibility is decided once, at create time, from the
+  // Wiki AI Conversations data-source setting — later toggles only affect
+  // conversations created after the change (see content-data-sources.ts).
+  const captureEnabled = await isDataSourceEnabled(WIKI_AI_CONVERSATIONS_SOURCE_KEY);
   return createAction(ctx, {
     feature: 'wiki_question',
     input,
@@ -77,5 +82,6 @@ export async function createWikiQuestion(
       hasCurrentPage: Boolean(input.currentPage),
       providerName: provider.name,
     },
+    rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',
   });
 }

@@ -110,6 +110,52 @@ describe('raw categories service', () => {
     await expect(categories.listCategories(adminCtx)).resolves.toHaveLength(0);
   });
 
+  describe('built-in system categories (023)', () => {
+    it('creates a system category on first use and is idempotent', async () => {
+      const first = await categories.ensureSystemCategory('conversation', {
+        name: 'Conversation',
+        slug: 'conversation',
+        description: 'Captured Wiki AI conversations.',
+      });
+      expect(first).toMatchObject({ systemKey: 'conversation', slug: 'conversation' });
+      const second = await categories.ensureSystemCategory('conversation', {
+        name: 'Conversation',
+        slug: 'conversation',
+      });
+      expect(second.id).toBe(first.id);
+      const bySystemKey = await categories.getCategoryBySystemKey('conversation');
+      expect(bySystemKey?.id).toBe(first.id);
+    });
+
+    it('exposes isSystem/systemKey through listCategories', async () => {
+      await categories.ensureSystemCategory('conversation', { name: 'Conversation', slug: 'conversation' });
+      const list = await categories.listCategories(adminCtx);
+      const conversation = list.find((c) => c.systemKey === 'conversation');
+      expect(conversation).toMatchObject({ isSystem: true });
+      const userManaged = await categories.createCategory(adminCtx, { name: 'Support', slug: 'support' });
+      const listed = await categories.listCategories(adminCtx);
+      expect(listed.find((c) => c.id === userManaged.id)).toMatchObject({ isSystem: false, systemKey: null });
+    });
+
+    it('resolves systemKey by category id for renderer dispatch, null for a user-managed category', async () => {
+      const builtin = await categories.ensureSystemCategory('conversation', { name: 'Conversation', slug: 'conversation' });
+      const userManaged = await categories.createCategory(adminCtx, { name: 'Ops', slug: 'ops' });
+      await expect(categories.getCategorySystemKeyById(builtin.id)).resolves.toBe('conversation');
+      await expect(categories.getCategorySystemKeyById(userManaged.id)).resolves.toBeNull();
+      await expect(categories.getCategorySystemKeyById('00000000-0000-4000-8000-000000000000')).resolves.toBeNull();
+    });
+
+    it('blocks retiring and deleting a built-in category', async () => {
+      const builtin = await categories.ensureSystemCategory('conversation', { name: 'Conversation', slug: 'conversation' });
+      await expect(categories.retireCategory(adminCtx, builtin.id)).rejects.toMatchObject({
+        code: 'RAW_CATEGORY_SYSTEM_PROTECTED',
+      } satisfies Partial<DomainError>);
+      await expect(categories.deleteCategory(adminCtx, builtin.id)).rejects.toMatchObject({
+        code: 'RAW_CATEGORY_SYSTEM_PROTECTED',
+      } satisfies Partial<DomainError>);
+    });
+  });
+
   describe('resolveCategoryForCreate', () => {
     it('applies the default silently when no id is given', async () => {
       const def = await categories.createCategory(adminCtx, { name: 'Default', slug: 'default-cat', isDefault: true });

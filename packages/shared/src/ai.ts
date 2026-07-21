@@ -388,6 +388,64 @@ export const aiEntitlementViewSchema = aiEntitlementUpdateSchema.extend({
 });
 export type AiEntitlementView = z.infer<typeof aiEntitlementViewSchema>;
 
+export const aiCitationSchema = z.object({
+  pageId: z.string().uuid(),
+  title: z.string(),
+  path: z.string(),
+  locale: z.string(),
+  revisionId: z.string().uuid(),
+  revisionHash: z.string(),
+  // Present for chunk-level (vector) retrieval results; absent for
+  // full-context citations, which cite the whole page rather than a chunk.
+  chunkId: z.string().uuid().optional(),
+});
+export type AiCitation = z.infer<typeof aiCitationSchema>;
+
+/** Lifecycle of capturing a `wiki_question` action into a Raw Conversation
+ * page (023). `not_applicable` covers legacy actions and actions created
+ * while the data source was disabled. */
+export const rawConversationCaptureStatusSchema = z.enum([
+  'not_applicable',
+  'pending',
+  'captured',
+  'failed',
+  'disabled',
+]);
+export type RawConversationCaptureStatus = z.infer<typeof rawConversationCaptureStatusSchema>;
+
+/** Conversation lifecycle as shown to a reader — a strict subset of
+ * `aiActionStatusSchema` (never `queued`; a Raw page is only ever created once
+ * the first event has arrived). */
+export const conversationStatusSchema = z.enum(['running', 'completed', 'failed', 'cancelled', 'expired']);
+export type ConversationStatus = z.infer<typeof conversationStatusSchema>;
+
+/** Shared input for `ConversationSessionView`, reused by AI Chat History
+ * detail and by the Raw Conversation reader. */
+export const conversationSessionViewModelSchema = z.object({
+  status: z.enum(['queued', 'running', 'completed', 'failed', 'cancelled', 'expired']),
+  question: z.string(),
+  answer: z.string(),
+  thinking: z.string(),
+  citations: z.array(aiCitationSchema),
+  insufficient: z.boolean(),
+  errorMessage: z.string().nullable(),
+  queuedAt: z.string().nullable().optional(),
+  startedAt: z.string().nullable().optional(),
+  finishedAt: z.string().nullable().optional(),
+});
+export type ConversationSessionViewModel = z.infer<typeof conversationSessionViewModelSchema>;
+
+/** Pointer to the canonical Raw Conversation page for a captured
+ * `wiki_question` action, included in AI session list/detail responses. */
+export const rawConversationPointerSchema = z.object({
+  pageId: z.string().uuid(),
+  path: z.string(),
+  url: z.string(),
+  captureStatus: rawConversationCaptureStatusSchema,
+  conversation: conversationSessionViewModelSchema.optional(),
+});
+export type RawConversationPointer = z.infer<typeof rawConversationPointerSchema>;
+
 export const aiActionViewSchema = z.object({
   id: z.string().uuid(),
   feature: aiActionFeatureSchema,
@@ -411,12 +469,17 @@ export const aiActionViewSchema = z.object({
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
   expiresAt: z.string(),
+  // 023: null/not_applicable for every feature except wiki_question.
+  rawConversationPageId: z.string().uuid().nullable(),
+  rawConversationCaptureStatus: rawConversationCaptureStatusSchema,
 });
 export type AiActionView = z.infer<typeof aiActionViewSchema>;
 
 /** A wiki_question action as shown in the user-facing session history panel. */
 export const aiSessionSummarySchema = aiActionViewSchema.extend({
   questionExcerpt: z.string().nullable(),
+  // 023: null for legacy sessions and sessions not yet captured.
+  rawConversation: rawConversationPointerSchema.nullable(),
 });
 export type AiSessionSummary = z.infer<typeof aiSessionSummarySchema>;
 export const aiSessionListResponseSchema = z.object({
@@ -424,6 +487,17 @@ export const aiSessionListResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 export type AiSessionListResponse = z.infer<typeof aiSessionListResponseSchema>;
+
+/**
+ * Admin AI action audit view (023): adds the bounded, operator-only capture
+ * failure diagnostic. Deliberately NOT part of `aiActionViewSchema` — that
+ * type is also returned to a session's own owner (a non-admin asker), who
+ * must never see this internal diagnostic.
+ */
+export const aiActionAdminViewSchema = aiActionViewSchema.extend({
+  rawConversationCaptureError: z.string().nullable(),
+});
+export type AiActionAdminView = z.infer<typeof aiActionAdminViewSchema>;
 
 export const aiUsageCategorySchema = z.object({
   requests: z.number().int().nonnegative(),
@@ -455,21 +529,13 @@ export const aiActionEventSchema = z.object({
 });
 export type AiActionEvent = z.infer<typeof aiActionEventSchema>;
 
-export const aiCitationSchema = z.object({
-  pageId: z.string().uuid(),
-  title: z.string(),
-  path: z.string(),
-  locale: z.string(),
-  revisionId: z.string().uuid(),
-  revisionHash: z.string(),
-  // Present for chunk-level (vector) retrieval results; absent for
-  // full-context citations, which cite the whole page rather than a chunk.
-  chunkId: z.string().uuid().optional(),
-});
-export type AiCitation = z.infer<typeof aiCitationSchema>;
 export const aiSearchResultSchema = aiCitationSchema.extend({
   excerpt: z.string(),
   score: z.number().min(-1).max(1),
+  // 023: lets result UIs build a space-correct link (e.g. /spaces/raw/...)
+  // instead of assuming every result lives in the default wiki space.
+  spaceSlug: z.string(),
+  rawCategorySystemKey: z.string().nullable(),
 });
 export type AiSearchResult = z.infer<typeof aiSearchResultSchema>;
 
@@ -587,6 +653,31 @@ export const aiIndexViewSchema = z.object({
   createdAt: z.string(),
 });
 export type AiIndexView = z.infer<typeof aiIndexViewSchema>;
+
+// ---- 023: Raw Conversation capture & rendering (continued) ----------------
+
+/** Immutable structured snapshot stored in `page_revisions.source_metadata`
+ * for a Conversation Raw revision. Schema-versioned so the renderer can reject
+ * or gracefully degrade an incompatible future shape. */
+export const rawConversationSourceMetadataSchema = z.object({
+  inputKind: z.literal('chat-transcript'),
+  sourceType: z.literal('wiki-ai-conversation'),
+  schemaVersion: z.literal(1),
+  actionId: z.string().uuid(),
+  eventCursor: z.number().int().nonnegative(),
+  conversationStatus: conversationStatusSchema,
+  questionMode: aiQuestionModeSchema,
+  question: z.string(),
+  answer: z.string(),
+  thinking: z.string(),
+  citations: z.array(aiCitationSchema),
+  insufficient: z.boolean(),
+  errorMessage: z.string().nullable(),
+  queuedAt: z.string(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+});
+export type RawConversationSourceMetadata = z.infer<typeof rawConversationSourceMetadataSchema>;
 
 export const aiApiErrorCodeSchema = z.enum([
   'AI_DISABLED',

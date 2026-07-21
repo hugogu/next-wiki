@@ -22,6 +22,11 @@ export function rawCategoryShape(category: PublicRawCategory) {
     description: category.description,
     isDefault: category.isDefault,
     isRetired: category.isRetired,
+    // 023: built-in categories (e.g. 'conversation') cannot be retired or
+    // deleted through create/update tools — surfaced so an agent knows not
+    // to attempt it.
+    systemKey: category.systemKey,
+    isSystem: category.isSystem,
     entryCount: category.entryCount,
   };
 }

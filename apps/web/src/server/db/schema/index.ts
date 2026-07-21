@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   bigserial,
   check,
@@ -81,6 +82,7 @@ import {
   actorKindEnum,
   contentNatureEnum,
   pageVisibilityEnum,
+  rawConversationCaptureStatusEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -173,6 +175,10 @@ export const rawCategories = pgTable(
     description: text('description'),
     isDefault: boolean('is_default').notNull().default(false),
     isRetired: boolean('is_retired').notNull().default(false),
+    // 023: non-null for built-in, protected categories (e.g. 'conversation').
+    // Stable filing/renderer-dispatch key, independent of the admin-editable
+    // name/slug. Never set by the admin category API.
+    systemKey: text('system_key'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
@@ -184,6 +190,9 @@ export const rawCategories = pgTable(
     singleDefault: uniqueIndex('raw_categories_single_default')
       .on(t.isDefault)
       .where(sql`${t.isDefault} = true`),
+    systemKeyUnique: uniqueIndex('raw_categories_system_key_unique')
+      .on(t.systemKey)
+      .where(sql`${t.systemKey} is not null`),
   }),
 );
 
@@ -1058,6 +1067,20 @@ export const userAppearance = pgTable('user_appearance', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ---- Content data sources (023) --------------------------------------------
+
+/** Site-wide, key-addressed registry of Content > Data Sources. Only keys
+ * registered in `services/content-data-sources.ts` are read/updated through
+ * the service; unknown keys are rejected rather than silently inserted. */
+export const contentDataSourceSettings = pgTable('content_data_source_settings', {
+  sourceKey: text('source_key').primaryKey(),
+  enabled: boolean('enabled').notNull().default(false),
+  config: jsonb('config').notNull().default({}),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ---- System AI (004) ------------------------------------------------------
 
 export const aiSettings = pgTable('ai_settings', {
@@ -1286,6 +1309,20 @@ export const aiActions = pgTable(
     errorMessage: text('error_message'),
     errorDetail: text('error_detail'),
     cancelRequested: boolean('cancel_requested').notNull().default(false),
+    // 023: pointer to the canonical Raw Conversation page for a captured
+    // `wiki_question` action. Conceptually a FK to pages.id; app-enforced like
+    // other cross-module page pointers in this schema (see pages note above).
+    rawConversationPageId: uuid('raw_conversation_page_id').references(() => pages.id, { onDelete: 'set null' }),
+    // Highest ai_action_events.id already folded into the latest Raw
+    // Conversation revision; drives idempotent/incremental capture.
+    rawConversationLastEventId: bigint('raw_conversation_last_event_id', { mode: 'number' })
+      .notNull()
+      .default(0),
+    rawConversationCaptureStatus: rawConversationCaptureStatusEnum('raw_conversation_capture_status')
+      .notNull()
+      .default('not_applicable'),
+    // Bounded diagnostic for operators only; never shown to unauthorized users.
+    rawConversationCaptureError: text('raw_conversation_capture_error'),
     queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
@@ -1295,6 +1332,7 @@ export const aiActions = pgTable(
     actorQueuedIdx: index('ai_actions_actor_queued_idx').on(t.actorUserId, t.queuedAt),
     statusQueuedIdx: index('ai_actions_status_queued_idx').on(t.status, t.queuedAt),
     providerQueuedIdx: index('ai_actions_provider_queued_idx').on(t.providerId, t.queuedAt),
+    rawConversationPageIdx: index('ai_actions_raw_conversation_page_idx').on(t.rawConversationPageId),
   }),
 );
 

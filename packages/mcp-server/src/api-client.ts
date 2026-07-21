@@ -31,6 +31,10 @@ export const publicRawCategorySchema = z.object({
   description: z.string().nullable(),
   isDefault: z.boolean(),
   isRetired: z.boolean(),
+  // 023: built-in categories (e.g. the Conversation category) are protected
+  // from retirement/deletion and are never created through this API.
+  systemKey: z.string().nullable(),
+  isSystem: z.boolean(),
   entryCount: z.number().int().nonnegative(),
   createdAt: z.string(),
   updatedAt: z.string(),

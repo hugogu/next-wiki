@@ -42,6 +42,28 @@ describe('Public semantic search routes', () => {
     expect(body).toMatchObject({ feature: 'semantic_search', status: 'queued' });
   });
 
+  it('forwards the requested target space to submitSemanticSearch (023)', async () => {
+    publicAi.submitSemanticSearch.mockResolvedValue({
+      id: '11111111-1111-1111-1111-111111111111',
+      feature: 'semantic_search',
+      status: 'queued',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-02T00:00:00.000Z',
+      pollUrl: '/api/v1/search/semantic/11111111-1111-1111-1111-111111111111',
+    });
+
+    const response = await submitRoute.POST(
+      new NextRequest('http://localhost/api/v1/search/semantic', {
+        method: 'POST',
+        body: JSON.stringify({ q: 'raw evidence', limit: 5, space: 'raw' }),
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(202);
+    expect(publicAi.submitSemanticSearch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ space: 'raw' }));
+  });
+
   it('rejects an empty q with a validation failure', async () => {
     const response = await submitRoute.POST(
       new NextRequest('http://localhost/api/v1/search/semantic', {

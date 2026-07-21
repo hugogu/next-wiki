@@ -30,6 +30,10 @@ export const QUEUES = {
   feishuDelivery: 'feishu-delivery',
   feishuCleanup: 'feishu-cleanup',
   writingModeSwitch: 'writing-mode-switch',
+  // 023: coalesces Wiki AI event append/finish notifications into an
+  // idempotent Raw Conversation capture pass. Kept off the interactive
+  // ai-action queue so capture work never delays chat streaming.
+  rawConversationCapture: 'raw-conversation-capture',
 } as const;
 
 /**

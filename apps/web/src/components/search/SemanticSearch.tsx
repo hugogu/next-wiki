@@ -5,6 +5,7 @@ import type { AiActionAccepted, AiSearchResult } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useTranslation } from '@/i18n/client';
+import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 
 export function SemanticSearch({ initialQuery = '' }: { initialQuery?: string }) {
   const { t } = useTranslation();
@@ -40,8 +41,18 @@ export function SemanticSearch({ initialQuery = '' }: { initialQuery?: string })
       {status && <p className="text-sm text-muted">{status}</p>}
       <div className="space-y-sm">
         {results.slice((page - 1) * pageSize, page * pageSize).map((result) => (
-          <a key={result.pageId} href={`/${result.path}`} className="block rounded-lg border border-border bg-surface p-md hover:bg-surface-elevated">
-            <div className="flex justify-between gap-md"><h2 className="font-medium">{result.title}</h2><span className="text-xs text-muted">{result.score.toFixed(3)}</span></div>
+          <a key={result.pageId} href={getSpaceHref(readerSpaceFromSlug(result.spaceSlug), result.path)} className="block rounded-lg border border-border bg-surface p-md hover:bg-surface-elevated">
+            <div className="flex items-center justify-between gap-md">
+              <h2 className="font-medium">{result.title}</h2>
+              <span className="flex shrink-0 items-center gap-xs">
+                {result.rawCategorySystemKey === 'conversation' && (
+                  <span className="rounded-full border border-border bg-surface-elevated px-xs py-0.5 text-[11px] leading-tight text-muted">
+                    {t('header.search.source.conversation')}
+                  </span>
+                )}
+                <span className="text-xs text-muted">{result.score.toFixed(3)}</span>
+              </span>
+            </div>
             <p className="mt-xs text-sm text-muted">{result.excerpt}</p>
           </a>
         ))}

@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { AiActionStatus, AiSearchResult, PublicSemanticSearchAction, PublicSemanticSearchStatus, PublicSemanticSearchSubmitInput } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, getActorUserId, type PermCtx } from '@/server/permissions';
+import { can, getActorUserId, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import type { FrontmatterFilters } from '@/server/transfers/frontmatter';
 import { createSemanticSearch, type SemanticSearchInput } from './ai-retrieval';
@@ -29,10 +29,24 @@ function extractFrontmatterFilters(input: PublicSemanticSearchSubmitInput): Fron
  * and `ai.read` (AI retrieval capability) — checked here, before anything
  * about index state is touched, so a key missing either scope is rejected
  * with no disclosure of index readiness (FR-006/FR-007).
+ *
+ * 023: resolves the actual requested target space (e.g. `raw`) rather than
+ * always the default wiki space, so a non-Admin submitting against Raw is
+ * rejected up front with the correct space-aware permission (raw reads are
+ * Admin-only) instead of an accepted-but-empty-results action. When `space`
+ * is omitted this still resolves the default space, matching "search every
+ * space the caller can read" — the per-candidate check in
+ * `readPermissionFilteredVectorCandidates` is what actually widens results
+ * across spaces in that case.
  */
-async function requireSemanticSearchScope(ctx: PermCtx): Promise<void> {
-  const space = await resolveSpace();
-  const canReadPages = can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space?.anonymousRead ?? false });
+async function requireSemanticSearchScope(ctx: PermCtx, spaceSlug?: string): Promise<void> {
+  const space = await resolveSpace(spaceSlug);
+  const canReadPages = can(
+    ctx,
+    'read',
+    { kind: 'page_list' },
+    space ? spacePermissionOptions(space) : { anonymousRead: false },
+  );
   const canSearch = can(ctx, 'use_ai_search', { kind: 'ai_index' });
   if (!canReadPages || !canSearch) {
     throw new DomainError('FORBIDDEN', 'Semantic search requires both the view and ai.read scopes');
@@ -40,7 +54,7 @@ async function requireSemanticSearchScope(ctx: PermCtx): Promise<void> {
 }
 
 export async function submitSemanticSearch(ctx: PermCtx, input: PublicSemanticSearchSubmitInput): Promise<PublicSemanticSearchAction> {
-  await requireSemanticSearchScope(ctx);
+  await requireSemanticSearchScope(ctx, input.space);
 
   // `scope` mirrors the keyword endpoint's request shape for input-schema
   // parity (FR-004), but semantic matches are always over chunked content —

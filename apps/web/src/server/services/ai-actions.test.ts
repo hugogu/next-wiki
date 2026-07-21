@@ -1,12 +1,23 @@
 import { eq } from 'drizzle-orm';
+import { vi } from 'vitest';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
-import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
+import { clearAiData, createAiTestUser, createWikiQuestionAction, removeAiTestUser } from '../../../test/ai-fixtures';
+
+const jobsRuntime = vi.hoisted(() => ({
+  enqueue: vi.fn(async (_queue: string, _data: Record<string, unknown>, _options?: unknown) => 'job-id'),
+}));
+vi.mock('@/server/jobs/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/server/jobs/runtime')>();
+  return { ...actual, enqueue: jobsRuntime.enqueue };
+});
+
 import {
   appendActionEvent,
   createAction,
   deleteSession,
+  finishAction,
   getAction,
   getActionEvents,
   getAllActionEvents,
@@ -19,11 +30,13 @@ import {
   indexRebuildExpireSeconds,
   expireSecondsForFeature,
 } from './ai-actions';
+import { QUEUES } from '@/server/jobs/runtime';
 
 describe('AI actions', () => {
   let userId: string;
   beforeEach(async () => {
     await clearAiData();
+    jobsRuntime.enqueue.mockClear();
     userId = await createAiTestUser('admin');
     await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
   });
@@ -173,6 +186,50 @@ describe('AI actions', () => {
       await removeAiTestUser(otherUserId);
     });
 
+    it('prefers the durable Raw-derived question once the event-log question has expired (023)', async () => {
+      const ctx = buildUserCtx(userId, 'admin');
+      const expiresAt = new Date(Date.now() + 60_000);
+      const [space] = await db
+        .insert(schema.spaces)
+        .values({ slug: `history-raw-${userId}`, name: 'Raw', kind: 'raw', anonymousRead: false })
+        .returning();
+      const [page] = await db
+        .insert(schema.pages)
+        .values({
+          spaceId: space!.id, slug: 'captured', path: `history-captured-${userId}`, title: 'Conversation: captured',
+          authorId: userId, nature: 'original', visibility: 'restricted',
+        })
+        .returning();
+      const [revision] = await db
+        .insert(schema.pageRevisions)
+        .values({
+          pageId: page!.id, versionNumber: 1, contentType: 'text/markdown', contentSource: 'transcript',
+          contentHtml: '<p>transcript</p>', contentHash: 'hash', authorId: userId, status: 'published',
+          actorKind: 'machine', sourceMetadata: { question: 'What is the durable capture question?' }, publishedAt: new Date(),
+        })
+        .returning();
+      await db.update(schema.pages).set({ currentPublishedVersionId: revision!.id, latestVersionId: revision!.id }).where(eq(schema.pages.id, page!.id));
+
+      const [captured] = await db.insert(schema.aiActions).values({
+        feature: 'wiki_question', status: 'completed', actorUserId: userId, expiresAt,
+        rawConversationPageId: page!.id, rawConversationCaptureStatus: 'captured',
+      }).returning();
+      // No 'question' event exists at all — simulates the retention window
+      // having already elapsed for this captured session.
+
+      const { items } = await listUserSessions(ctx);
+      const row = items.find((item) => item.id === captured!.id);
+      expect(row?.questionExcerpt).toBe('What is the durable capture question?');
+      expect(row?.rawConversation).toMatchObject({ pageId: page!.id, captureStatus: 'captured' });
+
+      const search = await listUserSessions(ctx, { search: 'durable capture' });
+      expect(search.items.map((item) => item.id)).toContain(captured!.id);
+
+      await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revision!.id));
+      await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
+      await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
+    });
+
     it('searches sessions by question text', async () => {
       const ctx = buildUserCtx(userId, 'admin');
       const expiresAt = new Date(Date.now() + 60_000);
@@ -203,6 +260,91 @@ describe('AI actions', () => {
       expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action!.id) })).toBeUndefined();
       expect(await db.query.aiActionEvents.findMany({ where: eq(schema.aiActionEvents.actionId, action!.id) })).toHaveLength(0);
       await removeAiTestUser(otherUserId);
+    });
+
+    it('rejects deleting a captured session, preserving its Raw Conversation pointer (023)', async () => {
+      const ctx = buildUserCtx(userId, 'admin');
+      const expiresAt = new Date(Date.now() + 60_000);
+      const [space] = await db
+        .insert(schema.spaces)
+        .values({ slug: `history-delete-raw-${userId}`, name: 'Raw', kind: 'raw', anonymousRead: false })
+        .returning();
+      const [page] = await db
+        .insert(schema.pages)
+        .values({
+          spaceId: space!.id, slug: 'captured-delete', path: `history-delete-${userId}`, title: 'Conversation',
+          authorId: userId, nature: 'original', visibility: 'restricted',
+        })
+        .returning();
+      const [captured] = await db.insert(schema.aiActions).values({
+        feature: 'wiki_question', status: 'completed', actorUserId: userId, expiresAt,
+        rawConversationPageId: page!.id, rawConversationCaptureStatus: 'captured',
+      }).returning();
+
+      await expect(deleteSession(ctx, captured!.id)).rejects.toMatchObject({ code: 'RAW_CONVERSATION_IMMUTABLE' });
+      const stillThere = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, captured!.id) });
+      expect(stillThere).toMatchObject({ rawConversationPageId: page!.id });
+      expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) })).toBeTruthy();
+
+      await db.delete(schema.aiActions).where(eq(schema.aiActions.id, captured!.id));
+      await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
+      await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
+    });
+  });
+
+  describe('raw conversation capture triggers (023)', () => {
+    // appendActionEvent enqueues capture fire-and-forget (never blocking the
+    // streaming caller), so assertions poll briefly instead of racing it.
+    async function waitForEnqueueCall(timeoutMs = 500): Promise<void> {
+      const start = Date.now();
+      while (jobsRuntime.enqueue.mock.calls.length === 0) {
+        if (Date.now() - start > timeoutMs) throw new Error('timed out waiting for enqueue() call');
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+
+    it('enqueues capture when an event is appended to a pending-capture wiki_question action', async () => {
+      const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'pending' });
+      await appendActionEvent(actionId, 'question', { text: 'Where is the config?' });
+      await waitForEnqueueCall();
+      expect(jobsRuntime.enqueue).toHaveBeenCalledWith(
+        QUEUES.rawConversationCapture,
+        { actionId },
+        { singletonKey: actionId, singletonNextSlot: true },
+      );
+    });
+
+    it('enqueues capture again on the terminal event finishAction appends', async () => {
+      const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'captured', rawConversationPageId: null });
+      jobsRuntime.enqueue.mockClear();
+      await finishAction(actionId, 'completed', { resultMetadata: { insufficientEvidence: false } });
+      await waitForEnqueueCall();
+      expect(jobsRuntime.enqueue).toHaveBeenCalledWith(
+        QUEUES.rawConversationCapture,
+        { actionId },
+        expect.anything(),
+      );
+    });
+
+    it('never enqueues capture for a disabled or not_applicable action', async () => {
+      const disabled = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'disabled' });
+      await appendActionEvent(disabled, 'question', { text: 'q' });
+      const notApplicable = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'not_applicable' });
+      await appendActionEvent(notApplicable, 'question', { text: 'q' });
+      // Give the fire-and-forget checks a moment to (not) fire, then assert none did.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const captureCalls = jobsRuntime.enqueue.mock.calls.filter(([queue]) => queue === QUEUES.rawConversationCapture);
+      expect(captureCalls).toHaveLength(0);
+    });
+
+    it('never enqueues capture for a non-wiki_question feature', async () => {
+      const ctx = buildUserCtx(userId, 'admin');
+      const action = await createAction(ctx, { feature: 'semantic_search', input: { query: 'q' } });
+      jobsRuntime.enqueue.mockClear();
+      await appendActionEvent(action.id, 'text_delta', { text: 'partial' });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const captureCalls = jobsRuntime.enqueue.mock.calls.filter(([queue]) => queue === QUEUES.rawConversationCapture);
+      expect(captureCalls).toHaveLength(0);
     });
   });
 });

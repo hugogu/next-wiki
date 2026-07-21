@@ -11,16 +11,11 @@ import {
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
 import { ArrowDownIcon, SearchIcon, XIcon } from '@/components/icons';
-import { getSpaceHref, type ReaderSpace } from '@/lib/path';
+import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
 import { MovePageButton } from './MovePageButton';
-
-/** Admin list uses default|generated slugs; map to the reader-space vocabulary. */
-function readerSpaceOf(slug: string): ReaderSpace {
-  return slug === 'generated' ? 'generated' : slug === 'raw' ? 'raw' : 'wiki';
-}
 
 type QueryMap = Record<string, string | undefined>;
 
@@ -210,7 +205,7 @@ export function AdminPagesPanel({
               <DataTableRow key={page.id}>
                 <DataTableCell className="max-w-sm font-medium">
                   <Link
-                    href={getSpaceHref(readerSpaceOf(page.spaceSlug), page.path)}
+                    href={getSpaceHref(readerSpaceFromSlug(page.spaceSlug), page.path)}
                     className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <HighlightedText text={page.title} keyword={list.filters.keyword} />

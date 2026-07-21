@@ -991,9 +991,10 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
   const settingsSnapshot: CapabilitySnapshot = {
     full_text: settings.fullTextSearchEnabled,
     fuzzy: settings.fuzzySearchEnabled,
-    // Vector retrieval remains scoped to the existing public-wiki index.
-    // Raw/generated search uses the space-aware lexical engines only.
-    semantic: space.kind === 'wiki' && settings.semanticSearchEnabled,
+    // 023: semantic retrieval is space-aware (readPermissionFilteredVectorCandidates
+    // scopes/permission-checks per candidate space), so it is no longer
+    // restricted to the default wiki space — Raw search can use it too.
+    semantic: settings.semanticSearchEnabled,
   };
 
   let record: Awaited<ReturnType<typeof searchAnalytics.getOrCreateSearchRecord>> | null = null;
@@ -1026,6 +1027,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
     attempt: record ? { searchRecordId: record.id } : undefined,
     spaceId: space.id,
+    spaceSlug: space.slug,
   });
 
   const degradedSemantic = !record && settingsSnapshot.semantic;

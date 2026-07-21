@@ -174,6 +174,10 @@ export const publicPageResourceSchema = z.object({
     .optional(),
   humanModified: z.boolean().optional(),
   visibility: z.enum(['public', 'restricted']).optional(),
+  // 023: set only for raw pages filed under a built-in (system) category —
+  // e.g. 'conversation' — so search/reader UIs can show a source-specific
+  // cue without a second lookup. Absent/null for every other page.
+  rawCategorySystemKey: z.string().nullable().optional(),
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
   writeMetadataToFrontmatter: z.boolean().optional(),
@@ -394,6 +398,10 @@ export const publicRawCategorySchema = z.object({
   description: z.string().nullable(),
   isDefault: z.boolean(),
   isRetired: z.boolean(),
+  // 023: built-in categories (e.g. the Conversation category) are protected
+  // from retirement/deletion and are never created through the admin API.
+  systemKey: z.string().nullable(),
+  isSystem: z.boolean(),
   entryCount: z.number().int().nonnegative(),
   createdAt: z.string(),
   updatedAt: z.string(),

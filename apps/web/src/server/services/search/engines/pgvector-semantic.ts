@@ -19,7 +19,15 @@ export function createSemanticEngine(): SearchEngine {
         // so semantic work is only started for persisted search records.
         if (!query.attempt) return { state: 'unavailable' };
         try {
-          const accepted = await publicAi.submitSemanticSearch(ctx, { q: query.q, limit: query.limit, scope: 'all' });
+          const accepted = await publicAi.submitSemanticSearch(ctx, {
+            q: query.q,
+            limit: query.limit,
+            scope: 'all',
+            // 023: without this, semantic retrieval always searched the
+            // default wiki space regardless of which space the caller
+            // actually selected (e.g. Raw).
+            space: query.spaceSlug,
+          });
           return { state: 'pending', continuationRef: accepted.id };
         } catch {
           // AI disabled, index not ready, anonymous, or non-entitled actors:

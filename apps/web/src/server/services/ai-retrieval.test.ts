@@ -162,6 +162,14 @@ describe('AI vector retrieval', () => {
     const rawOnly = await readPermissionFilteredVectorCandidates(buildUserCtx(userId, 'admin'), generation!.id, [1, 0, 0], 10, (await db.query.spaces.findFirst({ where: eq(schema.spaces.kind, 'raw') }))!.slug);
     expect(rawOnly.map((c) => c.pageId)).toEqual([rawPage]);
 
+    // 023: a non-Admin explicitly requesting the raw space gets no candidates,
+    // count, or excerpt — never a scoped-but-unfiltered result set.
+    const rawSpaceSlug = (await db.query.spaces.findFirst({ where: eq(schema.spaces.kind, 'raw') }))!.slug;
+    const readerId = await createAiTestUser('reader');
+    const readerRawResults = await retrieve(buildUserCtx(readerId, 'reader'), generation!.id, [1, 0, 0], 10, { space: rawSpaceSlug });
+    expect(readerRawResults).toHaveLength(0);
+    await removeAiTestUser(readerId);
+
     await clearAiData();
     for (const pid of [wikiPage, rawPage, generatedPage]) {
       const pg = await db.query.pages.findFirst({ where: eq(schema.pages.id, pid) });
@@ -226,6 +234,40 @@ describe('public-ai semantic search facade (US3)', () => {
 
     await expect(publicAi.submitSemanticSearch(ctx, { q: 'auth design', limit: 10 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
+    await removeAiTestUser(userId);
+  });
+
+  it('resolves the requested target space, not the default wiki space, for the scope check (023)', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('editor');
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    await db.insert(schema.spaces).values({ slug: 'default', name: 'Default', kind: 'wiki' }).onConflictDoNothing();
+    const rawSpaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: rawSpaceId, slug: `raw-scope-${rawSpaceId.slice(0, 8)}`, name: 'Raw', kind: 'raw', anonymousRead: false });
+    const [provider] = await db.insert(schema.aiProviders).values({
+      name: 'Scope fixture', kind: 'openai_compatible', baseUrl: 'https://example.com',
+      credentialsEncrypted: 'encrypted', createdBy: userId, updatedBy: userId,
+    }).returning();
+    const [model] = await db.insert(schema.aiModels).values({
+      providerId: provider!.id, externalId: 'embed', displayName: 'Embed', availability: 'available', embeddingDimensions: 3,
+    }).returning();
+    await db.insert(schema.aiIndexGenerations).values({
+      modelId: model!.id, embeddingDimensions: 3, chunkerVersion: 'test', status: 'ready', isActive: true,
+    });
+
+    // A non-Admin editor may submit against the (readable) default space...
+    const editorCtx = buildApiKeyCtx(userId, 'editor', ['view', 'ai.read'], 'key');
+    await expect(publicAi.submitSemanticSearch(editorCtx, { q: 'q', limit: 5 })).resolves.toMatchObject({ status: 'queued' });
+
+    // ...but is rejected up front when explicitly targeting Raw (admin-only
+    // reads), instead of silently falling back to checking the default space.
+    const rawSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.id, rawSpaceId) });
+    await expect(
+      publicAi.submitSemanticSearch(editorCtx, { q: 'q', limit: 5, space: rawSpace!.slug }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    await clearAiData();
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, rawSpaceId));
     await removeAiTestUser(userId);
   });
 });

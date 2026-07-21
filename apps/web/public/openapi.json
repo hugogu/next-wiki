@@ -132,6 +132,19 @@
           },
           "expiresAt": {
             "type": "string"
+          },
+          "rawConversationPageId": {
+            "type": "object"
+          },
+          "rawConversationCaptureStatus": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "not_applicable",
+              "pending",
+              "captured",
+              "disabled"
+            ]
           }
         },
         "required": [
@@ -156,7 +169,9 @@
           "queuedAt",
           "startedAt",
           "finishedAt",
-          "expiresAt"
+          "expiresAt",
+          "rawConversationPageId",
+          "rawConversationCaptureStatus"
         ]
       },
       "AiModelSyncResult": {
@@ -717,6 +732,93 @@
           "confirm"
         ],
         "description": "Start a storage backend cleanup job."
+      },
+      "ContentDataSourceItem": {
+        "type": "object",
+        "properties": {
+          "sourceKey": {
+            "type": "string",
+            "enum": [
+              "wiki-ai-conversations"
+            ],
+            "description": "Stable registered Content Data Source key."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "content"
+            ],
+            "description": "Data source category grouping."
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable label."
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the source currently captures content."
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Whether the source can operate in the current writing mode."
+          },
+          "unavailableReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason the source is unavailable, or null when available."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the source setting was last updated (ISO 8601)."
+          }
+        },
+        "required": [
+          "sourceKey",
+          "category",
+          "label",
+          "description",
+          "enabled",
+          "available",
+          "unavailableReason",
+          "updatedAt"
+        ],
+        "description": "A registered Content > Data Source and its current settings."
+      },
+      "ContentDataSourceListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentDataSourceItem"
+            },
+            "description": "All registered content data sources."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "Content Data Sources listing."
+      },
+      "ContentDataSourceUpdateInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the source should capture content going forward."
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "description": "Update a Content Data Source."
       },
       "CreateApiKeyInput": {
         "type": "object",
@@ -2741,6 +2843,13 @@
             ],
             "description": "Page visibility: public within its space rules, or restricted to administrators."
           },
+          "rawCategorySystemKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Built-in raw category key (e.g. 'conversation') for a raw page filed under a system category; null/omitted otherwise."
+          },
           "contentSource": {
             "type": "string",
             "description": "Markdown source of the current revision. Omitted from list/search results; present on single-page reads and writes."
@@ -3375,6 +3484,17 @@
             "type": "boolean",
             "description": "Retired categories keep existing entries but accept no new ones."
           },
+          "systemKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Stable built-in category key (e.g. 'conversation'), or null for an admin-managed category."
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "Whether this category is built-in and protected from retirement/deletion."
+          },
           "entryCount": {
             "type": "integer",
             "minimum": 0,
@@ -3398,6 +3518,8 @@
           "description",
           "isDefault",
           "isRetired",
+          "systemKey",
+          "isSystem",
           "entryCount",
           "createdAt",
           "updatedAt"
@@ -4595,6 +4717,9 @@
           },
           "entryCount": {
             "type": "number"
+          },
+          "createdAt": {
+            "type": "string"
           }
         },
         "required": [
@@ -4604,7 +4729,8 @@
           "description",
           "isDefault",
           "isRetired",
-          "entryCount"
+          "entryCount",
+          "createdAt"
         ]
       },
       "RegisterInput": {
@@ -6596,8 +6722,8 @@
                     "completed",
                     "failed",
                     "cancelled",
-                    "skipped",
                     "pending",
+                    "skipped",
                     "superseded"
                   ]
                 },
@@ -7398,6 +7524,29 @@
           "Admin"
         ],
         "parameters": [],
+        "responses": {}
+      }
+    },
+    "/admin/pages/{id}/move": {
+      "post": {
+        "operationId": "post-admin-pages-{id}-move",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
         "responses": {}
       }
     },
@@ -10315,6 +10464,26 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file to upload."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -10337,7 +10506,7 @@
               "description": "Stable public asset identifier."
             },
             "description": "Stable public asset identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -10378,7 +10547,7 @@
               "description": "Stable public asset identifier."
             },
             "description": "Stable public asset identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -10388,7 +10557,45 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "Asset bytes.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           }
         }
       }
@@ -10754,262 +10961,7 @@
         "tags": [
           "Pages"
         ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "published",
-                "draft",
-                "all",
-                "deleted"
-              ],
-              "default": "published",
-              "description": "Filter pages by lifecycle state. Defaults to published."
-            },
-            "description": "Filter pages by lifecycle state. Defaults to published."
-          },
-          {
-            "in": "query",
-            "name": "q",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200,
-              "description": "Optional free-text query to filter pages by path or title."
-            },
-            "description": "Optional free-text query to filter pages by path or title."
-          },
-          {
-            "in": "query",
-            "name": "path",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PublicPagePath"
-                }
-              ],
-              "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
-            },
-            "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
-          },
-          {
-            "in": "query",
-            "name": "pathPrefix",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PublicPagePath"
-                }
-              ],
-              "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
-            },
-            "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
-          },
-          {
-            "in": "query",
-            "name": "space",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Space slug to list pages from. Defaults to the default wiki space."
-            },
-            "description": "Space slug to list pages from. Defaults to the default wiki space."
-          },
-          {
-            "in": "query",
-            "name": "filterType",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
-            },
-            "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
-          },
-          {
-            "in": "query",
-            "name": "filter[type]",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Filter to pages whose frontmatter type matches this value."
-            },
-            "description": "Filter to pages whose frontmatter type matches this value."
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            },
-            "description": "Maximum number of pages to return per request (1-100). Defaults to 20."
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Opaque pagination cursor returned by a previous response."
-            },
-            "description": "Opaque pagination cursor returned by a previous response."
-          },
-          {
-            "in": "query",
-            "name": "order",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "path",
-                "recent"
-              ],
-              "default": "path",
-              "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
-            },
-            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
-          },
-          {
-            "in": "query",
-            "name": "include",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
-            },
-            "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
-          },
-          {
-            "in": "query",
-            "name": "createdStart",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Include only pages created at or after this ISO 8601 timestamp."
-            },
-            "description": "Include only pages created at or after this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "createdEnd",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Include only pages created at or before this ISO 8601 timestamp."
-            },
-            "description": "Include only pages created at or before this ISO 8601 timestamp."
-          },
-          {
-            "in": "query",
-            "name": "filter[tag]",
-            "required": false,
-            "schema": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
-            },
-            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
-          },
-          {
-            "in": "query",
-            "name": "filter[status]",
-            "required": false,
-            "schema": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
-            },
-            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
-          },
-          {
-            "in": "query",
-            "name": "filter[owner]",
-            "required": false,
-            "schema": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
-            },
-            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
-          },
-          {
-            "in": "query",
-            "name": "filter[has_frontmatter]",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ],
-              "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
-            },
-            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
-          },
-          {
-            "name": "filterInputKind",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "chat-transcript",
-                "external-fetch",
-                "script-run",
-                "manual-note"
-              ]
-            }
-          },
-          {
-            "name": "filterCategoryId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
+        "parameters": [],
         "security": [
           {
             "BearerAuth": []
@@ -11183,7 +11135,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11232,7 +11184,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11280,7 +11232,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11351,7 +11303,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11440,7 +11392,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11490,7 +11442,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11889,7 +11841,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -11930,7 +11882,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
             "in": "path",
@@ -11943,7 +11895,7 @@
               "description": "Revision version number."
             },
             "description": "Revision version number.",
-            "example": "example"
+            "example": 1
           }
         ],
         "security": [
@@ -12035,7 +11987,7 @@
               "description": "Stable public page identifier."
             },
             "description": "Stable public page identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
             "in": "path",
@@ -12048,7 +12000,7 @@
               "description": "Revision version number."
             },
             "description": "Revision version number.",
-            "example": "example"
+            "example": 1
           }
         ],
         "security": [
@@ -12520,7 +12472,7 @@
               "description": "Stable semantic search action identifier."
             },
             "description": "Stable semantic search action identifier.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -12589,6 +12541,34 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/content-data-sources": {
+      "get": {
+        "operationId": "get-settings-content-data-sources",
+        "summary": "List content data sources",
+        "description": "Admin-only Content > Data Sources registry. Sources unavailable in the current writing mode are still listed, marked `available: false`.",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDataSourceListResponse"
                 }
               }
             }
@@ -12713,6 +12693,54 @@
         }
       }
     },
+    "/settings/content-data-sources/{sourceKey}": {
+      "patch": {
+        "operationId": "patch-settings-content-data-sources-{sourceKey}",
+        "summary": "Update a content data source",
+        "description": "Admin-only. Enabling a source that is currently unavailable in the active writing mode fails with `DATA_SOURCE_UNAVAILABLE` (409); disabling is always allowed.",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "sourceKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: sourceKey"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentDataSourceUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDataSourceItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/settings/raw-categories/{id}": {
       "patch": {
         "operationId": "patch-settings-raw-categories-{id}",
@@ -12791,7 +12819,7 @@
               "description": "Identifier of the writing-mode switch job."
             },
             "description": "Identifier of the writing-mode switch job.",
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13731,7 +13759,7 @@
               "type": "string",
               "format": "uuid"
             },
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13770,7 +13798,7 @@
               "type": "string",
               "format": "uuid"
             },
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13816,7 +13844,7 @@
               "type": "string",
               "format": "uuid"
             },
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13855,7 +13883,7 @@
               "type": "string",
               "format": "uuid"
             },
-            "example": "123"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [

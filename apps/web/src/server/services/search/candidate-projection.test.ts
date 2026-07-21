@@ -113,6 +113,45 @@ describe('search candidate projection', () => {
       await setModeInternal('copilot', admin.id);
     }
   });
+
+  it('exposes rawCategorySystemKey for a built-in-category raw candidate, null otherwise (023)', async () => {
+    await seedWritingModeSpaces();
+    const admin = await createPublicApiUser(`projection-conv-admin-${randomUUID()}@example.com`, 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+
+    await setModeInternal('llm-wiki', admin.id);
+    try {
+      const raw = await getSpaceBySlug('raw');
+      expect(raw).not.toBeNull();
+      await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true }).onConflictDoNothing();
+      const { ensureSystemCategory } = await import('@/server/services/raw-categories');
+      const conversationCategory = await ensureSystemCategory('conversation', { name: 'Conversation', slug: 'conversation' });
+
+      const conversationEntry = await rawEntries.createEntry(adminCtx, {
+        path: `projection-${randomUUID().slice(0, 8)}/conversation`,
+        title: 'Conversation: test',
+        inputKind: 'chat-transcript',
+        content: 'Captured transcript content',
+        categoryId: conversationCategory.id,
+      });
+      const generalEntry = await rawEntries.createEntry(adminCtx, {
+        path: `projection-${randomUUID().slice(0, 8)}/general`,
+        title: 'General note',
+        inputKind: 'manual-note',
+        content: 'A plain raw note',
+      });
+
+      const projected = await projectReadableCandidatePages(
+        adminCtx,
+        [conversationEntry.pageId, generalEntry.pageId],
+        raw!.id,
+      );
+      expect(projected.get(conversationEntry.pageId)?.page.rawCategorySystemKey).toBe('conversation');
+      expect(projected.get(generalEntry.pageId)?.page.rawCategorySystemKey).toBeNull();
+    } finally {
+      await setModeInternal('copilot', admin.id);
+    }
+  });
 });
 
 describe('excerpt helpers', () => {

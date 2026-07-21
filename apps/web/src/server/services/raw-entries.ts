@@ -14,6 +14,7 @@ import { actorKindOf } from '@/server/services/pages';
 import { resolveSpace } from '@/server/services/spaces';
 import { resolveCategoryForCreate } from '@/server/services/raw-categories';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
+import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { DatabaseStore } from '@/server/content-store/database-store';
 import { writeAsset } from '@/server/content-store/atomic-write';
 import { normalizeContentType, sniffRawContentType } from '@/server/content-store/raw-sniffing';
@@ -179,6 +180,10 @@ export async function createEntry(
   });
 
   await kickReplication();
+  // Unlike normal page publish/update paths, raw create/append did not
+  // previously reconcile active AI indexes — without this, a captured Raw
+  // Conversation (023) would not become searchable until a manual rebuild.
+  await reconcilePageAcrossIndexes(created.pageId, ctx);
   return created;
 }
 
@@ -257,5 +262,6 @@ export async function appendEntry(
   });
 
   await kickReplication();
+  await reconcilePageAcrossIndexes(pageId, ctx);
   return appended;
 }

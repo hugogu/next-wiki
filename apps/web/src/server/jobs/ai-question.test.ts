@@ -179,6 +179,37 @@ describe('Wiki question worker', () => {
     },
   );
 
+  it('records raw conversation capture eligibility from the data source setting at create time (023)', async () => {
+    const disabledAction = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'full',
+      currentPage: { pageId, revisionId },
+    });
+    const disabledRow = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, disabledAction.id) });
+    expect(disabledRow?.rawConversationCaptureStatus).toBe('disabled');
+
+    await db
+      .insert(schema.contentDataSourceSettings)
+      .values({ sourceKey: 'wiki-ai-conversations', enabled: true });
+
+    const enabledAction = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer, again?',
+      mode: 'full',
+      currentPage: { pageId, revisionId },
+    });
+    const enabledRow = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, enabledAction.id) });
+    expect(enabledRow?.rawConversationCaptureStatus).toBe('pending');
+
+    await db
+      .update(schema.contentDataSourceSettings)
+      .set({ enabled: false })
+      .where(eq(schema.contentDataSourceSettings.sourceKey, 'wiki-ai-conversations'));
+
+    // Toggling back off never rewrites the already-created action's status.
+    const stillPending = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, enabledAction.id) });
+    expect(stillPending?.rawConversationCaptureStatus).toBe('pending');
+  });
+
   it('requests a bounded output budget, never the whole context window', async () => {
     const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
       question: 'Where is the answer?',

@@ -550,6 +550,66 @@ describe('public content read facade', () => {
     }));
   });
 
+  it('enables semantic search for the raw space, not just wiki (023)', async () => {
+    await setModeInternal('llm-wiki', null);
+    await ensurePrivateSpaces();
+    const admin = await createPublicApiUser('public-raw-hybrid-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    await db.insert(schema.searchSettings).values({
+      id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: true,
+    });
+    searchAnalytics.getOrCreateSearchRecord.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', semanticState: 'skipped', semanticActionId: null,
+      capabilitySnapshot: ALL_CAPABILITIES,
+    });
+    // No prior run for this attempt: the semantic engine must take the
+    // "start" branch (submitSemanticSearch), not "resume".
+    searchAnalytics.ensureEngineRuns.mockResolvedValue(pendingRuns(null));
+
+    await publicContent.hybridSearchPages(adminCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'raw evidence', limit: 20, space: 'raw',
+    });
+
+    // The snapshot computed for a raw-space attempt must not force semantic
+    // off the way the previous space.kind === 'wiki' restriction did.
+    expect(searchAnalytics.getOrCreateSearchRecord).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(String),
+      expect.anything(),
+      expect.objectContaining({ semantic: true }),
+    );
+    // The semantic engine (via public-ai) is asked to search the raw space,
+    // not silently fall back to the default wiki space.
+    expect(semanticSearch.submitSemanticSearch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ space: 'raw' }),
+    );
+
+    await setModeInternal('copilot', null);
+  });
+
+  it('rejects a non-Admin explicitly searching the raw space before any candidate is touched', async () => {
+    await setModeInternal('llm-wiki', null);
+    await ensurePrivateSpaces();
+    const reader = await createPublicApiUser('public-raw-hybrid-reader@example.com', 'reader');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    await db.insert(schema.searchSettings).values({
+      id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: true,
+    });
+
+    await expect(
+      publicContent.hybridSearchPages(readerCtx, {
+        kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+        searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'raw evidence', limit: 20, space: 'raw',
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(searchAnalytics.getOrCreateSearchRecord).not.toHaveBeenCalled();
+
+    await setModeInternal('copilot', null);
+  });
+
   it('returns lexical results immediately with semantic pending, then merges on the idempotent retry (US2)', async () => {
     const editor = await createPublicApiUser('public-hybrid-progressive-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-hybrid-progressive-reader@example.com', 'reader');

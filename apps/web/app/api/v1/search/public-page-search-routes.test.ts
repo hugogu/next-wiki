@@ -108,6 +108,51 @@ describe('Public Wiki page search route', () => {
     expect(publicContent.hybridSearchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ q: 'auth', limit: 20, space: 'generated' }));
   });
 
+  it('passes a Raw Conversation hybrid result through untouched, with its space and category cue (023)', async () => {
+    const searchSessionId = '22222222-2222-4222-8222-222222222222';
+    const payload = {
+      searchRecordId: '11111111-1111-4111-8111-111111111111',
+      semanticState: 'ready',
+      engineStates: [
+        { capability: 'full_text', state: 'ready', resultCount: 1 },
+        { capability: 'fuzzy', state: 'ready', resultCount: 0 },
+        { capability: 'semantic', state: 'ready', resultCount: 1 },
+      ],
+      items: [{
+        page: {
+          id: '44444444-4444-4444-8444-444444444444',
+          spaceSlug: 'raw',
+          path: 'conversations/2026/07/21/action-1',
+          title: 'Conversation: Where is the config?',
+          locale: 'en',
+          kind: 'native',
+          rawCategorySystemKey: 'conversation',
+          status: 'published',
+          author: { id: null, displayName: null },
+          frontmatter: null,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          links: { self: '', byPath: '', revisions: '', drafts: '' },
+        },
+        excerpt: 'The config lives in...', score: 0.9, relevanceScore: 0.9,
+        matchSources: ['keyword', 'semantic'], engineSources: ['full_text', 'semantic'],
+      }],
+    };
+    publicContent.hybridSearchPages.mockResolvedValue(payload);
+
+    const response = await searchRoute.POST(new NextRequest('http://localhost/api/v1/search/pages', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'query', searchRecordId: payload.searchRecordId, searchSessionId, q: 'config', space: 'raw' }),
+    }), { params: Promise.resolve({}) });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual(payload);
+    expect(publicContent.hybridSearchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ q: 'config', space: 'raw' }));
+    expect(body.items[0].page.rawCategorySystemKey).toBe('conversation');
+    expect(body.items[0].page.spaceSlug).toBe('raw');
+  });
+
   it.each(['unavailable', 'failed'] as const)('returns generic %s semantic coverage on the existing search resource', async (semanticState) => {
     const payload = {
       searchRecordId: '11111111-1111-4111-8111-111111111111',

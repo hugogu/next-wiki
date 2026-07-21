@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { SearchIcon } from '@/components/icons';
 import { useHybridPageSearch } from '@/hooks/useHybridPageSearch';
-import { getPageHref } from '@/lib/path';
+import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 
 function getSearchTerms(query: string): string[] {
@@ -153,7 +153,7 @@ export function HeaderHybridSearch() {
         )}
         <ul className="mt-sm space-y-xs">
           {results?.items.map((result) => <li key={result.page.id}>
-            <a href={getPageHref(result.page.path)} className="block rounded-md p-sm hover:bg-surface-elevated"
+            <a href={getSpaceHref(readerSpaceFromSlug(result.page.spaceSlug), result.page.path)} className="block rounded-md p-sm hover:bg-surface-elevated"
               onClick={() => {
                 if (!searchRecordRef.current || !sessionRef.current || terminalEventRef.current) return;
                 terminalEventRef.current = true;
@@ -162,6 +162,11 @@ export function HeaderHybridSearch() {
               <span className="flex items-start justify-between gap-md">
                 <span className="min-w-0 font-medium">{renderHighlightedText(result.page.title, terms)}</span>
                 <span className="flex shrink-0 items-center gap-xs">
+                  {result.page.rawCategorySystemKey === 'conversation' && (
+                    <span data-testid="header-search-source-conversation" className="rounded-full border border-border bg-surface-elevated px-xs py-0.5 text-[11px] leading-tight text-muted">
+                      {t('header.search.source.conversation')}
+                    </span>
+                  )}
                   {result.matchSources.map((source) => (
                     <span key={source} data-testid={`header-search-source-${source}`} className={`rounded-full border px-xs py-0.5 text-[11px] leading-tight ${sourceLabelClass(source)}`}>
                       {source === 'keyword' ? t('header.search.source.keyword') : t('header.search.source.semantic')}

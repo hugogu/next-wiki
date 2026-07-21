@@ -237,6 +237,25 @@ describe('search coordinator', () => {
     expect(semantic.calls).toHaveLength(1);
   });
 
+  it('threads spaceId and spaceSlug through to every engine (023 Raw semantic search)', async () => {
+    await ensurePublicApiDefaultSpace();
+    const corpus = await createSearchFixtureCorpus(`coord-space-${randomUUID().slice(0, 8)}`);
+    const semantic = fakeEngine('semantic', () => readyWith([]));
+    const registry = createSearchEngineRegistry([semantic]);
+
+    await runCoordinatedSearch(
+      corpus.readerCtx,
+      baseInput('anything', {
+        snapshot: { full_text: false, fuzzy: false, semantic: true },
+        spaceId: 'space-uuid-123',
+        spaceSlug: 'raw',
+      }),
+      registry,
+    );
+
+    expect(semantic.calls[0]).toMatchObject({ spaceId: 'space-uuid-123', spaceSlug: 'raw' });
+  });
+
   it('applies the deadline budget input to engines', async () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`coord-deadline-${randomUUID().slice(0, 8)}`);

@@ -124,6 +124,12 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 422);
     case 'RAW_CATEGORY_HAS_ENTRIES':
       return apiError(code, message, 409);
+    case 'DATA_SOURCE_UNAVAILABLE':
+    case 'RAW_CATEGORY_SYSTEM_PROTECTED':
+    case 'RAW_CONVERSATION_IMMUTABLE':
+      return apiError(code, message, 409);
+    case 'RAW_CONVERSATION_CAPTURE_FAILED':
+      return apiError(code, message, 422);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

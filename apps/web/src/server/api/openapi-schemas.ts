@@ -802,6 +802,11 @@ export const PublicPageResource = z
       .enum(['public', 'restricted'])
       .optional()
       .describe('Page visibility: public within its space rules, or restricted to administrators.'),
+    rawCategorySystemKey: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Built-in raw category key (e.g. 'conversation') for a raw page filed under a system category; null/omitted otherwise."),
     contentSource: z
       .string()
       .optional()
@@ -1049,6 +1054,8 @@ export const PublicRawCategory = z
     description: z.string().nullable().describe('Optional description, or null.'),
     isDefault: z.boolean().describe('Whether this category is applied when a raw create omits categoryId.'),
     isRetired: z.boolean().describe('Retired categories keep existing entries but accept no new ones.'),
+    systemKey: z.string().nullable().describe("Stable built-in category key (e.g. 'conversation'), or null for an admin-managed category."),
+    isSystem: z.boolean().describe('Whether this category is built-in and protected from retirement/deletion.'),
     entryCount: z.number().int().nonnegative().describe('Number of raw entries currently filed under this category.'),
     createdAt: z.string().datetime().describe('Timestamp when the category was created (ISO 8601).'),
     updatedAt: z.string().datetime().describe('Timestamp when the category was last updated (ISO 8601).'),
@@ -1067,6 +1074,27 @@ export const PublicRawCategoryCreateInput = z
     isDefault: z.boolean().optional().describe('Apply as the default category for raw creates that omit categoryId.'),
   })
   .describe('Create a raw taxonomy category.');
+
+export const ContentDataSourceItem = z
+  .object({
+    sourceKey: z.enum(['wiki-ai-conversations']).describe('Stable registered Content Data Source key.'),
+    category: z.literal('content').describe('Data source category grouping.'),
+    label: z.string().describe('Human-readable label.'),
+    description: z.string().describe('Human-readable description.'),
+    enabled: z.boolean().describe('Whether the source currently captures content.'),
+    available: z.boolean().describe('Whether the source can operate in the current writing mode.'),
+    unavailableReason: z.string().nullable().describe('Reason the source is unavailable, or null when available.'),
+    updatedAt: z.string().datetime().describe('Timestamp when the source setting was last updated (ISO 8601).'),
+  })
+  .describe('A registered Content > Data Source and its current settings.');
+
+export const ContentDataSourceListResponse = z
+  .object({ items: z.array(ContentDataSourceItem).describe('All registered content data sources.') })
+  .describe('Content Data Sources listing.');
+
+export const ContentDataSourceUpdateInput = z
+  .object({ enabled: z.boolean().describe('Whether the source should capture content going forward.') })
+  .describe('Update a Content Data Source.');
 
 export const PublicDraftCreateInput = z
   .object({

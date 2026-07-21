@@ -206,6 +206,43 @@ describe('raw entries service', () => {
     expect(rows[2]?.contentSource).toContain('Concurrent chunk B.');
   });
 
+  it('reconciles the active AI index on create and append (023)', async () => {
+    const [provider] = await db
+      .insert(schema.aiProviders)
+      .values({
+        name: `raw-index-provider-${adminId}`,
+        kind: 'openai_compatible',
+        baseUrl: 'https://example.com',
+        credentialsEncrypted: 'x',
+        status: 'healthy',
+      })
+      .returning();
+    const [model] = await db
+      .insert(schema.aiModels)
+      .values({ providerId: provider!.id, externalId: 'embed', displayName: 'Embed', embeddingDimensions: 3 })
+      .returning();
+    const [generation] = await db
+      .insert(schema.aiIndexGenerations)
+      .values({ modelId: model!.id, embeddingDimensions: 3, chunkerVersion: 'test', status: 'ready', isActive: true })
+      .returning();
+
+    const created = await createRawEntry(adminCtx, 'raw/reconcile');
+    const afterCreate = await db.query.aiPageIndexStates.findFirst({
+      where: eq(schema.aiPageIndexStates.pageId, created.pageId),
+    });
+    expect(afterCreate).toMatchObject({ generationId: generation!.id, status: 'pending' });
+
+    await db
+      .update(schema.aiPageIndexStates)
+      .set({ status: 'completed' })
+      .where(eq(schema.aiPageIndexStates.pageId, created.pageId));
+    await rawEntries.appendEntry(adminCtx, created.pageId, { content: 'More evidence.' });
+    const afterAppend = await db.query.aiPageIndexStates.findFirst({
+      where: eq(schema.aiPageIndexStates.pageId, created.pageId),
+    });
+    expect(afterAppend?.status).toBe('pending');
+  });
+
   it('rejects every regular mutation path for raw entries', async () => {
     const created = await createRawEntry(adminCtx);
     await expect(pageService.newDraft(adminCtx, 'raw/evidence', { title: 'Changed', contentSource: 'Changed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });

@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type {
   AiActionAccepted,
+  AiActionAdminView,
   AiActionEvent,
   AiActionFeature,
   AiActionStatus,
@@ -9,6 +10,8 @@ import type {
   AiQuestionMode,
   AiSessionSummary,
   AiUsageStatsView,
+  RawConversationCaptureStatus,
+  RawConversationPointer,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -17,6 +20,7 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson, hashAiPayload } from '@/server/crypto/ai-encryption';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
+import { logger } from '@/server/logger';
 
 /**
  * Knowledge-index rebuilds go to a dedicated queue so a bulk import cannot
@@ -54,6 +58,14 @@ type CreateActionInput = {
    * instead of waiting behind them at the queue's modest fetch rate.
    */
   priority?: number;
+  /**
+   * 023: initial Raw Conversation capture eligibility, decided once at create
+   * time from the Wiki AI Conversations data-source setting. `pending` means
+   * capture is eligible once events arrive; `disabled` means this action was
+   * created while the source was off and will never be captured. Actions for
+   * every other feature stay `not_applicable` (the column default).
+   */
+  rawConversationCaptureStatus?: 'pending' | 'disabled';
 };
 
 function expiry(hours: number): Date {
@@ -108,6 +120,9 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
         pageId: input.pageId ?? null,
         questionMode: input.questionMode ?? null,
         requestMetadata: input.requestMetadata ?? {},
+        ...(input.rawConversationCaptureStatus
+          ? { rawConversationCaptureStatus: input.rawConversationCaptureStatus }
+          : {}),
         expiresAt,
       })
       .returning({ id: schema.aiActions.id });
@@ -193,6 +208,27 @@ export async function deleteActionInput(actionId: string): Promise<void> {
   await db.delete(schema.aiActionInputs).where(eq(schema.aiActionInputs.actionId, actionId));
 }
 
+/**
+ * 023: coalesced Raw Conversation capture trigger. Lives here (not imported
+ * from raw-conversations.ts) to avoid a circular import — raw-conversations.ts
+ * already depends on ai-index.ts, which depends on this module for
+ * `createAction`. `enqueue`'s `singletonKey` + `singletonNextSlot` mean a
+ * burst of calls during token streaming collapses into at most one extra run,
+ * so it is safe to call after every event append, not just at terminal state.
+ */
+async function maybeEnqueueRawConversationCapture(actionId: string): Promise<void> {
+  const action = await db.query.aiActions.findFirst({
+    where: eq(schema.aiActions.id, actionId),
+    columns: { feature: true, rawConversationCaptureStatus: true },
+  });
+  if (
+    action?.feature === 'wiki_question' &&
+    (action.rawConversationCaptureStatus === 'pending' || action.rawConversationCaptureStatus === 'captured')
+  ) {
+    await enqueue(QUEUES.rawConversationCapture, { actionId }, { singletonKey: actionId, singletonNextSlot: true });
+  }
+}
+
 export async function appendActionEvent(
   actionId: string,
   type: AiEventType,
@@ -207,6 +243,16 @@ export async function appendActionEvent(
     .insert(schema.aiActionEvents)
     .values({ actionId, type, payload, expiresAt: expiry(settings.eventRetentionHours) })
     .returning({ id: schema.aiActionEvents.id });
+  // Fire-and-forget: this runs on every streamed token, and enqueueing must
+  // never add latency to the chat stream (plan.md performance goal). A failed
+  // enqueue here is not fatal — the next event append, or the terminal
+  // 'completed'/'error' event, tries again.
+  void maybeEnqueueRawConversationCapture(actionId).catch((error) => {
+    logger.warn('failed to enqueue raw conversation capture', {
+      actionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
   return row!.id;
 }
 
@@ -306,11 +352,59 @@ async function toView(row: typeof schema.aiActions.$inferSelect): Promise<AiActi
     startedAt: row.startedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,
     expiresAt: row.expiresAt.toISOString(),
+    rawConversationPageId: row.rawConversationPageId,
+    rawConversationCaptureStatus: row.rawConversationCaptureStatus,
   };
 }
 
 export async function getAction(ctx: PermCtx, actionId: string): Promise<AiActionView> {
   return toView(await requireActionAccess(ctx, actionId));
+}
+
+/**
+ * Resolves the `{pageId, path, url, captureStatus}` pointer for one captured
+ * session — the path/url lookup lives here (not in raw-conversations.ts) to
+ * avoid a circular import (see `findActionsWithExpiringCapture` above).
+ */
+export async function resolveRawConversationPointer(
+  pageId: string | null,
+  captureStatus: RawConversationCaptureStatus,
+): Promise<RawConversationPointer | null> {
+  if (!pageId) return null;
+  const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId), columns: { path: true } });
+  if (!page) return null;
+  return { pageId, path: page.path, url: `/spaces/raw/${page.path}`, captureStatus };
+}
+
+/** Batch variant of `resolveRawConversationPointer` for list endpoints, so N
+ * sessions never cost N page lookups. */
+async function resolveRawConversationPointers(
+  rows: Array<{ id: string; rawConversationPageId: string | null; rawConversationCaptureStatus: RawConversationCaptureStatus }>,
+): Promise<Map<string, RawConversationPointer | null>> {
+  const pageIds = rows.map((row) => row.rawConversationPageId).filter((id): id is string => id !== null);
+  const pages = pageIds.length
+    ? await db
+        .select({ id: schema.pages.id, path: schema.pages.path })
+        .from(schema.pages)
+        .where(inArray(schema.pages.id, pageIds))
+    : [];
+  const pathByPageId = new Map(pages.map((page) => [page.id, page.path]));
+  const result = new Map<string, RawConversationPointer | null>();
+  for (const row of rows) {
+    const path = row.rawConversationPageId ? pathByPageId.get(row.rawConversationPageId) : undefined;
+    result.set(
+      row.id,
+      row.rawConversationPageId && path
+        ? {
+            pageId: row.rawConversationPageId,
+            path,
+            url: `/spaces/raw/${path}`,
+            captureStatus: row.rawConversationCaptureStatus,
+          }
+        : null,
+    );
+  }
+  return result;
 }
 
 const USAGE_CATEGORY: Partial<Record<AiActionFeature, keyof AiUsageStatsView>> = {
@@ -362,7 +456,7 @@ export async function listActions(
     limit?: number;
     offset?: number;
   } = {},
-): Promise<{ items: AiActionView[]; total: number }> {
+): Promise<{ items: AiActionAdminView[]; total: number }> {
   if (!can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to view AI actions');
   }
@@ -384,7 +478,13 @@ export async function listActions(
       .offset(offset),
     db.select({ value: count() }).from(schema.aiActions).where(where),
   ]);
-  return { items: await Promise.all(rows.map(toView)), total: totals[0]?.value ?? 0 };
+  // 023: this admin-only surface (gated above by manage_ai) additionally
+  // carries the bounded capture-failure diagnostic — never exposed through
+  // getAction/listUserSessions, which a non-admin session owner can reach.
+  const items = await Promise.all(
+    rows.map(async (row) => ({ ...(await toView(row)), rawConversationCaptureError: row.rawConversationCaptureError })),
+  );
+  return { items, total: totals[0]?.value ?? 0 };
 }
 
 function requireSessionUserId(ctx: PermCtx): string {
@@ -412,12 +512,21 @@ export async function listUserSessions(
   ];
   if (filters.status) predicates.push(eq(schema.aiActions.status, filters.status));
   if (filters.search?.trim()) {
+    const term = `%${filters.search.trim()}%`;
     predicates.push(
-      sql`exists (
-        select 1 from ${schema.aiActionEvents}
-        where ${schema.aiActionEvents.actionId} = ${schema.aiActions.id}
-          and ${schema.aiActionEvents.type} = 'question'
-          and ${schema.aiActionEvents.payload} ->> 'text' ilike ${`%${filters.search.trim()}%`}
+      sql`(
+        exists (
+          select 1 from ${schema.aiActionEvents}
+          where ${schema.aiActionEvents.actionId} = ${schema.aiActions.id}
+            and ${schema.aiActionEvents.type} = 'question'
+            and ${schema.aiActionEvents.payload} ->> 'text' ilike ${term}
+        )
+        or exists (
+          select 1 from ${schema.pages}
+          join ${schema.pageRevisions} on ${schema.pageRevisions.id} = ${schema.pages.currentPublishedVersionId}
+          where ${schema.pages.id} = ${schema.aiActions.rawConversationPageId}
+            and ${schema.pageRevisions.sourceMetadata} ->> 'question' ilike ${term}
+        )
       )`,
     );
   }
@@ -444,19 +553,52 @@ export async function listUserSessions(
   const questionByAction = new Map(
     questionEvents.map((row) => [row.actionId, String((row.payload as Record<string, unknown>).text ?? '')]),
   );
+
+  // 023: for a captured session, the event-log question can disappear once
+  // its retention window elapses even though the Raw page persists forever —
+  // prefer the durable Raw-derived question so the row never regresses to
+  // "content expired" for a session that actually has a canonical record.
+  const capturedPageIds = rows.map((row) => row.rawConversationPageId).filter((id): id is string => id !== null);
+  const capturedQuestions = capturedPageIds.length
+    ? await db
+        .select({
+          pageId: schema.pages.id,
+          question: sql<string | null>`${schema.pageRevisions.sourceMetadata} ->> 'question'`,
+        })
+        .from(schema.pages)
+        .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
+        .where(inArray(schema.pages.id, capturedPageIds))
+    : [];
+  const capturedQuestionByPageId = new Map(capturedQuestions.map((row) => [row.pageId, row.question]));
+
+  const pointerByAction = await resolveRawConversationPointers(rows);
   const items = await Promise.all(
-    rows.map(async (row) => ({
-      ...(await toView(row)),
-      questionExcerpt: questionByAction.get(row.id)?.slice(0, 200) ?? null,
-    })),
+    rows.map(async (row) => {
+      const rawQuestion = row.rawConversationPageId ? capturedQuestionByPageId.get(row.rawConversationPageId) : undefined;
+      return {
+        ...(await toView(row)),
+        questionExcerpt: (rawQuestion ?? questionByAction.get(row.id))?.slice(0, 200) ?? null,
+        rawConversation: pointerByAction.get(row.id) ?? null,
+      };
+    }),
   );
   return { items, total: totals[0]?.value ?? 0 };
 }
 
 /** Hard-deletes a session (and its cascaded inputs/events) after an ownership check. */
+/**
+ * Hard-deletes a legacy (never-captured) session. Captured sessions are
+ * rejected instead: their Raw Conversation page is the canonical, append-only
+ * evidence record (023), and the ai_actions row is the only durable pointer
+ * to it — deleting the row would orphan that pointer even though the Raw
+ * page itself is preserved by construction (nothing here ever deletes it).
+ */
 export async function deleteSession(ctx: PermCtx, actionId: string): Promise<void> {
   const row = await requireActionAccess(ctx, actionId);
   if (row.feature !== 'wiki_question') throw new DomainError('NOT_FOUND', 'AI action not found');
+  if (row.rawConversationPageId) {
+    throw new DomainError('RAW_CONVERSATION_IMMUTABLE', 'This conversation was captured as Raw evidence and cannot be deleted from history');
+  }
   await db.delete(schema.aiActions).where(eq(schema.aiActions.id, actionId));
 }
 
@@ -538,6 +680,44 @@ export async function findRecoverableActionIds(): Promise<Array<{ id: string; fe
       .where(inArray(schema.aiActions.id, rows.map((row) => row.id)));
   }
   return rows;
+}
+
+/**
+ * 023: wiki_question actions whose retention window is about to close and
+ * still have capturable state (pending or previously captured). Read-only —
+ * the cleanup job uses this to run one last synchronous capture pass before
+ * `cleanupExpiredAiData` purges the underlying event log forever. Kept in
+ * this module (not raw-conversations.ts) to avoid a circular import:
+ * raw-conversations.ts already depends on ai-index.ts, which depends on this
+ * module for `createAction`.
+ */
+export async function findActionsWithExpiringCapture(): Promise<string[]> {
+  const rows = await db
+    .select({ id: schema.aiActions.id })
+    .from(schema.aiActions)
+    .where(
+      and(
+        lt(schema.aiActions.expiresAt, new Date()),
+        eq(schema.aiActions.feature, 'wiki_question'),
+        inArray(schema.aiActions.rawConversationCaptureStatus, ['pending', 'captured']),
+      ),
+    );
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Marks actions that never reached a real terminal state (still queued or
+ * running when their retention window closed — an orphaned/crashed
+ * conversation) as expired, so the final capture pass records
+ * `conversationStatus: 'expired'` on the Raw page instead of freezing at
+ * whatever transient status ('running') it last saw.
+ */
+export async function expireOrphanedActions(actionIds: string[]): Promise<void> {
+  if (actionIds.length === 0) return;
+  await db
+    .update(schema.aiActions)
+    .set({ status: 'expired' })
+    .where(and(inArray(schema.aiActions.id, actionIds), inArray(schema.aiActions.status, ['queued', 'running'])));
 }
 
 export async function cleanupExpiredAiData(): Promise<void> {

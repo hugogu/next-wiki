@@ -17,6 +17,8 @@ export type VectorMatch = {
   spaceKind: 'wiki' | 'raw' | 'generated';
   spaceAnonymousRead: boolean;
   visibility: 'public' | 'restricted';
+  // 023: built-in raw category key (e.g. 'conversation'), null otherwise.
+  rawCategorySystemKey: string | null;
 };
 
 export async function exactCosineSearch(
@@ -39,6 +41,7 @@ export async function exactCosineSearch(
     space_kind: 'wiki' | 'raw' | 'generated';
     space_anonymous_read: boolean;
     visibility: 'public' | 'restricted';
+    raw_category_system_key: string | null;
   }>(sql`
     select
       c.id as chunk_id,
@@ -53,11 +56,13 @@ export async function exactCosineSearch(
       s.slug as space_slug,
       s.kind as space_kind,
       s.anonymous_read as space_anonymous_read,
-      p.visibility
+      p.visibility,
+      rc.system_key as raw_category_system_key
     from ai_knowledge_chunks c
     join pages p on p.id = c.page_id
     join spaces s on s.id = p.space_id
     join page_revisions r on r.id = c.revision_id
+    left join raw_categories rc on rc.id = p.raw_category_id
     where c.generation_id = ${generationId}
       and p.deleted_at is null
       and p.current_published_version_id = c.revision_id
@@ -79,5 +84,6 @@ export async function exactCosineSearch(
     spaceKind: row.space_kind,
     spaceAnonymousRead: row.space_anonymous_read,
     visibility: row.visibility,
+    rawCategorySystemKey: row.raw_category_system_key,
   }));
 }

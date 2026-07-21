@@ -136,3 +136,52 @@ Final implementation should also run the repository's normal lint/build checks:
 pnpm lint
 pnpm build
 ```
+
+## Manual Verification Notes (implementation pass, 2026-07-21)
+
+Full automated suite: `pnpm vitest run` — 2987 passed, 1 pre-existing skip, 0
+failures. `pnpm lint`, `pnpm --filter @next-wiki/web typecheck`, and
+`pnpm build` all clean. `pnpm openapi:generate` regenerated with no drift
+(`openapi-schemas.test.ts` structural-sync suite: 1725/1725).
+
+Scenario-by-scenario status:
+
+- **Scenario 1 (Configure source)**: Verified end-to-end via Playwright
+  (`e2e/raw-conversation-search.spec.ts`, "admin toggles the Wiki AI
+  Conversations data source") — disabled by default, toggles persist across
+  reload, and via service tests that enabling/disabling only affects actions
+  created after the change.
+- **Scenario 2 (Capture running/terminal conversations)**: This dev/e2e
+  environment has no live LLM provider configured (matches the existing
+  `ai-curation-search.spec.ts` constraint), so the real
+  question → streaming → capture path cannot run against a live model here.
+  Verified instead at the level that constraint allows: `raw-conversations.ts`
+  unit/integration tests cover reconstruction from partial/complete event
+  logs, idempotent create/append, concurrent-duplicate-job convergence, and
+  the pre-purge final-capture path in `ai-cleanup.test.ts`. The Playwright
+  spec seeds a fully-captured conversation (same shape `captureConversation`
+  writes) and confirms the Raw page renders it through
+  `ConversationSessionView`, not a generic dump — this caught and fixed a
+  real bug (`ConversationSessionView.tsx` was missing `'use client'`, which
+  only surfaces when actually rendered by the Next.js server, not in Vitest's
+  `renderToStaticMarkup`).
+- **Scenario 3 (Search finds Raw Conversations)**: Verified end-to-end
+  (Playwright: "an Admin can find a captured conversation via Raw-space
+  search and open it") plus unit coverage of the space-aware
+  coordinator/candidate-projection/ai-retrieval changes.
+- **Scenario 4 (Permission safety)**: Verified end-to-end (Playwright: "a
+  non-Admin cannot discover or open a captured conversation" — search returns
+  no candidate and direct navigation 404s) plus unit coverage of
+  `readPermissionFilteredVectorCandidates`/`requireSemanticSearchScope`
+  target-space resolution.
+- **Scenario 5 (Legacy history not migrated)**: No migration/backfill code
+  exists; legacy `ai_actions` rows never receive `raw_conversation_page_id`
+  and continue through the unchanged event-log detail path. Covered by
+  `ai-actions.test.ts`'s captured-vs-legacy list/detail tests.
+- **Scenario 6 (Captured session delete semantics)**: Verified end-to-end
+  (Playwright: delete button disabled + "Open Raw page" link present for a
+  captured row) plus a service test asserting `deleteSession` rejects with
+  `RAW_CONVERSATION_IMMUTABLE` for captured sessions while leaving the
+  pointer and Raw page intact.
+
+No open issues at implementation time.

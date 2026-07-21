@@ -84,7 +84,12 @@ export type DomainErrorCode =
   | 'RAW_CATEGORY_RETIRED'
   | 'RAW_CATEGORY_HAS_ENTRIES'
   // Cross-space page move (admin reclassification).
-  | 'PAGE_SPACE_MOVE_INVALID';
+  | 'PAGE_SPACE_MOVE_INVALID'
+  // Raw conversation search (023).
+  | 'DATA_SOURCE_UNAVAILABLE'
+  | 'RAW_CATEGORY_SYSTEM_PROTECTED'
+  | 'RAW_CONVERSATION_IMMUTABLE'
+  | 'RAW_CONVERSATION_CAPTURE_FAILED';
 
 export class DomainError extends Error {
   constructor(

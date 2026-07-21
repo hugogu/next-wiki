@@ -19,6 +19,9 @@ export type SearchEngineQuery = {
   deadlineMs: number;
   /** Resolved content space for lexical candidate retrieval and projection. */
   spaceId?: string;
+  /** Same space, by slug — some capabilities (semantic) key their own
+   * downstream permission/candidate scoping by slug rather than id (023). */
+  spaceSlug?: string;
   /** Durable attempt identity for engines that can resume asynchronous work. */
   attempt?: {
     searchRecordId: string;
