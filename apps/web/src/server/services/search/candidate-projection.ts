@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import { getRevisionMetadata } from '@/server/services/page-metadata';
-import { getSpaceById, resolveSpace } from '@/server/services/spaces';
+import { getSpaceById, type SpaceRow } from '@/server/services/spaces';
 import { assertSpaceKindAllowed } from '@/server/services/writing-mode';
 
 function encodePath(path: string): string {
@@ -29,25 +29,51 @@ export type ReadableCandidatePage = {
 };
 
 /**
+ * Resolves every requested space to a readable, kind-allowed space row.
+ * Unlike a single-space lookup, a space that is missing, kind-disabled, or
+ * unreadable is silently skipped here rather than failing the whole request
+ * — the caller already decided which spaces to include (either one explicit
+ * space or every space the actor can currently read), so a space dropping
+ * out mid-request just means fewer candidates survive projection, never an
+ * error surfaced to the searcher.
+ */
+async function resolveReadableSpaces(ctx: PermCtx, spaceIds: readonly string[]): Promise<Map<string, SpaceRow>> {
+  const spaceById = new Map<string, SpaceRow>();
+  for (const spaceId of new Set(spaceIds)) {
+    const space = await getSpaceById(spaceId);
+    if (!space) continue;
+    try {
+      await assertSpaceKindAllowed(space.kind);
+    } catch {
+      continue;
+    }
+    if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) continue;
+    spaceById.set(space.id, space);
+  }
+  return spaceById;
+}
+
+/**
  * The single permission boundary between internal engine candidates and any
- * public search output. Only published, non-deleted pages of the default
- * space that the actor may read are hydrated; everything else disappears
- * without a trace (no count, no excerpt, no existence signal). Every engine's
- * candidates MUST pass through here before fusion, counting, or projection.
+ * public search output. Only published, non-deleted pages of a readable,
+ * kind-allowed space are hydrated; everything else disappears without a
+ * trace (no count, no excerpt, no existence signal). Candidates from every
+ * requested space are checked and hydrated in one pass so cross-space
+ * results stay in the single fused ranking rather than being appended as a
+ * separate block (023). Every engine's candidates MUST pass through here
+ * before fusion, counting, or projection.
  */
 export async function projectReadableCandidatePages(
   ctx: PermCtx,
   pageIds: readonly string[],
-  spaceId?: string,
+  spaceIds: readonly string[],
 ): Promise<Map<string, ReadableCandidatePage>> {
   const ids = [...new Set(pageIds)];
   const result = new Map<string, ReadableCandidatePage>();
-  if (ids.length === 0) return result;
+  if (ids.length === 0 || spaceIds.length === 0) return result;
 
-  const space = spaceId ? await getSpaceById(spaceId) : await resolveSpace();
-  if (!space) return result;
-  await assertSpaceKindAllowed(space.kind);
-  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) return result;
+  const spaceById = await resolveReadableSpaces(ctx, spaceIds);
+  if (spaceById.size === 0) return result;
 
   const rows = await db
     .select({
@@ -67,13 +93,15 @@ export async function projectReadableCandidatePages(
     .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
     .leftJoin(schema.rawCategories, eq(schema.pages.rawCategoryId, schema.rawCategories.id))
     .where(and(
-      eq(schema.pages.spaceId, space.id),
+      inArray(schema.pages.spaceId, [...spaceById.keys()]),
       isNull(schema.pages.deletedAt),
       isNotNull(schema.pages.currentPublishedVersionId),
       inArray(schema.pages.id, ids),
     ));
 
   for (const row of rows) {
+    const space = spaceById.get(row.page.spaceId);
+    if (!space) continue;
     const userId = getActorUserId(ctx);
     if (!can(
       ctx,

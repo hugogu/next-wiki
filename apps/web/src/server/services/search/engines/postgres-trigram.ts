@@ -1,4 +1,4 @@
-import { and, eq, ilike, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { EngineDeadlineExceeded } from '../deadline';
@@ -6,7 +6,6 @@ import type { SearchCandidate, SearchEngine, SearchEngineQuery } from '../types'
 import {
   candidateWindow,
   collectCompletedLexicalWindows,
-  getDefaultSpaceId,
   likePattern,
   runBoundedLexicalWindow,
   type SearchDbExecutor,
@@ -47,9 +46,9 @@ export function createFuzzyEngine(): SearchEngine {
   };
 }
 
-function publishedScope(spaceId: string) {
+function publishedScope(spaceIds: readonly string[]) {
   return [
-    eq(schema.pages.spaceId, spaceId),
+    inArray(schema.pages.spaceId, [...spaceIds]),
     isNull(schema.pages.deletedAt),
     isNotNull(schema.pages.currentPublishedVersionId),
   ] as const;
@@ -69,12 +68,12 @@ function selection(similarity: ReturnType<typeof sql<number>>, executor: SearchD
 }
 
 /** Title fragment and near matches; predicate matches `pages_space_title_trgm_idx`. */
-export function fuzzyTitleQuery(spaceId: string, q: string, window: number, executor: SearchDbExecutor = db) {
+export function fuzzyTitleQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db) {
   const pattern = likePattern(q);
   const similarity = sql<number>`word_similarity(${q}, ${schema.pages.title})`;
   return selection(similarity, executor)
     .where(and(
-      ...publishedScope(spaceId),
+      ...publishedScope(spaceIds),
       or(
         ilike(schema.pages.title, pattern),
         sql`${q} <% ${schema.pages.title}`,
@@ -90,13 +89,13 @@ export function fuzzyTitleQuery(spaceId: string, q: string, window: number, exec
  * matches a large share of long markdown revisions and cannot meet an
  * interactive request budget without sacrificing exact fragment results.
  */
-export function fuzzyContentQuery(spaceId: string, q: string, window: number, executor: SearchDbExecutor = db) {
+export function fuzzyContentQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db) {
   const pattern = likePattern(q);
   const exactMatch = ilike(schema.pageRevisions.contentSource, pattern);
   const similarity = sql<number>`case when ${exactMatch} then 1 else 0 end`;
   return selection(similarity, executor)
     .where(and(
-      ...publishedScope(spaceId),
+      ...publishedScope(spaceIds),
       exactMatch,
     ))
     .orderBy(sql`similarity desc`, schema.pages.path)
@@ -104,14 +103,13 @@ export function fuzzyContentQuery(spaceId: string, q: string, window: number, ex
 }
 
 async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidate[]> {
-  const spaceId = query.spaceId ?? await getDefaultSpaceId();
-  if (!spaceId) return [];
+  if (query.spaceIds.length === 0) return [];
   const window = candidateWindow(query.limit);
 
   const windows = [
     runBoundedLexicalWindow(
       query.deadlineMs,
-      (tx) => fuzzyTitleQuery(spaceId, query.q, window, tx),
+      (tx) => fuzzyTitleQuery(query.spaceIds, query.q, window, tx),
       { wordSimilarityThreshold: WORD_SIMILARITY_THRESHOLD },
     ),
   ];
@@ -122,7 +120,7 @@ async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidat
   if (hasSelectiveTrigram(query.q)) {
     windows.push(runBoundedLexicalWindow(
       query.deadlineMs,
-      (tx) => fuzzyContentQuery(spaceId, query.q, window, tx),
+      (tx) => fuzzyContentQuery(query.spaceIds, query.q, window, tx),
       { preferIndex: true },
     ));
   }

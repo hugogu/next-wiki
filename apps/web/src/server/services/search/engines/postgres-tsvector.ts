@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { EngineDeadlineExceeded } from '../deadline';
@@ -6,7 +6,6 @@ import type { SearchCandidate, SearchEngine, SearchEngineQuery } from '../types'
 import {
   candidateWindow,
   collectCompletedLexicalWindows,
-  getDefaultSpaceId,
   runBoundedLexicalWindow,
   type SearchDbExecutor,
   toLexicalCandidate,
@@ -43,16 +42,16 @@ const tsQueryFor = (q: string) => sql`websearch_to_tsquery('simple', ${q})`;
 const pageDocument = () => sql`to_tsvector('simple', coalesce(${schema.pages.path}, '') || ' ' || coalesce(${schema.pages.title}, ''))`;
 const contentDocument = () => sql`to_tsvector('simple', coalesce(${schema.pageRevisions.contentSource}, ''))`;
 
-function publishedScope(spaceId: string) {
+function publishedScope(spaceIds: readonly string[]) {
   return [
-    eq(schema.pages.spaceId, spaceId),
+    inArray(schema.pages.spaceId, [...spaceIds]),
     isNull(schema.pages.deletedAt),
     isNotNull(schema.pages.currentPublishedVersionId),
   ] as const;
 }
 
 /** Path/title term matches; the predicate matches `pages_keyword_fts_idx`. */
-export function fullTextPageQuery(spaceId: string, q: string, window: number, executor: SearchDbExecutor = db) {
+export function fullTextPageQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db) {
   const tsQuery = tsQueryFor(q);
   const rank = sql<number>`ts_rank(${pageDocument()}, ${tsQuery})`;
   return executor
@@ -65,13 +64,13 @@ export function fullTextPageQuery(spaceId: string, q: string, window: number, ex
     })
     .from(schema.pages)
     .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
-    .where(and(...publishedScope(spaceId), sql`${pageDocument()} @@ ${tsQuery}`))
+    .where(and(...publishedScope(spaceIds), sql`${pageDocument()} @@ ${tsQuery}`))
     .orderBy(sql`rank desc`, schema.pages.path)
     .limit(window);
 }
 
 /** Content term matches; the predicate matches `page_revisions_content_fts_idx`. */
-export function fullTextContentSql(spaceId: string, q: string, window: number) {
+export function fullTextContentSql(spaceIds: readonly string[], q: string, window: number) {
   const tsQuery = tsQueryFor(q);
   const rank = sql<number>`ts_rank(${contentDocument()}, ${tsQuery})`;
   // The materialization boundary is intentional. PostgreSQL otherwise starts
@@ -94,7 +93,7 @@ export function fullTextContentSql(spaceId: string, q: string, window: number) {
       content_matches.rank
     from content_matches
     inner join ${schema.pages} on ${schema.pages.currentPublishedVersionId} = content_matches.revision_id
-    where ${schema.pages.spaceId} = ${spaceId}
+    where ${inArray(schema.pages.spaceId, [...spaceIds])}
       and ${schema.pages.deletedAt} is null
       and ${schema.pages.currentPublishedVersionId} is not null
     order by content_matches.rank desc, ${schema.pages.path}
@@ -103,14 +102,14 @@ export function fullTextContentSql(spaceId: string, q: string, window: number) {
 }
 
 /** Runs the materialized content window and restores the adapter's internal row shape. */
-export async function fullTextContentQuery(spaceId: string, q: string, window: number, executor: SearchDbExecutor = db) {
+export async function fullTextContentQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db) {
   const rows = await executor.execute<{
     page_id: string;
     path: string;
     title: string;
     content_source: string | null;
     rank: number | string;
-  }>(fullTextContentSql(spaceId, q, window));
+  }>(fullTextContentSql(spaceIds, q, window));
   return rows.map((row) => ({
     pageId: row.page_id,
     path: row.path,
@@ -121,16 +120,15 @@ export async function fullTextContentQuery(spaceId: string, q: string, window: n
 }
 
 async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidate[]> {
-  const spaceId = query.spaceId ?? await getDefaultSpaceId();
-  if (!spaceId) return [];
+  if (query.spaceIds.length === 0) return [];
   const window = candidateWindow(query.limit);
 
   // PostgreSQL underestimates the CPU cost of calculating tsvectors from long
   // markdown rows. Prefer the expression GIN indexes that migration 0007
   // provides, and give title and content their own cancellable window.
   const rows = (await collectCompletedLexicalWindows([
-    runBoundedLexicalWindow(query.deadlineMs, (tx) => fullTextPageQuery(spaceId, query.q, window, tx), { preferIndex: true }),
-    runBoundedLexicalWindow(query.deadlineMs, (tx) => fullTextContentQuery(spaceId, query.q, window, tx), { preferIndex: true }),
+    runBoundedLexicalWindow(query.deadlineMs, (tx) => fullTextPageQuery(query.spaceIds, query.q, window, tx), { preferIndex: true }),
+    runBoundedLexicalWindow(query.deadlineMs, (tx) => fullTextContentQuery(query.spaceIds, query.q, window, tx), { preferIndex: true }),
   ])).flat();
 
   // Engine-local merge: both windows share the same ts_rank scale; a page

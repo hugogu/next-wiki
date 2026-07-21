@@ -28,10 +28,12 @@ export type CoordinatedSearchInput = {
   minRelevanceScore: number;
   /** Administrator-controlled database budget for each immediate lexical engine. */
   immediateSearchTimeoutMs: number;
-  /** Resolved content space for every engine and the permission projection. */
-  spaceId?: string;
-  /** Same space, by slug (see SearchEngineQuery.spaceSlug). */
-  spaceSlug?: string;
+  /** Every space this search covers, for every engine and the permission
+   * projection — either one explicit space or every space the actor can
+   * currently read (see SearchEngineQuery.spaceIds). */
+  spaceIds: string[];
+  /** Same spaces, by slug (see SearchEngineQuery.spaceSlugs). */
+  spaceSlugs: string[];
   /**
    * Durable attempt identity. When present the coordinator creates/resumes one
    * run per enabled capability and lets the semantic engine start or resume
@@ -109,7 +111,7 @@ export async function runCoordinatedSearch(
   const fused = fuseCandidates(contributions);
   // The single visibility boundary: unreadable candidates vanish before any
   // count, excerpt, or fused result exists (FR-006).
-  const readable = await projectReadableCandidatePages(ctx, fused.map((candidate) => candidate.pageId), input.spaceId);
+  const readable = await projectReadableCandidatePages(ctx, fused.map((candidate) => candidate.pageId), input.spaceIds);
 
   const readableCounts = new Map<SearchCapabilityId, number>();
   for (const { capability, candidates } of contributions) {
@@ -195,8 +197,8 @@ async function executeEngine(
     q: input.q,
     limit: input.limit,
     deadlineMs: input.immediateSearchTimeoutMs,
-    spaceId: input.spaceId,
-    spaceSlug: input.spaceSlug,
+    spaceIds: input.spaceIds,
+    spaceSlugs: input.spaceSlugs,
     attempt: input.attempt
       ? { searchRecordId: input.attempt.searchRecordId, continuationRef: run?.continuationRef ?? null }
       : undefined,

@@ -8,8 +8,9 @@ import { CHINESE_FRAGMENT, CHINESE_NEAR_MATCH, createSearchFixtureCorpus } from 
 
 const engine = createFuzzyEngine();
 
-function query(q: string) {
-  return { q, limit: 20, deadlineMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS };
+async function query(q: string) {
+  const space = await ensurePublicApiDefaultSpace();
+  return { q, limit: 20, deadlineMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS, spaceIds: [space!.id], spaceSlugs: [space!.slug] };
 }
 
 describe('fuzzy engine (PostgreSQL pg_trgm)', () => {
@@ -17,7 +18,7 @@ describe('fuzzy engine (PostgreSQL pg_trgm)', () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`trgm-frag-${randomUUID().slice(0, 8)}`);
 
-    const outcome = await engine.run(corpus.readerCtx, query(CHINESE_FRAGMENT));
+    const outcome = await engine.run(corpus.readerCtx, await query(CHINESE_FRAGMENT));
 
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
@@ -31,7 +32,7 @@ describe('fuzzy engine (PostgreSQL pg_trgm)', () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`trgm-near-${randomUUID().slice(0, 8)}`);
 
-    const outcome = await engine.run(corpus.readerCtx, query(CHINESE_NEAR_MATCH));
+    const outcome = await engine.run(corpus.readerCtx, await query(CHINESE_NEAR_MATCH));
 
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
@@ -49,7 +50,7 @@ describe('fuzzy engine (PostgreSQL pg_trgm)', () => {
   it('handles mixed-script queries without failing', async () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`trgm-mixed-${randomUUID().slice(0, 8)}`);
-    const outcome = await engine.run(corpus.readerCtx, query('对账 architecture 2026'));
+    const outcome = await engine.run(corpus.readerCtx, await query('对账 architecture 2026'));
     expect(outcome.state).toBe('ready');
   });
 
@@ -58,7 +59,7 @@ describe('fuzzy engine (PostgreSQL pg_trgm)', () => {
     const corpus = await createSearchFixtureCorpus(`trgm-noise-${randomUUID().slice(0, 8)}`);
 
     // Unrelated Chinese phrase: word similarity against the corpus is 0.0.
-    const outcome = await engine.run(corpus.readerCtx, query('天气预报明天'));
+    const outcome = await engine.run(corpus.readerCtx, await query('天气预报明天'));
 
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
@@ -69,7 +70,7 @@ describe('fuzzy engine (PostgreSQL pg_trgm)', () => {
   it('never selects a draft-only page even when its content matches', async () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`trgm-draft-${randomUUID().slice(0, 8)}`);
-    const outcome = await engine.run(corpus.readerCtx, query(CHINESE_FRAGMENT));
+    const outcome = await engine.run(corpus.readerCtx, await query(CHINESE_FRAGMENT));
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
     expect(outcome.candidates.some((candidate) => candidate.pageId === corpus.pages.hiddenDraft.pageId)).toBe(false);

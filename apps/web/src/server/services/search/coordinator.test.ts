@@ -31,7 +31,8 @@ function readyWith(candidates: SearchCandidate[]): SearchEngineOutcome {
   return { state: 'ready', candidates };
 }
 
-function baseInput(q: string, overrides: Partial<CoordinatedSearchInput> = {}): CoordinatedSearchInput {
+async function baseInput(q: string, overrides: Partial<CoordinatedSearchInput> = {}): Promise<CoordinatedSearchInput> {
+  const space = await ensurePublicApiDefaultSpace();
   return {
     q,
     limit: 20,
@@ -39,6 +40,8 @@ function baseInput(q: string, overrides: Partial<CoordinatedSearchInput> = {}): 
     excerpt: { windowSize: 120, show: true },
     minRelevanceScore: 0,
     immediateSearchTimeoutMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS,
+    spaceIds: [space!.id],
+    spaceSlugs: [space!.slug],
     ...overrides,
   };
 }
@@ -68,7 +71,7 @@ describe('search coordinator', () => {
     });
     const registry = createSearchEngineRegistry([slow('full_text'), slow('fuzzy'), slow('semantic')]);
 
-    await runCoordinatedSearch(corpus.readerCtx, baseInput('anything'), registry);
+    await runCoordinatedSearch(corpus.readerCtx, await baseInput('anything'), registry);
 
     // Serial execution would interleave start/end pairs; concurrent starts all come first.
     expect(events.slice(0, 3).sort()).toEqual(['full_text:start', 'fuzzy:start', 'semantic:start']);
@@ -90,7 +93,7 @@ describe('search coordinator', () => {
       ])),
     ]);
 
-    const snapshot = await runCoordinatedSearch(corpus.readerCtx, baseInput('anything'), registry);
+    const snapshot = await runCoordinatedSearch(corpus.readerCtx, await baseInput('anything'), registry);
 
     expect(snapshot.items.map((item) => item.page.id)).toEqual([
       corpus.pages.english.pageId, // exact term protection + two contributions
@@ -124,7 +127,7 @@ describe('search coordinator', () => {
 
     const snapshot = await runCoordinatedSearch(
       corpus.readerCtx,
-      baseInput('anything', { snapshot: { full_text: true, fuzzy: false, semantic: false } }),
+      await baseInput('anything', { snapshot: { full_text: true, fuzzy: false, semantic: false } }),
       registry,
     );
 
@@ -144,7 +147,7 @@ describe('search coordinator', () => {
       fakeEngine('semantic', () => ({ state: 'timed_out' })),
     ]);
 
-    const snapshot = await runCoordinatedSearch(corpus.readerCtx, baseInput('anything'), registry);
+    const snapshot = await runCoordinatedSearch(corpus.readerCtx, await baseInput('anything'), registry);
 
     expect(snapshot.items).toHaveLength(1);
     expect(snapshot.engineStates).toEqual([
@@ -169,7 +172,7 @@ describe('search coordinator', () => {
 
     const snapshot = await runCoordinatedSearch(
       corpus.readerCtx,
-      baseInput('anything', { snapshot: { full_text: true, fuzzy: false, semantic: false } }),
+      await baseInput('anything', { snapshot: { full_text: true, fuzzy: false, semantic: false } }),
       registry,
     );
 
@@ -198,7 +201,7 @@ describe('search coordinator', () => {
       fakeEngine('fuzzy', () => readyWith([])),
       semantic,
     ]);
-    const input = baseInput('progressive query', { attempt: { searchRecordId: record.id } });
+    const input = await baseInput('progressive query', { attempt: { searchRecordId: record.id } });
 
     const first = await runCoordinatedSearch(corpus.readerCtx, input, registry);
     expect(first.semanticState).toBe('pending');
@@ -225,7 +228,7 @@ describe('search coordinator', () => {
       fakeEngine('fuzzy', () => readyWith([])),
       semantic,
     ]);
-    const input = baseInput('terminal query', { attempt: { searchRecordId: record.id } });
+    const input = await baseInput('terminal query', { attempt: { searchRecordId: record.id } });
 
     const first = await runCoordinatedSearch(corpus.readerCtx, input, registry);
     expect(first.semanticState).toBe('unavailable');
@@ -237,7 +240,7 @@ describe('search coordinator', () => {
     expect(semantic.calls).toHaveLength(1);
   });
 
-  it('threads spaceId and spaceSlug through to every engine (023 Raw semantic search)', async () => {
+  it('threads spaceIds and spaceSlugs through to every engine (023 Raw semantic search)', async () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`coord-space-${randomUUID().slice(0, 8)}`);
     const semantic = fakeEngine('semantic', () => readyWith([]));
@@ -245,15 +248,36 @@ describe('search coordinator', () => {
 
     await runCoordinatedSearch(
       corpus.readerCtx,
-      baseInput('anything', {
+      await baseInput('anything', {
         snapshot: { full_text: false, fuzzy: false, semantic: true },
-        spaceId: 'space-uuid-123',
-        spaceSlug: 'raw',
+        spaceIds: ['space-uuid-123'],
+        spaceSlugs: ['raw'],
       }),
       registry,
     );
 
-    expect(semantic.calls[0]).toMatchObject({ spaceId: 'space-uuid-123', spaceSlug: 'raw' });
+    expect(semantic.calls[0]).toMatchObject({ spaceIds: ['space-uuid-123'], spaceSlugs: ['raw'] });
+  });
+
+  it('threads every space id/slug in one call when the scope covers multiple spaces, never one call per space (023)', async () => {
+    await ensurePublicApiDefaultSpace();
+    const corpus = await createSearchFixtureCorpus(`coord-multispace-${randomUUID().slice(0, 8)}`);
+    const fullText = fakeEngine('full_text', () => readyWith([]));
+    const registry = createSearchEngineRegistry([fullText]);
+
+    await runCoordinatedSearch(
+      corpus.readerCtx,
+      await baseInput('anything', {
+        snapshot: { full_text: true, fuzzy: false, semantic: false },
+        spaceIds: ['space-a', 'space-b', 'space-c'],
+        spaceSlugs: ['default', 'raw', 'generated'],
+      }),
+      registry,
+    );
+
+    // Exactly one full_text call carrying every space, not one call per space.
+    expect(fullText.calls).toHaveLength(1);
+    expect(fullText.calls[0]).toMatchObject({ spaceIds: ['space-a', 'space-b', 'space-c'], spaceSlugs: ['default', 'raw', 'generated'] });
   });
 
   it('applies the deadline budget input to engines', async () => {
@@ -264,7 +288,7 @@ describe('search coordinator', () => {
 
     await runCoordinatedSearch(
       corpus.readerCtx,
-      baseInput('anything', { snapshot: { full_text: true, fuzzy: false, semantic: false } }),
+      await baseInput('anything', { snapshot: { full_text: true, fuzzy: false, semantic: false } }),
       registry,
     );
 

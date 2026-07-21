@@ -61,7 +61,7 @@ import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevision
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
-import { getSpaceById, resolveSpace } from '@/server/services/spaces';
+import { DEFAULT_SPACE_SLUG, getSpaceById, listSpaces, resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
 import * as rawEntries from '@/server/services/raw-entries';
 import * as linkPages from '@/server/services/link-pages';
@@ -889,7 +889,8 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
     // The existing GET contract has no administrator relevance threshold.
     minRelevanceScore: 0,
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
-    spaceId: space.id,
+    spaceIds: [space.id],
+    spaceSlugs: [space.slug],
   });
 
   const tagFilters = extractTagFilters(query);
@@ -973,47 +974,54 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
   return { items, nextCursor: pages.nextCursor };
 }
 
-// 023: the header search box (and any other caller) never sends an explicit
-// `space`, and the primary coordinated run above is always scoped to exactly
-// one space (the default wiki space when omitted). Without this, Raw content
-// — including captured Raw Conversation pages — could never appear from the
-// normal search box no matter how well it was indexed. This supplement adds
-// a small, fixed number of keyword-only Raw-space matches on top of the
-// primary results, so Raw content is never silently crowded out by unrelated
-// wiki noise filling the requested limit. Semantic is skipped here (no
-// durable search record is created for this lightweight pass, and semantic
-// retrieval requires one to start/resume).
-const RAW_SUPPLEMENT_LIMIT = 3;
-
-async function supplementRawSpaceResults(
+/**
+ * Resolves the space scope for one hybrid search request: an explicit
+ * `space` stays a single, hard-scoped space (unavailable/forbidden still
+ * fail the request, as before). Without one — the header search box never
+ * sends `space` — the scope is every space the actor can currently read,
+ * covered in the SAME single coordinated run. This is what lets a captured
+ * Raw Conversation page surface in the default search at all (023), and it
+ * stays a single query per capability: engines receive the whole space list
+ * at once (see SearchEngineQuery.spaceIds) and fuse cross-space candidates
+ * through the normal reciprocal-rank pass, rather than the search running
+ * once per space and stacking unranked result blocks.
+ */
+async function resolveSearchScope(
   ctx: PermCtx,
-  input: HybridSearchQueryInput,
-  primarySpaceSlug: string,
-  settings: Awaited<ReturnType<typeof getSearchSettings>>,
-): Promise<Awaited<ReturnType<typeof runCoordinatedSearch>>['items']> {
-  if (input.space || primarySpaceSlug === 'raw') return [];
-  if (!(await isLlmWikiMode())) return [];
-  const rawSpace = await resolveSpace('raw');
-  if (!rawSpace || rawSpace.kind !== 'raw') return [];
-  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(rawSpace))) return [];
-
-  try {
-    const supplement = await runCoordinatedSearch(ctx, {
-      q: input.q.trim(),
-      limit: RAW_SUPPLEMENT_LIMIT,
-      snapshot: { full_text: settings.fullTextSearchEnabled, fuzzy: settings.fuzzySearchEnabled, semantic: false },
-      excerpt: { windowSize: settings.excerptLength, show: settings.showExcerpts },
-      minRelevanceScore: settings.minRelevanceScore,
-      immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
-      spaceId: rawSpace.id,
-      spaceSlug: rawSpace.slug,
-    });
-    return supplement.items;
-  } catch (error) {
-    // A failed supplement must never break the primary (wiki) search.
-    console.error('Failed to run supplementary Raw space search:', error);
-    return [];
+  spaceSlug: string | undefined,
+): Promise<{ spaceIds: string[]; spaceSlugs: string[]; primarySpaceId: string }> {
+  if (spaceSlug) {
+    const space = await resolveSpace(spaceSlug);
+    if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+    await assertSpaceKindAllowed(space.kind);
+    if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+      throw new DomainError('FORBIDDEN', 'You do not have permission to search this space');
+    }
+    return { spaceIds: [space.id], spaceSlugs: [space.slug], primarySpaceId: space.id };
   }
+
+  const allSpaces = await listSpaces();
+  if (allSpaces.length === 0) throw new DomainError('NOT_FOUND', 'Default space not found');
+
+  const readable: typeof allSpaces = [];
+  for (const space of allSpaces) {
+    try {
+      await assertSpaceKindAllowed(space.kind);
+    } catch {
+      continue;
+    }
+    if (can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) readable.push(space);
+  }
+  if (readable.length === 0) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to search this space');
+  }
+
+  const primarySpace = readable.find((space) => space.slug === DEFAULT_SPACE_SLUG) ?? readable[0]!;
+  return {
+    spaceIds: readable.map((space) => space.id),
+    spaceSlugs: readable.map((space) => space.slug),
+    primarySpaceId: primarySpace.id,
+  };
 }
 
 /**
@@ -1024,12 +1032,7 @@ async function supplementRawSpaceResults(
  * pending semantic action. The legacy GET route remains a pure lexical read.
  */
 export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryInput): Promise<HybridPageSearchResponse> {
-  const space = await resolveSpace(input.space);
-  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
-  await assertSpaceKindAllowed(space.kind);
-  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
-    throw new DomainError('FORBIDDEN', 'You do not have permission to search this space');
-  }
+  const scope = await resolveSearchScope(ctx, input.space);
   const settings = await getSearchSettings();
   const settingsSnapshot: CapabilitySnapshot = {
     full_text: settings.fullTextSearchEnabled,
@@ -1042,7 +1045,10 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
 
   let record: Awaited<ReturnType<typeof searchAnalytics.getOrCreateSearchRecord>> | null = null;
   try {
-    record = await searchAnalytics.getOrCreateSearchRecord(ctx, input, space.id, {
+    // Telemetry still groups by one space per record; a space-less search
+    // attributes to the default (or first readable) space (see
+    // resolveSearchScope) even though retrieval itself covers every space.
+    record = await searchAnalytics.getOrCreateSearchRecord(ctx, input, scope.primarySpaceId, {
       keywordResultCount: 0,
       semanticResultCount: 0,
       resultCount: 0,
@@ -1069,8 +1075,8 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     minRelevanceScore: settings.minRelevanceScore,
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
     attempt: record ? { searchRecordId: record.id } : undefined,
-    spaceId: space.id,
-    spaceSlug: space.slug,
+    spaceIds: scope.spaceIds,
+    spaceSlugs: scope.spaceSlugs,
   });
 
   const degradedSemantic = !record && settingsSnapshot.semantic;
@@ -1079,15 +1085,12 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     ? result.engineStates.map((state) => (state.capability === 'semantic' ? { ...state, state: 'unavailable' as const } : state))
     : result.engineStates;
 
-  const rawSupplement = await supplementRawSpaceResults(ctx, input, space.slug, settings);
-  const mergedItems = [...result.items, ...rawSupplement];
-
   if (record) {
     try {
       await searchAnalytics.updateSearchRecord(record.id, {
         keywordResultCount: result.keywordReadableCount,
         semanticResultCount: result.semanticReadableCount,
-        resultCount: mergedItems.length,
+        resultCount: result.items.length,
         semanticState,
         semanticActionId: result.semanticContinuationRef,
       });
@@ -1100,7 +1103,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     searchRecordId: record?.id ?? input.searchRecordId,
     semanticState,
     engineStates,
-    items: mergedItems.map(({ field: _field, ...item }) => item),
+    items: result.items.map(({ field: _field, ...item }) => item),
   };
 }
 

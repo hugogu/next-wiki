@@ -8,8 +8,9 @@ import { createSearchFixtureCorpus, ENGLISH_TERM } from './test-support';
 
 const engine = createFullTextEngine();
 
-function query(q: string) {
-  return { q, limit: 20, deadlineMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS };
+async function query(q: string) {
+  const space = await ensurePublicApiDefaultSpace();
+  return { q, limit: 20, deadlineMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS, spaceIds: [space!.id], spaceSlugs: [space!.slug] };
 }
 
 describe('full_text engine (PostgreSQL tsvector, simple configuration)', () => {
@@ -17,7 +18,7 @@ describe('full_text engine (PostgreSQL tsvector, simple configuration)', () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`fts-term-${randomUUID().slice(0, 8)}`);
 
-    const outcome = await engine.run(corpus.readerCtx, query(ENGLISH_TERM));
+    const outcome = await engine.run(corpus.readerCtx, await query(ENGLISH_TERM));
 
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
@@ -34,7 +35,7 @@ describe('full_text engine (PostgreSQL tsvector, simple configuration)', () => {
 
     // Terms present in the document but not adjacent — a substring match
     // would fail while term-oriented retrieval succeeds.
-    const outcome = await engine.run(corpus.readerCtx, query('ranking retrieval'));
+    const outcome = await engine.run(corpus.readerCtx, await query('ranking retrieval'));
 
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
@@ -46,7 +47,7 @@ describe('full_text engine (PostgreSQL tsvector, simple configuration)', () => {
     const corpus = await createSearchFixtureCorpus(`fts-scope-${randomUUID().slice(0, 8)}`);
 
     // The hidden draft contains the exact term but has no published revision.
-    const outcome = await engine.run(corpus.readerCtx, query(ENGLISH_TERM));
+    const outcome = await engine.run(corpus.readerCtx, await query(ENGLISH_TERM));
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
     expect(outcome.candidates.some((candidate) => candidate.pageId === corpus.pages.hiddenDraft.pageId)).toBe(false);
@@ -60,7 +61,7 @@ describe('full_text engine (PostgreSQL tsvector, simple configuration)', () => {
   it('returns no candidate for a term absent from the corpus', async () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`fts-none-${randomUUID().slice(0, 8)}`);
-    const outcome = await engine.run(corpus.readerCtx, query('zzzabsenttoken'));
+    const outcome = await engine.run(corpus.readerCtx, await query('zzzabsenttoken'));
     expect(outcome.state).toBe('ready');
     if (outcome.state !== 'ready') return;
     expect(outcome.candidates).toHaveLength(0);

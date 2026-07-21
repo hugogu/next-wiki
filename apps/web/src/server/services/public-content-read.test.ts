@@ -590,7 +590,11 @@ describe('public content read facade', () => {
     await setModeInternal('copilot', null);
   });
 
-  it('surfaces a Raw Conversation match as a supplement to a default (space-less) Admin search (023)', async () => {
+  it('fuses a strongly-relevant Raw match ahead of a weakly-relevant Wiki match in ONE space-less query (023)', async () => {
+    // Regression coverage for the redesign: a captured Raw Conversation page
+    // must surface through the SAME fused ranking pass as Wiki content, not
+    // through a second query appended after (and always ranked last)
+    // regardless of true relevance.
     await setModeInternal('llm-wiki', null);
     const [rawSpace] = await db
       .insert(schema.spaces)
@@ -598,7 +602,7 @@ describe('public content read facade', () => {
       .onConflictDoNothing()
       .returning();
     const raw = rawSpace ?? (await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'raw') }))!;
-    const admin = await createPublicApiUser('public-raw-supplement-admin@example.com', 'admin');
+    const admin = await createPublicApiUser('public-raw-fused-admin@example.com', 'admin');
     const adminCtx = buildUserCtx(admin.id, 'admin');
     await db.insert(schema.searchSettings).values({
       id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: false,
@@ -609,10 +613,23 @@ describe('public content read facade', () => {
     });
 
     const uniqueTerm = `moearchitecture${Date.now()}`;
+
+    // Weak Wiki match: the term only appears once, buried in unrelated
+    // filler content — never in the title or path.
+    const wikiPath = `docs/unrelated-note-${Date.now()}`;
+    await pageService.create(adminCtx, {
+      path: wikiPath,
+      title: 'Unrelated wiki note',
+      contentSource: `filler filler filler filler ${uniqueTerm} filler filler filler filler`,
+    });
+    await revisions.publish(adminCtx, { path: wikiPath, version: 1 });
+
+    // Strong Raw match: the captured page's own title IS the term — an exact
+    // title match, deterministically tier-protected above a content-only hit.
     const [page] = await db
       .insert(schema.pages)
       .values({
-        spaceId: raw.id, slug: 'conv', path: `conversations/e2e/${Date.now()}`, title: `Conversation: ${uniqueTerm}`,
+        spaceId: raw.id, slug: 'conv', path: `conversations/e2e/${Date.now()}`, title: uniqueTerm,
         authorId: admin.id, nature: 'original', visibility: 'restricted',
       })
       .returning();
@@ -633,19 +650,25 @@ describe('public content read facade', () => {
       searchSessionId: '22222222-2222-4222-8222-222222222222', q: uniqueTerm, limit: 20,
     });
 
-    expect(result.items.some((item) => item.page.path === page!.path)).toBe(true);
-    const hit = result.items.find((item) => item.page.path === page!.path);
-    expect(hit?.page.spaceSlug).toBe('raw');
+    const rawIndex = result.items.findIndex((item) => item.page.path === page!.path);
+    const wikiIndex = result.items.findIndex((item) => item.page.spaceSlug === 'default');
+    expect(rawIndex).toBeGreaterThanOrEqual(0);
+    expect(result.items[rawIndex]?.page.spaceSlug).toBe('raw');
+    // Both spaces' matches are present in the SAME fused list, and the
+    // stronger (exact-title) Raw match outranks the weaker (content-only)
+    // Wiki match — never appended after it regardless of relevance.
+    expect(wikiIndex).toBeGreaterThanOrEqual(0);
+    expect(rawIndex).toBeLessThan(wikiIndex);
 
     await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revision!.id));
     await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
     await setModeInternal('copilot', null);
   });
 
-  it('never runs the Raw supplement for a non-Admin or outside LLM Wiki mode (023)', async () => {
+  it('omits a space the actor cannot read from the merged results without failing the search (023)', async () => {
     await setModeInternal('llm-wiki', null);
     await ensurePrivateSpaces();
-    const reader = await createPublicApiUser('public-raw-supplement-reader@example.com', 'reader');
+    const reader = await createPublicApiUser('public-raw-omit-reader@example.com', 'reader');
     const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
     await db.insert(schema.searchSettings).values({
       id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: false,
@@ -655,12 +678,15 @@ describe('public content read facade', () => {
       capabilitySnapshot: { full_text: true, fuzzy: true, semantic: false },
     });
 
-    // A reader cannot read Raw at all — the supplement must not run (and must
-    // not throw), regardless of what content exists there.
-    await expect(publicContent.hybridSearchPages(readerCtx, {
+    // A reader cannot read Raw at all — the multi-space scope resolution
+    // must silently drop it (not throw), regardless of what content exists
+    // there, exactly like an unreadable page never appearing.
+    const result = await publicContent.hybridSearchPages(readerCtx, {
       kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
       searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'anything', limit: 20,
-    })).resolves.toBeTruthy();
+    });
+    expect(result).toBeTruthy();
+    expect(result.items.every((item) => item.page.spaceSlug !== 'raw')).toBe(true);
 
     await setModeInternal('copilot', null);
   });

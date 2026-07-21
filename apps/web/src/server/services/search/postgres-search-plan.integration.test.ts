@@ -89,13 +89,13 @@ afterAll(async () => {
 
 describe('full_text adapter query plans (tsvector, simple configuration)', () => {
   it('drives the path/title window through pages_keyword_fts_idx', async () => {
-    const plan = await explain(fullTextPageQuery(PLAN_SPACE_ID, 'special 搜索架构设计', 40));
+    const plan = await explain(fullTextPageQuery([PLAN_SPACE_ID], 'special 搜索架构设计', 40));
     expect(plan).toContain('pages_keyword_fts_idx');
     expect(plan).toContain('Bitmap Index Scan');
   });
 
   it('drives the content window through page_revisions_content_fts_idx', async () => {
-    const plan = await explain(fullTextContentSql(PLAN_SPACE_ID, 'rare corpus token', 40));
+    const plan = await explain(fullTextContentSql([PLAN_SPACE_ID], 'rare corpus token', 40));
     expect(plan).toContain('page_revisions_content_fts_idx');
     expect(plan).toContain('Bitmap Index Scan');
   });
@@ -103,13 +103,13 @@ describe('full_text adapter query plans (tsvector, simple configuration)', () =>
 
 describe('fuzzy adapter query plans (pg_trgm)', () => {
   it('drives the scoped title window through pages_space_title_trgm_idx', async () => {
-    const plan = await explain(fuzzyTitleQuery(PLAN_SPACE_ID, '搜索架构', 40));
+    const plan = await explain(fuzzyTitleQuery([PLAN_SPACE_ID], '搜索架构', 40));
     expect(plan).toContain('pages_space_title_trgm_idx');
     expect(plan).toContain('Bitmap Index Scan');
   });
 
   it('drives the Chinese-fragment content window through page_revisions_content_source_trgm_idx', async () => {
-    const plan = await explain(fuzzyContentQuery(PLAN_SPACE_ID, '支付对账', 40));
+    const plan = await explain(fuzzyContentQuery([PLAN_SPACE_ID], '支付对账', 40));
     expect(plan).toContain('page_revisions_content_source_trgm_idx');
     expect(plan).toContain('Bitmap Index Scan');
   });

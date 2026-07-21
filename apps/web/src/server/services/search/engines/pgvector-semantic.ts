@@ -23,10 +23,13 @@ export function createSemanticEngine(): SearchEngine {
             q: query.q,
             limit: query.limit,
             scope: 'all',
-            // 023: without this, semantic retrieval always searched the
-            // default wiki space regardless of which space the caller
-            // actually selected (e.g. Raw).
-            space: query.spaceSlug,
+            // 023: a single requested space is passed through so semantic
+            // retrieval doesn't fall back to the default wiki space (e.g.
+            // Raw). With multiple spaces (the default, space-less search)
+            // this stays undefined so the existing all-readable-spaces path
+            // in ai-retrieval.ts covers every space in one query — never one
+            // query per space.
+            space: query.spaceSlugs.length === 1 ? query.spaceSlugs[0] : undefined,
           });
           return { state: 'pending', continuationRef: accepted.id };
         } catch {

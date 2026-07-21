@@ -25,6 +25,7 @@ describe('search engine registry', () => {
       replacementEngine('semantic', { state: 'failed' }),
     ]);
 
+    const defaultSpace = await ensurePublicApiDefaultSpace();
     const snapshot = await runCoordinatedSearch(corpus.readerCtx, {
       q: 'replacement adapter',
       limit: 20,
@@ -32,6 +33,8 @@ describe('search engine registry', () => {
       excerpt: { windowSize: 120, show: true },
       minRelevanceScore: 0,
       immediateSearchTimeoutMs: DEFAULT_IMMEDIATE_SEARCH_TIMEOUT_MS,
+      spaceIds: [defaultSpace!.id],
+      spaceSlugs: [defaultSpace!.slug],
     }, registry);
 
     expect(snapshot.items).toHaveLength(1);

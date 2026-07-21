@@ -17,11 +17,13 @@ export type SearchEngineQuery = {
   limit: number;
   /** Database-enforced budget in milliseconds; an engine exceeding it reports timed_out. */
   deadlineMs: number;
-  /** Resolved content space for lexical candidate retrieval and projection. */
-  spaceId?: string;
-  /** Same space, by slug — some capabilities (semantic) key their own
-   * downstream permission/candidate scoping by slug rather than id (023). */
-  spaceSlug?: string;
+  /** Every space this query covers in one pass — either the single explicit
+   * space the caller requested, or every space the actor can currently read
+   * (never split per-space into separate queries; see spaceSlugs). */
+  spaceIds: string[];
+  /** Same spaces, by slug, in the same order — some capabilities (semantic)
+   * key their own downstream permission/candidate scoping by slug (023). */
+  spaceSlugs: string[];
   /** Durable attempt identity for engines that can resume asynchronous work. */
   attempt?: {
     searchRecordId: string;

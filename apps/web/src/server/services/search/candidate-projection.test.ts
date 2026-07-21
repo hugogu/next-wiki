@@ -13,11 +13,18 @@ import { getSpaceBySlug } from '@/server/services/spaces';
 import { setModeInternal } from '@/server/services/writing-mode';
 import * as rawEntries from '@/server/services/raw-entries';
 
+async function defaultSpaceId(): Promise<string> {
+  const space = await getSpaceBySlug('default');
+  if (!space) throw new Error('Default space fixture is missing');
+  return space.id;
+}
+
 describe('search candidate projection', () => {
   it('hydrates only published, readable pages and silently drops everything else', async () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`projection-${randomUUID().slice(0, 8)}`);
     const unknownPageId = randomUUID();
+    const spaceIds = [await defaultSpaceId()];
 
     const projected = await projectReadableCandidatePages(corpus.readerCtx, [
       corpus.pages.english.pageId,
@@ -25,7 +32,7 @@ describe('search candidate projection', () => {
       corpus.pages.hiddenDraft.pageId,
       unknownPageId,
       corpus.pages.english.pageId, // duplicate input collapses
-    ]);
+    ], spaceIds);
 
     expect([...projected.keys()].sort()).toEqual(
       [corpus.pages.english.pageId, corpus.pages.chinese.pageId].sort(),
@@ -54,10 +61,11 @@ describe('search candidate projection', () => {
     // The default fixture space allows anonymous read; verify the projection
     // still consults the permission chokepoint by checking a readable actor
     // versus results for the same candidate list.
-    const anonymous = await projectReadableCandidatePages(buildAnonymousCtx(), [corpus.pages.english.pageId]);
+    const spaceIds = [await defaultSpaceId()];
+    const anonymous = await projectReadableCandidatePages(buildAnonymousCtx(), [corpus.pages.english.pageId], spaceIds);
     expect(anonymous.size).toBeLessThanOrEqual(1);
 
-    const readable = await projectReadableCandidatePages(corpus.readerCtx, [corpus.pages.english.pageId]);
+    const readable = await projectReadableCandidatePages(corpus.readerCtx, [corpus.pages.english.pageId], spaceIds);
     expect(readable.has(corpus.pages.english.pageId)).toBe(true);
   });
 
@@ -65,7 +73,7 @@ describe('search candidate projection', () => {
     await ensurePublicApiDefaultSpace();
     const corpus = await createSearchFixtureCorpus(`projection-content-${randomUUID().slice(0, 8)}`);
 
-    const projected = await projectReadableCandidatePages(corpus.readerCtx, [corpus.pages.english.pageId]);
+    const projected = await projectReadableCandidatePages(corpus.readerCtx, [corpus.pages.english.pageId], [await defaultSpaceId()]);
     const entry = projected.get(corpus.pages.english.pageId);
     expect(entry?.contentSource).toContain('search architecture');
     expect(entry?.page).not.toHaveProperty('contentSource');
@@ -99,15 +107,22 @@ describe('search candidate projection', () => {
         content: 'Original raw search evidence',
       });
 
-      const adminProjection = await projectReadableCandidatePages(adminCtx, [created.pageId], generated!.id);
+      const adminProjection = await projectReadableCandidatePages(adminCtx, [created.pageId], [generated!.id]);
       expect(adminProjection.get(created.pageId)?.page.spaceSlug).toBe('generated');
-      const adminRawProjection = await projectReadableCandidatePages(adminCtx, [rawEntry.pageId], raw!.id);
+      const adminRawProjection = await projectReadableCandidatePages(adminCtx, [rawEntry.pageId], [raw!.id]);
       expect(adminRawProjection.get(rawEntry.pageId)?.page.spaceSlug).toBe('raw');
 
+      // 023: candidates from different spaces resolve correctly within the
+      // SAME call — the whole point of the multi-space redesign is that this
+      // never needs to run as two separate per-space queries.
+      const combined = await projectReadableCandidatePages(adminCtx, [created.pageId, rawEntry.pageId], [generated!.id, raw!.id]);
+      expect(combined.get(created.pageId)?.page.spaceSlug).toBe('generated');
+      expect(combined.get(rawEntry.pageId)?.page.spaceSlug).toBe('raw');
+
       const reader = await createPublicApiUser(`projection-reader-${randomUUID()}@example.com`, 'reader');
-      const readerProjection = await projectReadableCandidatePages(buildUserCtx(reader.id, 'reader'), [created.pageId], generated!.id);
+      const readerProjection = await projectReadableCandidatePages(buildUserCtx(reader.id, 'reader'), [created.pageId], [generated!.id]);
       expect(readerProjection.size).toBe(0);
-      const readerRawProjection = await projectReadableCandidatePages(buildUserCtx(reader.id, 'reader'), [rawEntry.pageId], raw!.id);
+      const readerRawProjection = await projectReadableCandidatePages(buildUserCtx(reader.id, 'reader'), [rawEntry.pageId], [raw!.id]);
       expect(readerRawProjection.size).toBe(0);
     } finally {
       await setModeInternal('copilot', admin.id);
@@ -144,7 +159,7 @@ describe('search candidate projection', () => {
       const projected = await projectReadableCandidatePages(
         adminCtx,
         [conversationEntry.pageId, generalEntry.pageId],
-        raw!.id,
+        [raw!.id],
       );
       expect(projected.get(conversationEntry.pageId)?.page.rawCategorySystemKey).toBe('conversation');
       expect(projected.get(generalEntry.pageId)?.page.rawCategorySystemKey).toBeNull();

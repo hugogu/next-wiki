@@ -12,12 +12,16 @@ import { createSemanticEngine } from './pgvector-semantic';
 const engine = createSemanticEngine();
 const ctx = buildAnonymousCtx();
 
-function query(overrides: { continuationRef?: string | null; attempt?: boolean } = {}) {
+function query(overrides: { continuationRef?: string | null; attempt?: boolean; spaceIds?: string[]; spaceSlugs?: string[] } = {}) {
   const withAttempt = overrides.attempt ?? true;
   return {
     q: 'conceptual paraphrase',
     limit: 20,
     deadlineMs: 400,
+    // Two spaces by default: the common "no explicit space" coordinator
+    // scope, which must never resolve to a single slug filter (023).
+    spaceIds: overrides.spaceIds ?? ['space-default', 'space-raw'],
+    spaceSlugs: overrides.spaceSlugs ?? ['default', 'raw'],
     attempt: withAttempt
       ? { searchRecordId: '11111111-1111-4111-8111-111111111111', continuationRef: overrides.continuationRef ?? null }
       : undefined,
@@ -58,15 +62,28 @@ describe('semantic engine (pgvector + AI action lifecycle)', () => {
     expect(publicAi.submitSemanticSearch).toHaveBeenCalledWith(ctx, { q: 'conceptual paraphrase', limit: 20, scope: 'all' });
   });
 
-  it('forwards the coordinator-resolved space slug (023 Raw semantic search)', async () => {
+  it('forwards a single coordinator-resolved space slug when the scope is exactly one space (023 Raw semantic search)', async () => {
     publicAi.submitSemanticSearch.mockResolvedValue({ id: 'action-raw' });
 
-    await engine.run(ctx, { ...query(), spaceSlug: 'raw' });
+    await engine.run(ctx, query({ spaceIds: ['space-raw'], spaceSlugs: ['raw'] }));
 
     expect(publicAi.submitSemanticSearch).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ space: 'raw' }),
     );
+  });
+
+  it('omits the space filter (searches every readable space in one action) when the scope covers multiple spaces (023)', async () => {
+    publicAi.submitSemanticSearch.mockResolvedValue({ id: 'action-multi' });
+
+    await engine.run(ctx, query({ spaceIds: ['space-default', 'space-raw', 'space-generated'], spaceSlugs: ['default', 'raw', 'generated'] }));
+
+    // A single submission covering every space — never one submission per
+    // space — relies on ai-retrieval.ts's existing all-readable-spaces path.
+    expect(publicAi.submitSemanticSearch).toHaveBeenCalledTimes(1);
+    const [, submitted] = publicAi.submitSemanticSearch.mock.calls[0]!;
+    expect(submitted).toMatchObject({ q: 'conceptual paraphrase', limit: 20, scope: 'all' });
+    expect(submitted.space).toBeUndefined();
   });
 
   it('continues reporting pending while the action is still running', async () => {
