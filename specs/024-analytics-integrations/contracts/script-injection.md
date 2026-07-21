@@ -21,45 +21,51 @@ chat surfaces).
 existing `<script dangerouslySetInnerHTML={{ __html: themeScript }} />` tag
 (around line 102 of the current file).
 
-**Mechanism**: `dangerouslySetInnerHTML` with a string sourced from the new
-`getActiveAnalyticsScripts()` service function. This is the same mechanism
-already used by the root layout for the system-theme CSS and the
-`themeScript` inline script.
+**Mechanism**: `dangerouslySetInnerHTML` on one framework-owned script tag with
+JavaScript content sourced from the new `getActiveAnalyticsScriptContent()`
+service function. This is the same mechanism already used by the root layout
+for the system-theme CSS and the `themeScript` inline script. The service
+returns JavaScript content only; it MUST NOT return `<script>` tags that would
+be nested inside the layout-owned `<script>`.
 
 ```tsx
 <head>
   <style id="app-system-theme" dangerouslySetInnerHTML={{ __html: systemCss }} />
   <style id="app-reading-theme" dangerouslySetInnerHTML={{ __html: readingThemeCss }} />
   <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-  {/* NEW: analytics scripts for all enabled providers */}
-  <script dangerouslySetInnerHTML={{ __html: analyticsScripts }} />
+  {analyticsScriptContent ? (
+    <script
+      id="app-analytics"
+      dangerouslySetInnerHTML={{ __html: analyticsScriptContent }}
+    />
+  ) : null}
 </head>
 ```
 
-The `analyticsScripts` variable is sourced at the top of the
+The `analyticsScriptContent` variable is sourced at the top of the
 `RootLayout` function:
 
 ```tsx
-const analyticsScripts = await getActiveAnalyticsScripts();
+const analyticsScriptContent = await getActiveAnalyticsScriptContent();
 ```
 
-**Why a single `<script>` tag (not one per provider)?** The service returns a
-single concatenated string containing all enabled providers' snippets. This
-keeps the layout simple (one `dangerouslySetInnerHTML` call) and lets the
-service control the rendering order. The string is plain HTML containing
-multiple `<script>` tags if multiple providers are enabled - this is valid
-HTML inside a `<head>`.
+**Why a single framework-owned `<script>` tag?** The service returns one
+concatenated JavaScript body containing all enabled providers' loader code. This
+keeps the layout simple (one conditional `dangerouslySetInnerHTML` call), lets
+the service control the rendering order, and avoids invalid nested `<script>`
+markup. When no providers are enabled, the layout renders no analytics script
+tag, satisfying FR-010's "no placeholder" requirement.
 
 ---
 
-## Service Contract: `getActiveAnalyticsScripts()`
+## Service Contract: `getActiveAnalyticsScriptContent()`
 
 **File**: `apps/web/src/server/services/analytics.ts` (NEW)
 
 **Signature**:
 
 ```ts
-export async function getActiveAnalyticsScripts(): Promise<string>
+export async function getActiveAnalyticsScriptContent(): Promise<string>
 ```
 
 **Behavior**:
@@ -69,35 +75,35 @@ export async function getActiveAnalyticsScripts(): Promise<string>
 2. For each row with `enabled = true` and a non-null `trackingId` that passes
    the provider's regex:
    - Looks up the provider definition in `REGISTERED_ANALYTICS_PROVIDERS`.
-   - Calls `definition.buildScript(trackingId)` to get the canonical vendor
-     snippet with the Tracking ID interpolated.
-3. Concatenates all snippets in registry order (stable, predictable order).
-4. Returns the concatenated string. If no providers are enabled, returns `''`
-   (empty string) - the layout renders an empty `<script>` tag, which is a
-   no-op. (Alternatively, the layout can conditionally render the tag; either
-   is acceptable, but the empty-string approach matches the existing
-   `readingThemeCss` pattern.)
+   - Calls `definition.buildScriptContent(trackingId)` to get the vendor
+     JavaScript loader content with the Tracking ID interpolated.
+3. Wraps each provider content block in its own `try`/`catch` and concatenates
+   the wrapped blocks in registry order (stable, predictable order), so a
+   JavaScript error in one provider loader cannot prevent later providers from
+   initializing.
+4. Returns the concatenated JavaScript body. If no providers are enabled,
+   returns `''` (empty string), and the layout renders no analytics script tag.
 
 **Caching**:
 
 ```ts
-const getCachedActiveAnalyticsScripts = unstable_cache(
+const getCachedActiveAnalyticsScriptContent = unstable_cache(
   async () => {
     const rows = await db.query.analyticsProviderSettings.findMany();
-    return buildActiveScript(rows);
+    return buildActiveScriptContent(rows);
   },
-  ['active-analytics-scripts'],
+  ['active-analytics-script-content'],
   { revalidate: 300, tags: [SITE_SHELL_CACHE_TAG] },
 );
 
-export async function getActiveAnalyticsScripts(): Promise<string> {
-  if (shouldUseDataCache()) return getCachedActiveAnalyticsScripts();
+export async function getActiveAnalyticsScriptContent(): Promise<string> {
+  if (shouldUseDataCache()) return getCachedActiveAnalyticsScriptContent();
   const rows = await db.query.analyticsProviderSettings.findMany();
-  return buildActiveScript(rows);
+  return buildActiveScriptContent(rows);
 }
 ```
 
-The `buildActiveScript` helper is shared between the cached and uncached
+The `buildActiveScriptContent` helper is shared between the cached and uncached
 paths (so tests see the same logic as production).
 
 ---
@@ -107,8 +113,8 @@ paths (so tests see the same logic as production).
 **File**: `apps/web/src/server/services/analytics.ts` (NEW)
 
 The registry is a closed array of provider definitions. Adding a new provider
-is a single registry entry + enum value + Zod enum value (no page code
-changes).
+requires one registry entry, one shared Zod enum value, one PostgreSQL enum
+value generated through `pnpm db:generate`, and no page-code changes.
 
 ```ts
 type AnalyticsProviderDefinition = {
@@ -118,7 +124,7 @@ type AnalyticsProviderDefinition = {
   trackingIdLabelKey: string; // i18n key for the field label
   trackingIdFormatKey: string; // i18n key for the format hint
   trackingIdPattern: RegExp;  // validation regex
-  buildScript: (trackingId: string) => string; // returns the canonical vendor snippet
+  buildScriptContent: (trackingId: string) => string; // returns JavaScript loader content
 };
 
 const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
@@ -129,16 +135,14 @@ const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
     trackingIdLabelKey: 'admin.analytics.providers.baidu_tongji.trackingId.label',
     trackingIdFormatKey: 'admin.analytics.providers.baidu_tongji.trackingId.format',
     trackingIdPattern: /^[a-f0-9]{32}$/i,
-    buildScript: (trackingId) => `
-<script>
+    buildScriptContent: (trackingId) => `
   var _hmt = _hmt || [];
   (function() {
     var hm = document.createElement("script");
     hm.src = "https://hm.baidu.com/hm.js?${trackingId}";
     var s = document.getElementsByTagName("script")[0];
     s.parentNode.insertBefore(hm, s);
-  })();
-</script>`,
+  })();`,
   },
   {
     provider: 'google_analytics',
@@ -147,31 +151,35 @@ const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
     trackingIdLabelKey: 'admin.analytics.providers.google_analytics.trackingId.label',
     trackingIdFormatKey: 'admin.analytics.providers.google_analytics.trackingId.format',
     trackingIdPattern: /^G-[A-Z0-9]{6,12}$/,
-    buildScript: (trackingId) => `
-<script async src="https://www.googletagmanager.com/gtag/js?id=${trackingId}"></script>
-<script>
+    buildScriptContent: (trackingId) => `
+  (function() {
+    var gtagScript = document.createElement("script");
+    gtagScript.async = true;
+    gtagScript.src = "https://www.googletagmanager.com/gtag/js?id=${trackingId}";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(gtagScript, s);
+  })();
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', '${trackingId}');
-</script>`,
+  gtag('config', '${trackingId}');`,
   },
 ];
 ```
 
 **Why this shape?**
 - `labelKey`/`descriptionKey`/`trackingIdFormatKey` are i18n keys, so the
-  admin UI and the public GET endpoint can return localized labels without
-  the service knowing about locales. The service resolves the keys via
+  admin UI and admin-only GET endpoint can return localized labels without the
+  service knowing about locales. The service resolves the keys via
   `getDictionary(locale)` at the API boundary.
 - `trackingIdPattern` is the regex used by the service to validate the
   Tracking ID before saving (when `enabled = true`) and before building the
   script (defensive - the saved value should already be valid).
-- `buildScript(trackingId)` returns the canonical vendor snippet with the
+- `buildScriptContent(trackingId)` returns JavaScript loader content with the
   Tracking ID interpolated. The function assumes the Tracking ID has already
   been validated against `trackingIdPattern`; the regexes are designed to
-  reject any character that could break out of the script tag (no quotes,
-  angle brackets, backslashes, or whitespace).
+  reject any character that could break out of the script content or string
+  literals (no quotes, angle brackets, backslashes, or whitespace).
 
 ---
 
@@ -187,7 +195,7 @@ const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
   the `trackingId` MUST be non-empty and match the pattern. Otherwise the
   request is rejected with `400 BAD_REQUEST` and a message describing the
   expected format. The previously active configuration is preserved.
-- On `buildScript(trackingId)`: defensive re-validation. If a saved
+- On `buildScriptContent(trackingId)`: defensive re-validation. If a saved
   Tracking ID somehow fails the regex (e.g. the regex was tightened in a
   later version), the provider is skipped and an error is logged. The other
   providers' scripts are still delivered.
@@ -198,7 +206,7 @@ const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
 
 | Operation | Cache effect |
 |---|---|
-| `getActiveAnalyticsScripts()` (read) | Served from `unstable_cache` tagged `SITE_SHELL_CACHE_TAG`, 300s revalidate. Bypassed in tests/E2E via `shouldUseDataCache()`. |
+| `getActiveAnalyticsScriptContent()` (read) | Served from `unstable_cache` tagged `SITE_SHELL_CACHE_TAG`, 300s revalidate. Bypassed in tests/E2E via `shouldUseDataCache()`. |
 | `updateAnalyticsProvider(ctx, provider, input)` (mutation) | After DB upsert, calls `invalidateSiteShellCache()` -> `revalidateTag(SITE_SHELL_CACHE_TAG, 'max')`. Next request sees the updated script set. |
 | `upsertAnalyticsProviders(ctx, providers[])` (bulk mutation) | Same - calls `invalidateSiteShellCache()` once after all rows are upserted. |
 
@@ -231,19 +239,20 @@ Default") and the spec's FR-014/FR-015/FR-016.
 
 - **Tracking IDs are public**: they appear in the page source of every
   visitor. They are NOT encrypted at rest (see [data-model.md](../data-model.md)).
-- **No `eval` or dynamic script construction**: the `buildScript` function
-  uses template-string interpolation of a regex-validated Tracking ID. The
-  regexes reject any character that could break out of the script tag or
-  the `hm.src`/`gtag` string.
+- **No `eval` or unbounded dynamic script construction**: the
+  `buildScriptContent` function uses template-string interpolation of a
+  regex-validated Tracking ID into fixed provider loader code. The regexes
+  reject any character that could break out of the script content or the
+  `hm.src`/`gtag` string.
 - **No remote script loading from untrusted sources**: the only remote
   scripts loaded are from `hm.baidu.com` and
   `googletagmanager.com` - the official vendor CDN hosts. These are
-  hardcoded in the `buildScript` function, not configurable.
-- **Provider script failure isolation**: each provider's snippet is wrapped
-  in its own `<script>` tag (or in Baidu's case, an IIFE). A failure in one
-  provider's script (e.g. network error loading `hm.js`) does not block the
-  other provider's script from executing, because the browser parses
-  `<script>` tags independently.
+  hardcoded in the `buildScriptContent` function, not configurable.
+- **Provider script failure isolation**: each provider's loader content is
+  emitted as an independent `try`/`catch` block inside the framework-owned
+  analytics script. A failure in one loader block, or a failure loading one
+  remote vendor file (for example `hm.js`), does not block the other provider's
+  loader block from executing.
 - **Content Security Policy**: if a CSP is configured in a future feature,
   the `script-src` and the `hm.baidu.com`/`googletagmanager.com` hosts will
   need to be allowlisted. Out of scope for v1 (no CSP is currently
@@ -254,15 +263,15 @@ Default") and the spec's FR-014/FR-015/FR-016.
 ## Testing Strategy
 
 - **Unit tests** (`src/server/services/analytics.test.ts`):
-  - `buildScript` for each provider returns the expected snippet with the
-    Tracking ID interpolated.
+  - `buildScriptContent` for each provider returns the expected JavaScript
+    loader content with the Tracking ID interpolated.
   - `trackingIdPattern` rejects empty strings, strings with special
     characters, and out-of-format values.
-  - `buildActiveScript` skips disabled providers and providers with no
+  - `buildActiveScriptContent` skips disabled providers and providers with no
     Tracking ID.
-  - `buildActiveScript` skips providers whose saved Tracking ID fails the
+  - `buildActiveScriptContent` skips providers whose saved Tracking ID fails the
     regex (defensive) and logs an error.
-  - `buildActiveScript` returns `''` when no providers are enabled.
+  - `buildActiveScriptContent` returns `''` when no providers are enabled.
   - `updateAnalyticsProvider` rejects enabling with an invalid Tracking ID.
   - `updateAnalyticsProvider` allows saving a Tracking ID for a disabled
     provider.
@@ -270,8 +279,9 @@ Default") and the spec's FR-014/FR-015/FR-016.
     DB write.
 
 - **Integration tests** (`src/server/services/analytics.integration.test.ts`):
-  - Full round-trip: upsert providers, read back via `getActiveAnalyticsScripts`,
-    assert the rendered string contains the expected snippets.
+  - Full round-trip: upsert providers, read back via
+    `getActiveAnalyticsScriptContent`,
+    assert the rendered string contains the expected loader URLs/content.
   - Cache invalidation: mutate, then assert the next read returns the new
     value (with `shouldUseDataCache()` bypassed in test mode).
 
@@ -280,7 +290,7 @@ Default") and the spec's FR-014/FR-015/FR-016.
     save, see success message.
   - Script injection: with Baidu Tongji enabled, open `/` (public home),
     `/editor/...`, `/admin/analytics` (admin), and `/auth/...` (auth) and
-    assert the Baidu `hm.js` script tag is present in the page source.
+    assert the Baidu `hm.js` loader URL is present in the page source.
   - Disabling: toggle Baidu off, refresh, assert the script is absent on
     all surfaces.
   - Permission: as a non-admin user, navigate to `/admin/analytics` and

@@ -40,10 +40,12 @@ home). Reuse the existing `shouldUseDataCache()` test-bypass guard so tests run
 without the data cache.
 
 **Target Platform**: Linux server (Docker Compose / Kubernetes), browser clients.
-Tracking scripts are vendor-provided browser snippets (Baidu Tongji `hm.js`,
-Google Analytics `gtag/js`), rendered server-side as raw HTML strings and inlined
-via `dangerouslySetInnerHTML` (the same mechanism the root layout already uses
-for `themeScript`).
+Tracking scripts are vendor-provided browser loaders (Baidu Tongji `hm.js`,
+Google Analytics `gtag/js`), rendered server-side as validated JavaScript
+content inside one framework-owned `<script id="app-analytics">` tag via
+`dangerouslySetInnerHTML` (the same mechanism the root layout already uses for
+`themeScript`). The service MUST NOT return nested `<script>` tags for insertion
+inside that tag.
 
 **Project Type**: Web service / monorepo (`apps/web` Next.js app inside the pnpm
 + Turborepo workspace). This feature touches only `apps/web` and
@@ -77,9 +79,11 @@ performs.
 **Scale/Scope**: Two built-in providers at launch (Baidu Tongji, Google
 Analytics). The contract is designed so additional providers (Matomo, Plausible,
 Umami, etc.) can be added by appending to the enum + registry with no page-code
-edits. Per-page impact: zero. Admin UI: one new page with one form. Public API
-surface: one new public-readable `GET /api/settings/analytics` endpoint and one
-admin-only `PUT /api/settings/analytics` endpoint.
+edits. Per-page impact: zero. Admin UI: one new page with one form. API
+surface: admin-only `GET /api/settings/analytics` and
+`PUT /api/settings/analytics` endpoints. Anonymous page rendering uses the
+in-process `getActiveAnalyticsScriptContent()` service directly; there is no
+public settings endpoint.
 
 ## Constitution Check
 
@@ -152,7 +156,7 @@ apps/web/
 │   │       └── page.tsx          # NEW: admin config page (admin-only)
 │   └── api/settings/
 │       └── analytics/
-│           └── route.ts         # NEW: GET (public) + PUT (admin) analytics settings
+│           └── route.ts         # NEW: GET + PUT admin-only analytics settings
 ├── src/
 │   ├── components/
 │   │   ├── admin/
@@ -215,7 +219,7 @@ injection pattern; no anti-pattern is introduced.
 | **P9 Open Standards** | ✅ Pass | ✅ Pass | REST + JSON endpoints with OpenAPI annotations. The OpenAPI spec is regenerated via `pnpm --filter @next-wiki/web openapi:generate`. |
 | **P10 Explicit Over Implicit** | ✅ Pass | ✅ Pass | Confirmed: providers are explicitly registered in `REGISTERED_ANALYTICS_PROVIDERS` (closed array in `src/server/services/analytics.ts`), mirroring `content-data-sources.ts`. Unknown provider keys are rejected by the Zod enum at the API boundary. No filesystem scanning, no dynamic imports. |
 | **P11 Native Web Navigation** | ✅ Pass | ✅ Pass | The admin page is at `/admin/analytics` (RESTful resource URL, no verb-style segments). The existing `<Layout admin>` provides breadcrumbs. Browser back/forward/refresh/deep-link all work. |
-| **P12 Public Reading Is Static** | ✅ Pass | ✅ Pass | Confirmed: the analytics `<script>` is inlined via `dangerouslySetInnerHTML` into the root layout `<head>`. It depends only on admin-configured state, never on session/cookie/header. The `unstable_cache` wrapper (tagged `SITE_SHELL_CACHE_TAG`, 300s revalidate) serves the cached string without a per-request DB query. Mutations call `invalidateSiteShellCache()` to revalidate. |
+| **P12 Public Reading Is Static** | ✅ Pass | ✅ Pass | Confirmed: the analytics JavaScript content is inlined via `dangerouslySetInnerHTML` into one root layout `<head>` script tag only when at least one provider is enabled. It depends only on admin-configured state, never on session/cookie/header. The `unstable_cache` wrapper (tagged `SITE_SHELL_CACHE_TAG`, 300s revalidate) serves the cached string without a per-request DB query. Mutations call `invalidateSiteShellCache()` to revalidate. |
 | **Anti-Pattern: Per-page bespoke styling** | ✅ Pass | ✅ Pass | Single injection point at root `app/layout.tsx`. The `contracts/script-injection.md` makes this an explicit contract; the quickstart Scenario 2 includes a code-audit assertion (`rg "hm.baidu.com|googletagmanager" apps/web/app/` should find references only in `layout.tsx` and the service file). |
 | **Anti-Pattern: Session-bound public documents** | ✅ Pass | ✅ Pass | The script string is identical for every visitor to a given page. No session, cookie, or header read occurs during script rendering. |
 | **Anti-Pattern: Verb-style URLs** | ✅ Pass | ✅ Pass | Endpoints are `/api/settings/analytics` (collection). Mutations use HTTP `PUT`, not `/setAnalytics` or `/enableBaidu`. |
@@ -233,10 +237,9 @@ generation via `/speckit-tasks`).
 - `research.md` - 13 resolved unknowns with decisions, rationale, alternatives.
 - `data-model.md` - one new enum (`analytics_provider`), one new table
   (`analytics_provider_settings`), validation rules, state transitions.
-- `contracts/api.md` - REST API contract for `GET`/`PUT /api/settings/analytics`.
+- `contracts/api.md` - REST API contract for admin-only `GET`/`PUT /api/settings/analytics`.
 - `contracts/script-injection.md` - framework-level injection contract, provider
   registry, vendor script templates, caching, security.
 - `contracts/admin-ui.md` - admin page, form component, nav entry, i18n keys.
 - `quickstart.md` - 10 runnable validation scenarios.
 - `AGENTS.md` - SPECKIT markers updated to point to this plan.
-

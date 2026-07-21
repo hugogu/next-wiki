@@ -14,8 +14,8 @@ Each item records the decision, rationale, and alternatives considered.
 **Decision**: In the `<head>` of the root `apps/web/app/layout.tsx`, immediately
 after the existing `<script dangerouslySetInnerHTML={{ __html: themeScript }} />`
 block. Source the script string from a new
-`getActiveAnalyticsScripts()` service in `src/server/services/analytics.ts`,
-mirroring `getActiveThemeCss()`.
+`getActiveAnalyticsScriptContent()` service in
+`src/server/services/analytics.ts`, mirroring `getActiveThemeCss()`.
 
 **Rationale**: The root layout is the only framework-level surface that wraps
 every route (public, admin, auth, editor, chat). It already uses
@@ -53,8 +53,9 @@ injection mechanism.
 - The `content_data_source_settings` table is the established in-codebase
   pattern for exactly this shape (closed registry of known keys, each with an
   `enabled` flag and a `config` jsonb).
-- Adding a future provider is a single registry entry + enum value, not a
-  schema migration.
+- Adding a future provider is still bounded: append the shared enum, append the
+  PostgreSQL enum value via `pnpm db:generate`, and append one provider registry
+  entry. No page-component edits are required.
 - A single-row `analytics_settings` table with one JSONB column for all
   providers would also work, but it loses Drizzle's per-field typing and makes
   atomic per-provider upsert harder.
@@ -178,8 +179,8 @@ visitors without a per-request DB or session lookup.
 - `trackingIdPattern` (regex for validation)
 - `trackingIdFormat` (human-readable hint, e.g. `"hm.js?xxxxxxxx"` or
   `"G-XXXXXXXX"`)
-- `buildScript(trackingId: string): string` (returns the canonical vendor
-  snippet with the Tracking ID interpolated)
+- `buildScriptContent(trackingId: string): string` (returns JavaScript loader
+  content with the Tracking ID interpolated)
 
 The shared package (`packages/shared/src/analytics.ts`) mirrors the enum via
 a Zod schema, so unknown provider values are rejected at the API boundary
@@ -188,11 +189,12 @@ before reaching the service.
 **Rationale**:
 - Mirrors the `REGISTERED_SOURCES` pattern in `content-data-sources.ts`
   (constitutional P10 - explicit registration).
-- The `buildScript` factory keeps the vendor snippet in one place, making it
-  easy to audit and update.
+- The `buildScriptContent` factory keeps the provider loader code in one place,
+  making it easy to audit and update.
 - The i18n keys mean labels are translatable without code changes.
-- Adding a new provider (Matomo, Plausible, Umami) is a single registry entry
-  + enum value + Zod enum value - no page code changes.
+- Adding a new provider (Matomo, Plausible, Umami) is one registry entry + one
+  shared enum value + one PostgreSQL enum migration via `pnpm db:generate` - no
+  page code changes.
 
 **Alternatives considered**:
 - Filesystem-discovered provider modules (e.g. `src/server/analytics/providers/*.ts`):
@@ -204,20 +206,21 @@ before reaching the service.
 
 ---
 
-## R8: What are the canonical vendor script snippets?
+## R8: What are the canonical vendor script loaders?
 
-**Decision**: Use the official vendor snippets, with the Tracking ID
-interpolated as a string (never via template-string user input that could
-break out of the script tag). The snippets are validated against the
+**Decision**: Use loader code equivalent to the official vendor snippets, with
+the Tracking ID interpolated as a string (never via unvalidated input that could
+break out of the script content). The root layout owns the single outer
+`<script id="app-analytics">`; provider definitions return JavaScript content,
+not nested `<script>` tags. The Tracking IDs are validated against each
 provider's documented format.
 
 **Baidu Tongji** (`baidu_tongji`):
 - Tracking ID format: a hex string, traditionally used as the `hm.js?XXXXX`
   parameter. Pattern: `/^[a-f0-9]{32}$/i` (32-char hex; Baidu's documentation
   shows this format).
-- Canonical snippet (from `tongji.baidu.com`):
-  ```html
-  <script>
+- Loader content:
+  ```js
     var _hmt = _hmt || [];
     (function() {
       var hm = document.createElement("script");
@@ -225,28 +228,32 @@ provider's documented format.
       var s = document.getElementsByTagName("script")[0];
       s.parentNode.insertBefore(hm, s);
     })();
-  </script>
   ```
 
 **Google Analytics** (`google_analytics`):
 - Tracking ID format: `G-XXXXXXXX` (Measurement ID for Google Analytics 4).
   Pattern: `/^G-[A-Z0-9]{6,12}$/`.
-- Canonical snippet (from `developers.google.com/analytics`):
-  ```html
-  <script async src="https://www.googletagmanager.com/gtag/js?id={TRACKING_ID}"></script>
-  <script>
+- Loader content:
+  ```js
+    (function() {
+      var gtagScript = document.createElement("script");
+      gtagScript.async = true;
+      gtagScript.src = "https://www.googletagmanager.com/gtag/js?id={TRACKING_ID}";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(gtagScript, s);
+    })();
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
     gtag('config', '{TRACKING_ID}');
-  </script>
   ```
 
-**Rationale**: Using the vendor's documented snippet ensures compatibility with
-the vendor's loader and collection logic. The Tracking ID is interpolated as a
-plain string (not via `eval` or template-literal injection), and the regex
-validation prevents any character that could break out of the script tag (no
-quotes, angle brackets, or backslashes allowed by the patterns).
+**Rationale**: Using equivalent vendor loader code ensures compatibility with
+the vendor's collection logic while avoiding invalid nested `<script>` markup
+inside the root layout's framework-owned script tag. The Tracking ID is
+interpolated as a plain string (not via `eval`), and the regex validation
+prevents any character that could break out of the script content (no quotes,
+angle brackets, or backslashes allowed by the patterns).
 
 **Alternatives considered**:
 - `gtag` npm package (`react-ga4`, `nextjs-google-analytics`): rejected. The
@@ -262,21 +269,19 @@ quotes, angle brackets, or backslashes allowed by the patterns).
 ## R9: What API shape should the configuration endpoints take?
 
 **Decision**:
-- `GET /api/settings/analytics` - **public** (no `@auth bearer`); returns the
-  list of providers with their `enabled` and `trackingId` fields. This mirrors
-  `GET /api/settings/site` (public, returns site name + footer). The Tracking
-  IDs are intentionally public (they appear in the page HTML anyway).
+- `GET /api/settings/analytics` - **admin-only** (`@auth bearer`); returns the
+  list of providers with their `enabled` and `trackingId` fields for the admin
+  configuration UI.
 - `PUT /api/settings/analytics` - **admin-only** (`@auth bearer`); takes a
   body of `{ providers: [{ provider, enabled, trackingId }] }` and upserts
   each provider row. Mirrors `PUT /api/settings/site`.
 
 **Rationale**:
-- The public GET is needed so the layout (which renders for anonymous visitors)
-  can read the active provider set without a session. Alternatively, the
-  layout could call the service function directly (server-side) without going
-  through the HTTP route - and that is what the layout will actually do. The
-  public GET endpoint is provided for consistency with the `site` settings
-  pattern and for OpenAPI completeness; the layout uses the in-process service.
+- The layout renders for anonymous visitors but does not need a public settings
+  API. It calls the in-process, cacheable
+  `getActiveAnalyticsScriptContent()` service directly and receives only the
+  script content needed for page HTML. The configuration view remains
+  admin-only, preserving FR-006/FR-007 and SC-005.
 - The PUT is admin-only and uses the existing `createApiContext()` +
   `manage_appearance` permission gate.
 - No per-provider PATCH endpoint (`/api/settings/analytics/[provider]`) is
@@ -287,9 +292,10 @@ quotes, angle brackets, or backslashes allowed by the patterns).
 - Per-provider `PATCH /api/settings/analytics/[provider]`: mirrors
   `content-data-sources/[sourceKey]`. Rejected for v1 as overkill for two
   providers; the single PUT is simpler for the form.
-- No public GET (only admin GET): would force the layout to read the DB
-  directly, which is what we do anyway, but having the public GET is useful
-  for debugging and OpenAPI completeness.
+- Public GET returning settings: rejected because it exposes the configuration
+  surface to non-admins and conflicts with FR-006/FR-007. The fact that enabled
+  Tracking IDs appear in page HTML does not require exposing disabled provider
+  state or the admin settings view.
 
 ---
 
@@ -413,8 +419,8 @@ via next-open-api").
 | R5 | Public script caching | `unstable_cache` tagged `SITE_SHELL_CACHE_TAG`, `shouldUseDataCache()` guard |
 | R6 | ISR compatibility | Inline via `dangerouslySetInnerHTML`, depends only on admin state |
 | R7 | Provider registration | Closed `REGISTERED_ANALYTICS_PROVIDERS` array in service file |
-| R8 | Vendor snippets | Official Baidu `hm.js` + Google `gtag/js` snippets, regex-validated |
-| R9 | API shape | `GET` (public) + `PUT` (admin) at `/api/settings/analytics` |
+| R8 | Vendor loaders | Baidu `hm.js` + Google `gtag/js` loader content, regex-validated, rendered inside one framework-owned script tag |
+| R9 | API shape | `GET` (admin) + `PUT` (admin) at `/api/settings/analytics`; no public settings endpoint |
 | R10 | Admin UI | Single `/admin/analytics` page + `AnalyticsProvidersForm` client component |
 | R11 | i18n | New `admin.analytics` block in en.json + zh.json |
 | R12 | Migrations | `pnpm db:generate` only |

@@ -72,8 +72,9 @@ pages.
 **Validation**:
 - The DB row `analytics_provider_settings` for `provider = 'baidu_tongji'`
   has `enabled = true` and `tracking_id = 'abcdef0123456789abcdef0123456789'`.
-- `curl http://localhost:3000/api/settings/analytics` returns a JSON object
-  where `providers[0].enabled = true` and `activeScript` contains
+- `curl -b "session=<admin-session-cookie>" http://localhost:3000/api/settings/analytics`
+  returns a JSON object where `providers[0].enabled = true` and
+  `activeScriptContent` contains
   `hm.baidu.com/hm.js?abcdef0123456789abcdef0123456789`.
 
 ---
@@ -100,16 +101,17 @@ Prerequisite: Scenario 1 completed (Baidu Tongji enabled).
    curl -s http://localhost:3000/auth/login | grep -c "hm.baidu.com/hm.js"
    ```
 
-2. **Expected**: every surface returns `1` or more (the script is present
-   exactly once on each page). The script is configured with the saved
-   Tracking ID.
+2. **Expected**: every surface returns `1` (the provider loader URL appears
+   exactly once on each page). The loader is configured with the saved Tracking
+   ID.
 
 **Validation**:
-- The script tag appears in the `<head>` of every rendered page, immediately
-  after the existing `themeScript` inline `<script>`.
-- A code audit (`rg "hm.baidu.com|googletagmanager" apps/web/app/`) finds the
-  script references in **only** the root `apps/web/app/layout.tsx` and the
-  service file `src/server/services/analytics.ts` - never in any page
+- The `<script id="app-analytics">` tag appears in the `<head>` of every
+  rendered page, immediately after the existing `themeScript` inline
+  `<script>`, and its content contains the enabled provider loader URL.
+- A code audit (`rg "hm.baidu.com|googletagmanager" apps/web/app/ apps/web/src/`)
+  finds the vendor host references in **only** the service file
+  `apps/web/src/server/services/analytics.ts` - never in any page or layout
   component.
 
 ---
@@ -132,8 +134,8 @@ Prerequisite: Scenario 1 completed (Baidu Tongji enabled with Tracking ID).
   `tracking_id = 'abcdef0123456789abcdef0123456789'` (retained).
 - `curl http://localhost:3000/ | grep -c "hm.baidu.com/hm.js"` returns `0`
   (the script is absent on all pages).
-- `curl http://localhost:3000/api/settings/analytics` returns
-  `providers[0].enabled = false` and `activeScript = ""`.
+- `curl -b "session=<admin-session-cookie>" http://localhost:3000/api/settings/analytics`
+  returns `providers[0].enabled = false` and `activeScriptContent = ""`.
 
 ---
 
@@ -172,8 +174,8 @@ Tracking ID.
    remains disabled).
 
 **Validation**:
-- `curl http://localhost:3000/api/settings/analytics` returns
-  `providers[1].enabled = false` (Google Analytics is still disabled).
+- `curl -b "session=<admin-session-cookie>" http://localhost:3000/api/settings/analytics`
+  returns `providers[1].enabled = false` (Google Analytics is still disabled).
 - The DB row for `google_analytics` either does not exist or has
   `enabled = false` (the previous state is preserved).
 
@@ -205,33 +207,52 @@ Tracking ID.
 2. Navigate to `/admin/analytics`.
 3. **Expected**: 404 (the existing pattern for admin-only pages - the page
    calls `notFound()` when the permission check fails).
-4. Attempt `PUT /api/settings/analytics` with the non-admin session:
+4. Attempt `GET /api/settings/analytics` with the non-admin session:
+
+   ```bash
+   curl -b "session=<editor-session>" http://localhost:3000/api/settings/analytics
+   ```
+
+5. **Expected**: `403 FORBIDDEN`.
+
+6. Attempt `PUT /api/settings/analytics` with the non-admin session:
    ```bash
    curl -X PUT -b "session=<editor-session>" \
      -H "Content-Type: application/json" \
      -d '{"providers":[{"provider":"baidu_tongji","enabled":true,"trackingId":"abc"}]}' \
      http://localhost:3000/api/settings/analytics
    ```
-5. **Expected**: `403 FORBIDDEN` with a message "You do not have permission
+7. **Expected**: `403 FORBIDDEN` with a message "You do not have permission
    to manage site settings".
 
 ---
 
-## Scenario 8: Anonymous visitor cannot mutate
+## Scenario 8: Anonymous visitor cannot read or mutate settings
 
-**Goal**: Verify the PUT endpoint requires a session.
+**Goal**: Verify the settings API requires an admin session. Anonymous visitors
+receive analytics only through page HTML, not through the configuration API.
 
-1. Attempt `PUT /api/settings/analytics` without a session:
+1. Attempt `GET /api/settings/analytics` without a session:
+
+   ```bash
+   curl http://localhost:3000/api/settings/analytics
+   ```
+
+2. **Expected**: `401 UNAUTHORIZED`.
+
+3. Attempt `PUT /api/settings/analytics` without a session:
    ```bash
    curl -X PUT \
      -H "Content-Type: application/json" \
      -d '{"providers":[{"provider":"baidu_tongji","enabled":true,"trackingId":"abc"}]}' \
      http://localhost:3000/api/settings/analytics
    ```
-2. **Expected**: `401 UNAUTHORIZED`.
 
-**Note**: `GET /api/settings/analytics` is public (the layout needs to read
-the active script for anonymous visitors).
+4. **Expected**: `401 UNAUTHORIZED`.
+
+**Note**: The root layout reads the active script content through the
+server-side `getActiveAnalyticsScriptContent()` service, not through the HTTP
+settings API.
 
 ---
 

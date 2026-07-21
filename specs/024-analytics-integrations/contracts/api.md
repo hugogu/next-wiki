@@ -39,7 +39,7 @@ export type AnalyticsProviderItem = z.infer<typeof analyticsProviderItemSchema>;
 
 export const analyticsSettingsViewSchema = z.object({
   providers: z.array(analyticsProviderItemSchema),
-  activeScript: z.string(),    // the rendered <script> HTML for all enabled providers
+  activeScriptContent: z.string(), // JavaScript body inlined into the framework-owned analytics <script>
 });
 export type AnalyticsSettingsView = z.infer<typeof analyticsSettingsViewSchema>;
 
@@ -66,21 +66,28 @@ real authority.
 
 ### `GET /api/settings/analytics`
 
-**Public**. Returns the full list of registered analytics providers with their
-enabled state, Tracking ID, and the rendered `<script>` HTML for all enabled
-providers. The Tracking IDs are intentionally public - they appear in the page
-source of every visitor anyway.
+**Admin-only**. Returns the full list of registered analytics providers with
+their enabled state, stored Tracking ID, and the JavaScript content that the
+root layout will inline for all enabled providers. This endpoint is a
+configuration surface; it is not used by anonymous page rendering and MUST NOT
+be public.
 
-**Auth**: None (public).
+**Auth**: `@auth bearer` (session cookie). API keys are denied by the
+`manage_appearance` hard-deny rule.
+
+**Permission**: `manage_appearance` + `{ kind: 'appearance' }`.
 
 **OpenAPI annotations**:
 
 ```yaml
 @openapi
 @summary List analytics providers
-@description Returns all registered analytics providers with their configuration and the active script HTML.
+@description Returns all registered analytics providers with their admin-only configuration and active script content.
 @tag Analytics
+@auth bearer
 @response 200 application/json { $ref: analyticsSettingsViewSchema }
+@response 401 application/json { error: UNAUTHORIZED, message: string }
+@response 403 application/json { error: FORBIDDEN, message: string }
 ```
 
 **Response body** (`AnalyticsSettingsView`):
@@ -107,11 +114,13 @@ source of every visitor anyway.
       "updatedAt": null
     }
   ],
-  "activeScript": "<script>var _hmt=...;</script>"
+  "activeScriptContent": "var _hmt=...;"
 }
 ```
 
 **Errors**:
+- `401` - No session.
+- `403` - Session is not an admin, or actor is an API key.
 - `500` - Internal server error (returned via `internalError()`).
 
 ---
@@ -175,7 +184,8 @@ transactional across providers (matching the `content-data-sources` pattern).
 - A provider with `enabled: false` MAY have any (or no) `trackingId`; the
   value is retained for later re-enablement.
 
-**Response body**: the updated `AnalyticsSettingsView` (same shape as `GET`).
+**Response body**: the updated admin-only `AnalyticsSettingsView` (same shape as
+`GET`).
 
 **Side effects**:
 - `invalidateSiteShellCache()` is called after the DB write, so the next
@@ -209,9 +219,13 @@ All errors use the existing `DomainError` -> `mapDomainError` mapping (see
 - No per-provider `PATCH /api/settings/analytics/[provider]` endpoint. The
   single `PUT` accepts the full provider list. This can be added later if the
   provider count grows.
+- No public `GET /api/settings/analytics` endpoint. Anonymous page rendering
+  uses the server-side `getActiveAnalyticsScriptContent()` service directly,
+  which returns only cacheable script content and never exposes the admin
+  settings view over HTTP.
 - No `DELETE` endpoint. Disabling a provider (setting `enabled: false`) is the
   supported way to "turn off" a provider; the row is retained so the Tracking
   ID survives.
 - No server-side event forwarding (e.g. Measurement Protocol). The feature
-  only injects the vendor's client-side snippet.
+  only injects the vendor's client-side loader.
 - No API-key scope for analytics. Configuration is admin-only via session.

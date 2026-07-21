@@ -203,12 +203,13 @@ edited.
 - **FR-005**: The system MUST reject an attempt to enable a provider whose
   Tracking ID is empty or does not match the provider's expected format, while
   preserving the previously active configuration.
-- **FR-006**: Access to the analytics configuration area and to reading or
-  modifying Tracking IDs MUST be restricted to administrators; non-admin users,
-  anonymous visitors, and API keys MUST be denied.
-- **FR-007**: The system MUST NOT expose Tracking IDs or provider credentials to
-  non-admin surfaces; they MUST only be used to render the corresponding script
-  on pages.
+- **FR-006**: Access to the analytics configuration area and to API reads or
+  mutations of stored Tracking IDs MUST be restricted to administrators;
+  non-admin users, anonymous visitors, and API keys MUST be denied.
+- **FR-007**: The system MUST NOT expose stored Tracking IDs or provider
+  credentials through non-admin configuration surfaces or APIs. Enabled
+  Tracking IDs may appear only as part of the provider tracking script delivered
+  in page HTML.
 
 #### Framework-Level Script Injection (Story 2)
 
@@ -297,8 +298,8 @@ edited.
   cached body without any per-request session lookup; changing provider state
   revalidates the affected public pages.
 - **SC-005**: A non-admin user, anonymous visitor, or API key attempting to
-  access the analytics configuration is denied without any Tracking ID being
-  exposed.
+  access the analytics configuration UI or settings API is denied without any
+  stored Tracking ID being exposed by that configuration surface.
 - **SC-006**: Adding a new analytics provider via the registration contract, or
   adding a new page/route to the product, requires zero edits to existing page
   components for the analytics script to appear on the new page or for the new
@@ -316,11 +317,11 @@ edited.
   (API tokens, service-account JSON) are out of scope for v1; providers that
   need more than a Tracking ID can be added later behind the same registration
   contract.
-- **Script shape is provider-defined**: Each provider ships a known script
-  snippet shape (a `<script>` tag, possibly with an inline config object) that
-  the framework-level injection point renders with the saved Tracking ID. The
-  system does not author new tracking scripts; it renders the provider's
-  canonical snippet.
+- **Script shape is provider-defined**: Each provider ships known loader logic
+  (for example a vendor `hm.js` or `gtag/js` URL plus inline configuration)
+  that the framework-level injection point renders with the saved Tracking ID.
+  The root layout owns the outer analytics `<script>` tag; provider
+  registrations contribute validated JavaScript loader content for that tag.
 - **Built-in providers**: Baidu Tongji and Google Analytics are the two
   built-in providers at launch; both are registered through the same contract as
   any future provider (no special-case page code).
