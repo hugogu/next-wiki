@@ -435,6 +435,12 @@ export const conversationSessionViewModelSchema = z.object({
 });
 export type ConversationSessionViewModel = z.infer<typeof conversationSessionViewModelSchema>;
 
+/** Capture-origin marker for a Conversation Raw revision (025): which bot
+ * channel produced the captured turn. Absent on legacy pre-025 pages, which
+ * consumers treat as `'wiki-ai'`. */
+export const wikiAiChannelSchema = z.enum(['wiki-ai', 'feishu']);
+export type WikiAiChannel = z.infer<typeof wikiAiChannelSchema>;
+
 /** Pointer to the canonical Raw Conversation page for a captured
  * `wiki_question` action, included in AI session list/detail responses. */
 export const rawConversationPointerSchema = z.object({
@@ -443,6 +449,9 @@ export const rawConversationPointerSchema = z.object({
   url: z.string(),
   captureStatus: rawConversationCaptureStatusSchema,
   conversation: conversationSessionViewModelSchema.optional(),
+  /** 025: the bot channel that produced this capture. Defaults to
+   * `'wiki-ai'` for legacy pointers that predate the field. */
+  channel: wikiAiChannelSchema.optional(),
 });
 export type RawConversationPointer = z.infer<typeof rawConversationPointerSchema>;
 
@@ -676,6 +685,10 @@ export const rawConversationSourceMetadataSchema = z.object({
   queuedAt: z.string(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
+  /** 025: which bot channel produced this turn, inferred once at capture
+   * time from `ai_actions.requestMetadata.origin`. Absent on pre-025
+   * captures; renderer and admin surfaces treat absence as `'wiki-ai'`. */
+  channel: wikiAiChannelSchema.optional(),
 });
 export type RawConversationSourceMetadata = z.infer<typeof rawConversationSourceMetadataSchema>;
 

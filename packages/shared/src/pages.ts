@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { wikiAiChannelSchema } from './ai';
 
 export const slugSchema = z
   .string()
@@ -178,6 +179,10 @@ export const publicPageResourceSchema = z.object({
   // e.g. 'conversation' — so search/reader UIs can show a source-specific
   // cue without a second lookup. Absent/null for every other page.
   rawCategorySystemKey: z.string().nullable().optional(),
+  // 025: the capture channel for a Conversation Raw page (e.g. 'feishu'),
+  // read from source_metadata.channel. Absent/null for non-conversation
+  // pages and for legacy conversation captures that predate the field.
+  conversationChannel: wikiAiChannelSchema.nullable().optional(),
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable(),
   writeMetadataToFrontmatter: z.boolean().optional(),
