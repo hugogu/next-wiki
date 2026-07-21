@@ -22,7 +22,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/023-raw-conversation-search/plan.md
+at specs/024-analytics-integrations/plan.md
 <!-- SPECKIT END -->
 
 ## Database Migrations (Drizzle) — never hand-author
