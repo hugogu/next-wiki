@@ -310,6 +310,7 @@ export function AiSessionsPanel({ initial }: { initial: AiSessionListResponse })
                   insufficient: detail.insufficient,
                   errorMessage: detail.errorMessage,
                 }}
+                channel={viewing.rawConversation?.channel}
               />
               <div className="flex justify-end">
                 <Button type="button" onClick={() => void handleContinue(viewing)} disabled={continuingId === viewing.id}>

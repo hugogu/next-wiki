@@ -87,4 +87,37 @@ describe('ConversationSessionView', () => {
     expect(html).toContain('Running');
     expect(html).toContain('ml-auto');
   });
+
+  it('renders the localized Feishu badge when channel is feishu (025)', () => {
+    const html = renderToStaticMarkup(
+      <ApplicationI18nProvider initialLocale="en" messages={getMessages('en')}>
+        <ConversationSessionView conversation={conversation()} channel="feishu" />
+      </ApplicationI18nProvider>,
+    );
+    expect(html).toContain('Feishu');
+    expect(html).toMatch(/data-testid="conversation-channel-badge-feishu"/);
+  });
+
+  it('renders no channel badge when channel is wiki-ai or absent (025)', () => {
+    const withWikiAi = render(conversation());
+    expect(withWikiAi).not.toContain('data-testid="conversation-channel-badge-feishu"');
+
+    const noChannelProp = renderToStaticMarkup(
+      <ApplicationI18nProvider initialLocale="en" messages={getMessages('en')}>
+        <ConversationSessionView conversation={conversation()} channel="wiki-ai" />
+      </ApplicationI18nProvider>,
+    );
+    expect(noChannelProp).not.toContain('data-testid="conversation-channel-badge-feishu"');
+  });
+
+  it('renders an otherwise identical DOM with and without the Feishu badge, aside from the badge itself', () => {
+    const withoutBadge = render(conversation());
+    const withBadgeHtml = renderToStaticMarkup(
+      <ApplicationI18nProvider initialLocale="en" messages={getMessages('en')}>
+        <ConversationSessionView conversation={conversation()} channel="feishu" />
+      </ApplicationI18nProvider>,
+    );
+    const strippedBadge = withBadgeHtml.replace(/<span data-testid="conversation-channel-badge-feishu"[^>]*>Feishu<\/span>/, '');
+    expect(strippedBadge).toBe(withoutBadge);
+  });
 });

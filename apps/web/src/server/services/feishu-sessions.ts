@@ -2,6 +2,18 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 
+/**
+ * 025: Bot Session holds only Feishu-side lifecycle state — binding, chat,
+ * the latest `ai_action_id`, the activity window, and `state`. Conversation
+ * content (question/answer/citations/status) lives exclusively in
+ * `ai_actions` / `ai_action_events` and the captured Raw Conversation page;
+ * do NOT add timeline columns (question, answer, citations, error_message,
+ * status, …) to `feishuBotSessions`. Multi-turn continuity is reconstructed
+ * from `ai_actions.requestMetadata.feishuSessionId`, not from a second
+ * parallel history table — see `getConversationContext` below and D3/D5 in
+ * specs/025-feishu-bot-conversation-capture/plan.md.
+ */
+
 /** Conversation inactivity window bounds (minutes). */
 export const SESSION_MIN_MINUTES = 5;
 export const SESSION_MAX_MINUTES = 240;

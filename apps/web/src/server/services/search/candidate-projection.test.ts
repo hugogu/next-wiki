@@ -167,6 +167,42 @@ describe('search candidate projection', () => {
       await setModeInternal('copilot', admin.id);
     }
   });
+
+  it('exposes conversationChannel for a captured Feishu turn, and null for a non-conversation raw page (025)', async () => {
+    await seedWritingModeSpaces();
+    const admin = await createPublicApiUser(`projection-channel-admin-${randomUUID()}@example.com`, 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+
+    await setModeInternal('llm-wiki', admin.id);
+    try {
+      const raw = await getSpaceBySlug('raw');
+      expect(raw).not.toBeNull();
+      await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true }).onConflictDoNothing();
+
+      const { createWikiQuestionAction, seedCompletedConversationEvents } = await import('../../../../test/ai-fixtures');
+      const { captureConversation } = await import('@/server/services/raw-conversations');
+      const actionId = await createWikiQuestionAction(admin.id, {
+        rawConversationCaptureStatus: 'pending',
+        requestMetadata: { origin: 'feishu' },
+      });
+      await seedCompletedConversationEvents(actionId);
+      const outcome = await captureConversation(actionId);
+      if (outcome.status !== 'captured') throw new Error('expected captured');
+
+      const generalEntry = await rawEntries.createEntry(adminCtx, {
+        path: `projection-${randomUUID().slice(0, 8)}/general-channel`,
+        title: 'General note',
+        inputKind: 'manual-note',
+        content: 'A plain raw note',
+      });
+
+      const projected = await projectReadableCandidatePages(adminCtx, [outcome.pageId, generalEntry.pageId], [raw!.id]);
+      expect(projected.get(outcome.pageId)?.page.conversationChannel).toBe('feishu');
+      expect(projected.get(generalEntry.pageId)?.page.conversationChannel).toBeNull();
+    } finally {
+      await setModeInternal('copilot', admin.id);
+    }
+  });
 });
 
 describe('excerpt helpers', () => {

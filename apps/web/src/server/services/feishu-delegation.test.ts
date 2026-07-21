@@ -81,6 +81,17 @@ describe('Feishu in-process delegation', () => {
       aiActionId: action.id,
       responseTarget: { type: 'direct', openId: 'ou_bound' },
     });
+    const [session] = await db.select().from(schema.feishuBotSessions);
+    expect(session).toMatchObject({
+      bindingId: expect.any(String),
+      chatId: 'oc_group',
+      aiActionId: action.id,
+    });
+
+    // 025: the Bot Session id is tagged onto requestMetadata.feishuSessionId
+    // so the capture worker (raw-conversations.ts) can stamp channel='feishu'
+    // and reconstructConversation/getConversationContext can rebuild
+    // multi-turn continuity from this same tag.
     expect(createWikiQuestion).toHaveBeenCalledWith(
       { actor: { kind: 'user', userId: boundUser.id, role: 'editor' } },
       expect.objectContaining({
@@ -88,17 +99,11 @@ describe('Feishu in-process delegation', () => {
         requestMetadata: expect.objectContaining({
           origin: 'feishu',
           correlationId: 'corr-bound',
+          feishuSessionId: session!.id,
           feishuProcessingReaction: { messageId: 'om_bound', reactionId: 'reaction_1' },
         }),
       }),
     );
-
-    const [session] = await db.select().from(schema.feishuBotSessions);
-    expect(session).toMatchObject({
-      bindingId: expect.any(String),
-      chatId: 'oc_group',
-      aiActionId: action.id,
-    });
     expect(start).toHaveBeenCalledWith('om_bound');
     expect(stop).not.toHaveBeenCalled();
     const [audit] = await db.select().from(schema.apiAuditEntries);

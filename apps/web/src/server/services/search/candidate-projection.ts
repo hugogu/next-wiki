@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
-import type { PublicPageResource } from '@next-wiki/shared';
+import { rawConversationSourceMetadataSchema, type PublicPageResource } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
@@ -87,6 +87,9 @@ export async function projectReadableCandidatePages(
       // 023: built-in category key (e.g. 'conversation') for raw candidates,
       // so a captured Raw Conversation result can carry a source cue.
       rawCategorySystemKey: schema.rawCategories.systemKey,
+      // 025: only read to derive `conversationChannel` below; never part of
+      // the indexed/searchable text.
+      sourceMetadata: schema.pageRevisions.sourceMetadata,
     })
     .from(schema.pages)
     .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
@@ -112,6 +115,13 @@ export async function projectReadableCandidatePages(
       continue;
     }
     const { frontmatter } = parsePageFrontmatter(row.contentSource ?? '');
+    // 025: only a captured Conversation page carries a meaningful channel;
+    // parsing source_metadata for any other content type would be noise.
+    let conversationChannel: 'wiki-ai' | 'feishu' | null = null;
+    if (row.rawCategorySystemKey === 'conversation') {
+      const parsed = rawConversationSourceMetadataSchema.safeParse(row.sourceMetadata);
+      conversationChannel = parsed.success ? (parsed.data.channel ?? 'wiki-ai') : null;
+    }
     result.set(row.page.id, {
       contentSource: row.contentSource,
       page: {
@@ -125,6 +135,7 @@ export async function projectReadableCandidatePages(
         status: 'published',
         author: { id: row.author.id, displayName: row.author.displayName ?? row.author.email },
         rawCategorySystemKey: row.rawCategorySystemKey,
+        conversationChannel,
         createdAt: row.page.createdAt.toISOString(),
         updatedAt: row.page.updatedAt.toISOString(),
         links: links(row.page),

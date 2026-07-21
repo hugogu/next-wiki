@@ -61,18 +61,33 @@ export function ConversationStatusBadge({
 export function ConversationSessionView({
   conversation,
   showStatus = true,
+  channel,
 }: {
   conversation: ConversationSessionViewModel;
   showStatus?: boolean;
+  /** 025: the bot channel this conversation was captured under, from
+   * `RawConversationPointer.channel`. Renders a small "Feishu" badge near the
+   * header when `'feishu'`; omitted entirely for `'wiki-ai'` or absent
+   * (legacy captures and every web chat). Purely decorative metadata — the
+   * rest of the reader is identical between channels. */
+  channel?: 'wiki-ai' | 'feishu';
 }) {
   const { t } = useTranslation();
   const done = conversation.status !== 'running' && conversation.status !== 'queued';
 
   return (
     <div className="space-y-sm">
-      {showStatus && (
-        <div>
-          <ConversationStatusBadge status={conversation.status} />
+      {(showStatus || channel === 'feishu') && (
+        <div className="flex items-center gap-xs">
+          {showStatus && <ConversationStatusBadge status={conversation.status} />}
+          {channel === 'feishu' && (
+            <span
+              data-testid="conversation-channel-badge-feishu"
+              className="rounded-full border border-border bg-surface-elevated px-xs py-0.5 text-[11px] leading-tight text-muted"
+            >
+              {t('header.search.source.feishu')}
+            </span>
+          )}
         </div>
       )}
       <div className="rounded-md bg-primary p-sm text-sm text-primary-text">{conversation.question}</div>

@@ -1,17 +1,19 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
-import type {
-  AiActionAccepted,
-  AiActionAdminView,
-  AiActionEvent,
-  AiActionFeature,
-  AiActionStatus,
-  AiActionView,
-  AiEventType,
-  AiQuestionMode,
-  AiSessionSummary,
-  AiUsageStatsView,
-  RawConversationCaptureStatus,
-  RawConversationPointer,
+import {
+  rawConversationSourceMetadataSchema,
+  type AiActionAccepted,
+  type AiActionAdminView,
+  type AiActionEvent,
+  type AiActionFeature,
+  type AiActionStatus,
+  type AiActionView,
+  type AiEventType,
+  type AiQuestionMode,
+  type AiSessionSummary,
+  type AiUsageStatsView,
+  type RawConversationCaptureStatus,
+  type RawConversationPointer,
+  type WikiAiChannel,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -59,8 +61,8 @@ type CreateActionInput = {
    */
   priority?: number;
   /**
-   * 023: initial Raw Conversation capture eligibility, decided once at create
-   * time from the Wiki AI Conversations data-source setting. `pending` means
+   * 023/025: initial Raw Conversation capture eligibility, decided once at
+   * create time from the AI Conversations data-source setting. `pending` means
    * capture is eligible once events arrive; `disabled` means this action was
    * created while the source was off and will never be captured. Actions for
    * every other feature stay `not_applicable` (the column default).
@@ -361,19 +363,43 @@ export async function getAction(ctx: PermCtx, actionId: string): Promise<AiActio
   return toView(await requireActionAccess(ctx, actionId));
 }
 
+/** 025: extracts the `channel` marker from a captured page's current
+ * published revision `source_metadata`, defaulting to `'wiki-ai'` when
+ * absent (legacy pre-025 captures) or invalid. */
+function channelFromSourceMetadata(sourceMetadata: unknown): WikiAiChannel {
+  const parsed = rawConversationSourceMetadataSchema.safeParse(sourceMetadata);
+  return parsed.success ? (parsed.data.channel ?? 'wiki-ai') : 'wiki-ai';
+}
+
 /**
- * Resolves the `{pageId, path, url, captureStatus}` pointer for one captured
- * session — the path/url lookup lives here (not in raw-conversations.ts) to
- * avoid a circular import (see `findActionsWithExpiringCapture` above).
+ * Resolves the `{pageId, path, url, captureStatus, channel}` pointer for one
+ * captured session — the path/url lookup lives here (not in
+ * raw-conversations.ts) to avoid a circular import (see
+ * `findActionsWithExpiringCapture` above).
  */
 export async function resolveRawConversationPointer(
   pageId: string | null,
   captureStatus: RawConversationCaptureStatus,
 ): Promise<RawConversationPointer | null> {
   if (!pageId) return null;
-  const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId), columns: { path: true } });
+  const page = await db.query.pages.findFirst({
+    where: eq(schema.pages.id, pageId),
+    columns: { path: true, currentPublishedVersionId: true },
+  });
   if (!page) return null;
-  return { pageId, path: page.path, url: `/spaces/raw/${page.path}`, captureStatus };
+  const revision = page.currentPublishedVersionId
+    ? await db.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, page.currentPublishedVersionId),
+        columns: { sourceMetadata: true },
+      })
+    : undefined;
+  return {
+    pageId,
+    path: page.path,
+    url: `/spaces/raw/${page.path}`,
+    captureStatus,
+    channel: channelFromSourceMetadata(revision?.sourceMetadata),
+  };
 }
 
 /** Batch variant of `resolveRawConversationPointer` for list endpoints, so N
@@ -384,22 +410,33 @@ async function resolveRawConversationPointers(
   const pageIds = rows.map((row) => row.rawConversationPageId).filter((id): id is string => id !== null);
   const pages = pageIds.length
     ? await db
-        .select({ id: schema.pages.id, path: schema.pages.path })
+        .select({ id: schema.pages.id, path: schema.pages.path, currentPublishedVersionId: schema.pages.currentPublishedVersionId })
         .from(schema.pages)
         .where(inArray(schema.pages.id, pageIds))
     : [];
-  const pathByPageId = new Map(pages.map((page) => [page.id, page.path]));
+  const revisionIds = pages.map((page) => page.currentPublishedVersionId).filter((id): id is string => id !== null);
+  const revisions = revisionIds.length
+    ? await db
+        .select({ id: schema.pageRevisions.id, sourceMetadata: schema.pageRevisions.sourceMetadata })
+        .from(schema.pageRevisions)
+        .where(inArray(schema.pageRevisions.id, revisionIds))
+    : [];
+  const channelByRevisionId = new Map(revisions.map((revision) => [revision.id, channelFromSourceMetadata(revision.sourceMetadata)]));
+  const pageById = new Map(pages.map((page) => [page.id, page]));
   const result = new Map<string, RawConversationPointer | null>();
   for (const row of rows) {
-    const path = row.rawConversationPageId ? pathByPageId.get(row.rawConversationPageId) : undefined;
+    const page = row.rawConversationPageId ? pageById.get(row.rawConversationPageId) : undefined;
     result.set(
       row.id,
-      row.rawConversationPageId && path
+      row.rawConversationPageId && page
         ? {
             pageId: row.rawConversationPageId,
-            path,
-            url: `/spaces/raw/${path}`,
+            path: page.path,
+            url: `/spaces/raw/${page.path}`,
             captureStatus: row.rawConversationCaptureStatus,
+            channel: page.currentPublishedVersionId
+              ? (channelByRevisionId.get(page.currentPublishedVersionId) ?? 'wiki-ai')
+              : 'wiki-ai',
           }
         : null,
     );

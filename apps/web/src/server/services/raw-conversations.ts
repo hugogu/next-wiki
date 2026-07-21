@@ -6,6 +6,7 @@ import {
   type ConversationSessionViewModel,
   type ConversationStatus,
   type RawConversationSourceMetadata,
+  type WikiAiChannel,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -162,10 +163,21 @@ function buildTranscriptText(conversation: ReconstructedConversation): string {
   return lines.join('\n');
 }
 
+/** 025: which bot channel produced a captured turn, inferred once from the
+ * underlying action's `requestMetadata.origin` (populated by the Feishu
+ * delegation service as `'feishu'`, and implicitly `'web'`/absent for the web
+ * chat side pane). Any other or missing origin resolves to `'wiki-ai'` — the
+ * only two channels that exist today. */
+export function resolveConversationChannel(requestMetadata: unknown): WikiAiChannel {
+  const origin = (requestMetadata as { origin?: unknown } | null)?.origin;
+  return origin === 'feishu' ? 'feishu' : 'wiki-ai';
+}
+
 function buildSourceMetadata(
   actionId: string,
   questionMode: RawConversationSourceMetadata['questionMode'] | null,
   conversation: ReconstructedConversation,
+  channel: WikiAiChannel,
 ): RawConversationSourceMetadata {
   return {
     inputKind: 'chat-transcript',
@@ -184,6 +196,7 @@ function buildSourceMetadata(
     queuedAt: conversation.queuedAt,
     startedAt: conversation.startedAt,
     finishedAt: conversation.finishedAt,
+    channel,
   };
 }
 
@@ -306,7 +319,18 @@ export async function enqueueRawConversationCapture(actionId: string): Promise<v
 }
 
 export type CaptureOutcome =
-  | { status: 'captured'; pageId: string }
+  | {
+      status: 'captured';
+      pageId: string;
+      /** 025: the bot channel this turn was captured under — also the audit
+       * origin signal (`'feishu'` maps to `audit_origin='feishu'`, anything
+       * else maps to `'web'`). See D2/D4. */
+      channel: WikiAiChannel;
+      actorUserId: string;
+      /** Non-secret Feishu correlation id carried from `requestMetadata`, if
+       * any — never a raw prompt, answer, or credential. */
+      correlationId: string | null;
+    }
   | { status: 'skipped'; reason: 'not_eligible' | 'no_content' | 'already_current' }
   | { status: 'failed'; error: string };
 
@@ -346,7 +370,8 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
 
       const [space, category] = await Promise.all([resolveRawSpace(), ensureConversationCategory()]);
       const transcript = buildTranscriptText(conversation);
-      const sourceMetadata = buildSourceMetadata(actionId, action.questionMode, conversation);
+      const channel = resolveConversationChannel(action.requestMetadata);
+      const sourceMetadata = buildSourceMetadata(actionId, action.questionMode, conversation, channel);
       const path = conversationPath(actionId, action.queuedAt);
       const title = conversationTitle(conversation.question);
 
@@ -371,13 +396,26 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
         })
         .where(eq(schema.aiActions.id, actionId));
 
-      return { status: 'captured', pageId, authorId: action.actorUserId } as const;
+      const correlationId = (action.requestMetadata as { correlationId?: unknown } | null)?.correlationId;
+      return {
+        status: 'captured',
+        pageId,
+        authorId: action.actorUserId,
+        channel,
+        correlationId: typeof correlationId === 'string' ? correlationId : null,
+      } as const;
     });
 
     if (outcome.status === 'captured') {
       await kickReplication();
       await reconcilePageAcrossIndexes(outcome.pageId, buildUserCtx(outcome.authorId, 'admin'));
-      return { status: 'captured', pageId: outcome.pageId };
+      return {
+        status: 'captured',
+        pageId: outcome.pageId,
+        channel: outcome.channel,
+        actorUserId: outcome.authorId,
+        correlationId: outcome.correlationId,
+      };
     }
     return outcome;
   } catch (error) {

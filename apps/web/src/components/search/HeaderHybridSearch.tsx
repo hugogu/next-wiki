@@ -167,6 +167,11 @@ export function HeaderHybridSearch() {
                       {t('header.search.source.conversation')}
                     </span>
                   )}
+                  {result.page.conversationChannel === 'feishu' && (
+                    <span data-testid="header-search-source-feishu" className="rounded-full border border-border bg-surface-elevated px-xs py-0.5 text-[11px] leading-tight text-muted">
+                      {t('header.search.source.feishu')}
+                    </span>
+                  )}
                   {result.matchSources.map((source) => (
                     <span key={source} data-testid={`header-search-source-${source}`} className={`rounded-full border px-xs py-0.5 text-[11px] leading-tight ${sourceLabelClass(source)}`}>
                       {source === 'keyword' ? t('header.search.source.keyword') : t('header.search.source.semantic')}
