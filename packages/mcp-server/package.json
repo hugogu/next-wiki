@@ -1,6 +1,6 @@
 {
   "name": "@next-wiki/mcp-server",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP Server for next-wiki. Exposes the wiki page management surface as MCP tools and resources.",
   "type": "module",
   "license": "Apache-2.0",

@@ -15,7 +15,9 @@ export const createPageSchema = {
   title: z.string().min(1).max(200).describe('Page title'),
   contentSource: z.string().default('').describe('Markdown source content; required for raw entries and ignored by link pages'),
   locale: z.string().min(1).max(20).optional().describe('Locale; defaults to wiki default'),
-  space: contentSpaceSchema.optional().describe('Target space. API-key writes default to generated in LLM Wiki mode.'),
+  space: contentSpaceSchema.optional().describe(
+    "Target space. MCP defaults to 'generated' for AI-authored native/raw pages; link pages (kind='link') default to 'default' (the wiki space where link redirects live). Pass an explicit value to override either default."
+  ),
   nature: publicContentNatureSchema.optional().describe('Stable content nature; raw and link pages use forced values.'),
   inputKind: publicRawInputKindSchema.optional().describe('Required when creating a raw entry'),
   source: publicRawSourceSchema.optional().describe('Immutable source metadata for a raw entry'),
@@ -28,12 +30,19 @@ export const createPageSchema = {
 export type CreatePageInput = z.infer<z.ZodObject<typeof createPageSchema>>;
 
 export async function createPage(client: WikiApiClient, args: CreatePageInput) {
+  // MCP is the AI boundary. Default the space by page kind:
+  //   - kind='link' publishes a generated target through the wiki space (server
+  //     rejects link pages outside the wiki space with LINK_TARGET_INVALID),
+  //     so link pages default to 'default'.
+  //   - everything else (native AI pages, raw entries) defaults to 'generated'.
+  // Callers can still pass an explicit `space` to override either default.
+  const space = args.space ?? (args.kind === 'link' ? 'default' : 'generated');
   const response = await client.createPage({
     path: args.path,
     title: args.title,
     contentSource: args.contentSource,
     locale: args.locale,
-    space: args.space,
+    space,
     nature: args.nature,
     inputKind: args.inputKind,
     source: args.source,

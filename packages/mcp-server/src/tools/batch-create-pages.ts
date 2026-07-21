@@ -9,7 +9,7 @@ export const batchCreatePagesSchema = {
         title: z.string().describe('Page title'),
         contentSource: z.string().describe('Markdown source'),
         locale: z.string().optional().describe('Locale (defaults to workspace default)'),
-        space: contentSpaceSchema.optional().describe('Target content space for this page'),
+        space: contentSpaceSchema.optional().describe("Target content space. MCP defaults to 'generated' per page; pass 'default' or 'raw' to override."),
       }),
     )
     .min(1)
@@ -19,6 +19,12 @@ export const batchCreatePagesSchema = {
 export type BatchCreatePagesInput = z.infer<z.ZodObject<typeof batchCreatePagesSchema>>;
 
 export async function batchCreatePages(client: WikiApiClient, args: BatchCreatePagesInput) {
-  const response = await client.batchCreatePages({ pages: args.pages });
+  // Same default as create-page: every MCP call is AI-authored, so each page
+  // defaults to the generated space unless the caller overrides per-page.
+  const pages = args.pages.map((page) => ({
+    ...page,
+    space: page.space ?? 'generated',
+  }));
+  const response = await client.batchCreatePages({ pages });
   return { created: response.created, count: response.count };
 }

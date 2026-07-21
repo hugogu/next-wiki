@@ -263,11 +263,35 @@ describe('tools', () => {
     expect(getDiffClient).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 2, 1);
   });
 
-  it('batch_create_pages forwards pages', async () => {
+  it('batch_create_pages forwards pages with default space', async () => {
     const batchCreatePagesClient = vi.fn().mockResolvedValue({ created: [], count: 0 });
     const client = createClient({ batchCreatePages: batchCreatePagesClient });
     await batchCreatePages(client, { pages: [{ path: 'docs/a', title: 'A', contentSource: '# A' }] });
-    expect(batchCreatePagesClient).toHaveBeenCalledWith({ pages: [{ path: 'docs/a', title: 'A', contentSource: '# A' }] });
+    // MCP defaults every per-page space to 'generated' when the caller omits it.
+    expect(batchCreatePagesClient).toHaveBeenCalledWith({
+      pages: [{ path: 'docs/a', title: 'A', contentSource: '# A', space: 'generated' }],
+    });
+  });
+
+  it('batch_create_pages honours per-page space override', async () => {
+    const batchCreatePagesClient = vi.fn().mockResolvedValue({ created: [], count: 0 });
+    const client = createClient({ batchCreatePages: batchCreatePagesClient });
+
+    await batchCreatePages(client, {
+      pages: [
+        { path: 'concepts/a', title: 'A', contentSource: '# A' },
+        { path: 'docs/b', title: 'B', contentSource: '# B', space: 'default' },
+        { path: 'inputs/c', title: 'C', contentSource: '# C', space: 'raw' },
+      ],
+    });
+
+    expect(batchCreatePagesClient).toHaveBeenCalledWith({
+      pages: [
+        { path: 'concepts/a', title: 'A', contentSource: '# A', space: 'generated' },
+        { path: 'docs/b', title: 'B', contentSource: '# B', space: 'default' },
+        { path: 'inputs/c', title: 'C', contentSource: '# C', space: 'raw' },
+      ],
+    });
   });
 
   it('batch_create_pages forwards a per-page content space', async () => {
@@ -279,6 +303,72 @@ describe('tools', () => {
     expect(batchCreatePagesClient).toHaveBeenCalledWith({
       pages: [{ path: 'concepts/a', title: 'A', contentSource: '# A', space: 'generated' }],
     });
+  });
+
+  it('create_page defaults space to default when kind=link and caller omits it', async () => {
+    const createPageClient = vi.fn().mockResolvedValue({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      spaceSlug: 'default',
+      path: 'wiki/link-target',
+      locale: 'en',
+      title: 'Link to generated target',
+      status: 'published',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      updatedAt: '',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+    const client = createClient({ createPage: createPageClient });
+
+    await createPage(client, {
+      path: 'wiki/link-target',
+      title: 'Link to generated target',
+      contentSource: '',
+      kind: 'link',
+      linkTargetPageId: '00000000-0000-0000-0000-000000000001',
+    });
+
+    // Link pages must publish through the wiki space; defaulting them to
+    // 'generated' would have the server reject the call with LINK_TARGET_INVALID.
+    expect(createPageClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: 'wiki/link-target',
+        space: 'default',
+        kind: 'link',
+      }),
+    );
+  });
+
+  it('create_page defaults space to generated when caller omits it', async () => {
+    const createPageClient = vi.fn().mockResolvedValue({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      spaceSlug: 'generated',
+      path: 'news/2026/07/2026-07-21-morning',
+      locale: 'en',
+      title: 'Daily brief',
+      status: 'published',
+      author: { id: null, displayName: null },
+      createdAt: '',
+      updatedAt: '',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+    const client = createClient({ createPage: createPageClient });
+
+    await createPage(client, {
+      path: 'news/2026/07/2026-07-21-morning',
+      title: 'Daily brief',
+      contentSource: '# Daily brief',
+    });
+
+    // The MCP server is the AI boundary: callers don't need to opt into
+    // the generated space — it's the default for any write.
+    expect(createPageClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: 'news/2026/07/2026-07-21-morning',
+        space: 'generated',
+        nature: undefined,
+      }),
+    );
   });
 
   it('create_page forwards raw and link creation metadata', async () => {
