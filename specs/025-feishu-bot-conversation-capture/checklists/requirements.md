@@ -32,7 +32,7 @@
 ## Notes
 
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
-- Two clarifying questions were resolved with the user before the spec was drafted: (1) single broad `AI Conversations` Data Source toggle; (2) Bot Session becomes a thin wrapper around the Wiki AI chat session.
+- Two clarifying questions were resolved with the user before the spec was drafted: (1) single broad `AI Conversations` Data Source toggle; (2) Bot Session becomes a thin wrapper around the Wiki AI record.
 - The spec is built on top of 023 (capture pipeline) and 019 (Feishu infra). The `Channel Marker` metadata field carries `wiki-ai` or `feishu` for traceability; it is the only contract change that touches the existing Raw page metadata.
 - The 023 "Wiki AI Conversations" label is renamed to `AI Conversations` and the Data Sources editor is consolidated into Bots' General settings; FR-003 governs that the rename preserves the stored enabled state of every deployment so the default is unchanged, and FR-006 prevents a duplicate writable Content settings entry.
 - Verification (per `verification-before-completion`): SC-001, SC-002, SC-007 are the core data-lineage checks; SC-005/FR-024 are the permission-isolation guarantees; SC-008/FR-021 are the audit guarantees; SC-009/SC-010 are the operator/UX guarantees.

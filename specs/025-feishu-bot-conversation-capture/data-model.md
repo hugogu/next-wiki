@@ -73,7 +73,7 @@ The existing `source_metadata.schemaVersion = 1` discriminator continues to gate
 - One Admin-facing toggle under Bots' General settings. State preserved across the rename.
 - Labels: `dataSources.content.aiConversations.label`, `…description` in i18n.
 
-### Wiki AI Chat Session
+### Wiki AI Record
 
 - Same as 023 entity definition. For Feishu turns, the `ai_actions` row carries `requestMetadata.origin='feishu'` and `requestMetadata.feishuSessionId=<Bot Session id>`.
 - Captured Raw page is the canonical durable record for that turn.

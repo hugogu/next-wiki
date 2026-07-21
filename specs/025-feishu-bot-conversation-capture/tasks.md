@@ -80,7 +80,7 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ---
 
-## Phase 4: User Story 2 - Feishu Q&A Reuses the Wiki AI Chat Session Pipeline (Priority: P1)
+## Phase 4: User Story 2 - Feishu Q&A Reuses the Wiki AI Record Pipeline (Priority: P1)
 
 **Goal**: Each Feishu-bound Q&A turns into the same `wiki_question` `ai_actions` row a web chat would create, and the capture worker stamps the captured Raw page's `source_metadata.channel='feishu'`. No new pipeline, no parallel Feishu-only capture.
 
@@ -162,7 +162,7 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ## Phase 8: User Story 6 - Admin Observes Feishu Capture With the Same Surfaces As Web Capture (Priority: P3)
 
-**Goal**: Every audit entry for a Feishu-captured turn records `origin='feishu'`, the bound wiki user, the Wiki AI chat session id, and an opaque correlation id. The audit channel preserves traceability without leaking question/answer text or credentials.
+**Goal**: Every audit entry for a Feishu-captured turn records `origin='feishu'`, the bound wiki user, the Wiki AI record id, and an opaque correlation id. The audit channel preserves traceability without leaking question/answer text or credentials.
 
 **Independent Test**: Capture a Feishu turn. As Admin, query the audit log filter for `origin='feishu'` and `action=capture_raw_conversation`; verify the entry exists with the bound user id, the action id, and a correlation id that does not contain the raw question, answer, or any credential. Repeat with a web turn; verify the corresponding web audit entry exists.
 

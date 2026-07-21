@@ -8,7 +8,7 @@
 
 **Input**: User description: "All bots should share the same AI core and so do interactions (including conversations). Capture Feishu bot sessions by having the bot reuse the Wiki AI chat pipeline, and the conversation search should work after that."
 
-**Depends on**: 004-system-ai-support (Wiki AI chat sessions and AI actions), 019-feishu-bot (Feishu binding, Bot Session, fan-out and rate limit infrastructure), 022-llm-wiki-mode (raw space, raw categories, raw reader, and raw search permissions), 023-raw-conversation-search (Raw Conversation capture pipeline, built-in Conversation category, Conversation Data Source toggle, Raw-aware search).
+**Depends on**: 004-system-ai-support (Wiki AI records and AI actions), 019-feishu-bot (Feishu binding, Bot Session, fan-out and rate limit infrastructure), 022-llm-wiki-mode (raw space, raw categories, raw reader, and raw search permissions), 023-raw-conversation-search (Raw Conversation capture pipeline, built-in Conversation category, Conversation Data Source toggle, Raw-aware search).
 
 ## Summary
 
@@ -38,7 +38,7 @@ As an Admin, I want a single Data Source toggle under Bots' General settings to 
 
 ---
 
-### User Story 2 - Feishu Q&A Reuses the Wiki AI Chat Session Pipeline (Priority: P1)
+### User Story 2 - Feishu Q&A Reuses the Wiki AI Record Pipeline (Priority: P1)
 
 As a bound Feishu user, I want my message to the bot to be handled by the same Wiki AI chat pipeline that the web chat side pane uses, so that the conversation is consistent, resumable, and captured the same way as web conversations.
 
@@ -136,7 +136,7 @@ As an Admin, I want the AI Conversations Data Source surface and audit log to sh
 - A Feishu Q&A is started by a bound user but the AI provider is unavailable mid-answer: the Wiki AI record records a failure terminal state, the Raw page shows the preserved question and the safe failure message, and search picks it up once indexed.
 - A duplicate Feishu event is replayed (anti-replay): the duplicate does not create a second Wiki AI record, does not produce a second Raw Conversation page, and does not deliver a second answer.
 - A captured Feishu conversation contains content that should not be exposed to public readers: Raw search and Raw page access follow Raw permissions and never leak through public search.
-- A Feishu Q&A is started by a user who later loses permission to read the underlying cited source pages: the captured Raw page is preserved but the answer text is shown as a permission-aware fallback (or states that no accessible material was found) per 019 FR-006 / FR-024 at every subsequent read.
+- A Feishu Q&A is started by a user who later loses permission to read the underlying cited source pages: the captured Raw page is preserved but the answer text is shown as a permission-aware fallback (or states that no accessible material was found) per 019 FR-006 / spec 025 FR-024 at every subsequent read.
 
 ## Requirements *(mandatory)*
 
@@ -215,7 +215,7 @@ As an Admin, I want the AI Conversations Data Source surface and audit log to sh
 
 ## Assumptions
 
-- The wiki already exposes a Wiki AI chat session pipeline (004-system-ai-support), AI Capture → Raw Conversation machinery (023), Feishu binding and bot infrastructure (019), and Raw search with permission-scoped retrieval (013 / 017 / 022). This feature reuses and unifies them rather than introducing new capture or retrieval subsystems.
+- The wiki already exposes a Wiki AI record pipeline (004-system-ai-support), AI Capture → Raw Conversation machinery (023), Feishu binding and bot infrastructure (019), and Raw search with permission-scoped retrieval (013 / 017 / 022). This feature reuses and unifies them rather than introducing new capture or retrieval subsystems.
 - The Feishu integration is the only bot channel covered in scope today; the architectural mandate is that future channels (additional chat platforms, voice, etc.) MUST plug into the same Wiki AI pipeline without introducing parallel history stores, even though their specific transports are out of scope here.
 - The current Feishu Bot Session lifecycle requirements (019 Key Entities, FR-007–FR-010, FR-021, FR-028) continue to apply; this spec only restricts what the Bot Session is allowed to store about the conversation timeline.
 - The existing 023 Data Source for `Wiki AI Conversations` is already deployed in some form; the rename to `AI Conversations` preserves the stored enabled state. If 023 has not yet shipped, this spec governs the label directly without a rename step.
