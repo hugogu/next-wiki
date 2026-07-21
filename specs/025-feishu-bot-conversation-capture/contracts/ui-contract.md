@@ -4,20 +4,20 @@
 
 UI changes are limited to:
 
-1. Renaming the Admin Content Data Sources label from "Wiki AI Conversations" to "AI Conversations" and updating its description to mention every bot channel.
+1. Moving the Admin Data Sources editor into Bots' General settings, renaming the label from "Wiki AI Conversations" to "AI Conversations", and updating its description to mention every bot channel.
 2. Surfacing a `channel` marker on the AI Chat History detail view and on admin-only metadata views of a Raw Conversation page.
 
-No new routes, no new navigation entries, no duplicate feature entry points.
+No duplicate feature entry points. The backend settings API remains stable; the Admin UI has one canonical writable Data Sources surface under `/admin/bots?tab=general`.
 
-## Admin Content Data Sources
+## Admin Bots General Data Sources
 
-The Data Sources panel under Content (`apps/web/src/components/admin/ContentDataSourcesPanel.tsx`, as referenced by 023) renders one row per registered source. After the rename:
+The Data Sources panel is reused inside Bots' General settings (`apps/web/src/components/admin/bots/BotsTabs.tsx` renders `apps/web/src/components/admin/ContentDataSourcesPanel.tsx`). It renders one row per registered source. After the rename and move:
 
 - Label: "AI Conversations"
 - Description: "Capture every AI conversation — Wiki AI and Feishu bot — as Raw Conversation pages."
 - Toggle behavior unchanged: clicking the toggle issues a `PATCH /api/settings/content-data-sources/ai-conversations` with `{ enabled: true | false }`.
 
-The Admin UI never surfaces the legacy `'wiki-ai-conversations'` key. State is preserved automatically.
+The Admin UI never surfaces the legacy `'wiki-ai-conversations'` key. State is preserved automatically. The former Content settings Data Sources location does not remain a writable duplicate; it redirects, links, or otherwise routes Admins to Bots' General settings.
 
 ## AI Chat History Detail
 
@@ -40,7 +40,7 @@ The header hybrid search result preview (017 + 013) already supports Raw Convers
 
 ## Feishu Admin Surfaces
 
-The Feishu integration admin pages are unchanged. The renamed Data Source label is the only first-party UI exposure of this feature. Bot Session views remain unchanged.
+The Feishu provider tab remains under Bots. Bots gains a General tab for shared bot-level configuration, including the unified AI Conversations Data Source. Bot Session views remain unchanged.
 
 ## URL Surface
 

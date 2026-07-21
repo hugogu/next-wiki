@@ -25,6 +25,7 @@ Application rules:
 - `content-data-sources.ts::isDataSourceEnabled` looks up `'ai-conversations'` first; if no row exists, it transparently reads the legacy row's `enabled` value. The Admin UI never shows the legacy row.
 - Writes always target the new key. The legacy row remains a read-only stub.
 - Seed (`apps/web/src/server/seed/index.ts`) inserts the new key on first boot for new deployments. For existing deployments, the first read triggers a lazy migration: if the new key row does not exist but the legacy row does, copy `enabled` + `config` to the new row, optionally mark the legacy row with a future-proof flag indicating "alias-of=ai-conversations" (no schema change; just metadata in `config`).
+- The only writable Admin UI for this source is Bots' General settings (`/admin/bots?tab=general`). The former Content settings Data Sources screen is removed, redirected, or reduced to navigation pointing to Bots' General.
 
 ## Extended JSONB Shape
 
@@ -34,7 +35,7 @@ Additive fields on the existing 023 schema (line `packages/shared/src/ai.ts:662`
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `channel` | `'wiki-ai' \| 'feishu'` (optional) | absent for legacy pages; inferred at capture time for new pages | Recorded from `ai_actions.requestMetadata.origin` of the captured action. `'feishu'` is written when the inbound origin is `'feishu'`; any other (including absent legacy) resolves to `'wiki-ai'`. Read by the admin Data Sources panel and by `RawConversationPointer`. Never indexed as part of the searchable text. |
+| `channel` | `'wiki-ai' \| 'feishu'` (optional) | absent for legacy pages; inferred at capture time for new pages | Recorded from `ai_actions.requestMetadata.origin` of the captured action. `'feishu'` is written when the inbound origin is `'feishu'`; any other (including absent legacy) resolves to `'wiki-ai'`. Read by the Bots' General Data Sources panel and by `RawConversationPointer`. Never indexed as part of the searchable text. |
 
 Backward compatibility: existing revisions (none pre-existing for newly captured Feishu turns because 023 has not shipped widely yet, but pre-existing Wiki AI capture revisions if any) continue to be valid because the new field is `optional()`. Renderer ignores the field; admin surfaces that want to show it treat absent as `'wiki-ai'`.
 
@@ -69,7 +70,7 @@ The existing `source_metadata.schemaVersion = 1` discriminator continues to gate
 ### AI Conversations Data Source (renamed)
 
 - Stored in `content_data_source_settings(source_key='ai-conversations')`.
-- One Admin-facing toggle. State preserved across the rename.
+- One Admin-facing toggle under Bots' General settings. State preserved across the rename.
 - Labels: `dataSources.content.aiConversations.label`, `…description` in i18n.
 
 ### Wiki AI Chat Session
@@ -111,5 +112,6 @@ The new "Channel Marker" field follows these transitions:
 | 5 | Extend `rawConversationSourceMetadataSchema` and `RawConversationPointer` with `channel` | `packages/shared/src/ai.ts` |
 | 6 | Capture worker stamps `channel` per `requestMetadata.origin` | `apps/web/src/server/services/raw-conversations.ts` |
 | 7 | Capture worker threads `origin` to audit entry | `apps/web/src/server/jobs/raw-conversation-capture.ts` |
+| 8 | Move the Admin Data Sources editor into Bots' General settings and remove/redirect the duplicate Content settings editor | `apps/web/src/components/admin/bots/BotsTabs.tsx`, `apps/web/app/(admin)/admin/content/page.tsx` |
 
 No raw content backfill is required. No legacy Bot Session rows need rewrites.

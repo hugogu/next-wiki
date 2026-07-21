@@ -7,7 +7,7 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 **Input**: Design documents from `/specs/025-feishu-bot-conversation-capture/`
 
 - [plan.md](./plan.md) (required)
-- [spec.md](./spec.md) (required — 6 user stories, P1 × 4 / P2 × 1 / P3 × 1)
+- [spec.md](./spec.md) (required — 6 user stories, P1 × 4 / P2 × 1 / P3 × 1; US1 also moves Data Sources into Bots' General settings)
 - [research.md](./research.md)
 - [data-model.md](./data-model.md)
 - [contracts/api-delta.md](./contracts/api-delta.md)
@@ -52,28 +52,31 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ---
 
-## Phase 3: User Story 1 - One AI Conversations Data Source Covers Every Channel (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Bots General Owns One AI Conversations Data Source (Priority: P1) 🎯 MVP
 
-**Goal**: Replace the user-facing "Wiki AI Conversations" toggle with a single `AI Conversations` toggle that covers every channel (web Wiki AI + Feishu bot), preserving the stored enable/disable state of every existing deployment through a lazy in-place migration.
+**Goal**: Replace the user-facing "Wiki AI Conversations" toggle with a single `AI Conversations` toggle under Bots' General settings that covers every channel (web Wiki AI + Feishu bot), preserving the stored enable/disable state of every existing deployment through a lazy in-place migration and eliminating the old Content settings duplicate.
 
-**Independent Test**: Run `GET /api/settings/content-data-sources` as Admin and see exactly one source with `sourceKey='ai-conversations'`, label "AI Conversations", and an enabled state equal to the pre-deploy state. Toggle the source; confirm new web Wiki AI chats create no Raw pages when disabled and create Raw pages when enabled.
+**Independent Test**: Open `/admin/bots?tab=general` as Admin and see exactly one Data Sources section with `AI Conversations`. Run `GET /api/settings/content-data-sources` and see exactly one source with `sourceKey='ai-conversations'`, label "AI Conversations", and an enabled state equal to the pre-deploy state. Toggle the source; confirm new web Wiki AI chats create no Raw pages when disabled and create Raw pages when enabled. Open the former Content settings Data Sources location and confirm it does not expose a second writable editor.
 
 ### Tests for User Story 1 (per project constitution: features that touch AI + public APIs require tests)
 
 - [ ] T007 [P] [US1] Update `apps/web/src/server/services/content-data-sources.test.ts` with cases that (a) existing legacy `'wiki-ai-conversations'` row with `enabled=true` is lazily migrated to `'ai-conversations'` with the same `enabled=true` on first read; (b) Admin list returns only the new key; (c) writes go to the new key; (d) unknown keys still rejected
 - [ ] T008 [P] [US1] Update `apps/web/src/server/services/ai-question.test.ts` to assert that `createWikiQuestion` consults the new `AI_CONVERSATIONS_SOURCE_KEY` and falls back to the legacy alias when the new row is absent; existing capture-status expectations remain green
+- [ ] T009 [P] [US1] Update or add a UI/route test (`apps/web/src/components/admin/bots/BotsTabs.test.tsx` or an E2E spec) asserting `/admin/bots?tab=general` renders the Data Sources panel and the former Content settings Data Sources location does not render a duplicate writable panel
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Update `apps/web/src/server/services/content-data-sources.ts` so that `isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY)` reads the new row first, falls back to the legacy `'wiki-ai-conversations'` row, and lazily creates the new row on first read (lazy migration); the registered source list exposes only the new key for Admin UI
-- [ ] T010 [US1] Update `apps/web/src/server/services/ai-question.ts:71` to read `isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY)` from `@next-wiki/shared` instead of the legacy literal
-- [ ] T011 [US1] Update `apps/web/src/server/seed/index.ts:131` to seed the new `AI_CONVERSATIONS_SOURCE_KEY` row alongside any existing legacy row (legacy row becomes inert)
-- [ ] T012 [P] [US1] Update `apps/web/messages/en.json` — rename `dataSources.content.wikiAiConversations` to `dataSources.content.aiConversations` with `label: "AI Conversations"` and `description: "Capture every AI conversation — Wiki AI and Feishu bot — as Raw Conversation pages."`
-- [ ] T013 [P] [US1] Update `apps/web/messages/zh.json` — same rename + translated label and description
-- [ ] T014 [US1] Verify `apps/web/src/components/admin/ContentDataSourcesPanel.tsx` reads the renamed i18n keys (no inline string change required if it already uses `dataSources.content.*`); update if it references the old literal key
-- [ ] T015 [US1] Regenerate OpenAPI metadata for the renamed Data Source label/description per the project's `AGENTS.md` rule ("When there is API changes, update docs via next-open-api")
+- [ ] T010 [US1] Update `apps/web/src/server/services/content-data-sources.ts` so that `isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY)` reads the new row first, falls back to the legacy `'wiki-ai-conversations'` row, and lazily creates the new row on first read (lazy migration); the registered source list exposes only the new key for Admin UI
+- [ ] T011 [US1] Update `apps/web/src/server/services/ai-question.ts:71` to read `isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY)` from `@next-wiki/shared` instead of the legacy literal
+- [ ] T012 [US1] Update `apps/web/src/server/seed/index.ts:131` to seed the new `AI_CONVERSATIONS_SOURCE_KEY` row alongside any existing legacy row (legacy row becomes inert)
+- [ ] T013 [P] [US1] Update `apps/web/messages/en.json` — rename `dataSources.content.wikiAiConversations` to `dataSources.content.aiConversations` with `label: "AI Conversations"` and `description: "Capture every AI conversation — Wiki AI and Feishu bot — as Raw Conversation pages."`
+- [ ] T014 [P] [US1] Update `apps/web/messages/zh.json` — same rename + translated label and description
+- [ ] T015 [US1] Update `apps/web/src/components/admin/bots/BotsTabs.tsx` and `apps/web/app/(admin)/admin/bots/page.tsx` so Bots has a URL-restorable General tab (`/admin/bots?tab=general`) that renders `ContentDataSourcesPanel`; keep Feishu as a provider tab and preserve `/admin/feishu` redirect behavior
+- [ ] T016 [US1] Update `apps/web/app/(admin)/admin/content/page.tsx` and the admin navigation/i18n as needed so the former Content settings Data Sources location is removed, redirected, or presented only as a link to `/admin/bots?tab=general`; it must not render a second writable `AI Conversations` toggle
+- [ ] T017 [US1] Verify `apps/web/src/components/admin/ContentDataSourcesPanel.tsx` reads the renamed i18n keys (no inline string change required if it already uses `dataSources.content.*`); update if it references the old literal key
+- [ ] T018 [US1] Regenerate OpenAPI metadata for the renamed Data Source label/description per the project's `AGENTS.md` rule ("When there is API changes, update docs via next-open-api")
 
-**Checkpoint**: User Story 1 fully functional. Admins see one AI Conversations toggle, state preserved, web captures correctly gated by it.
+**Checkpoint**: User Story 1 fully functional. Admins see one AI Conversations toggle under Bots General, no duplicate Content settings writer remains, state is preserved, and web captures are correctly gated by it.
 
 ---
 
@@ -85,13 +88,13 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ### Tests for User Story 2
 
-- [ ] T016 [P] [US2] Add unit test `apps/web/src/server/services/raw-conversations.feishu.test.ts` (NEW) asserting: (a) capture of a `wiki_question` action whose `requestMetadata.origin='feishu'` produces a Raw page with `source_metadata.channel='feishu'`; (b) capture of a `wiki_question` action with no origin produces `channel='wiki-ai'`; (c) capture is skipped when `rawConversationCaptureStatus='disabled'` and no Raw page is created; (d) capture is idempotent — running the same action twice produces exactly one Raw page and the action's `rawConversationPageId` pointer is stable
-- [ ] T017 [P] [US2] Add unit test `apps/web/src/server/services/feishu-delegation.test.ts` extension (or a new sibling test) asserting that `handleInboundMessage` calls `createWikiQuestion` with `requestMetadata.origin='feishu'` and `requestMetadata.feishuSessionId=<session.id>` so the capture worker can stamp `channel='feishu'`
+- [ ] T019 [P] [US2] Add unit test `apps/web/src/server/services/raw-conversations.feishu.test.ts` (NEW) asserting: (a) capture of a `wiki_question` action whose `requestMetadata.origin='feishu'` produces a Raw page with `source_metadata.channel='feishu'`; (b) capture of a `wiki_question` action with no origin produces `channel='wiki-ai'`; (c) capture is skipped when `rawConversationCaptureStatus='disabled'` and no Raw page is created; (d) capture is idempotent — running the same action twice produces exactly one Raw page and the action's `rawConversationPageId` pointer is stable
+- [ ] T020 [P] [US2] Add unit test `apps/web/src/server/services/feishu-delegation.test.ts` extension (or a new sibling test) asserting that `handleInboundMessage` calls `createWikiQuestion` with `requestMetadata.origin='feishu'` and `requestMetadata.feishuSessionId=<session.id>` so the capture worker can stamp `channel='feishu'`
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Extend `apps/web/src/server/services/raw-conversations.ts::captureWikiQuestion` (or equivalent capture-path entry around line 332-369) to read `action.requestMetadata.origin` and stamp `source_metadata.channel` on the produced Raw revision (`'feishu'` → `'feishu'`, anything else → `'wiki-ai'`)
-- [ ] T019 [US2] Update `apps/web/src/server/services/raw-conversations.ts::reconstructConversation` (or equivalent view-model assembler) so that the `RawConversationPointer` returned to consumers carries the new `channel` field (read from the captured page's `source_metadata`; default to `'wiki-ai'` when absent)
+- [ ] T021 [US2] Extend `apps/web/src/server/services/raw-conversations.ts::captureWikiQuestion` (or equivalent capture-path entry around line 332-369) to read `action.requestMetadata.origin` and stamp `source_metadata.channel` on the produced Raw revision (`'feishu'` → `'feishu'`, anything else → `'wiki-ai'`)
+- [ ] T022 [US2] Update `apps/web/src/server/services/raw-conversations.ts::reconstructConversation` (or equivalent view-model assembler) so that the `RawConversationPointer` returned to consumers carries the new `channel` field (read from the captured page's `source_metadata`; default to `'wiki-ai'` when absent)
 
 **Checkpoint**: User Story 2 fully functional. Feishu turns flow through the same pipeline and carry the channel marker on every captured Raw page.
 
@@ -105,12 +108,12 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Add `apps/web/src/server/services/feishu-sessions.wrapper.test.ts` (NEW) asserting: (a) `getOrCreateActiveSession` creates exactly one row per (binding, chat); (b) `attachActionToSession` updates only `ai_action_id`, `last_activity_at`, `expires_at`, `state`; (c) `feishuBotSessions` schema does not contain columns named like `question`, `answer`, `citations`, `error_message`, `status`; (d) a duplicate inbound event for the same (binding, chat) within the window upserts the same Bot Session row and does not create a second row
+- [ ] T023 [P] [US3] Add `apps/web/src/server/services/feishu-sessions.wrapper.test.ts` (NEW) asserting: (a) `getOrCreateActiveSession` creates exactly one row per (binding, chat); (b) `attachActionToSession` updates only `ai_action_id`, `last_activity_at`, `expires_at`, `state`; (c) `feishuBotSessions` schema does not contain columns named like `question`, `answer`, `citations`, `error_message`, `status`; (d) a duplicate inbound event for the same (binding, chat) within the window upserts the same Bot Session row and does not create a second row
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Add a header comment to `apps/web/src/server/services/feishu-sessions.ts` documenting the thin-wrapper contract: "Bot Session holds only Feishu-side lifecycle state. Conversation content (question/answer/citations/status) lives exclusively in `ai_actions` / `ai_action_events` and the captured Raw page; do not add timeline columns to `feishuBotSessions`." (formalizes D3)
-- [ ] T022 [US3] No schema change. Verify (and document in the spec's plan.md if needed) that no `feishuBotSessions` migration is required for this feature
+- [ ] T024 [US3] Add a header comment to `apps/web/src/server/services/feishu-sessions.ts` documenting the thin-wrapper contract: "Bot Session holds only Feishu-side lifecycle state. Conversation content (question/answer/citations/status) lives exclusively in `ai_actions` / `ai_action_events` and the captured Raw page; do not add timeline columns to `feishuBotSessions`." (formalizes D3)
+- [ ] T025 [US3] No schema change. Verify (and document in the spec's plan.md if needed) that no `feishuBotSessions` migration is required for this feature
 
 **Checkpoint**: User Story 3 fully functional. Bot Session is contractually documented as a thin wrapper; tests enforce it.
 
@@ -124,13 +127,13 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ### Tests for User Story 4
 
-- [ ] T023 [P] [US4] Add `apps/web/src/server/services/search.feishu-conversations.test.ts` (NEW) integration test asserting: (a) keyword search by a phrase present only in a Feishu-captured turn returns the corresponding Raw page with the `channel` marker; (b) semantic search by a related-but-not-identical phrase returns the same Raw page in the top 5 results when the embedding index is available; (c) a user without Raw read permission gets zero results, zero excerpts, zero counts; (d) direct page-id fetch by the unauthorized user returns `404 not_found`; (e) deep-link from a Feishu reply card lands on the same URL as the search-result open
-- [ ] T024 [P] [US4] Add `apps/web/src/server/jobs/raw-conversation-capture.search-index.test.ts` (NEW) asserting that after a Feishu turn is captured, the captured Raw page is reconciled into the search indexes the same way a web turn is (verifies the `reconcilePageAcrossIndexes` call from `raw-conversations.ts` runs unchanged for Feishu captures)
+- [ ] T026 [P] [US4] Add `apps/web/src/server/services/search.feishu-conversations.test.ts` (NEW) integration test asserting: (a) keyword search by a phrase present only in a Feishu-captured turn returns the corresponding Raw page with the `channel` marker; (b) semantic search by a related-but-not-identical phrase returns the same Raw page in the top 5 results when the embedding index is available; (c) a user without Raw read permission gets zero results, zero excerpts, zero counts; (d) direct page-id fetch by the unauthorized user returns `404 not_found`; (e) deep-link from a Feishu reply card lands on the same URL as the search-result open
+- [ ] T027 [P] [US4] Add `apps/web/src/server/jobs/raw-conversation-capture.search-index.test.ts` (NEW) asserting that after a Feishu turn is captured, the captured Raw page is reconciled into the search indexes the same way a web turn is (verifies the `reconcilePageAcrossIndexes` call from `raw-conversations.ts` runs unchanged for Feishu captures)
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Verify `apps/web/src/server/api/ai/sessions/route.ts` (and `[id]/route.ts`) includes the new `channel` field in their `RawConversationPointer` responses; update if it serializes the pointer manually instead of relying on the shared schema
-- [ ] T026 [US4] Verify `apps/web/src/server/services/search/coordinator.ts` (and candidate-projection) handles `channel='feishu'` captured Raw pages the same way it handles `channel='wiki-ai'` ones (no Feishu-specific branch needed; document the verification in plan.md if not already)
+- [ ] T028 [US4] Verify `apps/web/src/server/api/ai/sessions/route.ts` (and `[id]/route.ts`) includes the new `channel` field in their `RawConversationPointer` responses; update if it serializes the pointer manually instead of relying on the shared schema
+- [ ] T029 [US4] Verify `apps/web/src/server/services/search/coordinator.ts` (and candidate-projection) handles `channel='feishu'` captured Raw pages the same way it handles `channel='wiki-ai'` ones (no Feishu-specific branch needed; document the verification in plan.md if not already)
 
 **Checkpoint**: User Story 4 fully functional. Search discovers captured Feishu turns; permission isolation holds; search-result page-open lands on the canonical Raw Conversation reader.
 
@@ -144,14 +147,14 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ### Tests for User Story 5
 
-- [ ] T027 [P] [US5] Add a snapshot/component test in `apps/web/src/components/chat/__tests__/ConversationSessionView.test.tsx` (NEW if absent) asserting: (a) a `ConversationSessionViewModel` with `pointer.channel='feishu'` renders the localized "Feisshu" badge; (b) a `ConversationSessionViewModel` with no channel (or `channel='wiki-ai'`) renders no badge; (c) the rest of the rendered DOM is identical between the two cases
+- [ ] T030 [P] [US5] Add a snapshot/component test in `apps/web/src/components/chat/__tests__/ConversationSessionView.test.tsx` (NEW if absent) asserting: (a) a `ConversationSessionViewModel` with `pointer.channel='feishu'` renders the localized "Feishu" badge; (b) a `ConversationSessionViewModel` with no channel (or `channel='wiki-ai'`) renders no badge; (c) the rest of the rendered DOM is identical between the two cases
 
 ### Implementation for User Story 5
 
-- [ ] T028 [P] [US5] Update `apps/web/src/components/chat/ConversationSessionView.tsx` to render a small badge near the conversation header when the `channel` field is `'feishu'`; the badge is a non-interactive decorative span with the localized label from i18n
-- [ ] T029 [P] [US5] Update the search-result preview component used by the header hybrid search to render the same "Feishu" chip when the underlying Raw Conversation page has `channel='feishu'`
-- [ ] T030 [P] [US5] Add i18n keys `chat.history.feishuBadge.label` in `apps/web/messages/en.json` ("Feishu") and `apps/web/messages/zh.json` ("飞书")
-- [ ] T031 [P] [US5] Update `apps/web/src/i18n/keys.ts` if it tracks keys statically (verify against current shape)
+- [ ] T031 [P] [US5] Update `apps/web/src/components/chat/ConversationSessionView.tsx` to render a small badge near the conversation header when the `channel` field is `'feishu'`; the badge is a non-interactive decorative span with the localized label from i18n
+- [ ] T032 [P] [US5] Update the search-result preview component used by the header hybrid search to render the same "Feishu" chip when the underlying Raw Conversation page has `channel='feishu'`
+- [ ] T033 [P] [US5] Add i18n keys `chat.history.feishuBadge.label` in `apps/web/messages/en.json` ("Feishu") and `apps/web/messages/zh.json` ("飞书")
+- [ ] T034 [P] [US5] Update `apps/web/src/i18n/keys.ts` if it tracks keys statically (verify against current shape)
 
 **Checkpoint**: User Story 5 fully functional. Visual parity between web and Feishu captures is preserved; the channel badge is purely additive metadata.
 
@@ -165,12 +168,12 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 ### Tests for User Story 6
 
-- [ ] T032 [P] [US6] Add `apps/web/src/server/jobs/raw-conversation-capture.audit.test.ts` (NEW) asserting: (a) when the underlying action's `requestMetadata.origin='feishu'`, the audit entry is written with `origin='feishu'`; (b) when origin is absent or `'web'`, the audit entry uses `origin='web'`; (c) the audit entry excludes raw question, answer, and any `appSecret`/`apiKey` substring from the correlation id and any other persisted field
+- [ ] T035 [P] [US6] Add `apps/web/src/server/jobs/raw-conversation-capture.audit.test.ts` (NEW) asserting: (a) when the underlying action's `requestMetadata.origin='feishu'`, the audit entry is written with `origin='feishu'`; (b) when origin is absent or `'web'`, the audit entry uses `origin='web'`; (c) the audit entry excludes raw question, answer, and any `appSecret`/`apiKey` substring from the correlation id and any other persisted field
 
 ### Implementation for User Story 6
 
-- [ ] T033 [US6] Update `apps/web/src/server/jobs/raw-conversation-capture.ts` so the audit `writeEntry` call site reads `action.requestMetadata.origin` and sets `entry.origin = origin === 'feishu' ? 'feishu' : 'web'`
-- [ ] T034 [US6] Verify `apps/web/src/server/services/audit.ts` does not log raw question/answer or credential text; add a redaction helper if needed (existing 019 FR-027 work should already cover this; document any gap)
+- [ ] T036 [US6] Update `apps/web/src/server/jobs/raw-conversation-capture.ts` so the audit `writeEntry` call site reads `action.requestMetadata.origin` and sets `entry.origin = origin === 'feishu' ? 'feishu' : 'web'`
+- [ ] T037 [US6] Verify `apps/web/src/server/services/audit.ts` does not log raw question/answer or credential text; add a redaction helper if needed (existing 019 FR-027 work should already cover this; document any gap)
 
 **Checkpoint**: User Story 6 fully functional. Admin surfaces can trace Feishu captures through the audit log with correct origin and zero leakage.
 
@@ -180,13 +183,13 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 
 **Purpose**: Documentation, MCP surface, full-stack verification, and end-to-end validation.
 
-- [ ] T035 [P] Update `packages/mcp-server` to expose `channel` on Raw Conversation results returned by `next-wiki_search_wiki` (or equivalent search tool); update tool descriptions
-- [ ] T036 [P] Regenerate any project-level `docs/architecture/...` references that mention the data source label (verify there are no other references to `wiki-ai-conversations` via grep)
-- [ ] T037 Run `pnpm typecheck` and `pnpm lint`; resolve any new warnings/errors
-- [ ] T038 Run `pnpm --filter @next-wiki/web test` (Vitest); confirm no regressions to 019/023/004/022 tests
-- [ ] T039 Run `pnpm db:generate` (must report "No schema changes, nothing to migrate") — verifies no Drizzle migration was hand-authored
-- [ ] T040 Run `docker compose up -d --build` smoke test; follow `quickstart.md` validation steps 1–12 end-to-end
-- [ ] T041 Capture a final note in `specs/025-feishu-bot-conversation-capture/notes.md` (NEW) summarizing the post-merge state (e.g. "AI Conversations toggle live; Feishu captures produce channel='feishu' Raw pages; legacy state preserved") for the next agent
+- [ ] T038 [P] Update `packages/mcp-server` to expose `channel` on Raw Conversation results returned by `next-wiki_search_wiki` (or equivalent search tool); update tool descriptions
+- [ ] T039 [P] Regenerate any project-level `docs/architecture/...` references that mention the data source label (verify there are no other references to `wiki-ai-conversations` via grep)
+- [ ] T040 Run `pnpm typecheck` and `pnpm lint`; resolve any new warnings/errors
+- [ ] T041 Run `pnpm --filter @next-wiki/web test` (Vitest); confirm no regressions to 019/023/004/022 tests
+- [ ] T042 Run `pnpm db:generate` (must report "No schema changes, nothing to migrate") — verifies no Drizzle migration was hand-authored
+- [ ] T043 Run `docker compose up -d --build` smoke test; follow `quickstart.md` validation steps 1–12 end-to-end
+- [ ] T044 Capture a final note in `specs/025-feishu-bot-conversation-capture/notes.md` (NEW) summarizing the post-merge state (e.g. "AI Conversations toggle live under Bots General; Feishu captures produce channel='feishu' Raw pages; legacy state preserved") for the next agent
 
 ---
 
@@ -219,18 +222,18 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 ### Parallel Opportunities
 
 - T003, T004, T006 (different files in `packages/shared`) run in parallel inside Phase 2.
-- T012, T013 (en.json vs zh.json) run in parallel.
-- T009, T010, T011, T014, T015 run sequentially after T007/T008 (they touch shared service/seed files; small contention).
-- T016, T017 run in parallel (different test files).
-- T018, T019 run sequentially within `raw-conversations.ts`.
-- T020 runs alone (single test file).
-- T021, T022 run sequentially (header comment + verification).
-- T023, T024 run in parallel (different test files).
-- T025, T026 run sequentially (both verify existing code paths).
-- T027, T028, T029, T030, T031 run in parallel (different component/i18n files).
-- T032, T033, T034 run sequentially (test + capture worker + audit service).
-- T035, T036 run in parallel.
-- T037–T041 run sequentially (verification chain).
+- T013, T014 (en.json vs zh.json) run in parallel.
+- T010, T011, T012, T015, T016, T017, T018 run sequentially after T007/T008/T009 (they touch shared service/seed/UI files; small contention).
+- T019, T020 run in parallel (different test files).
+- T021, T022 run sequentially within `raw-conversations.ts`.
+- T023 runs alone (single test file).
+- T024, T025 run sequentially (header comment + verification).
+- T026, T027 run in parallel (different test files).
+- T028, T029 run sequentially (both verify existing code paths).
+- T030, T031, T032, T033, T034 run in parallel (different component/i18n files).
+- T035, T036, T037 run sequentially (test + capture worker + audit service).
+- T038, T039 run in parallel.
+- T040–T044 run sequentially (verification chain).
 
 ---
 
@@ -241,19 +244,22 @@ description: "Task list for Feishu Bot Conversation Capture (025)"
 # 1. Write the failing tests in parallel:
 Task: "Update content-data-sources.test.ts with rename + lazy migration cases (T007)"
 Task: "Update ai-question.test.ts to assert new key is consulted (T008)"
+Task: "Update Bots General route/UI test for canonical Data Sources location (T009)"
 
-# 2. After both tests fail, implement in order:
-Task: "Update apps/web/src/server/services/content-data-sources.ts lazy migration (T009)"
-Task: "Update apps/web/src/server/services/ai-question.ts to use new key (T010)"
-Task: "Update apps/web/src/server/seed/index.ts to seed new key (T011)"
+# 2. After these tests fail, implement in order:
+Task: "Update apps/web/src/server/services/content-data-sources.ts lazy migration (T010)"
+Task: "Update apps/web/src/server/services/ai-question.ts to use new key (T011)"
+Task: "Update apps/web/src/server/seed/index.ts to seed new key (T012)"
 
 # 3. Rename the user-facing label in parallel:
-Task: "Update apps/web/messages/en.json i18n rename (T012)"
-Task: "Update apps/web/messages/zh.json i18n rename (T013)"
+Task: "Update apps/web/messages/en.json i18n rename (T013)"
+Task: "Update apps/web/messages/zh.json i18n rename (T014)"
 
 # 4. Verify and finalize:
-Task: "Verify ContentDataSourcesPanel reads renamed i18n keys (T014)"
-Task: "Regenerate OpenAPI metadata (T015)"
+Task: "Move Data Sources into Bots General (T015)"
+Task: "Remove or redirect duplicate Content settings writer (T016)"
+Task: "Verify ContentDataSourcesPanel reads renamed i18n keys (T017)"
+Task: "Regenerate OpenAPI metadata (T018)"
 ```
 
 ---
@@ -262,12 +268,12 @@ Task: "Regenerate OpenAPI metadata (T015)"
 
 ```bash
 # Tests first, in parallel:
-Task: "Write apps/web/src/server/services/raw-conversations.feishu.test.ts (T016)"
-Task: "Write feishu-delegation.test.ts extension asserting createWikiQuestion args (T017)"
+Task: "Write apps/web/src/server/services/raw-conversations.feishu.test.ts (T019)"
+Task: "Write feishu-delegation.test.ts extension asserting createWikiQuestion args (T020)"
 
 # Then implementation, in order:
-Task: "Extend raw-conversations.ts captureWikiQuestion to stamp channel on source_metadata (T018)"
-Task: "Update reconstructConversation (or pointer serializer) to carry channel (T019)"
+Task: "Extend raw-conversations.ts captureWikiQuestion to stamp channel on source_metadata (T021)"
+Task: "Update reconstructConversation (or pointer serializer) to carry channel (T022)"
 ```
 
 ---
@@ -286,7 +292,7 @@ MVP delivery path:
 4. Complete Phase 4: User Story 2 — capture stamps `channel='feishu'`.
 5. Complete Phase 5: User Story 3 — formalize thin wrapper contract.
 6. Complete Phase 6: User Story 4 — search discovers Feishu captures.
-7. **STOP and VALIDATE**: Run quickstart.md steps 1–10 against a fresh deployment; confirm SC-001 through SC-009 pass.
+7. **STOP and VALIDATE**: Run quickstart.md steps 1–12 against a fresh deployment; confirm SC-001 through SC-010 pass.
 8. Deploy/demo if ready.
 
 ### Incremental Delivery

@@ -21,19 +21,19 @@ The key constant lives in `packages/shared/src/content-data-sources.ts:8` as `WI
 - `apps/web/src/server/seed/index.ts:131` (initial seed row)
 - Test files in `apps/web/src/server/services/content-data-sources.test.ts`
 
-The user's wording ("all bots share the same AI core") implies renaming the literal from `wiki-ai-conversations` to `ai-conversations` while keeping the stored state of every existing deployment.
+The user's wording ("all bots share the same AI core") implies renaming the literal from `wiki-ai-conversations` to `ai-conversations` while keeping the stored state of every existing deployment. The follow-up admin-product goal is to consolidate Data Sources configuration into Bots' General settings, so the UI editor moves to `/admin/bots?tab=general` while the backend settings route remains the same stable API.
 
-- **Decision**: introduce a new canonical `AI_CONVERSATIONS_SOURCE_KEY = 'ai-conversations'`, treat the old key as a legacy alias, and lazily migrate the persisted row on first read after deploy. Update seed to also write the new key. Update i18n label.
-- **Rationale**: preserves the stored enable/disable state for every Admin without a manual migration. Keeps the behavior identical at runtime after the rename.
-- **Alternatives considered**: (a) hard-cut, no alias — rejected because it would silently flip every deployed Admin's setting if we naively re-seeded. (b) keep two parallel settings — rejected because the user explicitly chose one toggle. (c) keep the old literal and only relabel the UI string — rejected because the user wants the persisted key itself to reflect "AI Conversations" not "Wiki AI Conversations."
+- **Decision**: introduce a new canonical `AI_CONVERSATIONS_SOURCE_KEY = 'ai-conversations'`, treat the old key as a legacy alias, and lazily migrate the persisted row on first read after deploy. Update seed to also write the new key. Update i18n label. Reuse `ContentDataSourcesPanel` inside Bots' General settings and remove/redirect the old Content settings writer so there is no duplicate configuration surface.
+- **Rationale**: preserves the stored enable/disable state for every Admin without a manual migration. Keeps the behavior identical at runtime after the rename and places shared bot/conversation retention policy with the rest of bot configuration.
+- **Alternatives considered**: (a) hard-cut, no alias — rejected because it would silently flip every deployed Admin's setting if we naively re-seeded. (b) keep two parallel settings — rejected because the user explicitly chose one toggle. (c) keep the old literal and only relabel the UI string — rejected because the user wants the persisted key itself to reflect "AI Conversations" not "Wiki AI Conversations." (d) leave the Data Sources editor under Content settings — rejected because it keeps bot conversation retention policy split from Bots' General settings.
 
 ## Finding 3 — `feishuBotSessions` is already a thin wrapper; no schema changes needed
 
 Table definition: `apps/web/src/server/db/schema/index.ts:1779-1798`. Columns: `id`, `binding_id`, `chat_id`, `ai_action_id`, `state`, `last_activity_at`, `expires_at`. No question/answer/citations/status fields. Multi-turn reconstruction already lives in `apps/web/src/server/services/feishu-sessions.ts:121` via `requestMetadata.feishuSessionId` tagging; `attachActionToSession` (`feishu-sessions.ts:95`) rewires the Bot Session to each new turn's `ai_action`.
 
 - **Decision**: do not modify the Bot Session schema. Treat this spec as formalizing the existing thin-wrapper contract.
-- **Rationale**: the codebase already satisfies FR-011/FR-012/FR-013. Adding fields would re-create the parallel-history problem the user wants to remove.
-- **Alternatives considered**: (a) collapse Bot Session into the underlying action — rejected because the Bot Session holds Feishu-specific state (`chatId`, `bindingId`, session window, group fan-out state) that an `ai_action` does not. (b) keep Bot Session and add a Feishu timeline table — rejected explicitly by FR-012.
+- **Rationale**: the codebase already satisfies FR-012/FR-013/FR-014. Adding fields would re-create the parallel-history problem the user wants to remove.
+- **Alternatives considered**: (a) collapse Bot Session into the underlying action — rejected because the Bot Session holds Feishu-specific state (`chatId`, `bindingId`, session window, group fan-out state) that an `ai_action` does not. (b) keep Bot Session and add a Feishu timeline table — rejected explicitly by FR-013.
 
 ## Finding 4 — Captured Raw Conversation pages already flow through the same search code path
 
@@ -48,7 +48,7 @@ The search coordinator (`apps/web/src/server/services/search/coordinator.ts` ref
 `apps/web/src/server/db/schema/enums.ts:309` defines `auditOriginEnum = ['web', 'api', 'feishu']`. The Feishu delegation service writes `origin: 'feishu'` at lines 103 and 120 of `feishu-delegation.ts`. The capture worker, however, runs after the action is created and may currently log under the worker's actor (machine) without preserving the originating channel.
 
 - **Decision**: in `apps/web/src/server/jobs/raw-conversation-capture.ts`, read `action.requestMetadata.origin` and propagate `auditEntry.origin = origin === 'feishu' ? 'feishu' : 'web'`.
-- **Rationale**: keeps FR-020 honest — every Feishu-captured audit entry carries `origin='feishu'` without leaking question/answer text (the audit entry already only stores neutral identifiers per 019 FR-027).
+- **Rationale**: keeps FR-021 honest — every Feishu-captured audit entry carries `origin='feishu'` without leaking question/answer text (the audit entry already only stores neutral identifiers per 019 FR-027).
 - **Alternatives considered**: (a) always write `origin='web'` — rejected because it loses traceability. (b) introduce a new `origin='bot'` — rejected because `'feishu'` already exists and matches 019.
 
 ## Finding 6 — Source-metadata schema carries `sourceType='wiki-ai-conversation'`, which we extend with `channel`
@@ -56,8 +56,8 @@ The search coordinator (`apps/web/src/server/services/search/coordinator.ts` ref
 `packages/shared/src/ai.ts:662` defines `rawConversationSourceMetadataSchema`. Its current shape uses `sourceType: 'wiki-ai-conversation'` as the renderer-dispatch discriminator, with `schemaVersion: 1`. Adding an optional `channel` field is forward-compatible: legacy pages keep working because the field is `optional()`.
 
 - **Decision**: add `wikiAiChannelSchema = z.enum(['wiki-ai', 'feishu'])` and a `channel: wikiAiChannelSchema.optional()` field on the schema. Stamp it in the capture worker based on `action.requestMetadata.origin`.
-- **Rationale**: tracks Spec FR-018 (channel visible in admin surfaces where applicable without changing reader layout) while keeping the renderer behavior stable.
-- **Alternatives considered**: (a) put channel on `RawConversationPointer` only — rejected, because the page revision itself is the canonical record. (b) introduce a per-revision discriminator like `sourceType='feishu-conversation'` — rejected, because the renderer dispatches on the existing `sourceType='wiki-ai-conversation'` and changing it would break 023. (c) drop the channel marker entirely — rejected, because admins lose traceability per FR-018.
+- **Rationale**: tracks Spec FR-019 (channel visible in admin surfaces where applicable without changing reader layout) while keeping the renderer behavior stable.
+- **Alternatives considered**: (a) put channel on `RawConversationPointer` only — rejected, because the page revision itself is the canonical record. (b) introduce a per-revision discriminator like `sourceType='feishu-conversation'` — rejected, because the renderer dispatches on the existing `sourceType='wiki-ai-conversation'` and changing it would break 023. (c) drop the channel marker entirely — rejected, because admins lose traceability per FR-019.
 
 ## Finding 7 — Per-turn (not per-session) Raw page semantics align with 023 and the user's principle
 
@@ -69,7 +69,7 @@ The search coordinator (`apps/web/src/server/services/search/coordinator.ts` ref
 
 ## Finding 8 — Termination on unbind preserves the captured Raw page under retention
 
-019 FR-028 already requires the Bot Session to expire immediately on unbind/revocation/deactivation. Adding the same termination to the underlying `ai_action` is unnecessary: a captured Raw page is independent of the originating Bot Session and follows Raw retention. Permission re-checks at read time already enforce FR-023 (no discovery by users who lack Raw read permission).
+019 FR-028 already requires the Bot Session to expire immediately on unbind/revocation/deactivation. Adding the same termination to the underlying `ai_action` is unnecessary: a captured Raw page is independent of the originating Bot Session and follows Raw retention. Permission re-checks at read time already enforce FR-024 (no discovery by users who lack Raw read permission).
 
 - **Decision**: when a Feishu binding is unbound, mark active Bot Sessions `state='expired'` (existing) and `cancelRequested=true` for any not-yet-started actions referencing that binding through `requestMetadata.feishuSessionId`. Already-published actions and their Raw pages are preserved under retention; access at read time goes through `can('read', ...)` as for any other Raw page.
 - **Rationale**: keeps the user's invariant that Raw evidence is append-only while honoring 019's bot-side termination requirement.

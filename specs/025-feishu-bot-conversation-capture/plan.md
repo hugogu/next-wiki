@@ -5,9 +5,9 @@
 
 ## Summary
 
-Wire Feishu bot Q&A through the existing Wiki AI chat pipeline so the 023 Raw Conversation capture machinery produces one Raw Conversation page per Feishu turn, indistinguishable from a Wiki AI web capture except for a `channel` metadata marker. Drop the now-misleading "Wiki AI" branding from the user-facing Data Source — admins see one `AI Conversations` toggle that covers every channel — and shrink the Feishu Bot Session surface so all conversation content lives in `ai_actions` / `ai_action_events` while the Bot Session carries only Feishu-side lifecycle state.
+Wire Feishu bot Q&A through the existing Wiki AI chat pipeline so the 023 Raw Conversation capture machinery produces one Raw Conversation page per Feishu turn, indistinguishable from a Wiki AI web capture except for a `channel` metadata marker. Drop the now-misleading "Wiki AI" branding from the user-facing Data Source — admins see one `AI Conversations` toggle under Bots' General settings that covers every channel — and shrink the Feishu Bot Session surface so all conversation content lives in `ai_actions` / `ai_action_events` while the Bot Session carries only Feishu-side lifecycle state.
 
-This is largely a thin verification + relabel pass: the wiring was already laid in by 004/019/023. The capture pipeline reaches Feishu turns because the Feishu delegation service (`apps/web/src/server/services/feishu-delegation.ts:98`) already calls `createWikiQuestion(...)`, which sets `rawConversationCaptureStatus='pending'` when the data source is enabled. The work here is to (a) rename the data-source key + admin label without resetting state, (b) extend the Raw Conversation source-metadata schema with a `channel` marker so operators and admin surfaces can tell a Feishu capture from a web capture, (c) propagate the channel marker through `RawConversationPointer` so the AI Chat History surfaces show the origin, and (d) add tests that prove a Feishu turn is captured, searchable, permission-gated, and that the existing turn-to-ai-action mapping in `feishu-sessions.ts` keeps producing one Raw page per turn.
+This is largely a thin verification + relabel + admin-surface consolidation pass: the wiring was already laid in by 004/019/023. The capture pipeline reaches Feishu turns because the Feishu delegation service (`apps/web/src/server/services/feishu-delegation.ts:98`) already calls `createWikiQuestion(...)`, which sets `rawConversationCaptureStatus='pending'` when the data source is enabled. The work here is to (a) rename the data-source key + admin label without resetting state, (b) move the Data Sources admin panel into `/admin/bots` as the Bots General settings tab and remove/redirect the old Content settings editor, (c) extend the Raw Conversation source-metadata schema with a `channel` marker so operators and admin surfaces can tell a Feishu capture from a web capture, (d) propagate the channel marker through `RawConversationPointer` so the AI Chat History surfaces show the origin, and (e) add tests that prove a Feishu turn is captured, searchable, permission-gated, and that the existing turn-to-ai-action mapping in `feishu-sessions.ts` keeps producing one Raw page per turn.
 
 ## Technical Context
 
@@ -25,9 +25,9 @@ This is largely a thin verification + relabel pass: the wiring was already laid 
 
 **Performance Goals**: No regression on the existing 023 capture path. Feishu capture enqueue remains on the same line as web capture. Conversation search remains within the header hybrid search's 1.5s immediate-results target for available results. Bot Session session-window reset still < 50 ms in p95 for the in-Feishu turn path.
 
-**Constraints**: No new stateful service; no new external dependency; no parallel Feishu-only chat-history table; no parallel timeline of question/answer/citation/status on the Bot Session; Raw pages remain append-only; every Raw Conversation read or search hit must re-check Raw permissions; bot actions stay attributed to the bound wiki user and recorded under `audit_origin='feishu'`; rename of the data-source key must preserve the stored enabled/disabled state of every deployment; existing legacy `wiki-ai-conversations` rows remain functional during the rename window and are migrated in place; the existing 023 capture semantics (one Raw Conversation page per captured `wiki_question` action, multi-turn continuity lives in the Bot Session plus multiple per-turn Raw pages) are preserved.
+**Constraints**: No new stateful service; no new external dependency; no parallel Feishu-only chat-history table; no parallel timeline of question/answer/citation/status on the Bot Session; Raw pages remain append-only; every Raw Conversation read or search hit must re-check Raw permissions; bot actions stay attributed to the bound wiki user and recorded under `audit_origin='feishu'`; rename of the data-source key must preserve the stored enabled/disabled state of every deployment; existing legacy `wiki-ai-conversations` rows remain functional during the rename window and are migrated in place; the existing 023 capture semantics (one Raw Conversation page per captured `wiki_question` action, multi-turn continuity lives in the Bot Session plus multiple per-turn Raw pages) are preserved; `/admin/bots` is the only writable Admin UI entry for Data Sources after this feature.
 
-**Scale/Scope**: One persistent key literal change; one renamed admin label; one additive `channel` field on the Raw Conversation source metadata schema; one additive `channel` field on `RawConversationPointer`; one `WikiAiChannel` Zod enum constant; one Feishu-specific capture worker test; one rename migration step inside the existing data-source settings table; one admin UI label rename in `apps/web/messages/{en,zh}.json`; no package or service split.
+**Scale/Scope**: One persistent key literal change; one renamed admin label; one Admin UI move from `/admin/content` to Bots' General settings under `/admin/bots`; one additive `channel` field on the Raw Conversation source metadata schema; one additive `channel` field on `RawConversationPointer`; one `WikiAiChannel` Zod enum constant; one Feishu-specific capture worker test; one rename migration step inside the existing data-source settings table; one admin UI label rename in `apps/web/messages/{en,zh}.json`; no package or service split.
 
 ## Constitution Check
 
@@ -42,12 +42,12 @@ Source: `.specify/memory/constitution.md` v2.2.0 and linked architecture mandate
 | P3 Portable AI Memory | PASS | The captured Feishu turn becomes a Raw Conversation page (Raw-space, append-only, permission-scoped, versioned), identical to a Wiki-AI-web capture except for the new `channel` marker. No second-class AI table, no parallel Feishu-only history store. |
 | P4 Rendering Pipeline | PASS | The conversation renderer dispatch in 022/023 handles the new `channel` field as a typed render hint only; the renderer pipeline itself is unchanged. |
 | P5 Permissions First-Class | PASS | Every Raw Conversation read (search, page open, history deep-link) re-checks Raw read permission. The Feishu integration does not bypass `can()`; the channel marker is metadata for admin visibility, not a permission grant. |
-| P6 Style System & UI Consistency | PASS | The capture surface inherits the existing admin Data Sources panel primitives; the conversation detail component already feeds both AI Chat History and Raw Conversation reads. |
+| P6 Style System & UI Consistency | PASS | The capture surface reuses the existing admin Data Sources panel primitives inside Bots' General settings; the conversation detail component already feeds both AI Chat History and Raw Conversation reads. |
 | P7 Async-First | PASS | Capture remains a coalesced pg-boss job; the Feishu turn does not introduce synchronous work in the request handler. |
 | P8 Version Everything | PASS | Each capture writes a new immutable Raw revision. The `source_metadata` schema is versioned (`schemaVersion: 1`); extending it with `channel` is forward-compatible and the renderer tolerates absent markers. |
 | P9 Open Standards | PASS | The Data Source update API and AI session list/detail endpoints stay REST + OpenAPI; `next-open-api` metadata is regenerated for the renamed source label and the additional `channel` field. |
 | P10 Explicit Over Implicit | PASS | The data-source is still registered by stable key; the new key is published through `packages/shared/src/content-data-sources.ts`; the Feishu capture path is the same explicit handler as the web capture path. |
-| P11 Native Navigation & Unified Entry Points | PASS | Every surface that points at a captured Feishu conversation (Search result, AI Chat History list/detail, search-result excerpt, Raw Conversation page, deep link) routes through the canonical Raw page URL and the canonical AI session detail URL. No new entry points. |
+| P11 Native Navigation & Unified Entry Points | PASS | Every surface that points at a captured Feishu conversation (Search result, AI Chat History list/detail, search-result excerpt, Raw Conversation page, deep link) routes through the canonical Raw page URL and the canonical AI session detail URL. Data Sources has one canonical Admin entry under `/admin/bots?tab=general`; the old Content settings entry redirects or links there instead of duplicating state. |
 | P12 Public Reading Static by Default | PASS | This feature does not change anonymously readable content, public metadata, or public navigation. Raw Conversation pages remain authenticated Raw-space resources; the rename touches only Admin UI labels. |
 | AI Knowledge Layer mandate | PASS | The derived indexing pipeline indexes captured Feishu turns the same way it indexes captured web turns; the `channel` field is metadata, not part of the indexed text. |
 | AI Chat Side Pane mandate | PASS | The persistent AI chat side pane is the canonical Wiki AI surface; the Feishu turn reuses it. The data model continues to treat conversation `status` as the canonical lifecycle indicator for both channels. |
@@ -55,7 +55,7 @@ Source: `.specify/memory/constitution.md` v2.2.0 and linked architecture mandate
 | Frontend Routing & URL Contract mandate | PASS | Same URLs as 023 — `/spaces/raw/conversations/...` for Raw Conversation pages, plus the canonical AI session detail URL for the Feishu side. Breadcrumbs derive from the route hierarchy and the page tree. |
 | Public Content Delivery mandate | N/A | The feature does not change anonymous published content, public metadata, or public navigation. No ISR/static cache impact. |
 | Frontend Data Flow mandate | PASS | Server state via TanStack Query (settings + history), URL state for filters, Zustand for local chat UI. No new state surface introduced. |
-| API Architecture mandate | PASS | Route handlers are thin adapters over shared Zod schemas. Internal settings/sessions routes and the v1 raw resource shapes are the only changed APIs; `next-open-api` regenerates accordingly. |
+| API Architecture mandate | PASS | Route handlers are thin adapters over shared Zod schemas. Internal settings/sessions routes and the v1 raw resource shapes are the only changed APIs; `next-open-api` regenerates accordingly. The backend settings API stays stable while the Admin UI moves the editor into Bots' General settings. |
 | Project Structure mandate | PASS | No new package. All changes live under `apps/web/src/server` (`services`, `db/schema`, `jobs`), `packages/shared/src`, `apps/web/messages`, and tests. |
 
 ### Post-Design Re-check
@@ -64,7 +64,7 @@ PASS. Phase 1 design adds zero constitution violation. The unification (one data
 
 ### Public Content Delivery gate
 
-N/A. The feature does not change anonymously readable published page bodies, public metadata, or public navigation. Raw Conversation pages are authenticated Raw-space resources, never part of the public/ISR document body.
+N/A. The feature does not change anonymously readable published page bodies, public metadata, or public navigation. Raw Conversation pages are authenticated Raw-space resources, never part of the public/ISR document body. Moving the Data Sources editor into Bots' General settings is an Admin-only navigation change.
 
 Gate result: **PASS — no violations, no justifications required.**
 
@@ -99,11 +99,13 @@ apps/web/
 │   ├── jobs/
 │   │   └── raw-conversation-capture.ts      # carry the capturing user/channel through audit metadata
 │   ├── api/
-│   │   └── settings/content-data-sources/   # rename source label in v1 contract
+│   │   └── settings/content-data-sources/   # rename source label in backend settings contract
 │   └── (existing services untouched)
+├── app/(admin)/admin/content/page.tsx      # remove duplicate editor or redirect/link to /admin/bots?tab=general
 ├── src/i18n/keys.ts                        # `contentDataSources.wikiAiConversations.label/description` -> `aiConversations.*`
 ├── messages/{en.json,zh.json}              # rename `dataSources.content.wikiAiConversations` → `dataSources.content.aiConversations`
-└── src/components/admin/ContentDataSourcesPanel.tsx  # read renamed i18n key; description now mentions every bot channel
+├── src/components/admin/ContentDataSourcesPanel.tsx  # reused inside Bots General; read renamed i18n key
+└── src/components/admin/bots/BotsTabs.tsx            # add General tab containing Data Sources, keep Feishu as provider tab
 packages/
 ├── shared/src/
 │   ├── content-data-sources.ts             # new `AI_CONVERSATIONS_SOURCE_KEY` (canonical) with back-compat alias from old key
@@ -120,7 +122,7 @@ apps/web/src/server/jobs/
 
 ## Design Decisions
 
-### D1 — One Data Source key, one admin label, with back-compat alias
+### D1 — One Data Source key, one admin label, Bots General owns the editor
 
 The 023 pipeline already keys every captured `wiki_question` action off `WIKI_AI_CONVERSATIONS_SOURCE_KEY` (`packages/shared/src/content-data-sources.ts:8`). The user's "all bots share the same AI core" principle implies renaming the user-facing concept from "Wiki AI Conversations" to "AI Conversations" without changing the captured behavior. To preserve stored state on every existing deployment:
 
@@ -128,6 +130,8 @@ The 023 pipeline already keys every captured `wiki_question` action off `WIKI_AI
 - Treat the old key as a legacy alias: `content-data-sources.ts` keeps reading from `'wiki-ai-conversations'` if no `'ai-conversations'` row exists yet, and writes go to the new key.
 - One-shot seed migration: on first startup after the deploy, if the legacy row exists but the new one does not, copy `enabled` + `config` from the legacy row to the new key, mark the legacy row hidden behind a `legacy_alias_for='ai-conversations'` flag (or simply retire it from the registered list), and continue using the new key going forward.
 - The i18n label in `apps/web/messages/{en,zh}.json` renames `dataSources.content.wikiAiConversations` to `dataSources.content.aiConversations` with description text updated to mention every bot channel.
+- Move the `ContentDataSourcesPanel` UI from the Content admin page into a new General tab on `/admin/bots` (`/admin/bots?tab=general`), so shared bot capture settings live alongside bot-provider configuration.
+- Remove the old Content settings editor, or convert `/admin/content` / its Data Sources navigation item into a redirect/link to `/admin/bots?tab=general`; it must not remain a second writable surface.
 - The Feishu delegation service does not change its call into `createWikiQuestion`; the channel marker on the captured Raw page is inferred by the capture worker (see D2), so the runtime hot path stays identical.
 
 `isDataSourceEnabled` reads from the new key with a fallback to the legacy alias for the duration of the deployment window. This is a no-risk in-place state migration: every existing Admin keeps seeing the same enable/disable state for the same underlying switch.
@@ -144,7 +148,7 @@ Capture inference rule (in `apps/web/src/server/services/raw-conversations.ts::c
 - `'feishu'` → `channel='feishu'`
 - any other (including absent legacy) → `channel='wiki-ai'`
 
-This is a typed, deterministic inference from existing fields; it does not require schema migrations, does not store any raw text, and does not change rendered content. Admin-only surfaces (the `dataSources.content.aiConversations` panel under Content, the `RawConversationPointer.channel` on AI Chat History detail) display this marker; the reader layout itself is unchanged.
+This is a typed, deterministic inference from existing fields; it does not require schema migrations, does not store any raw text, and does not change rendered content. Admin-only surfaces (the `dataSources.content.aiConversations` panel under Bots' General settings, the `RawConversationPointer.channel` on AI Chat History detail) display this marker; the reader layout itself is unchanged.
 
 ### D3 — Bot Session remains a thin Feishu-specific wrapper
 
@@ -199,6 +203,7 @@ These tests guard the user's primary success criterion: "the conversation search
 | 4 | Update i18n key `dataSources.content.wikiAiConversations` → `dataSources.content.aiConversations` in both `apps/web/messages/en.json` and `apps/web/messages/zh.json`. |
 | 5 | Schema: add `wikiAiChannelSchema` to `packages/shared/src/ai.ts` and the optional `channel` field to `rawConversationSourceMetadataSchema` and `RawConversationPointer`. Capture worker stamps `channel` per D2. No Drizzle migration required (additive metadata on existing JSON column). |
 | 6 | Audit thread: `raw-conversation-capture.ts` carries the origin through to the audit entry. |
+| 7 | Admin UI: render the Data Sources panel from Bots' General settings and remove/redirect the old Content settings writer so there is one canonical editor. |
 
 No raw content backfill is required. No legacy Feishu Bot Session rows need rewrites.
 

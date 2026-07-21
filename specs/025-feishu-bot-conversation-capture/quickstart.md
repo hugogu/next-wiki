@@ -14,9 +14,11 @@ A runnable, end-to-end validation script for the unified AI Conversations captur
 - An AI provider is configured (`/admin/ai`) with chat-assignments ready. (See 004 quickstart.)
 - `RAW_PAGES_DIRECTORY` is on the persistent volume (existing default).
 
-## 1. Verify the renamed Data Source appears under Content
+## 1. Verify the renamed Data Source appears under Bots General
 
-As Admin:
+As Admin, open `/admin/bots?tab=general` and confirm the General tab shows one Data Sources row named `AI Conversations`. The former Content settings Data Sources location must not show a second writable editor for the same source; it should redirect, link, or otherwise route Admins to Bots General.
+
+Then verify the backend settings API still exposes the canonical source:
 
 ```bash
 curl -sS -b "$ADMIN_COOKIE" http://localhost:3000/api/settings/content-data-sources
@@ -41,7 +43,7 @@ Expected response (after rename deployed):
 }
 ```
 
-`SC-009` — Admin can locate and toggle the renamed Data Source under Content settings.
+`SC-009` — Admin can locate and toggle the renamed Data Source under Bots' General settings, with no duplicate writable Content settings entry.
 
 ## 2. Enable capture for every channel
 
@@ -75,7 +77,7 @@ Using the Feishu-bound Reader identity, send a private 1:1 message to the wiki b
   - `rawConversation.channel` is `'feishu'`.
   - `rawConversation.url` matches the conversation URL you can also open from `Search`.
 
-`SC-001` Feishu half — pass.
+`SC-001` Feishu half — one Raw page for the captured Feishu turn — pass.
 
 ## 5. Verify the captured Feishu turn is searchable via Raw search
 
@@ -173,10 +175,10 @@ Drive the Feishu transport double with the same inbound event twice (019 quickst
 
 - exactly one `wiki_question` `ai_actions` row is created
 - exactly one `feishuBotSessions` row is upserted (session window preserved)
-- exactly one Raw Conversation page is captured
+- exactly one Raw Conversation page is captured for the replayed turn
 - the bot's reply is delivered exactly once to the user
 
-`SC-007` — pass; `FR-022` — pass.
+`SC-007` — pass; `FR-023` — pass.
 
 ## 12. Termination on unbind preserves the captured Raw page under retention
 
@@ -187,7 +189,7 @@ Unbind the Feishu identity of the Reader used in step 4.
 - Direct fetch of the page id by the (now-unbound) user returns `404` per Raw read permission check.
 - Direct fetch by Admin (or by a new binding with the same user) returns the captured page as before.
 
-`SC-005`, `FR-013` — pass.
+`SC-005`, `FR-014` — pass.
 
 ## Expected test outcome
 
@@ -195,7 +197,7 @@ After running all 12 steps with no manual interventions:
 
 | Success criterion | Step(s) |
 |---|---|
-| `SC-001` Feishu half — Feishu Q&A produces exactly one Raw page per turn | 4, 11 |
+| `SC-001` Feishu half — Feishu Q&A produces exactly one Raw page for each captured turn | 4, 11 |
 | `SC-002` — disabled source produces no Raw page | 7 |
 | `SC-003` — captured Feishu conversation keyword-searchable within ~2 min | 5 |
 | `SC-004` — semantic search returns the captured page in top 5 | 5 (semantic variant) |
@@ -203,7 +205,7 @@ After running all 12 steps with no manual interventions:
 | `SC-006` — same reader renders for both channels | 3, 4 |
 | `SC-007` — one canonical durable record per turn | 6, 11 |
 | `SC-008` — audit origin `feishu` and bound user | 9 |
-| `SC-009` — Admin can locate and toggle the renamed Data Source | 1, 2, 8 |
+| `SC-009` — Admin can locate and toggle the renamed Data Source under Bots General with no duplicate Content editor | 1, 2, 8 |
 | `SC-010` — multi-turn session continues the same Bot Session wrapper, multiple Raw pages | 6, 11 |
 
 ## Tear down

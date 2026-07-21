@@ -6,18 +6,19 @@ All new or changed REST surfaces reuse existing route/session helpers, shared Zo
 
 ## Summary
 
-Two contract changes:
+Three contract-level changes:
 
 1. The Content Data Source keying is renamed. The literal `'wiki-ai-conversations'` becomes `'ai-conversations'` and the legacy literal is treated as a back-compat alias during the migration window.
 2. The `RawConversationPointer` resource (returned by AI session list/detail and surfaced by the v1 public raw-conversation read endpoint) gains an optional `channel` field that distinguishes `'wiki-ai'` from `'feishu'` capture origin.
+3. The first-party Admin UI moves the Data Sources editor to Bots' General settings. The REST route remains `/api/settings/content-data-sources`; this is an API namespace, not the canonical UI location.
 
 No new routes, no new shape changes, no removal of existing fields.
 
-## Admin Content Data Sources
+## Admin Data Sources Settings API
 
 ### `GET /api/settings/content-data-sources`
 
-Admin-only. Returns the registered source list. After the rename, only the renamed source appears in the response; the legacy alias is hidden.
+Admin-only. Returns the registered source list. After the rename, only the renamed source appears in the response; the legacy alias is hidden. First-party UI calls this from Bots' General settings.
 
 Response:
 
@@ -107,7 +108,7 @@ No change. The Feishu admin routes, binding routes, subscription routes, and not
 |---|---|
 | Web chat side pane | Unchanged. `RawConversationPointer.channel` is read if present; absent for legacy captures. |
 | MCP search tools | Existing tools return the new field; existing tool descriptions already tolerate unknown fields. |
-| First-party Admin UI | Renders the renamed label and description automatically via i18n. |
+| First-party Admin UI | Renders the renamed label and description inside Bots' General settings; the old Content settings writer is removed, redirected, or changed to a link so there is no duplicate editor. |
 | External clients using the legacy literal `'wiki-ai-conversations'` | Read-end alias is automatic; write-end returns `404 source_not_found`. Existing deployments never break because the legacy row's `enabled` state is migrated lazily on the first read after deploy. |
 
 ## OpenAPI Regeneration
