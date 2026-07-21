@@ -119,21 +119,19 @@ value generated through `pnpm db:generate`, and no page-code changes.
 ```ts
 type AnalyticsProviderDefinition = {
   provider: AnalyticsProvider;
-  labelKey: string;          // i18n key, e.g. 'admin.analytics.providers.baidu_tongji.label'
-  descriptionKey: string;    // i18n key
-  trackingIdLabelKey: string; // i18n key for the field label
-  trackingIdFormatKey: string; // i18n key for the format hint
-  trackingIdPattern: RegExp;  // validation regex
+  label: string;                 // plain English label (API/MCP consumers + fallback)
+  description: string;           // plain English description
+  trackingIdFormatHint: string;  // plain English format hint, e.g. '32-character hex string'
+  trackingIdPattern: RegExp;     // validation regex
   buildScriptContent: (trackingId: string) => string; // returns JavaScript loader content
 };
 
 const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
   {
     provider: 'baidu_tongji',
-    labelKey: 'admin.analytics.providers.baidu_tongji.label',
-    descriptionKey: 'admin.analytics.providers.baidu_tongji.description',
-    trackingIdLabelKey: 'admin.analytics.providers.baidu_tongji.trackingId.label',
-    trackingIdFormatKey: 'admin.analytics.providers.baidu_tongji.trackingId.format',
+    label: 'Baidu Tongji (百度统计)',
+    description: "Baidu's web analytics service.",
+    trackingIdFormatHint: '32-character hex string',
     trackingIdPattern: /^[a-f0-9]{32}$/i,
     buildScriptContent: (trackingId) => `
   var _hmt = _hmt || [];
@@ -146,10 +144,9 @@ const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
   },
   {
     provider: 'google_analytics',
-    labelKey: 'admin.analytics.providers.google_analytics.label',
-    descriptionKey: 'admin.analytics.providers.google_analytics.description',
-    trackingIdLabelKey: 'admin.analytics.providers.google_analytics.trackingId.label',
-    trackingIdFormatKey: 'admin.analytics.providers.google_analytics.trackingId.format',
+    label: 'Google Analytics',
+    description: "Google's web analytics service (GA4).",
+    trackingIdFormatHint: 'G-XXXXXXXX (e.g. G-A1B2C3D4E5)',
     trackingIdPattern: /^G-[A-Z0-9]{6,12}$/,
     buildScriptContent: (trackingId) => `
   (function() {
@@ -168,10 +165,17 @@ const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
 ```
 
 **Why this shape?**
-- `labelKey`/`descriptionKey`/`trackingIdFormatKey` are i18n keys, so the
-  admin UI and admin-only GET endpoint can return localized labels without the
-  service knowing about locales. The service resolves the keys via
-  `getDictionary(locale)` at the API boundary.
+- `label`/`description`/`trackingIdFormatHint` are plain English strings, not
+  i18n keys. The service **must stay request-scope-free** (no
+  `cookies()`/`headers()` reads via `getLocale()`/`getDictionary()`) so it can
+  be called from tests, from the root layout, and from any future
+  non-request context without throwing Next.js's "outside a request scope"
+  invariant. These strings exist for API/MCP consumers and as a fallback; the
+  admin UI (`AnalyticsProvidersForm`) localizes known providers client-side
+  via its own `PROVIDER_COPY` map (mirroring `ContentDataSourcesPanel`), and
+  falls back to the server-provided strings for a provider it hasn't been
+  taught to localize yet — which is exactly what keeps a newly registered
+  provider usable with zero admin-UI changes.
 - `trackingIdPattern` is the regex used by the service to validate the
   Tracking ID before saving (when `enabled = true`) and before building the
   script (defensive - the saved value should already be valid).
@@ -295,3 +299,31 @@ Default") and the spec's FR-014/FR-015/FR-016.
     all surfaces.
   - Permission: as a non-admin user, navigate to `/admin/analytics` and
     assert 404 (the existing pattern for admin-only pages).
+
+---
+
+## Adding a New Provider
+
+The registry is the only place a new provider is wired in. Follow these steps
+in one commit:
+
+1. Append the provider key to `analyticsProviderSchema` in
+   `packages/shared/src/analytics.ts`.
+2. Append the same key to the `analyticsProvider` pgEnum in
+   `apps/web/src/server/db/schema/enums.ts`.
+3. Run `pnpm db:generate` from the repo root to generate the migration (never
+   hand-author the `.sql`, `meta/_journal.json`, or `meta/NNNN_snapshot.json`
+   — see `CLAUDE.md` "Database Migrations (Drizzle)").
+4. Append a new entry to `REGISTERED_ANALYTICS_PROVIDERS` in
+   `apps/web/src/server/services/analytics.ts` with `label`, `description`,
+   `trackingIdFormatHint`, `trackingIdPattern`, and `buildScriptContent`.
+5. Add the new provider's localized copy to the client-side `PROVIDER_COPY`
+   map in `apps/web/src/components/admin/analytics/AnalyticsProvidersForm.tsx`,
+   and the corresponding i18n keys to `apps/web/messages/{en,zh}.json` (a
+   provider not yet added to `PROVIDER_COPY` still works — the admin UI falls
+   back to the server-provided English `label`/`description`/
+   `trackingIdFormatHint` — but a first-class experience needs both locales).
+6. Verify no page or layout code changes are needed: `getActiveAnalyticsScriptContent()`,
+   the root `app/layout.tsx` injection point, and the admin API route are all
+   provider-agnostic — they iterate `REGISTERED_ANALYTICS_PROVIDERS` rather
+   than special-casing a provider key.

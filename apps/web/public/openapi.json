@@ -277,6 +277,63 @@
           "count"
         ]
       },
+      "AnalyticsSettingsView": {
+        "type": "object",
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "updatedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "description": {
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "baidu_tongji",
+                    "google_analytics"
+                  ]
+                },
+                "trackingId": {
+                  "type": "object"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "trackingIdFormat": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "updatedAt",
+                "description",
+                "enabled",
+                "provider",
+                "trackingId",
+                "label",
+                "trackingIdFormat"
+              ]
+            }
+          },
+          "activeScriptContent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "providers",
+          "activeScriptContent"
+        ]
+      },
       "ApiKeyCreated": {
         "type": "object",
         "properties": {
@@ -7130,6 +7187,43 @@
         ]
       },
       "TranslationVersionList": {},
+      "UpdateAnalyticsSettingsInput": {
+        "type": "object",
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "baidu_tongji",
+                    "google_analytics"
+                  ]
+                },
+                "trackingId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "enabled",
+                "provider",
+                "trackingId"
+              ]
+            }
+          }
+        },
+        "required": [
+          "providers"
+        ]
+      },
       "UpdatePreferencesInput": {
         "type": "object",
         "properties": {
@@ -9962,6 +10056,69 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/settings/analytics": {
+      "get": {
+        "operationId": "get-settings-analytics",
+        "summary": "List analytics providers",
+        "description": "Returns all registered analytics providers with their admin-only configuration and active script content.",
+        "tags": [
+          "Analytics"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSettingsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-settings-analytics",
+        "summary": "Update analytics providers",
+        "description": "Upserts one or more analytics provider configurations. Each provider is updated independently.",
+        "tags": [
+          "Analytics"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAnalyticsSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSettingsView"
+                }
+              }
+            }
           }
         }
       }
@@ -15875,6 +16032,9 @@
     },
     {
       "name": "AI Admin"
+    },
+    {
+      "name": "Analytics"
     },
     {
       "name": "Appearance"

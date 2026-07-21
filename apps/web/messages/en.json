@@ -562,6 +562,7 @@
       "transfers": "Import / Export",
       "translations": "Translations",
       "appearance": "Appearance",
+      "analytics": "Analytics",
       "search": "Search",
       "site": "Site Info",
       "groups": {
@@ -726,6 +727,34 @@
         },
         "button": "Primary button"
       }
+    },
+    "analytics": {
+      "title": "Web analytics",
+      "description": "Configure third-party analytics providers. Each provider's tracking script is injected into every page when enabled.",
+      "allDisabled": "All analytics providers are currently disabled. No tracking scripts will be loaded.",
+      "providers": {
+        "baidu_tongji": {
+          "label": "Baidu Tongji (百度统计)",
+          "description": "Baidu's web analytics service.",
+          "trackingId": {
+            "label": "Tracking ID",
+            "format": "32-character hex string"
+          }
+        },
+        "google_analytics": {
+          "label": "Google Analytics",
+          "description": "Google's web analytics service (GA4).",
+          "trackingId": {
+            "label": "Measurement ID",
+            "format": "G-XXXXXXXX (e.g. G-A1B2C3D4E5)"
+          }
+        }
+      },
+      "save": "Save",
+      "saved": "Analytics settings saved.",
+      "saveFailed": "Failed to save analytics settings.",
+      "invalidTrackingId": "Tracking ID does not match the expected format.",
+      "enabledRequiresTrackingId": "Enable requires a valid Tracking ID."
     },
     "site": {
       "title": "Site information",

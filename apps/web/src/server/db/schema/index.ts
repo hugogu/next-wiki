@@ -83,6 +83,7 @@ import {
   contentNatureEnum,
   pageVisibilityEnum,
   rawConversationCaptureStatusEnum,
+  analyticsProviderEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -1962,3 +1963,17 @@ export const setupProgressRelations = relations(setupProgress, ({ one }) => ({
     references: [aiActions.id],
   }),
 }));
+
+// ---- Web analytics integrations (024) --------------------------------------
+
+/** Key-addressed registry of per-provider analytics configuration. One row
+ * per registered provider (see `REGISTERED_ANALYTICS_PROVIDERS` in
+ * `services/analytics.ts`). A missing row means "disabled, no Tracking ID". */
+export const analyticsProviderSettings = pgTable('analytics_provider_settings', {
+  provider: analyticsProviderEnum('provider').primaryKey(),
+  enabled: boolean('enabled').notNull().default(false),
+  trackingId: text('tracking_id'),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

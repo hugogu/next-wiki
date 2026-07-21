@@ -163,7 +163,7 @@ apps/web/
 │   │   │   └── analytics/
 │   │   │       └── AnalyticsProvidersForm.tsx  # NEW: client form component
 │   │   └── layout/
-│   │       └── Navigator.tsx    # MODIFIED: add /admin/analytics nav entry (system group)
+│   │       └── Navigator.tsx    # MODIFIED: add /admin/analytics nav entry (operations group)
 │   ├── server/
 │   │   ├── cache/
 │   │   │   └── public-cache.ts   # REUSED: invalidateSiteShellCache, SITE_SHELL_CACHE_TAG
@@ -224,7 +224,7 @@ injection pattern; no anti-pattern is introduced.
 | **Anti-Pattern: Session-bound public documents** | ✅ Pass | ✅ Pass | The script string is identical for every visitor to a given page. No session, cookie, or header read occurs during script rendering. |
 | **Anti-Pattern: Verb-style URLs** | ✅ Pass | ✅ Pass | Endpoints are `/api/settings/analytics` (collection). Mutations use HTTP `PUT`, not `/setAnalytics` or `/enableBaidu`. |
 | **Anti-Pattern: Vendor-locked AI integration** | ✅ Pass (N/A) | ✅ Pass (N/A) | N/A - no AI integration. The analytics provider registry is pluggable by design (FR-017/FR-018). |
-| **Anti-Pattern: Duplicate feature entry points** | ✅ Pass | ✅ Pass | One canonical admin page (`/admin/analytics`), one nav entry (in the `system` group), one API collection (`/api/settings/analytics`). |
+| **Anti-Pattern: Duplicate feature entry points** | ✅ Pass | ✅ Pass | One canonical admin page (`/admin/analytics`), one nav entry (in the `operations` group), one API collection (`/api/settings/analytics`). |
 
 ### Conclusion
 

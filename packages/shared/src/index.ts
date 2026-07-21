@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { userRoleSchema, userStatusSchema } from './auth';
 
+export * from './analytics';
 export * from './auth';
 export * from './pages';
 export * from './api-keys';

@@ -408,3 +408,10 @@ export const rawConversationCaptureStatusEnum = pgEnum('raw_conversation_capture
   'failed',
   'disabled',
 ]);
+
+// ---- Web analytics integrations (024) --------------------------------------
+
+export const analyticsProviderEnum = pgEnum('analytics_provider', [
+  'baidu_tongji',
+  'google_analytics',
+]);

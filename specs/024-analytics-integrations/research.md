@@ -317,8 +317,9 @@ browser `alert`, per the project UI guidance in AGENTS.md).
 **Rationale**:
 - Mirrors the `SiteSettingsForm` pattern (`src/components/admin/appearance/SiteSettingsForm.tsx`).
 - A single page with a single form is the simplest UX for two providers.
-- The page is added to the admin nav under the `system` group, right after
-  `appearance` (conceptually adjacent: shell-level rendering concerns).
+- The page is added to the admin nav under the `operations` group, at the top
+  of the group (before `storage`). Conceptually analytics is an operational
+  data-collection concern rather than a system-appearance concern.
 
 **Alternatives considered**:
 - A tabbed UI like the AI admin page: overkill for two providers.

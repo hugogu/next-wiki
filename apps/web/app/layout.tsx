@@ -8,6 +8,7 @@ import { getMessages } from '@/i18n/catalog';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
 import { getActiveThemeCss } from '@/server/services/system-theme';
+import { getActiveAnalyticsScriptContent } from '@/server/services/analytics';
 import { getUserAppearance } from '@/server/services/user-appearance';
 import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
@@ -67,6 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale(preferences?.locale);
 
   const systemCss = await getActiveThemeCss();
+  const analyticsScriptContent = await getActiveAnalyticsScriptContent();
   let readingThemeCss = '';
   if (actor.kind === 'user') {
     const userAppearance = await getUserAppearance({ actor });
@@ -101,6 +103,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <style id="app-system-theme" dangerouslySetInnerHTML={{ __html: systemCss }} />
         <style id="app-reading-theme" dangerouslySetInnerHTML={{ __html: readingThemeCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {analyticsScriptContent ? (
+          <script id="app-analytics" dangerouslySetInnerHTML={{ __html: analyticsScriptContent }} />
+        ) : null}
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <ApplicationI18nProvider initialLocale={initialLocale} messages={getMessages(initialLocale)}>

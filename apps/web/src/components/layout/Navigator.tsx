@@ -29,6 +29,7 @@ import {
   PenSparkIcon,
   LayersIcon,
   LinkIcon,
+  FunctionPlotIcon,
 } from '@/components/icons';
 import { getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
@@ -359,6 +360,11 @@ export function Navigator({
     {
       label: t('admin.nav.groups.operations'),
       items: [
+        {
+          href: '/admin/analytics',
+          label: t('admin.nav.analytics'),
+          icon: <FunctionPlotIcon className="shrink-0" />,
+        },
         {
           href: '/admin/storage',
           label: t('admin.nav.storage'),

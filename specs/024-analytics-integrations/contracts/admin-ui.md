@@ -126,18 +126,16 @@ feedback is shown via inline UI elements.
 
 **File**: `apps/web/src/components/layout/Navigator.tsx` (MODIFIED)
 
-Add a new entry to the `system` group in the admin nav, right after
-`appearance`:
+Add a new entry to the `operations` group in the admin nav, at the top of the group (before `storage`):
 
 ```tsx
 {
-  label: t('admin.nav.groups.system'),
+  label: t('admin.nav.groups.operations'),
   items: [
-    { href: '/admin/site', label: t('admin.nav.site'), icon: <SettingsIcon className="shrink-0" /> },
-    { href: '/admin/appearance', label: t('admin.nav.appearance'), icon: <SlidersIcon className="shrink-0" /> },
-    { href: '/admin/analytics', label: t('admin.nav.analytics'), icon: <ChartIcon className="shrink-0" /> }, // NEW
-    ...(writingMode === 'llm-wiki' ? [...] : []),
-    { href: '/admin/users', label: t('admin.nav.users'), icon: <UsersIcon className="shrink-0" /> },
+    { href: '/admin/analytics', label: t('admin.nav.analytics'), icon: <FunctionPlotIcon className="shrink-0" /> }, // NEW
+    { href: '/admin/storage', label: t('admin.nav.storage'), icon: <DatabaseIcon className="shrink-0" /> },
+    { href: '/admin/transfers', label: t('admin.nav.transfers'), icon: <ArrowUpDownIcon className="shrink-0" /> },
+    { href: '/admin/api-audit', label: t('admin.nav.apiAudit'), icon: <... /> },
   ],
 },
 ```

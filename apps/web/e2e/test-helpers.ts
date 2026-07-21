@@ -26,3 +26,20 @@ export async function revokeAllApiKeys(page: Page): Promise<void> {
 export async function clickSignInSubmit(page: Page): Promise<void> {
   await page.locator('form').getByRole('button', { name: /sign in/i }).click();
 }
+
+/**
+ * Intercepts real analytics vendor script requests so tests never depend on
+ * outbound network access to `hm.baidu.com` / `googletagmanager.com`. Without
+ * this, an enabled provider's dynamically-inserted `<script src="...">` is a
+ * genuine pending resource the browser's `load` event waits on; if the vendor
+ * host is unreachable from the test environment, `page.goto(..., {
+ * waitUntil: 'load' })` (Playwright's default) hangs until timeout even
+ * though the document itself rendered fine. Assertions in these specs check
+ * the injected script tag and its content, not that the real vendor request
+ * succeeds, so short-circuiting it here does not weaken coverage.
+ */
+export async function blockAnalyticsVendorRequests(page: Page): Promise<void> {
+  await page.route(/hm\.baidu\.com|googletagmanager\.com/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }),
+  );
+}

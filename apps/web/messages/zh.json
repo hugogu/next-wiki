@@ -562,6 +562,7 @@
       "transfers": "导入 / 导出",
       "translations": "翻译",
       "appearance": "外观",
+      "analytics": "统计分析",
       "search": "搜索",
       "site": "站点信息",
       "groups": {
@@ -726,6 +727,34 @@
         },
         "button": "主按钮"
       }
+    },
+    "analytics": {
+      "title": "网站统计",
+      "description": "配置第三方统计分析服务。每个启用的供应商的跟踪脚本将注入到所有页面中。",
+      "allDisabled": "所有统计服务均已关闭，不会加载任何跟踪脚本。",
+      "providers": {
+        "baidu_tongji": {
+          "label": "百度统计",
+          "description": "百度提供的网站访问分析服务。",
+          "trackingId": {
+            "label": "跟踪 ID",
+            "format": "32 位十六进制字符串"
+          }
+        },
+        "google_analytics": {
+          "label": "Google Analytics",
+          "description": "Google 提供的网站访问分析服务（GA4）。",
+          "trackingId": {
+            "label": "衡量 ID",
+            "format": "G-XXXXXXXX（例如 G-A1B2C3D4E5）"
+          }
+        }
+      },
+      "save": "保存",
+      "saved": "统计设置已保存。",
+      "saveFailed": "保存统计设置失败。",
+      "invalidTrackingId": "跟踪 ID 格式不正确。",
+      "enabledRequiresTrackingId": "启用时需要填写有效的跟踪 ID。"
     },
     "site": {
       "title": "站点信息",

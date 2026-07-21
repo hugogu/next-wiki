@@ -61,7 +61,7 @@ pages.
 
 1. Sign in as admin.
 2. Navigate to `/admin/analytics` (or click the new "Analytics" entry in the
-   admin nav under the "System" group).
+   admin nav under the "Operations" group).
 3. In the Baidu Tongji card:
    - Toggle "Enable" on.
    - Enter a valid Tracking ID (e.g. `abcdef0123456789abcdef0123456789` - a
