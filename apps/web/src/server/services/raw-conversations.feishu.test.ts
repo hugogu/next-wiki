@@ -49,6 +49,11 @@ describe('raw conversations service — Feishu channel (025)', () => {
 
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.pageId, outcome.pageId) });
     expect(revision?.sourceMetadata).toMatchObject({ channel: 'feishu' });
+
+    // Filed under a channel subfolder so Feishu and Wiki AI captures are
+    // visually distinguishable when browsing the Raw space by path.
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, outcome.pageId) });
+    expect(page?.path).toMatch(/^conversations\/feishu\//);
   });
 
   it('stamps channel=wiki-ai when the action has no origin (web chat side pane)', async () => {
@@ -61,6 +66,9 @@ describe('raw conversations service — Feishu channel (025)', () => {
 
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.pageId, outcome.pageId) });
     expect(revision?.sourceMetadata).toMatchObject({ channel: 'wiki-ai' });
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, outcome.pageId) });
+    expect(page?.path).toMatch(/^conversations\/wiki-ai\//);
   });
 
   it('stamps channel=wiki-ai for any other/unrecognized origin', async () => {

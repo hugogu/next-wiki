@@ -127,11 +127,21 @@ function conversationTitle(question: string): string {
   return `Conversation: ${excerpt}`;
 }
 
-function conversationPath(actionId: string, queuedAt: Date): string {
+/**
+ * 025: filed under a per-channel subfolder (`conversations/{channel}/...`)
+ * so Feishu and Wiki AI captures are visually distinguishable when browsing
+ * the Raw space by path, without changing the shared "Conversation" raw
+ * category (both channels stay one capability, per plan.md D2/D5 — this is
+ * a folder-organization detail, not a second category or permission split).
+ * Only chosen once, on first capture; later revisions reuse the page's
+ * existing path (see writeConversationRevision), so this never touches
+ * pages captured before the channel subfolder was introduced.
+ */
+function conversationPath(actionId: string, queuedAt: Date, channel: WikiAiChannel): string {
   const year = queuedAt.getUTCFullYear();
   const month = String(queuedAt.getUTCMonth() + 1).padStart(2, '0');
   const day = String(queuedAt.getUTCDate()).padStart(2, '0');
-  return `conversations/${year}/${month}/${day}/${actionId}`;
+  return `conversations/${channel}/${year}/${month}/${day}/${actionId}`;
 }
 
 /** Human-readable Markdown transcript — the search/embedding surface for a
@@ -372,7 +382,7 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
       const transcript = buildTranscriptText(conversation);
       const channel = resolveConversationChannel(action.requestMetadata);
       const sourceMetadata = buildSourceMetadata(actionId, action.questionMode, conversation, channel);
-      const path = conversationPath(actionId, action.queuedAt);
+      const path = conversationPath(actionId, action.queuedAt, channel);
       const title = conversationTitle(conversation.question);
 
       const { pageId } = await writeConversationRevision(tx, {
