@@ -1,58 +1,53 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 2.1.0 -> 2.2.0
-  Bump rationale: MINOR — adds the Search Retrieval Architecture mandate and
-  updates the fixed search-technology baseline to three complementary,
-  replaceable PostgreSQL-backed capabilities.
+  Version change: 2.2.0 -> 2.3.0
+  Bump rationale: MINOR — materially expands the mission and AI memory
+  principle to define next-wiki as a conversational, self-growing knowledge
+  base, and adds a prohibited anti-pattern for ungrounded self-growth.
 
-  Modified technology decisions:
-    - Vector Search: pgvector remains the baseline semantic implementation,
-      now behind a stable semantic capability adapter.
-    - Full-text Search: PostgreSQL tsvector + pg_trgm are the default lexical
-      baseline; optional external engines replace an adapter, not the product
-      contract.
+  Modified principles:
+    - Mission: reframed as a conversational, self-growing knowledge base.
+    - P2: AI-Native Creation, Never Vendor-Locked — clarified that configured
+      conversation capture may feed durable memory.
+    - P3: The Knowledge Base is the User's Portable AI Memory ->
+      The Knowledge Base is the User's Portable, Self-Growing AI Memory.
 
-  Added architectural mandates:
-    - Search Retrieval Architecture: registered, independently enabled
-      capabilities run through one permission-safe coordinator and remain
-      replaceable behind stable capability IDs.
+  Added sections:
+    - Anti-Patterns: Ungrounded self-growth.
 
   Removed sections: none.
 
   Documents requiring updates:
-    - docs/architecture/mandates.md         — ✅ updated with binding search
-      retrieval rules.
-    - docs/architecture/project-structure.md — ✅ updated with the registered
-      server search-module boundary.
-    - docs/architecture/frontend-data-flow.md — ✅ updated with progressive
-      search server-state ownership.
-    - README.md                             — ✅ updated with the architecture
-      entry point.
+    - .specify/templates/plan-template.md   — ✅ updated with AI memory
+      growth-loop Constitution Check guidance.
+    - .specify/templates/spec-template.md   — ✅ reviewed; no change required.
+    - .specify/templates/tasks-template.md  — ✅ reviewed; no change required.
+    - .specify/templates/commands/          — ⚠ not present in this repository.
+    - README.md                             — ✅ updated with conversational
+      self-growing positioning.
 
-  Follow-up TODOs: none. This file also restores governance content
-  (Authoritative Sources, Compliance Review, Ratifiers) that was truncated by
-  an earlier file-write error and had been silently missing from the working
-  tree; no semantic change versus the last intact version (94b4940).
+  Follow-up TODOs: none.
 -->
 
 # next-wiki Project Constitution
 
-**Version**: 2.2.0
+**Version**: 2.3.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-07-14
+**Last Amended**: 2026-07-22
 
 ---
 
 ## Mission
 
-next-wiki is a personal, AI-native knowledge base service. It exists to let
-one person build a durable, private knowledge base through conversation with
-AI — and for that same knowledge base to serve as the grounding memory any AI
-assistant draws on when talking with its owner. Writing, organizing, and
-retrieving knowledge should feel like talking to an assistant that remembers
-everything its owner has told it, without tying that memory to any single AI
-company.
+next-wiki is a personal, conversational, self-growing knowledge base service.
+It exists to let one person build a durable, private knowledge base through
+conversation with AI — and for that same knowledge base to serve as the
+grounding memory any AI assistant draws on when talking with its owner. Writing,
+organizing, retrieving, and improving knowledge should feel like talking to an
+assistant that remembers what its owner has told it, preserves the evidence it
+learned from, and can propose how that memory should grow without tying the
+memory to any single AI company.
 
 Each next-wiki deployment belongs to exactly one person by default: their
 knowledge, their instance, their history. Multi-user sharing and group
@@ -62,15 +57,18 @@ not the product's primary story.
 next-wiki is deployed via Docker Compose or Kubernetes, built on Next.js,
 TypeScript, and PostgreSQL, and designed around a small default footprint. AI
 is native to how the product works — the persistent AI chat side pane and MCP
-are the default paths for creating and refining content — but the wiki never
-depends on a live model connection to remain readable, searchable, and
-editable. AI providers are interchangeable: next-wiki defines a
+are the default paths for creating, refining, and curating content — but the
+wiki never depends on a live model connection to remain readable, searchable,
+and editable. AI providers are interchangeable: next-wiki defines a
 provider-agnostic contract so a person's knowledge outlives any specific AI
 product, model, or pricing change.
 
 The project optimizes for operational simplicity, clear architecture, reliable
 permissions, versioned content, open integration surfaces, and grounded AI
-retrieval over broad feature accumulation.
+retrieval over broad feature accumulation. Its self-growth loop is deliberately
+evidence-first: original inputs are preserved, generated knowledge is
+distinguishable from original knowledge, and public publication remains a
+governed act.
 
 ---
 
@@ -105,6 +103,9 @@ drafting pages, restructuring the page tree, and refining content through
 dialogue. The manual editor MUST remain fully capable and MUST NOT require AI:
 the system stays completely usable without any LLM configured, and browsing,
 search, and manual editing MUST NOT depend on a live model connection.
+When conversation capture is explicitly enabled, AI interactions MAY become
+durable source material for the knowledge base, but that capture MUST use the
+same retention, permission, and provenance rules as any other content source.
 
 AI features are activated only by explicit provider configuration via
 environment variables (`LLM_PROVIDER`, `LLM_API_KEY`) or an encrypted admin
@@ -125,7 +126,7 @@ from any single AI company's pricing, availability, or policy changes, and the
 "no-AI" fallback keeps the wiki trustworthy as durable storage regardless of
 AI market conditions.
 
-### P3: The Knowledge Base is the User's Portable AI Memory
+### P3: The Knowledge Base is the User's Portable, Self-Growing AI Memory
 
 next-wiki is not only a place AI writes to — it is the grounding memory an AI
 assistant reads from when talking with its owner. Any MCP-compatible AI
@@ -143,10 +144,29 @@ response MUST say so instead of inventing content. The retrieval index
 projection over page revisions, never the source of truth, and MUST respect
 the same space, path, locale, and permission scope as direct reads.
 
+Self-growth MUST follow an auditable loop. Original inputs, including AI
+conversations, fetched external pages, uploaded source files, integration
+events, and command output, MUST be preserved as original source material when
+they are captured for long-term memory. AI-generated synthesis MUST be stored
+as normal versioned content with explicit provenance and citations to permitted
+sources. Public knowledge MUST be published through the normal governed page
+flow; background AI jobs MAY propose, draft, classify, link, summarize, or
+update knowledge, but they MUST NOT silently rewrite original evidence, bypass
+permissions, or publish generated conclusions without the feature's specified
+approval boundary.
+
+The product MUST make it answerable which content was original, which content
+was AI-generated, which generated content has been manually modified, and which
+source revisions support a generated claim. Derived summaries, embeddings,
+health scores, and curation suggestions are rebuildable projections, not the
+canonical memory.
+
 Rationale: A user who switches AI assistants must not lose the memory they
 built. Treating the wiki as the durable, provider-agnostic memory layer — and
 the AI vendor as a replaceable reasoning engine on top of it — is what makes
-independence from any single AI supplier real rather than aspirational.
+independence from any single AI supplier real rather than aspirational. The
+self-growing loop only remains trustworthy if growth is grounded, reviewable,
+permission-scoped, and reversible through version history.
 
 ### P4: Rendering Pipeline is Sacred
 
@@ -344,6 +364,11 @@ These patterns are PROHIBITED. Any PR introducing them MUST be rejected.
   separate table, an unversioned write path, or a retrieval query that skips
   permission checks). AI and human authorship MUST be indistinguishable to the
   storage and permission layers.
+- **Ungrounded self-growth**: Allowing an AI job, bot, or external agent to
+  append, rewrite, classify, publish, or delete knowledge without preserving
+  original evidence when capture is required, recording provenance, creating
+  normal revisions, enforcing permissions, and exposing a review or approval
+  boundary for generated conclusions.
 - **Vendor-locked AI integration**: Hard-coding a single AI vendor's
   proprietary SDK or API as the only integration path for a feature, instead
   of going through the provider-agnostic interface required by P2 and P3.

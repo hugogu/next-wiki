@@ -2,11 +2,11 @@
 
 # next-wiki
 
-**A personal, AI-native knowledge assets vault.**
+**A conversational, self-growing AI memory wiki.**
 
-Write and organize knowledge with AI — and let that same knowledge base become
-the grounding memory any AI assistant reads from when it talks with you.
-Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
+Talk with AI, preserve what was learned, and let the same knowledge base become
+the grounding memory every assistant reads from and writes back to. Self-hosted,
+`docker compose up` simple, and never locked to a single AI vendor.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20.9%2B-339933?logo=node.js&logoColor=white)](package.json)
@@ -32,6 +32,10 @@ Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
   draft pages, restructure the page tree, and refine content through dialogue
   — but the manual editor stays fully capable and the wiki never depends on a
   live model connection to be readable, searchable, and editable.
+- **A self-growing knowledge loop.** Conversations, external references,
+  fetched originals, and command output can be preserved as append-only raw
+  evidence. AI can synthesize that evidence into generated knowledge, and owners
+  can publish the curated result without copying it away from its source.
 - **Your portable AI memory.** Any MCP-compatible client (Claude, Cursor, or a
   future assistant) can search, read, and write into the same
   permission-scoped store that backs the web UI, so your knowledge outlives
@@ -42,9 +46,10 @@ Self-hosted, `docker compose up` simple, and never locked to a single AI vendor.
 - **Simple deployment.** PostgreSQL is the only required stateful service.
   Optional features (multi-user sharing, object storage, MCP) never grow the
   default footprint.
-- **Everything is versioned.** Every save creates an immutable revision;
-  deletion is soft by default; diffs between any two revisions are always
-  available.
+- **Everything is versioned and grounded.** Every save creates an immutable
+  revision; deletion is soft by default; diffs between any two revisions are
+  always available. AI answers and generated pages stay tied to retrievable
+  source material.
 - **Fast public reading.** Published public documents and navigation use
   static/ISR delivery; login-specific controls hydrate separately, so readers
   do not wait on a session or database query for the document body.
@@ -218,10 +223,11 @@ models. The choice can later be reviewed and changed at `/admin/writing-mode`.
 
 - **Copilot** keeps human and AI work in the default wiki space. This is the
   simplest option for collaborative editing.
-- **LLM Wiki** adds two Admin-only spaces: `raw` for append-only source
-  material, and `generated` for AI-produced OKF concepts. The public default
-  wiki stays separate. Administrators can publish a generated concept to a
-  public wiki path as a soft link.
+- **LLM Wiki** turns next-wiki into an evidence-to-knowledge pipeline. `raw`
+  stores append-only source material such as AI conversations, fetched originals,
+  and command output. `generated` stores AI-produced OKF concepts with provenance
+  and human-modified status. The public wiki stays separate, and administrators
+  can publish a generated concept to a public wiki path as a soft link.
 
 Switching from Copilot to LLM Wiki is immediate. Returning to Copilot queues a
 transactional migration: raw pages move under `raw/...`, generated pages under
@@ -261,7 +267,10 @@ docs/                     # architecture docs, plans, reviews
 
 `@next-wiki/mcp-server` exposes the public wiki content API as MCP tools —
 search, read, create, publish, and manage pages from Claude Desktop, Cursor,
-or any MCP-compatible client. See
+or any MCP-compatible client. In LLM Wiki mode those tools let agents work with
+the same growth loop as the web app: append raw evidence, search raw/generated
+spaces, create generated concepts, and publish curated links to the public wiki.
+See
 [packages/mcp-server/README.md](packages/mcp-server/README.md) for setup.
 
 ## Documentation

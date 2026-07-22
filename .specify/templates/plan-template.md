@@ -45,6 +45,10 @@
 - If the feature creates or changes anonymously readable published content,
   document its static/ISR representation, cache lifetime, and exact
   invalidation paths/tags. Document why it is N/A otherwise.
+- If the feature captures source material, feeds AI memory, generates durable
+  knowledge, or lets an AI agent mutate content, document the source-of-truth,
+  provenance/citation model, permission re-checks, generated-content review or
+  publication boundary, and how derived indexes or suggestions are rebuilt.
 
 ## Project Structure
 
