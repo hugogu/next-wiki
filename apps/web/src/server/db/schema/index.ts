@@ -1977,3 +1977,10 @@ export const analyticsProviderSettings = pgTable('analytics_provider_settings', 
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---- Wiki AI Tool Runtime (026) --------------------------------------------
+// Tool provider/policy/workflow/call/proposal/evidence tables live in their own
+// module. Re-exported here (after the tables they reference) so the schema
+// barrel and Drizzle relational client see them. The ai-tools module imports
+// the base tables above; this trailing re-export keeps that one-directional.
+export * from './ai-tools';

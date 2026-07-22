@@ -113,6 +113,8 @@ export const aiCapabilityEnum = pgEnum('ai_capability', [
   'vision',
   'audio',
   'thinking',
+  // 026: model can drive the governed Wiki AI tool loop.
+  'tool_calling',
 ]);
 export const aiCapabilitySourceEnum = pgEnum('ai_capability_source', [
   'provider',
@@ -141,6 +143,8 @@ export const aiActionFeatureEnum = pgEnum('ai_action_feature', [
   'wiki_question',
   'text_optimization',
   'image_generation',
+  // 026: a tool-enabled chat turn driving the governed Wiki AI tool loop.
+  'wiki_tool_chat',
 ]);
 export const aiActionStatusEnum = pgEnum('ai_action_status', [
   'queued',
@@ -162,6 +166,10 @@ export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'completed',
   'error',
   'question',
+  // 026: governed tool-loop lifecycle events.
+  'tool_call',
+  'tool_proposal',
+  'tool_evidence',
 ]);
 
 // ---- Header hybrid search (013) -------------------------------------------
@@ -414,4 +422,98 @@ export const rawConversationCaptureStatusEnum = pgEnum('raw_conversation_capture
 export const analyticsProviderEnum = pgEnum('analytics_provider', [
   'baidu_tongji',
   'google_analytics',
+]);
+
+// ---- Wiki AI Tool Runtime (026) --------------------------------------------
+// Mirrors the enum values in packages/shared/src/ai-tools.ts; the schema
+// regression test and shared validation test guard the two against drift.
+
+export const aiToolProviderKindEnum = pgEnum('ai_tool_provider_kind', [
+  'builtin_wiki',
+  'external_mcp',
+]);
+export const aiToolActivationStatusEnum = pgEnum('ai_tool_activation_status', [
+  'available',
+  'disabled',
+  'unsupported',
+  'future_external',
+]);
+export const aiToolCategoryEnum = pgEnum('ai_tool_category', [
+  'read',
+  'page_draft',
+  'metadata',
+  'tag',
+  'batch',
+  'raw_evidence',
+]);
+export const aiToolRiskLevelEnum = pgEnum('ai_tool_risk_level', [
+  'read',
+  'draft_write',
+  'reviewed_write',
+  'immediate_write',
+]);
+export const aiToolResultRetentionEnum = pgEnum('ai_tool_result_retention', [
+  'conversation_summary',
+  'raw_when_durable',
+  'never_full_result',
+]);
+export const aiToolReviewPolicyEnum = pgEnum('ai_tool_review_policy', [
+  'always_review',
+  'review_when_requested',
+  'allow_immediate_for_owner',
+]);
+export const aiToolReviewDecisionEnum = pgEnum('ai_tool_review_decision', [
+  'none',
+  'admin_review',
+]);
+export const aiToolWorkflowStatusEnum = pgEnum('ai_tool_workflow_status', [
+  'queued',
+  'running',
+  'waiting_review',
+  'completed',
+  'failed',
+  'cancelled',
+  'limit_reached',
+]);
+export const aiToolCallStatusEnum = pgEnum('ai_tool_call_status', [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'blocked',
+  'cancelled',
+]);
+export const aiToolProposalKindEnum = pgEnum('ai_tool_proposal_kind', [
+  'tag_update',
+  'metadata_update',
+  'batch_update',
+  'raw_evidence_link',
+  'other',
+]);
+export const aiToolProposalStatusEnum = pgEnum('ai_tool_proposal_status', [
+  'pending',
+  'approved',
+  'rejected',
+  'applied',
+  'failed',
+  'superseded',
+]);
+export const aiToolProposalItemResourceKindEnum = pgEnum('ai_tool_proposal_item_resource_kind', [
+  'page',
+  'tag',
+  'page_metadata',
+  'raw_category',
+  'link',
+]);
+export const aiToolProposalItemApplyStatusEnum = pgEnum('ai_tool_proposal_item_apply_status', [
+  'pending',
+  'applied',
+  'failed',
+  'skipped',
+]);
+export const aiToolEvidenceTargetKindEnum = pgEnum('ai_tool_evidence_target_kind', [
+  'page_revision',
+  'proposal',
+  'tag_mutation',
+  'metadata_change',
 ]);
