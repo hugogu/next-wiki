@@ -58,20 +58,20 @@
 
 ### Tests for User Story 1
 
-- [ ] T025 [P] [US1] Add API route tests for Admin-only tool listing and policy update in `apps/web/app/api/ai/tools/route.test.ts`
-- [ ] T026 [P] [US1] Add component tests for provider list, policy editor, and future external-provider disabled state in `apps/web/src/components/admin/ai/AiToolsPanel.test.tsx`
-- [ ] T027 [P] [US1] Add Playwright coverage for Admin Tools configuration and non-admin denial in `apps/web/e2e/admin-ai-tools.spec.ts`
+- [X] T025 [P] [US1] Add API route tests for Admin-only tool listing and policy update in `apps/web/app/api/ai/tools/route.test.ts`
+- [X] T026 [P] [US1] Add component tests for provider list, policy editor, and future external-provider disabled state in `apps/web/src/components/admin/ai/AiToolsPanel.test.tsx`
+- [X] T027 [P] [US1] Add Playwright coverage for Admin Tools configuration and non-admin denial in `apps/web/e2e/admin-ai-tools.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T028 [US1] Implement Admin tool listing route in `apps/web/app/api/ai/tools/route.ts`
-- [ ] T029 [US1] Implement Admin policy update route in `apps/web/app/api/ai/tools/policies/route.ts`
-- [ ] T030 [US1] Implement tool policy update service with audit logging in `apps/web/src/server/services/ai-tool-policy.ts`
-- [ ] T031 [US1] Create Admin AI Tools page route in `apps/web/app/(admin)/admin/ai/tools/page.tsx`
-- [ ] T032 [US1] Create provider/category table and policy editor in `apps/web/src/components/admin/ai/AiToolsPanel.tsx`
-- [ ] T033 [US1] Add the canonical Tools entry under the existing Admin AI navigation in `apps/web/src/components/layout/Navigator.tsx`
-- [ ] T034 [US1] Wire Admin Tools route state to URL query parameters in `apps/web/src/components/admin/ai/AiToolsPanel.tsx`
-- [ ] T035 [US1] Regenerate OpenAPI artifacts for tool settings route annotations in `apps/web/app/api/openapi.json`
+- [X] T028 [US1] Implement Admin tool listing route in `apps/web/app/api/ai/tools/route.ts`
+- [X] T029 [US1] Implement Admin policy update route in `apps/web/app/api/ai/tools/policies/route.ts`
+- [X] T030 [US1] Implement tool policy update service with audit logging in `apps/web/src/server/services/ai-tool-policy.ts`
+- [X] T031 [US1] Create Admin AI Tools page route in `apps/web/app/(admin)/admin/ai/tools/page.tsx`
+- [X] T032 [US1] Create provider/category table and policy editor in `apps/web/src/components/admin/ai/AiToolsPanel.tsx`
+- [X] T033 [US1] Add the canonical Tools entry under the existing Admin AI navigation in `apps/web/src/components/layout/Navigator.tsx`
+- [X] T034 [US1] Wire Admin Tools route state to URL query parameters in `apps/web/src/components/admin/ai/AiToolsPanel.tsx`
+- [X] T035 [US1] Regenerate OpenAPI artifacts for tool settings route annotations in `apps/web/app/api/openapi.json`
 
 **Checkpoint**: User Story 1 is functional and independently testable.
 

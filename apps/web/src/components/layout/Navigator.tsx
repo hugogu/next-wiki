@@ -317,6 +317,11 @@ export function Navigator({
           icon: <SparklesIcon className="shrink-0" />,
         },
         {
+          href: '/admin/ai/tools',
+          label: t('admin.ai.tools.nav'),
+          icon: <SlidersIcon className="shrink-0" />,
+        },
+        {
           href: '/admin/bots',
           label: t('admin.nav.bots'),
           icon: <BotIcon className="shrink-0" />,
@@ -570,7 +575,10 @@ export function Navigator({
               {USER_CENTER_ITEMS.map((item) => {
                 const active =
                   pathname === item.href ||
-                  (item.href === '/admin/ai' && pathname.startsWith('/admin/ai/'));
+                  (item.href === '/admin/ai' &&
+                    pathname.startsWith('/admin/ai/') &&
+                    !pathname.startsWith('/admin/ai/tools')) ||
+                  (item.href === '/admin/ai/tools' && pathname.startsWith('/admin/ai/tools/'));
                 return (
                   <li key={item.href}>
                     <Link

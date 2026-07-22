@@ -130,6 +130,20 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 409);
     case 'RAW_CONVERSATION_CAPTURE_FAILED':
       return apiError(code, message, 422);
+    // Wiki AI tool runtime (026).
+    case 'EXTERNAL_PROVIDER_NOT_ACTIVATABLE':
+      return apiError(code, message, 403);
+    case 'TOOL_RESULT_TOO_LARGE':
+      return apiError(code, message, 413);
+    case 'TOOLS_DISABLED':
+    case 'TOOL_NOT_ENABLED':
+    case 'TOOL_CAPABILITY_UNAVAILABLE':
+    case 'TOOL_POLICY_REVIEW_REQUIRED':
+    case 'TOOL_LOOP_LIMIT_REACHED':
+    case 'TOOL_EVIDENCE_REQUIRED':
+    case 'PROPOSAL_CONFLICT':
+    case 'PROPOSAL_NOT_APPLICABLE':
+      return apiError(code, message, 409);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

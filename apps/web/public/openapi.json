@@ -60,7 +60,8 @@
               "semantic_search",
               "wiki_question",
               "text_optimization",
-              "image_generation"
+              "image_generation",
+              "wiki_tool_chat"
             ]
           },
           "actorUserId": {
@@ -276,6 +277,707 @@
           "skipped",
           "count"
         ]
+      },
+      "AiToolPolicyPatchInput": {
+        "type": "object",
+        "properties": {
+          "providerKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Provider whose policy is updated."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "read",
+              "page_draft",
+              "metadata",
+              "tag",
+              "batch",
+              "raw_evidence"
+            ],
+            "description": "Category-level policy target; null/omitted for provider default."
+          },
+          "toolName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Tool-specific policy target; null for category/provider default."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the tool/category can be used."
+          },
+          "reviewPolicy": {
+            "type": "string",
+            "enum": [
+              "always_review",
+              "review_when_requested",
+              "allow_immediate_for_owner"
+            ],
+            "description": "New review policy. Cannot be set less restrictive than the system minimum."
+          },
+          "maxCallsPerTurn": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Per-turn tool-call limit."
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 120000,
+            "description": "Per-call timeout in milliseconds."
+          }
+        },
+        "required": [
+          "providerKey"
+        ],
+        "description": "Update Admin-managed policy for a provider, category, or tool."
+      },
+      "AiToolPolicyResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Policy identifier."
+          },
+          "providerKey": {
+            "type": "string",
+            "description": "Owning provider key."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "read",
+              "page_draft",
+              "metadata",
+              "tag",
+              "batch",
+              "raw_evidence"
+            ],
+            "description": "Category-level target, or null for provider/tool scope."
+          },
+          "toolName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tool-specific target, or null for category/provider scope."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the tool/category can be used."
+          },
+          "reviewPolicy": {
+            "type": "string",
+            "enum": [
+              "always_review",
+              "review_when_requested",
+              "allow_immediate_for_owner"
+            ]
+          },
+          "maxCallsPerTurn": {
+            "type": "integer"
+          },
+          "timeoutMs": {
+            "type": "integer"
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Timestamp when the policy was last updated (ISO 8601)."
+          }
+        },
+        "required": [
+          "id",
+          "providerKey",
+          "category",
+          "toolName",
+          "enabled",
+          "reviewPolicy",
+          "maxCallsPerTurn",
+          "timeoutMs",
+          "updatedBy",
+          "updatedAt"
+        ],
+        "description": "An effective Admin tool policy resource."
+      },
+      "AiToolProposalApplyOutput": {
+        "type": "object",
+        "properties": {
+          "proposalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/aiToolProposalStatusEnum"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "applyStatus": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "applied",
+                    "failed",
+                    "skipped"
+                  ]
+                },
+                "errorCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errorMessage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "applyStatus",
+                "errorCode",
+                "errorMessage"
+              ]
+            },
+            "description": "Per-item application results."
+          }
+        },
+        "required": [
+          "proposalId",
+          "status",
+          "items"
+        ],
+        "description": "Result of applying an approved tool change proposal."
+      },
+      "AiToolProposalDecisionBody": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Optional reviewer note."
+          }
+        },
+        "description": "Approve or reject a tool change proposal."
+      },
+      "AiToolProposalIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Tool change proposal identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Tool proposal ID path parameters."
+      },
+      "aiToolProposalKindEnum": {
+        "type": "string",
+        "enum": [
+          "tag_update",
+          "metadata_update",
+          "batch_update",
+          "raw_evidence_link",
+          "other"
+        ]
+      },
+      "AiToolProposalResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/aiToolProposalKindEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/aiToolProposalStatusEnum"
+          },
+          "title": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Assistant-provided reason for the change."
+          },
+          "requestedReview": {
+            "type": "string",
+            "enum": [
+              "none",
+              "admin_review"
+            ]
+          },
+          "effectiveReview": {
+            "type": "string",
+            "enum": [
+              "none",
+              "admin_review"
+            ]
+          },
+          "workflowId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "toolCallId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sourceToolName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "reviewedByUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "reviewedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "appliedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "hasConflict": {
+            "type": "boolean",
+            "description": "Whether any item no longer matches its proposal base."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "resourceKind": {
+                  "type": "string",
+                  "enum": [
+                    "page",
+                    "tag",
+                    "page_metadata",
+                    "raw_category",
+                    "link"
+                  ]
+                },
+                "resourceId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "resourceLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "beforeState": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "afterState": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "applyStatus": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "applied",
+                    "failed",
+                    "skipped"
+                  ]
+                },
+                "hasConflict": {
+                  "type": "boolean"
+                },
+                "errorCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errorMessage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "resourceKind",
+                "resourceId",
+                "resourceLabel",
+                "beforeState",
+                "afterState",
+                "applyStatus",
+                "hasConflict",
+                "errorCode",
+                "errorMessage"
+              ]
+            },
+            "description": "Itemized before/after changes."
+          },
+          "evidenceLinks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "targetKind": {
+                  "type": "string",
+                  "enum": [
+                    "page_revision",
+                    "proposal",
+                    "tag_mutation",
+                    "metadata_change"
+                  ]
+                },
+                "evidenceUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Permission-filtered evidence link, or null."
+                },
+                "contentHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "targetKind",
+                "evidenceUrl",
+                "contentHash"
+              ]
+            },
+            "description": "Permission-filtered Raw evidence links."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "title",
+          "rationale",
+          "requestedReview",
+          "effectiveReview",
+          "workflowId",
+          "toolCallId",
+          "sourceToolName",
+          "createdByUserId",
+          "reviewedByUserId",
+          "reviewedAt",
+          "appliedAt",
+          "createdAt",
+          "hasConflict",
+          "items",
+          "evidenceLinks"
+        ],
+        "description": "Full tool change proposal detail."
+      },
+      "AiToolProposalsListOutput": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "kind": {
+                  "$ref": "#/components/schemas/aiToolProposalKindEnum"
+                },
+                "status": {
+                  "$ref": "#/components/schemas/aiToolProposalStatusEnum"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "createdByUserId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "reviewedByUserId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "reviewedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "appliedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "status",
+                "title",
+                "createdByUserId",
+                "reviewedByUserId",
+                "reviewedAt",
+                "appliedAt",
+                "createdAt"
+              ]
+            },
+            "description": "Proposal summaries for the current result window."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of matching proposals."
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "description": "Admin list of tool change proposals."
+      },
+      "aiToolProposalStatusEnum": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "applied",
+          "failed",
+          "superseded"
+        ]
+      },
+      "AiToolsListOutput": {
+        "type": "object",
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "Stable provider key."
+                },
+                "displayName": {
+                  "type": "string",
+                  "description": "Admin-facing provider label."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "builtin_wiki",
+                    "external_mcp"
+                  ],
+                  "description": "Provider kind."
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Whether the provider is enabled by Admin policy."
+                },
+                "activationStatus": {
+                  "type": "string",
+                  "enum": [
+                    "available",
+                    "disabled",
+                    "unsupported",
+                    "future_external"
+                  ],
+                  "description": "Whether the provider can currently be activated."
+                }
+              },
+              "required": [
+                "key",
+                "displayName",
+                "kind",
+                "enabled",
+                "activationStatus"
+              ]
+            },
+            "description": "Visible tool providers."
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "providerKey": {
+                  "type": "string",
+                  "description": "Owning provider key."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Stable MCP-compatible tool name."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "page_draft",
+                    "metadata",
+                    "tag",
+                    "batch",
+                    "raw_evidence"
+                  ],
+                  "description": "Coarse capability category."
+                },
+                "riskLevel": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "draft_write",
+                    "reviewed_write",
+                    "immediate_write"
+                  ],
+                  "description": "Mutation risk of the tool."
+                },
+                "requiredScope": {
+                  "type": "string",
+                  "description": "Permission/action needed to call the tool."
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Whether the tool is currently enabled."
+                },
+                "reviewPolicy": {
+                  "type": "string",
+                  "enum": [
+                    "always_review",
+                    "review_when_requested",
+                    "allow_immediate_for_owner"
+                  ],
+                  "description": "Admin-managed review policy."
+                },
+                "resultRetention": {
+                  "type": "string",
+                  "enum": [
+                    "conversation_summary",
+                    "raw_when_durable",
+                    "never_full_result"
+                  ],
+                  "description": "How much of a result may be retained in Conversation records."
+                },
+                "effectiveReview": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "admin_review"
+                  ],
+                  "description": "Effective review disposition after server policy resolution."
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Human-readable tool description."
+                }
+              },
+              "required": [
+                "providerKey",
+                "name",
+                "category",
+                "riskLevel",
+                "requiredScope",
+                "enabled",
+                "reviewPolicy",
+                "resultRetention",
+                "effectiveReview"
+              ]
+            },
+            "description": "Visible tools and their effective policies."
+          }
+        },
+        "required": [
+          "providers",
+          "tools"
+        ],
+        "description": "Admin listing of tool providers, tools, and effective policies."
       },
       "AnalyticsSettingsView": {
         "type": "object",
@@ -7757,6 +8459,12 @@
                           "enum": [
                             "image_generation"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
+                          ]
                         }
                       ]
                     },
@@ -7850,6 +8558,12 @@
                           "type": "string",
                           "enum": [
                             "image_generation"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
                           ]
                         }
                       ]
@@ -7945,6 +8659,12 @@
                           "enum": [
                             "image_generation"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
+                          ]
                         }
                       ]
                     },
@@ -8038,6 +8758,12 @@
                           "type": "string",
                           "enum": [
                             "image_generation"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
                           ]
                         }
                       ]
@@ -8496,6 +9222,12 @@
                               "type": "string",
                               "enum": [
                                 "image_generation"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "wiki_tool_chat"
                               ]
                             }
                           ]
@@ -9495,6 +10227,12 @@
                           "enum": [
                             "image_generation"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
+                          ]
                         }
                       ]
                     },
@@ -9788,6 +10526,12 @@
                                 "enum": [
                                   "thinking"
                                 ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "tool_calling"
+                                ]
                               }
                             ]
                           },
@@ -9962,6 +10706,12 @@
                           "enum": [
                             "image_generation"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
+                          ]
                         }
                       ]
                     },
@@ -10067,6 +10817,62 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/tools": {
+      "get": {
+        "operationId": "get-ai-tools",
+        "summary": "List AI tool providers and effective policies @tag AI Tools @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Tools"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/tools/policies": {
+      "patch": {
+        "operationId": "patch-ai-tools-policies",
+        "summary": "Update an AI tool policy @tag AI Tools @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Tools"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -16302,6 +17108,9 @@
     },
     {
       "name": "AI Admin"
+    },
+    {
+      "name": "AI Tools"
     },
     {
       "name": "Analytics"

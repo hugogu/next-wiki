@@ -1152,6 +1152,7 @@
         "description": "管理 Wiki AI 可使用的维基工具，以及其更改何时需要审核。",
         "loading": "正在加载工具…",
         "loadError": "无法加载工具。",
+        "allCategories": "全部",
         "providers": "提供方",
         "provider": {
           "builtin": "内置",

@@ -1152,6 +1152,7 @@
         "description": "Manage which wiki tools Wiki AI can use and when its changes require review.",
         "loading": "Loading tools…",
         "loadError": "Could not load tools.",
+        "allCategories": "All",
         "providers": "Providers",
         "provider": {
           "builtin": "Built-in",

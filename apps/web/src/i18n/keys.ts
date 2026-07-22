@@ -796,6 +796,7 @@ export const translationKeys = [
   "admin.ai.tools.description",
   "admin.ai.tools.loading",
   "admin.ai.tools.loadError",
+  "admin.ai.tools.allCategories",
   "admin.ai.tools.providers",
   "admin.ai.tools.provider.builtin",
   "admin.ai.tools.provider.external",
