@@ -22,7 +22,7 @@ import { getToolDefinition } from '@/server/services/ai-tool-registry';
 async function seedToolChatAction(): Promise<string> {
   const [action] = await db
     .insert(schema.aiActions)
-    .values({ feature: 'wiki_tool_chat', expiresAt: new Date(Date.now() + 3_600_000) })
+    .values({ feature: 'wiki_question', expiresAt: new Date(Date.now() + 3_600_000) })
     .returning({ id: schema.aiActions.id });
   return action!.id;
 }

@@ -226,6 +226,8 @@ async function maybeEnqueueRawConversationCapture(actionId: string): Promise<voi
     where: eq(schema.aiActions.id, actionId),
     columns: { feature: true, rawConversationCaptureStatus: true },
   });
+  // `wiki_tool_chat` is legacy-only; new tool-enabled turns are canonical
+  // `wiki_question` actions with tool workflow records.
   if (
     (action?.feature === 'wiki_question' || action?.feature === 'wiki_tool_chat') &&
     (action.rawConversationCaptureStatus === 'pending' || action.rawConversationCaptureStatus === 'captured')

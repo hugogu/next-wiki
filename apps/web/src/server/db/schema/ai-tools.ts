@@ -95,7 +95,7 @@ export const aiToolPolicies = pgTable(
 
 // ---- Tool workflow & calls --------------------------------------------------
 
-/** A tool-enabled chat turn, linked one-to-one to a `wiki_tool_chat` AI action. */
+/** Tool-loop state for one tool-enabled `wiki_question` action. */
 export const aiToolWorkflows = pgTable(
   'ai_tool_workflows',
   {

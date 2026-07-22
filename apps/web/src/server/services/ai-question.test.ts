@@ -1,9 +1,22 @@
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import { vi } from 'vitest';
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import { assertFullContextCapacity, estimateFullContextTokens } from '@/server/ai/retrieval/full-context';
 import { closeDb, db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { clearAiData } from '../../../test/ai-fixtures';
-import { modelSupportsToolCalling } from './ai-question';
+import { buildUserCtx } from '@/server/permissions';
+import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
+
+const jobsRuntime = vi.hoisted(() => ({
+  enqueue: vi.fn(async (_queue: string, _data: Record<string, unknown>, _options?: unknown) => 'job-id'),
+}));
+vi.mock('@/server/jobs/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/server/jobs/runtime')>();
+  return { ...actual, enqueue: jobsRuntime.enqueue };
+});
+
+import { createWikiToolChat, modelSupportsToolCalling } from './ai-question';
 
 const source = (id: string, content: string): QuestionSource => ({
   id,
@@ -39,6 +52,7 @@ describe('full-context capacity', () => {
 describe('modelSupportsToolCalling', () => {
   beforeEach(async () => {
     await clearAiData();
+    jobsRuntime.enqueue.mockClear();
   });
 
   afterAll(async () => {
@@ -49,7 +63,7 @@ describe('modelSupportsToolCalling', () => {
     const [provider] = await db
       .insert(schema.aiProviders)
       .values({
-        name: `provider-${crypto.randomUUID()}`,
+        name: `provider-${randomUUID()}`,
         kind: 'openai_compatible',
         baseUrl: 'https://example.com/v1',
         credentialsEncrypted: 'encrypted',
@@ -61,12 +75,16 @@ describe('modelSupportsToolCalling', () => {
       .insert(schema.aiModels)
       .values({
         providerId: provider!.id,
-        externalId: `model-${crypto.randomUUID()}`,
+        externalId: `model-${randomUUID()}`,
         displayName: 'Test Model',
         availability: 'available',
       })
       .returning({ id: schema.aiModels.id });
     return model!.id;
+  }
+
+  async function assignWikiTextModel(modelId: string) {
+    await db.insert(schema.aiPurposeAssignments).values({ purpose: 'wiki_text', modelId });
   }
 
   it('allows tool chat when model capability metadata is missing', async () => {
@@ -83,5 +101,35 @@ describe('modelSupportsToolCalling', () => {
       source: 'manual',
     });
     await expect(modelSupportsToolCalling(modelId)).resolves.toBe(false);
+  });
+
+  it('creates tool-enabled chat as the canonical wiki_question action feature', async () => {
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    const userId = await createAiTestUser('admin');
+    try {
+      const modelId = await createModel();
+      await assignWikiTextModel(modelId);
+
+      const result = await createWikiToolChat(buildUserCtx(userId, 'admin'), {
+        question: 'Write the above into a page',
+        mode: 'retrieval',
+        requestedReview: 'admin_review',
+        conversation: [{ question: 'Summarize it', answer: 'Summary body' }],
+        requestMetadata: { origin: 'web' },
+      });
+
+      expect(result.fallback).toBe(false);
+      if (result.fallback) throw new Error('expected tool chat action');
+      expect(result.action.feature).toBe('wiki_question');
+      const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, result.action.id) });
+      expect(row).toMatchObject({
+        feature: 'wiki_question',
+        questionMode: 'retrieval',
+        requestMetadata: expect.objectContaining({ origin: 'web', toolEnabled: true, requestedReview: 'admin_review' }),
+      });
+    } finally {
+      await clearAiData();
+      await removeAiTestUser(userId);
+    }
   });
 });

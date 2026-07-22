@@ -26,11 +26,11 @@ async function makeBinding(userId: string, openId: string) {
   return binding!;
 }
 
-async function makeAction(userId: string, feature: 'wiki_question' | 'wiki_tool_chat' = 'wiki_question') {
+async function makeAction(userId: string) {
   const [action] = await db
     .insert(schema.aiActions)
     .values({
-      feature,
+      feature: 'wiki_question',
       actorUserId: userId,
       expiresAt: new Date(Date.now() + 3_600_000),
     })
@@ -62,7 +62,7 @@ describe('Feishu in-process delegation', () => {
   it('derives the effective user only from the active binding and records safe Feishu attribution', async () => {
     const boundUser = await makeUser('feishu-bound@example.com', 'editor');
     await makeBinding(boundUser.id, 'ou_bound');
-    const action = await makeAction(boundUser.id, 'wiki_tool_chat');
+    const action = await makeAction(boundUser.id);
     createWikiToolChat.mockResolvedValue({ fallback: false, action: { id: action.id } });
 
     const start = vi.fn().mockResolvedValue({ messageId: 'om_bound', reactionId: 'reaction_1' });

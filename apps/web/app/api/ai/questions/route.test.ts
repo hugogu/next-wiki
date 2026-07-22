@@ -43,7 +43,7 @@ describe('POST /api/ai/questions — additive tools option', () => {
   it('routes to tool chat when tools are enabled and the model supports them', async () => {
     services.createWikiToolChat.mockResolvedValue({
       fallback: false,
-      action: { id: 'tc1', feature: 'wiki_tool_chat', status: 'queued', eventsUrl: '/e' },
+      action: { id: 'tc1', feature: 'wiki_question', status: 'queued', eventsUrl: '/e' },
     });
     const conversation = [{ question: 'What is X?', answer: 'X is prior content.' }];
     const response = await post({
@@ -54,11 +54,12 @@ describe('POST /api/ai/questions — additive tools option', () => {
       tools: { enabled: true, requestedReview: 'admin_review' },
     });
     expect(response.status).toBe(202);
-    expect(await response.json()).toMatchObject({ feature: 'wiki_tool_chat' });
+    expect(await response.json()).toMatchObject({ feature: 'wiki_question' });
     expect(services.createWikiToolChat).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         question: 'Write the above to a page',
+        mode: 'retrieval',
         requestedReview: 'admin_review',
         conversation,
         requestMetadata: {

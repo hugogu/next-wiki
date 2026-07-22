@@ -12,15 +12,15 @@
 - Call public REST endpoints directly from the tool loop: rejected because internal services already provide safer permission context and transaction control.
 - Invent non-MCP tool names: rejected because it would make future external MCP providers harder to align.
 
-## R2 — Tool loop as an AI action feature
+## R2 — Tool loop inside the Wiki question action
 
-**Decision**: Add a new AI action feature for tool-enabled chat rather than overloading ordinary `wiki_question` actions.
+**Decision**: Keep tool-enabled chat under the canonical `wiki_question` action feature. Whether the answer used tools is an execution detail represented by `ai_tool_workflows`, tool-call events, and tool/proposal/evidence records tied to the action.
 
-**Rationale**: Tool workflows need additional lifecycle state, tool events, cancellation semantics, evidence links, and proposal relationships. Keeping ordinary Q&A intact preserves current behavior for models or users without tool access and makes raw conversation capture policy explicit.
+**Rationale**: From the product and retention perspective, a user asked Wiki AI a question. Tool use is an internal answering strategy and should not fork Raw capture, session history, citations, Feishu bot context, usage reporting, or deletion/review semantics. The workflow table carries the extra lifecycle state without creating a parallel AI history path.
 
 **Alternatives considered**:
 
-- Extend every `wiki_question` with optional tool state: rejected because it blurs retention and model-capability behavior for simple Q&A.
+- Add a separate `wiki_tool_chat` action feature: rejected because it duplicates session history, Raw capture, citations, bot context, and audit/reporting behavior for what is semantically the same Wiki AI question. Kept only as a legacy enum value for rows created before unification.
 - Store tool workflows outside `ai_actions`: rejected because it would create a parallel AI history path.
 
 ## R3 — Model capability gate

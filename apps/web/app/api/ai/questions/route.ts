@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     if (tools?.enabled) {
       const result = await createWikiToolChat(ctx, {
         question: question.question,
+        mode: question.mode,
         requestedReview: tools.requestedReview ?? 'none',
         currentPage: question.currentPage,
         conversation: question.conversation,

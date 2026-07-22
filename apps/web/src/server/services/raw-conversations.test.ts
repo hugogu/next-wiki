@@ -187,9 +187,8 @@ describe('raw conversations service', () => {
       expect(latest?.contentSource).toContain('Created a reviewed draft page.');
     });
 
-    it('captures wiki_tool_chat actions and records tool-call command markdown', async () => {
+    it('captures tool-enabled wiki_question actions and records tool-call command markdown', async () => {
       const actionId = await createWikiQuestionAction(userId, {
-        feature: 'wiki_tool_chat',
         rawConversationCaptureStatus: 'pending',
         requestMetadata: { origin: 'web', webSessionId: '00000000-0000-4000-8000-000000000027' },
       });

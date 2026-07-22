@@ -7,7 +7,7 @@ import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
-import { appendActionEvent, isCancellationRequested, readActionInput } from '@/server/services/ai-actions';
+import { appendActionEvent, finishAction, isCancellationRequested, readActionInput } from '@/server/services/ai-actions';
 import {
   ensureBuiltinProvider,
   getPolicyRowsByProvider,
@@ -27,6 +27,7 @@ import {
   type ToolPlanner,
 } from '@/server/services/ai-tool-runtime';
 import { listToolDefinitions, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { nudgeAnswerDelivery } from '@/server/services/feishu-notifications';
 import { getCitationHref } from '@/lib/path';
 import { buildPlannerUserPrompt, parseToolPlan } from './ai-tool-chat-planner';
 
@@ -163,4 +164,8 @@ export async function runWikiToolChatAction(actionId: string): Promise<void> {
   const finalAnswer = appendSourceLinks(answer, result.citations);
   if (finalAnswer) await appendActionEvent(actionId, 'text_delta', { text: finalAnswer });
   await appendActionEvent(actionId, 'citations', { citations: result.citations });
+  await finishAction(actionId, 'completed', {
+    resultMetadata: { toolWorkflowStatus: result.status, citationCount: result.citations.length },
+  });
+  await nudgeAnswerDelivery(actionId);
 }

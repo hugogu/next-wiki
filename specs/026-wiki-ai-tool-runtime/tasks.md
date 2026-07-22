@@ -38,8 +38,8 @@
 - [X] T015 Implement tool workflow and tool call persistence primitives in `apps/web/src/server/services/ai-tool-runtime.ts`
 - [X] T016 Implement proposal persistence primitives and state-transition guards in `apps/web/src/server/services/ai-tool-proposals.ts`
 - [X] T017 Implement Tool Evidence Raw category lookup/restore primitives in `apps/web/src/server/services/ai-tool-evidence.ts`
-- [X] T018 Extend AI action/event service types for `wiki_tool_chat` and tool event payloads in `apps/web/src/server/services/ai-actions.ts`
-- [X] T019 Register wiki tool chat job handling in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/ai-actions.ts`
+- [X] T018 Extend `wiki_question` action/event handling with tool event payloads in `apps/web/src/server/services/ai-actions.ts`
+- [X] T019 Register tool-enabled `wiki_question` job dispatch in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/ai-actions.ts`
 - [X] T020 Add audit event helpers for tool policy changes, tool calls, proposal decisions, proposal apply, and immediate mutations in `apps/web/src/server/services/audit.ts`
 - [X] T021 [P] Add foundational unit tests for review-policy strictness in `apps/web/src/server/services/ai-tool-policy.test.ts`
 - [X] T022 [P] Add foundational unit tests for workflow/call state transitions in `apps/web/src/server/services/ai-tool-runtime.test.ts`
@@ -98,17 +98,17 @@
 - [X] T040 [US2] Implement built-in read tool adapters for search, page fetch, page list, backlinks, and neighborhood in `apps/web/src/server/services/ai-tool-registry.ts`
 - [X] T041 [US2] Implement built-in page draft and metadata/tag tool adapters that call existing permission-checked services in `apps/web/src/server/services/ai-tool-registry.ts`
 - [X] T042 [US2] Add tool-calling capability gate and fallback behavior in `apps/web/src/server/services/ai-question.ts`
-- [X] T043 [US2] Accept the additive `tools` request option and create `wiki_tool_chat` actions in `apps/web/app/api/ai/questions/route.ts`
+- [X] T043 [US2] Accept the additive `tools` request option while keeping accepted actions as `wiki_question` in `apps/web/app/api/ai/questions/route.ts`
 - [X] T044 [US2] Implement the bounded tool-call loop and provider-agnostic call envelope in `apps/web/src/server/services/ai-tool-runtime.ts`
 - [X] T045 [US2] Emit tool-call lifecycle events through AI action events in `apps/web/src/server/services/ai-actions.ts`
 - [X] T046 [US2] Add cancellation handling for running tool workflows in `apps/web/src/server/services/ai-tool-runtime.ts`
-- [X] T047 [US2] Register and process `wiki_tool_chat` jobs in `apps/web/src/server/jobs/ai-actions.ts`
+- [X] T047 [US2] Dispatch tool-enabled `wiki_question` actions to the tool loop in `apps/web/src/server/jobs/ai-actions.ts`
 - [X] T048 [US2] Ensure disabled categories and denied permissions produce safe assistant-facing failures in `apps/web/src/server/services/ai-tool-runtime.ts`
 - [X] T095 [US2] Send `tools.enabled=true`, `requestedReview=admin_review`, and recent conversation context from the web chat pane in `apps/web/src/hooks/use-ai-chat.ts`
 - [X] T096 [US2] Forward conversation context through `POST /api/ai/questions` and `createWikiToolChat` in `apps/web/app/api/ai/questions/route.ts` and `apps/web/src/server/services/ai-question.ts`
-- [X] T097 [US2] Include bounded prior turns in the `wiki_tool_chat` planner prompt in `apps/web/src/server/jobs/ai-tool-chat.ts`
+- [X] T097 [US2] Include bounded prior turns in the tool planner prompt in `apps/web/src/server/jobs/ai-tool-chat.ts`
 - [X] T098 [US2] Route Feishu inbound AI turns through `createWikiToolChat` with fallback to `createWikiQuestion` in `apps/web/src/server/services/feishu-delegation.ts`
-- [X] T099 [US2] Rebuild Feishu conversation context from both `wiki_question` and `wiki_tool_chat` actions in `apps/web/src/server/services/feishu-sessions.ts`
+- [X] T099 [US2] Rebuild Feishu conversation context from canonical `wiki_question` actions, with legacy `wiki_tool_chat` compatibility in `apps/web/src/server/services/feishu-sessions.ts`
 
 **Checkpoint**: User Story 2 is functional and independently testable.
 

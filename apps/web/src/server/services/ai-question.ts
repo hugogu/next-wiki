@@ -117,6 +117,7 @@ export async function createWikiToolChat(
   ctx: PermCtx,
   input: {
     question: string;
+    mode?: AiQuestionMode;
     requestedReview: AiToolReviewDecision;
     currentPage?: { pageId: string; revisionId: string };
     conversation?: { question: string; answer: string }[];
@@ -131,7 +132,7 @@ export async function createWikiToolChat(
   }
   const captureEnabled = await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
   const action = await createAction(ctx, {
-    feature: 'wiki_tool_chat',
+    feature: 'wiki_question',
     input: {
       question: input.question,
       requestedReview: input.requestedReview,
@@ -141,11 +142,13 @@ export async function createWikiToolChat(
     providerId: provider.id,
     modelId: model.id,
     pageId: input.currentPage?.pageId ?? null,
+    questionMode: input.mode ?? 'retrieval',
     requestMetadata: {
       ...input.requestMetadata,
       questionBytes: Buffer.byteLength(input.question),
       hasCurrentPage: Boolean(input.currentPage),
       providerName: provider.name,
+      toolEnabled: true,
       requestedReview: input.requestedReview,
     },
     rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',

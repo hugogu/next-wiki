@@ -18,8 +18,8 @@ import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool
 
 /**
  * Tool workflow + tool-call persistence primitives and state-transition guards
- * (026). One workflow record maps to one `wiki_tool_chat` AI action; tool calls
- * are its ordered children. The bounded LLM tool loop, provider-agnostic call
+ * (026). One workflow record maps to one tool-enabled `wiki_question` action;
+ * tool calls are its ordered children. The bounded LLM tool loop, provider-agnostic call
  * envelope, cancellation handling, and safe assistant-facing failures are
  * layered on top in US2; page/proposal mutation wiring in US3. This module owns
  * only the durable records and the legal transitions between their states.

@@ -90,7 +90,7 @@ Response remains the accepted AI action envelope:
 ```json
 {
   "id": "action-id",
-  "feature": "wiki_tool_chat",
+  "feature": "wiki_question",
   "status": "queued",
   "eventsUrl": "/api/ai/actions/action-id/events"
 }

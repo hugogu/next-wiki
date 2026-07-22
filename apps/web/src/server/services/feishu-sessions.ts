@@ -139,6 +139,8 @@ export async function getConversationContext(
     .from(schema.aiActions)
     .where(
       and(
+        // Include legacy `wiki_tool_chat` rows created before tool-enabled Wiki
+        // AI turns were unified under `wiki_question`.
         inArray(schema.aiActions.feature, ['wiki_question', 'wiki_tool_chat']),
         eq(schema.aiActions.actorUserId, userId),
         sql`${schema.aiActions.requestMetadata} ->> 'feishuSessionId' = ${sessionId}`,

@@ -23,6 +23,8 @@ import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type AiActionRow = typeof schema.aiActions.$inferSelect;
+// `wiki_tool_chat` is legacy compatibility for rows created before tool-enabled
+// Wiki AI was folded back into the canonical `wiki_question` feature.
 type CapturableConversationFeature = 'wiki_question' | 'wiki_tool_chat';
 
 /** The exact sentinel the wiki-question prompt asks the model to reply with

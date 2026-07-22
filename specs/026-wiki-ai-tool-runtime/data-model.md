@@ -221,7 +221,7 @@ Validation:
 
 ### AiAction
 
-- Add action feature `wiki_tool_chat`.
+- Tool-enabled turns remain `wiki_question`; tool use is represented by a linked `AiToolWorkflow`.
 - Result metadata may link to `toolWorkflowId`.
 - Event stream includes tool-call lifecycle events.
 

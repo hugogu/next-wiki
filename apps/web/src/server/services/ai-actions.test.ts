@@ -314,7 +314,7 @@ describe('AI actions', () => {
       );
     });
 
-    it('enqueues capture when an event is appended to a pending-capture wiki_tool_chat action', async () => {
+    it('enqueues capture for legacy pending-capture wiki_tool_chat actions', async () => {
       const actionId = await createWikiQuestionAction(userId, {
         feature: 'wiki_tool_chat',
         rawConversationCaptureStatus: 'pending',

@@ -182,7 +182,9 @@ export const aiActionFeatureSchema = z.enum([
   'wiki_question',
   'text_optimization',
   'image_generation',
-  // 026: a tool-enabled chat turn that drives the governed Wiki AI tool loop.
+  // Legacy compatibility for 026 pre-unification rows. New tool-enabled Wiki AI
+  // turns use the canonical `wiki_question` feature and record tool workflow
+  // details separately.
   'wiki_tool_chat',
 ]);
 export type AiActionFeature = z.infer<typeof aiActionFeatureSchema>;
