@@ -33,20 +33,61 @@ async function withDb<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
   }
 }
 
+// Deliberately DELETE (not TRUNCATE ... CASCADE) in child-before-parent order.
+// `users` is referenced by dozens of unrelated settings/seed tables (system
+// themes, site settings, raw categories, content data sources, writing mode,
+// search settings, ...) almost all declared `ON DELETE SET NULL` — the
+// correct, intended behavior for "the user who touched this setting is gone,
+// keep the setting." TRUNCATE ... CASCADE ignores each FK's own ON DELETE
+// action and forcibly empties every one of those tables too, which doesn't
+// just affect this file: it silently wipes seed data (e.g. the two built-in
+// system themes) for every other e2e spec that runs later in the same
+// sequential suite, since nothing re-seeds mid-run. Plain DELETE respects the
+// schema's own semantics and leaves unrelated tables untouched.
+const FIRST_RUN_RESET_TABLES = [
+  'setup_progress',
+  'ai_generated_artifacts',
+  'ai_action_events',
+  'ai_action_inputs',
+  'ai_actions',
+  'ai_knowledge_chunks',
+  'ai_page_index_states',
+  'ai_index_generations',
+  'user_ai_entitlements',
+  'ai_purpose_assignments',
+  'ai_model_capabilities',
+  'ai_models',
+  'ai_providers',
+  'ai_settings',
+  // search_behaviors/search_records reference pages/users too, but aren't
+  // ON DELETE SET NULL-safe: search_behaviors has a CHECK constraint tying
+  // its shape to a non-null page_id for certain actions, so nulling it out
+  // (the correct FK behavior for an unrelated page delete) can violate that
+  // constraint on an existing row. They're inherently tied to a page/session
+  // lifecycle anyway, so deleting them outright here is correct, not a
+  // workaround.
+  'search_behaviors',
+  'search_records',
+  'page_revisions',
+  'pages',
+  'sessions',
+  'users',
+];
+
+async function deleteFirstRunRows(sql: postgres.Sql) {
+  for (const table of FIRST_RUN_RESET_TABLES) {
+    await sql.unsafe(`DELETE FROM ${table}`);
+  }
+}
+
 async function resetFirstRunState() {
-  await withDb((sql) =>
-    sql.unsafe(
-      'TRUNCATE TABLE setup_progress, ai_generated_artifacts, ai_action_events, ai_action_inputs, ai_actions, ai_knowledge_chunks, ai_page_index_states, ai_index_generations, user_ai_entitlements, ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings, page_revisions, pages, sessions, users RESTART IDENTITY CASCADE',
-    ),
-  );
+  await withDb((sql) => deleteFirstRunRows(sql));
 }
 
 async function restoreSeededState() {
   const passwordHash = bcrypt.hashSync('admin123', 10);
   await withDb(async (sql) => {
-    await sql.unsafe(
-      'TRUNCATE TABLE setup_progress, ai_generated_artifacts, ai_action_events, ai_action_inputs, ai_actions, ai_knowledge_chunks, ai_page_index_states, ai_index_generations, user_ai_entitlements, ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings, page_revisions, pages, sessions, users RESTART IDENTITY CASCADE',
-    );
+    await deleteFirstRunRows(sql);
     const [admin] = await sql<{ id: string }[]>`
       INSERT INTO users (email, password_hash, role, status, display_name)
       VALUES ('admin@example.com', ${passwordHash}, 'admin', 'active', 'Admin')

@@ -12,6 +12,23 @@ async function login(page: Page) {
 }
 
 test.describe('admin search settings', () => {
+  // The test below ends with fuzzy search disabled (it only re-enables
+  // full-text at the end, to demonstrate the "keep at least one enabled"
+  // guard). Restore both to their application defaults so later specs that
+  // rely on fuzzy matching (e.g. header-hybrid-search.spec.ts, which needs it
+  // for a short prefix like "we" to match "Welcome") aren't silently starved
+  // for the rest of the sequential suite run.
+  test.afterEach(async ({ page }) => {
+    await login(page);
+    await page.goto('/admin/search');
+    const fuzzy = page.getByRole('switch', { name: 'Fuzzy search' });
+    if ((await fuzzy.getAttribute('aria-checked')) !== 'true') {
+      await fuzzy.click();
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved.')).toBeVisible();
+    }
+  });
+
   test('persists individual lexical switches and prevents disabling both', async ({ page }) => {
     await login(page);
     await page.goto('/admin/search');

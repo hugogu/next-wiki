@@ -13,6 +13,20 @@ async function login(page: Page, email: string, password: string) {
 }
 
 test.describe('admin site settings', () => {
+  // Neither test below restores the original site name/footer/ICP number —
+  // left as-is, the change (e.g. "Acme Wiki") leaks into every later spec in
+  // the same sequential suite run (page titles, footer text, anything that
+  // asserts the default "next-wiki" site name).
+  test.afterEach(async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/site');
+    await page.getByLabel('Site name').fill('next-wiki');
+    await page.getByLabel('Footer copyright').fill('');
+    await page.getByLabel('ICP filing number (ICP 备案号)').fill('');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Site information updated.')).toBeVisible();
+  });
+
   test('admin sets the site name and footer, and they appear', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/site');

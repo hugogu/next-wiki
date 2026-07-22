@@ -10,8 +10,47 @@ const ADMIN_PASSWORD = 'admin123';
 const ONBOARDING_EMAIL = 'writing-mode-owner@example.com';
 const ONBOARDING_PASSWORD = 'Password123!';
 
-const RESET_TABLES =
-  'setup_progress, ai_generated_artifacts, ai_action_events, ai_action_inputs, ai_actions, ai_knowledge_chunks, ai_page_index_states, ai_index_generations, user_ai_entitlements, ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings, page_revisions, pages, sessions, users';
+// Deliberately DELETE (not TRUNCATE ... CASCADE) in child-before-parent
+// order. `users` is referenced by dozens of unrelated settings/seed tables
+// (system themes, site settings, raw categories, content data sources,
+// search settings, ...) almost all declared `ON DELETE SET NULL` — the
+// correct, intended behavior for "the user who touched this setting is gone,
+// keep the setting." TRUNCATE ... CASCADE ignores each FK's own ON DELETE
+// action and forcibly empties every one of those tables too, silently
+// wiping seed data (e.g. the built-in system themes) for any other e2e spec
+// that runs later in the same sequential suite, since nothing re-seeds
+// mid-run. Plain DELETE respects the schema's own semantics and leaves
+// unrelated tables untouched. See the identical fix/comment in
+// setup-onboarding.spec.ts, which shares this exact table list.
+const RESET_TABLES = [
+  'setup_progress',
+  'ai_generated_artifacts',
+  'ai_action_events',
+  'ai_action_inputs',
+  'ai_actions',
+  'ai_knowledge_chunks',
+  'ai_page_index_states',
+  'ai_index_generations',
+  'user_ai_entitlements',
+  'ai_purpose_assignments',
+  'ai_model_capabilities',
+  'ai_models',
+  'ai_providers',
+  'ai_settings',
+  // search_behaviors/search_records reference pages/users too, but aren't
+  // ON DELETE SET NULL-safe: search_behaviors has a CHECK constraint tying
+  // its shape to a non-null page_id for certain actions, so nulling it out
+  // (the correct FK behavior for an unrelated page delete) can violate that
+  // constraint on an existing row. They're inherently tied to a page/session
+  // lifecycle anyway, so deleting them outright here is correct, not a
+  // workaround.
+  'search_behaviors',
+  'search_records',
+  'page_revisions',
+  'pages',
+  'sessions',
+  'users',
+];
 
 async function withDb<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
   const sql = postgres(E2E_DATABASE_URL, { max: 1 });
@@ -19,6 +58,12 @@ async function withDb<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
     return await fn(sql);
   } finally {
     await sql.end({ timeout: 5 });
+  }
+}
+
+async function deleteFirstRunRows(sql: postgres.Sql) {
+  for (const table of RESET_TABLES) {
+    await sql.unsafe(`DELETE FROM ${table}`);
   }
 }
 
@@ -38,7 +83,7 @@ async function setWritingMode(mode: 'copilot' | 'llm-wiki') {
 }
 
 async function resetFirstRunState() {
-  await withDb((sql) => sql.unsafe(`TRUNCATE TABLE ${RESET_TABLES} RESTART IDENTITY CASCADE`));
+  await withDb((sql) => deleteFirstRunRows(sql));
   await setWritingMode('copilot');
 }
 
@@ -46,7 +91,7 @@ async function resetFirstRunState() {
 async function restoreSeededState() {
   const passwordHash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
   await withDb(async (sql) => {
-    await sql.unsafe(`TRUNCATE TABLE ${RESET_TABLES} RESTART IDENTITY CASCADE`);
+    await deleteFirstRunRows(sql);
     const [admin] = await sql<{ id: string }[]>`
       INSERT INTO users (email, password_hash, role, status, display_name)
       VALUES (${ADMIN_EMAIL}, ${passwordHash}, 'admin', 'active', 'Admin')
