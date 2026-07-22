@@ -33,18 +33,18 @@
 - [X] T010 Generate the Drizzle migration from schema changes with `pnpm db:generate`, producing files under `apps/web/src/server/db/migrations/`
 - [X] T011 [P] Add schema regression tests for AI tool tables and enum names in `apps/web/src/server/db/ai-tool-schema.test.ts`
 - [X] T012 [P] Add shared schema validation tests for tool contracts in `packages/shared/src/ai-tools.test.ts`
-- [ ] T013 Implement the built-in `next-wiki` tool registry in `apps/web/src/server/services/ai-tool-registry.ts`
-- [ ] T014 Implement server-enforced review-policy resolution in `apps/web/src/server/services/ai-tool-policy.ts`
-- [ ] T015 Implement tool workflow and tool call persistence primitives in `apps/web/src/server/services/ai-tool-runtime.ts`
-- [ ] T016 Implement proposal persistence primitives and state-transition guards in `apps/web/src/server/services/ai-tool-proposals.ts`
-- [ ] T017 Implement Tool Evidence Raw category lookup/restore primitives in `apps/web/src/server/services/ai-tool-evidence.ts`
-- [ ] T018 Extend AI action/event service types for `wiki_tool_chat` and tool event payloads in `apps/web/src/server/services/ai-actions.ts`
-- [ ] T019 Register wiki tool chat job handling in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/ai-actions.ts`
-- [ ] T020 Add audit event helpers for tool policy changes, tool calls, proposal decisions, proposal apply, and immediate mutations in `apps/web/src/server/services/audit.ts`
-- [ ] T021 [P] Add foundational unit tests for review-policy strictness in `apps/web/src/server/services/ai-tool-policy.test.ts`
-- [ ] T022 [P] Add foundational unit tests for workflow/call state transitions in `apps/web/src/server/services/ai-tool-runtime.test.ts`
-- [ ] T023 [P] Add foundational unit tests for proposal state transitions in `apps/web/src/server/services/ai-tool-proposals.test.ts`
-- [ ] T024 [P] Add foundational unit tests for Tool Evidence category restore behavior in `apps/web/src/server/services/ai-tool-evidence.test.ts`
+- [X] T013 Implement the built-in `next-wiki` tool registry in `apps/web/src/server/services/ai-tool-registry.ts`
+- [X] T014 Implement server-enforced review-policy resolution in `apps/web/src/server/services/ai-tool-policy.ts`
+- [X] T015 Implement tool workflow and tool call persistence primitives in `apps/web/src/server/services/ai-tool-runtime.ts`
+- [X] T016 Implement proposal persistence primitives and state-transition guards in `apps/web/src/server/services/ai-tool-proposals.ts`
+- [X] T017 Implement Tool Evidence Raw category lookup/restore primitives in `apps/web/src/server/services/ai-tool-evidence.ts`
+- [X] T018 Extend AI action/event service types for `wiki_tool_chat` and tool event payloads in `apps/web/src/server/services/ai-actions.ts`
+- [X] T019 Register wiki tool chat job handling in `apps/web/src/server/jobs/register.ts` and `apps/web/src/server/jobs/ai-actions.ts`
+- [X] T020 Add audit event helpers for tool policy changes, tool calls, proposal decisions, proposal apply, and immediate mutations in `apps/web/src/server/services/audit.ts`
+- [X] T021 [P] Add foundational unit tests for review-policy strictness in `apps/web/src/server/services/ai-tool-policy.test.ts`
+- [X] T022 [P] Add foundational unit tests for workflow/call state transitions in `apps/web/src/server/services/ai-tool-runtime.test.ts`
+- [X] T023 [P] Add foundational unit tests for proposal state transitions in `apps/web/src/server/services/ai-tool-proposals.test.ts`
+- [X] T024 [P] Add foundational unit tests for Tool Evidence category restore behavior in `apps/web/src/server/services/ai-tool-evidence.test.ts`
 
 **Checkpoint**: Database schema, shared schemas, registry, policy, workflow, proposal, evidence, audit, and job entry points are ready.
 

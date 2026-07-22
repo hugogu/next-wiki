@@ -18,6 +18,7 @@ import { runModelSyncAction, runProviderTestAction } from './ai-admin';
 import { runIndexRebuildAction } from './ai-index';
 import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
 import { runWikiQuestionAction } from './ai-question';
+import { runWikiToolChatAction } from './ai-tool-chat';
 import { runTextOptimizationAction } from './ai-optimization';
 import { runImageGenerationAction } from './ai-image-generation';
 import { runTransferExport } from './transfer-export';
@@ -55,6 +56,7 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   registerAiActionHandler('index_rebuild', runIndexRebuildAction);
   registerAiActionHandler('semantic_search', runSemanticSearchAction);
   registerAiActionHandler('wiki_question', runWikiQuestionAction);
+  registerAiActionHandler('wiki_tool_chat', runWikiToolChatAction);
   registerAiActionHandler('text_optimization', runTextOptimizationAction);
   registerAiActionHandler('image_generation', runImageGenerationAction);
   for (const queue of Object.values(QUEUES)) {

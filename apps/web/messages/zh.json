@@ -1520,6 +1520,7 @@
         "index_rebuild": "知识索引重建",
         "semantic_search": "语义检索",
         "wiki_question": "Wiki 问答",
+        "wiki_tool_chat": "Wiki 工具对话",
         "text_optimization": "文本优化",
         "image_generation": "图片生成"
       },

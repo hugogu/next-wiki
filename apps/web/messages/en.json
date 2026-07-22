@@ -1520,6 +1520,7 @@
         "index_rebuild": "Knowledge index rebuild",
         "semantic_search": "Semantic search",
         "wiki_question": "Wiki question",
+        "wiki_tool_chat": "Wiki tool chat",
         "text_optimization": "Text optimization",
         "image_generation": "Image generation"
       },

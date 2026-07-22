@@ -50,6 +50,7 @@ const FEATURE_LABELS: Record<AiActionFeature, TranslationKey> = {
   index_rebuild: 'admin.ai.actionFeature.index_rebuild',
   semantic_search: 'admin.ai.actionFeature.semantic_search',
   wiki_question: 'admin.ai.actionFeature.wiki_question',
+  wiki_tool_chat: 'admin.ai.actionFeature.wiki_tool_chat',
   text_optimization: 'admin.ai.actionFeature.text_optimization',
   image_generation: 'admin.ai.actionFeature.image_generation',
 };

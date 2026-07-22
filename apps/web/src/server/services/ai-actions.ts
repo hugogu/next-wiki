@@ -14,6 +14,9 @@ import {
   type RawConversationCaptureStatus,
   type RawConversationPointer,
   type WikiAiChannel,
+  type AiToolCallEventPayload,
+  type AiToolProposalEventPayload,
+  type AiToolEvidenceEventPayload,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -256,6 +259,29 @@ export async function appendActionEvent(
     });
   });
   return row!.id;
+}
+
+/**
+ * 026: typed emit helpers for the governed tool loop's action events. Payloads
+ * are already permission-safe and bounded (command markdown + safe status, no
+ * full arbitrary results) before reaching `appendActionEvent`'s size guard.
+ */
+export function appendToolCallEvent(actionId: string, payload: AiToolCallEventPayload): Promise<number> {
+  return appendActionEvent(actionId, 'tool_call', payload as unknown as Record<string, unknown>);
+}
+
+export function appendToolProposalEvent(
+  actionId: string,
+  payload: AiToolProposalEventPayload,
+): Promise<number> {
+  return appendActionEvent(actionId, 'tool_proposal', payload as unknown as Record<string, unknown>);
+}
+
+export function appendToolEvidenceEvent(
+  actionId: string,
+  payload: AiToolEvidenceEventPayload,
+): Promise<number> {
+  return appendActionEvent(actionId, 'tool_evidence', payload as unknown as Record<string, unknown>);
 }
 
 export async function getActionEvents(

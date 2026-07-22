@@ -61,6 +61,96 @@ export async function writeEntry(input: AuditEntryInput): Promise<void> {
   });
 }
 
+/**
+ * 026: bounded audit trail for governed tool operations. Tool policy changes,
+ * tool calls, proposal decisions, proposal applies, and immediate mutations
+ * happen partly inside the async worker (no HTTP request of their own), so they
+ * are recorded here as `api` entries with a descriptive synthetic path — the
+ * same shape the Feishu delegation path already uses — keeping them visible in
+ * the unified admin audit log alongside the durable domain records.
+ */
+async function writeToolAuditEntry(input: {
+  userId: string | null;
+  method: string;
+  action: string;
+  outcome: 'success' | 'error';
+  detail?: string | null;
+}): Promise<void> {
+  await writeEntry({
+    keyId: null,
+    userId: input.userId,
+    entryType: 'api',
+    method: input.method,
+    path: `/internal/ai/tools/${input.action}`,
+    statusCode: input.outcome === 'error' ? 500 : 200,
+    durationMs: 0,
+    authStatus: 'authenticated',
+    errorMessage: input.outcome === 'error' ? (input.detail?.slice(0, 500) ?? null) : null,
+  });
+}
+
+export function auditToolPolicyChange(
+  userId: string | null,
+  scope: { providerKey: string; category?: string | null; toolName?: string | null },
+): Promise<void> {
+  const target = scope.toolName ?? scope.category ?? 'provider-default';
+  return writeToolAuditEntry({
+    userId,
+    method: 'PATCH',
+    action: `policy/${scope.providerKey}/${target}`,
+    outcome: 'success',
+  });
+}
+
+export function auditToolCall(
+  userId: string | null,
+  call: { toolName: string; status: string; errorCode?: string | null },
+): Promise<void> {
+  return writeToolAuditEntry({
+    userId,
+    method: 'POST',
+    action: `call/${call.toolName}/${call.status}`,
+    outcome: call.status === 'failed' || call.status === 'blocked' ? 'error' : 'success',
+    detail: call.errorCode ?? null,
+  });
+}
+
+export function auditProposalDecision(
+  userId: string | null,
+  decision: { proposalId: string; decision: 'approved' | 'rejected' },
+): Promise<void> {
+  return writeToolAuditEntry({
+    userId,
+    method: 'POST',
+    action: `proposal/${decision.proposalId}/${decision.decision}`,
+    outcome: 'success',
+  });
+}
+
+export function auditProposalApply(
+  userId: string | null,
+  result: { proposalId: string; applied: number; failed: number },
+): Promise<void> {
+  return writeToolAuditEntry({
+    userId,
+    method: 'POST',
+    action: `proposal/${result.proposalId}/apply/${result.applied}-${result.failed}`,
+    outcome: result.failed > 0 ? 'error' : 'success',
+  });
+}
+
+export function auditImmediateToolMutation(
+  userId: string | null,
+  mutation: { toolName: string; target: string },
+): Promise<void> {
+  return writeToolAuditEntry({
+    userId,
+    method: 'POST',
+    action: `immediate/${mutation.toolName}/${mutation.target}`,
+    outcome: 'success',
+  });
+}
+
 function mapStatusFilter(status: 'success' | 'error' | undefined) {
   // Success is a 2xx/3xx response; everything else (4xx/5xx, and any <200) is an
   // error. This only narrows the view — failed requests are always recorded.
