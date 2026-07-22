@@ -23,7 +23,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/025-feishu-bot-conversation-capture/plan.md
+at specs/026-wiki-ai-tool-runtime/plan.md
 <!-- SPECKIT END -->
 
 ## Database Migrations (Drizzle) — never hand-author
