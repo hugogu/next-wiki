@@ -135,6 +135,7 @@ export async function createWikiToolChat(
     feature: 'wiki_question',
     input: {
       question: input.question,
+      mode: input.mode ?? 'retrieval',
       requestedReview: input.requestedReview,
       currentPage: input.currentPage,
       conversation: input.conversation,

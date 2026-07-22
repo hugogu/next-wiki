@@ -1,10 +1,12 @@
 import { eq } from 'drizzle-orm';
-import type { AiCitation, AiToolReviewDecision } from '@next-wiki/shared';
+import type { AiCitation, AiQuestionMode, AiToolReviewDecision } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
+import { normalizeQuestionCitations } from '@/server/ai/prompts/wiki-question';
+import { loadWikiQuestionSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
 import { appendActionEvent, finishAction, isCancellationRequested, readActionInput } from '@/server/services/ai-actions';
@@ -33,6 +35,7 @@ import { buildPlannerUserPrompt, parseToolPlan } from './ai-tool-chat-planner';
 
 type ToolChatInput = {
   question: string;
+  mode?: AiQuestionMode;
   requestedReview?: AiToolReviewDecision;
   currentPage?: { pageId: string; revisionId: string };
   conversation?: { question: string; answer: string }[];
@@ -55,6 +58,16 @@ function appendSourceLinks(answer: string, citations: AiCitation[]): string {
   return `${body}${body ? '\n\n' : ''}Sources:\n${lines.join('\n')}`;
 }
 
+function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
+  const merged = new Map<string, AiCitation>();
+  for (const citations of groups) {
+    for (const citation of citations) {
+      merged.set(`${citation.pageId}:${citation.revisionId}`, citation);
+    }
+  }
+  return [...merged.values()];
+}
+
 /** System prompt describing the available tools and the provider-agnostic
  * JSON tool-call protocol the model drives over ordinary text streaming. */
 function buildToolSystemPrompt(tools: ToolDefinition[]): string {
@@ -71,6 +84,11 @@ function buildToolSystemPrompt(tools: ToolDefinition[]): string {
     'Set "review" to "admin_review" for changes that should be reviewed. After you',
     'receive tool results, either call more tools the same way, or write your final',
     'answer as plain prose (no code block), citing the pages you read.',
+    'Baseline Wiki sources are provided in the user prompt. For informational',
+    'questions, use those sources first and cite factual claims with source ids',
+    'in plain ASCII brackets exactly like [S1]. Do not answer from general model',
+    'knowledge when the Wiki sources and tool-read pages do not support it;',
+    'reply with INSUFFICIENT_WIKI_EVIDENCE instead.',
     'If the user asks to save, write, or turn previous conversation content into a',
     'wiki page, use create_page or save_draft with admin_review instead of only',
     'answering conversationally.',
@@ -93,6 +111,14 @@ export async function runWikiToolChatAction(actionId: string): Promise<void> {
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
   await appendActionEvent(actionId, 'question', { text: input.question });
+  const questionMode = input.mode ?? 'retrieval';
+  const { sources: wikiSources, usage: retrievalUsage } = await loadWikiQuestionSources({
+    ctx,
+    actionId,
+    question: input.question,
+    mode: questionMode,
+    textContextWindow: textModel.contextWindow,
+  });
 
   // Resolve effective policy for every tool once, up front.
   const provider = await ensureBuiltinProvider();
@@ -146,6 +172,7 @@ export async function runWikiToolChatAction(actionId: string): Promise<void> {
     actorUserId: user.id,
     question: input.question,
     conversation: input.conversation ?? [],
+    wikiSources,
     planner,
     resolveReview,
     isEnabled,
@@ -156,16 +183,34 @@ export async function runWikiToolChatAction(actionId: string): Promise<void> {
     throw new DomainError('CANCELLED', 'Tool chat was cancelled');
   }
 
-  const answer =
+  let answer =
     result.answer ||
     (result.status === 'limit_reached'
       ? 'I reached the tool-call limit for this turn before finishing.'
       : '');
-  const finalAnswer = appendSourceLinks(answer, result.citations);
+  if (
+    wikiSources.length === 0 &&
+    result.calls === 0 &&
+    answer.trim() &&
+    answer.trim() !== 'INSUFFICIENT_WIKI_EVIDENCE'
+  ) {
+    answer = 'INSUFFICIENT_WIKI_EVIDENCE';
+  }
+  const insufficientEvidence = answer.trim() === 'INSUFFICIENT_WIKI_EVIDENCE';
+  const wikiCitations = insufficientEvidence
+    ? []
+    : normalizeQuestionCitations(answer, wikiSources);
+  const citations = mergeCitations(wikiCitations, result.citations);
+  const finalAnswer = appendSourceLinks(answer, citations);
   if (finalAnswer) await appendActionEvent(actionId, 'text_delta', { text: finalAnswer });
-  await appendActionEvent(actionId, 'citations', { citations: result.citations });
+  await appendActionEvent(actionId, 'citations', { citations });
   await finishAction(actionId, 'completed', {
-    resultMetadata: { toolWorkflowStatus: result.status, citationCount: result.citations.length },
+    resultMetadata: {
+      toolWorkflowStatus: result.status,
+      insufficientEvidence,
+      citationCount: citations.length,
+    },
+    usageMetadata: retrievalUsage,
   });
   await nudgeAnswerDelivery(actionId);
 }

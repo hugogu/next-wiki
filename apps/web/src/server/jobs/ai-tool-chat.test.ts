@@ -52,6 +52,7 @@ describe('buildPlannerUserPrompt', () => {
           answer: 'It lets Wiki AI create governed draft pages through tools.',
         },
       ],
+      wikiSources: [],
       transcript: [],
     });
 
@@ -59,5 +60,29 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('It lets Wiki AI create governed draft pages through tools.');
     expect(prompt).toContain('<question>');
     expect(prompt).toContain('Write the above into a standalone wiki page.');
+  });
+
+  it('includes baseline Wiki sources for grounded informational answers', () => {
+    const prompt = buildPlannerUserPrompt({
+      question: '介绍张飞',
+      conversation: [],
+      wikiSources: [
+        {
+          id: 'S1',
+          pageId: '00000000-0000-4000-8000-000000000001',
+          revisionId: '00000000-0000-4000-9000-000000000001',
+          title: '张飞',
+          path: 'history/china/zhang-fei',
+          locale: 'zh',
+          revisionHash: 'hash',
+          content: '张飞，字益德，是三国时期蜀汉将领。',
+        },
+      ],
+      transcript: [],
+    });
+
+    expect(prompt).toContain('<wiki_sources>');
+    expect(prompt).toContain('<source id="S1" title="张飞" path="history/china/zhang-fei">');
+    expect(prompt).toContain('张飞，字益德');
   });
 });

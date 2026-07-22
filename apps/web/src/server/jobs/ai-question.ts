@@ -12,11 +12,9 @@ import {
   estimatePromptTokens,
   isInsufficientAnswer,
   normalizeQuestionCitations,
-  searchResultsToSources,
-  type QuestionSource,
 } from '@/server/ai/prompts/wiki-question';
 import { isContextLengthExceededError } from '@/server/ai/types';
-import { loadReadableFullContext } from '@/server/ai/retrieval/full-context';
+import { loadWikiQuestionSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
 import {
@@ -25,7 +23,6 @@ import {
   isCancellationRequested,
   readActionInput,
 } from '@/server/services/ai-actions';
-import { retrieve } from '@/server/services/ai-retrieval';
 import {
   nudgeAnswerDelivery,
   toFeishuCitations,
@@ -69,37 +66,13 @@ export async function runWikiQuestionAction(actionId: string): Promise<void> {
   // rest of the conversation, not kept indefinitely.
   await appendActionEvent(actionId, 'question', { text: input.question });
 
-  let sources: QuestionSource[];
-  let retrievalUsage: Record<string, unknown> = {};
-  if (input.mode === 'full') {
-    sources = await loadReadableFullContext(ctx, textModel.contextWindow, input.question);
-  } else {
-    const generation = await db.query.aiIndexGenerations.findFirst({
-      where: eq(schema.aiIndexGenerations.isActive, true),
-    });
-    if (!generation || generation.status !== 'ready')
-      throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
-    const embeddingModel = await db.query.aiModels.findFirst({
-      where: eq(schema.aiModels.id, generation.modelId),
-    });
-    if (!embeddingModel) throw new DomainError('MODEL_NOT_FOUND', 'Embedding model not found');
-    const embeddingProvider = await db.query.aiProviders.findFirst({
-      where: eq(schema.aiProviders.id, embeddingModel.providerId),
-    });
-    if (!embeddingProvider?.enabled)
-      throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
-    const embedded = await createAiProviderAdapter(
-      await providerRuntime(embeddingProvider.id),
-    ).embed({
-      actionId,
-      modelExternalId: embeddingModel.externalId,
-      inputs: [input.question],
-      expectedDimensions: generation.embeddingDimensions,
-      abortSignal: new AbortController().signal,
-    });
-    sources = searchResultsToSources(await retrieve(ctx, generation.id, embedded.vectors[0]!, 8));
-    retrievalUsage = embedded.usage ?? {};
-  }
+  const { sources, usage: retrievalUsage } = await loadWikiQuestionSources({
+    ctx,
+    actionId,
+    question: input.question,
+    mode: input.mode,
+    textContextWindow: textModel.contextWindow,
+  });
 
   if (sources.length === 0) {
     await appendActionEvent(actionId, 'text_delta', { text: 'INSUFFICIENT_WIKI_EVIDENCE' });

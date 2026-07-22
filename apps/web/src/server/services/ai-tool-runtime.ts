@@ -9,6 +9,7 @@ import type {
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import type { PermCtx } from '@/server/permissions';
 import { appendToolCallEvent, appendToolProposalEvent } from '@/server/services/ai-actions';
 import { auditToolCall } from '@/server/services/audit';
@@ -279,6 +280,7 @@ export type ToolPlanStep =
 export type ToolTurnState = {
   question: string;
   conversation: { question: string; answer: string }[];
+  wikiSources: QuestionSource[];
   transcript: string[];
 };
 
@@ -291,6 +293,7 @@ export type ToolLoopParams = {
   actorUserId: string | null;
   question: string;
   conversation?: { question: string; answer: string }[];
+  wikiSources?: QuestionSource[];
   planner: ToolPlanner;
   /** Server-enforced review resolution for one call (strictest wins). */
   resolveReview: (tool: ToolDefinition, requested: AiToolReviewDecision) => AiToolReviewDecision;
@@ -366,6 +369,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   const state: ToolTurnState = {
     question: params.question,
     conversation: params.conversation ?? [],
+    wikiSources: params.wikiSources ?? [],
     transcript: [],
   };
   let answer = '';

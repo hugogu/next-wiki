@@ -1,8 +1,10 @@
 import type { AiToolReviewDecision } from '@next-wiki/shared';
+import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 
 export type ToolPlannerState = {
   question: string;
   conversation: { question: string; answer: string }[];
+  wikiSources: QuestionSource[];
   transcript: string[];
 };
 
@@ -18,6 +20,22 @@ export type ToolPlannerStep =
   | { kind: 'final'; text: string };
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
+  const sources = state.wikiSources.length > 0
+    ? [
+        '<wiki_sources>',
+        ...state.wikiSources.map(
+          (source) =>
+            `<source id="${source.id}" title="${source.title}" path="${source.path}">\n${source.content}\n</source>`,
+        ),
+        '</wiki_sources>',
+        '',
+      ]
+    : [
+        '<wiki_sources>',
+        'No baseline Wiki sources were retrieved. For informational answers, use read/search tools before answering; if the Wiki still does not support an answer, reply with INSUFFICIENT_WIKI_EVIDENCE.',
+        '</wiki_sources>',
+        '',
+      ];
   const conversation = state.conversation.length > 0
     ? [
         '<conversation>',
@@ -29,9 +47,10 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [];
   if (state.transcript.length === 0) {
-    return [...conversation, '<question>', state.question, '</question>'].join('\n');
+    return [...sources, ...conversation, '<question>', state.question, '</question>'].join('\n');
   }
   return [
+    ...sources,
     ...conversation,
     '<question>',
     state.question,

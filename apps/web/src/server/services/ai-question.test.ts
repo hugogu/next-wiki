@@ -6,6 +6,7 @@ import { assertFullContextCapacity, estimateFullContextTokens } from '@/server/a
 import { closeDb, db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
+import { readActionInput } from '@/server/services/ai-actions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 
 const jobsRuntime = vi.hoisted(() => ({
@@ -126,6 +127,10 @@ describe('modelSupportsToolCalling', () => {
         feature: 'wiki_question',
         questionMode: 'retrieval',
         requestMetadata: expect.objectContaining({ origin: 'web', toolEnabled: true, requestedReview: 'admin_review' }),
+      });
+      await expect(readActionInput(result.action.id)).resolves.toMatchObject({
+        question: 'Write the above into a page',
+        mode: 'retrieval',
       });
     } finally {
       await clearAiData();
