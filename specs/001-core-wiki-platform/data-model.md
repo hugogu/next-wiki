@@ -116,8 +116,8 @@ Indexes: unique(`space_id`, `path`, `locale`) — the canonical key; index on
 current_published_version_id is not null` for the public list query.
 
 Validation (service layer, Zod): `path` matches the rules
-`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\/[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`
-(lowercase letters, numbers, hyphens, and slashes; no leading, trailing, or
+`^[a-z0-9]([a-z0-9_-]*[a-z0-9])?(\/[a-z0-9]([a-z0-9_-]*[a-z0-9])?)*$`
+(lowercase letters, numbers, hyphens, underscores, and slashes; no leading, trailing, or
 consecutive slashes; segments 1–100 chars). Uniqueness is enforced by the
 unique index `(space_id, path, locale)` → conflicts returned as a clear
 validation error (FR-023). `slug` is derived from the final segment of `path`
@@ -175,7 +175,7 @@ pages.latest_version_id            ──> page_revisions.id    (newest, any sta
 
 - **Registration**: email (valid, unique); password (minimum strength policy,
   e.g. ≥ 8 chars + class checks — enforced in `authService`, not DB).
-- **Page create**: `path` validation (lowercase letters, numbers, hyphens,
+- **Page create**: `path` validation (lowercase letters, numbers, hyphens, underscores,
   slashes; no leading/trailing/consecutive slashes) + uniqueness; `title`
   non-empty; `content_source` non-empty (a page may not be saved empty in this
   slice). `slug` is derived from the last `/`-separated segment of `path`.

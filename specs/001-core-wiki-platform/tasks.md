@@ -104,7 +104,7 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 ### Implementation
 
-- [x] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (path validation: lowercase letters, numbers, hyphens, slashes, no leading/trailing/consecutive slashes; uniqueness within space/locale; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
+- [x] T031 [P] [US3] `pageService.create/newDraft/getForEdit/getHistory/getRevision` in `apps/web/src/server/services/pages.ts` (path validation: lowercase letters, numbers, hyphens, underscores, slashes, no leading/trailing/consecutive slashes; uniqueness within space/locale; `version_number = max+1` in same transaction; render-at-save storing `content_html`+`content_hash`; `can('edit')`/`can('read_draft')` enforced)
 - [x] T032 [P] [US3] REST pages route handlers in `apps/web/app/api/pages/**`: `POST /api/pages`, `GET/POST /api/edit/{...path}`, `GET /api/history/{...path}`, `GET /api/revisions/{n}/{...path}`
 - [x] T033 [US3] Custom side-by-side Markdown editor component `apps/web/src/components/editor/SplitMarkdownEditor.tsx` (textarea source + server-rendered preview via `/api/preview`; no editor AST leaves the browser — research D10)
 - [x] T034 [US3] Create-page route `apps/web/app/(public)/new/page.tsx` (form: path + title + content; editor/admin only; path-collision shows clear error per FR-023)
@@ -215,4 +215,4 @@ Monorepo per constitution: `apps/web/` (Next.js full-stack), `packages/shared/` 
 
 - All Phase 1 tasks marked `[P]` can run in parallel.
 - All Phase 2 tasks marked `[P]` (enums, schemas, pipeline, permissions, seed, health, design system, shared types) can run in parallel; T009/T011/T013/T016 are sequential integration points.
-- Once Foundational is complete, US1, US2, US3, US4, and US5 can proceed in parallel by different developers; the 
+- Once Foundational is complete, US1, US2, US3, US4, and US5 can proceed in parallel by different developers; the

@@ -93,8 +93,8 @@ export const pathSchema = z
   .string()
   .min(1)
   .max(200)
-  .regex(/^[a-z0-9]([a-z0-9-/]*[a-z0-9])?$/, {
-    message: 'Path must be lowercase letters, numbers, hyphens and slashes, with no leading/trailing/consecutive slashes',
+  .regex(/^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$/, {
+    message: 'Path must be lowercase letters, numbers, hyphens, underscores and slashes, with no leading/trailing/consecutive slashes',
   })
   .refine((value) => !value.includes('//'), {
     message: 'Path cannot contain consecutive slashes',

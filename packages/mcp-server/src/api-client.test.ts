@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WikiApiClient, WikiApiClientError } from './api-client';
+import { pathSchema, WikiApiClient, WikiApiClientError } from './api-client';
 
 describe('WikiApiClient', () => {
   const baseUrl = 'http://localhost:3000/api/v1';
@@ -8,6 +8,10 @@ describe('WikiApiClient', () => {
   function createClient() {
     return new WikiApiClient(baseUrl, apiKey);
   }
+
+  it('accepts underscores in page paths', () => {
+    expect(pathSchema.parse('docs/api_v2')).toBe('docs/api_v2');
+  });
 
   it('adds authorization header', async () => {
     const fetchMock = vi.fn().mockResolvedValue(

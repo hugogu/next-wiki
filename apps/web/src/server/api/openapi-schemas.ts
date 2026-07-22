@@ -631,8 +631,8 @@ export const PublicPagePath = z
   .string()
   .min(1)
   .max(200)
-  .regex(/^[a-z0-9]([a-z0-9-/]*[a-z0-9])?$/)
-  .describe('Canonical wiki page path. Use lowercase slash-separated path segments.');
+  .regex(/^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$/)
+  .describe('Canonical wiki page path. Use lowercase slash-separated path segments; hyphens and underscores are allowed.');
 
 export const PublicPageIdPathParams = z
   .object({
