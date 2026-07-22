@@ -2017,7 +2017,7 @@ export const AiToolPolicyPatchInput = z
       .enum(['always_review', 'review_when_requested', 'allow_immediate_for_owner'])
       .optional()
       .describe('New review policy. Cannot be set less restrictive than the system minimum.'),
-    maxCallsPerTurn: z.number().int().min(1).max(50).optional().describe('Per-turn tool-call limit.'),
+    maxCallsPerTurn: z.number().int().min(1).max(100).optional().describe('Per-turn tool-call limit.'),
     timeoutMs: z.number().int().min(1000).max(120000).optional().describe('Per-call timeout in milliseconds.'),
   })
   .describe('Update Admin-managed policy for a provider, category, or tool.');

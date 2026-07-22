@@ -24,7 +24,7 @@ The implementation stays inside the existing web app and service layer. It adds 
 
 **Project Type**: Full-stack web-service monorepo using pnpm workspaces + Turborepo.
 
-**Performance Goals**: A chat turn with up to five tool calls should stream visible tool state changes within 2 seconds under normal conditions. Tool-call command/status event payloads stay bounded for chat history. Read-only tool calls should preserve existing page/search latency envelopes. Mutating operations that may exceed 500ms run through the existing async AI/action/job lifecycle.
+**Performance Goals**: A chat turn with up to 100 tool calls should stream visible tool state changes within 2 seconds under normal conditions. Tool-call command/status event payloads stay bounded for chat history. Read-only tool calls should preserve existing page/search latency envelopes. Mutating operations that may exceed 500ms run through the existing async AI/action/job lifecycle.
 
 **Constraints**: No new default service, queue backend, object store, external MCP runtime, or provider-specific SDK. Tool calls run under the initiating user's permission context. Durable mutations must be audited, reviewable when policy requires it, and reversible. Full arbitrary tool results are not stored in Conversation records by default. Tool output used as durable source material must be captured or referenced as Raw evidence. Public wiki content changes only through the normal governed apply/publish flow and existing static/ISR invalidation. External MCP registration and execution are out of scope.
 

@@ -38,7 +38,7 @@ type ToolChatInput = {
   conversation?: { question: string; answer: string }[];
 };
 
-const DEFAULT_MAX_CALLS = 8;
+const DEFAULT_MAX_CALLS = 100;
 const PLANNER_MAX_OUTPUT_TOKENS = 1_200;
 
 function appendSourceLinks(answer: string, citations: AiCitation[]): string {

@@ -327,7 +327,7 @@
           "maxCallsPerTurn": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 50,
+            "maximum": 100,
             "description": "Per-turn tool-call limit."
           },
           "timeoutMs": {
@@ -2072,15 +2072,29 @@
       "listArgs": {
         "type": "object",
         "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
           "pathPrefix": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
+          },
+          "space": {
+            "type": "string",
+            "enum": [
+              "wiki",
+              "raw",
+              "generated"
+            ]
           },
           "limit": {
             "type": "integer",
             "minimum": 1,
             "maximum": 20
           }
-        }
+        },
+        "additionalProperties": false
       },
       "LoginInput": {
         "type": "object",

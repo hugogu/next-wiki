@@ -164,7 +164,7 @@ export const TOOL_EVIDENCE_RAW_SYSTEM_KEY = 'tool-evidence';
 // ---- Bounded numeric guards -------------------------------------------------
 
 export const TOOL_MAX_CALLS_PER_TURN_MIN = 1;
-export const TOOL_MAX_CALLS_PER_TURN_MAX = 50;
+export const TOOL_MAX_CALLS_PER_TURN_MAX = 100;
 export const TOOL_TIMEOUT_MS_MIN = 1_000;
 export const TOOL_TIMEOUT_MS_MAX = 120_000;
 

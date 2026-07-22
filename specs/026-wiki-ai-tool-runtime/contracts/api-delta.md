@@ -53,7 +53,7 @@ Request:
   "toolName": null,
   "enabled": true,
   "reviewPolicy": "always_review",
-  "maxCallsPerTurn": 8,
+  "maxCallsPerTurn": 100,
   "timeoutMs": 30000
 }
 ```

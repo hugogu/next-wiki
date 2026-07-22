@@ -57,11 +57,12 @@ describe('ai-tools shared contract', () => {
     });
 
     it('bounds max calls per turn and timeout', () => {
+      expect(aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 100 }).maxCallsPerTurn).toBe(100);
       expect(() =>
         aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 0 }),
       ).toThrow();
       expect(() =>
-        aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 51 }),
+        aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 101 }),
       ).toThrow();
       expect(() =>
         aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', timeoutMs: 500 }),

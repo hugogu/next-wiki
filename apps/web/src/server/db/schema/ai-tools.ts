@@ -69,7 +69,7 @@ export const aiToolPolicies = pgTable(
     category: aiToolCategoryEnum('category'),
     enabled: boolean('enabled').notNull().default(true),
     reviewPolicy: aiToolReviewPolicyEnum('review_policy').notNull().default('always_review'),
-    maxCallsPerTurn: integer('max_calls_per_turn').notNull().default(8),
+    maxCallsPerTurn: integer('max_calls_per_turn').notNull().default(100),
     timeoutMs: integer('timeout_ms').notNull().default(30_000),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -88,7 +88,7 @@ export const aiToolPolicies = pgTable(
       .where(sql`${t.toolName} is not null`),
     boundsCheck: check(
       'ai_tool_policies_bounds',
-      sql`${t.maxCallsPerTurn} >= 1 and ${t.maxCallsPerTurn} <= 50 and ${t.timeoutMs} >= 1000 and ${t.timeoutMs} <= 120000`,
+      sql`${t.maxCallsPerTurn} >= 1 and ${t.maxCallsPerTurn} <= 100 and ${t.timeoutMs} >= 1000 and ${t.timeoutMs} <= 120000`,
     ),
   }),
 );
@@ -105,7 +105,7 @@ export const aiToolWorkflows = pgTable(
       .references(() => aiActions.id, { onDelete: 'cascade' }),
     actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
     status: aiToolWorkflowStatusEnum('status').notNull().default('queued'),
-    maxCalls: integer('max_calls').notNull().default(8),
+    maxCalls: integer('max_calls').notNull().default(100),
     callCount: integer('call_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
