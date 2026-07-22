@@ -669,7 +669,8 @@
       },
       "spaces": {
         "wiki": "Wiki",
-        "generated": "Generated"
+        "generated": "Generated",
+        "raw": "Raw"
       },
       "move": {
         "title": "Move to {space}",

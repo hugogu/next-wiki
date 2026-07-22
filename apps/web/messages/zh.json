@@ -669,7 +669,8 @@
       },
       "spaces": {
         "wiki": "Wiki",
-        "generated": "Generated"
+        "generated": "Generated",
+        "raw": "原始内容"
       },
       "move": {
         "title": "移动到 {space}",

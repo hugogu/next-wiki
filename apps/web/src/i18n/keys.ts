@@ -435,6 +435,7 @@ export const translationKeys = [
   "admin.pages.filters.space",
   "admin.pages.spaces.wiki",
   "admin.pages.spaces.generated",
+  "admin.pages.spaces.raw",
   "admin.pages.move.title",
   "admin.pages.move.description",
   "admin.pages.move.visibilityLabel",

@@ -95,7 +95,10 @@ export function AdminPagesPanel({
   /** LLM Wiki mode: enables the space filter and cross-space move action. */
   moveEnabled?: boolean;
 }) {
-  const currentSpace = list.filters.space === 'generated' ? 'generated' : 'default';
+  const currentSpace =
+    list.filters.space === 'generated' ? 'generated' : list.filters.space === 'raw' ? 'raw' : 'default';
+  // Move only ever crosses Wiki <-> Generated; Raw content is append-only and
+  // is never a move source or target (see constitution: Raw pages stay append-only).
   const targetSpace = currentSpace === 'generated' ? 'default' : 'generated';
   const targetSpaceLabel = t(targetSpace === 'generated' ? 'admin.pages.spaces.generated' : 'admin.pages.spaces.wiki');
   return (
@@ -111,13 +114,19 @@ export function AdminPagesPanel({
       {moveEnabled && (
         <form action="/admin/pages" className="flex flex-wrap items-center gap-sm">
           <span className="text-xs font-medium text-muted">{t('admin.pages.filters.space')}</span>
-          {(['default', 'generated'] as const).map((slug) => (
+          {(['default', 'generated', 'raw'] as const).map((slug) => (
             <Link
               key={slug}
               href={buildAdminPagesHref({ sort: list.sort, direction: list.direction }, { space: slug === 'default' ? undefined : slug })}
               className={`rounded-md border px-sm py-xs text-sm ${currentSpace === slug ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted hover:text-foreground'}`}
             >
-              {t(slug === 'generated' ? 'admin.pages.spaces.generated' : 'admin.pages.spaces.wiki')}
+              {t(
+                slug === 'generated'
+                  ? 'admin.pages.spaces.generated'
+                  : slug === 'raw'
+                    ? 'admin.pages.spaces.raw'
+                    : 'admin.pages.spaces.wiki',
+              )}
             </Link>
           ))}
         </form>
@@ -232,7 +241,7 @@ export function AdminPagesPanel({
                 </DataTableCell>
                 <DataTableCell align="right">
                   <div className="flex items-center justify-end gap-xs">
-                    {moveEnabled && page.kind === 'native' && (
+                    {moveEnabled && page.kind === 'native' && currentSpace !== 'raw' && (
                       <MovePageButton
                         pageId={page.id}
                         title={page.title}
