@@ -1,7 +1,19 @@
+import { createHash } from 'node:crypto';
 import { and, count, eq } from 'drizzle-orm';
-import type { AiToolCallStatus, AiToolReviewDecision, AiToolWorkflowStatus } from '@next-wiki/shared';
+import type {
+  AiToolCallEventPayload,
+  AiToolCallStatus,
+  AiToolReviewDecision,
+  AiToolWorkflowStatus,
+} from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import type { PermCtx } from '@/server/permissions';
+import { appendToolCallEvent, appendToolProposalEvent } from '@/server/services/ai-actions';
+import { auditToolCall } from '@/server/services/audit';
+import { executeTool, resolveExecutableTool } from '@/server/services/ai-tool-executors';
+import { getProposalRow } from '@/server/services/ai-tool-proposals';
+import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool-registry';
 
 /**
  * Tool workflow + tool-call persistence primitives and state-transition guards
@@ -244,4 +256,235 @@ export async function countRunningCalls(workflowId: string): Promise<number> {
     .from(schema.aiToolCalls)
     .where(and(eq(schema.aiToolCalls.workflowId, workflowId), eq(schema.aiToolCalls.status, 'running')));
   return row?.value ?? 0;
+}
+
+// ---- Bounded tool-calling loop (US2) ----------------------------------------
+
+/** A tool the assistant asked to call, before server policy resolution. */
+export type PlannedToolCall = {
+  toolName: string;
+  arguments: Record<string, unknown>;
+  requestedReview: AiToolReviewDecision;
+};
+
+/** One planner decision: call more tools, or finish with an answer. */
+export type ToolPlanStep =
+  | { kind: 'tool_calls'; calls: PlannedToolCall[] }
+  | { kind: 'final'; text: string };
+
+/** State handed to the planner each iteration. `transcript` holds the safe,
+ * bounded record of prior tool activity so a provider-agnostic planner can be
+ * driven purely from text (no native function-calling required). */
+export type ToolTurnState = { question: string; transcript: string[] };
+
+export type ToolPlanner = (state: ToolTurnState) => Promise<ToolPlanStep>;
+
+export type ToolLoopParams = {
+  actionId: string;
+  workflowId: string;
+  ctx: PermCtx;
+  actorUserId: string | null;
+  question: string;
+  planner: ToolPlanner;
+  /** Server-enforced review resolution for one call (strictest wins). */
+  resolveReview: (tool: ToolDefinition, requested: AiToolReviewDecision) => AiToolReviewDecision;
+  /** Effective enabled state for one tool (provider/category/tool policy). */
+  isEnabled: (tool: ToolDefinition) => boolean;
+  isCancelled?: () => Promise<boolean>;
+};
+
+export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number };
+
+/** Bounded command record retained in Conversation history (tool-contract). */
+export function buildCommandMarkdown(
+  toolName: string,
+  review: AiToolReviewDecision,
+  args: Record<string, unknown>,
+): string {
+  const argLines = Object.entries(args)
+    .map(([key, value]) => {
+      const rendered = typeof value === 'string' ? value : JSON.stringify(value);
+      const bounded = rendered.length > 200 ? `${rendered.slice(0, 197)}…` : rendered;
+      return `  ${key}: ${bounded}`;
+    })
+    .join('\n');
+  return ['```tool-call', `provider: ${BUILTIN_PROVIDER.key}`, `tool: ${toolName}`, `review: ${review}`, 'args:', argLines, '```']
+    .filter((line) => line !== '')
+    .join('\n');
+}
+
+function hashResult(data: unknown): string {
+  return createHash('sha256').update(JSON.stringify(data ?? null)).digest('hex');
+}
+
+/**
+ * Drive the bounded, permission-scoped tool loop for one chat turn. The planner
+ * (injected: the real one wraps the model, tests script it) proposes tool calls
+ * or a final answer; the server resolves each call's review disposition, records
+ * it, executes it under the initiating user's `PermCtx`, streams lifecycle
+ * events, and threads a safe result summary back for the next planner step.
+ *
+ * Terminates on the planner's final answer, the per-turn call limit, or
+ * cancellation — mapping each to the matching workflow terminal state.
+ */
+export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResult> {
+  const state: ToolTurnState = { question: params.question, transcript: [] };
+  let answer = '';
+  let calls = 0;
+
+  for (;;) {
+    if (params.isCancelled && (await params.isCancelled())) {
+      await transitionWorkflow(params.workflowId, 'cancelled');
+      return { status: 'cancelled', answer, calls };
+    }
+
+    const step = await params.planner(state);
+    if (step.kind === 'final') {
+      answer = step.text;
+      await transitionWorkflow(params.workflowId, 'completed');
+      return { status: 'completed', answer, calls };
+    }
+
+    for (const planned of step.calls) {
+      const tool = resolveExecutableTool(planned.toolName);
+      if (!tool || !params.isEnabled(tool)) {
+        // Record a blocked call so the disabled/unknown tool is visible and the
+        // assistant gets a safe explanation instead of a silent no-op.
+        const command = buildCommandMarkdown(planned.toolName, 'none', planned.arguments);
+        const { call } = await recordToolCall({
+          workflowId: params.workflowId,
+          aiActionId: params.actionId,
+          providerKey: BUILTIN_PROVIDER.key,
+          toolName: planned.toolName,
+          commandMarkdown: command,
+          arguments: planned.arguments,
+          requestedReview: planned.requestedReview,
+          effectiveReview: 'none',
+        });
+        if (call) {
+          calls += 1;
+          await blockToolCall(call.id, {
+            errorCode: 'TOOL_NOT_ENABLED',
+            errorMessage: 'That tool is disabled by policy.',
+          });
+          await emitCall(params.actionId, call.id, {
+            sequence: call.sequence,
+            toolName: planned.toolName,
+            command,
+            status: 'blocked',
+            requestedReview: planned.requestedReview,
+            effectiveReview: 'none',
+            errorCode: 'TOOL_NOT_ENABLED',
+            errorMessage: 'That tool is disabled by policy.',
+          });
+        }
+        state.transcript.push(`TOOL ${planned.toolName} -> blocked: disabled by policy`);
+        continue;
+      }
+
+      const effectiveReview = params.resolveReview(tool, planned.requestedReview);
+      const command = buildCommandMarkdown(planned.toolName, effectiveReview, planned.arguments);
+      const { call, limitReached } = await recordToolCall({
+        workflowId: params.workflowId,
+        aiActionId: params.actionId,
+        providerKey: BUILTIN_PROVIDER.key,
+        toolName: planned.toolName,
+        commandMarkdown: command,
+        arguments: planned.arguments,
+        requestedReview: planned.requestedReview,
+        effectiveReview,
+      });
+      if (limitReached || !call) {
+        await transitionWorkflow(params.workflowId, 'limit_reached');
+        return { status: 'limit_reached', answer, calls };
+      }
+      calls += 1;
+
+      await startToolCall(call.id);
+      await emitCall(params.actionId, call.id, {
+        sequence: call.sequence,
+        toolName: tool.name,
+        category: tool.category,
+        command,
+        status: 'running',
+        requestedReview: planned.requestedReview,
+        effectiveReview,
+      });
+
+      const result = await executeTool(params.ctx, tool, planned.arguments, {
+        actorUserId: params.actorUserId,
+        effectiveReview,
+        workflowId: params.workflowId,
+        toolCallId: call.id,
+        actionId: params.actionId,
+      });
+
+      if (result.ok) {
+        const resultHash = result.data !== undefined ? hashResult(result.data) : null;
+        await succeedToolCall(call.id, { resultSummary: result.summary.slice(0, 500), resultHash });
+        await auditToolCall(params.actorUserId, { toolName: tool.name, status: 'succeeded' });
+        await emitCall(params.actionId, call.id, {
+          sequence: call.sequence,
+          toolName: tool.name,
+          category: tool.category,
+          command,
+          status: 'succeeded',
+          requestedReview: planned.requestedReview,
+          effectiveReview,
+          resultSummary: result.summary.slice(0, 500),
+          proposalId: result.proposalId ?? null,
+          evidencePageId: result.evidencePageId ?? null,
+        });
+        if (result.proposalId) {
+          const proposal = await getProposalRow(result.proposalId);
+          if (proposal) {
+            await appendToolProposalEvent(params.actionId, {
+              proposalId: proposal.id,
+              kind: proposal.kind,
+              status: proposal.status,
+              title: proposal.title,
+              url: `/admin/ai/tools/proposals/${proposal.id}`,
+            });
+          }
+        }
+        state.transcript.push(`TOOL ${tool.name} -> ${JSON.stringify({ summary: result.summary, data: result.data })}`);
+      } else {
+        await failToolCall(call.id, {
+          errorCode: result.errorCode ?? 'TOOL_FAILED',
+          errorMessage: result.errorMessage ?? result.summary,
+        });
+        await auditToolCall(params.actorUserId, {
+          toolName: tool.name,
+          status: 'failed',
+          errorCode: result.errorCode,
+        });
+        await emitCall(params.actionId, call.id, {
+          sequence: call.sequence,
+          toolName: tool.name,
+          category: tool.category,
+          command,
+          status: 'failed',
+          requestedReview: planned.requestedReview,
+          effectiveReview,
+          errorCode: result.errorCode ?? 'TOOL_FAILED',
+          errorMessage: result.errorMessage ?? result.summary,
+        });
+        state.transcript.push(`TOOL ${tool.name} -> failed: ${result.errorMessage ?? result.summary}`);
+      }
+    }
+  }
+}
+
+async function emitCall(
+  actionId: string,
+  toolCallId: string,
+  fields: Omit<AiToolCallEventPayload, 'toolCallId' | 'providerKey' | 'commandMarkdown'> & { command: string },
+): Promise<void> {
+  const { command, ...rest } = fields;
+  await appendToolCallEvent(actionId, {
+    toolCallId,
+    providerKey: BUILTIN_PROVIDER.key,
+    commandMarkdown: command,
+    ...rest,
+  });
 }

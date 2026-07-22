@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { aiToolChatOptionSchema } from './ai-tools';
 
 export const aiProviderTypeSchema = z.enum(['chat', 'embedding', 'image']);
 export type AiProviderType = z.infer<typeof aiProviderTypeSchema>;
@@ -635,6 +636,9 @@ export const aiQuestionInputSchema = z.object({
   question: z.string().trim().min(1).max(16_000),
   mode: aiQuestionModeSchema,
   currentPage: z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid() }).optional(),
+  // 026: additive, optional tool-calling request. When omitted or unavailable,
+  // the route keeps ordinary Q&A behavior (recoverable fallback).
+  tools: aiToolChatOptionSchema.optional(),
 });
 export const aiSelectionSchema = z.object({
   text: z.string().min(1).max(100_000),

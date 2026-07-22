@@ -1,5 +1,10 @@
 import { and, eq, isNull } from 'drizzle-orm';
-import { AI_CONVERSATIONS_SOURCE_KEY, type AiQuestionMode } from '@next-wiki/shared';
+import {
+  AI_CONVERSATIONS_SOURCE_KEY,
+  type AiActionAccepted,
+  type AiQuestionMode,
+  type AiToolReviewDecision,
+} from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
@@ -84,4 +89,65 @@ export async function createWikiQuestion(
     },
     rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',
   });
+}
+
+/** Whether a model has the discovered/overridden `tool_calling` capability. A
+ * model without it cannot drive the governed tool loop (R3), so tool-enabled
+ * chat degrades to ordinary Q&A. */
+export async function modelSupportsToolCalling(modelId: string): Promise<boolean> {
+  const rows = await db
+    .select({ supported: schema.aiModelCapabilities.supported })
+    .from(schema.aiModelCapabilities)
+    .where(
+      and(
+        eq(schema.aiModelCapabilities.modelId, modelId),
+        eq(schema.aiModelCapabilities.capability, 'tool_calling'),
+        eq(schema.aiModelCapabilities.supported, true),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Create a tool-enabled chat turn (026, US2). Returns a recoverable fallback
+ * marker when the assigned model cannot call tools, so the route degrades to an
+ * ordinary Q&A action rather than performing hidden out-of-band tool use.
+ */
+export async function createWikiToolChat(
+  ctx: PermCtx,
+  input: {
+    question: string;
+    requestedReview: AiToolReviewDecision;
+    currentPage?: { pageId: string; revisionId: string };
+    requestMetadata?: Record<string, unknown>;
+  },
+): Promise<{ fallback: true } | { fallback: false; action: AiActionAccepted }> {
+  await assertAiFeature(ctx, 'question');
+  await validateCurrentPage(ctx, input.currentPage);
+  const { model, provider } = await getAssignedModel('wiki_text');
+  if (!(await modelSupportsToolCalling(model.id))) {
+    return { fallback: true };
+  }
+  const captureEnabled = await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
+  const action = await createAction(ctx, {
+    feature: 'wiki_tool_chat',
+    input: {
+      question: input.question,
+      requestedReview: input.requestedReview,
+      currentPage: input.currentPage,
+    },
+    providerId: provider.id,
+    modelId: model.id,
+    pageId: input.currentPage?.pageId ?? null,
+    requestMetadata: {
+      ...input.requestMetadata,
+      questionBytes: Buffer.byteLength(input.question),
+      hasCurrentPage: Boolean(input.currentPage),
+      providerName: provider.name,
+      requestedReview: input.requestedReview,
+    },
+    rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',
+  });
+  return { fallback: false, action };
 }

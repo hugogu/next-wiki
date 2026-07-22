@@ -85,22 +85,22 @@
 
 ### Tests for User Story 2
 
-- [ ] T036 [P] [US2] Add runtime unit tests for bounded tool-loop completion, failure, cancellation, and limit reached states in `apps/web/src/server/services/ai-tool-runtime.test.ts`
-- [ ] T037 [P] [US2] Add permission-projection tests for read tools returning only allowed pages in `apps/web/src/server/services/ai-tool-runtime.permissions.test.ts`
-- [ ] T038 [P] [US2] Add API route tests for additive `tools` option and unsupported model fallback in `apps/web/app/api/ai/questions/route.test.ts`
-- [ ] T039 [P] [US2] Add AI action job tests for iterative tool calling and recoverable tool failures in `apps/web/src/server/jobs/ai-tool-chat.test.ts`
+- [X] T036 [P] [US2] Add runtime unit tests for bounded tool-loop completion, failure, cancellation, and limit reached states in `apps/web/src/server/services/ai-tool-runtime.test.ts`
+- [X] T037 [P] [US2] Add permission-projection tests for read tools returning only allowed pages in `apps/web/src/server/services/ai-tool-runtime.permissions.test.ts`
+- [X] T038 [P] [US2] Add API route tests for additive `tools` option and unsupported model fallback in `apps/web/app/api/ai/questions/route.test.ts`
+- [X] T039 [P] [US2] Add AI action job tests for iterative tool calling and recoverable tool failures in `apps/web/src/server/jobs/ai-tool-chat.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T040 [US2] Implement built-in read tool adapters for search, page fetch, page list, backlinks, and neighborhood in `apps/web/src/server/services/ai-tool-registry.ts`
-- [ ] T041 [US2] Implement built-in page draft and metadata/tag tool adapters that call existing permission-checked services in `apps/web/src/server/services/ai-tool-registry.ts`
-- [ ] T042 [US2] Add tool-calling capability gate and fallback behavior in `apps/web/src/server/services/ai-question.ts`
-- [ ] T043 [US2] Accept the additive `tools` request option and create `wiki_tool_chat` actions in `apps/web/app/api/ai/questions/route.ts`
-- [ ] T044 [US2] Implement the bounded tool-call loop and provider-agnostic call envelope in `apps/web/src/server/services/ai-tool-runtime.ts`
-- [ ] T045 [US2] Emit tool-call lifecycle events through AI action events in `apps/web/src/server/services/ai-actions.ts`
-- [ ] T046 [US2] Add cancellation handling for running tool workflows in `apps/web/src/server/services/ai-tool-runtime.ts`
-- [ ] T047 [US2] Register and process `wiki_tool_chat` jobs in `apps/web/src/server/jobs/ai-actions.ts`
-- [ ] T048 [US2] Ensure disabled categories and denied permissions produce safe assistant-facing failures in `apps/web/src/server/services/ai-tool-runtime.ts`
+- [X] T040 [US2] Implement built-in read tool adapters for search, page fetch, page list, backlinks, and neighborhood in `apps/web/src/server/services/ai-tool-registry.ts`
+- [X] T041 [US2] Implement built-in page draft and metadata/tag tool adapters that call existing permission-checked services in `apps/web/src/server/services/ai-tool-registry.ts`
+- [X] T042 [US2] Add tool-calling capability gate and fallback behavior in `apps/web/src/server/services/ai-question.ts`
+- [X] T043 [US2] Accept the additive `tools` request option and create `wiki_tool_chat` actions in `apps/web/app/api/ai/questions/route.ts`
+- [X] T044 [US2] Implement the bounded tool-call loop and provider-agnostic call envelope in `apps/web/src/server/services/ai-tool-runtime.ts`
+- [X] T045 [US2] Emit tool-call lifecycle events through AI action events in `apps/web/src/server/services/ai-actions.ts`
+- [X] T046 [US2] Add cancellation handling for running tool workflows in `apps/web/src/server/services/ai-tool-runtime.ts`
+- [X] T047 [US2] Register and process `wiki_tool_chat` jobs in `apps/web/src/server/jobs/ai-actions.ts`
+- [X] T048 [US2] Ensure disabled categories and denied permissions produce safe assistant-facing failures in `apps/web/src/server/services/ai-tool-runtime.ts`
 
 **Checkpoint**: User Story 2 is functional and independently testable.
 
