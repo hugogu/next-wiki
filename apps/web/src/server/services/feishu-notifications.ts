@@ -4,6 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
+import { getCitationHref } from '@/lib/path';
 import { getSessionByActionId } from './feishu-sessions';
 import type { ProcessingReaction } from '@/server/feishu/transport-types';
 
@@ -36,8 +37,7 @@ export async function getProcessingReaction(actionId: string): Promise<Processin
 }
 
 function citationUrl(citation: AiCitation): string {
-  const path = citation.path.replace(/^\/+/, '');
-  return `${env.APP_URL}/${path}`;
+  return `${env.APP_URL}${getCitationHref(citation)}`;
 }
 
 export function toFeishuCitations(

@@ -1,4 +1,5 @@
 import type { AiCitation } from '@next-wiki/shared';
+import { getCitationHref } from '@/lib/path';
 
 /**
  * Matches a citation marker in either plain ASCII brackets ([S1]) or the
@@ -28,6 +29,6 @@ export function linkifyCitationMarkers(text: string, citations: AiCitation[] | u
 
   return text.replace(CITATION_MARKER, (_match, id: string) => {
     const citation = citationById.get(id);
-    return citation ? `[${id}](/${citation.path})` : `[${id}]`;
+    return citation ? `[${id}](${getCitationHref(citation)})` : `[${id}]`;
   });
 }

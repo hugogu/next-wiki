@@ -35,4 +35,16 @@ describe('linkifyCitationMarkers', () => {
     const citations = [citation({ path: 'math/pi/integral' })];
     expect(linkifyCitationMarkers('见【S1】。', citations)).toBe('见[S1](/math/pi/integral)。');
   });
+
+  it('builds a /spaces/raw/... link for a citation whose spaceSlug is raw, not a bare /path (bug fix)', () => {
+    const citations = [citation({ path: 'conversations/feishu/2026/07/21/action-1', spaceSlug: 'raw' })];
+    expect(linkifyCitationMarkers('See [S1]', citations)).toBe(
+      'See [S1](/spaces/raw/conversations/feishu/2026/07/21/action-1)',
+    );
+  });
+
+  it('builds a /spaces/generated/... link for a citation whose spaceSlug is generated', () => {
+    const citations = [citation({ path: 'concepts/rrf', spaceSlug: 'generated' })];
+    expect(linkifyCitationMarkers('See [S1]', citations)).toBe('See [S1](/spaces/generated/concepts/rrf)');
+  });
 });

@@ -46,6 +46,7 @@ export async function loadReadableFullContext(
       content: schema.pageRevisions.contentSource,
       anonymousRead: schema.spaces.anonymousRead,
       spaceKind: schema.spaces.kind,
+      spaceSlug: schema.spaces.slug,
       visibility: schema.pages.visibility,
       authorId: schema.pages.authorId,
     })
@@ -76,6 +77,7 @@ export async function loadReadableFullContext(
     locale: row.locale,
     revisionId: row.revisionId,
     revisionHash: row.revisionHash,
+    spaceSlug: row.spaceSlug,
     content: row.content ?? '',
   }));
   assertFullContextCapacity(contextWindow, question, sources);

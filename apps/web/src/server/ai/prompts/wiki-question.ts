@@ -43,6 +43,7 @@ export function searchResultsToSources(results: AiSearchResult[]): QuestionSourc
     locale: result.locale,
     revisionId: result.revisionId,
     revisionHash: result.revisionHash,
+    spaceSlug: result.spaceSlug,
     content: result.excerpt,
   }));
 }

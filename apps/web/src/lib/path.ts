@@ -27,6 +27,18 @@ export function getSpaceHref(space: ReaderSpace, path?: string): string {
   return path ? `${root}/${encodePath(path)}` : root;
 }
 
+/**
+ * Canonical reader URL for an AI citation, which may point at a wiki,
+ * generated, or raw page (e.g. a captured Conversation page). Citations
+ * persisted before `spaceSlug` existed omit it — absence is treated as the
+ * wiki space, matching every citation's implicit space before that field was
+ * added.
+ */
+export function getCitationHref(citation: { path: string; spaceSlug?: string }): string {
+  const space = citation.spaceSlug ? readerSpaceFromSlug(citation.spaceSlug) : 'wiki';
+  return getSpaceHref(space, citation.path);
+}
+
 export function getSpaceNewHref(space: ReaderSpace): string {
   return space === 'wiki' ? '/new' : `/new?space=${space}`;
 }

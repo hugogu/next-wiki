@@ -398,6 +398,12 @@ export const aiCitationSchema = z.object({
   // Present for chunk-level (vector) retrieval results; absent for
   // full-context citations, which cite the whole page rather than a chunk.
   chunkId: z.string().uuid().optional(),
+  // Which content space the cited page lives in, so citation links can be
+  // built correctly (wiki pages render at the site root; raw/generated pages
+  // render under /spaces/{space}/...). Optional so citations persisted
+  // before this field existed keep validating — link builders treat absence
+  // as 'wiki' (the only space every citation could point to previously).
+  spaceSlug: z.string().optional(),
 });
 export type AiCitation = z.infer<typeof aiCitationSchema>;
 

@@ -170,12 +170,15 @@ describe('Wiki question worker', () => {
           payload: expect.objectContaining({ text: 'Grounded answer [S1]' }),
         }),
       );
-      expect(events).toContainEqual(
-        expect.objectContaining({
-          type: 'citations',
-          payload: expect.objectContaining({ citations: [expect.objectContaining({ pageId })] }),
-        }),
-      );
+      const citationsEvent = events.find((event) => event.type === 'citations');
+      expect(citationsEvent).toMatchObject({
+        payload: { citations: [expect.objectContaining({ pageId })] },
+      });
+      // Citations carry the cited page's space so citation links can be
+      // built correctly (e.g. /spaces/raw/... for a raw page) instead of
+      // assuming every citation lives in the wiki space.
+      const citations = (citationsEvent!.payload as { citations: { spaceSlug?: string }[] }).citations;
+      expect(citations[0]?.spaceSlug).toBe(`qa-${spaceId}`);
     },
   );
 
