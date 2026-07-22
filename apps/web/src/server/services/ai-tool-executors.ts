@@ -68,7 +68,14 @@ function toSafeFailure(error: unknown): ToolExecutionResult {
 
 const searchArgs = z.object({ query: z.string().min(1).max(200), limit: z.number().int().min(1).max(MAX_LIST).optional() });
 const pageRefArgs = z.object({ pageId: z.string().uuid().optional(), path: z.string().min(1).optional() }).refine((v) => v.pageId || v.path);
-const listArgs = z.object({ pathPrefix: z.string().optional(), limit: z.number().int().min(1).max(MAX_LIST).optional() });
+const listArgs = z
+  .object({
+    path: z.string().min(1).optional(),
+    pathPrefix: z.string().min(1).optional(),
+    space: z.enum(['wiki', 'raw', 'generated']).optional(),
+    limit: z.number().int().min(1).max(MAX_LIST).optional(),
+  })
+  .strict();
 const pageIdArgs = z.object({ pageId: z.string().uuid() });
 const createPageArgs = z.object({ path: z.string().min(1).max(200), title: z.string().min(1).max(200), contentSource: z.string().max(500_000).optional() });
 const saveDraftArgs = z.object({ pageId: z.string().uuid(), title: z.string().min(1).max(200), contentSource: z.string().min(1).max(500_000) });
@@ -114,12 +121,14 @@ async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutio
 }
 
 async function execListPages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
-  const args = listArgs.parse(rawArgs);
+  const args = listArgs.parse(rawArgs ?? {});
+  const pathPrefix = args.pathPrefix ?? args.path;
   const result = await content.listPages(ctx, {
     status: 'published',
     limit: args.limit ?? MAX_LIST,
     order: 'path',
-    ...(args.pathPrefix ? { pathPrefix: args.pathPrefix } : {}),
+    ...(pathPrefix ? { pathPrefix } : {}),
+    ...(args.space && args.space !== 'wiki' ? { space: args.space } : {}),
   } as Parameters<typeof content.listPages>[1]);
   const items = result.items.slice(0, MAX_LIST).map((item) => ({ pageId: item.id, path: item.path, title: item.title }));
   return { ok: true, summary: `${items.length} readable page(s) listed.`, data: { items } };

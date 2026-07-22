@@ -32,6 +32,7 @@ import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 const searchTool = getToolDefinition('search_wiki')!;
 const getPageTool = getToolDefinition('get_page')!;
+const listPagesTool = getToolDefinition('list_pages')!;
 const readerCtx = buildUserCtx('reader-1', 'reader');
 const adminCtx = buildUserCtx('admin-1', 'admin');
 const execCtx = {
@@ -70,5 +71,28 @@ describe('read tool permission projection (026)', () => {
     const result = await executeTool(adminCtx, getPageTool, { pageId: '22222222-2222-2222-2222-222222222222' }, execCtx);
     expect(result.ok).toBe(true);
     expect((result.data as { title: string }).title).toBe('Secret');
+  });
+
+  it('accepts path as the list_pages subtree alias', async () => {
+    content.listPages.mockResolvedValue({
+      items: [{ id: 'p3', path: 'history/china/chronology', title: 'Chronology' }],
+      nextCursor: null,
+    });
+    const result = await executeTool(readerCtx, listPagesTool, { path: 'history/china/chronology' }, execCtx);
+    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
+      pathPrefix: 'history/china/chronology',
+      status: 'published',
+    }));
+    expect(result.ok).toBe(true);
+    expect((result.data as { items: unknown[] }).items).toEqual([
+      { pageId: 'p3', path: 'history/china/chronology', title: 'Chronology' },
+    ]);
+  });
+
+  it('lists pages when list_pages is called without arguments', async () => {
+    content.listPages.mockResolvedValue({ items: [], nextCursor: null });
+    const result = await executeTool(readerCtx, listPagesTool, undefined, execCtx);
+    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({ limit: 20 }));
+    expect(result.ok).toBe(true);
   });
 });

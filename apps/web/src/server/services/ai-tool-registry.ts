@@ -76,7 +76,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'List visible pages under a path or space.',
+    description: 'List visible pages. Args: path or pathPrefix for a subtree, optional space, optional limit.',
   },
   {
     name: 'get_backlinks',
