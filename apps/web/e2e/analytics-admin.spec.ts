@@ -38,7 +38,10 @@ test.describe('admin analytics settings', () => {
 
     await expect(page.getByRole('heading', { name: 'Web analytics', level: 1 })).toBeVisible();
 
-    await page.getByLabel('Tracking ID', { exact: true }).fill(VALID_BAIDU_ID);
+    // Not `exact: true`: the label's accessible name also carries the format
+    // hint text after the input ("Tracking ID 32-character hex string"), so
+    // an exact match against "Tracking ID" alone never resolves.
+    await page.getByLabel('Tracking ID').fill(VALID_BAIDU_ID);
     await page.getByRole('switch', { name: /Baidu Tongji/i }).click();
     await page.getByRole('button', { name: 'Apply' }).click();
 
