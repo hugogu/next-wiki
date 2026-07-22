@@ -1,16 +1,25 @@
 import { and, count, desc, eq } from 'drizzle-orm';
 import {
+  type AiToolProposalApplyResult,
+  type AiToolProposalDecisionInput,
   type AiToolProposalDetail,
+  type AiToolProposalItemApplyStatus,
   type AiToolProposalItemView,
   type AiToolProposalItemResourceKind,
   type AiToolProposalKind,
   type AiToolProposalListQuery,
+  type AiToolProposalListResponse,
   type AiToolProposalStatus,
   type AiToolProposalSummary,
   type AiToolReviewDecision,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { DomainError } from '@/server/errors';
+import { can, getActorUserId, type PermCtx } from '@/server/permissions';
+import { auditProposalApply, auditProposalDecision } from '@/server/services/audit';
+import * as content from '@/server/services/public-content';
+import * as tags from '@/server/services/tags';
 
 /**
  * Change-proposal persistence primitives and state-transition guards (026, R5).
@@ -226,4 +235,172 @@ export function toProposalDetail(
     items: itemViews,
     evidenceLinks,
   };
+}
+
+// ---- Review & apply (US3) ---------------------------------------------------
+
+/** Proposal review is gated on AI-tool management; every *apply* additionally
+ * re-checks the reviewer's own permission on the target resource through the
+ * underlying service call, so approval never expands the initiator's rights. */
+function assertProposalReviewer(ctx: PermCtx): void {
+  if (!can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
+    throw new DomainError('FORBIDDEN', 'Admin access is required to review tool proposals');
+  }
+}
+
+export async function listProposals(
+  ctx: PermCtx,
+  query: AiToolProposalListQuery,
+): Promise<AiToolProposalListResponse> {
+  assertProposalReviewer(ctx);
+  const { rows, total } = await listProposalRows(query);
+  return { items: rows.map(toProposalSummary), total };
+}
+
+async function sourceToolNameOf(toolCallId: string | null): Promise<string | null> {
+  if (!toolCallId) return null;
+  const call = await db.query.aiToolCalls.findFirst({ where: eq(schema.aiToolCalls.id, toolCallId) });
+  return call?.toolName ?? null;
+}
+
+export async function getProposalDetail(ctx: PermCtx, id: string): Promise<AiToolProposalDetail> {
+  assertProposalReviewer(ctx);
+  const row = await getProposalRow(id);
+  if (!row) throw new DomainError('NOT_FOUND', 'Proposal not found');
+  const items = await getProposalItems(id);
+  const sourceToolName = await sourceToolNameOf(row.toolCallId);
+  // Evidence links are permission-filtered and attached by the evidence service
+  // (US5); until then a proposal detail carries no evidence links.
+  return toProposalDetail(row, items, [], sourceToolName);
+}
+
+export async function approveProposal(
+  ctx: PermCtx,
+  id: string,
+  _input: AiToolProposalDecisionInput = {},
+): Promise<AiToolProposalDetail> {
+  assertProposalReviewer(ctx);
+  const row = await getProposalRow(id);
+  if (!row) throw new DomainError('NOT_FOUND', 'Proposal not found');
+  if (!canTransitionProposal(row.status, 'approved')) {
+    throw new DomainError('PROPOSAL_NOT_APPLICABLE', `A ${row.status} proposal cannot be approved`);
+  }
+  await transitionProposal(id, 'approved', {
+    reviewedByUserId: getActorUserId(ctx),
+    reviewedAt: new Date(),
+  });
+  await auditProposalDecision(getActorUserId(ctx), { proposalId: id, decision: 'approved' });
+  return getProposalDetail(ctx, id);
+}
+
+export async function rejectProposal(
+  ctx: PermCtx,
+  id: string,
+  _input: AiToolProposalDecisionInput = {},
+): Promise<AiToolProposalDetail> {
+  assertProposalReviewer(ctx);
+  const row = await getProposalRow(id);
+  if (!row) throw new DomainError('NOT_FOUND', 'Proposal not found');
+  if (!canTransitionProposal(row.status, 'rejected')) {
+    throw new DomainError('PROPOSAL_NOT_APPLICABLE', `A ${row.status} proposal cannot be rejected`);
+  }
+  await transitionProposal(id, 'rejected', {
+    reviewedByUserId: getActorUserId(ctx),
+    reviewedAt: new Date(),
+  });
+  await auditProposalDecision(getActorUserId(ctx), { proposalId: id, decision: 'rejected' });
+  return getProposalDetail(ctx, id);
+}
+
+function str(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Apply one proposal item under the reviewer's own `PermCtx`. Interprets the
+ * captured `after_state` per item kind and routes through the existing
+ * permission-checked, cache-invalidating service. A concurrency error from the
+ * service (the resource changed since the proposal was prepared) is surfaced as
+ * `PROPOSAL_CONFLICT` rather than silently overwriting.
+ */
+async function applyItem(
+  ctx: PermCtx,
+  proposal: ProposalRow,
+  item: ProposalItemRow,
+): Promise<{ status: AiToolProposalItemApplyStatus; errorCode: string | null; errorMessage: string | null }> {
+  const after = (item.afterState ?? {}) as Record<string, unknown>;
+  try {
+    if (item.resourceKind === 'tag') {
+      if (str(after.mergedInto) && item.resourceId) {
+        await tags.requestTagMerge(ctx, item.resourceId, str(after.mergedInto)!);
+      } else if (after.retired === true && item.resourceId) {
+        await tags.requestTagMutation(ctx, item.resourceId, 'delete');
+      } else if (item.resourceId) {
+        await tags.requestTagMutation(ctx, item.resourceId, 'rename', str(after.name));
+      } else {
+        await tags.createTag(ctx, str(after.name) ?? '');
+      }
+    } else if (item.resourceKind === 'page' && proposal.kind === 'tag_update' && item.resourceId) {
+      await content.setPageTags(ctx, item.resourceId, Array.isArray(after.tags) ? (after.tags as string[]) : []);
+    } else if (item.resourceKind === 'page' && item.resourceId) {
+      await content.updateProperties(ctx, item.resourceId, { title: str(after.title), path: str(after.path) });
+    } else if (item.resourceKind === 'page_metadata' && item.resourceId) {
+      const page = await content.getPageById(ctx, item.resourceId, ['latestRevision']);
+      if (!page?.latestRevision) throw new DomainError('NOT_FOUND', 'Page has no revision to update');
+      await content.updatePageMetadata(ctx, item.resourceId, {
+        baseRevisionId: page.latestRevision.id,
+        date: str(after.date) ?? null,
+        summary: str(after.summary) ?? null,
+        tags: Array.isArray(after.tags) ? (after.tags as string[]) : null,
+      });
+    } else {
+      return { status: 'skipped', errorCode: null, errorMessage: 'Unsupported item kind' };
+    }
+    return { status: 'applied', errorCode: null, errorMessage: null };
+  } catch (error) {
+    if (error instanceof DomainError) {
+      const conflict = ['STALE_REVISION', 'CONFLICT', 'PAGE_PATH_CONFLICT', 'REVISION_ALREADY_PUBLISHED'];
+      if (conflict.includes(error.code)) {
+        return { status: 'failed', errorCode: 'PROPOSAL_CONFLICT', errorMessage: 'Current state changed since this proposal was prepared.' };
+      }
+      return { status: 'failed', errorCode: error.code, errorMessage: error.message };
+    }
+    return { status: 'failed', errorCode: 'TOOL_FAILED', errorMessage: 'Could not apply this item.' };
+  }
+}
+
+/**
+ * Apply an approved proposal. Re-checks reviewer permission (per item, via the
+ * service) and resource state, records per-item results, and moves the proposal
+ * to `applied` (all items applied) or `failed` (any item failed). Public page
+ * changes invalidate public content through the normal service path.
+ */
+export async function applyProposal(ctx: PermCtx, id: string): Promise<AiToolProposalApplyResult> {
+  assertProposalReviewer(ctx);
+  const proposal = await getProposalRow(id);
+  if (!proposal) throw new DomainError('NOT_FOUND', 'Proposal not found');
+  if (proposal.status !== 'approved') {
+    throw new DomainError('PROPOSAL_NOT_APPLICABLE', 'Only an approved proposal can be applied');
+  }
+  const items = await getProposalItems(id);
+  const results: AiToolProposalApplyResult['items'] = [];
+  let applied = 0;
+  let failed = 0;
+  for (const item of items) {
+    const result = await applyItem(ctx, proposal, item);
+    await db
+      .update(schema.aiToolChangeProposalItems)
+      .set({ applyStatus: result.status, errorCode: result.errorCode, errorMessage: result.errorMessage })
+      .where(eq(schema.aiToolChangeProposalItems.id, item.id));
+    if (result.status === 'applied') applied += 1;
+    if (result.status === 'failed') failed += 1;
+    results.push({ id: item.id, applyStatus: result.status, errorCode: result.errorCode, errorMessage: result.errorMessage });
+  }
+  const status: AiToolProposalStatus = failed > 0 ? 'failed' : 'applied';
+  await transitionProposal(id, status, {
+    appliedAt: status === 'applied' ? new Date() : null,
+    reviewedByUserId: getActorUserId(ctx),
+  });
+  await auditProposalApply(getActorUserId(ctx), { proposalId: id, applied, failed });
+  return { proposalId: id, status, items: results };
 }

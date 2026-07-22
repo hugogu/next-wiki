@@ -114,22 +114,22 @@
 
 ### Tests for User Story 3
 
-- [ ] T049 [P] [US3] Add service tests for proposal item conflict detection and apply/reject behavior in `apps/web/src/server/services/ai-tool-proposals.test.ts`
-- [ ] T050 [P] [US3] Add route tests for proposal list, detail, approve, reject, and apply APIs in `apps/web/app/api/ai/tool-proposals/route.test.ts`
-- [ ] T051 [P] [US3] Add component tests for proposal detail states and item-level before/after rendering in `apps/web/src/components/admin/ai/ToolProposalDetail.test.tsx`
-- [ ] T052 [P] [US3] Add Playwright coverage for page draft review and tag proposal apply/reject in `apps/web/e2e/ai-tool-proposals.spec.ts`
+- [X] T049 [P] [US3] Add service tests for proposal item conflict detection and apply/reject behavior in `apps/web/src/server/services/ai-tool-proposals.test.ts`
+- [X] T050 [P] [US3] Add route tests for proposal list, detail, approve, reject, and apply APIs in `apps/web/app/api/ai/tool-proposals/route.test.ts`
+- [X] T051 [P] [US3] Add component tests for proposal detail states and item-level before/after rendering in `apps/web/src/components/admin/ai/ToolProposalDetail.test.tsx`
+- [X] T052 [P] [US3] Add Playwright coverage for page draft review and tag proposal apply/reject in `apps/web/e2e/ai-tool-proposals.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] Connect page-content tool mutations to existing draft/revision creation in `apps/web/src/server/services/ai-tool-runtime.ts`
-- [ ] T054 [US3] Implement non-page proposal creation for tag, metadata, batch, and raw evidence link changes in `apps/web/src/server/services/ai-tool-proposals.ts`
-- [ ] T055 [US3] Implement proposal list and detail APIs in `apps/web/app/api/ai/tool-proposals/route.ts` and `apps/web/app/api/ai/tool-proposals/[id]/route.ts`
-- [ ] T056 [US3] Implement proposal approve, reject, and apply APIs in `apps/web/app/api/ai/tool-proposals/[id]/approve/route.ts`, `apps/web/app/api/ai/tool-proposals/[id]/reject/route.ts`, and `apps/web/app/api/ai/tool-proposals/[id]/apply/route.ts`
-- [ ] T057 [US3] Re-check reviewer permission and current resource state before applying proposal items in `apps/web/src/server/services/ai-tool-proposals.ts`
-- [ ] T058 [US3] Route applied public page mutations through existing public-content invalidation in `apps/web/src/server/services/public-content.ts`
-- [ ] T059 [US3] Create proposal review page route in `apps/web/app/(admin)/admin/ai/tools/proposals/[id]/page.tsx`
-- [ ] T060 [US3] Create proposal detail UI with approve, reject, apply, conflict, and per-item result states in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx`
-- [ ] T061 [US3] Regenerate OpenAPI artifacts for proposal route annotations in `apps/web/app/api/openapi.json`
+- [X] T053 [US3] Connect page-content tool mutations to existing draft/revision creation in `apps/web/src/server/services/ai-tool-runtime.ts`
+- [X] T054 [US3] Implement non-page proposal creation for tag, metadata, batch, and raw evidence link changes in `apps/web/src/server/services/ai-tool-proposals.ts`
+- [X] T055 [US3] Implement proposal list and detail APIs in `apps/web/app/api/ai/tool-proposals/route.ts` and `apps/web/app/api/ai/tool-proposals/[id]/route.ts`
+- [X] T056 [US3] Implement proposal approve, reject, and apply APIs in `apps/web/app/api/ai/tool-proposals/[id]/approve/route.ts`, `apps/web/app/api/ai/tool-proposals/[id]/reject/route.ts`, and `apps/web/app/api/ai/tool-proposals/[id]/apply/route.ts`
+- [X] T057 [US3] Re-check reviewer permission and current resource state before applying proposal items in `apps/web/src/server/services/ai-tool-proposals.ts`
+- [X] T058 [US3] Route applied public page mutations through existing public-content invalidation in `apps/web/src/server/services/public-content.ts`
+- [X] T059 [US3] Create proposal review page route in `apps/web/app/(admin)/admin/ai/tools/proposals/[id]/page.tsx`
+- [X] T060 [US3] Create proposal detail UI with approve, reject, apply, conflict, and per-item result states in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx`
+- [X] T061 [US3] Regenerate OpenAPI artifacts for proposal route annotations in `apps/web/app/api/openapi.json`
 
 **Checkpoint**: User Story 3 is functional and independently testable.
 
