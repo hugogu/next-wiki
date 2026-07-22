@@ -1146,6 +1146,111 @@
         "actions": "Actions",
         "usage": "Usage"
       },
+      "tools": {
+        "nav": "Tools",
+        "title": "Tools",
+        "description": "Manage which wiki tools Wiki AI can use and when its changes require review.",
+        "loading": "Loading tools…",
+        "loadError": "Could not load tools.",
+        "providers": "Providers",
+        "provider": {
+          "builtin": "Built-in",
+          "external": "External MCP",
+          "externalUnavailable": "External MCP providers are not available in this phase.",
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "table": {
+          "tool": "Tool",
+          "category": "Category",
+          "risk": "Risk",
+          "scope": "Permission",
+          "retention": "Retention",
+          "review": "Review",
+          "enabled": "Enabled"
+        },
+        "category": {
+          "read": "Read",
+          "page_draft": "Page draft",
+          "metadata": "Metadata",
+          "tag": "Tags",
+          "batch": "Batch",
+          "raw_evidence": "Raw evidence"
+        },
+        "risk": {
+          "read": "Read-only",
+          "draft_write": "Draft",
+          "reviewed_write": "Reviewed",
+          "immediate_write": "Immediate"
+        },
+        "reviewPolicy": {
+          "always_review": "Always review",
+          "review_when_requested": "Review when requested",
+          "allow_immediate_for_owner": "Immediate for owner"
+        },
+        "effectiveReview": {
+          "none": "No review",
+          "admin_review": "Admin review"
+        },
+        "policy": {
+          "title": "Policy",
+          "enabled": "Enabled",
+          "reviewPolicy": "Review policy",
+          "maxCalls": "Max calls per turn",
+          "timeout": "Timeout (ms)",
+          "save": "Save policy",
+          "saved": "Policy updated.",
+          "saveError": "Could not update policy."
+        },
+        "failures": {
+          "title": "Recent tool failures",
+          "empty": "No recent tool failures."
+        },
+        "proposals": {
+          "title": "Change proposals",
+          "back": "Back to Tools",
+          "empty": "No change proposals.",
+          "rationale": "Rationale",
+          "requestedReview": "Requested review",
+          "effectiveReview": "Effective review",
+          "sourceTool": "Source tool",
+          "items": "Affected resources",
+          "before": "Before",
+          "after": "After",
+          "conflict": "Current state changed since this proposal was prepared.",
+          "evidence": "Evidence",
+          "evidenceRedacted": "Restricted",
+          "note": "Note",
+          "approve": "Approve",
+          "reject": "Reject",
+          "apply": "Apply",
+          "approved": "Proposal approved.",
+          "rejected": "Proposal rejected.",
+          "applied": "Proposal applied.",
+          "decisionError": "Could not update the proposal.",
+          "status": {
+            "pending": "Pending",
+            "approved": "Approved",
+            "rejected": "Rejected",
+            "applied": "Applied",
+            "failed": "Failed",
+            "superseded": "Superseded"
+          },
+          "kind": {
+            "tag_update": "Tag update",
+            "metadata_update": "Metadata update",
+            "batch_update": "Batch update",
+            "raw_evidence_link": "Evidence link",
+            "other": "Change"
+          },
+          "itemStatus": {
+            "pending": "Pending",
+            "applied": "Applied",
+            "failed": "Failed",
+            "skipped": "Skipped"
+          }
+        }
+      },
       "usage": {
         "title": "AI usage",
         "description": "Completed request counts and token consumption by chat, embedding and image capability.",
@@ -1841,6 +1946,23 @@
       "citations": "Sources",
       "conversationView": {
         "noAnswerYet": "No answer yet."
+      },
+      "tools": {
+        "title": "Tool activity",
+        "status": {
+          "queued": "Queued",
+          "running": "Running",
+          "succeeded": "Succeeded",
+          "failed": "Failed",
+          "blocked": "Blocked",
+          "cancelled": "Cancelled"
+        },
+        "limitReached": "Tool limit reached for this turn.",
+        "proposalCreated": "Change proposal created",
+        "evidenceLinked": "Evidence linked",
+        "reviewProposal": "Review proposal",
+        "unavailable": "Tool use is unavailable for the selected model.",
+        "disabled": "That tool is disabled by policy."
       }
     },
     "optimize": {

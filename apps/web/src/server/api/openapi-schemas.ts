@@ -1952,3 +1952,186 @@ export const WritingModeSwitchJobView = z
     report: z.record(z.unknown()).nullable(),
   })
   .describe('Writing-mode switch job status and completed migration report.');
+
+// ---- Wiki AI Tool Runtime (026) --------------------------------------------
+//
+// Literal copies of the @next-wiki/shared ai-tools schemas (see the note at the
+// top of this file). Named distinctly from their shared type counterparts to
+// avoid the next-openapi-gen same-name resolution quirk documented above.
+
+export const AiToolsListOutput = z
+  .object({
+    providers: z
+      .array(
+        z.object({
+          key: z.string().describe('Stable provider key.'),
+          displayName: z.string().describe('Admin-facing provider label.'),
+          kind: z.enum(['builtin_wiki', 'external_mcp']).describe('Provider kind.'),
+          enabled: z.boolean().describe('Whether the provider is enabled by Admin policy.'),
+          activationStatus: z
+            .enum(['available', 'disabled', 'unsupported', 'future_external'])
+            .describe('Whether the provider can currently be activated.'),
+        }),
+      )
+      .describe('Visible tool providers.'),
+    tools: z
+      .array(
+        z.object({
+          providerKey: z.string().describe('Owning provider key.'),
+          name: z.string().describe('Stable MCP-compatible tool name.'),
+          category: z
+            .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'])
+            .describe('Coarse capability category.'),
+          riskLevel: z
+            .enum(['read', 'draft_write', 'reviewed_write', 'immediate_write'])
+            .describe('Mutation risk of the tool.'),
+          requiredScope: z.string().describe('Permission/action needed to call the tool.'),
+          enabled: z.boolean().describe('Whether the tool is currently enabled.'),
+          reviewPolicy: z
+            .enum(['always_review', 'review_when_requested', 'allow_immediate_for_owner'])
+            .describe('Admin-managed review policy.'),
+          resultRetention: z
+            .enum(['conversation_summary', 'raw_when_durable', 'never_full_result'])
+            .describe('How much of a result may be retained in Conversation records.'),
+          effectiveReview: z
+            .enum(['none', 'admin_review'])
+            .describe('Effective review disposition after server policy resolution.'),
+          description: z.string().nullable().optional().describe('Human-readable tool description.'),
+        }),
+      )
+      .describe('Visible tools and their effective policies.'),
+  })
+  .describe('Admin listing of tool providers, tools, and effective policies.');
+
+export const AiToolPolicyPatchInput = z
+  .object({
+    providerKey: z.string().min(1).max(100).describe('Provider whose policy is updated.'),
+    category: z
+      .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'])
+      .nullable()
+      .optional()
+      .describe('Category-level policy target; null/omitted for provider default.'),
+    toolName: z.string().min(1).max(200).nullable().optional().describe('Tool-specific policy target; null for category/provider default.'),
+    enabled: z.boolean().optional().describe('Whether the tool/category can be used.'),
+    reviewPolicy: z
+      .enum(['always_review', 'review_when_requested', 'allow_immediate_for_owner'])
+      .optional()
+      .describe('New review policy. Cannot be set less restrictive than the system minimum.'),
+    maxCallsPerTurn: z.number().int().min(1).max(50).optional().describe('Per-turn tool-call limit.'),
+    timeoutMs: z.number().int().min(1000).max(120000).optional().describe('Per-call timeout in milliseconds.'),
+  })
+  .describe('Update Admin-managed policy for a provider, category, or tool.');
+
+export const AiToolPolicyResource = z
+  .object({
+    id: z.string().uuid().describe('Policy identifier.'),
+    providerKey: z.string().describe('Owning provider key.'),
+    category: z
+      .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'])
+      .nullable()
+      .describe('Category-level target, or null for provider/tool scope.'),
+    toolName: z.string().nullable().describe('Tool-specific target, or null for category/provider scope.'),
+    enabled: z.boolean().describe('Whether the tool/category can be used.'),
+    reviewPolicy: z.enum(['always_review', 'review_when_requested', 'allow_immediate_for_owner']),
+    maxCallsPerTurn: z.number().int(),
+    timeoutMs: z.number().int(),
+    updatedBy: z.string().uuid().nullable(),
+    updatedAt: z.string().describe('Timestamp when the policy was last updated (ISO 8601).'),
+  })
+  .describe('An effective Admin tool policy resource.');
+
+export const AiToolProposalIdPathParams = z
+  .object({ id: z.string().uuid().describe('Tool change proposal identifier.') })
+  .describe('Tool proposal ID path parameters.');
+
+const aiToolProposalStatusEnum = z.enum(['pending', 'approved', 'rejected', 'applied', 'failed', 'superseded']);
+const aiToolProposalKindEnum = z.enum(['tag_update', 'metadata_update', 'batch_update', 'raw_evidence_link', 'other']);
+
+export const AiToolProposalsListOutput = z
+  .object({
+    items: z
+      .array(
+        z.object({
+          id: z.string().uuid(),
+          kind: aiToolProposalKindEnum,
+          status: aiToolProposalStatusEnum,
+          title: z.string(),
+          createdByUserId: z.string().uuid().nullable(),
+          reviewedByUserId: z.string().uuid().nullable(),
+          reviewedAt: z.string().nullable(),
+          appliedAt: z.string().nullable(),
+          createdAt: z.string(),
+        }),
+      )
+      .describe('Proposal summaries for the current result window.'),
+    total: z.number().int().nonnegative().describe('Total number of matching proposals.'),
+  })
+  .describe('Admin list of tool change proposals.');
+
+export const AiToolProposalResource = z
+  .object({
+    id: z.string().uuid(),
+    kind: aiToolProposalKindEnum,
+    status: aiToolProposalStatusEnum,
+    title: z.string(),
+    rationale: z.string().describe('Assistant-provided reason for the change.'),
+    requestedReview: z.enum(['none', 'admin_review']),
+    effectiveReview: z.enum(['none', 'admin_review']),
+    workflowId: z.string().uuid().nullable(),
+    toolCallId: z.string().uuid().nullable(),
+    sourceToolName: z.string().nullable(),
+    createdByUserId: z.string().uuid().nullable(),
+    reviewedByUserId: z.string().uuid().nullable(),
+    reviewedAt: z.string().nullable(),
+    appliedAt: z.string().nullable(),
+    createdAt: z.string(),
+    hasConflict: z.boolean().describe('Whether any item no longer matches its proposal base.'),
+    items: z
+      .array(
+        z.object({
+          id: z.string().uuid(),
+          resourceKind: z.enum(['page', 'tag', 'page_metadata', 'raw_category', 'link']),
+          resourceId: z.string().uuid().nullable(),
+          resourceLabel: z.string().nullable(),
+          beforeState: z.record(z.unknown()),
+          afterState: z.record(z.unknown()),
+          applyStatus: z.enum(['pending', 'applied', 'failed', 'skipped']),
+          hasConflict: z.boolean(),
+          errorCode: z.string().nullable(),
+          errorMessage: z.string().nullable(),
+        }),
+      )
+      .describe('Itemized before/after changes.'),
+    evidenceLinks: z
+      .array(
+        z.object({
+          id: z.string().uuid(),
+          targetKind: z.enum(['page_revision', 'proposal', 'tag_mutation', 'metadata_change']),
+          evidenceUrl: z.string().nullable().describe('Permission-filtered evidence link, or null.'),
+          contentHash: z.string().nullable(),
+        }),
+      )
+      .describe('Permission-filtered Raw evidence links.'),
+  })
+  .describe('Full tool change proposal detail.');
+
+export const AiToolProposalDecisionBody = z
+  .object({ note: z.string().max(2000).optional().describe('Optional reviewer note.') })
+  .describe('Approve or reject a tool change proposal.');
+
+export const AiToolProposalApplyOutput = z
+  .object({
+    proposalId: z.string().uuid(),
+    status: aiToolProposalStatusEnum,
+    items: z
+      .array(
+        z.object({
+          id: z.string().uuid(),
+          applyStatus: z.enum(['pending', 'applied', 'failed', 'skipped']),
+          errorCode: z.string().nullable(),
+          errorMessage: z.string().nullable(),
+        }),
+      )
+      .describe('Per-item application results.'),
+  })
+  .describe('Result of applying an approved tool change proposal.');

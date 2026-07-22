@@ -12,12 +12,12 @@
 
 **Purpose**: Establish shared types, schema exports, and UI copy locations used by all stories.
 
-- [ ] T001 Create shared AI tool contract schemas and enums in `packages/shared/src/ai-tools.ts`
-- [ ] T002 Export AI tool schemas from `packages/shared/src/index.ts`
-- [ ] T003 [P] Extend AI action feature and model capability shared schemas in `packages/shared/src/ai.ts`
-- [ ] T004 [P] Add server OpenAPI schema exports for AI tool routes in `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T005 [P] Add AI Tools navigation and UI copy keys in `apps/web/src/i18n/keys.ts`
-- [ ] T006 [P] Add English and Chinese AI Tools messages in `apps/web/messages/en.json` and `apps/web/messages/zh.json`
+- [X] T001 Create shared AI tool contract schemas and enums in `packages/shared/src/ai-tools.ts`
+- [X] T002 Export AI tool schemas from `packages/shared/src/index.ts`
+- [X] T003 [P] Extend AI action feature and model capability shared schemas in `packages/shared/src/ai.ts`
+- [X] T004 [P] Add server OpenAPI schema exports for AI tool routes in `apps/web/src/server/api/openapi-schemas.ts`
+- [X] T005 [P] Add AI Tools navigation and UI copy keys in `apps/web/src/i18n/keys.ts`
+- [X] T006 [P] Add English and Chinese AI Tools messages in `apps/web/messages/en.json` and `apps/web/messages/zh.json`
 
 ---
 

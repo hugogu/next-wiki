@@ -1146,6 +1146,111 @@
         "actions": "运行记录",
         "usage": "用量统计"
       },
+      "tools": {
+        "nav": "工具",
+        "title": "工具",
+        "description": "管理 Wiki AI 可使用的维基工具，以及其更改何时需要审核。",
+        "loading": "正在加载工具…",
+        "loadError": "无法加载工具。",
+        "providers": "提供方",
+        "provider": {
+          "builtin": "内置",
+          "external": "外部 MCP",
+          "externalUnavailable": "本阶段暂不支持外部 MCP 提供方。",
+          "enabled": "已启用",
+          "disabled": "已停用"
+        },
+        "table": {
+          "tool": "工具",
+          "category": "类别",
+          "risk": "风险",
+          "scope": "权限",
+          "retention": "留存",
+          "review": "审核",
+          "enabled": "启用"
+        },
+        "category": {
+          "read": "读取",
+          "page_draft": "页面草稿",
+          "metadata": "元数据",
+          "tag": "标签",
+          "batch": "批量",
+          "raw_evidence": "原始证据"
+        },
+        "risk": {
+          "read": "只读",
+          "draft_write": "草稿",
+          "reviewed_write": "需审核",
+          "immediate_write": "立即生效"
+        },
+        "reviewPolicy": {
+          "always_review": "始终审核",
+          "review_when_requested": "按请求审核",
+          "allow_immediate_for_owner": "所有者可立即生效"
+        },
+        "effectiveReview": {
+          "none": "无需审核",
+          "admin_review": "管理员审核"
+        },
+        "policy": {
+          "title": "策略",
+          "enabled": "启用",
+          "reviewPolicy": "审核策略",
+          "maxCalls": "每轮最大调用次数",
+          "timeout": "超时（毫秒）",
+          "save": "保存策略",
+          "saved": "策略已更新。",
+          "saveError": "无法更新策略。"
+        },
+        "failures": {
+          "title": "近期工具失败",
+          "empty": "暂无近期工具失败。"
+        },
+        "proposals": {
+          "title": "更改提案",
+          "back": "返回工具",
+          "empty": "暂无更改提案。",
+          "rationale": "理由",
+          "requestedReview": "请求的审核",
+          "effectiveReview": "实际审核",
+          "sourceTool": "来源工具",
+          "items": "受影响资源",
+          "before": "变更前",
+          "after": "变更后",
+          "conflict": "自提案准备以来，当前状态已发生变化。",
+          "evidence": "证据",
+          "evidenceRedacted": "受限",
+          "note": "备注",
+          "approve": "批准",
+          "reject": "拒绝",
+          "apply": "应用",
+          "approved": "提案已批准。",
+          "rejected": "提案已拒绝。",
+          "applied": "提案已应用。",
+          "decisionError": "无法更新该提案。",
+          "status": {
+            "pending": "待处理",
+            "approved": "已批准",
+            "rejected": "已拒绝",
+            "applied": "已应用",
+            "failed": "失败",
+            "superseded": "已被取代"
+          },
+          "kind": {
+            "tag_update": "标签更新",
+            "metadata_update": "元数据更新",
+            "batch_update": "批量更新",
+            "raw_evidence_link": "证据关联",
+            "other": "更改"
+          },
+          "itemStatus": {
+            "pending": "待处理",
+            "applied": "已应用",
+            "failed": "失败",
+            "skipped": "已跳过"
+          }
+        }
+      },
       "usage": {
         "title": "AI 用量统计",
         "description": "按对话、向量和生图能力统计已完成请求的次数与 Token 消耗。",
@@ -1841,6 +1946,23 @@
       "citations": "来源",
       "conversationView": {
         "noAnswerYet": "暂无回答。"
+      },
+      "tools": {
+        "title": "工具活动",
+        "status": {
+          "queued": "排队中",
+          "running": "运行中",
+          "succeeded": "成功",
+          "failed": "失败",
+          "blocked": "已阻止",
+          "cancelled": "已取消"
+        },
+        "limitReached": "本轮已达到工具调用上限。",
+        "proposalCreated": "已创建更改提案",
+        "evidenceLinked": "已关联证据",
+        "reviewProposal": "审核提案",
+        "unavailable": "所选模型不支持工具调用。",
+        "disabled": "该工具已被策略停用。"
       }
     },
     "optimize": {

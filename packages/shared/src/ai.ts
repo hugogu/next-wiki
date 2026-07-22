@@ -163,6 +163,9 @@ export const aiCapabilitySchema = z.enum([
   'vision',
   'audio',
   'thinking',
+  // 026: model can drive the governed Wiki AI tool loop. Discovered or manually
+  // overridden; tool-enabled chat degrades to ordinary Q&A when unsupported.
+  'tool_calling',
 ]);
 export type AiCapability = z.infer<typeof aiCapabilitySchema>;
 export const aiCapabilitySourceSchema = z.enum(['provider', 'catalog', 'manual']);
@@ -178,6 +181,8 @@ export const aiActionFeatureSchema = z.enum([
   'wiki_question',
   'text_optimization',
   'image_generation',
+  // 026: a tool-enabled chat turn that drives the governed Wiki AI tool loop.
+  'wiki_tool_chat',
 ]);
 export type AiActionFeature = z.infer<typeof aiActionFeatureSchema>;
 export const aiActionStatusSchema = z.enum(['queued', 'running', 'completed', 'failed', 'cancelled', 'expired']);
@@ -195,6 +200,12 @@ export const aiEventTypeSchema = z.enum([
   'completed',
   'error',
   'question',
+  // 026: governed tool-loop lifecycle events. `tool_call` carries command
+  // markdown and safe status; `tool_proposal` announces a reviewable change;
+  // `tool_evidence` announces a permission-filtered evidence link.
+  'tool_call',
+  'tool_proposal',
+  'tool_evidence',
 ]);
 export type AiEventType = z.infer<typeof aiEventTypeSchema>;
 
