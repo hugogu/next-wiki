@@ -1,7 +1,7 @@
 import type { FeishuInboundDisposition, FeishuInboundMessage } from '@next-wiki/shared';
 import { buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { createWikiQuestion } from '@/server/services/ai-question';
+import { createWikiQuestion, createWikiToolChat } from '@/server/services/ai-question';
 import { writeEntry } from '@/server/services/audit';
 import { feishuCopy } from '@/server/feishu/copy';
 import type { ProcessingReaction } from '@/server/feishu/transport-types';
@@ -93,19 +93,28 @@ export async function handleInboundMessage(
   const session = await getOrCreateActiveSession(binding.id, input.chatId);
   const conversation = await getConversationContext(session.id, binding.userId);
   const processingReaction = await reactionLifecycle?.start(input.messageId);
+  const requestMetadata = {
+    origin: 'feishu',
+    correlationId,
+    feishuSessionId: session.id,
+    feishuProcessingReaction: processingReaction,
+  };
 
   try {
-    const action = await createWikiQuestion(ctx, {
+    const toolChat = await createWikiToolChat(ctx, {
       question,
-      mode: 'retrieval',
+      requestedReview: 'admin_review',
       conversation,
-      requestMetadata: {
-        origin: 'feishu',
-        correlationId,
-        feishuSessionId: session.id,
-        feishuProcessingReaction: processingReaction,
-      },
+      requestMetadata,
     });
+    const action = toolChat.fallback
+      ? await createWikiQuestion(ctx, {
+          question,
+          mode: 'retrieval',
+          conversation,
+          requestMetadata: { ...requestMetadata, toolFallback: true },
+        })
+      : toolChat.action;
     await attachActionToSession(session.id, action.id);
     await writeEntry({
       keyId: null,

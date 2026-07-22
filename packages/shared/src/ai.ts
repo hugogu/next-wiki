@@ -636,6 +636,15 @@ export const aiQuestionInputSchema = z.object({
   question: z.string().trim().min(1).max(16_000),
   mode: aiQuestionModeSchema,
   currentPage: z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid() }).optional(),
+  conversation: z
+    .array(
+      z.object({
+        question: z.string().trim().min(1).max(2_000),
+        answer: z.string().trim().max(4_000),
+      }),
+    )
+    .max(6)
+    .optional(),
   // 026: additive, optional tool-calling request. When omitted or unavailable,
   // the route keeps ordinary Q&A behavior (recoverable fallback).
   tools: aiToolChatOptionSchema.optional(),

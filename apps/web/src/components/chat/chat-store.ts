@@ -2,7 +2,12 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { AiCitation, AiQuestionMode } from '@next-wiki/shared';
+import type {
+  AiCitation,
+  AiQuestionMode,
+  AiToolCallEventPayload,
+  AiToolProposalEventPayload,
+} from '@next-wiki/shared';
 
 export type ChatMessage = {
   id: string;
@@ -10,6 +15,8 @@ export type ChatMessage = {
   text: string;
   thinking?: string;
   citations?: AiCitation[];
+  toolCalls?: AiToolCallEventPayload[];
+  toolProposals?: AiToolProposalEventPayload[];
   error?: string;
   insufficient?: boolean;
 };
@@ -23,6 +30,8 @@ type ChatState = {
   add: (message: ChatMessage) => void;
   append: (id: string, text: string) => void;
   think: (id: string, text: string) => void;
+  toolCall: (id: string, payload: AiToolCallEventPayload) => void;
+  toolProposal: (id: string, payload: AiToolProposalEventPayload) => void;
   insufficient: (id: string) => void;
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
@@ -56,6 +65,28 @@ export const useChatStore = create<ChatState>()(
       })),
       think: (id, text) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, thinking: (message.thinking ?? '') + text } : message),
+      })),
+      toolCall: (id, payload) => set((state) => ({
+        messages: state.messages.map((message) => {
+          if (message.id !== id) return message;
+          const existing = message.toolCalls ?? [];
+          const index = existing.findIndex((item) => item.toolCallId === payload.toolCallId);
+          const toolCalls = index === -1
+            ? [...existing, payload]
+            : existing.map((item, itemIndex) => itemIndex === index ? { ...item, ...payload } : item);
+          return { ...message, toolCalls };
+        }),
+      })),
+      toolProposal: (id, payload) => set((state) => ({
+        messages: state.messages.map((message) => {
+          if (message.id !== id) return message;
+          const existing = message.toolProposals ?? [];
+          const index = existing.findIndex((item) => item.proposalId === payload.proposalId);
+          const toolProposals = index === -1
+            ? [...existing, payload]
+            : existing.map((item, itemIndex) => itemIndex === index ? { ...item, ...payload } : item);
+          return { ...message, toolProposals };
+        }),
       })),
       insufficient: (id) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, text: '', insufficient: true } : message),

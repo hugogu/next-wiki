@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseToolPlan } from '@/server/jobs/ai-tool-chat';
+import { buildPlannerUserPrompt, parseToolPlan } from '@/server/jobs/ai-tool-chat-planner';
 
 describe('parseToolPlan — provider-agnostic tool protocol', () => {
   it('parses a tool-call block into an iterative tool_calls step', () => {
@@ -39,5 +39,25 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
   it('treats an empty tool_calls list as a final answer', () => {
     const step = parseToolPlan('```tool\n{"tool_calls":[]}\n```');
     expect(step.kind).toBe('final');
+  });
+});
+
+describe('buildPlannerUserPrompt', () => {
+  it('includes recent conversation so follow-up write requests can use the prior answer', () => {
+    const prompt = buildPlannerUserPrompt({
+      question: 'Write the above into a standalone wiki page.',
+      conversation: [
+        {
+          question: 'Summarize the tool runtime.',
+          answer: 'It lets Wiki AI create governed draft pages through tools.',
+        },
+      ],
+      transcript: [],
+    });
+
+    expect(prompt).toContain('<conversation>');
+    expect(prompt).toContain('It lets Wiki AI create governed draft pages through tools.');
+    expect(prompt).toContain('<question>');
+    expect(prompt).toContain('Write the above into a standalone wiki page.');
   });
 });

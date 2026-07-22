@@ -139,7 +139,7 @@ export async function getConversationContext(
     .from(schema.aiActions)
     .where(
       and(
-        eq(schema.aiActions.feature, 'wiki_question'),
+        inArray(schema.aiActions.feature, ['wiki_question', 'wiki_tool_chat']),
         eq(schema.aiActions.actorUserId, userId),
         sql`${schema.aiActions.requestMetadata} ->> 'feishuSessionId' = ${sessionId}`,
       ),

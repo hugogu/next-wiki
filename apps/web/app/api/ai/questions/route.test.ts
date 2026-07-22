@@ -41,12 +41,22 @@ describe('POST /api/ai/questions — additive tools option', () => {
       fallback: false,
       action: { id: 'tc1', feature: 'wiki_tool_chat', status: 'queued', eventsUrl: '/e' },
     });
-    const response = await post({ question: 'Retag docs', mode: 'retrieval', tools: { enabled: true, requestedReview: 'admin_review' } });
+    const conversation = [{ question: 'What is X?', answer: 'X is prior content.' }];
+    const response = await post({
+      question: 'Write the above to a page',
+      mode: 'retrieval',
+      conversation,
+      tools: { enabled: true, requestedReview: 'admin_review' },
+    });
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ feature: 'wiki_tool_chat' });
     expect(services.createWikiToolChat).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ requestedReview: 'admin_review' }),
+      expect.objectContaining({
+        question: 'Write the above to a page',
+        requestedReview: 'admin_review',
+        conversation,
+      }),
     );
     expect(services.createWikiQuestion).not.toHaveBeenCalled();
   });

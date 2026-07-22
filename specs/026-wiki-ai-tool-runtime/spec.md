@@ -12,7 +12,7 @@
 
 ## Summary
 
-Wiki AI evolves from a question-answering surface into a permission-scoped tool-using assistant that can inspect, organize, and propose changes to the wiki through a managed tool runtime. The first delivery exposes the instance's own wiki-management tools to Wiki AI, using MCP-compatible tool semantics so the same model can later be extended with other MCP providers without changing the user-facing workflow.
+Wiki AI evolves from a question-answering surface into a permission-scoped tool-using assistant that can inspect, organize, and propose changes to the wiki through a managed tool runtime. The first delivery exposes the instance's own wiki-management tools to Wiki AI, using MCP-compatible tool semantics so the same model can later be extended with other MCP providers without changing the user-facing workflow. The primary entry points are the web Wiki AI chat pane and configured bot channels such as Feishu; both must route through the same AI question/tool-chat core so their capabilities stay equivalent under the same permissions and review policy.
 
 Administrators manage this runtime under AI settings in a Tools area. They can see the available wiki tools, enable or disable categories of tools, and define whether mutating operations require Admin review before taking effect. Tool calls run as part of the normal Wiki AI conversation lifecycle, can happen in multiple steps, and are visible in the chat window so users understand what the assistant is doing.
 
@@ -55,6 +55,8 @@ As an authorized Wiki AI user, I want the chat assistant to search, inspect, and
 3. **Given** the user lacks permission for a page, tag, metadata field, or operation, **When** Wiki AI considers a tool call involving that resource, **Then** the tool call is denied or filtered under the user's permission context and no protected content is exposed.
 4. **Given** a task requires several steps, **When** Wiki AI needs more information before proposing a change, **Then** it can call tools iteratively until it completes, fails, reaches the configured limit, or the user cancels the request.
 5. **Given** a tool call fails, times out, or returns insufficient information, **When** the assistant continues the conversation, **Then** it reports the recoverable failure and does not present unsupported conclusions as durable knowledge.
+6. **Given** a user asks Wiki AI to save, write, or turn the previous answer or prior conversation content into a standalone wiki page, **When** page-draft tools are enabled and permitted, **Then** the assistant uses the tool runtime to create a draft page or proposed revision instead of merely answering conversationally.
+7. **Given** a bound Feishu user asks the bot for the same wiki operation, **When** the corresponding tools are enabled and the selected model supports tool calling, **Then** the Feishu-originated turn uses the same tool-chat core, permissions, review policy, and conversation context as the web Wiki AI pane.
 
 ---
 
@@ -160,6 +162,8 @@ As a future integrator, I want the tool-management model to distinguish the buil
 - **FR-010**: Every tool call that can mutate durable state MUST include a requested review value from the assistant or caller, and the system MUST compute and record an effective review decision that is at least as strict as configured policy.
 - **FR-011**: If a selected model or AI provider cannot use tools, the chat MUST show tool use as unavailable and MUST NOT silently execute operations outside the model's visible reasoning flow.
 - **FR-012**: Tool workflows MUST be cancellable by the user while they are running; cancellation MUST NOT approve pending proposals or roll back already-completed, audited operations unless a normal revert operation is explicitly requested.
+- **FR-034**: Web Wiki AI and configured bot channels MUST pass bounded recent conversation context into tool-enabled chat so follow-up instructions such as "write the above into a page" can operate on the prior answer.
+- **FR-035**: Feishu bot AI turns MUST use the same Wiki AI tool-chat service as the web chat pane when tools are available, and MUST fall back to ordinary Q&A only when the selected model or policy makes tool use unavailable.
 
 **Review and application of changes**
 

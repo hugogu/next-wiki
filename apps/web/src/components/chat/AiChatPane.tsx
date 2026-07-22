@@ -13,6 +13,7 @@ import { useChatStore } from './chat-store';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
 import { ChatThinking } from './ChatThinking';
+import { ToolCallTimeline } from './ToolCallTimeline';
 
 function setAiUrl(open: boolean, mode: AiQuestionMode) {
   const url = new URL(window.location.href);
@@ -113,6 +114,7 @@ export function AiChatPane({
                 {message.thinking && (
                   <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId} />
                 )}
+                <ToolCallTimeline calls={message.toolCalls} proposals={message.toolProposals} />
                 {message.text ? (
                   <ChatAnswer
                     text={message.text}

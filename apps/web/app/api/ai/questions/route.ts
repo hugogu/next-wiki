@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
         question: question.question,
         requestedReview: tools.requestedReview ?? 'none',
         currentPage: question.currentPage,
+        conversation: question.conversation,
       });
       if (!result.fallback) {
         return NextResponse.json(result.action, { status: 202 });

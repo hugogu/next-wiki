@@ -89,6 +89,9 @@
 - [X] T037 [P] [US2] Add permission-projection tests for read tools returning only allowed pages in `apps/web/src/server/services/ai-tool-runtime.permissions.test.ts`
 - [X] T038 [P] [US2] Add API route tests for additive `tools` option and unsupported model fallback in `apps/web/app/api/ai/questions/route.test.ts`
 - [X] T039 [P] [US2] Add AI action job tests for iterative tool calling and recoverable tool failures in `apps/web/src/server/jobs/ai-tool-chat.test.ts`
+- [X] T092 [P] [US2] Add API route coverage for forwarding bounded conversation context into tool chat in `apps/web/app/api/ai/questions/route.test.ts`
+- [X] T093 [P] [US2] Add chat payload coverage for default tool-enabled follow-up turns in `apps/web/src/hooks/use-ai-chat.test.ts`
+- [X] T094 [P] [US2] Add Feishu delegation coverage for using tool chat first and ordinary Q&A fallback second in `apps/web/src/server/services/feishu-delegation.test.ts`
 
 ### Implementation for User Story 2
 
@@ -101,6 +104,11 @@
 - [X] T046 [US2] Add cancellation handling for running tool workflows in `apps/web/src/server/services/ai-tool-runtime.ts`
 - [X] T047 [US2] Register and process `wiki_tool_chat` jobs in `apps/web/src/server/jobs/ai-actions.ts`
 - [X] T048 [US2] Ensure disabled categories and denied permissions produce safe assistant-facing failures in `apps/web/src/server/services/ai-tool-runtime.ts`
+- [X] T095 [US2] Send `tools.enabled=true`, `requestedReview=admin_review`, and recent conversation context from the web chat pane in `apps/web/src/hooks/use-ai-chat.ts`
+- [X] T096 [US2] Forward conversation context through `POST /api/ai/questions` and `createWikiToolChat` in `apps/web/app/api/ai/questions/route.ts` and `apps/web/src/server/services/ai-question.ts`
+- [X] T097 [US2] Include bounded prior turns in the `wiki_tool_chat` planner prompt in `apps/web/src/server/jobs/ai-tool-chat.ts`
+- [X] T098 [US2] Route Feishu inbound AI turns through `createWikiToolChat` with fallback to `createWikiQuestion` in `apps/web/src/server/services/feishu-delegation.ts`
+- [X] T099 [US2] Rebuild Feishu conversation context from both `wiki_question` and `wiki_tool_chat` actions in `apps/web/src/server/services/feishu-sessions.ts`
 
 **Checkpoint**: User Story 2 is functional and independently testable.
 
@@ -146,6 +154,7 @@
 - [ ] T062 [P] [US4] Add component tests for live tool-call timeline states in `apps/web/src/components/chat/ToolCallTimeline.test.tsx`
 - [ ] T063 [P] [US4] Add conversation replay tests for command records without full result payloads in `apps/web/src/components/chat/ConversationSessionView.test.tsx`
 - [ ] T064 [P] [US4] Add retention tests for command markdown and safe status metadata in `apps/web/src/server/services/raw-conversations.test.ts`
+- [X] T100 [P] [US4] Add live chat event intake coverage for tool-call/proposal timeline state in `apps/web/src/components/chat/chat-store.test.ts`
 
 ### Implementation for User Story 4
 
@@ -154,6 +163,7 @@
 - [ ] T067 [US4] Persist command markdown and safe tool status metadata during conversation capture in `apps/web/src/server/services/raw-conversations.ts`
 - [ ] T068 [US4] Redact permission-restricted command details, proposal links, and evidence links during conversation replay in `apps/web/src/components/chat/ConversationSessionView.tsx`
 - [ ] T069 [US4] Add event-stream payload handling for tool calls, proposals, and evidence links in `apps/web/src/components/chat/chat-store.ts`
+- [X] T101 [US4] Listen for `tool_call`, `tool_proposal`, and `tool_evidence` SSE events in `apps/web/src/hooks/use-ai-action.ts`
 
 **Checkpoint**: User Story 4 is functional and independently testable.
 

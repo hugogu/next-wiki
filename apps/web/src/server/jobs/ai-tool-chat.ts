@@ -24,16 +24,16 @@ import {
   getWorkflowByAction,
   runToolLoop,
   transitionWorkflow,
-  type ToolPlanStep,
   type ToolPlanner,
-  type ToolTurnState,
 } from '@/server/services/ai-tool-runtime';
 import { listToolDefinitions, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { buildPlannerUserPrompt, parseToolPlan } from './ai-tool-chat-planner';
 
 type ToolChatInput = {
   question: string;
   requestedReview?: AiToolReviewDecision;
   currentPage?: { pageId: string; revisionId: string };
+  conversation?: { question: string; answer: string }[];
 };
 
 const DEFAULT_MAX_CALLS = 8;
@@ -55,38 +55,10 @@ function buildToolSystemPrompt(tools: ToolDefinition[]): string {
     'Set "review" to "admin_review" for changes that should be reviewed. After you',
     'receive tool results, either call more tools the same way, or write your final',
     'answer as plain prose (no code block), citing the pages you read.',
+    'If the user asks to save, write, or turn previous conversation content into a',
+    'wiki page, use create_page or save_draft with admin_review instead of only',
+    'answering conversationally.',
   ].join('\n');
-}
-
-function buildPlannerUserPrompt(state: ToolTurnState): string {
-  if (state.transcript.length === 0) return state.question;
-  return [`Question: ${state.question}`, '', 'Tool results so far:', ...state.transcript, '', 'Continue.'].join('\n');
-}
-
-/** Parse one planner turn: a tool-call block requests tools; anything else is a
- * final answer. Malformed tool blocks degrade to a final answer rather than
- * looping. */
-export function parseToolPlan(output: string): ToolPlanStep {
-  const match = output.match(/```(?:tool|json)?\s*([\s\S]*?)```/);
-  if (match) {
-    try {
-      const parsed = JSON.parse(match[1]!.trim()) as {
-        tool_calls?: Array<{ tool?: unknown; arguments?: unknown; review?: unknown }>;
-      };
-      const rawCalls = Array.isArray(parsed.tool_calls) ? parsed.tool_calls : [];
-      const calls = rawCalls
-        .filter((call) => typeof call.tool === 'string')
-        .map((call) => ({
-          toolName: String(call.tool),
-          arguments: (call.arguments && typeof call.arguments === 'object' ? call.arguments : {}) as Record<string, unknown>,
-          requestedReview: (call.review === 'admin_review' ? 'admin_review' : 'none') as AiToolReviewDecision,
-        }));
-      if (calls.length > 0) return { kind: 'tool_calls', calls };
-    } catch {
-      // Not a valid tool block — treat as a final answer below.
-    }
-  }
-  return { kind: 'final', text: output.trim() };
 }
 
 export async function runWikiToolChatAction(actionId: string): Promise<void> {
@@ -157,6 +129,7 @@ export async function runWikiToolChatAction(actionId: string): Promise<void> {
     ctx,
     actorUserId: user.id,
     question: input.question,
+    conversation: input.conversation ?? [],
     planner,
     resolveReview,
     isEnabled,

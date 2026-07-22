@@ -14,13 +14,19 @@ async function makeUser(email: string) {
   return user!;
 }
 
-async function makeAction(userId: string, requestMetadata: Record<string, unknown>) {
+async function makeAction(
+  userId: string,
+  requestMetadata: Record<string, unknown>,
+  feature: 'wiki_question' | 'wiki_tool_chat' = 'wiki_question',
+  queuedAt = new Date(),
+) {
   const [action] = await db
     .insert(schema.aiActions)
     .values({
-      feature: 'wiki_question',
+      feature,
       actorUserId: userId,
       requestMetadata,
+      queuedAt,
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
@@ -59,8 +65,9 @@ describe('Feishu sessions', () => {
         expiresAt: new Date(Date.now() + SESSION_DEFAULT_MINUTES * 60 * 1000),
       })
       .returning();
-    const first = await makeAction(user.id, { feishuSessionId: session!.id });
-    const other = await makeAction(otherUser.id, { feishuSessionId: session!.id });
+    const first = await makeAction(user.id, { feishuSessionId: session!.id }, 'wiki_question', new Date('2026-07-22T00:00:00Z'));
+    const toolChat = await makeAction(user.id, { feishuSessionId: session!.id }, 'wiki_tool_chat', new Date('2026-07-22T00:01:00Z'));
+    const other = await makeAction(otherUser.id, { feishuSessionId: session!.id }, 'wiki_question', new Date('2026-07-22T00:02:00Z'));
     const expiresAt = new Date(Date.now() + 3_600_000);
     await db.insert(schema.aiActionEvents).values([
       {
@@ -87,6 +94,18 @@ describe('Feishu sessions', () => {
         payload: { text: 'Secret other answer' },
         expiresAt,
       },
+      {
+        actionId: toolChat.id,
+        type: 'question',
+        payload: { text: 'Write the above into a page.' },
+        expiresAt,
+      },
+      {
+        actionId: toolChat.id,
+        type: 'text_delta',
+        payload: { text: 'Created a draft page.' },
+        expiresAt,
+      },
     ]);
 
     await db
@@ -96,6 +115,7 @@ describe('Feishu sessions', () => {
 
     await expect(getConversationContext(session!.id, user.id)).resolves.toEqual([
       { question: 'What is the first step?', answer: 'Open the settings page.' },
+      { question: 'Write the above into a page.', answer: 'Created a draft page.' },
     ]);
   });
 

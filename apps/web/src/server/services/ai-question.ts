@@ -120,6 +120,7 @@ export async function createWikiToolChat(
     question: string;
     requestedReview: AiToolReviewDecision;
     currentPage?: { pageId: string; revisionId: string };
+    conversation?: { question: string; answer: string }[];
     requestMetadata?: Record<string, unknown>;
   },
 ): Promise<{ fallback: true } | { fallback: false; action: AiActionAccepted }> {
@@ -136,6 +137,7 @@ export async function createWikiToolChat(
       question: input.question,
       requestedReview: input.requestedReview,
       currentPage: input.currentPage,
+      conversation: input.conversation,
     },
     providerId: provider.id,
     modelId: model.id,

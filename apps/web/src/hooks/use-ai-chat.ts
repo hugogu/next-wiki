@@ -2,8 +2,13 @@
 
 import { useRef } from 'react';
 import { useAiAction } from './use-ai-action';
-import { useChatStore } from '@/components/chat/chat-store';
-import type { AiCitation, AiQuestionMode } from '@next-wiki/shared';
+import { type ChatMessage, useChatStore } from '@/components/chat/chat-store';
+import type {
+  AiCitation,
+  AiQuestionMode,
+  AiToolCallEventPayload,
+  AiToolProposalEventPayload,
+} from '@next-wiki/shared';
 
 const INSUFFICIENT_MARKER = 'INSUFFICIENT_WIKI_EVIDENCE';
 const THINK_OPEN = '<think>';
@@ -78,6 +83,38 @@ export function flushStreamState(state: StreamState): { answerText: string; thin
     : { answerText: buffer, thinkingText: '' };
 }
 
+export function buildConversationContext(messages: ChatMessage[]): { question: string; answer: string }[] {
+  const turns: { question: string; answer: string }[] = [];
+  let pendingQuestion: string | null = null;
+  for (const message of messages) {
+    if (message.role === 'user') {
+      pendingQuestion = message.text.trim().slice(0, 2_000);
+      continue;
+    }
+    if (message.role === 'assistant' && pendingQuestion) {
+      const answer = message.text.trim().slice(0, 4_000);
+      if (answer) turns.push({ question: pendingQuestion, answer });
+      pendingQuestion = null;
+    }
+  }
+  return turns.slice(-6);
+}
+
+export function buildToolEnabledQuestionPayload(input: {
+  question: string;
+  mode: AiQuestionMode;
+  currentPage?: { pageId: string; revisionId: string };
+  messages: ChatMessage[];
+}) {
+  return {
+    question: input.question,
+    mode: input.mode,
+    currentPage: input.currentPage,
+    conversation: buildConversationContext(input.messages),
+    tools: { enabled: true, requestedReview: 'admin_review' as const },
+  };
+}
+
 export function useAiChat(currentPage?: { pageId: string; revisionId: string }) {
   const store = useChatStore();
   const action = useAiAction();
@@ -106,9 +143,22 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
     store.add({ id: assistantId, role: 'assistant', text: '' });
 
     try {
-      await action.start('/api/ai/questions', { question, mode, currentPage }, (event) => {
+      await action.start('/api/ai/questions', buildToolEnabledQuestionPayload({
+        question,
+        mode,
+        currentPage,
+        messages: store.messages,
+      }), (event) => {
         if (event.type === 'reasoning_delta') {
           store.think(assistantId, String(event.payload.text ?? ''));
+          return;
+        }
+        if (event.type === 'tool_call') {
+          store.toolCall(assistantId, event.payload as AiToolCallEventPayload);
+          return;
+        }
+        if (event.type === 'tool_proposal') {
+          store.toolProposal(assistantId, event.payload as AiToolProposalEventPayload);
           return;
         }
         if (event.type === 'text_delta') {

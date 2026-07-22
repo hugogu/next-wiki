@@ -8,13 +8,13 @@
 
 Upgrade the Wiki AI chat surface from question answering to a governed tool-using assistant. The first phase exposes the instance's own wiki-management tools to Wiki AI through an MCP-compatible internal tool provider, lets the model call tools iteratively during a chat turn, streams tool progress into the chat UI, and turns mutating tool calls into either page drafts/diffs or reviewable non-page change proposals according to server-enforced policy.
 
-The implementation stays inside the existing web app and service layer. It adds a registered tool-provider catalog, tool runtime records tied to `ai_actions`, a bounded tool-loop worker path for `wiki_tool_chat`, proposal records for tag/metadata/batch-style mutations, and a dedicated Raw category for tool evidence when tool output becomes source material for durable knowledge. External MCP providers are not enabled in this phase, but provider identity, risk, retention, review, and evidence contracts are modeled now so later providers use the same policy surface.
+The implementation stays inside the existing web app and service layer. It adds a registered tool-provider catalog, tool runtime records tied to `ai_actions`, a bounded tool-loop worker path for `wiki_tool_chat`, proposal records for tag/metadata/batch-style mutations, and a dedicated Raw category for tool evidence when tool output becomes source material for durable knowledge. The web Wiki AI pane and bot integrations such as Feishu must both call this same tool-chat core and pass bounded recent conversation context, so follow-up instructions like "write the above into a page" can create a draft/proposal instead of falling back to ordinary Q&A. External MCP providers are not enabled in this phase, but provider identity, risk, retention, review, and evidence contracts are modeled now so later providers use the same policy surface.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.6 on Node.js 20.9+ (Docker image tracks Node 24); React 19.2 and Next.js 16 App Router.
 
-**Primary Dependencies**: Existing Next.js route handlers, Drizzle ORM, pg-boss, Zod schemas in `packages/shared`, existing AI action/event lifecycle, existing provider/model assignment services, existing page/content services, existing tag services, existing Raw category/Raw entry services, existing MCP server tool schemas as the interoperability reference. Add no new runtime service; likely add no new npm dependency.
+**Primary Dependencies**: Existing Next.js route handlers, Drizzle ORM, pg-boss, Zod schemas in `packages/shared`, existing AI action/event lifecycle, existing provider/model assignment services, existing page/content services, existing tag services, existing Raw category/Raw entry services, existing Feishu bot session/delegation services, existing MCP server tool schemas as the interoperability reference. Add no new runtime service; likely add no new npm dependency.
 
 **Storage**: PostgreSQL 16 with pgvector. New schema is required for tool provider settings, tool calls, change proposals, proposal items, proposal decisions, and tool-evidence links. Migrations MUST be generated from Drizzle schema changes with `pnpm db:generate`, never hand-authored.
 
@@ -104,12 +104,15 @@ apps/web/
 │   │   ├── ai-tool-evidence.ts
 │   │   ├── ai-question.ts
 │   │   ├── ai-actions.ts
+│   │   ├── feishu-delegation.ts
+│   │   ├── feishu-sessions.ts
 │   │   ├── raw-categories.ts
 │   │   ├── raw-entries.ts
 │   │   ├── public-content.ts
 │   │   └── tags.ts
 │   ├── jobs/{register.ts,ai-actions.ts}
 │   └── api/openapi-schemas.ts
+├── src/hooks/{use-ai-chat.ts,use-ai-action.ts}
 ├── src/components/
 │   ├── admin/ai/AiToolsPanel.tsx
 │   ├── admin/ai/ToolProposalDetail.tsx

@@ -275,7 +275,11 @@ export type ToolPlanStep =
 /** State handed to the planner each iteration. `transcript` holds the safe,
  * bounded record of prior tool activity so a provider-agnostic planner can be
  * driven purely from text (no native function-calling required). */
-export type ToolTurnState = { question: string; transcript: string[] };
+export type ToolTurnState = {
+  question: string;
+  conversation: { question: string; answer: string }[];
+  transcript: string[];
+};
 
 export type ToolPlanner = (state: ToolTurnState) => Promise<ToolPlanStep>;
 
@@ -285,6 +289,7 @@ export type ToolLoopParams = {
   ctx: PermCtx;
   actorUserId: string | null;
   question: string;
+  conversation?: { question: string; answer: string }[];
   planner: ToolPlanner;
   /** Server-enforced review resolution for one call (strictest wins). */
   resolveReview: (tool: ToolDefinition, requested: AiToolReviewDecision) => AiToolReviewDecision;
@@ -328,7 +333,11 @@ function hashResult(data: unknown): string {
  * cancellation — mapping each to the matching workflow terminal state.
  */
 export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResult> {
-  const state: ToolTurnState = { question: params.question, transcript: [] };
+  const state: ToolTurnState = {
+    question: params.question,
+    conversation: params.conversation ?? [],
+    transcript: [],
+  };
   let answer = '';
   let calls = 0;
 

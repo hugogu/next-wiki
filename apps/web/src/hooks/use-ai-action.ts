@@ -43,7 +43,7 @@ export function useAiAction() {
     sourceRef.current = source;
     const eventTypes: AiEventType[] = [
       'status', 'text_delta', 'reasoning_delta', 'search_results', 'citations', 'optimization',
-      'image_ready', 'completed', 'error',
+      'image_ready', 'tool_call', 'tool_proposal', 'tool_evidence', 'completed', 'error',
     ];
     for (const type of eventTypes) {
       source.addEventListener(type, (raw) => {
