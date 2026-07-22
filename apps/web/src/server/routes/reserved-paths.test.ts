@@ -22,6 +22,7 @@ describe('reserved-paths / manifest discovery', () => {
     expect(isPathReserved('auth/login')).toBe(true);
     expect(isPathReserved('forbidden')).toBe(true);
     expect(isPathReserved('healthz')).toBe(true);
+    expect(isPathReserved('h/anything')).toBe(true);
     expect(isPathReserved('readyz')).toBe(true);
     expect(isPathReserved('setup')).toBe(true);
     expect(isPathReserved('s/space-id')).toBe(true);
@@ -33,6 +34,7 @@ describe('reserved-paths / manifest discovery', () => {
     expect(isPathReserved('getting-started')).toBe(false);
     expect(isPathReserved('docs/intro')).toBe(false);
     expect(isPathReserved('projects/2026/roadmap')).toBe(false);
+    expect(isPathReserved('history/china/liu-bei')).toBe(false);
     expect(isPathReserved('foo/bar/baz')).toBe(false);
   });
 

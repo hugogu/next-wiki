@@ -15,20 +15,33 @@ export function ToolCallTimeline({
   if (calls.length === 0 && proposals.length === 0) return null;
 
   return (
-    <div className="space-y-xs rounded-md border border-border bg-background p-sm text-xs">
-      <p className="font-medium">{t('ai.chat.tools.title')}</p>
-      <ol className="space-y-xs">
+    <div className="space-y-xxs text-xs">
+      <p className="sr-only">{t('ai.chat.tools.title')}</p>
+      <ol className="space-y-xxs">
         {calls.map((call) => (
-          <li key={call.toolCallId} className="space-y-xxs">
-            <div className="flex items-center justify-between gap-sm">
-              <span className="font-medium">{call.toolName}</span>
-              <span className="text-muted">{t(`ai.chat.tools.status.${call.status}` as TranslationKey)}</span>
-            </div>
-            <pre className="max-h-28 overflow-auto rounded bg-surface-elevated p-xs text-[11px] leading-snug">
-              <code>{call.commandMarkdown}</code>
-            </pre>
-            {call.resultSummary && <p className="text-muted">{call.resultSummary}</p>}
-            {call.errorMessage && <p className="text-danger">{call.errorMessage}</p>}
+          <li key={call.toolCallId}>
+            <details className="group rounded-md border border-border bg-background">
+              <summary className="flex min-h-8 cursor-pointer list-none items-center gap-xs px-sm py-xs marker:hidden">
+                <span className="text-muted transition-transform group-open:rotate-90">&gt;</span>
+                <span className="font-medium">{call.toolName}</span>
+                <span className="text-muted">{t(`ai.chat.tools.status.${call.status}` as TranslationKey)}</span>
+                {call.resultSummary && (
+                  <span className="min-w-0 flex-1 truncate text-muted">{call.resultSummary}</span>
+                )}
+                {call.errorMessage && (
+                  <span className="min-w-0 flex-1 truncate text-danger">{call.errorMessage}</span>
+                )}
+              </summary>
+              <div className="space-y-xxs border-t border-border p-xs">
+                {call.commandMarkdown && (
+                  <pre className="max-h-28 overflow-auto rounded bg-surface-elevated p-xs text-[11px] leading-snug">
+                    <code>{call.commandMarkdown}</code>
+                  </pre>
+                )}
+                {call.resultSummary && <p className="text-muted">{call.resultSummary}</p>}
+                {call.errorMessage && <p className="text-danger">{call.errorMessage}</p>}
+              </div>
+            </details>
           </li>
         ))}
       </ol>

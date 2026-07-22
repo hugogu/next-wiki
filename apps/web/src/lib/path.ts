@@ -65,7 +65,7 @@ export function getEditHref(path: string): string {
 }
 
 export function getHistoryHref(path: string): string {
-  return `/history/${encodePath(path)}`;
+  return `/h/${encodePath(path)}`;
 }
 
 export function getSpaceHistoryHref(space: ReaderSpace, path: string, compare?: string): string {
@@ -73,7 +73,7 @@ export function getSpaceHistoryHref(space: ReaderSpace, path: string, compare?: 
   if (space !== 'wiki') query.set('space', space);
   if (compare) query.set('compare', compare);
   const qs = query.toString();
-  return `/history/${encodePath(path)}${qs ? `?${qs}` : ''}`;
+  return `/h/${encodePath(path)}${qs ? `?${qs}` : ''}`;
 }
 
 export function getRevisionHref(path: string, version: number): string {

@@ -175,6 +175,7 @@ describe('pageService US3', () => {
         { path: 'api/v1/pages', label: '/api/v1/pages' },
         { path: 'auth/login', label: '/auth/login' },
         { path: 'forbidden', label: '/forbidden' },
+        { path: 'h/anything', label: '/h/anything' },
         { path: 'healthz', label: '/healthz' },
         { path: 'readyz', label: '/readyz' },
         { path: 'setup', label: '/setup' },
@@ -200,6 +201,13 @@ describe('pageService US3', () => {
         contentSource: 'c',
       });
       expect(result.pageId).toBeTruthy();
+
+      const historyPath = await pageService.create(ctx, {
+        path: 'history/china/liu-bei',
+        title: 'Liu Bei',
+        contentSource: 'c',
+      });
+      expect(historyPath.pageId).toBeTruthy();
     });
 
     it('denies anonymous and readers', async () => {
