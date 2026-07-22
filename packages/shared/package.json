@@ -8,10 +8,12 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
+    "vitest": "^3.0.0",
     "zod": "^3.24.1"
   }
 }

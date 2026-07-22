@@ -27,12 +27,12 @@
 
 **Critical**: No user story work should begin until this phase is complete.
 
-- [ ] T007 Add Drizzle enums for tool providers, tool categories, review policy, workflow status, tool-call status, proposal status, proposal kind, and evidence target kind in `apps/web/src/server/db/schema/enums.ts`
-- [ ] T008 Add Drizzle tables for tool providers, tool policies, tool workflows, tool calls, tool change proposals, proposal items, and tool evidence links in `apps/web/src/server/db/schema/ai-tools.ts`
-- [ ] T009 Register the AI tool schema module in `apps/web/src/server/db/schema/index.ts`
-- [ ] T010 Generate the Drizzle migration from schema changes with `pnpm db:generate`, producing files under `apps/web/src/server/db/migrations/`
-- [ ] T011 [P] Add schema regression tests for AI tool tables and enum names in `apps/web/src/server/db/ai-tool-schema.test.ts`
-- [ ] T012 [P] Add shared schema validation tests for tool contracts in `packages/shared/src/ai-tools.test.ts`
+- [X] T007 Add Drizzle enums for tool providers, tool categories, review policy, workflow status, tool-call status, proposal status, proposal kind, and evidence target kind in `apps/web/src/server/db/schema/enums.ts`
+- [X] T008 Add Drizzle tables for tool providers, tool policies, tool workflows, tool calls, tool change proposals, proposal items, and tool evidence links in `apps/web/src/server/db/schema/ai-tools.ts`
+- [X] T009 Register the AI tool schema module in `apps/web/src/server/db/schema/index.ts`
+- [X] T010 Generate the Drizzle migration from schema changes with `pnpm db:generate`, producing files under `apps/web/src/server/db/migrations/`
+- [X] T011 [P] Add schema regression tests for AI tool tables and enum names in `apps/web/src/server/db/ai-tool-schema.test.ts`
+- [X] T012 [P] Add shared schema validation tests for tool contracts in `packages/shared/src/ai-tools.test.ts`
 - [ ] T013 Implement the built-in `next-wiki` tool registry in `apps/web/src/server/services/ai-tool-registry.ts`
 - [ ] T014 Implement server-enforced review-policy resolution in `apps/web/src/server/services/ai-tool-policy.ts`
 - [ ] T015 Implement tool workflow and tool call persistence primitives in `apps/web/src/server/services/ai-tool-runtime.ts`
