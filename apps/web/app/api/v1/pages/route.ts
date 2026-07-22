@@ -14,7 +14,7 @@ import * as publicContent from '@/server/services/public-content';
  *   contentSource, since it behaves like a single-page lookup rather than browsing.
  * @tag Pages
  * @auth bearer
- * @queryParams PublicPageListQuery
+ * @queryParams PublicPageListQueryParams
  * @response PublicPageListResponse
  */
 export const GET = withPublicApi(async (request, _context, ctx) => {

@@ -2549,7 +2549,7 @@
         ],
         "description": "Optional page relation that can be requested via ?include=."
       },
-      "PublicPageListQuery": {
+      "PublicPageListQueryParams": {
         "type": "object",
         "properties": {
           "status": {
@@ -11129,7 +11129,266 @@
         "tags": [
           "Pages"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all",
+                "deleted"
+              ],
+              "default": "published",
+              "description": "Filter pages by lifecycle state. Defaults to published."
+            },
+            "description": "Filter pages by lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Optional free-text query to filter pages by path or title."
+            },
+            "description": "Optional free-text query to filter pages by path or title."
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
+            },
+            "description": "Exact canonical path to look up a single page. When provided, returns at most one matching page and ignores other filters."
+          },
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
+            },
+            "description": "Directory prefix to list all pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\", \"docs\"). Cannot be combined with path."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Space slug to list pages from. Defaults to the default wiki space."
+            },
+            "description": "Space slug to list pages from. Defaults to the default wiki space."
+          },
+          {
+            "in": "query",
+            "name": "filterType",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
+            },
+            "description": "SDK-friendly alias for filter[type]. Filters to pages whose frontmatter type matches this value."
+          },
+          {
+            "in": "query",
+            "name": "filter[type]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter to pages whose frontmatter type matches this value."
+            },
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
+          {
+            "in": "query",
+            "name": "filterInputKind",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chat-transcript",
+                "external-fetch",
+                "script-run",
+                "manual-note"
+              ],
+              "description": "Raw-only: filter raw entries by their captured inputKind. Independent from filterType (the OKF/frontmatter type)."
+            },
+            "description": "Raw-only: filter raw entries by their captured inputKind. Independent from filterType (the OKF/frontmatter type)."
+          },
+          {
+            "in": "query",
+            "name": "filterCategoryId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Raw-only: filter raw entries by their raw_categories taxonomy id. Independent from filterType."
+            },
+            "description": "Raw-only: filter raw entries by their raw_categories taxonomy id. Independent from filterType."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of pages to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of pages to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "path",
+                "recent"
+              ],
+              "default": "path",
+              "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+            },
+            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+            },
+            "description": "Comma-separated relations to include: latestRevision, publishedRevision. Omitted by default; fetch a specific revision via GET /pages/{id}/revisions/{version} instead."
+          },
+          {
+            "in": "query",
+            "name": "createdStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Include only pages created at or after this ISO 8601 timestamp."
+            },
+            "description": "Include only pages created at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "createdEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Include only pages created at or before this ISO 8601 timestamp."
+            },
+            "description": "Include only pages created at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "filter[tag]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[status]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[owner]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[has_frontmatter]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
+            },
+            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
+          }
+        ],
         "security": [
           {
             "BearerAuth": []

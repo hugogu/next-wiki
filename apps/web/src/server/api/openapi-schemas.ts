@@ -914,7 +914,17 @@ export const PublicTagMutation = z.object({
 
 export const PublicTagIdPathParams = z.object({ id: z.string().uuid() });
 
-export const PublicPageListQuery = z
+/**
+ * Named `...Params` (not `PublicPageListQuery`) deliberately: next-openapi-gen
+ * fails to resolve a doc schema whose name exactly matches the
+ * `PublicPageListQuery` type already exported from @next-wiki/shared and
+ * packages/mcp-server (silently producing zero query parameters in the
+ * generated OpenAPI doc, with no diagnostic) — confirmed by renaming this
+ * schema alone, with byte-identical content, fixing the resolution. Other
+ * `Public*Query` doc schemas below happen not to collide the same way; if a
+ * future one does, this is the fix.
+ */
+export const PublicPageListQueryParams = z
   .object({
     status: z
       .enum(['published', 'draft', 'all', 'deleted'])
