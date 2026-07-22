@@ -103,12 +103,14 @@ export function buildConversationContext(messages: ChatMessage[]): { question: s
 export function buildToolEnabledQuestionPayload(input: {
   question: string;
   mode: AiQuestionMode;
+  sessionId: string;
   currentPage?: { pageId: string; revisionId: string };
   messages: ChatMessage[];
 }) {
   return {
     question: input.question,
     mode: input.mode,
+    sessionId: input.sessionId,
     currentPage: input.currentPage,
     conversation: buildConversationContext(input.messages),
     tools: { enabled: true, requestedReview: 'admin_review' as const },
@@ -146,6 +148,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
       await action.start('/api/ai/questions', buildToolEnabledQuestionPayload({
         question,
         mode,
+        sessionId: store.sessionId,
         currentPage,
         messages: store.messages,
       }), (event) => {

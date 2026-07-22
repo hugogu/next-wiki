@@ -143,6 +143,75 @@ describe('raw conversations service', () => {
       expect(action?.rawConversationLastEventId).toBeGreaterThan(0);
     });
 
+    it('appends turns from the same web chat session to one Raw Conversation page', async () => {
+      const sessionId = '00000000-0000-4000-8000-000000000026';
+      const firstActionId = await createWikiQuestionAction(userId, {
+        rawConversationCaptureStatus: 'pending',
+        requestMetadata: { origin: 'web', webSessionId: sessionId },
+      });
+      await seedCompletedConversationEvents(firstActionId, {
+        question: 'Summarize the MCP plan.',
+        answer: 'The plan adds a governed tool runtime.',
+      });
+      const first = await captureConversation(firstActionId);
+      expect(first.status).toBe('captured');
+      if (first.status !== 'captured') throw new Error('expected captured');
+
+      const secondActionId = await createWikiQuestionAction(userId, {
+        rawConversationCaptureStatus: 'pending',
+        requestMetadata: { origin: 'web', webSessionId: sessionId },
+      });
+      await seedCompletedConversationEvents(secondActionId, {
+        question: 'Write the above into a standalone wiki page.',
+        answer: 'Created a reviewed draft page.',
+      });
+      const second = await captureConversation(secondActionId);
+      expect(second.status).toBe('captured');
+      if (second.status !== 'captured') throw new Error('expected captured');
+      expect(second.pageId).toBe(first.pageId);
+
+      const actions = await db.query.aiActions.findMany({
+        where: eq(schema.aiActions.rawConversationPageId, first.pageId),
+      });
+      expect(actions.map((action) => action.id).sort()).toEqual([firstActionId, secondActionId].sort());
+
+      const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, first.pageId) });
+      expect(page?.path).toMatch(new RegExp(`^conversations/wiki-ai/\\d{4}/\\d{2}/\\d{2}/${sessionId}$`));
+
+      const revisions = await db.query.pageRevisions.findMany({ where: eq(schema.pageRevisions.pageId, first.pageId) });
+      expect(revisions.map((revision) => revision.versionNumber).sort()).toEqual([1, 2]);
+      const latest = revisions.find((revision) => revision.versionNumber === 2);
+      expect(latest?.contentSource).toContain('## Turn 1');
+      expect(latest?.contentSource).toContain('The plan adds a governed tool runtime.');
+      expect(latest?.contentSource).toContain('## Turn 2');
+      expect(latest?.contentSource).toContain('Created a reviewed draft page.');
+    });
+
+    it('captures wiki_tool_chat actions and records tool-call command markdown', async () => {
+      const actionId = await createWikiQuestionAction(userId, {
+        feature: 'wiki_tool_chat',
+        rawConversationCaptureStatus: 'pending',
+        requestMetadata: { origin: 'web', webSessionId: '00000000-0000-4000-8000-000000000027' },
+      });
+      await appendConversationEvent(actionId, 'question', { text: 'Create a page from the prior answer.' });
+      await appendConversationEvent(actionId, 'tool_call', {
+        toolCallId: '00000000-0000-4000-8000-000000000028',
+        toolName: 'create_page',
+        status: 'succeeded',
+        commandMarkdown: '```tool-call\ntool: create_page\n```',
+      });
+      await appendConversationEvent(actionId, 'text_delta', { text: 'Created a reviewed draft.' });
+      await appendConversationEvent(actionId, 'completed', { status: 'completed' });
+
+      const outcome = await captureConversation(actionId);
+      expect(outcome.status).toBe('captured');
+      if (outcome.status !== 'captured') throw new Error('expected captured');
+
+      const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.pageId, outcome.pageId) });
+      expect(revision?.contentSource).toContain('## Tool Calls');
+      expect(revision?.contentSource).toContain('tool: create_page');
+    });
+
     it('is idempotent: re-running with no new events is a no-op', async () => {
       const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'pending' });
       await seedCompletedConversationEvents(actionId);

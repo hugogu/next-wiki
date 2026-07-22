@@ -23,10 +23,12 @@ describe('useAiChat payload helpers', () => {
     expect(buildToolEnabledQuestionPayload({
       question: 'Write the above into a standalone wiki page.',
       mode: 'retrieval',
+      sessionId: '00000000-0000-4000-8000-000000000026',
       messages,
     })).toEqual({
       question: 'Write the above into a standalone wiki page.',
       mode: 'retrieval',
+      sessionId: '00000000-0000-4000-8000-000000000026',
       currentPage: undefined,
       conversation: [
         {

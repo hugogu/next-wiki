@@ -635,6 +635,7 @@ export const aiSearchInputSchema = z.object({
 export const aiQuestionInputSchema = z.object({
   question: z.string().trim().min(1).max(16_000),
   mode: aiQuestionModeSchema,
+  sessionId: z.string().uuid().optional(),
   currentPage: z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid() }).optional(),
   conversation: z
     .array(

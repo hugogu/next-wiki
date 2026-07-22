@@ -10,9 +10,13 @@ import { createWikiQuestion, createWikiToolChat } from '@/server/services/ai-que
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiQuestionInputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
-  const { tools, ...question } = parsed.data;
+  const { tools, sessionId, ...question } = parsed.data;
   try {
     const ctx = await createApiContext();
+    const requestMetadata = {
+      origin: 'web',
+      ...(sessionId ? { webSessionId: sessionId } : {}),
+    };
     // 026: additive tool-enabled chat. Falls back to ordinary Q&A when tools
     // are unavailable or the selected model cannot call tools (recoverable).
     if (tools?.enabled) {
@@ -21,12 +25,13 @@ export async function POST(request: NextRequest) {
         requestedReview: tools.requestedReview ?? 'none',
         currentPage: question.currentPage,
         conversation: question.conversation,
+        requestMetadata,
       });
       if (!result.fallback) {
         return NextResponse.json(result.action, { status: 202 });
       }
     }
-    return NextResponse.json(await createWikiQuestion(ctx, question), { status: 202 });
+    return NextResponse.json(await createWikiQuestion(ctx, { ...question, requestMetadata }), { status: 202 });
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);
     return internalError();

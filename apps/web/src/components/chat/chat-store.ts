@@ -9,6 +9,10 @@ import type {
   AiToolProposalEventPayload,
 } from '@next-wiki/shared';
 
+export function createChatSessionId(): string {
+  return crypto.randomUUID();
+}
+
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -22,6 +26,7 @@ export type ChatMessage = {
 };
 
 type ChatState = {
+  sessionId: string;
   mode: AiQuestionMode;
   messages: ChatMessage[];
   open: boolean;
@@ -54,6 +59,7 @@ type ChatState = {
 export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
+      sessionId: createChatSessionId(),
       mode: 'retrieval',
       messages: [],
       open: false,
@@ -97,8 +103,9 @@ export const useChatStore = create<ChatState>()(
       fail: (id, error) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, error } : message),
       })),
-      newSession: () => set({ messages: [] }),
+      newSession: () => set({ messages: [], sessionId: createChatSessionId() }),
       loadSession: ({ mode, question, answer, citations, insufficient }) => set({
+        sessionId: createChatSessionId(),
         mode,
         open: true,
         messages: [
@@ -111,7 +118,7 @@ export const useChatStore = create<ChatState>()(
       name: 'ai-chat',
       storage: createJSONStorage(() => sessionStorage),
       skipHydration: true,
-      partialize: (state) => ({ mode: state.mode, messages: state.messages, open: state.open }),
+      partialize: (state) => ({ sessionId: state.sessionId, mode: state.mode, messages: state.messages, open: state.open }),
     },
   ),
 );

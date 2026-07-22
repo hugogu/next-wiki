@@ -1,4 +1,4 @@
-import { asc, eq, max, sql } from 'drizzle-orm';
+import { asc, and, eq, max, sql } from 'drizzle-orm';
 import {
   rawConversationSourceMetadataSchema,
   type AiActionStatus,
@@ -22,6 +22,8 @@ import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type AiActionRow = typeof schema.aiActions.$inferSelect;
+type CapturableConversationFeature = 'wiki_question' | 'wiki_tool_chat';
 
 /** The exact sentinel the wiki-question prompt asks the model to reply with
  * when no wiki evidence supports an answer (see ai/prompts/wiki-question.ts).
@@ -41,6 +43,11 @@ export type ReconstructedConversation = {
   answer: string;
   thinking: string;
   citations: AiCitation[];
+  toolCalls: {
+    toolName: string;
+    status: string;
+    commandMarkdown: string;
+  }[];
   insufficient: boolean;
   errorMessage: string | null;
   queuedAt: string;
@@ -51,6 +58,19 @@ export type ReconstructedConversation = {
   eventCursor: number;
 };
 
+type ConversationSessionTurn = {
+  action: AiActionRow;
+  conversation: ReconstructedConversation;
+};
+
+type ConversationSessionKey =
+  | { field: 'webSessionId'; value: string }
+  | { field: 'feishuSessionId'; value: string };
+
+function isCapturableFeature(feature: string): feature is CapturableConversationFeature {
+  return feature === 'wiki_question' || feature === 'wiki_tool_chat';
+}
+
 /**
  * Rebuilds a full, self-contained conversation view from an action's entire
  * event log (not just events after the last capture cursor) — each captured
@@ -59,7 +79,7 @@ export type ReconstructedConversation = {
  */
 export async function reconstructConversation(actionId: string, tx: Tx | typeof db = db): Promise<ReconstructedConversation | null> {
   const action = await tx.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
-  if (!action || action.feature !== 'wiki_question') return null;
+  if (!action || !isCapturableFeature(action.feature)) return null;
 
   const events = await tx
     .select()
@@ -71,6 +91,7 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
   let answer = '';
   let thinking = '';
   let citations: AiCitation[] = [];
+  const toolCalls: ReconstructedConversation['toolCalls'] = [];
   let errorMessage: string | null = null;
   let eventCursor = 0;
   for (const event of events) {
@@ -88,6 +109,13 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
         break;
       case 'citations':
         citations = Array.isArray(payload.citations) ? (payload.citations as AiCitation[]) : [];
+        break;
+      case 'tool_call':
+        toolCalls.push({
+          toolName: typeof payload.toolName === 'string' ? payload.toolName : 'tool',
+          status: typeof payload.status === 'string' ? payload.status : 'running',
+          commandMarkdown: typeof payload.commandMarkdown === 'string' ? payload.commandMarkdown : '',
+        });
         break;
       case 'error':
         errorMessage =
@@ -111,6 +139,7 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
     answer: insufficient ? '' : answer,
     thinking,
     citations,
+    toolCalls,
     insufficient,
     errorMessage,
     queuedAt: action.queuedAt.toISOString(),
@@ -137,18 +166,19 @@ function conversationTitle(question: string): string {
  * existing path (see writeConversationRevision), so this never touches
  * pages captured before the channel subfolder was introduced.
  */
-function conversationPath(actionId: string, queuedAt: Date, channel: WikiAiChannel): string {
+function conversationPath(pathKey: string, queuedAt: Date, channel: WikiAiChannel): string {
   const year = queuedAt.getUTCFullYear();
   const month = String(queuedAt.getUTCMonth() + 1).padStart(2, '0');
   const day = String(queuedAt.getUTCDate()).padStart(2, '0');
-  return `conversations/${channel}/${year}/${month}/${day}/${actionId}`;
+  return `conversations/${channel}/${year}/${month}/${day}/${pathKey}`;
 }
 
 /** Human-readable Markdown transcript — the search/embedding surface for a
  * Conversation Raw revision. Deliberately excludes raw JSON so lexical and
  * vector search index meaningful content instead of structural noise. */
-function buildTranscriptText(conversation: ReconstructedConversation): string {
-  const lines: string[] = ['# Question', '', conversation.question || '_No question was recorded._', '', '# Answer', ''];
+function appendTurnMarkdown(lines: string[], conversation: ReconstructedConversation, headingLevel: 1 | 3): void {
+  const heading = '#'.repeat(headingLevel);
+  lines.push(`${heading} Question`, '', conversation.question || '_No question was recorded._', '', `${heading} Answer`, '');
 
   if (conversation.insufficient) {
     lines.push('_No sources in the wiki support an answer to this question._');
@@ -162,15 +192,38 @@ function buildTranscriptText(conversation: ReconstructedConversation): string {
   lines.push('');
 
   if (conversation.thinking) {
-    lines.push('## Thinking', '', conversation.thinking, '');
+    lines.push(`${heading}# Thinking`, '', conversation.thinking, '');
   }
   if (conversation.citations.length > 0) {
-    lines.push('## Citations', '');
+    lines.push(`${heading}# Citations`, '');
     for (const citation of conversation.citations) lines.push(`- ${citation.title} (${citation.path})`);
     lines.push('');
   }
+  if (conversation.toolCalls.length > 0) {
+    lines.push(`${heading}# Tool Calls`, '');
+    for (const call of conversation.toolCalls) {
+      lines.push(`- ${call.toolName} (${call.status})`);
+      if (call.commandMarkdown) lines.push('', call.commandMarkdown, '');
+    }
+  }
   lines.push(`Status: ${conversation.status}`);
+}
+
+function buildTranscriptText(conversation: ReconstructedConversation): string {
+  const lines: string[] = [];
+  appendTurnMarkdown(lines, conversation, 1);
   return lines.join('\n');
+}
+
+function buildSessionTranscriptText(turns: ConversationSessionTurn[]): string {
+  if (turns.length === 1) return buildTranscriptText(turns[0]!.conversation);
+  const lines: string[] = ['# Conversation', ''];
+  turns.forEach((turn, index) => {
+    lines.push(`## Turn ${index + 1}`, '');
+    appendTurnMarkdown(lines, turn.conversation, 3);
+    lines.push('');
+  });
+  return lines.join('\n').trimEnd();
 }
 
 /** 025: which bot channel produced a captured turn, inferred once from the
@@ -181,6 +234,83 @@ function buildTranscriptText(conversation: ReconstructedConversation): string {
 export function resolveConversationChannel(requestMetadata: unknown): WikiAiChannel {
   const origin = (requestMetadata as { origin?: unknown } | null)?.origin;
   return origin === 'feishu' ? 'feishu' : 'wiki-ai';
+}
+
+function metadataString(requestMetadata: unknown, key: 'webSessionId' | 'feishuSessionId'): string | null {
+  const value = (requestMetadata as Record<string, unknown> | null)?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function resolveConversationSessionKey(requestMetadata: unknown): ConversationSessionKey | null {
+  const feishuSessionId = metadataString(requestMetadata, 'feishuSessionId');
+  if (feishuSessionId) return { field: 'feishuSessionId', value: feishuSessionId };
+  const webSessionId = metadataString(requestMetadata, 'webSessionId');
+  if (webSessionId) return { field: 'webSessionId', value: webSessionId };
+  return null;
+}
+
+async function lockConversationCaptureScope(
+  tx: Tx,
+  actionId: string,
+  sessionKey: ConversationSessionKey | null,
+): Promise<void> {
+  if (!sessionKey) {
+    await tx.execute(sql`select id from ai_actions where id = ${actionId} for update`);
+    return;
+  }
+  if (sessionKey.field === 'webSessionId') {
+    await tx.execute(sql`
+      select id from ai_actions
+      where feature in ('wiki_question', 'wiki_tool_chat')
+        and request_metadata ->> 'webSessionId' = ${sessionKey.value}
+      order by id
+      for update
+    `);
+    return;
+  }
+  await tx.execute(sql`
+    select id from ai_actions
+    where feature in ('wiki_question', 'wiki_tool_chat')
+      and request_metadata ->> 'feishuSessionId' = ${sessionKey.value}
+    order by id
+    for update
+  `);
+}
+
+async function loadConversationSessionActions(
+  tx: Tx,
+  action: AiActionRow,
+  sessionKey: ConversationSessionKey | null,
+): Promise<AiActionRow[]> {
+  if (!sessionKey) return [action];
+  if (!action.actorUserId) return [action];
+  const baseWhere =
+    sessionKey.field === 'webSessionId'
+      ? sql`${schema.aiActions.requestMetadata} ->> 'webSessionId' = ${sessionKey.value}`
+      : sql`${schema.aiActions.requestMetadata} ->> 'feishuSessionId' = ${sessionKey.value}`;
+  return tx
+    .select()
+    .from(schema.aiActions)
+    .where(
+      and(
+        sql`${schema.aiActions.feature} in ('wiki_question', 'wiki_tool_chat')`,
+        baseWhere,
+        eq(schema.aiActions.actorUserId, action.actorUserId),
+      ),
+    )
+    .orderBy(asc(schema.aiActions.queuedAt), asc(schema.aiActions.id));
+}
+
+async function findExistingConversationPageByPath(
+  tx: Tx,
+  spaceId: string,
+  path: string,
+): Promise<string | null> {
+  const page = await tx.query.pages.findFirst({
+    where: and(eq(schema.pages.spaceId, spaceId), eq(schema.pages.path, path)),
+    columns: { id: true },
+  });
+  return page?.id ?? null;
 }
 
 function buildSourceMetadata(
@@ -354,13 +484,17 @@ export type CaptureOutcome =
 export async function captureConversation(actionId: string): Promise<CaptureOutcome> {
   try {
     const outcome = await db.transaction(async (tx) => {
-      // Lock the row first (raw SQL, snake_case columns discarded), then
-      // re-read it through the ORM within the same transaction so the
-      // decide-and-write path below sees a consistent, locked row and no
-      // concurrent/duplicate job for this action can create a second page.
-      await tx.execute(sql`select id from ai_actions where id = ${actionId} for update`);
+      // Read the row once to identify the conversation scope, then lock the
+      // entire scope in a stable order. This prevents concurrent captures for
+      // two turns in the same chat session from creating separate Raw pages.
+      const initialAction = await tx.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
+      if (!initialAction || !isCapturableFeature(initialAction.feature)) {
+        return { status: 'skipped', reason: 'not_eligible' } as const;
+      }
+      const sessionKey = resolveConversationSessionKey(initialAction.requestMetadata);
+      await lockConversationCaptureScope(tx, actionId, sessionKey);
       const action = await tx.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
-      if (!action || action.feature !== 'wiki_question') {
+      if (!action || !isCapturableFeature(action.feature)) {
         return { status: 'skipped', reason: 'not_eligible' } as const;
       }
       if (action.rawConversationCaptureStatus === 'disabled' || action.rawConversationCaptureStatus === 'not_applicable') {
@@ -374,19 +508,46 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
       if (!conversation || conversation.eventCursor === 0) {
         return { status: 'skipped', reason: 'no_content' } as const;
       }
-      if (action.rawConversationPageId && conversation.eventCursor <= action.rawConversationLastEventId) {
+      const sessionActions = await loadConversationSessionActions(tx, action, sessionKey);
+      const eligibleSessionActions = sessionActions.filter(
+        (row) =>
+          row.rawConversationCaptureStatus !== 'disabled' &&
+          row.rawConversationCaptureStatus !== 'not_applicable',
+      );
+      const turns: ConversationSessionTurn[] = [];
+      for (const row of eligibleSessionActions) {
+        const turn = await reconstructConversation(row.id, tx);
+        if (turn && turn.eventCursor > 0) turns.push({ action: row, conversation: turn });
+      }
+      if (turns.length === 0) {
+        return { status: 'skipped', reason: 'no_content' } as const;
+      }
+      const existingSessionPageId =
+        turns.find((turn) => turn.action.rawConversationPageId)?.action.rawConversationPageId ??
+        action.rawConversationPageId;
+      const sessionAlreadyCurrent =
+        Boolean(existingSessionPageId) &&
+        turns.every(
+          (turn) =>
+            turn.action.rawConversationPageId === existingSessionPageId &&
+            turn.conversation.eventCursor <= turn.action.rawConversationLastEventId,
+        );
+      if (sessionAlreadyCurrent) {
         return { status: 'skipped', reason: 'already_current' } as const;
       }
 
       const [space, category] = await Promise.all([resolveRawSpace(), ensureConversationCategory()]);
-      const transcript = buildTranscriptText(conversation);
+      const transcript = buildSessionTranscriptText(turns);
       const channel = resolveConversationChannel(action.requestMetadata);
       const sourceMetadata = buildSourceMetadata(actionId, action.questionMode, conversation, channel);
-      const path = conversationPath(actionId, action.queuedAt, channel);
-      const title = conversationTitle(conversation.question);
+      const firstTurn = turns[0]!;
+      const pathKey = sessionKey?.value ?? actionId;
+      const path = conversationPath(pathKey, firstTurn.action.queuedAt, channel);
+      const title = conversationTitle(firstTurn.conversation.question);
+      const existingPageId = existingSessionPageId ?? (await findExistingConversationPageByPath(tx, space.id, path));
 
       const { pageId } = await writeConversationRevision(tx, {
-        existingPageId: action.rawConversationPageId,
+        existingPageId,
         spaceId: space.id,
         categoryId: category.id,
         authorId: action.actorUserId,
@@ -396,15 +557,17 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
         sourceMetadata,
       });
 
-      await tx
-        .update(schema.aiActions)
-        .set({
-          rawConversationPageId: pageId,
-          rawConversationLastEventId: conversation.eventCursor,
-          rawConversationCaptureStatus: 'captured',
-          rawConversationCaptureError: null,
-        })
-        .where(eq(schema.aiActions.id, actionId));
+      for (const turn of turns) {
+        await tx
+          .update(schema.aiActions)
+          .set({
+            rawConversationPageId: pageId,
+            rawConversationLastEventId: turn.conversation.eventCursor,
+            rawConversationCaptureStatus: 'captured',
+            rawConversationCaptureError: null,
+          })
+          .where(eq(schema.aiActions.id, turn.action.id));
+      }
 
       const correlationId = (action.requestMetadata as { correlationId?: unknown } | null)?.correlationId;
       return {

@@ -91,9 +91,10 @@ export async function createWikiQuestion(
   });
 }
 
-/** Whether a model has the discovered/overridden `tool_calling` capability. A
- * model without it cannot drive the governed tool loop (R3), so tool-enabled
- * chat degrades to ordinary Q&A. */
+/** Whether a model has the discovered/overridden `tool_calling` capability.
+ * The current provider-agnostic tool loop uses a textual fenced JSON protocol,
+ * so missing capability metadata is treated as usable; explicit negative
+ * detector/manual rows still disable tool chat and trigger fallback. */
 export async function modelSupportsToolCalling(modelId: string): Promise<boolean> {
   const rows = await db
     .select({ supported: schema.aiModelCapabilities.supported })
@@ -102,11 +103,9 @@ export async function modelSupportsToolCalling(modelId: string): Promise<boolean
       and(
         eq(schema.aiModelCapabilities.modelId, modelId),
         eq(schema.aiModelCapabilities.capability, 'tool_calling'),
-        eq(schema.aiModelCapabilities.supported, true),
       ),
-    )
-    .limit(1);
-  return rows.length > 0;
+    );
+  return rows.length === 0 || rows.some((row) => row.supported);
 }
 
 /**

@@ -34,6 +34,10 @@ describe('POST /api/ai/questions — additive tools option', () => {
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ feature: 'wiki_question' });
     expect(services.createWikiToolChat).not.toHaveBeenCalled();
+    expect(services.createWikiQuestion).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ requestMetadata: { origin: 'web' } }),
+    );
   });
 
   it('routes to tool chat when tools are enabled and the model supports them', async () => {
@@ -45,6 +49,7 @@ describe('POST /api/ai/questions — additive tools option', () => {
     const response = await post({
       question: 'Write the above to a page',
       mode: 'retrieval',
+      sessionId: '00000000-0000-4000-8000-000000000026',
       conversation,
       tools: { enabled: true, requestedReview: 'admin_review' },
     });
@@ -56,6 +61,10 @@ describe('POST /api/ai/questions — additive tools option', () => {
         question: 'Write the above to a page',
         requestedReview: 'admin_review',
         conversation,
+        requestMetadata: {
+          origin: 'web',
+          webSessionId: '00000000-0000-4000-8000-000000000026',
+        },
       }),
     );
     expect(services.createWikiQuestion).not.toHaveBeenCalled();
@@ -67,6 +76,9 @@ describe('POST /api/ai/questions — additive tools option', () => {
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ feature: 'wiki_question' });
     expect(services.createWikiToolChat).toHaveBeenCalled();
-    expect(services.createWikiQuestion).toHaveBeenCalled();
+    expect(services.createWikiQuestion).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ requestMetadata: { origin: 'web' } }),
+    );
   });
 });

@@ -1,5 +1,9 @@
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import { assertFullContextCapacity, estimateFullContextTokens } from '@/server/ai/retrieval/full-context';
+import { closeDb, db } from '@/server/db';
+import * as schema from '@/server/db/schema';
+import { clearAiData } from '../../../test/ai-fixtures';
+import { modelSupportsToolCalling } from './ai-question';
 
 const source = (id: string, content: string): QuestionSource => ({
   id,
@@ -29,5 +33,55 @@ describe('full-context capacity', () => {
     expect(() =>
       assertFullContextCapacity(null, 'question', [source('1', 'a'.repeat(30_000))]),
     ).toThrowError(expect.objectContaining({ code: 'FULL_CONTEXT_TOO_LARGE' }));
+  });
+});
+
+describe('modelSupportsToolCalling', () => {
+  beforeEach(async () => {
+    await clearAiData();
+  });
+
+  afterAll(async () => {
+    await closeDb();
+  });
+
+  async function createModel() {
+    const [provider] = await db
+      .insert(schema.aiProviders)
+      .values({
+        name: `provider-${crypto.randomUUID()}`,
+        kind: 'openai_compatible',
+        baseUrl: 'https://example.com/v1',
+        credentialsEncrypted: 'encrypted',
+        enabled: true,
+        status: 'healthy',
+      })
+      .returning({ id: schema.aiProviders.id });
+    const [model] = await db
+      .insert(schema.aiModels)
+      .values({
+        providerId: provider!.id,
+        externalId: `model-${crypto.randomUUID()}`,
+        displayName: 'Test Model',
+        availability: 'available',
+      })
+      .returning({ id: schema.aiModels.id });
+    return model!.id;
+  }
+
+  it('allows tool chat when model capability metadata is missing', async () => {
+    const modelId = await createModel();
+    await expect(modelSupportsToolCalling(modelId)).resolves.toBe(true);
+  });
+
+  it('falls back only when capability metadata explicitly disables tool calling', async () => {
+    const modelId = await createModel();
+    await db.insert(schema.aiModelCapabilities).values({
+      modelId,
+      capability: 'tool_calling',
+      supported: false,
+      source: 'manual',
+    });
+    await expect(modelSupportsToolCalling(modelId)).resolves.toBe(false);
   });
 });

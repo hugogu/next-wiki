@@ -113,4 +113,32 @@ describe('raw conversations service — Feishu channel (025)', () => {
     const revisions = await db.query.pageRevisions.findMany({ where: eq(schema.pageRevisions.pageId, first.pageId) });
     expect(revisions).toHaveLength(1);
   });
+
+  it('appends multiple Feishu turns in the same bot session to one Raw page', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000025';
+    const firstActionId = await createWikiQuestionAction(userId, {
+      rawConversationCaptureStatus: 'pending',
+      requestMetadata: { origin: 'feishu', feishuSessionId: sessionId },
+    });
+    await seedCompletedConversationEvents(firstActionId, { question: 'First Feishu turn?', answer: 'First answer.' });
+    const first = await captureConversation(firstActionId);
+    expect(first.status).toBe('captured');
+    if (first.status !== 'captured') throw new Error('expected captured');
+
+    const secondActionId = await createWikiQuestionAction(userId, {
+      rawConversationCaptureStatus: 'pending',
+      requestMetadata: { origin: 'feishu', feishuSessionId: sessionId },
+    });
+    await seedCompletedConversationEvents(secondActionId, { question: 'Second Feishu turn?', answer: 'Second answer.' });
+    const second = await captureConversation(secondActionId);
+    expect(second.status).toBe('captured');
+    if (second.status !== 'captured') throw new Error('expected captured');
+    expect(second.pageId).toBe(first.pageId);
+
+    const latest = await db.query.pageRevisions.findFirst({
+      where: eq(schema.pageRevisions.id, (await db.query.pages.findFirst({ where: eq(schema.pages.id, first.pageId) }))!.currentPublishedVersionId!),
+    });
+    expect(latest?.contentSource).toContain('First answer.');
+    expect(latest?.contentSource).toContain('Second answer.');
+  });
 });
