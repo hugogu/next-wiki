@@ -227,7 +227,7 @@ async function maybeEnqueueRawConversationCapture(actionId: string): Promise<voi
     columns: { feature: true, rawConversationCaptureStatus: true },
   });
   if (
-    action?.feature === 'wiki_question' &&
+    (action?.feature === 'wiki_question' || action?.feature === 'wiki_tool_chat') &&
     (action.rawConversationCaptureStatus === 'pending' || action.rawConversationCaptureStatus === 'captured')
   ) {
     await enqueue(QUEUES.rawConversationCapture, { actionId }, { singletonKey: actionId, singletonNextSlot: true });

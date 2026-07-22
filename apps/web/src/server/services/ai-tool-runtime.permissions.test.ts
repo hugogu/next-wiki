@@ -42,18 +42,39 @@ const execCtx = {
   toolCallId: '00000000-0000-0000-0000-000000000000',
   actionId: '00000000-0000-0000-0000-000000000000',
 };
+const publishedRevision = { id: '11111111-1111-4111-8111-111111111111', contentHash: 'hash-1111' };
 
 describe('read tool permission projection (026)', () => {
   it('forwards the caller ctx and returns only the pages the service allowed', async () => {
     content.searchPages.mockResolvedValue({
-      items: [{ page: { id: 'p1', path: 'docs/public', title: 'Public' } }],
+      items: [{
+        page: {
+          id: 'p1',
+          path: 'docs/public',
+          title: 'Public',
+          locale: 'en',
+          spaceSlug: 'default',
+          publishedRevision,
+        },
+      }],
       nextCursor: null,
     });
     const result = await executeTool(readerCtx, searchTool, { query: 'payment' }, execCtx);
-    expect(content.searchPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({ q: 'payment' }));
+    expect(content.searchPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({ q: 'payment', include: ['publishedRevision'] }),
+    );
     expect(result.ok).toBe(true);
     expect((result.data as { items: unknown[] }).items).toEqual([
-      { pageId: 'p1', path: 'docs/public', title: 'Public' },
+      {
+        pageId: 'p1',
+        path: 'docs/public',
+        title: 'Public',
+        locale: 'en',
+        spaceSlug: 'default',
+        revisionId: publishedRevision.id,
+        revisionHash: publishedRevision.contentHash,
+      },
     ]);
   });
 
@@ -67,32 +88,64 @@ describe('read tool permission projection (026)', () => {
   });
 
   it('returns the page to a caller the service allows', async () => {
-    content.getPageById.mockResolvedValue({ id: 'p2', path: 'secret', title: 'Secret', contentSource: 'body' });
+    content.getPageById.mockResolvedValue({
+      id: 'p2',
+      path: 'secret',
+      title: 'Secret',
+      locale: 'en',
+      spaceSlug: 'default',
+      publishedRevision,
+      contentSource: 'body',
+    });
     const result = await executeTool(adminCtx, getPageTool, { pageId: '22222222-2222-2222-2222-222222222222' }, execCtx);
+    expect(content.getPageById).toHaveBeenCalledWith(adminCtx, '22222222-2222-2222-2222-222222222222', ['publishedRevision']);
     expect(result.ok).toBe(true);
-    expect((result.data as { title: string }).title).toBe('Secret');
+    expect(result.data).toMatchObject({
+      title: 'Secret',
+      revisionId: publishedRevision.id,
+      revisionHash: publishedRevision.contentHash,
+    });
   });
 
   it('accepts path as the list_pages subtree alias', async () => {
     content.listPages.mockResolvedValue({
-      items: [{ id: 'p3', path: 'history/china/chronology', title: 'Chronology' }],
+      items: [{
+        id: 'p3',
+        path: 'history/china/chronology',
+        title: 'Chronology',
+        locale: 'en',
+        spaceSlug: 'default',
+        publishedRevision,
+      }],
       nextCursor: null,
     });
     const result = await executeTool(readerCtx, listPagesTool, { path: 'history/china/chronology' }, execCtx);
     expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
       pathPrefix: 'history/china/chronology',
       status: 'published',
+      include: ['publishedRevision'],
     }));
     expect(result.ok).toBe(true);
     expect((result.data as { items: unknown[] }).items).toEqual([
-      { pageId: 'p3', path: 'history/china/chronology', title: 'Chronology' },
+      {
+        pageId: 'p3',
+        path: 'history/china/chronology',
+        title: 'Chronology',
+        locale: 'en',
+        spaceSlug: 'default',
+        revisionId: publishedRevision.id,
+        revisionHash: publishedRevision.contentHash,
+      },
     ]);
   });
 
   it('lists pages when list_pages is called without arguments', async () => {
     content.listPages.mockResolvedValue({ items: [], nextCursor: null });
     const result = await executeTool(readerCtx, listPagesTool, undefined, execCtx);
-    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({ limit: 20 }));
+    expect(content.listPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({ limit: 20, include: ['publishedRevision'] }),
+    );
     expect(result.ok).toBe(true);
   });
 });

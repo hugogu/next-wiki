@@ -314,6 +314,20 @@ describe('AI actions', () => {
       );
     });
 
+    it('enqueues capture when an event is appended to a pending-capture wiki_tool_chat action', async () => {
+      const actionId = await createWikiQuestionAction(userId, {
+        feature: 'wiki_tool_chat',
+        rawConversationCaptureStatus: 'pending',
+      });
+      await appendActionEvent(actionId, 'question', { text: 'Please use tools.' });
+      await waitForEnqueueCall();
+      expect(jobsRuntime.enqueue).toHaveBeenCalledWith(
+        QUEUES.rawConversationCapture,
+        { actionId },
+        { singletonKey: actionId, singletonNextSlot: true },
+      );
+    });
+
     it('enqueues capture again on the terminal event finishAction appends', async () => {
       const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'captured', rawConversationPageId: null });
       jobsRuntime.enqueue.mockClear();

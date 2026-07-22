@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { AiToolReviewDecision } from '@next-wiki/shared';
+import type { AiCitation, AiToolReviewDecision } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
@@ -27,6 +27,7 @@ import {
   type ToolPlanner,
 } from '@/server/services/ai-tool-runtime';
 import { listToolDefinitions, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { getCitationHref } from '@/lib/path';
 import { buildPlannerUserPrompt, parseToolPlan } from './ai-tool-chat-planner';
 
 type ToolChatInput = {
@@ -38,6 +39,20 @@ type ToolChatInput = {
 
 const DEFAULT_MAX_CALLS = 8;
 const PLANNER_MAX_OUTPUT_TOKENS = 1_200;
+
+function appendSourceLinks(answer: string, citations: AiCitation[]): string {
+  if (citations.length === 0) return answer;
+  const existing = new Set<string>();
+  const lines: string[] = [];
+  for (const citation of citations) {
+    if (existing.has(citation.pageId)) continue;
+    existing.add(citation.pageId);
+    lines.push(`- [${citation.title}](${getCitationHref(citation)})`);
+  }
+  if (lines.length === 0) return answer;
+  const body = answer.trimEnd();
+  return `${body}${body ? '\n\n' : ''}Sources:\n${lines.join('\n')}`;
+}
 
 /** System prompt describing the available tools and the provider-agnostic
  * JSON tool-call protocol the model drives over ordinary text streaming. */
@@ -145,6 +160,7 @@ export async function runWikiToolChatAction(actionId: string): Promise<void> {
     (result.status === 'limit_reached'
       ? 'I reached the tool-call limit for this turn before finishing.'
       : '');
-  if (answer) await appendActionEvent(actionId, 'text_delta', { text: answer });
-  await appendActionEvent(actionId, 'citations', { citations: [] });
+  const finalAnswer = appendSourceLinks(answer, result.citations);
+  if (finalAnswer) await appendActionEvent(actionId, 'text_delta', { text: finalAnswer });
+  await appendActionEvent(actionId, 'citations', { citations: result.citations });
 }

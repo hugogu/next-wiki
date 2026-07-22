@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { publicPageSearchQuerySchema, type AiToolReviewDecision } from '@next-wiki/shared';
+import {
+  publicPageSearchQuerySchema,
+  type AiToolReviewDecision,
+  type PublicPageInclude,
+  type PublicPageResource,
+} from '@next-wiki/shared';
 import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import * as content from '@/server/services/public-content';
@@ -43,6 +48,7 @@ export type ToolExecutionResult = {
 };
 
 const MAX_LIST = 20;
+const READ_INCLUDE: PublicPageInclude[] = ['publishedRevision'];
 
 function fail(errorCode: string, errorMessage: string): ToolExecutionResult {
   return { ok: false, summary: errorMessage, errorCode, errorMessage };
@@ -94,29 +100,43 @@ const mergeTagArgs = z.object({ tagId: z.string().uuid(), targetTagId: z.string(
 
 // ---- Read executors ---------------------------------------------------------
 
+function pageCitationData(page: PublicPageResource) {
+  const revision = page.publishedRevision;
+  return {
+    pageId: page.id,
+    path: page.path,
+    title: page.title,
+    locale: page.locale,
+    spaceSlug: page.spaceSlug,
+    revisionId: revision?.id ?? null,
+    revisionHash: revision?.contentHash ?? null,
+  };
+}
+
 async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
   const args = searchArgs.parse(rawArgs);
-  const query = publicPageSearchQuerySchema.parse({ q: args.query, limit: args.limit ?? 10 });
+  const query = publicPageSearchQuerySchema.parse({
+    q: args.query,
+    limit: args.limit ?? 10,
+    include: READ_INCLUDE.join(','),
+  });
   const result = await content.searchPages(ctx, query);
   const items = result.items
     .slice(0, MAX_LIST)
-    .map((item) => ({ pageId: item.page.id, path: item.page.path, title: item.page.title }));
+    .map((item) => pageCitationData(item.page));
   return { ok: true, summary: `${items.length} readable page(s) matched.`, data: { items } };
-}
-
-async function resolvePage(ctx: PermCtx, args: { pageId?: string; path?: string }) {
-  if (args.pageId) return content.getPageById(ctx, args.pageId);
-  return content.getPageByPath(ctx, args.path!);
 }
 
 async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
   const args = pageRefArgs.parse(rawArgs);
-  const page = await resolvePage(ctx, args);
+  const page = args.pageId
+    ? await content.getPageById(ctx, args.pageId, READ_INCLUDE)
+    : await content.getPageByPath(ctx, args.path!, READ_INCLUDE);
   if (!page) return fail('NOT_FOUND', 'No readable page matched.');
   return {
     ok: true,
     summary: `Read page "${page.title}".`,
-    data: { pageId: page.id, path: page.path, title: page.title, contentSource: page.contentSource ?? null },
+    data: { ...pageCitationData(page), contentSource: page.contentSource ?? null },
   };
 }
 
@@ -127,10 +147,11 @@ async function execListPages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecut
     status: 'published',
     limit: args.limit ?? MAX_LIST,
     order: 'path',
+    include: READ_INCLUDE,
     ...(pathPrefix ? { pathPrefix } : {}),
     ...(args.space && args.space !== 'wiki' ? { space: args.space } : {}),
   } as Parameters<typeof content.listPages>[1]);
-  const items = result.items.slice(0, MAX_LIST).map((item) => ({ pageId: item.id, path: item.path, title: item.title }));
+  const items = result.items.slice(0, MAX_LIST).map((item) => pageCitationData(item));
   return { ok: true, summary: `${items.length} readable page(s) listed.`, data: { items } };
 }
 

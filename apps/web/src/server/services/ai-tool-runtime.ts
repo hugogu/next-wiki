@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { and, count, eq } from 'drizzle-orm';
 import type {
+  AiCitation,
   AiToolCallEventPayload,
   AiToolCallStatus,
   AiToolReviewDecision,
@@ -298,7 +299,7 @@ export type ToolLoopParams = {
   isCancelled?: () => Promise<boolean>;
 };
 
-export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number };
+export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number; citations: AiCitation[] };
 
 /** Bounded command record retained in Conversation history (tool-contract). */
 export function buildCommandMarkdown(
@@ -322,6 +323,35 @@ function hashResult(data: unknown): string {
   return createHash('sha256').update(JSON.stringify(data ?? null)).digest('hex');
 }
 
+function citationFromCandidate(value: unknown): AiCitation | null {
+  const candidate = value as Record<string, unknown> | null;
+  if (!candidate) return null;
+  const pageId = typeof candidate.pageId === 'string' ? candidate.pageId : null;
+  const title = typeof candidate.title === 'string' ? candidate.title : null;
+  const path = typeof candidate.path === 'string' ? candidate.path : null;
+  const locale = typeof candidate.locale === 'string' ? candidate.locale : 'en';
+  const revisionId = typeof candidate.revisionId === 'string' ? candidate.revisionId : null;
+  const revisionHash = typeof candidate.revisionHash === 'string' ? candidate.revisionHash : null;
+  if (!pageId || !title || !path || !revisionId || !revisionHash) return null;
+  return {
+    pageId,
+    title,
+    path,
+    locale,
+    revisionId,
+    revisionHash,
+    ...(typeof candidate.spaceSlug === 'string' ? { spaceSlug: candidate.spaceSlug } : {}),
+  };
+}
+
+function collectToolCitations(data: unknown): AiCitation[] {
+  const root = data as { items?: unknown[] } | null;
+  const values = Array.isArray(root?.items) ? root.items : [data];
+  return values
+    .map((value) => citationFromCandidate(value))
+    .filter((citation): citation is AiCitation => Boolean(citation));
+}
+
 /**
  * Drive the bounded, permission-scoped tool loop for one chat turn. The planner
  * (injected: the real one wraps the model, tests script it) proposes tool calls
@@ -340,18 +370,19 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   };
   let answer = '';
   let calls = 0;
+  const citations = new Map<string, AiCitation>();
 
   for (;;) {
     if (params.isCancelled && (await params.isCancelled())) {
       await transitionWorkflow(params.workflowId, 'cancelled');
-      return { status: 'cancelled', answer, calls };
+      return { status: 'cancelled', answer, calls, citations: [...citations.values()] };
     }
 
     const step = await params.planner(state);
     if (step.kind === 'final') {
       answer = step.text;
       await transitionWorkflow(params.workflowId, 'completed');
-      return { status: 'completed', answer, calls };
+      return { status: 'completed', answer, calls, citations: [...citations.values()] };
     }
 
     for (const planned of step.calls) {
@@ -405,7 +436,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       });
       if (limitReached || !call) {
         await transitionWorkflow(params.workflowId, 'limit_reached');
-        return { status: 'limit_reached', answer, calls };
+        return { status: 'limit_reached', answer, calls, citations: [...citations.values()] };
       }
       calls += 1;
 
@@ -429,6 +460,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       });
 
       if (result.ok) {
+        for (const citation of collectToolCitations(result.data)) {
+          citations.set(`${citation.pageId}:${citation.revisionId}`, citation);
+        }
         const resultHash = result.data !== undefined ? hashResult(result.data) : null;
         await succeedToolCall(call.id, { resultSummary: result.summary.slice(0, 500), resultHash });
         await auditToolCall(params.actorUserId, { toolName: tool.name, status: 'succeeded' });

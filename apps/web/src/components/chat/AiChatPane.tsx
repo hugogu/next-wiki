@@ -75,8 +75,8 @@ export function AiChatPane({
   }
   const lastAssistantId = [...chat.messages].reverse().find((message) => message.role === 'assistant')?.id;
   return (
-    <aside className="flex h-full w-[24rem] shrink-0 flex-col border-l border-border bg-surface">
-      <div className="flex items-center justify-between border-b border-border p-md">
+    <aside className="flex h-full min-h-0 w-[24rem] max-w-full shrink-0 flex-col overflow-hidden border-l border-border bg-surface">
+      <div className="shrink-0 flex items-center justify-between border-b border-border p-md">
         <div>
           <h2 className="font-display font-semibold">{t('ai.chat.title')}</h2>
           <p className="text-xs text-muted">{t('ai.chat.providerNotice')}</p>
@@ -105,12 +105,12 @@ export function AiChatPane({
           </Tooltip>
         </div>
       </div>
-      <div className="flex-1 space-y-md overflow-auto p-md">
+      <div className="min-w-0 flex-1 space-y-md overflow-auto p-md">
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}
         {chat.messages.map((message) => (
-          <article key={message.id} className={`rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
+          <article key={message.id} className={`min-w-0 max-w-full overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
-              <div className="space-y-sm">
+              <div className="min-w-0 space-y-sm">
                 {message.thinking && (
                   <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId} />
                 )}
@@ -128,7 +128,7 @@ export function AiChatPane({
                 )}
               </div>
             ) : (
-              <div className="whitespace-pre-wrap">{message.text}</div>
+              <div className="min-w-0 whitespace-pre-wrap break-words">{message.text}</div>
             )}
             {message.error && <p className="mt-xs text-danger">{message.error}</p>}
             {message.error && message.role === 'assistant' && (
@@ -149,7 +149,7 @@ export function AiChatPane({
         ))}
       </div>
       <form
-        className="space-y-sm border-t border-border p-md"
+        className="shrink-0 space-y-sm border-t border-border p-md"
         onSubmit={(event) => {
           event.preventDefault();
           const value = question.trim();
