@@ -121,6 +121,30 @@ describe('generated page service', () => {
     expect(secondRevision?.origin).toEqual({ actorKind: 'human', nature: 'generated' });
   });
 
+  it('derives a missing OKF type from the path for machine-created generated pages', async () => {
+    const { userId } = await createAdminUser();
+    const apiCtx = buildApiKeyCtx(userId, 'admin', ['create', 'view', 'edit'], 'generated-okf-key');
+
+    const source = '---\ntitle: 量化交易学习指南\ntags:\n  - 量化交易\n---\n\n# 量化交易学习指南';
+    const created = await publicContent.createPage(apiCtx, {
+      path: 'finance/quantitative-trading/learning', title: '量化交易学习指南', contentSource: source,
+    }, ['latestRevision']);
+    expect(created.spaceSlug).toBe('generated');
+    const revision = await publicContent.getRevision(buildUserCtx(userId, 'admin'), created.id, 1);
+    expect(revision?.contentSource).toContain('type: finance/quantitative-trading');
+    expect(revision?.contentSource).toContain('title: 量化交易学习指南');
+    expect(revision?.contentSource).toContain('# 量化交易学习指南');
+
+    const draft = await publicContent.createDraft(apiCtx, created.id, {
+      title: '量化交易学习指南',
+      contentSource: '---\ntitle: 量化交易学习指南 v2\n---\n\n# 量化交易学习指南 v2',
+      baseRevisionId: created.latestRevision?.id,
+    });
+    const draftRevision = await publicContent.getRevision(buildUserCtx(userId, 'admin'), created.id, draft.version);
+    expect(draftRevision?.contentSource).toContain('type: finance/quantitative-trading');
+    expect(draftRevision?.contentSource).toContain('# 量化交易学习指南 v2');
+  });
+
   it('keeps API-key creation in the default space in Copilot mode', async () => {
     const { userId } = await createAdminUser();
     await setModeInternal('copilot', userId);

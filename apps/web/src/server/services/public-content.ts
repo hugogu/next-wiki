@@ -63,12 +63,30 @@ import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { DEFAULT_SPACE_SLUG, getSpaceById, listSpaces, resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
+import { deriveOkfTypeFromPath, ensureOkfConformance } from '@/server/services/okf';
 import * as rawEntries from '@/server/services/raw-entries';
 import * as linkPages from '@/server/services/link-pages';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
 type SpaceRow = Pick<typeof schema.spaces.$inferSelect, 'id' | 'slug' | 'anonymousRead' | 'defaultLocale' | 'kind'>;
+
+/**
+ * Machine writers (public API / MCP / Wiki AI tools) often supply frontmatter
+ * with title/tags but no OKF `type`. Direct authoring intentionally rejects
+ * that (`OKF_TYPE_REQUIRED`), but machine-created content follows the
+ * move/import convention and derives the missing type from the page path.
+ * Content without a frontmatter block is left untouched so the downstream
+ * `type: Note` default still applies.
+ */
+function adaptGeneratedContent(contentSource: string, path: string, title: string): string {
+  if (!contentSource.startsWith('---')) return contentSource;
+  return ensureOkfConformance(contentSource, {
+    title,
+    now: new Date(),
+    fallbackType: deriveOkfTypeFromPath(path),
+  });
+}
 
 function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
@@ -681,7 +699,9 @@ export async function createPage(
     : await pageService.create(ctx, {
         path: input.path,
         title: input.title,
-        contentSource: input.contentSource,
+        contentSource: targetSpace.kind === 'generated'
+          ? adaptGeneratedContent(input.contentSource ?? '', input.path, input.title)
+          : input.contentSource,
         nature: input.nature,
       }, targetSpace.slug);
   const page = await getPageById(ctx, created.pageId, include);
@@ -694,7 +714,10 @@ export async function createDraft(ctx: PermCtx, pageId: string, input: PublicDra
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
-  const created = await pageService.newDraft(ctx, page.path, input, space.slug);
+  const draftInput = space.kind === 'generated' && input.contentSource
+    ? { ...input, contentSource: adaptGeneratedContent(input.contentSource, page.path, input.title) }
+    : input;
+  const created = await pageService.newDraft(ctx, page.path, draftInput, space.slug);
   const revision = await getRevision(ctx, pageId, created.versionNumber);
   if (!revision) throw new DomainError('NOT_FOUND', 'Created revision is not visible');
   return revision;

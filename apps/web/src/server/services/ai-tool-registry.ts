@@ -113,7 +113,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'create',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Create a new page as a draft revision for review. Args: path, title, and either contentSource or contentFromConversation=true. Returns the canonical page href.',
+    description: 'Create a new page as a draft revision for review. Args: path, title, and either contentSource or contentFromConversation=true. The path must be lowercase letters, numbers, hyphens, and slashes. If contentSource includes YAML frontmatter it must contain a non-empty "type" field; when unsure, omit the frontmatter block entirely. Returns the canonical page href.',
   },
   {
     name: 'save_draft',
@@ -122,7 +122,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Save a new draft revision of an existing page for review. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
+    description: 'Save a new draft revision of an existing page for review. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. If contentSource includes YAML frontmatter it must contain a non-empty "type" field. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
   },
   {
     name: 'update_page_metadata',
