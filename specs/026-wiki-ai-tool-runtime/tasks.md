@@ -160,7 +160,7 @@
 
 ### Tests for User Story 4
 
-- [ ] T062 [P] [US4] Add component tests for live tool-call timeline states in `apps/web/src/components/chat/ToolCallTimeline.test.tsx`
+- [x] T062 [P] [US4] Add component tests for live tool-call timeline states in `apps/web/src/components/chat/ToolCallTimeline.test.tsx`
 - [ ] T063 [P] [US4] Add conversation replay tests for command records without full result payloads in `apps/web/src/components/chat/ConversationSessionView.test.tsx`
 - [ ] T064 [P] [US4] Add retention tests for command markdown and safe status metadata in `apps/web/src/server/services/raw-conversations.test.ts`
 - [X] T100 [P] [US4] Add live chat event intake coverage for tool-call/proposal timeline state in `apps/web/src/components/chat/chat-store.test.ts`
