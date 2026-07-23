@@ -113,7 +113,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'create',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Create a new page as a draft revision for review.',
+    description: 'Create a new page as a draft revision for review. Args: path, title, contentSource.',
   },
   {
     name: 'save_draft',

@@ -31,14 +31,19 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     expect(step).toEqual({ kind: 'final', text: 'The deployment config lives in docker-compose.yml.' });
   });
 
-  it('degrades a malformed tool block to a final answer instead of looping', () => {
+  it('marks a malformed tool block for retry instead of exposing it as a final answer', () => {
     const step = parseToolPlan('```tool\n{not valid json}\n```');
-    expect(step.kind).toBe('final');
+    expect(step.kind).toBe('invalid_tool_calls');
   });
 
   it('treats an empty tool_calls list as a final answer', () => {
     const step = parseToolPlan('```tool\n{"tool_calls":[]}\n```');
-    expect(step.kind).toBe('final');
+    expect(step.kind).toBe('invalid_tool_calls');
+  });
+
+  it('detects a create_page block truncated before the tool_calls array closes', () => {
+    const output = '```tool\n{"tool_calls":[{"tool":"create_page","arguments":{"path":"history/china/figures/zhang-fei","title":"张飞","content":"# 张飞"},"review":"admin_review"}}\n```';
+    expect(parseToolPlan(output)).toEqual({ kind: 'invalid_tool_calls' });
   });
 });
 

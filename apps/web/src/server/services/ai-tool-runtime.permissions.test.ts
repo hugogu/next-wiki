@@ -33,6 +33,7 @@ import { getToolDefinition } from '@/server/services/ai-tool-registry';
 const searchTool = getToolDefinition('search_wiki')!;
 const getPageTool = getToolDefinition('get_page')!;
 const listPagesTool = getToolDefinition('list_pages')!;
+const createPageTool = getToolDefinition('create_page')!;
 const readerCtx = buildUserCtx('reader-1', 'reader');
 const adminCtx = buildUserCtx('admin-1', 'admin');
 const execCtx = {
@@ -156,6 +157,25 @@ describe('read tool permission projection (026)', () => {
       readerCtx,
       expect.objectContaining({ pathPrefix: 'history/china', limit: 30 }),
     );
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts content as a create_page alias without creating an empty draft', async () => {
+    content.createPage.mockResolvedValue({
+      id: 'page-created',
+      path: 'history/china/figures/zhang-fei',
+      title: '张飞',
+    });
+    const result = await executeTool(adminCtx, createPageTool, {
+      path: 'history/china/figures/zhang-fei',
+      title: '张飞',
+      content: '# 张飞\n\n蜀汉名将。',
+    }, { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'admin_review' });
+    expect(content.createPage).toHaveBeenCalledWith(adminCtx, {
+      path: 'history/china/figures/zhang-fei',
+      title: '张飞',
+      contentSource: '# 张飞\n\n蜀汉名将。',
+    });
     expect(result.ok).toBe(true);
   });
 });

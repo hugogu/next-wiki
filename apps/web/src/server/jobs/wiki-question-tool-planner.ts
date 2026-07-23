@@ -1,5 +1,5 @@
-import type { AiToolReviewDecision } from '@next-wiki/shared';
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
+import type { ToolPlanStep } from '@/server/services/ai-tool-runtime';
 
 export type ToolPlannerState = {
   question: string;
@@ -8,16 +8,7 @@ export type ToolPlannerState = {
   transcript: string[];
 };
 
-export type ToolPlannerStep =
-  | {
-      kind: 'tool_calls';
-      calls: Array<{
-        toolName: string;
-        arguments: Record<string, unknown>;
-        requestedReview: AiToolReviewDecision;
-      }>;
-    }
-  | { kind: 'final'; text: string };
+export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls' };
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
   const sources = state.wikiSources.length > 0
@@ -63,10 +54,9 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
   ].join('\n');
 }
 
-/** Parse one planner turn: a tool-call block requests tools; anything else is a
- * final answer. Malformed tool blocks degrade to a final answer rather than
- * looping. */
-export function parseToolPlan(output: string): ToolPlannerStep {
+/** Parse one planner turn: a valid tool-call block requests tools; malformed
+ * protocol output is explicitly retried by the caller; plain prose is final. */
+export function parseToolPlan(output: string): ToolPlannerParseResult {
   const match = output.match(/```(?:tool|json)?\s*([\s\S]*?)```/);
   if (match) {
     try {
@@ -83,8 +73,11 @@ export function parseToolPlan(output: string): ToolPlannerStep {
         }));
       if (calls.length > 0) return { kind: 'tool_calls', calls };
     } catch {
-      // Not a valid tool block — treat as a final answer below.
+      // A malformed/truncated tool block is not a final answer. The caller
+      // retries the planner with explicit protocol feedback.
+      return { kind: 'invalid_tool_calls' };
     }
+    return { kind: 'invalid_tool_calls' };
   }
   return { kind: 'final', text: output.trim() };
 }

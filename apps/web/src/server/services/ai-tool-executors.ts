@@ -83,7 +83,19 @@ const listArgs = z
   })
   .strict();
 const pageIdArgs = z.object({ pageId: z.string().uuid() });
-const createPageArgs = z.object({ path: z.string().min(1).max(200), title: z.string().min(1).max(200), contentSource: z.string().max(500_000).optional() });
+const createPageArgs = z
+  .object({
+    path: z.string().min(1).max(200),
+    title: z.string().min(1).max(200),
+    contentSource: z.string().max(500_000).optional(),
+    // Compatibility for models that use the public API's generic content
+    // vocabulary despite the documented MCP argument name.
+    content: z.string().max(500_000).optional(),
+  })
+  .transform(({ content, ...args }) => ({
+    ...args,
+    contentSource: args.contentSource ?? content ?? '',
+  }));
 const saveDraftArgs = z.object({ pageId: z.string().uuid(), title: z.string().min(1).max(200), contentSource: z.string().min(1).max(500_000) });
 const propertiesArgs = z.object({ pageId: z.string().uuid(), title: z.string().min(1).max(200).optional(), path: z.string().min(1).max(200).optional() });
 const metadataArgs = z.object({

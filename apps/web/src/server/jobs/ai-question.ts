@@ -72,7 +72,7 @@ type ToolEnabledQuestionInput = {
 // time, so three retries send as little as ~1/8 of the original body.
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
 const DEFAULT_TOOL_MAX_CALLS = 100;
-const PLANNER_MAX_OUTPUT_TOKENS = 1_200;
+const MAX_TOOL_PROTOCOL_RETRIES = 3;
 
 function appendSourceLinks(answer: string, citations: AiCitation[]): string {
   if (citations.length === 0) return answer;
@@ -122,6 +122,7 @@ function buildToolSystemPrompt(tools: ToolDefinition[]): string {
     'If the user asks to save, write, or turn previous conversation content into a',
     'wiki page, use create_page or save_draft with admin_review instead of only',
     'answering conversationally.',
+    'For create_page, use arguments path, title, and contentSource.',
     'Never guess a page path for get_page. Use the baseline sources, search_wiki,',
     'or list_pages first, then pass an exact returned path or pageId to get_page.',
   ].join('\n');
@@ -306,34 +307,54 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   const system = buildToolSystemPrompt(enabledTools);
   const planner: ToolPlanner = async (state) => {
-    let output = '';
-    for await (const event of adapter.streamText({
-      actionId,
-      modelExternalId: textModel.externalId,
-      system,
-      messages: [{ role: 'user', content: buildPlannerUserPrompt(state) }],
-      maxOutputTokens: PLANNER_MAX_OUTPUT_TOKENS,
-      temperature: 0.1,
-      abortSignal: new AbortController().signal,
-    })) {
-      if (event.type === 'delta') output += event.text;
+    const basePrompt = buildPlannerUserPrompt(state);
+    for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
+      const retryInstruction = attempt > 0
+        ? '\n\nYour previous tool-call block was invalid or truncated. Re-emit the complete tool call as valid JSON, using the exact documented argument names.'
+        : '';
+      const prompt = `${basePrompt}${retryInstruction}`;
+      let output = '';
+      for await (const event of adapter.streamText({
+        actionId,
+        modelExternalId: textModel.externalId,
+        system,
+        messages: [{ role: 'user', content: prompt }],
+        maxOutputTokens: computeAnswerMaxOutputTokens(
+          estimatePromptTokens(system, prompt),
+          textModel.contextWindow,
+          textModel.maxOutputTokens,
+        ),
+        temperature: 0.1,
+        abortSignal: new AbortController().signal,
+      })) {
+        if (event.type === 'delta') output += event.text;
+      }
+      const parsed = parseToolPlan(output);
+      if (parsed.kind !== 'invalid_tool_calls') return parsed;
     }
-    return parseToolPlan(output);
+    throw new DomainError('INVALID_RESPONSE', 'The AI provider repeatedly returned an invalid tool call.');
   };
 
-  const result = await runToolLoop({
-    actionId,
-    workflowId: workflow.id,
-    ctx,
-    actorUserId: user.id,
-    question: input.question,
-    conversation: input.conversation ?? [],
-    wikiSources,
-    planner,
-    resolveReview,
-    isEnabled,
-    isCancelled: () => isCancellationRequested(actionId),
-  });
+  let result;
+  try {
+    result = await runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: user.id,
+      question: input.question,
+      conversation: input.conversation ?? [],
+      wikiSources,
+      planner,
+      resolveReview,
+      isEnabled,
+      isCancelled: () => isCancellationRequested(actionId),
+    });
+  } catch (error) {
+    const current = await getWorkflowByAction(actionId);
+    if (current?.status === 'running') await transitionWorkflow(current.id, 'failed');
+    throw error;
+  }
 
   if (result.status === 'cancelled') {
     throw new DomainError('CANCELLED', 'Tool-enabled question was cancelled');
