@@ -1,8 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { AiRuntimeSettingsView } from '@next-wiki/shared';
 import { ApplicationI18nProvider } from '@/components/i18n/ApplicationI18nProvider';
 import { getMessages } from '@/i18n/catalog';
+
+let currentSearch = '';
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => '/admin/ai/prompts',
+  useSearchParams: () => new URLSearchParams(currentSearch),
+}));
+
 import { AiPromptsPanel } from './AiPromptsPanel';
 
 function view(overrides: Partial<AiRuntimeSettingsView['prompts']> = {}): AiRuntimeSettingsView {
@@ -25,21 +33,36 @@ function render(model: AiRuntimeSettingsView): string {
 }
 
 describe('AiPromptsPanel', () => {
-  it('renders both prompt editors with their labels', () => {
+  it('renders a tab for each prompt', () => {
+    currentSearch = '';
     const html = render(view());
-    expect(html).toContain('Assistant system prompt');
-    expect(html).toContain('Tool system prompt');
+    expect(html).toContain('Assistant');
+    expect(html).toContain('Tool');
   });
 
-  it('shows the built-in default as placeholder and the using-default state when no override', () => {
+  it('shows the built-in default as editable content (not a placeholder) with the using-default state', () => {
+    currentSearch = '';
     const html = render(view());
-    expect(html).toContain('You are Wiki AI.');
-    expect(html).toContain('{{TOOLS}}');
+    // The default appears inside the textarea element, i.e. as its value.
+    expect(html).toMatch(/<textarea[^>]*>[\s\S]*You are Wiki AI\.[\s\S]*<\/textarea>/);
     expect(html).toContain('Using default');
   });
 
-  it('shows the stored override value when configured', () => {
+  it('renders the tool prompt (with the {{TOOLS}} marker) on the tool tab', () => {
+    currentSearch = 'tab=tool';
+    const html = render(view());
+    expect(html).toContain('{{TOOLS}}');
+    // Regression: the help string mentions {{TOOLS}} and must be ICU-escaped so
+    // next-intl renders it instead of falling back to the raw message key.
+    expect(html).not.toContain('admin.ai.prompts.tool.help');
+    expect(html).toContain('Keep the {{TOOLS}} marker');
+  });
+
+  it('shows a stored override value instead of the default', () => {
+    currentSearch = '';
     const html = render(view({ assistantSystemPrompt: 'Custom persona prompt' }));
     expect(html).toContain('Custom persona prompt');
+    // With an override in effect, the using-default marker is not shown.
+    expect(html).not.toContain('Using default');
   });
 });

@@ -9,6 +9,14 @@ import type {
   AiToolView,
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/ui/DataTable';
 import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
@@ -109,16 +117,16 @@ export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
             return (
               <li
                 key={provider.key}
-                className={`rounded-md border px-md py-sm text-sm ${
-                  external ? 'border-dashed border-border text-muted' : 'border-border'
+                className={`min-w-[16rem] rounded-lg border px-md py-sm ${
+                  external ? 'border-dashed border-border' : 'border-border'
                 }`}
               >
                 <div className="flex items-center gap-sm">
-                  <span className="font-medium">{provider.displayName}</span>
-                  <span className="rounded-full bg-surface-elevated px-sm text-xs">
+                  <span className="text-sm font-medium">{provider.displayName}</span>
+                  <Pill>
                     {t(external ? 'admin.ai.tools.provider.external' : 'admin.ai.tools.provider.builtin')}
-                  </span>
-                  <span className="text-xs">
+                  </Pill>
+                  <span className="text-xs text-muted">
                     {t(
                       provider.enabled
                         ? 'admin.ai.tools.provider.enabled'
@@ -127,7 +135,9 @@ export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
                   </span>
                 </div>
                 {external ? (
-                  <p className="mt-xs text-xs">{t('admin.ai.tools.provider.externalUnavailable')}</p>
+                  <p className="mt-xs text-xs text-muted">
+                    {t('admin.ai.tools.provider.externalUnavailable')}
+                  </p>
                 ) : null}
               </li>
             );
@@ -152,72 +162,70 @@ export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
       </div>
 
       {message ? (
-        <p
-          role="status"
-          className={`text-sm ${message.kind === 'error' ? 'text-danger' : 'text-muted'}`}
-        >
+        <p role="status" className={`text-sm ${message.kind === 'error' ? 'text-danger' : 'text-muted'}`}>
           {message.text}
         </p>
       ) : null}
 
       {/* Tools table */}
-      <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-elevated text-left text-xs text-muted">
-            <tr>
-              <th className="px-md py-sm font-medium">{t('admin.ai.tools.table.tool')}</th>
-              <th className="px-md py-sm font-medium">{t('admin.ai.tools.table.category')}</th>
-              <th className="px-md py-sm font-medium">{t('admin.ai.tools.table.risk')}</th>
-              <th className="px-md py-sm font-medium">{t('admin.ai.tools.table.scope')}</th>
-              <th className="px-md py-sm font-medium">{t('admin.ai.tools.table.review')}</th>
-              <th className="px-md py-sm font-medium">{t('admin.ai.tools.table.enabled')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleTools.map((tool) => (
-              <tr key={tool.name} className="border-t border-border align-top">
-                <td className="px-md py-sm">
-                  <div className="font-medium">{tool.name}</div>
-                  {tool.description ? (
-                    <div className="text-xs text-muted">{tool.description}</div>
-                  ) : null}
-                </td>
-                <td className="px-md py-sm">{t(categoryKey(tool.category))}</td>
-                <td className="px-md py-sm">{t(riskKey(tool.riskLevel))}</td>
-                <td className="px-md py-sm font-mono text-xs">{tool.requiredScope}</td>
-                <td className="px-md py-sm">
-                  {tool.riskLevel === 'read' ? (
-                    <span className="text-xs text-muted">{t(effectiveReviewKey('none'))}</span>
-                  ) : (
-                    <Select
-                      aria-label={`${tool.name} ${t('admin.ai.tools.policy.reviewPolicy')}`}
-                      value={tool.reviewPolicy}
-                      disabled={savingTool === tool.name}
-                      onChange={(event) =>
-                        savePolicy(tool, { reviewPolicy: event.target.value as AiToolReviewPolicy })
-                      }
-                    >
-                      {REVIEW_POLICIES.map((policy) => (
-                        <option key={policy} value={policy}>
-                          {t(reviewPolicyKey(policy))}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </td>
-                <td className="px-md py-sm">
-                  <Switch
-                    checked={tool.enabled}
+      <DataTable>
+        <DataTableHead>
+          <tr className="text-xs uppercase tracking-wide text-muted">
+            <DataTableHeader>{t('admin.ai.tools.table.tool')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.tools.table.category')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.tools.table.risk')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.tools.table.scope')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.tools.table.review')}</DataTableHeader>
+            <DataTableHeader align="center">{t('admin.ai.tools.table.enabled')}</DataTableHeader>
+          </tr>
+        </DataTableHead>
+        <DataTableBody>
+          {visibleTools.map((tool) => (
+            <DataTableRow key={tool.name}>
+              <DataTableCell>
+                <div className="text-sm font-medium">{tool.name}</div>
+                {tool.description ? (
+                  <div className="mt-0.5 max-w-md text-xs text-muted">{tool.description}</div>
+                ) : null}
+              </DataTableCell>
+              <DataTableCell>
+                <Pill>{t(categoryKey(tool.category))}</Pill>
+              </DataTableCell>
+              <DataTableCell className="text-sm text-muted">{t(riskKey(tool.riskLevel))}</DataTableCell>
+              <DataTableCell className="text-sm text-muted">{tool.requiredScope}</DataTableCell>
+              <DataTableCell>
+                {tool.riskLevel === 'read' ? (
+                  <span className="text-sm text-muted">{t(effectiveReviewKey('none'))}</span>
+                ) : (
+                  <Select
+                    containerClassName="max-w-[15rem]"
+                    aria-label={`${tool.name} ${t('admin.ai.tools.policy.reviewPolicy')}`}
+                    value={tool.reviewPolicy}
                     disabled={savingTool === tool.name}
-                    aria-label={`${tool.name} ${t('admin.ai.tools.table.enabled')}`}
-                    onClick={() => savePolicy(tool, { enabled: !tool.enabled })}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    onChange={(event) =>
+                      savePolicy(tool, { reviewPolicy: event.target.value as AiToolReviewPolicy })
+                    }
+                  >
+                    {REVIEW_POLICIES.map((policy) => (
+                      <option key={policy} value={policy}>
+                        {t(reviewPolicyKey(policy))}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </DataTableCell>
+              <DataTableCell align="center">
+                <Switch
+                  checked={tool.enabled}
+                  disabled={savingTool === tool.name}
+                  aria-label={`${tool.name} ${t('admin.ai.tools.table.enabled')}`}
+                  onClick={() => savePolicy(tool, { enabled: !tool.enabled })}
+                />
+              </DataTableCell>
+            </DataTableRow>
+          ))}
+        </DataTableBody>
+      </DataTable>
 
       {/* Recent tool failures */}
       <section aria-labelledby="tools-failures-heading" className="space-y-sm">
@@ -227,6 +235,14 @@ export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
         <p className="text-sm text-muted">{t('admin.ai.tools.failures.empty')}</p>
       </section>
     </div>
+  );
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-surface-elevated px-sm py-0.5 text-xs text-muted">
+      {children}
+    </span>
   );
 }
 

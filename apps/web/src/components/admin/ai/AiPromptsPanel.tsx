@@ -1,22 +1,46 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { AiRuntimeSettingsView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
+import { SettingsTabs } from '@/components/ui/SettingsTabs';
+import { UndoIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
+type PromptTab = 'assistant' | 'tool';
+const TABS: PromptTab[] = ['assistant', 'tool'];
+
+function parseTab(value: string | null): PromptTab {
+  return TABS.includes(value as PromptTab) ? (value as PromptTab) : 'assistant';
+}
+
 /**
- * Wiki AI runtime prompts (026), edited from AI > Prompts. An empty field clears
- * the override and restores the built-in default (shown as the placeholder). The
- * live tool catalog and the tool-call protocol are injected by the runtime, so
- * the tool prompt keeps its `{{TOOLS}}` marker.
+ * Wiki AI runtime prompts (026), edited from AI > Prompts. Each prompt is shown
+ * with its built-in default already filled in and fully editable; the reset
+ * icon restores that default. Saving a value equal to the default clears the
+ * stored override so the prompt keeps tracking future default changes. The live
+ * tool catalog and tool-call protocol are injected by the runtime at {{TOOLS}}.
  */
 export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
   const { t } = useTranslation();
-  const [assistant, setAssistant] = useState(initial.prompts.assistantSystemPrompt ?? '');
-  const [tool, setTool] = useState(initial.prompts.toolSystemPrompt ?? '');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = parseTab(searchParams.get('tab'));
+
+  const [assistant, setAssistant] = useState(
+    initial.prompts.assistantSystemPrompt ?? initial.defaults.assistantSystemPrompt,
+  );
+  const [tool, setTool] = useState(initial.prompts.toolSystemPrompt ?? initial.defaults.toolSystemPrompt);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  const selectTab = (next: PromptTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', next);
+    router.replace(`${pathname}?${params.toString()}`);
+  };
 
   const save = async () => {
     setBusy(true);
@@ -26,9 +50,9 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          // Blank clears the override server-side (restores the default).
-          assistantSystemPrompt: assistant,
-          toolSystemPrompt: tool,
+          // A value equal to the default clears the override (keeps tracking it).
+          assistantSystemPrompt: assistant.trim() === initial.defaults.assistantSystemPrompt.trim() ? null : assistant,
+          toolSystemPrompt: tool.trim() === initial.defaults.toolSystemPrompt.trim() ? null : tool,
         }),
       });
       if (!response.ok) throw new Error('save failed');
@@ -41,29 +65,37 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
   };
 
   return (
-    <div className="space-y-lg">
-      <PromptField
-        label={t('admin.ai.prompts.assistant.label')}
-        hint={t('admin.ai.prompts.assistant.help')}
-        value={assistant}
-        placeholder={initial.defaults.assistantSystemPrompt}
-        usingDefault={assistant.trim() === ''}
-        usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
-        resetLabel={t('admin.ai.prompts.reset')}
-        onChange={setAssistant}
-        onReset={() => setAssistant('')}
-      />
-      <PromptField
-        label={t('admin.ai.prompts.tool.label')}
-        hint={t('admin.ai.prompts.tool.help')}
-        value={tool}
-        placeholder={initial.defaults.toolSystemPrompt}
-        usingDefault={tool.trim() === ''}
-        usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
-        resetLabel={t('admin.ai.prompts.reset')}
-        onChange={setTool}
-        onReset={() => setTool('')}
-      />
+    <div className="space-y-md">
+      <SettingsTabs<PromptTab>
+        tabs={[
+          { id: 'assistant', label: t('admin.ai.prompts.tabs.assistant') },
+          { id: 'tool', label: t('admin.ai.prompts.tabs.tool') },
+        ]}
+        selected={tab}
+        onSelect={selectTab}
+      >
+        {tab === 'assistant' && (
+          <PromptEditor
+            help={t('admin.ai.prompts.assistant.help')}
+            value={assistant}
+            defaultValue={initial.defaults.assistantSystemPrompt}
+            usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
+            resetLabel={t('admin.ai.prompts.reset')}
+            onChange={setAssistant}
+          />
+        )}
+        {tab === 'tool' && (
+          <PromptEditor
+            help={t('admin.ai.prompts.tool.help')}
+            value={tool}
+            defaultValue={initial.defaults.toolSystemPrompt}
+            usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
+            resetLabel={t('admin.ai.prompts.reset')}
+            onChange={setTool}
+          />
+        )}
+      </SettingsTabs>
+
       <div className="flex items-center gap-sm">
         <Button type="button" variant="primary" disabled={busy} onClick={save}>
           {t('admin.ai.prompts.save')}
@@ -78,43 +110,44 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
   );
 }
 
-function PromptField({
-  label,
-  hint,
+function PromptEditor({
+  help,
   value,
-  placeholder,
-  usingDefault,
+  defaultValue,
   usingDefaultLabel,
   resetLabel,
   onChange,
-  onReset,
 }: {
-  label: string;
-  hint: string;
+  help: string;
   value: string;
-  placeholder: string;
-  usingDefault: boolean;
+  defaultValue: string;
   usingDefaultLabel: string;
   resetLabel: string;
   onChange: (value: string) => void;
-  onReset: () => void;
 }) {
+  const usingDefault = value.trim() === defaultValue.trim();
   return (
-    <section className="space-y-xs">
-      <div className="flex items-center justify-between gap-sm">
-        <label className="text-sm font-semibold">{label}</label>
-        <div className="flex items-center gap-sm">
+    <section className="space-y-sm">
+      <div className="flex items-start justify-between gap-sm">
+        <p className="text-xs text-muted">{help}</p>
+        <div className="flex shrink-0 items-center gap-sm">
           {usingDefault ? <span className="text-xs text-muted">{usingDefaultLabel}</span> : null}
-          <Button type="button" variant="ghost" size="default" disabled={usingDefault} onClick={onReset}>
-            {resetLabel}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={usingDefault}
+            title={resetLabel}
+            aria-label={resetLabel}
+            onClick={() => onChange(defaultValue)}
+          >
+            <UndoIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      <p className="text-xs text-muted">{hint}</p>
       <textarea
-        className="min-h-[12rem] w-full rounded-md border border-border bg-surface px-md py-sm font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+        className="min-h-[24rem] w-full rounded-md border border-border bg-surface px-md py-sm font-mono text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/50"
         value={value}
-        placeholder={placeholder}
         spellCheck={false}
         onChange={(event) => onChange(event.target.value)}
       />

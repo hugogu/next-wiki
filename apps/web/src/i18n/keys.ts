@@ -796,6 +796,8 @@ export const translationKeys = [
   "admin.ai.prompts.nav",
   "admin.ai.prompts.title",
   "admin.ai.prompts.description",
+  "admin.ai.prompts.tabs.assistant",
+  "admin.ai.prompts.tabs.tool",
   "admin.ai.prompts.assistant.label",
   "admin.ai.prompts.assistant.help",
   "admin.ai.prompts.tool.label",

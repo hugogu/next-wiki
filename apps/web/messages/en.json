@@ -1152,13 +1152,17 @@
         "nav": "Prompts",
         "title": "AI prompts",
         "description": "Customize the system prompts that drive Wiki AI. Leave a field empty to use the built-in default.",
+        "tabs": {
+          "assistant": "Assistant",
+          "tool": "Tool"
+        },
         "assistant": {
           "label": "Assistant system prompt",
-          "help": "The base persona and answering rules shared by Wiki AI question answering and the tool loop."
+          "help": "The base persona and answering rules shared by Wiki AI question answering and the tool loop. This is the built-in default, shown for editing; changes replace it."
         },
         "tool": {
           "label": "Tool system prompt",
-          "help": "Instructions for the governed tool loop. Keep the {{TOOLS}} marker and the fenced tool-call protocol so tools keep working; the live tool catalog is injected automatically."
+          "help": "Instructions for the governed tool loop. Keep the '{{TOOLS}}' marker and the fenced tool-call protocol so tools keep working; the live tool catalog is injected automatically."
         },
         "usingDefault": "Using default",
         "reset": "Reset to default",
