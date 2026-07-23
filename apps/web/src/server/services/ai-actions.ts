@@ -84,6 +84,7 @@ export async function getAiSettings() {
       enabled: false,
       eventRetentionHours: env.AI_EVENT_RETENTION_HOURS,
       artifactRetentionHours: env.AI_ARTIFACT_RETENTION_HOURS,
+      wikiQuestionMinRelevanceScore: 500,
       modelDetectorApiKeyEncrypted: null,
       cloudflareDetectorEnabled: false,
       cloudflareAccountId: null,

@@ -1089,6 +1089,10 @@ export const aiSettings = pgTable('ai_settings', {
   enabled: boolean('enabled').notNull().default(false),
   eventRetentionHours: integer('event_retention_hours').notNull().default(24),
   artifactRetentionHours: integer('artifact_retention_hours').notNull().default(24),
+  // Cosine similarity scaled by 1000. Wiki-question retrieval filters before
+  // sources enter the model context; other search surfaces keep their own
+  // independently calibrated relevance settings.
+  wikiQuestionMinRelevanceScore: integer('wiki_question_min_relevance_score').notNull().default(500),
   // Each Model Capability Detector is configured independently so switching
   // between them never discards stored credentials. OpenRouter is a global
   // enrichment key (active when present). Cloudflare is a catalog-listing

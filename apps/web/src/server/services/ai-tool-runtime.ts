@@ -347,7 +347,12 @@ function citationFromCandidate(value: unknown): AiCitation | null {
   };
 }
 
-function collectToolCitations(data: unknown): AiCitation[] {
+export function collectToolCitations(toolName: string, data: unknown): AiCitation[] {
+  // Search/list results are discovery candidates, not evidence that the model
+  // actually read. Including every candidate made the final Sources list noisy
+  // and implied support that was never inspected. get_page is the content-
+  // bearing read tool; baseline RAG citations are handled separately.
+  if (toolName !== 'get_page') return [];
   const root = data as { items?: unknown[] } | null;
   const values = Array.isArray(root?.items) ? root.items : [data];
   return values
@@ -464,7 +469,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       });
 
       if (result.ok) {
-        for (const citation of collectToolCitations(result.data)) {
+        for (const citation of collectToolCitations(tool.name, result.data)) {
           citations.set(`${citation.pageId}:${citation.revisionId}`, citation);
         }
         const resultHash = result.data !== undefined ? hashResult(result.data) : null;

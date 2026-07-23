@@ -232,6 +232,13 @@
       "when": 1784734208293,
       "tag": "0032_far_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784768778997,
+      "tag": "0033_daffy_firedrake",
+      "breakpoints": true
     }
   ]
 }

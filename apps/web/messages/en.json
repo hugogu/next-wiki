@@ -1550,6 +1550,15 @@
       "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation.",
       "tabs": {
         "general": "General"
+      },
+      "general": {
+        "retrieval": {
+          "title": "Wiki answer retrieval",
+          "description": "Control which semantic search results may enter Wiki AI and bot answer context.",
+          "minimumScore": "Minimum relevance score",
+          "minimumScoreHelp": "Results below this cosine similarity score are discarded. Higher values reduce unrelated context but may return fewer sources."
+        },
+        "saved": "Bot settings saved."
       }
     },
     "feishu": {

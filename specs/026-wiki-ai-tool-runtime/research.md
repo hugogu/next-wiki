@@ -36,9 +36,9 @@
 
 ## R4 — Server-enforced review policy
 
-**Decision**: Tool calls carry `requestedReview`, but the server computes `effectiveReview` from tool category, actor, resource, risk, and Admin configuration. The effective policy can only be stricter than the request.
+**Decision**: Tool calls carry `requestedReview`, but the server computes `effectiveReview` from tool category, actor, resource, risk, and Admin configuration. For non-Admin actors the effective policy can only be stricter than the request. Admin-initiated calls resolve to immediate execution because the initiator already holds the reviewer authority.
 
-**Rationale**: The model may request whether review is needed, but policy cannot be delegated to the model. Server enforcement supports "AI requested no review, policy requires review" and "AI requested review, policy allows immediate apply" safely by choosing the stricter outcome.
+**Rationale**: The model may request whether review is needed, but policy cannot be delegated to the model. Server enforcement chooses the stricter outcome for non-Admin actors while avoiding a meaningless proposal in which an Admin must approve their own already-authorized request.
 
 **Alternatives considered**:
 

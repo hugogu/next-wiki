@@ -31,15 +31,16 @@ describe('ai tool review-policy resolution (026)', () => {
     });
   });
 
-  describe('resolveReviewDecision — strictest wins', () => {
+  describe('resolveReviewDecision — Admin bypass and strictest non-Admin policy', () => {
     it('forces no review for read tools regardless of policy or request', () => {
       expect(resolveReviewDecision(readTool, 'always_review', 'admin_review', false)).toBe('none');
     });
 
-    it('requires admin review for an unconfigured mutating tool', () => {
+    it('lets an Admin execute an unconfigured mutating tool without self-review', () => {
       const policy = resolveEffectiveReviewPolicy(tagTool, {});
       expect(policy).toBe('always_review');
-      expect(resolveReviewDecision(tagTool, policy, 'none', true)).toBe('admin_review');
+      expect(resolveReviewDecision(tagTool, policy, 'none', true)).toBe('none');
+      expect(resolveReviewDecision(tagTool, policy, 'none', false)).toBe('admin_review');
     });
 
     it('lets an owner act immediately under owner-immediate policy, but reviews others', () => {
@@ -51,11 +52,12 @@ describe('ai tool review-policy resolution (026)', () => {
       expect(resolveReviewDecision(tagTool, policy, 'none', false)).toBe('admin_review');
     });
 
-    it('honors an assistant-requested review even when policy would allow immediate', () => {
+    it('ignores an assistant-requested review for an Admin actor', () => {
       const policy = resolveEffectiveReviewPolicy(tagTool, {
         category: layer({ reviewPolicy: 'allow_immediate_for_owner' }),
       });
-      expect(resolveReviewDecision(tagTool, policy, 'admin_review', true)).toBe('admin_review');
+      expect(resolveReviewDecision(tagTool, policy, 'admin_review', true)).toBe('none');
+      expect(resolveReviewDecision(tagTool, policy, 'admin_review', false)).toBe('admin_review');
     });
   });
 

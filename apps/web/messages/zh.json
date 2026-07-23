@@ -1550,6 +1550,15 @@
       "description": "连接聊天机器人，让团队成员在聊天中直接向 Wiki 提问、搜索页面并接收更新通知。",
       "tabs": {
         "general": "通用"
+      },
+      "general": {
+        "retrieval": {
+          "title": "Wiki 问答检索",
+          "description": "控制哪些语义检索结果可以进入 Wiki AI 和机器人回答的上下文。",
+          "minimumScore": "最低相关度",
+          "minimumScoreHelp": "低于该余弦相似度的结果会被丢弃。数值越高，无关上下文越少，但可用来源也可能减少。"
+        },
+        "saved": "机器人设置已保存。"
       }
     },
     "feishu": {

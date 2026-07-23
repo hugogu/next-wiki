@@ -159,11 +159,13 @@ As a future integrator, I want the tool-management model to distinguish the buil
 - **FR-007**: Wiki AI MUST be able to call enabled, permitted tools during a chat turn to inspect wiki content, prepare changes, or support an answer.
 - **FR-008**: Tool calls MUST run under the initiating user's permission context; Admin review, background execution, or MCP compatibility MUST NOT expand that user's read or write permissions.
 - **FR-009**: Wiki AI MUST support iterative tool use within a bounded loop so it can call a tool, inspect the result, decide whether another tool call is needed, and continue until completion, failure, cancellation, or limit reached.
-- **FR-010**: Every tool call that can mutate durable state MUST include a requested review value from the assistant or caller, and the system MUST compute and record an effective review decision that is at least as strict as configured policy.
+- **FR-010**: Every tool call that can mutate durable state MUST include a requested review value from the assistant or caller, and the system MUST compute and record an effective review decision. Non-Admin actors MUST receive the strictest result implied by policy and request; an initiating Admin MUST bypass Admin review because self-review adds no authorization boundary.
 - **FR-011**: If a selected model or AI provider cannot use tools, the chat MUST show tool use as unavailable and MUST NOT silently execute operations outside the model's visible reasoning flow.
 - **FR-012**: Tool workflows MUST be cancellable by the user while they are running; cancellation MUST NOT approve pending proposals or roll back already-completed, audited operations unless a normal revert operation is explicitly requested.
 - **FR-034**: Web Wiki AI and configured bot channels MUST pass bounded recent conversation context into tool-enabled chat so follow-up instructions such as "write the above into a page" can operate on the prior answer.
 - **FR-035**: Feishu bot AI turns MUST use the same Wiki AI tool-chat service as the web chat pane when tools are available, and MUST fall back to ordinary Q&A only when the selected model or policy makes tool use unavailable.
+- **FR-036**: Admins MUST be able to configure the minimum semantic relevance score for Wiki AI and bot answer retrieval under Bots > General, and candidates below that threshold MUST be discarded before entering model context.
+- **FR-037**: Search and page-list tool results MUST remain discovery candidates and MUST NOT be presented as final Sources unless the assistant actually reads the page; final Sources MUST contain only cited baseline retrieval sources and content-bearing page reads.
 
 **Review and application of changes**
 

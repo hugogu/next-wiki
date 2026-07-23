@@ -1,10 +1,11 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { ContentDataSourceItem, FeishuConfigView } from '@next-wiki/shared';
+import type { BotGeneralSettings, ContentDataSourceItem, FeishuConfigView } from '@next-wiki/shared';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { FeishuIntegrationPanel } from '@/components/admin/feishu/FeishuIntegrationPanel';
 import { ContentDataSourcesPanel } from '@/components/admin/ContentDataSourcesPanel';
+import { BotGeneralSettingsPanel } from '@/components/admin/bots/BotGeneralSettingsPanel';
 import { useTranslation } from '@/i18n/client';
 
 type BotsTab = 'general' | 'feishu';
@@ -25,9 +26,11 @@ function parseTab(value: string | null): BotsTab {
 export function BotsTabs({
   feishuConfig,
   dataSources,
+  generalSettings,
 }: {
   feishuConfig: FeishuConfigView;
   dataSources: ContentDataSourceItem[];
+  generalSettings: BotGeneralSettings;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -49,7 +52,12 @@ export function BotsTabs({
       selected={selected}
       onSelect={selectTab}
     >
-      {selected === 'general' && <ContentDataSourcesPanel initial={dataSources} />}
+      {selected === 'general' && (
+        <div className="space-y-xl">
+          <BotGeneralSettingsPanel initial={generalSettings} />
+          <ContentDataSourcesPanel initial={dataSources} />
+        </div>
+      )}
       {selected === 'feishu' && <FeishuIntegrationPanel initial={feishuConfig} />}
     </SettingsTabs>
   );

@@ -7,6 +7,7 @@ import {
   buildCommandMarkdown,
   canTransitionCall,
   canTransitionWorkflow,
+  collectToolCitations,
   createWorkflow,
   isTerminalWorkflowStatus,
   recordToolCall,
@@ -61,6 +62,27 @@ describe('ai tool runtime — transition guards', () => {
     expect(canTransitionCall('running', 'succeeded')).toBe(true);
     expect(canTransitionCall('succeeded', 'running')).toBe(false);
     expect(canTransitionCall('blocked', 'succeeded')).toBe(false);
+  });
+});
+
+describe('ai tool runtime — evidence citations', () => {
+  const page = {
+    pageId: crypto.randomUUID(),
+    title: 'Zhang Fei',
+    path: 'history/china/figures/zhang-fei',
+    locale: 'en',
+    revisionId: crypto.randomUUID(),
+    revisionHash: 'hash',
+    spaceSlug: 'default',
+  };
+
+  it('does not present search or list candidates as sources', () => {
+    expect(collectToolCitations('search_wiki', { items: [page] })).toEqual([]);
+    expect(collectToolCitations('list_pages', { items: [page] })).toEqual([]);
+  });
+
+  it('keeps a page whose content was actually read', () => {
+    expect(collectToolCitations('get_page', { ...page, contentSource: '# Zhang Fei' })).toEqual([page]);
   });
 });
 

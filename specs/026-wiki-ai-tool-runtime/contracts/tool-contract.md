@@ -30,7 +30,8 @@ Rules:
 
 - `requestedReview` values: `none`, `admin_review`.
 - `effectiveReview` values: `none`, `admin_review`.
-- Effective review can be stricter than requested review.
+- Effective review can be stricter than requested review for non-Admin actors.
+- Admin-initiated mutations resolve to `none`; they remain permission-checked, audited, and reversible without a self-review proposal.
 - Command markdown is retained in Conversation records.
 - Full result payloads are not retained in Conversation records by default.
 

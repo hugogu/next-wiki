@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { AiQuestionMode } from '@next-wiki/shared';
+import type { AiQuestionMode, AiSearchResult } from '@next-wiki/shared';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { searchResultsToSources, type QuestionSource } from '@/server/ai/prompts/wiki-question';
 import { db } from '@/server/db';
@@ -8,7 +8,15 @@ import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { retrieve } from '@/server/services/ai-retrieval';
+import { getBotGeneralSettings } from '@/server/services/bot-settings';
 import { loadReadableFullContext } from './full-context';
+
+export function filterWikiQuestionResults(
+  results: AiSearchResult[],
+  minimumScore: number,
+): AiSearchResult[] {
+  return results.filter((result) => result.score >= minimumScore);
+}
 
 export async function loadWikiQuestionSources(input: {
   ctx: PermCtx;
@@ -24,9 +32,12 @@ export async function loadWikiQuestionSources(input: {
     };
   }
 
-  const generation = await db.query.aiIndexGenerations.findFirst({
-    where: eq(schema.aiIndexGenerations.isActive, true),
-  });
+  const [generation, botSettings] = await Promise.all([
+    db.query.aiIndexGenerations.findFirst({
+      where: eq(schema.aiIndexGenerations.isActive, true),
+    }),
+    getBotGeneralSettings(),
+  ]);
   if (!generation || generation.status !== 'ready') {
     throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
   }
@@ -51,8 +62,11 @@ export async function loadWikiQuestionSources(input: {
     abortSignal: new AbortController().signal,
   });
 
+  const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8);
   return {
-    sources: searchResultsToSources(await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8)),
+    sources: searchResultsToSources(
+      filterWikiQuestionResults(results, botSettings.wikiQuestionMinRelevanceScore),
+    ),
     usage: embedded.usage ?? {},
   };
 }

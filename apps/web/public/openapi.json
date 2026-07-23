@@ -1643,6 +1643,10 @@
           "contentSource": {
             "type": "string",
             "maxLength": 500000
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 500000
           }
         },
         "required": [
@@ -2091,7 +2095,7 @@
           "limit": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 20
+            "maximum": 100
           }
         },
         "additionalProperties": false
@@ -5878,7 +5882,7 @@
           "limit": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 20
+            "maximum": 100
           }
         },
         "required": [
@@ -12219,6 +12223,60 @@
         }
       }
     },
+    "/settings/bots/general": {
+      "get": {
+        "operationId": "get-settings-bots-general",
+        "summary": "Get general bot settings",
+        "description": "",
+        "tags": [
+          "Bot Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-settings-bots-general",
+        "summary": "Update general bot settings",
+        "description": "",
+        "tags": [
+          "Bot Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feishu/bindings": {
       "post": {
         "operationId": "post-feishu-bindings",
@@ -17294,6 +17352,9 @@
     },
     {
       "name": "Auth"
+    },
+    {
+      "name": "Bot Admin"
     },
     {
       "name": "Feishu"

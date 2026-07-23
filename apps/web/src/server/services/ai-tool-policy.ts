@@ -27,8 +27,8 @@ import {
  * Server-enforced review-policy resolution (026, R4). The model may *request*
  * whether a mutating tool call needs review, but the effective decision is
  * always computed here from tool risk, the strictest applicable Admin policy,
- * the actor, and a per-tool system minimum. The effective decision can only be
- * equal to or stricter than what the assistant requested.
+ * the actor, and a per-tool system minimum. Admin-initiated calls bypass review
+ * because the initiating actor is already authorized to perform that review.
  */
 
 export type ToolPolicyRow = typeof schema.aiToolPolicies.$inferSelect;
@@ -93,8 +93,8 @@ export function resolveToolEnabled(tool: ToolDefinition, layers: PolicyLayers, p
 
 /**
  * Pure resolution of the effective review DECISION for a single tool call.
- * Read tools never require review. The decision is the strictest of the
- * effective policy's implication and the assistant's requested review.
+ * Read tools and Admin-initiated calls never require review. For other actors,
+ * the decision is the strictest of policy and the assistant's request.
  */
 export function resolveReviewDecision(
   tool: ToolDefinition,
@@ -103,12 +103,16 @@ export function resolveReviewDecision(
   isOwnerOrAdmin: boolean,
 ): AiToolReviewDecision {
   if (isReadOnlyTool(tool)) return 'none';
+  // An Admin is already the reviewer of record. Sending their own mutations
+  // through an Admin-review proposal adds no governance value and can strand
+  // otherwise authorized bot actions waiting on the initiating user.
+  if (isOwnerOrAdmin) return 'none';
   const policyImplied: AiToolReviewDecision = (() => {
     switch (effectiveReviewPolicy) {
       case 'always_review':
         return 'admin_review';
       case 'allow_immediate_for_owner':
-        return isOwnerOrAdmin ? 'none' : 'admin_review';
+        return 'admin_review';
       case 'review_when_requested':
         return 'none';
     }
