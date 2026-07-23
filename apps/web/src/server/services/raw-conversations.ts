@@ -3,6 +3,7 @@ import {
   rawConversationSourceMetadataSchema,
   type AiActionStatus,
   type AiCitation,
+  type ConversationSessionTurn,
   type ConversationSessionViewModel,
   type ConversationStatus,
   type RawConversationSourceMetadata,
@@ -60,7 +61,7 @@ export type ReconstructedConversation = {
   eventCursor: number;
 };
 
-type ConversationSessionTurn = {
+type CapturedConversationTurn = {
   action: AiActionRow;
   conversation: ReconstructedConversation;
 };
@@ -217,7 +218,7 @@ function buildTranscriptText(conversation: ReconstructedConversation): string {
   return lines.join('\n');
 }
 
-function buildSessionTranscriptText(turns: ConversationSessionTurn[]): string {
+function buildSessionTranscriptText(turns: CapturedConversationTurn[]): string {
   if (turns.length === 1) return buildTranscriptText(turns[0]!.conversation);
   const lines: string[] = ['# Conversation', ''];
   turns.forEach((turn, index) => {
@@ -320,6 +321,7 @@ function buildSourceMetadata(
   questionMode: RawConversationSourceMetadata['questionMode'] | null,
   conversation: ReconstructedConversation,
   channel: WikiAiChannel,
+  turns: ReconstructedConversation[],
 ): RawConversationSourceMetadata {
   return {
     inputKind: 'chat-transcript',
@@ -333,12 +335,14 @@ function buildSourceMetadata(
     answer: conversation.answer,
     thinking: conversation.thinking,
     citations: conversation.citations,
+    toolCalls: conversation.toolCalls,
     insufficient: conversation.insufficient,
     errorMessage: conversation.errorMessage,
     queuedAt: conversation.queuedAt,
     startedAt: conversation.startedAt,
     finishedAt: conversation.finishedAt,
     channel,
+    turns: turns.map(toConversationSessionTurn),
   };
 }
 
@@ -516,7 +520,7 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
           row.rawConversationCaptureStatus !== 'disabled' &&
           row.rawConversationCaptureStatus !== 'not_applicable',
       );
-      const turns: ConversationSessionTurn[] = [];
+      const turns: CapturedConversationTurn[] = [];
       for (const row of eligibleSessionActions) {
         const turn = await reconstructConversation(row.id, tx);
         if (turn && turn.eventCursor > 0) turns.push({ action: row, conversation: turn });
@@ -541,7 +545,13 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
       const [space, category] = await Promise.all([resolveRawSpace(), ensureConversationCategory()]);
       const transcript = buildSessionTranscriptText(turns);
       const channel = resolveConversationChannel(action.requestMetadata);
-      const sourceMetadata = buildSourceMetadata(actionId, action.questionMode, conversation, channel);
+      const sourceMetadata = buildSourceMetadata(
+        actionId,
+        action.questionMode,
+        conversation,
+        channel,
+        turns.map((turn) => turn.conversation),
+      );
       const firstTurn = turns[0]!;
       const pathKey = sessionKey?.value ?? actionId;
       const path = conversationPath(pathKey, firstTurn.action.queuedAt, channel);
@@ -607,12 +617,17 @@ export async function captureConversation(actionId: string): Promise<CaptureOutc
 /** Adapts a reconstructed conversation (or Raw revision metadata) into the
  * shared view model consumed by `ConversationSessionView`. */
 export function toConversationSessionViewModel(conversation: ReconstructedConversation): ConversationSessionViewModel {
+  return toConversationSessionTurn(conversation);
+}
+
+function toConversationSessionTurn(conversation: ReconstructedConversation): ConversationSessionTurn {
   return {
     status: conversation.status,
     question: conversation.question,
     answer: conversation.answer,
     thinking: conversation.thinking,
     citations: conversation.citations,
+    toolCalls: conversation.toolCalls,
     insufficient: conversation.insufficient,
     errorMessage: conversation.errorMessage,
     queuedAt: conversation.queuedAt,
@@ -637,7 +652,25 @@ export async function getLatestConversationSnapshot(pageId: string): Promise<Con
   if (!revision) return null;
   const parsed = rawConversationSourceMetadataSchema.safeParse(revision.sourceMetadata);
   if (!parsed.success) return null;
-  return sourceMetadataToViewModel(parsed.data);
+  const snapshot = sourceMetadataToViewModel(parsed.data);
+  if (snapshot.turns?.length) return snapshot;
+
+  // Sessions captured before the complete-session snapshot was introduced
+  // stored only the latest turn in source metadata. Rebuild the visible session
+  // from its still-retained action events so those existing Raw pages do not
+  // appear to have lost their earlier turns.
+  const actions = await db
+    .select({ id: schema.aiActions.id })
+    .from(schema.aiActions)
+    .where(eq(schema.aiActions.rawConversationPageId, pageId))
+    .orderBy(asc(schema.aiActions.queuedAt), asc(schema.aiActions.id));
+  const turns = (
+    await Promise.all(actions.map(async (action) => reconstructConversation(action.id)))
+  )
+    .filter((turn): turn is ReconstructedConversation => Boolean(turn))
+    .map(toConversationSessionTurn);
+
+  return turns.length > 1 ? { ...snapshot, turns } : snapshot;
 }
 
 export function sourceMetadataToViewModel(metadata: RawConversationSourceMetadata): ConversationSessionViewModel {
@@ -647,10 +680,12 @@ export function sourceMetadataToViewModel(metadata: RawConversationSourceMetadat
     answer: metadata.answer,
     thinking: metadata.thinking,
     citations: metadata.citations,
+    toolCalls: metadata.toolCalls ?? [],
     insufficient: metadata.insufficient,
     errorMessage: metadata.errorMessage,
     queuedAt: metadata.queuedAt,
     startedAt: metadata.startedAt,
     finishedAt: metadata.finishedAt,
+    ...(metadata.turns ? { turns: metadata.turns } : {}),
   };
 }

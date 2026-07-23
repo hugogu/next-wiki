@@ -58,6 +58,38 @@ describe('ConversationSessionView', () => {
     expect(html).toContain('Partial answer so far');
   });
 
+  it('renders every captured turn and keeps tool commands collapsed', () => {
+    const html = render(conversation({
+      turns: [
+        {
+          status: 'completed',
+          question: 'First question',
+          answer: 'First answer',
+          thinking: '',
+          citations: [],
+          insufficient: false,
+          errorMessage: null,
+        },
+        {
+          status: 'completed',
+          question: 'Second question',
+          answer: 'Second answer',
+          thinking: '',
+          citations: [],
+          toolCalls: [{ toolName: 'list_pages', status: 'succeeded', commandMarkdown: '```tool-call\\ntool: list_pages\\n```' }],
+          insufficient: false,
+          errorMessage: null,
+        },
+      ],
+    }));
+    expect(html).toContain('First question');
+    expect(html).toContain('First answer');
+    expect(html).toContain('Second question');
+    expect(html).toContain('Second answer');
+    expect(html).toContain('<summary class="cursor-pointer select-none">list_pages (succeeded)</summary>');
+    expect(html).toContain('tool: list_pages');
+  });
+
   it('renders open thinking for a still-running session and citations regardless of status', () => {
     const html = render(conversation({
       status: 'running',

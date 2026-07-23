@@ -144,7 +144,17 @@ describe('read tool permission projection (026)', () => {
     const result = await executeTool(readerCtx, listPagesTool, undefined, execCtx);
     expect(content.listPages).toHaveBeenCalledWith(
       readerCtx,
-      expect.objectContaining({ limit: 20, include: ['publishedRevision'] }),
+      expect.objectContaining({ limit: 100, include: ['publishedRevision'] }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts a model-requested page limit above the old 20-item cap', async () => {
+    content.listPages.mockResolvedValue({ items: [], nextCursor: null });
+    const result = await executeTool(readerCtx, listPagesTool, { pathPrefix: 'history/china', limit: 30 }, execCtx);
+    expect(content.listPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({ pathPrefix: 'history/china', limit: 30 }),
     );
     expect(result.ok).toBe(true);
   });

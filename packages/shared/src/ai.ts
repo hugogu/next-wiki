@@ -441,17 +441,32 @@ export type ConversationStatus = z.infer<typeof conversationStatusSchema>;
 
 /** Shared input for `ConversationSessionView`, reused by AI Chat History
  * detail and by the Raw Conversation reader. */
-export const conversationSessionViewModelSchema = z.object({
+export const conversationToolCallSchema = z.object({
+  toolName: z.string(),
+  status: z.string(),
+  commandMarkdown: z.string(),
+});
+export type ConversationToolCall = z.infer<typeof conversationToolCallSchema>;
+
+export const conversationSessionTurnSchema = z.object({
   status: z.enum(['queued', 'running', 'completed', 'failed', 'cancelled', 'expired']),
   question: z.string(),
   answer: z.string(),
   thinking: z.string(),
   citations: z.array(aiCitationSchema),
+  toolCalls: z.array(conversationToolCallSchema).optional(),
   insufficient: z.boolean(),
   errorMessage: z.string().nullable(),
   queuedAt: z.string().nullable().optional(),
   startedAt: z.string().nullable().optional(),
   finishedAt: z.string().nullable().optional(),
+});
+export type ConversationSessionTurn = z.infer<typeof conversationSessionTurnSchema>;
+
+export const conversationSessionViewModelSchema = conversationSessionTurnSchema.extend({
+  /** Present for captured multi-turn Raw conversations. Legacy and per-action
+   * history views continue to use the top-level turn fields. */
+  turns: z.array(conversationSessionTurnSchema).min(1).optional(),
 });
 export type ConversationSessionViewModel = z.infer<typeof conversationSessionViewModelSchema>;
 
@@ -713,6 +728,7 @@ export const rawConversationSourceMetadataSchema = z.object({
   answer: z.string(),
   thinking: z.string(),
   citations: z.array(aiCitationSchema),
+  toolCalls: z.array(conversationToolCallSchema).optional(),
   insufficient: z.boolean(),
   errorMessage: z.string().nullable(),
   queuedAt: z.string(),
@@ -722,6 +738,9 @@ export const rawConversationSourceMetadataSchema = z.object({
    * time from `ai_actions.requestMetadata.origin`. Absent on pre-025
    * captures; renderer and admin surfaces treat absence as `'wiki-ai'`. */
   channel: wikiAiChannelSchema.optional(),
+  /** Complete session snapshot for a coalesced Raw Conversation page. The
+   * top-level turn remains for backward compatibility and search projection. */
+  turns: z.array(conversationSessionTurnSchema).min(1).optional(),
 });
 export type RawConversationSourceMetadata = z.infer<typeof rawConversationSourceMetadataSchema>;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ConversationSessionViewModel } from '@next-wiki/shared';
+import type { ConversationSessionTurn, ConversationSessionViewModel } from '@next-wiki/shared';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
@@ -74,6 +74,7 @@ export function ConversationSessionView({
 }) {
   const { t } = useTranslation();
   const done = conversation.status !== 'running' && conversation.status !== 'queued';
+  const turns = conversation.turns?.length ? conversation.turns : [conversation];
 
   return (
     <div className="space-y-sm">
@@ -90,6 +91,29 @@ export function ConversationSessionView({
           )}
         </div>
       )}
+      {turns.map((turn, index) => (
+        <ConversationTurn
+          key={`${turn.queuedAt ?? 'turn'}-${index}`}
+          conversation={turn}
+          done={done}
+          t={t}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ConversationTurn({
+  conversation,
+  done,
+  t,
+}: {
+  conversation: ConversationSessionTurn;
+  done: boolean;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return (
+    <div className="space-y-sm">
       <div className="rounded-md bg-primary p-sm text-sm text-primary-text">{conversation.question}</div>
       <div className="space-y-sm rounded-md bg-surface-elevated p-sm text-sm">
         {conversation.thinking && <ChatThinking thinking={conversation.thinking} streaming={!done} />}
@@ -103,6 +127,12 @@ export function ConversationSessionView({
           <p className="text-muted">{t('ai.chat.conversationView.noAnswerYet')}</p>
         )}
         <ChatCitations citations={conversation.citations} />
+        {(conversation.toolCalls ?? []).map((call, index) => (
+          <details key={`${call.toolName}-${index}`} className="border-t border-border pt-xs text-xs text-muted">
+            <summary className="cursor-pointer select-none">{call.toolName} ({call.status})</summary>
+            {call.commandMarkdown && <pre className="mt-xs overflow-x-auto whitespace-pre-wrap font-mono">{call.commandMarkdown}</pre>}
+          </details>
+        ))}
       </div>
     </div>
   );

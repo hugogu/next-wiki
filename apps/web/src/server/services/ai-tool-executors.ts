@@ -47,7 +47,7 @@ export type ToolExecutionResult = {
   errorMessage?: string;
 };
 
-const MAX_LIST = 20;
+const MAX_LIST = 100;
 const READ_INCLUDE: PublicPageInclude[] = ['publishedRevision'];
 
 function fail(errorCode: string, errorMessage: string): ToolExecutionResult {
@@ -132,7 +132,7 @@ async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutio
   const page = args.pageId
     ? await content.getPageById(ctx, args.pageId, READ_INCLUDE)
     : await content.getPageByPath(ctx, args.path!, READ_INCLUDE);
-  if (!page) return fail('NOT_FOUND', 'No readable page matched.');
+  if (!page) return fail('NOT_FOUND', 'No readable page matched. Use search_wiki or list_pages to discover an exact readable path.');
   return {
     ok: true,
     summary: `Read page "${page.title}".`,

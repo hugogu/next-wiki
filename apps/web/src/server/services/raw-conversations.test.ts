@@ -185,6 +185,13 @@ describe('raw conversations service', () => {
       expect(latest?.contentSource).toContain('The plan adds a governed tool runtime.');
       expect(latest?.contentSource).toContain('## Turn 2');
       expect(latest?.contentSource).toContain('Created a reviewed draft page.');
+
+      const snapshot = await getLatestConversationSnapshot(first.pageId);
+      expect(snapshot?.turns).toHaveLength(2);
+      expect(snapshot?.turns?.map((turn) => turn.answer)).toEqual([
+        'The plan adds a governed tool runtime.',
+        'Created a reviewed draft page.',
+      ]);
     });
 
     it('captures tool-enabled wiki_question actions and records tool-call command markdown', async () => {
@@ -209,6 +216,10 @@ describe('raw conversations service', () => {
       const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.pageId, outcome.pageId) });
       expect(revision?.contentSource).toContain('## Tool Calls');
       expect(revision?.contentSource).toContain('tool: create_page');
+      const snapshot = await getLatestConversationSnapshot(outcome.pageId);
+      expect(snapshot?.toolCalls).toEqual([
+        expect.objectContaining({ toolName: 'create_page', status: 'succeeded' }),
+      ]);
     });
 
     it('is idempotent: re-running with no new events is a no-op', async () => {

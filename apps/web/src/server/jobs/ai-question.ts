@@ -122,6 +122,8 @@ function buildToolSystemPrompt(tools: ToolDefinition[]): string {
     'If the user asks to save, write, or turn previous conversation content into a',
     'wiki page, use create_page or save_draft with admin_review instead of only',
     'answering conversationally.',
+    'Never guess a page path for get_page. Use the baseline sources, search_wiki,',
+    'or list_pages first, then pass an exact returned path or pageId to get_page.',
   ].join('\n');
 }
 
