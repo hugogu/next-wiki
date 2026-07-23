@@ -44,6 +44,11 @@ async function cleanup() {
 }
 
 describe('publicPageCreateInputSchema', () => {
+  it('accepts underscores in path segments', () => {
+    const result = publicPageCreateInputSchema.parse({ path: 'schema_test/path_v2', title: 'A Title' });
+    expect(result.path).toBe('schema_test/path_v2');
+  });
+
   it('defaults contentSource to an empty string when omitted', () => {
     const result = publicPageCreateInputSchema.parse({ path: 'schema-test-a', title: 'A Title' });
     expect(result.contentSource).toBe('');

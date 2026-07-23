@@ -243,7 +243,7 @@ another user's password; confirm both changes take effect.
 - **FR-023**: System MUST let the author specify the page `path` (URL-safe,
   may contain `/`-separated segments such as `docs/intro/getting-started`) at
   creation. The `path` MUST be validated as lowercase letters, numbers,
-  hyphens, and slashes, with no leading, trailing, or consecutive slashes, and
+  hyphens, underscores, and slashes, with no leading, trailing, or consecutive slashes, and
   MUST be unique within the default space/locale. Conflicts MUST be rejected
   with a clear error. The `path` is editable after creation via the Page
   Properties screen; editing page content does not change the `path`.

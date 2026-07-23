@@ -219,7 +219,7 @@ matching the v1 REST API error code:
 | `FORBIDDEN` | "Permission denied: your API key lacks the required role or scope." |
 | `NOT_FOUND` | "Page not found or not visible to your API key." |
 | `STALE_REVISION` | "The page was edited since you last read it. Re-read and retry." |
-| `VALIDATION_FAILED` | "Invalid page path: must be lowercase with hyphens and slashes only." |
+| `VALIDATION_FAILED` | "Invalid page path: must be lowercase with hyphens, underscores, and slashes only." |
 | `PAGE_PATH_CONFLICT` | "A page with this path already exists." |
 
 The MCP Server does not invent its own error codes — it maps REST error codes

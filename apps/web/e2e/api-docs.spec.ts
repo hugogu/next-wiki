@@ -72,6 +72,7 @@ test.describe('api docs', () => {
       }),
     );
     expect(body.components.schemas.PublicPagePath.type).toBe('string');
+    expect(body.components.schemas.PublicPagePath.pattern).toBe('^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$');
     for (const path of [
       '/ai/settings',
       '/ai/providers',

@@ -9,14 +9,14 @@ export const slugSchema = z
     message: 'Slug must be lowercase letters, numbers, and hyphens, starting with a letter or number',
   });
 
-const pathRegex = /^[a-z0-9]([a-z0-9-/]*[a-z0-9])?$/;
+const pathRegex = /^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$/;
 
 export const pathSchema = z
   .string()
   .min(1)
   .max(200)
   .regex(pathRegex, {
-    message: 'Path must be lowercase letters, numbers, hyphens and slashes, with no leading/trailing/consecutive slashes',
+    message: 'Path must be lowercase letters, numbers, hyphens, underscores and slashes, with no leading/trailing/consecutive slashes',
   })
   .refine((value) => !value.includes('//'), {
     message: 'Path cannot contain consecutive slashes',

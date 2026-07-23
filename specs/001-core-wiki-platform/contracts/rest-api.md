@@ -157,7 +157,7 @@ Create a new page and its first draft version.
 
 | Field | Type | Notes |
 |---|---|---|
-| `path` | string | optional; lowercase letters, numbers, hyphens, slashes; no leading/trailing/consecutive slashes; unique within space/locale |
+| `path` | string | optional; lowercase letters, numbers, hyphens, underscores, slashes; no leading/trailing/consecutive slashes; unique within space/locale |
 | `title` | string | 1-200 chars |
 | `contentSource` | string | raw Markdown |
 
@@ -284,7 +284,7 @@ Update page properties. Currently the only mutable property is the page `path`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `path` | string | lowercase letters, numbers, hyphens, slashes; no leading/trailing/consecutive slashes; unique within space/locale |
+| `path` | string | lowercase letters, numbers, hyphens, underscores, slashes; no leading/trailing/consecutive slashes; unique within space/locale |
 
 **Response 200**:
 

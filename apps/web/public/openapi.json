@@ -3474,8 +3474,8 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 200,
-        "pattern": "^[a-z0-9]([a-z0-9-/]*[a-z0-9])?$",
-        "description": "Canonical wiki page path. Use lowercase slash-separated path segments."
+        "pattern": "^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$",
+        "description": "Canonical wiki page path. Use lowercase slash-separated path segments; hyphens and underscores are allowed."
       },
       "PublicPagePropertiesInput": {
         "type": "object",

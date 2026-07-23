@@ -24,7 +24,7 @@ Represents one wiki page as seen through the public content API.
 
 ### Validation
 
-- `path` follows existing path rules: lowercase letters, numbers, hyphens, and
+- `path` follows existing path rules: lowercase letters, numbers, hyphens, underscores, and
   slashes; no leading, trailing, or consecutive slashes.
 - `(space, path, locale)` remains the canonical identity.
 - Deleted or unreadable pages must appear as not found to unauthorized callers.
