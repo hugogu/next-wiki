@@ -647,12 +647,14 @@
       "status": {
         "draft": "Draft",
         "published": "Published",
+        "published_with_draft": "Published + draft",
         "deleted": "Deleted",
         "linked": "linked"
       },
       "actions": {
         "view": "View page",
         "edit": "Edit page",
+        "reviewDraft": "Review draft",
         "delete": "Delete page",
         "move": "Move to another space"
       },
@@ -1146,6 +1148,24 @@
         "actions": "Actions",
         "usage": "Usage"
       },
+      "prompts": {
+        "nav": "Prompts",
+        "title": "AI prompts",
+        "description": "Customize the system prompts that drive Wiki AI. Leave a field empty to use the built-in default.",
+        "assistant": {
+          "label": "Assistant system prompt",
+          "help": "The base persona and answering rules shared by Wiki AI question answering and the tool loop."
+        },
+        "tool": {
+          "label": "Tool system prompt",
+          "help": "Instructions for the governed tool loop. Keep the {{TOOLS}} marker and the fenced tool-call protocol so tools keep working; the live tool catalog is injected automatically."
+        },
+        "usingDefault": "Using default",
+        "reset": "Reset to default",
+        "save": "Save prompts",
+        "saved": "Prompts saved.",
+        "saveError": "Could not save prompts."
+      },
       "tools": {
         "nav": "Tools",
         "title": "Tools",
@@ -1550,6 +1570,20 @@
       "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation.",
       "tabs": {
         "general": "General"
+      },
+      "general": {
+        "runtime": {
+          "title": "AI runtime parameters",
+          "description": "Tune the Wiki AI tool loop. A per-provider tool policy limit still takes precedence over the max tool calls set here.",
+          "maxCalls": "Max tool calls per turn",
+          "temperature": "Planner temperature",
+          "maxOutputTokens": "Planner max output tokens",
+          "maxOutputTokensAuto": "Leave empty to use the built-in cap.",
+          "timeout": "Planner timeout (ms)",
+          "save": "Save parameters",
+          "saved": "Parameters saved.",
+          "saveError": "Could not save parameters."
+        }
       }
     },
     "feishu": {

@@ -1101,6 +1101,20 @@ export const aiSettings = pgTable('ai_settings', {
   cloudflareDetectorEnabled: boolean('cloudflare_detector_enabled').notNull().default(false),
   cloudflareAccountId: text('cloudflare_account_id'),
   cloudflareApiTokenEncrypted: text('cloudflare_api_token_encrypted'),
+  // 026: Wiki AI tool-runtime tuning, admin-editable from Bots > General. These
+  // override the hard-coded planner defaults; the per-provider tool policy's
+  // max_calls_per_turn still takes precedence over tool_max_calls when set.
+  toolMaxCalls: integer('tool_max_calls').notNull().default(100),
+  // Planner sampling temperature stored as hundredths (10 = 0.10, range 0-200).
+  toolPlannerTemperature: integer('tool_planner_temperature').notNull().default(10),
+  // Null keeps the built-in planner output cap.
+  toolPlannerMaxOutputTokens: integer('tool_planner_max_output_tokens'),
+  toolPlannerTimeoutMs: integer('tool_planner_timeout_ms').notNull().default(120_000),
+  // 026: Wiki AI runtime prompt overrides, admin-editable from AI > Prompts.
+  // Null uses the built-in default prompt; the machine-generated tool list and
+  // tool-call protocol are always appended by the runtime, never stored here.
+  assistantSystemPrompt: text('assistant_system_prompt'),
+  toolSystemPrompt: text('tool_system_prompt'),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

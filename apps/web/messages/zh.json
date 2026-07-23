@@ -647,12 +647,14 @@
       "status": {
         "draft": "草稿",
         "published": "已发布",
+        "published_with_draft": "已发布，有待审核草稿",
         "deleted": "已删除",
         "linked": "链接"
       },
       "actions": {
         "view": "查看页面",
         "edit": "编辑页面",
+        "reviewDraft": "审核草稿",
         "delete": "删除页面",
         "move": "移动到其他空间"
       },
@@ -1146,6 +1148,24 @@
         "actions": "运行记录",
         "usage": "用量统计"
       },
+      "prompts": {
+        "nav": "提示词",
+        "title": "AI 提示词",
+        "description": "自定义驱动 Wiki AI 的系统提示词。留空则使用内置默认值。",
+        "assistant": {
+          "label": "助手系统提示词",
+          "help": "Wiki AI 问答与工具循环共用的基础人设与回答规则。"
+        },
+        "tool": {
+          "label": "工具系统提示词",
+          "help": "受管工具循环的指令。请保留 {{TOOLS}} 占位符和围栏式工具调用协议以确保工具正常工作；实时工具目录会自动注入。"
+        },
+        "usingDefault": "使用默认值",
+        "reset": "恢复默认",
+        "save": "保存提示词",
+        "saved": "提示词已保存。",
+        "saveError": "无法保存提示词。"
+      },
       "tools": {
         "nav": "工具",
         "title": "工具",
@@ -1550,6 +1570,20 @@
       "description": "连接聊天机器人，让团队成员在聊天中直接向 Wiki 提问、搜索页面并接收更新通知。",
       "tabs": {
         "general": "通用"
+      },
+      "general": {
+        "runtime": {
+          "title": "AI 运行参数",
+          "description": "调整 Wiki AI 工具循环。此处设置的最大工具调用次数会被单个提供方的工具策略上限覆盖。",
+          "maxCalls": "每轮最大工具调用次数",
+          "temperature": "规划器温度",
+          "maxOutputTokens": "规划器最大输出 token",
+          "maxOutputTokensAuto": "留空则使用内置上限。",
+          "timeout": "规划器超时（毫秒）",
+          "save": "保存参数",
+          "saved": "参数已保存。",
+          "saveError": "无法保存参数。"
+        }
       }
     },
     "feishu": {

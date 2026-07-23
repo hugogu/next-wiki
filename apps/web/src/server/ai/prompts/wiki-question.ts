@@ -21,8 +21,20 @@ const WIKI_ASSISTANT_CORE_RULES = [
   'Format every mathematical expression using Markdown math syntax: wrap inline math in single dollar signs like $x^2$ and block or display math in double dollar signs on their own lines like $$\\int_0^1 x\\,dx$$. Never emit bare LaTeX without dollar-sign delimiters.',
 ];
 
-export function buildWikiAssistantSystemPrompt(additionalRules: string[] = []): string {
-  return [...WIKI_ASSISTANT_CORE_RULES, ...additionalRules].join('\n');
+/** Built-in default for the admin-editable assistant system prompt (AI > Prompts). */
+export const DEFAULT_ASSISTANT_SYSTEM_PROMPT = WIKI_ASSISTANT_CORE_RULES.join('\n');
+
+/**
+ * Compose the assistant system prompt. `coreOverride` (an admin-configured
+ * prompt) replaces the built-in core rules when provided; `additionalRules` are
+ * always appended (e.g. the tool-usage section).
+ */
+export function buildWikiAssistantSystemPrompt(
+  additionalRules: string[] = [],
+  coreOverride?: string | null,
+): string {
+  const core = coreOverride?.trim() ? coreOverride : DEFAULT_ASSISTANT_SYSTEM_PROMPT;
+  return [core, ...additionalRules].join('\n');
 }
 
 export function buildWikiQuestionPrompt(

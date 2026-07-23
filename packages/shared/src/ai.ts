@@ -232,6 +232,70 @@ export const aiSettingsUpdateSchema = z.object({
 });
 export type AiSettingsUpdate = z.infer<typeof aiSettingsUpdateSchema>;
 
+// ---- 026: Wiki AI runtime tuning (params in Bots > General, prompts in AI > Prompts) ----
+
+export const TOOL_MAX_CALLS_MIN = 1;
+export const TOOL_MAX_CALLS_MAX = 100;
+export const TOOL_PLANNER_TEMPERATURE_MIN = 0;
+export const TOOL_PLANNER_TEMPERATURE_MAX = 2;
+export const TOOL_PLANNER_TIMEOUT_MS_MIN = 5_000;
+export const TOOL_PLANNER_TIMEOUT_MS_MAX = 600_000;
+export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN = 256;
+export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX = 32_000;
+export const AI_RUNTIME_PROMPT_MAX_LENGTH = 20_000;
+
+export const aiRuntimeParamsUpdateSchema = z.object({
+  toolMaxCalls: z.number().int().min(TOOL_MAX_CALLS_MIN).max(TOOL_MAX_CALLS_MAX).optional(),
+  plannerTemperature: z
+    .number()
+    .min(TOOL_PLANNER_TEMPERATURE_MIN)
+    .max(TOOL_PLANNER_TEMPERATURE_MAX)
+    .optional(),
+  plannerMaxOutputTokens: z
+    .number()
+    .int()
+    .min(TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN)
+    .max(TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX)
+    .nullable()
+    .optional(),
+  plannerTimeoutMs: z
+    .number()
+    .int()
+    .min(TOOL_PLANNER_TIMEOUT_MS_MIN)
+    .max(TOOL_PLANNER_TIMEOUT_MS_MAX)
+    .optional(),
+});
+export type AiRuntimeParamsUpdate = z.infer<typeof aiRuntimeParamsUpdateSchema>;
+
+export const aiRuntimePromptsUpdateSchema = z.object({
+  // Null clears the override and restores the built-in default prompt.
+  assistantSystemPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
+  toolSystemPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
+});
+export type AiRuntimePromptsUpdate = z.infer<typeof aiRuntimePromptsUpdateSchema>;
+
+export const aiRuntimeSettingsUpdateSchema = aiRuntimeParamsUpdateSchema.merge(aiRuntimePromptsUpdateSchema);
+export type AiRuntimeSettingsUpdate = z.infer<typeof aiRuntimeSettingsUpdateSchema>;
+
+export const aiRuntimeSettingsViewSchema = z.object({
+  params: z.object({
+    toolMaxCalls: z.number().int(),
+    plannerTemperature: z.number(),
+    plannerMaxOutputTokens: z.number().int().nullable(),
+    plannerTimeoutMs: z.number().int(),
+  }),
+  prompts: z.object({
+    // Null means the built-in default is in effect (no admin override stored).
+    assistantSystemPrompt: z.string().nullable(),
+    toolSystemPrompt: z.string().nullable(),
+  }),
+  defaults: z.object({
+    assistantSystemPrompt: z.string(),
+    toolSystemPrompt: z.string(),
+  }),
+});
+export type AiRuntimeSettingsView = z.infer<typeof aiRuntimeSettingsViewSchema>;
+
 export const aiProviderCredentialsSchema = z
   .object({
     apiKey: z.string().min(1).max(8_192).optional(),

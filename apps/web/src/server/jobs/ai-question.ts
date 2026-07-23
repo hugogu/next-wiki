@@ -2,7 +2,6 @@ import { eq } from 'drizzle-orm';
 import type { AiCitation, AiQuestionMode, AiToolReviewDecision } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { env } from '@/server/config';
 import { buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
@@ -40,6 +39,7 @@ import {
   type ToolPlanner,
 } from '@/server/services/ai-tool-runtime';
 import { listToolDefinitions, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { resolveAiRuntimeConfig } from '@/server/services/ai-runtime-settings';
 import {
   nudgeAnswerDelivery,
   toFeishuCitations,
@@ -76,7 +76,6 @@ type ToolEnabledQuestionInput = {
 // reports the request exceeded its context window. Sources are halved each
 // time, so three retries send as little as ~1/8 of the original body.
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
-const DEFAULT_TOOL_MAX_CALLS = 100;
 const MAX_TOOL_PROTOCOL_RETRIES = 3;
 const MAX_TOOL_PLANNER_OUTPUT_TOKENS = 4096;
 
@@ -257,7 +256,9 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     );
   const enabledTools = listToolDefinitions().filter(isEnabled);
   const providerDefault = policyRows.find((row) => row.toolName == null && row.category == null);
-  const maxCalls = providerDefault?.maxCallsPerTurn ?? DEFAULT_TOOL_MAX_CALLS;
+  // Admin-tunable runtime config (Bots > General params, AI > Prompts prompts).
+  const runtimeConfig = await resolveAiRuntimeConfig();
+  const maxCalls = providerDefault?.maxCallsPerTurn ?? runtimeConfig.maxToolCalls;
 
   // Ensure the workflow record exists and is running.
   let workflow = (await getWorkflowByAction(actionId)) ?? null;
@@ -269,7 +270,10 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   }
 
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
-  const system = buildWikiToolSystemPrompt(enabledTools);
+  const system = buildWikiToolSystemPrompt(enabledTools, {
+    assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
+    toolSystemPrompt: runtimeConfig.toolSystemPrompt,
+  });
   const planner: ToolPlanner = async (state) => {
     const basePrompt = buildPlannerUserPrompt(state);
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
@@ -285,15 +289,15 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
           system,
           messages: [{ role: 'user', content: prompt }],
           maxOutputTokens: Math.min(
-            MAX_TOOL_PLANNER_OUTPUT_TOKENS,
+            runtimeConfig.plannerMaxOutputTokens ?? MAX_TOOL_PLANNER_OUTPUT_TOKENS,
             computeAnswerMaxOutputTokens(
               estimatePromptTokens(system, prompt),
               textModel.contextWindow,
               textModel.maxOutputTokens,
             ),
           ),
-          temperature: 0.1,
-          timeoutMs: env.AI_PROVIDER_TOOL_PLANNER_TIMEOUT_MS,
+          temperature: runtimeConfig.plannerTemperature,
+          timeoutMs: runtimeConfig.plannerTimeoutMs,
           abortSignal: new AbortController().signal,
         })) {
           if (event.type === 'delta') output += event.text;

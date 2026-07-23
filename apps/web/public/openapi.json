@@ -1647,6 +1647,9 @@
           "content": {
             "type": "string",
             "maxLength": 500000
+          },
+          "contentFromConversation": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -5863,12 +5866,14 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 500000
+          },
+          "contentFromConversation": {
+            "type": "boolean"
           }
         },
         "required": [
           "pageId",
-          "title",
-          "contentSource"
+          "title"
         ]
       },
       "searchArgs": {
@@ -9910,6 +9915,60 @@
                     "vendor",
                     "hasCredentials"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/runtime-settings": {
+      "get": {
+        "operationId": "get-ai-runtime-settings",
+        "summary": "Get Wiki AI runtime settings @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-ai-runtime-settings",
+        "summary": "Update Wiki AI runtime settings @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }

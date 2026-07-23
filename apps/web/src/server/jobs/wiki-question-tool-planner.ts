@@ -14,27 +14,58 @@ export type ToolPlannerState = {
 
 export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls' };
 
-export function buildWikiToolSystemPrompt(tools: ToolDefinition[]): string {
+/** Marker in the tool system prompt where the runtime injects the live,
+ * policy-filtered tool catalog. Kept out of admin storage so enabling/disabling
+ * a tool never requires editing the prompt. */
+export const TOOL_CATALOG_PLACEHOLDER = '{{TOOLS}}';
+
+/**
+ * Built-in default for the admin-editable tool system prompt (AI > Prompts).
+ * The `{{TOOLS}}` placeholder is replaced at runtime with the current enabled
+ * tool catalog; the fenced tool-call protocol MUST be preserved for tool
+ * calling to work (the Prompts UI offers a reset to this default).
+ */
+export const DEFAULT_TOOL_SYSTEM_PROMPT = [
+  'You can inspect and prepare governed changes to this Wiki with the tools listed below. Tool availability and permissions are enforced by the server.',
+  'Treat tool results as authoritative for whether an operation succeeded. Never claim a Wiki operation succeeded before receiving a successful tool result.',
+  'When the user explicitly asks you to create, edit, organize, or otherwise operate on the Wiki, perform the appropriate tool calls instead of merely explaining what could be done.',
+  'Durable knowledge changes must remain permission-scoped, audited, reviewable, and reversible; follow the review disposition and outcome returned by the server.',
+  'Available tools:',
+  TOOL_CATALOG_PLACEHOLDER,
+  '',
+  'To use tools, reply with ONLY a fenced code block and nothing else:',
+  '```tool',
+  '{"tool_calls":[{"tool":"search_wiki","arguments":{"query":"..."},"review":"none"}]}',
+  '```',
+  'Set "review" to "admin_review" for changes that should be reviewed. After receiving tool results, either call more tools in the same format or write the final answer as plain prose.',
+  'Baseline Wiki sources are provided in the user prompt. Tool-read pages are cited through the tool runtime.',
+  'Do not repeat semantically equivalent searches. After a few reasonable attempts, answer with the best available knowledge instead of searching again.',
+  'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
+  'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
+  'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
+].join('\n');
+
+export type WikiToolPromptOverrides = {
+  assistantSystemPrompt?: string | null;
+  toolSystemPrompt?: string | null;
+};
+
+/**
+ * Compose the tool-enabled system prompt. Admin-configured `assistantSystemPrompt`
+ * and `toolSystemPrompt` (from AI > Prompts) override the built-in defaults; the
+ * live tool catalog is always injected at `{{TOOLS}}` (appended if the admin
+ * removed the marker) so tool availability stays machine-controlled.
+ */
+export function buildWikiToolSystemPrompt(
+  tools: ToolDefinition[],
+  overrides: WikiToolPromptOverrides = {},
+): string {
   const toolList = tools.map((tool) => `- ${tool.name} (${tool.category}): ${tool.description}`).join('\n');
-  return buildWikiAssistantSystemPrompt([
-    'You can inspect and prepare governed changes to this Wiki with the tools listed below. Tool availability and permissions are enforced by the server.',
-    'Treat tool results as authoritative for whether an operation succeeded. Never claim a Wiki operation succeeded before receiving a successful tool result.',
-    'When the user explicitly asks you to create, edit, organize, or otherwise operate on the Wiki, perform the appropriate tool calls instead of merely explaining what could be done.',
-    'Durable knowledge changes must remain permission-scoped, audited, reviewable, and reversible; follow the review disposition and outcome returned by the server.',
-    'Available tools:',
-    toolList,
-    '',
-    'To use tools, reply with ONLY a fenced code block and nothing else:',
-    '```tool',
-    '{"tool_calls":[{"tool":"search_wiki","arguments":{"query":"..."},"review":"none"}]}',
-    '```',
-    'Set "review" to "admin_review" for changes that should be reviewed. After receiving tool results, either call more tools in the same format or write the final answer as plain prose.',
-    'Baseline Wiki sources are provided in the user prompt. Tool-read pages are cited through the tool runtime.',
-    'Do not repeat semantically equivalent searches. After a few reasonable attempts, answer with the best available knowledge instead of searching again.',
-    'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
-    'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
-    'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
-  ]);
+  const template = overrides.toolSystemPrompt?.trim() ? overrides.toolSystemPrompt : DEFAULT_TOOL_SYSTEM_PROMPT;
+  const toolSection = template.includes(TOOL_CATALOG_PLACEHOLDER)
+    ? template.replaceAll(TOOL_CATALOG_PLACEHOLDER, toolList)
+    : `${template}\n\nAvailable tools:\n${toolList}`;
+  return buildWikiAssistantSystemPrompt([toolSection], overrides.assistantSystemPrompt);
 }
 
 export function extractTaggedThinking(output: string): string {

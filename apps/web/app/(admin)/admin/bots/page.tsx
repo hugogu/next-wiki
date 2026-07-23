@@ -6,6 +6,7 @@ import { can } from '@/server/permissions';
 import { getCurrentActor } from '@/server/services/auth';
 import { getConfigView } from '@/server/services/feishu-config';
 import { listDataSources } from '@/server/services/content-data-sources';
+import { getAiRuntimeSettings } from '@/server/services/ai-runtime-settings';
 import { getDictionary, getLocale } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -21,9 +22,10 @@ export default async function AdminBotsPage() {
 
   const locale = await getLocale();
   const t = getDictionary(locale);
-  const [config, dataSources] = await Promise.all([
+  const [config, dataSources, runtimeSettings] = await Promise.all([
     getConfigView({ actor }),
     listDataSources({ actor }),
+    getAiRuntimeSettings({ actor }),
   ]);
   return (
     <Layout admin>
@@ -32,7 +34,7 @@ export default async function AdminBotsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.bots.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.bots.description')}</p>
         </div>
-        <BotsTabs feishuConfig={config} dataSources={dataSources} />
+        <BotsTabs feishuConfig={config} dataSources={dataSources} runtimeSettings={runtimeSettings} />
       </div>
     </Layout>
   );

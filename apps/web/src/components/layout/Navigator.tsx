@@ -327,6 +327,11 @@ export function Navigator({
           icon: <BotIcon className="shrink-0" />,
         },
         {
+          href: '/admin/ai/prompts',
+          label: t('admin.ai.prompts.nav'),
+          icon: <PenSparkIcon className="shrink-0" />,
+        },
+        {
           href: '/admin/translations',
           label: t('admin.nav.translations'),
           icon: <LanguagesIcon className="shrink-0" />,
@@ -577,7 +582,8 @@ export function Navigator({
                   pathname === item.href ||
                   (item.href === '/admin/ai' &&
                     pathname.startsWith('/admin/ai/') &&
-                    !pathname.startsWith('/admin/ai/tools')) ||
+                    !pathname.startsWith('/admin/ai/tools') &&
+                    !pathname.startsWith('/admin/ai/prompts')) ||
                   (item.href === '/admin/ai/tools' && pathname.startsWith('/admin/ai/tools/'));
                 return (
                   <li key={item.href}>
