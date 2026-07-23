@@ -466,6 +466,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         workflowId: params.workflowId,
         toolCallId: call.id,
         actionId: params.actionId,
+        conversation: state.conversation,
       });
 
       if (result.ok) {

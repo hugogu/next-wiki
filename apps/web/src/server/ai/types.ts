@@ -58,6 +58,7 @@ export type TextGenerationInput = {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   maxOutputTokens?: number;
   temperature?: number;
+  timeoutMs?: number;
   abortSignal: AbortSignal;
 };
 export type TextGenerationEvent =
@@ -149,7 +150,11 @@ export function isContextLengthExceededError(error: unknown): boolean {
 
 export function normalizeProviderError(error: unknown): AiProviderError {
   if (error instanceof AiProviderError) return error;
-  if (error instanceof DOMException && error.name === 'AbortError') {
+  const errorName = error instanceof Error ? error.name : undefined;
+  if (errorName === 'TimeoutError') {
+    return new AiProviderError('TIMEOUT', 'AI provider response timed out', true);
+  }
+  if (errorName === 'AbortError') {
     return new AiProviderError('CANCELLED', 'AI request was cancelled');
   }
   const value = error as { code?: unknown; message?: unknown };

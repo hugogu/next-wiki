@@ -129,7 +129,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
         temperature: input.temperature,
         stream_options: { include_usage: true },
       }),
-    });
+    }, input.timeoutMs);
     const requestId = response.headers.get('x-request-id');
     if (requestId) yield { type: 'provider_request_id', id: requestId };
     if (!response.body) throw new AiProviderError('INVALID_RESPONSE', 'Provider stream is empty');

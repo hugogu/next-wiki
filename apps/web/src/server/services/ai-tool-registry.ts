@@ -113,7 +113,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'create',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Create a new page as a draft revision for review. Args: path, title, contentSource.',
+    description: 'Create a new page as a draft revision for review. Args: path, title, and either contentSource or contentFromConversation=true.',
   },
   {
     name: 'save_draft',
@@ -122,7 +122,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Save a new draft revision of an existing page for review.',
+    description: 'Save a new draft revision of an existing page for review. Use contentFromConversation=true to reuse the latest assistant answer.',
   },
   {
     name: 'update_page_metadata',

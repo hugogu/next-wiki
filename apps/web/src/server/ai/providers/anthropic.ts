@@ -80,7 +80,7 @@ export class AnthropicAdapter implements AiProviderAdapter {
         temperature: input.temperature,
         stream: true,
       }),
-    });
+    }, input.timeoutMs);
     const requestId = response.headers.get('request-id');
     if (requestId) yield { type: 'provider_request_id', id: requestId };
     if (!response.body) throw new AiProviderError('INVALID_RESPONSE', 'Provider stream is empty');

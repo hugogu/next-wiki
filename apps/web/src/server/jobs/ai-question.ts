@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { AiCitation, AiQuestionMode, AiToolReviewDecision } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { env } from '@/server/config';
 import { buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
@@ -12,7 +13,7 @@ import {
   estimatePromptTokens,
   normalizeQuestionCitations,
 } from '@/server/ai/prompts/wiki-question';
-import { isContextLengthExceededError } from '@/server/ai/types';
+import { AiProviderError, isContextLengthExceededError, normalizeProviderError } from '@/server/ai/types';
 import { loadWikiQuestionSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
@@ -72,6 +73,7 @@ type ToolEnabledQuestionInput = {
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
 const DEFAULT_TOOL_MAX_CALLS = 100;
 const MAX_TOOL_PROTOCOL_RETRIES = 3;
+const MAX_TOOL_PLANNER_OUTPUT_TOKENS = 4096;
 
 function appendSourceLinks(answer: string, citations: AiCitation[]): string {
   if (citations.length === 0) return answer;
@@ -123,7 +125,9 @@ function buildToolSystemPrompt(tools: ToolDefinition[]): string {
     'If the user asks to save, write, or turn previous conversation content into a',
     'wiki page, use create_page or save_draft with admin_review instead of only',
     'answering conversationally.',
-    'For create_page, use arguments path, title, and contentSource.',
+    'For create_page, use arguments path, title, and contentSource. When saving',
+    'the latest assistant answer from this conversation, use',
+    'contentFromConversation=true instead of repeating that answer in contentSource.',
     'Never guess a page path for get_page. Use the baseline sources, search_wiki,',
     'or list_pages first, then pass an exact returned path or pageId to get_page.',
   ].join('\n');
@@ -303,20 +307,36 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
         : '';
       const prompt = `${basePrompt}${retryInstruction}`;
       let output = '';
-      for await (const event of adapter.streamText({
-        actionId,
-        modelExternalId: textModel.externalId,
-        system,
-        messages: [{ role: 'user', content: prompt }],
-        maxOutputTokens: computeAnswerMaxOutputTokens(
-          estimatePromptTokens(system, prompt),
-          textModel.contextWindow,
-          textModel.maxOutputTokens,
-        ),
-        temperature: 0.1,
-        abortSignal: new AbortController().signal,
-      })) {
-        if (event.type === 'delta') output += event.text;
+      try {
+        for await (const event of adapter.streamText({
+          actionId,
+          modelExternalId: textModel.externalId,
+          system,
+          messages: [{ role: 'user', content: prompt }],
+          maxOutputTokens: Math.min(
+            MAX_TOOL_PLANNER_OUTPUT_TOKENS,
+            computeAnswerMaxOutputTokens(
+              estimatePromptTokens(system, prompt),
+              textModel.contextWindow,
+              textModel.maxOutputTokens,
+            ),
+          ),
+          temperature: 0.1,
+          timeoutMs: env.AI_PROVIDER_TOOL_PLANNER_TIMEOUT_MS,
+          abortSignal: new AbortController().signal,
+        })) {
+          if (event.type === 'delta') output += event.text;
+        }
+      } catch (error) {
+        const normalized = normalizeProviderError(error);
+        if (normalized.code === 'TIMEOUT') {
+          throw new AiProviderError(
+            'TIMEOUT',
+            'The AI provider timed out while preparing the next Wiki action.',
+            true,
+          );
+        }
+        throw normalized;
       }
       const parsed = parseToolPlan(output);
       if (parsed.kind !== 'invalid_tool_calls') return parsed;

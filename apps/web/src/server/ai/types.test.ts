@@ -1,4 +1,4 @@
-import { AiProviderError, isContextLengthExceededError } from './types';
+import { AiProviderError, isContextLengthExceededError, normalizeProviderError } from './types';
 
 describe('isContextLengthExceededError', () => {
   it('recognizes the OpenRouter maximum-context-length 400', () => {
@@ -25,5 +25,18 @@ describe('isContextLengthExceededError', () => {
 
   it('ignores non-provider errors', () => {
     expect(isContextLengthExceededError(new Error('maximum context length'))).toBe(false);
+  });
+});
+
+describe('normalizeProviderError', () => {
+  it('recognizes a timeout raised while reading a response stream', () => {
+    const error = new Error('The operation was aborted due to timeout');
+    error.name = 'TimeoutError';
+
+    expect(normalizeProviderError(error)).toMatchObject({
+      code: 'TIMEOUT',
+      message: 'AI provider response timed out',
+      retryable: true,
+    });
   });
 });

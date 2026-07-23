@@ -28,12 +28,12 @@ async function seedToolEnabledQuestionAction(): Promise<string> {
   return action!.id;
 }
 
-async function seedUserCtx(): Promise<{ userId: string; ctx: PermCtx }> {
+async function seedUserCtx(role: 'reader' | 'editor' = 'reader'): Promise<{ userId: string; ctx: PermCtx }> {
   const [user] = await db
     .insert(schema.users)
-    .values({ email: `loop-${crypto.randomUUID()}@example.com`, passwordHash: 'HASH', role: 'reader', status: 'active' })
+    .values({ email: `loop-${crypto.randomUUID()}@example.com`, passwordHash: 'HASH', role, status: 'active' })
     .returning({ id: schema.users.id });
-  return { userId: user!.id, ctx: buildUserCtx(user!.id, 'reader') };
+  return { userId: user!.id, ctx: buildUserCtx(user!.id, role) };
 }
 
 function scriptedPlanner(steps: ToolPlanStep[]): ToolPlanner {
@@ -237,6 +237,48 @@ describe('ai tool runtime — bounded loop', () => {
     expect(result.status).toBe('completed');
     const calls = await db.query.aiToolCalls.findMany({ where: (c, { eq }) => eq(c.workflowId, workflow.id) });
     expect(calls[0]?.status).toBe('failed');
+  });
+
+  it('creates a page from the latest assistant answer without echoing it in tool arguments', async () => {
+    await db.insert(schema.spaces).values({ slug: 'default', name: 'Default' }).onConflictDoNothing();
+    const { userId, ctx: editorCtx } = await seedUserCtx('editor');
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: userId, maxCalls: 5 });
+    await transitionWorkflow(workflow.id, 'running');
+    const path = `conversation-pages/${crypto.randomUUID()}`;
+    const answer = '# Guan Yu\n\nThe latest assistant answer.';
+
+    const result = await runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx: editorCtx,
+      actorUserId: userId,
+      question: 'Create a page from the answer above.',
+      conversation: [{ question: 'Introduce Guan Yu.', answer }],
+      planner: scriptedPlanner([
+        {
+          kind: 'tool_calls',
+          calls: [{
+            toolName: 'create_page',
+            arguments: { path, title: 'Guan Yu', contentFromConversation: true },
+            requestedReview: 'none',
+          }],
+        },
+        { kind: 'final', text: 'Created.' },
+      ]),
+      resolveReview: noReview,
+      isEnabled: allowAll,
+    });
+
+    expect(result.status).toBe('completed');
+    const [call] = await db.query.aiToolCalls.findMany({
+      where: (calls, { eq }) => eq(calls.workflowId, workflow.id),
+    });
+    expect(call?.status, `${call?.errorCode}: ${call?.errorMessage}`).toBe('succeeded');
+    const page = await db.query.pages.findFirst({ where: (pages, { eq }) => eq(pages.path, path) });
+    const revision = page
+      ? await db.query.pageRevisions.findFirst({ where: (revisions, { eq }) => eq(revisions.pageId, page.id) })
+      : null;
+    expect(revision?.contentSource).toBe(answer);
   });
 
   it('blocks a disabled tool without executing it', async () => {

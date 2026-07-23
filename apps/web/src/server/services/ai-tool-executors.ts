@@ -32,6 +32,7 @@ export type ToolExecutionContext = {
   workflowId: string;
   toolCallId: string;
   actionId: string;
+  conversation?: { question: string; answer: string }[];
 };
 
 export type ToolExecutionResult = {
@@ -91,12 +92,20 @@ const createPageArgs = z
     // Compatibility for models that use the public API's generic content
     // vocabulary despite the documented MCP argument name.
     content: z.string().max(500_000).optional(),
+    contentFromConversation: z.boolean().optional(),
   })
   .transform(({ content, ...args }) => ({
     ...args,
     contentSource: args.contentSource ?? content ?? '',
   }));
-const saveDraftArgs = z.object({ pageId: z.string().uuid(), title: z.string().min(1).max(200), contentSource: z.string().min(1).max(500_000) });
+const saveDraftArgs = z.object({
+  pageId: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  contentSource: z.string().min(1).max(500_000).optional(),
+  contentFromConversation: z.boolean().optional(),
+}).refine((args) => args.contentFromConversation || args.contentSource, {
+  message: 'Either contentSource or contentFromConversation is required.',
+});
 const propertiesArgs = z.object({ pageId: z.string().uuid(), title: z.string().min(1).max(200).optional(), path: z.string().min(1).max(200).optional() });
 const metadataArgs = z.object({
   pageId: z.string().uuid(),
@@ -187,15 +196,35 @@ async function execListTags(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecuti
 
 // ---- Page-content write executors (drafts are the reviewable artifact) -------
 
-async function execCreatePage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+function resolvePageContent(
+  args: { contentSource?: string; contentFromConversation?: boolean },
+  execCtx: ToolExecutionContext,
+): string {
+  if (!args.contentFromConversation) return args.contentSource ?? '';
+  const conversation = execCtx.conversation ?? [];
+  for (let index = conversation.length - 1; index >= 0; index -= 1) {
+    const answer = conversation[index]?.answer;
+    if (answer?.trim()) return answer;
+  }
+  throw new DomainError('BAD_REQUEST', 'No previous assistant answer is available to save.');
+}
+
+async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = createPageArgs.parse(rawArgs);
-  const page = await content.createPage(ctx, { path: args.path, title: args.title, contentSource: args.contentSource ?? '' });
+  const page = await content.createPage(ctx, {
+    path: args.path,
+    title: args.title,
+    contentSource: resolvePageContent(args, execCtx),
+  });
   return { ok: true, summary: `Created draft page "${page.title}".`, draftPageId: page.id, data: { pageId: page.id, path: page.path } };
 }
 
-async function execSaveDraft(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = saveDraftArgs.parse(rawArgs);
-  const revision = await content.createDraft(ctx, args.pageId, { title: args.title, contentSource: args.contentSource });
+  const revision = await content.createDraft(ctx, args.pageId, {
+    title: args.title,
+    contentSource: resolvePageContent(args, execCtx),
+  });
   return { ok: true, summary: `Saved draft revision v${revision.version}.`, draftPageId: args.pageId, data: { pageId: args.pageId, version: revision.version } };
 }
 
@@ -373,8 +402,8 @@ const EXECUTORS: Record<string, Executor> = {
   get_backlinks: (ctx, args) => execGetBacklinks(ctx, args),
   get_neighborhood: (ctx, args) => execGetNeighborhood(ctx, args),
   list_tags: (ctx, args) => execListTags(ctx, args),
-  create_page: (ctx, args) => execCreatePage(ctx, args),
-  save_draft: (ctx, args) => execSaveDraft(ctx, args),
+  create_page: execCreatePage,
+  save_draft: execSaveDraft,
   update_page_properties: execUpdatePageProperties,
   update_page_metadata: execUpdatePageMetadata,
   replace_page_tags: execReplacePageTags,
