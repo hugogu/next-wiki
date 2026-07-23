@@ -1995,7 +1995,11 @@
         "invalidResponse": "AI 未能生成有效的 Wiki 操作，请重试或换一种说法。",
         "providerUnavailable": "AI 服务暂时不可用，请稍后重试。",
         "rateLimited": "AI 服务当前繁忙，请稍后重试。",
-        "requestFailed": "回复意外中断，请重试。"
+        "connectionFailed": "无法连接 Wiki AI，请重试。",
+        "sessionExpired": "登录状态已失效，请重新登录后使用 Wiki AI。",
+        "invalidRequest": "Wiki AI 无法使用当前会话上下文，请新建会话后重试。",
+        "notAvailable": "Wiki AI 当前不可用，请检查 AI 配置或账号权限。",
+        "requestFailed": "Wiki AI 无法开始本次请求，请重试。"
       },
       "tools": {
         "title": "工具活动",

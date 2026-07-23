@@ -5,10 +5,15 @@ const services = vi.hoisted(() => ({
   createToolEnabledWikiQuestion: vi.fn(),
   createWikiQuestion: vi.fn(),
 }));
+const log = vi.hoisted(() => ({
+  error: vi.fn(),
+  warn: vi.fn(),
+}));
 vi.mock('@/server/api/session', () => ({
   createApiContext: vi.fn(async () => ({ actor: { kind: 'user', userId: 'u1', role: 'editor' } })),
 }));
 vi.mock('@/server/services/ai-question', () => services);
+vi.mock('@/server/logger', () => ({ logger: log }));
 
 import * as questionsRoute from './route';
 
@@ -26,6 +31,8 @@ describe('POST /api/ai/questions — additive tools option', () => {
   beforeEach(() => {
     services.createWikiQuestion.mockReset();
     services.createToolEnabledWikiQuestion.mockReset();
+    log.error.mockReset();
+    log.warn.mockReset();
     services.createWikiQuestion.mockResolvedValue({ id: 'q1', feature: 'wiki_question', status: 'queued', eventsUrl: '/e' });
   });
 
@@ -81,5 +88,21 @@ describe('POST /api/ai/questions — additive tools option', () => {
       expect.anything(),
       expect.objectContaining({ requestMetadata: { origin: 'web' } }),
     );
+  });
+
+  it('logs unexpected action-creation failures without exposing them in the response', async () => {
+    services.createToolEnabledWikiQuestion.mockRejectedValue(new Error('database unavailable'));
+
+    const response = await post({
+      question: 'What is X?',
+      mode: 'retrieval',
+      tools: { enabled: true },
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ code: 'INTERNAL_ERROR' });
+    expect(log.error).toHaveBeenCalledWith('Wiki AI action creation failed', {
+      error: 'database unavailable',
+    });
   });
 });

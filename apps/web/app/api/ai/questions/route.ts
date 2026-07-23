@@ -4,6 +4,7 @@ import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
+import { logger } from '@/server/logger';
 import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
 
 /** @openapi @summary Ask a grounded Wiki question @tag AI @auth bearer */
@@ -34,7 +35,13 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(await createWikiQuestion(ctx, { ...question, requestMetadata }), { status: 202 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
+    if (error instanceof DomainError) {
+      logger.warn('Wiki AI action creation rejected', { code: error.code });
+      return mapDomainError(error);
+    }
+    logger.error('Wiki AI action creation failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return internalError();
   }
 }

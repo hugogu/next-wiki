@@ -1995,7 +1995,11 @@
         "invalidResponse": "The AI could not produce a valid Wiki operation. Retry or rephrase the request.",
         "providerUnavailable": "The AI provider is temporarily unavailable. Please retry shortly.",
         "rateLimited": "The AI provider is busy. Please retry shortly.",
-        "requestFailed": "The response was interrupted. Please retry."
+        "connectionFailed": "The connection to Wiki AI failed. Please retry.",
+        "sessionExpired": "Your session has expired. Sign in again to use Wiki AI.",
+        "invalidRequest": "Wiki AI could not use this conversation context. Start a new session and retry.",
+        "notAvailable": "Wiki AI is not currently available. Check the AI configuration or your access.",
+        "requestFailed": "Wiki AI could not start this request. Please retry."
       },
       "tools": {
         "title": "Tool activity",

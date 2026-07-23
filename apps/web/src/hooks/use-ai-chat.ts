@@ -1,11 +1,12 @@
 'use client';
 
 import { useRef } from 'react';
-import { useAiAction } from './use-ai-action';
+import { type AiClientEvent, useAiAction } from './use-ai-action';
 import { type ChatMessage, useChatStore } from '@/components/chat/chat-store';
 import {
   isLegacyInsufficientWikiAnswer,
   LEGACY_INSUFFICIENT_WIKI_EVIDENCE_MARKER,
+  type AiActionAccepted,
   type AiCitation,
   type AiQuestionMode,
   type AiToolCallEventPayload,
@@ -130,7 +131,39 @@ export function wikiAiErrorTranslationKey(error: {
   if (code === 'PROVIDER_UNAVAILABLE') return 'ai.chat.errors.providerUnavailable';
   if (code === 'RATE_LIMITED') return 'ai.chat.errors.rateLimited';
   if (code === 'CANCELLED') return 'ai.chat.conversationView.responseStopped';
+  if (code === 'NETWORK_ERROR') return 'ai.chat.errors.connectionFailed';
+  if (code === 'UNAUTHORIZED') return 'ai.chat.errors.sessionExpired';
+  if (code === 'BAD_REQUEST') return 'ai.chat.errors.invalidRequest';
+  if (
+    code === 'AI_DISABLED' ||
+    code === 'AI_FEATURE_DISABLED' ||
+    code === 'AI_NOT_CONFIGURED' ||
+    code === 'MODEL_UNAVAILABLE' ||
+    code === 'PROVIDER_DISABLED'
+  ) {
+    return 'ai.chat.errors.notAvailable';
+  }
   return 'ai.chat.errors.requestFailed';
+}
+
+export async function startWikiQuestionAction(
+  start: (
+    path: string,
+    input: ReturnType<typeof buildToolEnabledQuestionPayload>,
+    onEvent: (event: AiClientEvent) => void,
+  ) => Promise<AiActionAccepted>,
+  payload: ReturnType<typeof buildToolEnabledQuestionPayload>,
+  onEvent: (event: AiClientEvent) => void,
+): Promise<AiActionAccepted> {
+  try {
+    return await start('/api/ai/questions', payload, onEvent);
+  } catch (error) {
+    // A reader view can retain page context that is no longer available.
+    // Validation creates no action, so retrying without that optional context
+    // cannot duplicate provider work.
+    if ((error as { code?: unknown }).code !== 'NOT_FOUND' || !payload.currentPage) throw error;
+    return start('/api/ai/questions', { ...payload, currentPage: undefined }, onEvent);
+  }
 }
 
 export function useAiChat(currentPage?: { pageId: string; revisionId: string }) {
@@ -162,44 +195,47 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
     store.add({ id: userId, role: 'user', text: question });
     store.add({ id: assistantId, role: 'assistant', text: '' });
 
+    const handleEvent = (event: AiClientEvent) => {
+      if (event.type === 'reasoning_delta') {
+        store.think(assistantId, String(event.payload.text ?? ''));
+        return;
+      }
+      if (event.type === 'tool_call') {
+        store.toolCall(assistantId, event.payload as AiToolCallEventPayload);
+        return;
+      }
+      if (event.type === 'tool_proposal') {
+        store.toolProposal(assistantId, event.payload as AiToolProposalEventPayload);
+        return;
+      }
+      if (event.type === 'text_delta') {
+        const { answerText, thinkingText } = processTextDelta(stateRef.current, String(event.payload.text ?? ''));
+        if (thinkingText) store.think(assistantId, thinkingText);
+        emitAnswer(assistantId, answerText);
+      }
+      if (event.type === 'citations') store.citations(assistantId, (event.payload.citations ?? []) as AiCitation[]);
+      if (event.type === 'error') store.fail(assistantId, t(wikiAiErrorTranslationKey(event.payload)));
+      if (event.type === 'completed' || event.type === 'error') {
+        const { answerText, thinkingText } = flushStreamState(stateRef.current);
+        if (thinkingText) store.think(assistantId, thinkingText);
+        emitAnswer(assistantId, answerText);
+        if (stateRef.current.markerBuffer) {
+          store.append(assistantId, stateRef.current.markerBuffer);
+          stateRef.current.markerBuffer = '';
+        }
+        stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
+      }
+    };
+    const payload = buildToolEnabledQuestionPayload({
+      question,
+      mode,
+      sessionId: store.sessionId,
+      currentPage,
+      messages: store.messages,
+    });
+
     try {
-      await action.start('/api/ai/questions', buildToolEnabledQuestionPayload({
-        question,
-        mode,
-        sessionId: store.sessionId,
-        currentPage,
-        messages: store.messages,
-      }), (event) => {
-        if (event.type === 'reasoning_delta') {
-          store.think(assistantId, String(event.payload.text ?? ''));
-          return;
-        }
-        if (event.type === 'tool_call') {
-          store.toolCall(assistantId, event.payload as AiToolCallEventPayload);
-          return;
-        }
-        if (event.type === 'tool_proposal') {
-          store.toolProposal(assistantId, event.payload as AiToolProposalEventPayload);
-          return;
-        }
-        if (event.type === 'text_delta') {
-          const { answerText, thinkingText } = processTextDelta(stateRef.current, String(event.payload.text ?? ''));
-          if (thinkingText) store.think(assistantId, thinkingText);
-          emitAnswer(assistantId, answerText);
-        }
-        if (event.type === 'citations') store.citations(assistantId, (event.payload.citations ?? []) as AiCitation[]);
-        if (event.type === 'error') store.fail(assistantId, t(wikiAiErrorTranslationKey(event.payload)));
-        if (event.type === 'completed' || event.type === 'error') {
-          const { answerText, thinkingText } = flushStreamState(stateRef.current);
-          if (thinkingText) store.think(assistantId, thinkingText);
-          emitAnswer(assistantId, answerText);
-          if (stateRef.current.markerBuffer) {
-            store.append(assistantId, stateRef.current.markerBuffer);
-            stateRef.current.markerBuffer = '';
-          }
-          stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
-        }
-      });
+      await startWikiQuestionAction(action.start, payload, handleEvent);
     } catch (error) {
       store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
     }
