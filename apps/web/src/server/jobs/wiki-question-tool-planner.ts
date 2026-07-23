@@ -1,3 +1,5 @@
+import type { AiToolReviewDecision } from '@next-wiki/shared';
+
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import type { ToolPlanStep } from '@/server/services/ai-tool-runtime';
 
