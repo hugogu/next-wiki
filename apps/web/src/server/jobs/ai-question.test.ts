@@ -243,6 +243,50 @@ describe('Wiki question worker', () => {
     expect(requested).toBeLessThan(32_000);
   });
 
+  it('retries a transient query-embedding failure before retrieving sources', async () => {
+    embed
+      .mockRejectedValueOnce(new AiProviderError('PROVIDER_UNAVAILABLE', 'Temporary embedding connection failure', true))
+      .mockResolvedValueOnce({ vectors: [[1, 0, 0]], usage: { inputTokens: 1 } });
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'retrieval',
+    });
+
+    await runWikiQuestionAction(action.id);
+
+    expect(embed).toHaveBeenCalledTimes(2);
+    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
+    expect(storedAction?.status).toBe('completed');
+    expect(storedAction?.resultMetadata).not.toHaveProperty('retrievalDegraded');
+  });
+
+  it('continues a tool-enabled answer when the embedding provider remains temporarily unavailable', async () => {
+    embed.mockRejectedValue(new AiProviderError('PROVIDER_UNAVAILABLE', 'Temporary embedding connection failure', true));
+    const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Summarize the previous answer.',
+      mode: 'retrieval',
+      requestedReview: 'admin_review',
+    });
+    expect(created.fallback).toBe(false);
+    if (created.fallback) throw new Error('Expected a tool-enabled action');
+
+    await runWikiQuestionAction(created.action.id);
+
+    expect(embed).toHaveBeenCalledTimes(3);
+    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
+    expect(storedAction).toMatchObject({
+      status: 'completed',
+      resultMetadata: { retrievalDegraded: { code: 'PROVIDER_UNAVAILABLE' } },
+    });
+    const events = await db.query.aiActionEvents.findMany({
+      where: eq(schema.aiActionEvents.actionId, created.action.id),
+    });
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'text_delta',
+      payload: expect.objectContaining({ text: 'Grounded answer [S1]' }),
+    }));
+  });
+
   it('retains provider reasoning and the shared Wiki AI role in tool-enabled answers', async () => {
     streamText.mockImplementationOnce(async function* () {
       yield { type: 'reasoning_delta', text: 'I should inspect the current Wiki context.' };

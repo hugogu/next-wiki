@@ -132,13 +132,14 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   // rest of the conversation, not kept indefinitely.
   await appendActionEvent(actionId, 'question', { text: input.question });
 
-  const { sources, usage: retrievalUsage } = await loadWikiQuestionSources({
+  const retrieval = await loadWikiQuestionSources({
     ctx,
     actionId,
     question: input.question,
     mode: input.mode,
     textContextWindow: textModel.contextWindow,
   });
+  const { sources, usage: retrievalUsage } = retrieval;
 
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   const feishuStream = await startFeishuAnswerStream(actionId);
@@ -204,6 +205,7 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
       resultMetadata: {
         insufficientEvidence: false,
         citationCount: citations.length,
+        ...(retrieval.degradation ? { retrievalDegraded: retrieval.degradation } : {}),
       },
       usageMetadata: usage,
     });
@@ -232,13 +234,14 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   await assertAiFeature(ctx, 'question');
   await appendActionEvent(actionId, 'question', { text: input.question });
   const questionMode = input.mode ?? 'retrieval';
-  const { sources: wikiSources, usage: retrievalUsage } = await loadWikiQuestionSources({
+  const retrieval = await loadWikiQuestionSources({
     ctx,
     actionId,
     question: input.question,
     mode: questionMode,
     textContextWindow: textModel.contextWindow,
   });
+  const { sources: wikiSources, usage: retrievalUsage } = retrieval;
 
   // Resolve effective policy for every tool once, up front.
   const provider = await ensureBuiltinProvider();
@@ -365,6 +368,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       toolWorkflowStatus: result.status,
       insufficientEvidence: false,
       citationCount: citations.length,
+      ...(retrieval.degradation ? { retrievalDegraded: retrieval.degradation } : {}),
     },
     usageMetadata: retrievalUsage,
   });
