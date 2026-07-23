@@ -1121,7 +1121,6 @@ export const translationKeys = [
   "admin.bots.general.runtime.maxCalls",
   "admin.bots.general.runtime.temperature",
   "admin.bots.general.runtime.maxOutputTokens",
-  "admin.bots.general.runtime.maxOutputTokensAuto",
   "admin.bots.general.runtime.timeout",
   "admin.bots.general.runtime.save",
   "admin.bots.general.runtime.saved",

@@ -1582,7 +1582,6 @@
           "maxCalls": "Max tool calls per turn",
           "temperature": "Planner temperature",
           "maxOutputTokens": "Planner max output tokens",
-          "maxOutputTokensAuto": "Leave empty to use the built-in cap.",
           "timeout": "Planner timeout (ms)",
           "save": "Save parameters",
           "saved": "Parameters saved.",

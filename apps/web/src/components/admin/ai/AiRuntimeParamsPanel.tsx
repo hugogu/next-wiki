@@ -8,16 +8,13 @@ import { useTranslation } from '@/i18n/client';
 
 /**
  * Wiki AI tool-runtime parameters (026), edited from Bots > General. Persists to
- * `ai_settings`; the tool loop reads these on each turn. `maxOutputTokens` blank
- * means "use the built-in cap".
+ * `ai_settings`; the tool loop reads these on each turn.
  */
 export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
   const { t } = useTranslation();
   const [maxCalls, setMaxCalls] = useState(String(initial.params.toolMaxCalls));
   const [temperature, setTemperature] = useState(String(initial.params.plannerTemperature));
-  const [maxTokens, setMaxTokens] = useState(
-    initial.params.plannerMaxOutputTokens == null ? '' : String(initial.params.plannerMaxOutputTokens),
-  );
+  const [maxTokens, setMaxTokens] = useState(String(initial.params.plannerMaxOutputTokens));
   const [timeoutMs, setTimeoutMs] = useState(String(initial.params.plannerTimeoutMs));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
@@ -32,7 +29,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         body: JSON.stringify({
           toolMaxCalls: Number(maxCalls),
           plannerTemperature: Number(temperature),
-          plannerMaxOutputTokens: maxTokens.trim() === '' ? null : Number(maxTokens),
+          plannerMaxOutputTokens: Number(maxTokens),
           plannerTimeoutMs: Number(timeoutMs),
         }),
       });
@@ -60,8 +57,8 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         <Field label={t('admin.bots.general.runtime.temperature')}>
           <Input type="number" min={0} max={2} step={0.05} value={temperature} onChange={(e) => setTemperature(e.target.value)} />
         </Field>
-        <Field label={t('admin.bots.general.runtime.maxOutputTokens')} hint={t('admin.bots.general.runtime.maxOutputTokensAuto')}>
-          <Input type="number" min={256} max={32000} value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
+        <Field label={t('admin.bots.general.runtime.maxOutputTokens')}>
+          <Input type="number" min={256} max={65536} value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
         </Field>
         <Field label={t('admin.bots.general.runtime.timeout')}>
           <Input type="number" min={5000} max={600000} step={1000} value={timeoutMs} onChange={(e) => setTimeoutMs(e.target.value)} />

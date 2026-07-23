@@ -7,6 +7,8 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DEFAULT_ASSISTANT_SYSTEM_PROMPT } from '@/server/ai/prompts/wiki-question';
 import { DEFAULT_TOOL_SYSTEM_PROMPT } from '@/server/jobs/wiki-question-tool-planner';
 
+import { TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT } from '@next-wiki/shared';
+
 /**
  * Wiki AI runtime tuning (026). The planner parameters (max tool calls, sampling
  * temperature, max output tokens, timeout) and the two runtime prompts
@@ -19,7 +21,7 @@ import { DEFAULT_TOOL_SYSTEM_PROMPT } from '@/server/jobs/wiki-question-tool-pla
 const RUNTIME_DEFAULTS = {
   maxToolCalls: 100,
   plannerTemperature: 0.1,
-  plannerMaxOutputTokens: null as number | null,
+  plannerMaxOutputTokens: TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT,
   plannerTimeoutMs: 120_000,
 };
 
@@ -27,8 +29,7 @@ export type AiRuntimeConfig = {
   maxToolCalls: number;
   /** Sampling temperature in [0, 2]. */
   plannerTemperature: number;
-  /** Null keeps the built-in planner output cap. */
-  plannerMaxOutputTokens: number | null;
+  plannerMaxOutputTokens: number;
   plannerTimeoutMs: number;
   /** Null means use the built-in default prompt. */
   assistantSystemPrompt: string | null;

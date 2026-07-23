@@ -77,13 +77,6 @@ type ToolEnabledQuestionInput = {
 // time, so three retries send as little as ~1/8 of the original body.
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
 const MAX_TOOL_PROTOCOL_RETRIES = 3;
-// The planner may need to emit large inline content (e.g. an expanded wiki
-// page) inside a tool-call JSON block. 4096 was too tight and caused mid-JSON
-// truncation; raise to 16 384 so a full page body + its JSON wrapper fits.
-const MAX_TOOL_PLANNER_OUTPUT_TOKENS = 16384;
-// Separate (higher) ceiling for the planner vs. a plain chat answer, since the
-// planner output includes tool-call arguments that can contain full page content.
-const PLANNER_OUTPUT_TOKEN_CEILING = 16384;
 
 function appendSourceLinks(answer: string, citations: AiCitation[]): string {
   if (citations.length === 0) return answer;
@@ -294,14 +287,11 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
           modelExternalId: textModel.externalId,
           system,
           messages: [{ role: 'user', content: prompt }],
-          maxOutputTokens: Math.min(
-            runtimeConfig.plannerMaxOutputTokens ?? MAX_TOOL_PLANNER_OUTPUT_TOKENS,
-            computeAnswerMaxOutputTokens(
-              estimatePromptTokens(system, prompt),
-              textModel.contextWindow,
-              textModel.maxOutputTokens,
-              PLANNER_OUTPUT_TOKEN_CEILING,
-            ),
+          maxOutputTokens: computeAnswerMaxOutputTokens(
+            estimatePromptTokens(system, prompt),
+            textModel.contextWindow,
+            textModel.maxOutputTokens,
+            runtimeConfig.plannerMaxOutputTokens,
           ),
           temperature: runtimeConfig.plannerTemperature,
           timeoutMs: runtimeConfig.plannerTimeoutMs,

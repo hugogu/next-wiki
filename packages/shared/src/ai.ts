@@ -241,7 +241,8 @@ export const TOOL_PLANNER_TEMPERATURE_MAX = 2;
 export const TOOL_PLANNER_TIMEOUT_MS_MIN = 5_000;
 export const TOOL_PLANNER_TIMEOUT_MS_MAX = 600_000;
 export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN = 256;
-export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX = 32_000;
+export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX = 65_536;
+export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT = 32_768;
 export const AI_RUNTIME_PROMPT_MAX_LENGTH = 20_000;
 
 export const aiRuntimeParamsUpdateSchema = z.object({
@@ -256,7 +257,6 @@ export const aiRuntimeParamsUpdateSchema = z.object({
     .int()
     .min(TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN)
     .max(TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX)
-    .nullable()
     .optional(),
   plannerTimeoutMs: z
     .number()
@@ -281,7 +281,7 @@ export const aiRuntimeSettingsViewSchema = z.object({
   params: z.object({
     toolMaxCalls: z.number().int(),
     plannerTemperature: z.number(),
-    plannerMaxOutputTokens: z.number().int().nullable(),
+    plannerMaxOutputTokens: z.number().int(),
     plannerTimeoutMs: z.number().int(),
   }),
   prompts: z.object({

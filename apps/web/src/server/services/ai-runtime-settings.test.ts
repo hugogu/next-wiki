@@ -31,7 +31,7 @@ describe('ai runtime settings (026)', () => {
     const config = await resolveAiRuntimeConfig();
     expect(config.maxToolCalls).toBe(100);
     expect(config.plannerTemperature).toBeCloseTo(0.1);
-    expect(config.plannerMaxOutputTokens).toBeNull();
+    expect(config.plannerMaxOutputTokens).toBe(32_768);
     expect(config.plannerTimeoutMs).toBe(120_000);
     expect(config.assistantSystemPrompt).toBeNull();
     expect(config.toolSystemPrompt).toBeNull();

@@ -1582,7 +1582,6 @@
           "maxCalls": "每轮最大工具调用次数",
           "temperature": "规划器温度",
           "maxOutputTokens": "规划器最大输出 token",
-          "maxOutputTokensAuto": "留空则使用内置上限。",
           "timeout": "规划器超时（毫秒）",
           "save": "保存参数",
           "saved": "参数已保存。",
