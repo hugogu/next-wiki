@@ -1184,7 +1184,13 @@ export const PublicPublicationInput = z
   })
   .describe('Publish revision input.');
 
-export const PublicPageSearchQuery = z
+// Named `PublicPageSearchQueryParams` (not `PublicPageSearchQuery`) deliberately:
+// next-openapi-gen silently drops this route's query parameters when the
+// @queryParams schema name collides with a same-named type exported elsewhere in
+// the workspace — here the `PublicPageSearchQuery` type in @next-wiki/shared and
+// packages/mcp-server. This is the same collision, and the same fix, documented
+// for `PublicPageListQueryParams` above.
+export const PublicPageSearchQueryParams = z
   .object({
     q: z.string().min(1).max(200).describe('Free-text search query.'),
     scope: z

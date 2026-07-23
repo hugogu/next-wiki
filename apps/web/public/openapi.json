@@ -1188,19 +1188,6 @@
         },
         "description": "List of API keys."
       },
-      "args": {
-        "type": "object",
-        "properties": {
-          "q": {
-            "type": "string"
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100
-          }
-        }
-      },
       "AuditListResponse": {
         "type": "object",
         "properties": {
@@ -1627,36 +1614,6 @@
         ],
         "description": "Create an API key."
       },
-      "createPageArgs": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "contentSource": {
-            "type": "string",
-            "maxLength": 500000
-          },
-          "content": {
-            "type": "string",
-            "maxLength": 500000
-          },
-          "contentFromConversation": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "path",
-          "title"
-        ]
-      },
       "CreateSystemThemeInput": {
         "type": "object",
         "properties": {
@@ -1670,19 +1627,6 @@
         "required": [
           "name",
           "sourceThemeId"
-        ]
-      },
-      "createTagArgs": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        },
-        "required": [
-          "name"
         ]
       },
       "errorResponseSchema": {
@@ -2076,33 +2020,6 @@
         "type": "string",
         "format": "uuid"
       },
-      "listArgs": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string",
-            "minLength": 1
-          },
-          "pathPrefix": {
-            "type": "string",
-            "minLength": 1
-          },
-          "space": {
-            "type": "string",
-            "enum": [
-              "wiki",
-              "raw",
-              "generated"
-            ]
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100
-          }
-        },
-        "additionalProperties": false
-      },
       "LoginInput": {
         "type": "object",
         "properties": {
@@ -2176,61 +2093,6 @@
           "displayName"
         ],
         "description": "Currently authenticated user profile."
-      },
-      "mergeTagArgs": {
-        "type": "object",
-        "properties": {
-          "tagId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "targetTagId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "tagId",
-          "targetTagId"
-        ]
-      },
-      "metadataArgs": {
-        "type": "object",
-        "properties": {
-          "pageId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "date": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-          },
-          "summary": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 2000
-          },
-          "tags": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100
-            },
-            "maxItems": 50
-          }
-        },
-        "required": [
-          "pageId"
-        ]
       },
       "MigrationList": {
         "type": "object",
@@ -2364,31 +2226,6 @@
         "description": "Simple OK response"
       },
       "PAGE_PATH_RESERVED": {},
-      "pageIdArgs": {
-        "type": "object",
-        "properties": {
-          "pageId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "pageId"
-        ]
-      },
-      "pageRefArgs": {
-        "type": "object",
-        "properties": {
-          "pageId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "path": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      },
       "paramsSchema": {
         "type": "object",
         "properties": {
@@ -2507,28 +2344,6 @@
           "displayName"
         ],
         "description": "Profile view"
-      },
-      "propertiesArgs": {
-        "type": "object",
-        "properties": {
-          "pageId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "path": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "pageId"
-        ]
       },
       "PublicAssetIdPathParams": {
         "type": "object",
@@ -3978,7 +3793,7 @@
         ],
         "description": "Public page revision path parameters."
       },
-      "PublicPageSearchQuery": {
+      "PublicPageSearchQueryParams": {
         "type": "object",
         "properties": {
           "q": {
@@ -5733,46 +5548,6 @@
         ],
         "description": "Registration response"
       },
-      "renameTagArgs": {
-        "type": "object",
-        "properties": {
-          "tagId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        },
-        "required": [
-          "tagId",
-          "name"
-        ]
-      },
-      "replaceTagsArgs": {
-        "type": "object",
-        "properties": {
-          "pageId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100
-            },
-            "maxItems": 50
-          }
-        },
-        "required": [
-          "pageId",
-          "tags"
-        ]
-      },
       "ReplicaSyncStatus": {
         "type": "object",
         "properties": {
@@ -5849,49 +5624,6 @@
           "tempPassword"
         ],
         "description": "Administrator-initiated password reset."
-      },
-      "saveDraftArgs": {
-        "type": "object",
-        "properties": {
-          "pageId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "contentSource": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500000
-          },
-          "contentFromConversation": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "pageId"
-        ]
-      },
-      "searchArgs": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100
-          }
-        },
-        "required": [
-          "query"
-        ]
       },
       "SetMyPasswordInput": {
         "type": "object",
@@ -6909,18 +6641,6 @@
           "backendId"
         ],
         "description": "Set the preferred read backend."
-      },
-      "tagIdArgs": {
-        "type": "object",
-        "properties": {
-          "tagId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "tagId"
-        ]
       },
       "TransferArtifactView": {
         "type": "object",
@@ -13790,7 +13510,292 @@
         "tags": [
           "Search"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Free-text search query."
+            },
+            "description": "Free-text search query."
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "path",
+                "title",
+                "content",
+                "all"
+              ],
+              "default": "all",
+              "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+            },
+            "description": "Restrict matching to a field, or search across all fields. Defaults to all."
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "all"
+              ],
+              "default": "published",
+              "description": "Filter results by page lifecycle state. Defaults to published."
+            },
+            "description": "Filter results by page lifecycle state. Defaults to published."
+          },
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                }
+              ],
+              "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+            },
+            "description": "Directory prefix to restrict matching to pages under a subtree (e.g. \"docs\" matches \"docs/a\", \"docs/b\")."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Space slug to search within. Defaults to the default wiki space."
+            },
+            "description": "Space slug to search within. Defaults to the default wiki space."
+          },
+          {
+            "in": "query",
+            "name": "filter[type]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Filter to pages whose frontmatter type matches this value."
+            },
+            "description": "Filter to pages whose frontmatter type matches this value."
+          },
+          {
+            "in": "query",
+            "name": "filterType",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "SDK-friendly alias for filter[type]."
+            },
+            "description": "SDK-friendly alias for filter[type]."
+          },
+          {
+            "in": "query",
+            "name": "filterInputKind",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chat-transcript",
+                "external-fetch",
+                "script-run",
+                "manual-note"
+              ],
+              "description": "Raw-only: filter raw entries by inputKind, independent from filterType."
+            },
+            "description": "Raw-only: filter raw entries by inputKind, independent from filterType."
+          },
+          {
+            "in": "query",
+            "name": "filterCategoryId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Raw-only: filter raw entries by raw_categories taxonomy id, independent from filterType."
+            },
+            "description": "Raw-only: filter raw entries by raw_categories taxonomy id, independent from filterType."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum number of results to return per request (1-100). Defaults to 20.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of results to return per request (1-100). Defaults to 20."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned by a previous response."
+            },
+            "description": "Opaque pagination cursor returned by a previous response."
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+            },
+            "description": "Comma-separated relations to include on each result page: latestRevision, publishedRevision."
+          },
+          {
+            "in": "query",
+            "name": "excerptLength",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100.",
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 500
+            },
+            "description": "Approximate number of characters of context to return around the matched keyword in excerpt (20-500). Defaults to 100."
+          },
+          {
+            "in": "query",
+            "name": "createdStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages created at or after this ISO 8601 timestamp."
+            },
+            "description": "Only include pages created at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "createdEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages created at or before this ISO 8601 timestamp."
+            },
+            "description": "Only include pages created at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "updatedStart",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+            },
+            "description": "Only include pages last updated at or after this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "updatedEnd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+            },
+            "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "filter[tag]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose structured tags include any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[status]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter status matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[owner]",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+            },
+            "description": "Filter to pages whose frontmatter owner matches any of these values (repeat the param for multiple, OR-combined)."
+          },
+          {
+            "in": "query",
+            "name": "filter[has_frontmatter]",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
+            },
+            "description": "Filter to pages with (true) or without (false) any parsed frontmatter."
+          }
+        ],
         "security": [
           {
             "BearerAuth": []

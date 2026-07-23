@@ -13,7 +13,7 @@ import * as searchAnalytics from '@/server/services/search-analytics';
  *   relevance score and are sorted by score descending within each returned page.
  * @tag Search
  * @auth bearer
- * @queryParams PublicPageSearchQuery
+ * @queryParams PublicPageSearchQueryParams
  * @response PublicPageSearchResponse
  */
 export const GET = withPublicApi(async (request, _context, ctx) => {

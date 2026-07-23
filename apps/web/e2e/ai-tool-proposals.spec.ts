@@ -78,13 +78,16 @@ test.describe('AI tool proposals — governance boundaries', () => {
     request,
   }) => {
     // Anonymous access to the proposals API is rejected (no existence leak),
-    // and the public homepage carries no proposal/tool-call content (T089).
+    // and the public homepage exposes no proposal data (T089). The assertion
+    // targets the proposal-review route, which only appears when real proposal
+    // links leak — not incidental i18n labels or bundle chunk names that merely
+    // contain the words "tool" or "tool-call".
     const proposals = await request.get('/api/ai/tool-proposals');
     expect([401, 403]).toContain(proposals.status());
     const home = await request.get('/');
     expect(home.ok()).toBe(true);
     const html = await home.text();
-    expect(html).not.toContain('tool-proposals');
-    expect(html).not.toContain('tool-call');
+    expect(html).not.toContain('/admin/ai/tools/proposals');
+    expect(html).not.toContain('/api/ai/tool-proposals');
   });
 });
