@@ -13,12 +13,11 @@ import { runGitExport } from './git-export';
 import { tickScheduledGitExport } from '@/server/services/git-export';
 import { registerAiActionHandler, runAiAction } from './ai-actions';
 import { runAiCleanup } from './ai-cleanup';
-import { findRecoverableActionIds, queueForFeature, readActionInput } from '@/server/services/ai-actions';
+import { findRecoverableActionIds, queueForFeature } from '@/server/services/ai-actions';
 import { runModelSyncAction, runProviderTestAction } from './ai-admin';
 import { runIndexRebuildAction } from './ai-index';
 import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
-import { runWikiQuestionAction } from './ai-question';
-import { runWikiToolChatAction } from './ai-tool-chat';
+import { runToolEnabledWikiQuestionAction, runWikiQuestionAction } from './ai-question';
 import { runTextOptimizationAction } from './ai-optimization';
 import { runImageGenerationAction } from './ai-image-generation';
 import { runTransferExport } from './transfer-export';
@@ -44,15 +43,6 @@ import { runRawConversationCapture } from './raw-conversation-capture';
 
 type JobBatch = { data: unknown }[];
 
-async function runWikiQuestionOrToolChatAction(actionId: string): Promise<void> {
-  const input = await readActionInput<Record<string, unknown>>(actionId);
-  if (input && typeof input.requestedReview === 'string') {
-    await runWikiToolChatAction(actionId);
-    return;
-  }
-  await runWikiQuestionAction(actionId);
-}
-
 /**
  * Explicit registration of the storage subsystem's job handlers and queues
  * (constitution P9 — no dynamic discovery). Also performs boot recovery: any
@@ -64,10 +54,10 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   registerAiActionHandler('model_sync', runModelSyncAction);
   registerAiActionHandler('index_rebuild', runIndexRebuildAction);
   registerAiActionHandler('semantic_search', runSemanticSearchAction);
-  registerAiActionHandler('wiki_question', runWikiQuestionOrToolChatAction);
+  registerAiActionHandler('wiki_question', runWikiQuestionAction);
   // Legacy compatibility for rows created before tool-enabled Wiki AI was
   // folded back into the canonical `wiki_question` action feature.
-  registerAiActionHandler('wiki_tool_chat', runWikiToolChatAction);
+  registerAiActionHandler('wiki_tool_chat', runToolEnabledWikiQuestionAction);
   registerAiActionHandler('text_optimization', runTextOptimizationAction);
   registerAiActionHandler('image_generation', runImageGenerationAction);
   for (const queue of Object.values(QUEUES)) {

@@ -5,12 +5,12 @@ describe('useAiChat payload helpers', () => {
   it('builds bounded conversation context from completed user/assistant turns', () => {
     const messages: ChatMessage[] = [
       { id: 'u1', role: 'user', text: 'What did we decide?' },
-      { id: 'a1', role: 'assistant', text: 'We decided to use tool chat.' },
+      { id: 'a1', role: 'assistant', text: 'We decided to use tool-enabled questions.' },
       { id: 'u2', role: 'user', text: 'This pending turn is ignored.' },
     ];
 
     expect(buildConversationContext(messages)).toEqual([
-      { question: 'What did we decide?', answer: 'We decided to use tool chat.' },
+      { question: 'What did we decide?', answer: 'We decided to use tool-enabled questions.' },
     ]);
   });
 

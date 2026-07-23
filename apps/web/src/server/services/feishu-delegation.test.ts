@@ -4,9 +4,12 @@ import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 
 const createWikiQuestion = vi.hoisted(() => vi.fn());
-const createWikiToolChat = vi.hoisted(() => vi.fn());
+const createToolEnabledWikiQuestion = vi.hoisted(() => vi.fn());
 
-vi.mock('@/server/services/ai-question', () => ({ createWikiQuestion, createWikiToolChat }));
+vi.mock('@/server/services/ai-question', () => ({
+  createToolEnabledWikiQuestion,
+  createWikiQuestion,
+}));
 
 import { handleInboundMessage } from './feishu-delegation';
 
@@ -50,7 +53,7 @@ async function cleanup() {
 beforeEach(async () => {
   await cleanup();
   createWikiQuestion.mockReset();
-  createWikiToolChat.mockReset();
+  createToolEnabledWikiQuestion.mockReset();
 });
 
 afterAll(async () => {
@@ -63,7 +66,7 @@ describe('Feishu in-process delegation', () => {
     const boundUser = await makeUser('feishu-bound@example.com', 'editor');
     await makeBinding(boundUser.id, 'ou_bound');
     const action = await makeAction(boundUser.id);
-    createWikiToolChat.mockResolvedValue({ fallback: false, action: { id: action.id } });
+    createToolEnabledWikiQuestion.mockResolvedValue({ fallback: false, action: { id: action.id } });
 
     const start = vi.fn().mockResolvedValue({ messageId: 'om_bound', reactionId: 'reaction_1' });
     const stop = vi.fn();
@@ -94,7 +97,7 @@ describe('Feishu in-process delegation', () => {
     // so the capture worker (raw-conversations.ts) can stamp channel='feishu'
     // and reconstructConversation/getConversationContext can rebuild
     // multi-turn continuity from this same tag.
-    expect(createWikiToolChat).toHaveBeenCalledWith(
+    expect(createToolEnabledWikiQuestion).toHaveBeenCalledWith(
       { actor: { kind: 'user', userId: boundUser.id, role: 'editor' } },
       expect.objectContaining({
         requestedReview: 'admin_review',
@@ -121,7 +124,7 @@ describe('Feishu in-process delegation', () => {
   it('returns an explicit safe reply when the bound user cannot use AI', async () => {
     const user = await makeUser('feishu-disabled@example.com');
     await makeBinding(user.id, 'ou_disabled');
-    createWikiToolChat.mockRejectedValue(new DomainError('AI_DISABLED', 'disabled'));
+    createToolEnabledWikiQuestion.mockRejectedValue(new DomainError('AI_DISABLED', 'disabled'));
 
     await expect(
       handleInboundMessage({
@@ -180,11 +183,11 @@ describe('Feishu in-process delegation', () => {
     expect(createWikiQuestion).not.toHaveBeenCalled();
   });
 
-  it('falls back to ordinary Q&A when the assigned model cannot drive tool chat', async () => {
+  it('falls back to ordinary Q&A when the assigned model cannot drive tool-enabled questions', async () => {
     const user = await makeUser('feishu-tool-fallback@example.com', 'editor');
     await makeBinding(user.id, 'ou_tool_fallback');
     const action = await makeAction(user.id);
-    createWikiToolChat.mockResolvedValue({ fallback: true });
+    createToolEnabledWikiQuestion.mockResolvedValue({ fallback: true });
     createWikiQuestion.mockResolvedValue({ id: action.id });
 
     const result = await handleInboundMessage({
@@ -199,7 +202,7 @@ describe('Feishu in-process delegation', () => {
     });
 
     expect(result).toMatchObject({ disposition: 'question_queued', aiActionId: action.id });
-    expect(createWikiToolChat).toHaveBeenCalledWith(
+    expect(createToolEnabledWikiQuestion).toHaveBeenCalledWith(
       { actor: { kind: 'user', userId: user.id, role: 'editor' } },
       expect.objectContaining({ requestedReview: 'admin_review' }),
     );

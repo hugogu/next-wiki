@@ -1,7 +1,7 @@
 import type { FeishuInboundDisposition, FeishuInboundMessage } from '@next-wiki/shared';
 import { buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { createWikiQuestion, createWikiToolChat } from '@/server/services/ai-question';
+import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
 import { writeEntry } from '@/server/services/audit';
 import { feishuCopy } from '@/server/feishu/copy';
 import type { ProcessingReaction } from '@/server/feishu/transport-types';
@@ -101,20 +101,20 @@ export async function handleInboundMessage(
   };
 
   try {
-    const toolChat = await createWikiToolChat(ctx, {
+    const toolQuestion = await createToolEnabledWikiQuestion(ctx, {
       question,
       requestedReview: 'admin_review',
       conversation,
       requestMetadata,
     });
-    const action = toolChat.fallback
+    const action = toolQuestion.fallback
       ? await createWikiQuestion(ctx, {
           question,
           mode: 'retrieval',
           conversation,
           requestMetadata: { ...requestMetadata, toolFallback: true },
         })
-      : toolChat.action;
+      : toolQuestion.action;
     await attachActionToSession(session.id, action.id);
     await writeEntry({
       keyId: null,

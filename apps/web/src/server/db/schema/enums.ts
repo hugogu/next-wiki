@@ -143,7 +143,7 @@ export const aiActionFeatureEnum = pgEnum('ai_action_feature', [
   'wiki_question',
   'text_optimization',
   'image_generation',
-  // 026: a tool-enabled chat turn driving the governed Wiki AI tool loop.
+  // 026: legacy feature value for tool-enabled Wiki questions.
   'wiki_tool_chat',
 ]);
 export const aiActionStatusEnum = pgEnum('ai_action_status', [

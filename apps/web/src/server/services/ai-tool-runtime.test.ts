@@ -19,7 +19,7 @@ import {
 } from '@/server/services/ai-tool-runtime';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
-async function seedToolChatAction(): Promise<string> {
+async function seedToolEnabledQuestionAction(): Promise<string> {
   const [action] = await db
     .insert(schema.aiActions)
     .values({ feature: 'wiki_question', expiresAt: new Date(Date.now() + 3_600_000) })
@@ -68,7 +68,7 @@ describe('ai tool runtime — persistence', () => {
   let actionId: string;
 
   beforeEach(async () => {
-    actionId = await seedToolChatAction();
+    actionId = await seedToolEnabledQuestionAction();
   });
 
   it('creates a workflow and records ordered tool calls, bumping the counter', async () => {
@@ -169,7 +169,7 @@ describe('ai tool runtime — bounded loop', () => {
   let ctx: PermCtx;
 
   beforeEach(async () => {
-    actionId = await seedToolChatAction();
+    actionId = await seedToolEnabledQuestionAction();
     ctx = (await seedUserCtx()).ctx;
   });
 

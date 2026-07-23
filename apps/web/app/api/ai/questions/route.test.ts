@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { vi } from 'vitest';
 
 const services = vi.hoisted(() => ({
+  createToolEnabledWikiQuestion: vi.fn(),
   createWikiQuestion: vi.fn(),
-  createWikiToolChat: vi.fn(),
 }));
 vi.mock('@/server/api/session', () => ({
   createApiContext: vi.fn(async () => ({ actor: { kind: 'user', userId: 'u1', role: 'editor' } })),
@@ -25,7 +25,7 @@ function post(body: unknown) {
 describe('POST /api/ai/questions — additive tools option', () => {
   beforeEach(() => {
     services.createWikiQuestion.mockReset();
-    services.createWikiToolChat.mockReset();
+    services.createToolEnabledWikiQuestion.mockReset();
     services.createWikiQuestion.mockResolvedValue({ id: 'q1', feature: 'wiki_question', status: 'queued', eventsUrl: '/e' });
   });
 
@@ -33,15 +33,15 @@ describe('POST /api/ai/questions — additive tools option', () => {
     const response = await post({ question: 'What is X?', mode: 'retrieval' });
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ feature: 'wiki_question' });
-    expect(services.createWikiToolChat).not.toHaveBeenCalled();
+    expect(services.createToolEnabledWikiQuestion).not.toHaveBeenCalled();
     expect(services.createWikiQuestion).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ requestMetadata: { origin: 'web' } }),
     );
   });
 
-  it('routes to tool chat when tools are enabled and the model supports them', async () => {
-    services.createWikiToolChat.mockResolvedValue({
+  it('routes to tool-enabled question handling when tools are enabled and the model supports them', async () => {
+    services.createToolEnabledWikiQuestion.mockResolvedValue({
       fallback: false,
       action: { id: 'tc1', feature: 'wiki_question', status: 'queued', eventsUrl: '/e' },
     });
@@ -55,7 +55,7 @@ describe('POST /api/ai/questions — additive tools option', () => {
     });
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ feature: 'wiki_question' });
-    expect(services.createWikiToolChat).toHaveBeenCalledWith(
+    expect(services.createToolEnabledWikiQuestion).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         question: 'Write the above to a page',
@@ -72,11 +72,11 @@ describe('POST /api/ai/questions — additive tools option', () => {
   });
 
   it('falls back to ordinary Q&A when the selected model cannot call tools', async () => {
-    services.createWikiToolChat.mockResolvedValue({ fallback: true });
+    services.createToolEnabledWikiQuestion.mockResolvedValue({ fallback: true });
     const response = await post({ question: 'Retag docs', mode: 'retrieval', tools: { enabled: true } });
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ feature: 'wiki_question' });
-    expect(services.createWikiToolChat).toHaveBeenCalled();
+    expect(services.createToolEnabledWikiQuestion).toHaveBeenCalled();
     expect(services.createWikiQuestion).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ requestMetadata: { origin: 'web' } }),

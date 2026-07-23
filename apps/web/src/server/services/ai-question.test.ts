@@ -17,7 +17,7 @@ vi.mock('@/server/jobs/runtime', async (importOriginal) => {
   return { ...actual, enqueue: jobsRuntime.enqueue };
 });
 
-import { createWikiToolChat, modelSupportsToolCalling } from './ai-question';
+import { createToolEnabledWikiQuestion, modelSupportsToolCalling } from './ai-question';
 
 const source = (id: string, content: string): QuestionSource => ({
   id,
@@ -88,7 +88,7 @@ describe('modelSupportsToolCalling', () => {
     await db.insert(schema.aiPurposeAssignments).values({ purpose: 'wiki_text', modelId });
   }
 
-  it('allows tool chat when model capability metadata is missing', async () => {
+  it('allows tool-enabled questions when model capability metadata is missing', async () => {
     const modelId = await createModel();
     await expect(modelSupportsToolCalling(modelId)).resolves.toBe(true);
   });
@@ -104,14 +104,14 @@ describe('modelSupportsToolCalling', () => {
     await expect(modelSupportsToolCalling(modelId)).resolves.toBe(false);
   });
 
-  it('creates tool-enabled chat as the canonical wiki_question action feature', async () => {
+  it('creates tool-enabled questions as the canonical wiki_question action feature', async () => {
     await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
     const userId = await createAiTestUser('admin');
     try {
       const modelId = await createModel();
       await assignWikiTextModel(modelId);
 
-      const result = await createWikiToolChat(buildUserCtx(userId, 'admin'), {
+      const result = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'admin'), {
         question: 'Write the above into a page',
         mode: 'retrieval',
         requestedReview: 'admin_review',
@@ -120,7 +120,7 @@ describe('modelSupportsToolCalling', () => {
       });
 
       expect(result.fallback).toBe(false);
-      if (result.fallback) throw new Error('expected tool chat action');
+      if (result.fallback) throw new Error('expected tool-enabled question action');
       expect(result.action.feature).toBe('wiki_question');
       const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, result.action.id) });
       expect(row).toMatchObject({

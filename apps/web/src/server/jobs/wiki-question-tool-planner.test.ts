@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlannerUserPrompt, parseToolPlan } from '@/server/jobs/ai-tool-chat-planner';
+import { buildPlannerUserPrompt, parseToolPlan } from '@/server/jobs/wiki-question-tool-planner';
 
 describe('parseToolPlan — provider-agnostic tool protocol', () => {
   it('parses a tool-call block into an iterative tool_calls step', () => {

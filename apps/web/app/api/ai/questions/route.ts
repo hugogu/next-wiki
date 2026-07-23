@@ -4,7 +4,7 @@ import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
-import { createWikiQuestion, createWikiToolChat } from '@/server/services/ai-question';
+import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
 
 /** @openapi @summary Ask a grounded Wiki question @tag AI @auth bearer */
 export async function POST(request: NextRequest) {
@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
       origin: 'web',
       ...(sessionId ? { webSessionId: sessionId } : {}),
     };
-    // 026: additive tool-enabled chat. Falls back to ordinary Q&A when tools
+    // 026: additive tool-enabled question handling. Falls back to ordinary Q&A when tools
     // are unavailable or the selected model cannot call tools (recoverable).
     if (tools?.enabled) {
-      const result = await createWikiToolChat(ctx, {
+      const result = await createToolEnabledWikiQuestion(ctx, {
         question: question.question,
         mode: question.mode,
         requestedReview: tools.requestedReview ?? 'none',

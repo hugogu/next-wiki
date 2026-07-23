@@ -94,7 +94,7 @@ export async function createWikiQuestion(
 /** Whether a model has the discovered/overridden `tool_calling` capability.
  * The current provider-agnostic tool loop uses a textual fenced JSON protocol,
  * so missing capability metadata is treated as usable; explicit negative
- * detector/manual rows still disable tool chat and trigger fallback. */
+ * detector/manual rows still disable tool-enabled questions and trigger fallback. */
 export async function modelSupportsToolCalling(modelId: string): Promise<boolean> {
   const rows = await db
     .select({ supported: schema.aiModelCapabilities.supported })
@@ -109,11 +109,11 @@ export async function modelSupportsToolCalling(modelId: string): Promise<boolean
 }
 
 /**
- * Create a tool-enabled chat turn (026, US2). Returns a recoverable fallback
+ * Create a tool-enabled Wiki question turn (026, US2). Returns a recoverable fallback
  * marker when the assigned model cannot call tools, so the route degrades to an
  * ordinary Q&A action rather than performing hidden out-of-band tool use.
  */
-export async function createWikiToolChat(
+export async function createToolEnabledWikiQuestion(
   ctx: PermCtx,
   input: {
     question: string;
