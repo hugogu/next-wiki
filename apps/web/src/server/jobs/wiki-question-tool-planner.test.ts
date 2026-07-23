@@ -32,6 +32,34 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     if (step.kind === 'tool_calls') expect(step.calls).toHaveLength(2);
   });
 
+  it('parses multiline Markdown arguments from a YAML tool block', () => {
+    const output = [
+      '```tool',
+      'tool_calls:',
+      '  - tool: save_draft',
+      '    arguments:',
+      '      pageId: 33333333-3333-4333-8333-333333333333',
+      '      contentSource: |',
+      '        # 孙权',
+      '',
+      '        扩展后的正文。',
+      '    review: none',
+      '```',
+    ].join('\n');
+    const step = parseToolPlan(output);
+    expect(step.kind).toBe('tool_calls');
+    if (step.kind === 'tool_calls') {
+      expect(step.calls[0]).toMatchObject({
+        toolName: 'save_draft',
+        requestedReview: 'none',
+        arguments: {
+          pageId: '33333333-3333-4333-8333-333333333333',
+          contentSource: '# 孙权\n\n扩展后的正文。\n',
+        },
+      });
+    }
+  });
+
   it('treats plain prose as a final answer', () => {
     const step = parseToolPlan('The deployment config lives in docker-compose.yml.');
     expect(step).toEqual({ kind: 'final', text: 'The deployment config lives in docker-compose.yml.' });
@@ -119,6 +147,7 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).toContain('- create_page (page_draft)');
     expect(prompt).toContain('contentFromConversation=true');
     expect(prompt).toContain('For save_draft, use the exact pageId returned by get_page');
+    expect(prompt).toContain('YAML is preferred');
   });
 });
 

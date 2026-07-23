@@ -1,4 +1,5 @@
 import type { AiToolReviewDecision } from '@next-wiki/shared';
+import { parse as parseYaml } from 'yaml';
 
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import { buildWikiAssistantSystemPrompt } from '@/server/ai/prompts/wiki-question';
@@ -33,9 +34,13 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'Available tools:',
   TOOL_CATALOG_PLACEHOLDER,
   '',
-  'To use tools, reply with ONLY a fenced code block and nothing else:',
+  'To use tools, reply with ONLY a fenced code block and nothing else. YAML is preferred because Markdown content can use a block scalar:',
   '```tool',
-  '{"tool_calls":[{"tool":"search_wiki","arguments":{"query":"..."},"review":"none"}]}',
+  'tool_calls:',
+  '  - tool: search_wiki',
+  '    arguments:',
+  '      query: "..."',
+  '    review: none',
   '```',
   'Set "review" to "admin_review" for changes that should be reviewed. After receiving tool results, either call more tools in the same format or write the final answer as plain prose.',
   'Baseline Wiki sources are provided in the user prompt. Tool-read pages are cited through the tool runtime.',
@@ -126,9 +131,17 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
   const match = output.match(/```(?:tool|json)?\s*([\s\S]*?)```/);
   if (match) {
     try {
-      const parsed = JSON.parse(match[1]!.trim()) as {
+      const source = match[1]!.trim();
+      let parsed: {
         tool_calls?: Array<{ tool?: unknown; arguments?: unknown; review?: unknown }>;
       };
+      try {
+        parsed = JSON.parse(source) as typeof parsed;
+      } catch {
+        // YAML block scalars let models emit long Markdown contentSource
+        // values without fragile JSON newline escaping.
+        parsed = parseYaml(source) as typeof parsed;
+      }
       const rawCalls = Array.isArray(parsed.tool_calls) ? parsed.tool_calls : [];
       const calls = rawCalls
         .filter((call) => typeof call.tool === 'string')

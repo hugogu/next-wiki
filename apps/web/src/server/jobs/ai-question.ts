@@ -311,7 +311,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     const basePrompt = buildPlannerUserPrompt(state);
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
       const retryInstruction = attempt > 0
-        ? '\n\nYour previous tool-call block was invalid or truncated. Re-emit the complete tool call as valid JSON, using the exact documented argument names.'
+        ? '\n\nYour previous tool-call block was invalid or truncated. Re-emit the complete tool call as valid YAML or JSON using the exact documented argument names. Prefer a YAML block scalar (`contentSource: |`) for multiline Markdown.'
         : '';
       const prompt = `${basePrompt}${retryInstruction}`;
       let output = '';
