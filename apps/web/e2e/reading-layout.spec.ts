@@ -18,7 +18,7 @@ async function createAndPublishPage(page: Page, path: string) {
     '# A deliberately long document title that must never render underneath the share button\n\nIntroductory text.\n\n## Overview\n\nMore content.\n\n## Details\n\nAdditional content.',
   );
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.waitForURL(`/history/${path}?compare=1..2`);
+  await page.waitForURL(`/h/${path}?compare=1..2`);
   await page.getByRole('button', { name: /publish this revision/i }).first().click();
   await page.waitForURL(`/${path}`);
 }

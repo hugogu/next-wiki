@@ -48,17 +48,17 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await page.waitForURL(`/edit/${path}`);
   await page.locator('.cm-content').fill(initialContent);
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.waitForURL(`/history/${path}?compare=1..2`);
+  await page.waitForURL(`/h/${path}?compare=1..2`);
 
   await page.goto(`/edit/${path}`);
   await page.locator('.cm-content').fill(changedContent);
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.waitForURL(`/history/${path}?compare=2..3`);
+  await page.waitForURL(`/h/${path}?compare=2..3`);
 
   // Reset to the neutral (no comparison selected) state so the manual
   // selection flow below exercises the click-to-select UI from scratch,
   // rather than the post-save default pair.
-  await page.goto(`/history/${path}`);
+  await page.goto(`/h/${path}`);
 
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Compare' })).toHaveCount(0);
@@ -66,10 +66,10 @@ test('compares two revisions without requesting a server diff endpoint', async (
     /h-8/,
   );
   await page.getByRole('button', { name: /Version 2/ }).click();
-  await page.waitForURL(`/history/${path}?selected=2`);
+  await page.waitForURL(`/h/${path}?selected=2`);
   await expect(page.getByText('Initial heading')).toBeVisible();
   await page.getByRole('button', { name: /Version 3/ }).click();
-  await page.waitForURL(`/history/${path}?compare=2..3`);
+  await page.waitForURL(`/h/${path}?compare=2..3`);
   await expect(page.getByText('Comparing v2 to v3')).toBeVisible();
   await expect(page.getByLabel('Later revision source')).toContainText('Changed body');
   await expect(page.getByLabel('Later revision source')).not.toContainText('Initial heading');
@@ -98,6 +98,6 @@ test('compares two revisions without requesting a server diff endpoint', async (
     await changedPreviewBlock.evaluate((element) => getComputedStyle(element).backgroundColor),
   ).not.toBe('rgba(0, 0, 0, 0)');
   await page.goto(`/revisions/3..2/${path}`);
-  await page.waitForURL(`/history/${path}?compare=2..3`);
+  await page.waitForURL(`/h/${path}?compare=2..3`);
   expect(diffRequests).toEqual([]);
 });

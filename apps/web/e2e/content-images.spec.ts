@@ -50,7 +50,7 @@ test.describe('in-editor images', () => {
     await expect(page.locator('img[src*="/api/v1/assets/"]')).toBeVisible();
 
     await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForURL(`/history/${path}?compare=1..2`);
+    await page.waitForURL(`/h/${path}?compare=1..2`);
     await page.getByRole('button', { name: /publish this revision/i }).first().click();
     await page.waitForURL(`/${path}`);
 
