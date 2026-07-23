@@ -11,6 +11,8 @@ import {
   type AiToolCallEventPayload,
   type AiToolProposalEventPayload,
 } from '@next-wiki/shared';
+import type { TranslationKey } from '@/i18n/keys';
+import { useTranslation } from '@/i18n/client';
 
 const THINK_OPEN = '<think>';
 const THINK_CLOSE = '</think>';
@@ -119,7 +121,20 @@ export function buildToolEnabledQuestionPayload(input: {
   };
 }
 
+export function wikiAiErrorTranslationKey(error: {
+  code?: unknown;
+  message?: unknown;
+}): TranslationKey {
+  const code = typeof error.code === 'string' ? error.code : '';
+  if (code === 'INVALID_RESPONSE') return 'ai.chat.errors.invalidResponse';
+  if (code === 'PROVIDER_UNAVAILABLE') return 'ai.chat.errors.providerUnavailable';
+  if (code === 'RATE_LIMITED') return 'ai.chat.errors.rateLimited';
+  if (code === 'CANCELLED') return 'ai.chat.conversationView.responseStopped';
+  return 'ai.chat.errors.requestFailed';
+}
+
 export function useAiChat(currentPage?: { pageId: string; revisionId: string }) {
+  const { t } = useTranslation();
   const store = useChatStore();
   const action = useAiAction();
   const stateRef = useRef<StreamState>({ markerBuffer: '', tagBuffer: '', insideThink: false });
@@ -173,7 +188,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
           emitAnswer(assistantId, answerText);
         }
         if (event.type === 'citations') store.citations(assistantId, (event.payload.citations ?? []) as AiCitation[]);
-        if (event.type === 'error') store.fail(assistantId, String(event.payload.message ?? 'AI request failed'));
+        if (event.type === 'error') store.fail(assistantId, t(wikiAiErrorTranslationKey(event.payload)));
         if (event.type === 'completed' || event.type === 'error') {
           const { answerText, thinkingText } = flushStreamState(stateRef.current);
           if (thinkingText) store.think(assistantId, thinkingText);
@@ -186,7 +201,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
         }
       });
     } catch (error) {
-      store.fail(assistantId, String((error as { message?: string }).message ?? 'AI request failed'));
+      store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
     }
   }
   return { ...store, ...action, ask };

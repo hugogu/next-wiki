@@ -6,7 +6,16 @@ import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
 import { Button } from '@/components/ui/Button';
 import { useTranslation } from '@/i18n/client';
-import { ChevronRightIcon, InfoIcon, PlusIcon, SendIcon, SparklesIcon, StopIcon } from '@/components/icons';
+import {
+  ChevronRightIcon,
+  ExpandIcon,
+  InfoIcon,
+  PlusIcon,
+  RestoreIcon,
+  SendIcon,
+  SparklesIcon,
+  StopIcon,
+} from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { ChatAnswer } from './ChatAnswer';
@@ -21,6 +30,13 @@ function setAiUrl(open: boolean) {
   window.history.replaceState(null, '', url);
 }
 
+export function aiChatPaneClassName(maximized: boolean): string {
+  const position = maximized
+    ? 'fixed inset-0 z-50 h-dvh w-full max-w-none'
+    : 'relative h-full w-[24rem] max-w-full shrink-0 border-l border-border';
+  return `${position} flex min-h-0 flex-col overflow-hidden bg-surface`;
+}
+
 export function AiChatPane({
   entitlements,
   pageContext,
@@ -30,6 +46,7 @@ export function AiChatPane({
 }) {
   const { t } = useTranslation();
   const [question, setQuestion] = useState('');
+  const [maximized, setMaximized] = useState(false);
   const chat = useAiChat(
     pageContext?.pageId && pageContext.revisionId
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
@@ -72,7 +89,7 @@ export function AiChatPane({
   }
   const lastAssistantId = [...chat.messages].reverse().find((message) => message.role === 'assistant')?.id;
   return (
-    <aside className="flex h-full min-h-0 w-[24rem] max-w-full shrink-0 flex-col overflow-hidden border-l border-border bg-surface">
+    <aside className={aiChatPaneClassName(maximized)}>
       <div className="shrink-0 flex items-center justify-between border-b border-border p-md">
         <div>
           <div className="flex items-center gap-xs">
@@ -96,12 +113,23 @@ export function AiChatPane({
               <PlusIcon />
             </Button>
           </Tooltip>
+          <Tooltip label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}
+              aria-pressed={maximized}
+              onClick={() => setMaximized((value) => !value)}
+            >
+              {maximized ? <RestoreIcon /> : <ExpandIcon />}
+            </Button>
+          </Tooltip>
           <Tooltip label={t('ai.chat.collapse')}>
             <Button
               size="icon"
               variant="ghost"
               aria-label={t('ai.chat.collapse')}
-              onClick={() => { chat.setOpen(false); setAiUrl(false); }}
+              onClick={() => { setMaximized(false); chat.setOpen(false); setAiUrl(false); }}
             >
               <ChevronRightIcon />
             </Button>

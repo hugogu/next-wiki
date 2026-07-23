@@ -21,6 +21,8 @@ describe('AppShell scrolling', () => {
     expect(html).toContain('min-h-0 min-w-0 flex-1 relative flex flex-col');
     expect(html).toContain('min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain flex flex-col');
     expect(html).not.toContain('flex-1 overflow-auto relative');
+    expect(html).toContain('fixed inset-0 flex flex-col overflow-hidden bg-background');
+    expect(html).not.toContain('h-screen flex flex-col');
   });
 
   it('uses a sticky-footer content wrapper for document pages by default', () => {

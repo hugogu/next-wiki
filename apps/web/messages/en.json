@@ -1966,6 +1966,8 @@
       "title": "Wiki AI",
       "close": "Close",
       "collapse": "Collapse",
+      "maximize": "Maximize",
+      "restore": "Restore",
       "newSession": "New session",
       "providerNotice": "Your question and relevant Wiki content may be sent to the configured AI provider.",
       "empty": "Ask a question grounded in this Wiki.",
@@ -1988,6 +1990,12 @@
         "noAnswerYet": "No answer yet.",
         "responseInterrupted": "The response ended before it could produce a final answer.",
         "responseStopped": "The response was stopped."
+      },
+      "errors": {
+        "invalidResponse": "The AI could not produce a valid Wiki operation. Retry or rephrase the request.",
+        "providerUnavailable": "The AI provider is temporarily unavailable. Please retry shortly.",
+        "rateLimited": "The AI provider is busy. Please retry shortly.",
+        "requestFailed": "The response was interrupted. Please retry."
       },
       "tools": {
         "title": "Tool activity",

@@ -1,4 +1,8 @@
-import { buildConversationContext, buildToolEnabledQuestionPayload } from './use-ai-chat';
+import {
+  buildConversationContext,
+  buildToolEnabledQuestionPayload,
+  wikiAiErrorTranslationKey,
+} from './use-ai-chat';
 import type { ChatMessage } from '@/components/chat/chat-store';
 
 describe('useAiChat payload helpers', () => {
@@ -38,5 +42,16 @@ describe('useAiChat payload helpers', () => {
       ],
       tools: { enabled: true, requestedReview: 'admin_review' },
     });
+  });
+
+  it('maps provider and tool-plan failures to user-facing messages instead of a generic internal error', () => {
+    expect(wikiAiErrorTranslationKey({
+      code: 'INVALID_RESPONSE',
+      message: 'The AI provider repeatedly returned an invalid tool call.',
+    })).toBe('ai.chat.errors.invalidResponse');
+    expect(wikiAiErrorTranslationKey({ code: 'PROVIDER_UNAVAILABLE' }))
+      .toBe('ai.chat.errors.providerUnavailable');
+    expect(wikiAiErrorTranslationKey({ message: 'AI request failed' }))
+      .toBe('ai.chat.errors.requestFailed');
   });
 });

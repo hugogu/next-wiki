@@ -113,7 +113,7 @@ export function AppShell({
 
   return (
     <AiAvailabilityProvider value={aiEntitlements ?? null}>
-      <div className="h-screen flex flex-col overflow-hidden bg-background">
+      <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
         <Header user={user} pageContext={resolvedPageContext} onMenuClick={() => setNavOpen(true)} siteName={siteName} />
         <div className="min-h-0 flex-1 flex overflow-hidden">
           <Navigator
