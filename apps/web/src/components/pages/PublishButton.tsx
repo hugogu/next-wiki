@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
-import { getPageHref, getPublicApiPagePublicationUrl } from '@/lib/path';
+import { getPublicApiPagePublicationUrl, getSpaceHref, type ReaderSpace } from '@/lib/path';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { getLocalizedErrorMessage } from '@/i18n/error-messages';
@@ -12,11 +12,13 @@ import { PublishIcon } from '@/components/icons';
 export function PublishButton({
   pageId,
   path,
+  space = 'wiki',
   version,
   iconOnly = false,
 }: {
   pageId: string;
   path: string;
+  space?: ReaderSpace;
   version: number;
   iconOnly?: boolean;
 }) {
@@ -26,7 +28,7 @@ export function PublishButton({
     getPublicApiPagePublicationUrl(pageId, version),
     {
       onSuccess: () => {
-        window.location.href = getPageHref(path);
+        window.location.href = getSpaceHref(space, path);
       },
       onError: (err: ApiError) => {
         if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {

@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { PublishButton } from '@/components/pages/PublishButton';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { useTranslation } from '@/i18n/client';
+import type { ReaderSpace } from '@/lib/path';
 import { RevisionDiffView } from './RevisionDiffView';
 
 export type HistoryRevision = {
@@ -28,6 +29,7 @@ export function HistoryRevisionSelector({
   path,
   revisions,
   pageId,
+  space = 'wiki',
   selectedPair,
   selectedVersion,
   earlier,
@@ -37,6 +39,7 @@ export function HistoryRevisionSelector({
   path: string;
   revisions: HistoryRevision[];
   pageId?: string;
+  space?: ReaderSpace;
   selectedPair?: { earlier: number; later: number };
   selectedVersion?: number;
   earlier?: ComparedRevision;
@@ -105,7 +108,7 @@ export function HistoryRevisionSelector({
                   <span className="min-w-0 truncate text-xs text-muted">{revision.meta}</span>
                 </button>
                 {revision.status === 'draft' && revision.canPublish && pageId ? (
-                  <PublishButton pageId={pageId} path={path} version={revision.version} iconOnly />
+                  <PublishButton pageId={pageId} path={path} space={space} version={revision.version} iconOnly />
                 ) : null}
               </li>
             );

@@ -6,7 +6,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import * as pageService from '@/server/services/pages';
 import { getCurrentActor } from '@/server/services/auth';
 import { HistoryRevisionSelector } from '@/components/pages/HistoryRevisionSelector';
-import { getPagePathFromParams, getPageHref, getHistoryHref, getSpaceHistoryHref, parseRevisionPair, type ReaderSpace } from '@/lib/path';
+import {
+  getPagePathFromParams,
+  getHistoryHref,
+  getSpaceHref,
+  getSpaceHistoryHref,
+  parseRevisionPair,
+  type ReaderSpace,
+} from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -83,6 +90,7 @@ export default async function HistoryPage({
         canEdit,
         canPublish: false,
         version: page.version,
+        space,
       }
     : undefined;
 
@@ -112,10 +120,10 @@ export default async function HistoryPage({
   }
 
   return (
-    <Layout pageContext={pageContext}>
+    <Layout pageContext={pageContext} space={space}>
       <div className="mx-auto max-w-7xl px-lg py-xl">
         <Link
-          href={getPageHref(path)}
+          href={getSpaceHref(space ?? 'wiki', path)}
           className="text-sm text-primary hover:underline mb-md inline-block"
         >
           {t('page.history.backToPage', { title: page?.title ?? path })}
@@ -131,6 +139,7 @@ export default async function HistoryPage({
           <HistoryRevisionSelector
             path={path}
             pageId={page?.pageId}
+            space={space ?? 'wiki'}
             selectedPair={pair ? { earlier: pair.earlier, later: pair.later } : undefined}
             selectedVersion={selectedVersion}
             earlier={comparedRevisions[0] ?? undefined}
