@@ -1972,6 +1972,8 @@
       "providerNotice": "你的问题和相关 Wiki 内容可能会发送给系统配置的 AI 平台。",
       "empty": "提出一个基于本 Wiki 内容的问题。",
       "streaming": "生成中…",
+      "retrieving": "正在检索 Wiki 内容…",
+      "retrievedPages": "已检索到 {count} 个相关页面",
       "mode": {
         "retrieval": "检索模式",
         "full": "全文模式"

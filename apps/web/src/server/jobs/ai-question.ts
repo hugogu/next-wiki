@@ -165,7 +165,10 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
     mode: input.mode,
     textContextWindow: textModel.contextWindow,
   });
-  const { sources, usage: retrievalUsage } = retrieval;
+  const { sources, usage: retrievalUsage, results: retrievalResults } = retrieval;
+  if (input.mode !== 'full') {
+    await appendActionEvent(actionId, 'search_results', { results: retrievalResults });
+  }
 
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   const feishuStream = await startFeishuAnswerStream(actionId);
@@ -271,7 +274,10 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     mode: questionMode,
     textContextWindow: textModel.contextWindow,
   });
-  const { sources: wikiSources, usage: retrievalUsage } = retrieval;
+  const { sources: wikiSources, usage: retrievalUsage, results: retrievalResults } = retrieval;
+  if (questionMode !== 'full') {
+    await appendActionEvent(actionId, 'search_results', { results: retrievalResults });
+  }
 
   // Resolve effective policy for every tool once, up front.
   const provider = await ensureBuiltinProvider();

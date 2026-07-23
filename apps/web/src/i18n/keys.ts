@@ -1409,6 +1409,8 @@ export const translationKeys = [
   "ai.chat.providerNotice",
   "ai.chat.empty",
   "ai.chat.streaming",
+  "ai.chat.retrieving",
+  "ai.chat.retrievedPages",
   "ai.chat.mode.retrieval",
   "ai.chat.mode.full",
   "ai.chat.placeholder",

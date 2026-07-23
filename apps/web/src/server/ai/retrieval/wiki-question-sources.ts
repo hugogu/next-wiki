@@ -30,6 +30,8 @@ type RetrievalDegradation = {
 type WikiQuestionSources = {
   sources: QuestionSource[];
   usage: Record<string, unknown>;
+  /** Raw retrieval hits after score filtering; feeds the search_results event. */
+  results: AiSearchResult[];
   degradation?: RetrievalDegradation;
 };
 
@@ -75,6 +77,7 @@ export async function loadWikiQuestionSources(input: {
     return {
       sources: await loadReadableFullContext(input.ctx, input.textContextWindow, input.question),
       usage: {},
+      results: [],
     };
   }
 
@@ -123,15 +126,16 @@ export async function loadWikiQuestionSources(input: {
     return {
       sources: [],
       usage: { retrieval: { status: 'unavailable', errorCode: normalized.code } },
+      results: [],
       degradation: { code: normalized.code },
     };
   }
 
   const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8);
+  const filtered = filterWikiQuestionResults(results, searchSettings.minRelevanceScore);
   return {
-    sources: searchResultsToSources(
-      filterWikiQuestionResults(results, searchSettings.minRelevanceScore),
-    ),
+    sources: searchResultsToSources(filtered),
     usage: embedded.usage ?? {},
+    results: filtered,
   };
 }

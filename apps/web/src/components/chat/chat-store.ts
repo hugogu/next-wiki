@@ -13,6 +13,12 @@ export function createChatSessionId(): string {
   return crypto.randomUUID();
 }
 
+export type ChatRetrievalResult = {
+  title: string;
+  path: string;
+  spaceSlug?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -21,6 +27,7 @@ export type ChatMessage = {
   citations?: AiCitation[];
   toolCalls?: AiToolCallEventPayload[];
   toolProposals?: AiToolProposalEventPayload[];
+  searchResults?: ChatRetrievalResult[];
   error?: string;
   insufficient?: boolean;
 };
@@ -37,6 +44,7 @@ type ChatState = {
   think: (id: string, text: string) => void;
   toolCall: (id: string, payload: AiToolCallEventPayload) => void;
   toolProposal: (id: string, payload: AiToolProposalEventPayload) => void;
+  searchResults: (id: string, results: ChatRetrievalResult[]) => void;
   insufficient: (id: string) => void;
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
@@ -93,6 +101,9 @@ export const useChatStore = create<ChatState>()(
             : existing.map((item, itemIndex) => itemIndex === index ? { ...item, ...payload } : item);
           return { ...message, toolProposals };
         }),
+      })),
+      searchResults: (id, results) => set((state) => ({
+        messages: state.messages.map((message) => message.id === id ? { ...message, searchResults: results } : message),
       })),
       insufficient: (id) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, text: '', insufficient: true } : message),

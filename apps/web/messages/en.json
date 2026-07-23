@@ -1972,6 +1972,8 @@
       "providerNotice": "Your question and relevant Wiki content may be sent to the configured AI provider.",
       "empty": "Ask a question grounded in this Wiki.",
       "streaming": "Generating…",
+      "retrieving": "Searching the Wiki…",
+      "retrievedPages": "Retrieved {count} related pages",
       "mode": {
         "retrieval": "Retrieval mode",
         "full": "Full Wiki mode"

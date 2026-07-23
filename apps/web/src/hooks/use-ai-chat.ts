@@ -208,6 +208,22 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
         store.toolProposal(assistantId, event.payload as AiToolProposalEventPayload);
         return;
       }
+      if (event.type === 'search_results') {
+        const raw = Array.isArray(event.payload.results) ? event.payload.results : [];
+        const results = raw
+          .map((item) => {
+            const candidate = item as { title?: unknown; path?: unknown; spaceSlug?: unknown };
+            if (typeof candidate.title !== 'string' || typeof candidate.path !== 'string') return null;
+            return {
+              title: candidate.title,
+              path: candidate.path,
+              ...(typeof candidate.spaceSlug === 'string' ? { spaceSlug: candidate.spaceSlug } : {}),
+            };
+          })
+          .filter((item): item is { title: string; path: string; spaceSlug?: string } => Boolean(item));
+        store.searchResults(assistantId, results);
+        return;
+      }
       if (event.type === 'text_delta') {
         const { answerText, thinkingText } = processTextDelta(stateRef.current, String(event.payload.text ?? ''));
         if (thinkingText) store.think(assistantId, thinkingText);

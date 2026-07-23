@@ -10,6 +10,7 @@ const chatState = vi.hoisted(() => ({
     role: 'user' | 'assistant';
     text: string;
     error?: string;
+    searchResults?: { title: string; path: string; spaceSlug?: string }[];
   }>,
   setOpen: vi.fn(),
   newSession: vi.fn(),
@@ -62,12 +63,44 @@ describe('AiChatPane viewport modes', () => {
       { id: 'user-1', role: 'user', text: 'First question' },
       { id: 'assistant-1', role: 'assistant', text: '', error: 'Previous request failed' },
       { id: 'user-2', role: 'user', text: 'Second question' },
-      { id: 'assistant-2', role: 'assistant', text: '' },
+      { id: 'assistant-2', role: 'assistant', text: '', searchResults: [{ title: 'Payments', path: 'concepts/payments' }] },
     ];
 
     const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
 
     expect(html.match(/ai\.chat\.streaming/g)).toHaveLength(1);
     expect(html).toContain('Previous request failed');
+  });
+
+  it('shows the retrieving placeholder before the search_results event arrives', () => {
+    chatState.running = true;
+    chatState.messages = [
+      { id: 'user-1', role: 'user', text: 'First question' },
+      { id: 'assistant-1', role: 'assistant', text: '' },
+    ];
+
+    const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
+
+    expect(html).toContain('ai.chat.retrieving');
+    expect(html).not.toContain('ai.chat.streaming');
+  });
+
+  it('renders the retrieval summary once search results arrive', () => {
+    chatState.running = true;
+    chatState.messages = [
+      { id: 'user-1', role: 'user', text: 'First question' },
+      {
+        id: 'assistant-1',
+        role: 'assistant',
+        text: '',
+        searchResults: [{ title: 'Payments', path: 'concepts/payments' }],
+      },
+    ];
+
+    const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
+
+    expect(html).toContain('ai.chat.retrievedPages');
+    expect(html).toContain('Payments');
+    expect(html).toContain('ai.chat.streaming');
   });
 });

@@ -20,6 +20,7 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
+import { ChatRetrieval } from './ChatRetrieval';
 import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 
@@ -143,11 +144,14 @@ export function AiChatPane({
           <article key={message.id} className={`min-w-0 max-w-full overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
               <div className="min-w-0 space-y-sm">
-                {(message.thinking || message.toolCalls?.length || message.toolProposals?.length) && (
+                {(message.thinking || message.searchResults?.length || message.toolCalls?.length || message.toolProposals?.length) && (
                   <ChatThinking thinking={message.thinking} streaming={message.id === streamingAssistantId}>
-                    {(message.toolCalls?.length || message.toolProposals?.length) && (
-                      <ToolCallTimeline calls={message.toolCalls} proposals={message.toolProposals} embedded />
-                    )}
+                    <>
+                      {message.searchResults?.length ? <ChatRetrieval results={message.searchResults} /> : null}
+                      {(message.toolCalls?.length || message.toolProposals?.length) && (
+                        <ToolCallTimeline calls={message.toolCalls} proposals={message.toolProposals} embedded />
+                      )}
+                    </>
                   </ChatThinking>
                 )}
                 {message.text ? (
@@ -159,7 +163,9 @@ export function AiChatPane({
                 ) : message.insufficient ? (
                   <p className="text-muted">{t('ai.chat.insufficient')}</p>
                 ) : message.id === streamingAssistantId ? (
-                  <div className="text-muted">{t('ai.chat.streaming')}</div>
+                  <div className="text-muted">
+                    {message.searchResults ? t('ai.chat.streaming') : t('ai.chat.retrieving')}
+                  </div>
                 ) : null}
               </div>
             ) : (
