@@ -304,7 +304,8 @@ export type AdminPageListItem = {
   id: string;
   path: string;
   title: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'published_with_draft';
+  latestVersion: number;
   authorDisplayName: string | null;
   authorEmail: string;
   editCount: number;

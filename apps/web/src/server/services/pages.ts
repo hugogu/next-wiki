@@ -379,11 +379,13 @@ export async function listAdminPages(
           path: schema.pages.path,
           title: schema.pages.title,
           currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+          latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
           authorDisplayName: schema.users.displayName,
           authorEmail: schema.users.email,
           editCount: count(schema.pageRevisions.id),
+          latestVersion: max(schema.pageRevisions.versionNumber),
           createdAt: schema.pages.createdAt,
           updatedAt: schema.pages.updatedAt,
         })
@@ -396,6 +398,7 @@ export async function listAdminPages(
           schema.pages.path,
           schema.pages.title,
           schema.pages.currentPublishedVersionId,
+          schema.pages.latestVersionId,
           schema.pages.createdAt,
           schema.pages.updatedAt,
           schema.users.displayName,
@@ -410,6 +413,7 @@ export async function listAdminPages(
           path: schema.pages.path,
           title: schema.pages.title,
           currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+          latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
           authorDisplayName: schema.users.displayName,
@@ -427,12 +431,17 @@ export async function listAdminPages(
   const rowPageIds = rows.map((row) => row.id);
   const editCounts = rowPageIds.length && sort !== 'edits'
     ? await db
-        .select({ pageId: schema.pageRevisions.pageId, value: count() })
+        .select({
+          pageId: schema.pageRevisions.pageId,
+          value: count(),
+          latestVersion: max(schema.pageRevisions.versionNumber),
+        })
         .from(schema.pageRevisions)
         .where(inArray(schema.pageRevisions.pageId, rowPageIds))
         .groupBy(schema.pageRevisions.pageId)
     : [];
   const editCountByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.value)]));
+  const latestVersionByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.latestVersion ?? 0)]));
 
   // Tags on each page's latest revision (pageRevisionTags denormalizes the tag
   // name/normalized name, so no join to the tags table is needed).
@@ -460,7 +469,12 @@ export async function listAdminPages(
       id: row.id,
       path: row.path,
       title: row.title,
-      status: row.currentPublishedVersionId ? 'published' : 'draft',
+      status: !row.currentPublishedVersionId
+        ? 'draft'
+        : row.latestVersionId !== row.currentPublishedVersionId
+          ? 'published_with_draft'
+          : 'published',
+      latestVersion: 'latestVersion' in row ? Number(row.latestVersion ?? 0) : latestVersionByPageId.get(row.id) ?? 0,
       authorDisplayName: row.authorDisplayName,
       authorEmail: row.authorEmail,
       editCount: 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,

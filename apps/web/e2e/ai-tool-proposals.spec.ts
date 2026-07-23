@@ -26,6 +26,34 @@ async function registerReader(page: Page, email: string) {
 // route tests. These specs verify the governance boundaries that must hold
 // regardless: Admin-only access and no exposure to public/anonymous readers.
 test.describe('AI tool proposals — governance boundaries', () => {
+  test('an Admin can open, review, and publish an AI-generated page draft from Pages', async ({
+    page,
+  }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const suffix = Date.now();
+    const path = `ai-review/draft-${suffix}`;
+    const title = `AI review draft ${suffix}`;
+    const contentSource = '# AI draft\n\nContent awaiting review.';
+    const createdResponse = await page.request.post('/api/v1/pages', {
+      data: { path, title, contentSource, nature: 'generated' },
+    });
+    expect(createdResponse.status()).toBe(201);
+    const created = (await createdResponse.json()) as { id: string };
+
+    try {
+      await page.goto(`/admin/pages?keyword=${encodeURIComponent(path)}`);
+      await page.getByRole('link', { name: title }).click();
+      await expect(page).toHaveURL(new RegExp(`/h/${path}\\?selected=1$`));
+      await expect(page.getByText('Content awaiting review.')).toBeVisible();
+
+      await page.getByRole('button', { name: /Publish this revision|发布此版本/ }).click();
+      await expect(page).toHaveURL(new RegExp(`/${path}$`));
+      await expect(page.getByText('Content awaiting review.')).toBeVisible();
+    } finally {
+      await page.request.delete(`/api/v1/pages/${created.id}`);
+    }
+  });
+
   test('an Admin can list proposals via the API', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     const response = await page.request.get('/api/ai/tool-proposals?status=pending');
@@ -46,7 +74,9 @@ test.describe('AI tool proposals — governance boundaries', () => {
     expect(response.status()).toBe(403);
   });
 
-  test('an anonymous reader never sees proposals or unapplied tool mutations', async ({ request }) => {
+  test('an anonymous reader never sees proposals or unapplied tool mutations', async ({
+    request,
+  }) => {
     // Anonymous access to the proposals API is rejected (no existence leak),
     // and the public homepage carries no proposal/tool-call content (T089).
     const proposals = await request.get('/api/ai/tool-proposals');

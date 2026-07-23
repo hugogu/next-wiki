@@ -17,7 +17,7 @@ async function cleanup() {
   await db.delete(schema.users);
 }
 
-describe('listAdminPages tags', () => {
+describe('listAdminPages', () => {
   beforeEach(async () => {
     await cleanup();
     await ensurePublicApiDefaultSpace();
@@ -40,5 +40,33 @@ describe('listAdminPages tags', () => {
     const item = result.items.find((row) => row.path === 'admin/list-tags');
     expect(item).toBeDefined();
     expect(item!.tags.map((tag) => tag.name).sort()).toEqual(['alpha', 'beta']);
+  });
+
+  it('distinguishes unpublished pages from published pages with a pending draft', async () => {
+    const admin = await createPublicApiUser('admin-list-drafts@example.com', 'admin');
+    const ctx = buildUserCtx(admin.id, 'admin');
+    await pageService.create(ctx, {
+      path: 'admin/first-draft',
+      title: 'First draft',
+      contentSource: '# First draft',
+    });
+    await createPublishedFixturePage(admin, {
+      path: 'admin/published-draft',
+      title: 'Published draft',
+      contentSource: '# Published',
+    });
+    const published = await pageService.getForEdit(ctx, 'admin/published-draft');
+    await pageService.newDraft(ctx, 'admin/published-draft', {
+      title: 'Published draft',
+      contentSource: '# Pending update',
+      baseRevisionId: published!.revisionId,
+    });
+
+    const result = await pageService.listAdminPages(ctx, {});
+    const firstDraft = result.items.find((row) => row.path === 'admin/first-draft');
+    const pendingUpdate = result.items.find((row) => row.path === 'admin/published-draft');
+
+    expect(firstDraft).toMatchObject({ status: 'draft', latestVersion: 1 });
+    expect(pendingUpdate).toMatchObject({ status: 'published_with_draft', latestVersion: 2 });
   });
 });

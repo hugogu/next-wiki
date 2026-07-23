@@ -215,6 +215,7 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
     path: args.path,
     title: args.title,
     contentSource: resolvePageContent(args, execCtx),
+    nature: 'generated',
   });
   return { ok: true, summary: `Created draft page "${page.title}".`, draftPageId: page.id, data: { pageId: page.id, path: page.path } };
 }

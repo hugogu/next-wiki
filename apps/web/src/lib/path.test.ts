@@ -1,9 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { getRevisionDiffHref, parseRevisionDiffOptions, parseRevisionPair } from './path';
+import {
+  getRevisionDiffHref,
+  getSpaceDraftReviewHref,
+  parseRevisionDiffOptions,
+  parseRevisionPair,
+} from './path';
 
 describe('revision diff URLs', () => {
   it('sorts a pair into its canonical address', () => {
     expect(getRevisionDiffHref('guide/one', 8, 3)).toBe('/revisions/3..8/guide/one');
+  });
+
+  it('builds draft review URLs for first and subsequent revisions', () => {
+    expect(getSpaceDraftReviewHref('wiki', 'guide/one', 1)).toBe('/h/guide/one?selected=1');
+    expect(getSpaceDraftReviewHref('generated', 'guide/one', 3)).toBe(
+      '/h/guide/one?space=generated&compare=2..3',
+    );
   });
 
   it('identifies a reversed valid pair and rejects identical versions', () => {

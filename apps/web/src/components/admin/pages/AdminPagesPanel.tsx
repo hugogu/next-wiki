@@ -10,8 +10,8 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { ArrowDownIcon, SearchIcon, XIcon } from '@/components/icons';
-import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
+import { ArrowDownIcon, HistoryIcon, SearchIcon, XIcon } from '@/components/icons';
+import { getSpaceDraftReviewHref, getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
 import { DeletePageButton } from './DeletePageButton';
@@ -210,50 +210,67 @@ export function AdminPagesPanel({
               </DataTableCell>
             </DataTableRow>
           ) : (
-            list.items.map((page) => (
-              <DataTableRow key={page.id}>
-                <DataTableCell className="max-w-sm font-medium">
-                  <Link
-                    href={getSpaceHref(readerSpaceFromSlug(page.spaceSlug), page.path)}
-                    className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  >
-                    <HighlightedText text={page.title} keyword={list.filters.keyword} />
-                  </Link>
-                  <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
-                  <div className="mt-xs">
-                    <EditableTagList tags={page.tags} pageId={page.id} canEdit ariaLabel={t('page.metadata.tags')} />
-                  </div>
-                </DataTableCell>
-                <DataTableCell>
-                  <span className="inline-flex items-center gap-xs rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
-                    {t(`admin.pages.status.${page.status}` as TranslationKey)}
-                    {page.kind === 'link' && (
-                      <span className="text-muted/70">({t('admin.pages.status.linked')})</span>
-                    )}
-                  </span>
-                </DataTableCell>
-                <DataTableCell className="text-muted">
-                  <HighlightedText text={page.authorDisplayName ?? page.authorEmail} keyword={list.filters.keyword} />
-                </DataTableCell>
-                <DataTableCell align="right">{page.editCount}</DataTableCell>
-                <DataTableCell className="text-muted">
-                  {new Date(page.updatedAt).toLocaleString()}
-                </DataTableCell>
-                <DataTableCell align="right">
-                  <div className="flex items-center justify-end gap-xs">
-                    {moveEnabled && page.kind === 'native' && currentSpace !== 'raw' && (
-                      <MovePageButton
-                        pageId={page.id}
-                        title={page.title}
-                        targetSpace={targetSpace}
-                        targetSpaceLabel={targetSpaceLabel}
-                      />
-                    )}
-                    <DeletePageButton pageId={page.id} title={page.title} />
-                  </div>
-                </DataTableCell>
-              </DataTableRow>
-            ))
+            list.items.map((page) => {
+              const pageSpace = readerSpaceFromSlug(page.spaceSlug);
+              const hasPendingDraft = page.status !== 'published';
+              const pageHref = hasPendingDraft
+                ? getSpaceDraftReviewHref(pageSpace, page.path, page.latestVersion)
+                : getSpaceHref(pageSpace, page.path);
+              return (
+                <DataTableRow key={page.id}>
+                  <DataTableCell className="max-w-sm font-medium">
+                    <Link
+                      href={pageHref}
+                      className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <HighlightedText text={page.title} keyword={list.filters.keyword} />
+                    </Link>
+                    <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
+                    <div className="mt-xs">
+                      <EditableTagList tags={page.tags} pageId={page.id} canEdit ariaLabel={t('page.metadata.tags')} />
+                    </div>
+                  </DataTableCell>
+                  <DataTableCell>
+                    <span className="inline-flex items-center gap-xs rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
+                      {t(`admin.pages.status.${page.status}` as TranslationKey)}
+                      {page.kind === 'link' && (
+                        <span className="text-muted/70">({t('admin.pages.status.linked')})</span>
+                      )}
+                    </span>
+                  </DataTableCell>
+                  <DataTableCell className="text-muted">
+                    <HighlightedText text={page.authorDisplayName ?? page.authorEmail} keyword={list.filters.keyword} />
+                  </DataTableCell>
+                  <DataTableCell align="right">{page.editCount}</DataTableCell>
+                  <DataTableCell className="text-muted">
+                    {new Date(page.updatedAt).toLocaleString()}
+                  </DataTableCell>
+                  <DataTableCell align="right">
+                    <div className="flex items-center justify-end gap-xs">
+                      {hasPendingDraft && (
+                        <Link
+                          href={pageHref}
+                          aria-label={t('admin.pages.actions.reviewDraft')}
+                          title={t('admin.pages.actions.reviewDraft')}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          <HistoryIcon className="h-4 w-4" />
+                        </Link>
+                      )}
+                      {moveEnabled && page.kind === 'native' && currentSpace !== 'raw' && (
+                        <MovePageButton
+                          pageId={page.id}
+                          title={page.title}
+                          targetSpace={targetSpace}
+                          targetSpaceLabel={targetSpaceLabel}
+                        />
+                      )}
+                      <DeletePageButton pageId={page.id} title={page.title} />
+                    </div>
+                  </DataTableCell>
+                </DataTableRow>
+              );
+            })
           )}
         </DataTableBody>
       </DataTable>

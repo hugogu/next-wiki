@@ -5,11 +5,17 @@ import type { TranslateFunction, TranslationKey } from '@/i18n/types';
 import { AdminPagesPanel } from './AdminPagesPanel';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => <a href={href} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 vi.mock('./AdminPageStats', () => ({ AdminPageStats: () => null }));
 vi.mock('@/components/ui/Pagination', () => ({ Pagination: () => null }));
-vi.mock('./MovePageButton', () => ({ MovePageButton: () => <button data-testid="move-page-button">move</button> }));
+vi.mock('./MovePageButton', () => ({
+  MovePageButton: () => <button data-testid="move-page-button">move</button>,
+}));
 vi.mock('./DeletePageButton', () => ({ DeletePageButton: () => null }));
 vi.mock('@/components/pages/EditableTagList', () => ({ EditableTagList: () => null }));
 
@@ -55,6 +61,7 @@ function nativePage(overrides: Partial<AdminPageListItem> = {}): AdminPageListIt
     path: 'conversations/feishu/2026/07/21/action-1',
     title: 'Conversation: hi',
     status: 'published',
+    latestVersion: 1,
     authorDisplayName: 'Bot',
     authorEmail: 'bot@example.com',
     editCount: 1,
@@ -71,8 +78,14 @@ function nativePage(overrides: Partial<AdminPageListItem> = {}): AdminPageListIt
 describe('AdminPagesPanel space filter (Raw space)', () => {
   it('offers a Raw tab alongside Wiki and Generated when moveEnabled', () => {
     const list: AdminPageListResult = {
-      items: [], totalItems: 0, currentPage: 1, totalPages: 1, pageSize: 30,
-      sort: 'updatedAt', direction: 'desc', filters: {},
+      items: [],
+      totalItems: 0,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: {},
     };
     const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} moveEnabled />);
     expect(html).toContain('admin.pages.spaces.wiki');
@@ -83,19 +96,102 @@ describe('AdminPagesPanel space filter (Raw space)', () => {
 
   it('hides the Move action for native pages while viewing the Raw space (Raw is append-only, never a move target)', () => {
     const list: AdminPageListResult = {
-      items: [nativePage()], totalItems: 1, currentPage: 1, totalPages: 1, pageSize: 30,
-      sort: 'updatedAt', direction: 'desc', filters: { space: 'raw' },
+      items: [nativePage()],
+      totalItems: 1,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: { space: 'raw' },
     };
-    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{ space: 'raw' }} moveEnabled />);
+    const html = renderToStaticMarkup(
+      <AdminPagesPanel t={t} list={list} query={{ space: 'raw' }} moveEnabled />,
+    );
     expect(html).not.toContain('data-testid="move-page-button"');
   });
 
   it('still shows Move for a native page in the Wiki/Generated tabs', () => {
     const list: AdminPageListResult = {
-      items: [nativePage({ spaceSlug: 'generated' })], totalItems: 1, currentPage: 1, totalPages: 1, pageSize: 30,
-      sort: 'updatedAt', direction: 'desc', filters: { space: 'generated' },
+      items: [nativePage({ spaceSlug: 'generated' })],
+      totalItems: 1,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: { space: 'generated' },
     };
-    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{ space: 'generated' }} moveEnabled />);
+    const html = renderToStaticMarkup(
+      <AdminPagesPanel t={t} list={list} query={{ space: 'generated' }} moveEnabled />,
+    );
     expect(html).toContain('data-testid="move-page-button"');
+  });
+});
+
+describe('AdminPagesPanel draft review links', () => {
+  it('opens a first draft in history preview instead of the unpublished reader URL', () => {
+    const list: AdminPageListResult = {
+      items: [
+        nativePage({
+          path: 'historical-figures/liu-bei',
+          title: 'Liu Bei',
+          status: 'draft',
+          latestVersion: 1,
+          spaceSlug: 'default',
+        }),
+      ],
+      totalItems: 1,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: {},
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} />);
+
+    expect(html).toContain('href="/h/historical-figures/liu-bei?selected=1"');
+    expect(html).toContain('aria-label="admin.pages.actions.reviewDraft"');
+    expect(html).not.toContain('href="/historical-figures/liu-bei"');
+  });
+
+  it('opens the latest pending revision as a diff for an already-published page', () => {
+    const list: AdminPageListResult = {
+      items: [
+        nativePage({ status: 'published_with_draft', latestVersion: 3, spaceSlug: 'default' }),
+      ],
+      totalItems: 1,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: {},
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} />);
+
+    expect(html).toContain('href="/h/conversations/feishu/2026/07/21/action-1?compare=2..3"');
+    expect(html).toContain('admin.pages.status.published_with_draft');
+  });
+
+  it('keeps published page titles linked to the reader', () => {
+    const list: AdminPageListResult = {
+      items: [nativePage()],
+      totalItems: 1,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: {},
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} />);
+
+    expect(html).toContain('href="/spaces/raw/conversations/feishu/2026/07/21/action-1"');
+    expect(html).not.toContain('admin.pages.actions.reviewDraft');
   });
 });

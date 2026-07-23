@@ -76,6 +76,19 @@ export function getSpaceHistoryHref(space: ReaderSpace, path: string, compare?: 
   return `/h/${encodePath(path)}${qs ? `?${qs}` : ''}`;
 }
 
+/** Opens the latest draft in its review context: compare it with the previous
+ * revision when one exists, otherwise preview the first draft in full. */
+export function getSpaceDraftReviewHref(space: ReaderSpace, path: string, latestVersion: number): string {
+  const query = new URLSearchParams();
+  if (space !== 'wiki') query.set('space', space);
+  if (latestVersion > 1) {
+    query.set('compare', `${latestVersion - 1}..${latestVersion}`);
+  } else {
+    query.set('selected', String(Math.max(1, latestVersion)));
+  }
+  return `/h/${encodePath(path)}?${query}`;
+}
+
 export function getRevisionHref(path: string, version: number): string {
   return `/revisions/${version}/${encodePath(path)}`;
 }

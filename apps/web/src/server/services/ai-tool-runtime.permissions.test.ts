@@ -175,6 +175,7 @@ describe('read tool permission projection (026)', () => {
       path: 'history/china/figures/zhang-fei',
       title: '张飞',
       contentSource: '# 张飞\n\n蜀汉名将。',
+      nature: 'generated',
     });
     expect(result.ok).toBe(true);
   });
