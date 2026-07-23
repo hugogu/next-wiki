@@ -90,11 +90,11 @@ export function AiChatPane({
   const lastAssistantId = [...chat.messages].reverse().find((message) => message.role === 'assistant')?.id;
   return (
     <aside className={aiChatPaneClassName(maximized)}>
-      <div className="shrink-0 flex items-center justify-between border-b border-border p-md">
+      <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-border px-sm py-sm">
         <div>
           <div className="flex items-center gap-xs">
-            <h2 className="font-display font-semibold">{t('ai.chat.title')}</h2>
-            <Tooltip label={t('ai.chat.providerNotice')}>
+            <h2 className="font-display text-base font-semibold">{t('ai.chat.title')}</h2>
+            <Tooltip label={t('ai.chat.providerNotice')} placement="bottom" align="start">
               <span tabIndex={0} aria-label={t('ai.chat.providerNotice')} className="inline-flex text-muted outline-none focus:text-foreground">
                 <InfoIcon className="h-4 w-4" />
               </span>
@@ -102,7 +102,7 @@ export function AiChatPane({
           </div>
         </div>
         <div className="flex items-center gap-xs">
-          <Tooltip label={t('ai.chat.newSession')}>
+          <Tooltip label={t('ai.chat.newSession')} placement="bottom" align="end">
             <Button
               size="icon"
               variant="ghost"
@@ -113,7 +113,11 @@ export function AiChatPane({
               <PlusIcon />
             </Button>
           </Tooltip>
-          <Tooltip label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}>
+          <Tooltip
+            label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}
+            placement="bottom"
+            align="end"
+          >
             <Button
               size="icon"
               variant="ghost"
@@ -124,7 +128,7 @@ export function AiChatPane({
               {maximized ? <RestoreIcon /> : <ExpandIcon />}
             </Button>
           </Tooltip>
-          <Tooltip label={t('ai.chat.collapse')}>
+          <Tooltip label={t('ai.chat.collapse')} placement="bottom" align="end">
             <Button
               size="icon"
               variant="ghost"

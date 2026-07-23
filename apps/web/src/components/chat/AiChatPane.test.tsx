@@ -36,6 +36,8 @@ describe('AiChatPane viewport modes', () => {
     const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
     expect(html).toContain('aria-label="ai.chat.maximize"');
     expect(html).toContain('relative h-full w-[24rem]');
+    expect(html).toContain('border-b border-border px-sm py-sm');
+    expect(html).toContain('top-full mt-xs right-0');
   });
 
   it('uses the entire dynamic viewport when maximized', () => {
