@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { LinkIcon } from '@/components/icons';
 import { PublishAsLinkDialog } from './PublishAsLinkDialog';
 import { useProtectedPage } from './ProvenanceIndicators';
@@ -24,10 +25,16 @@ export function PublishLinkButton({
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setDialogOpen(true)}>
-        <LinkIcon className="mr-xs h-4 w-4" />
-        {t('page.publishLink.button')}
-      </Button>
+      <Tooltip label={t('page.publishLink.button')}>
+        <Button
+          size="icon"
+          variant="secondary"
+          aria-label={t('page.publishLink.button')}
+          onClick={() => setDialogOpen(true)}
+        >
+          <LinkIcon className="h-4 w-4" />
+        </Button>
+      </Tooltip>
       {dialogOpen && (
         <PublishAsLinkDialog
           targetPageId={pageId}

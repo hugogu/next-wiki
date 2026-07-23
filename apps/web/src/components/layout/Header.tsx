@@ -26,7 +26,6 @@ import { apiPost } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import {
   getPageHref,
-  getHistoryHref,
   getSpaceHistoryHref,
   getPublicApiPagePublicationUrl,
   getSpaceEditHref,
@@ -235,11 +234,11 @@ export function Header({
                 </IconButton>
               )}
 
-              {pageContext && isSignedIn && (!pageContext.space || pageContext.space === 'wiki') && (
+              {pageContext && isSignedIn && pageContext.space !== 'raw' && (
                 <IconButton
                   href={pageContext.linkTargetPath
                     ? getSpaceHistoryHref('generated', pageContext.linkTargetPath)
-                    : getHistoryHref(pageContext.path)}
+                    : getSpaceHistoryHref(pageContext.space ?? 'wiki', pageContext.path)}
                   label={t('page.header.history')}
                 >
                   <HistoryIcon />
