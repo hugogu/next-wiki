@@ -146,6 +146,8 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).toContain('perform the appropriate tool calls instead of merely explaining');
     expect(prompt).toContain('- create_page (page_draft)');
     expect(prompt).toContain('contentFromConversation=true');
+    expect(prompt).toContain('always include a Markdown link to the new page');
+    expect(prompt).toContain('exact title and href returned by the tool result');
     expect(prompt).toContain('For save_draft, use the exact pageId returned by get_page');
     expect(prompt).toContain('YAML is preferred');
   });

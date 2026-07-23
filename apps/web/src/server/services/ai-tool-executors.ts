@@ -6,6 +6,7 @@ import {
   type PublicPageResource,
 } from '@next-wiki/shared';
 import { DomainError } from '@/server/errors';
+import { getSpaceHref } from '@/lib/path';
 import type { PermCtx } from '@/server/permissions';
 import * as content from '@/server/services/public-content';
 import * as tags from '@/server/services/tags';
@@ -224,7 +225,17 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
     nature: 'generated',
     space: isAdmin ? 'generated' : 'default',
   });
-  return { ok: true, summary: `Created draft page "${page.title}".`, draftPageId: page.id, data: { pageId: page.id, path: page.path } };
+  return {
+    ok: true,
+    summary: `Created draft page "${page.title}".`,
+    draftPageId: page.id,
+    data: {
+      pageId: page.id,
+      path: page.path,
+      title: page.title,
+      href: getSpaceHref(isAdmin ? 'generated' : 'wiki', page.path),
+    },
+  };
 }
 
 async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {

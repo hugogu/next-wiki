@@ -180,6 +180,12 @@ describe('read tool permission projection (026)', () => {
       space: 'generated',
     });
     expect(result.ok).toBe(true);
+    expect(result.data).toEqual({
+      pageId: 'page-created',
+      path: 'history/china/figures/zhang-fei',
+      title: '张飞',
+      href: '/spaces/generated/history/china/figures/zhang-fei',
+    });
   });
 
   it('falls back to the default space for non-admin actors', async () => {
@@ -199,6 +205,12 @@ describe('read tool permission projection (026)', () => {
       nature: 'generated',
     }));
     expect(result.ok).toBe(true);
+    expect(result.data).toEqual({
+      pageId: 'page-editor',
+      path: 'drafts/test',
+      title: 'Test',
+      href: '/drafts/test',
+    });
   });
 
   it('keeps the existing page title when a save_draft call supplies only replacement content', async () => {
