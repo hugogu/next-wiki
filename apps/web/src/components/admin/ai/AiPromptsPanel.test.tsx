@@ -15,7 +15,7 @@ import { AiPromptsPanel } from './AiPromptsPanel';
 
 function view(overrides: Partial<AiRuntimeSettingsView['prompts']> = {}): AiRuntimeSettingsView {
   return {
-    params: { toolMaxCalls: 100, plannerTemperature: 0.1, plannerMaxOutputTokens: 32_768, plannerTimeoutMs: 120000 },
+    params: { toolMaxCalls: 100, plannerTemperature: 0.1, plannerMaxOutputTokens: 32_768 },
     prompts: { assistantSystemPrompt: null, toolSystemPrompt: null, ...overrides },
     defaults: {
       assistantSystemPrompt: 'You are Wiki AI.',

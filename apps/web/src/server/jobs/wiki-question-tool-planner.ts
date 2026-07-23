@@ -42,6 +42,7 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'Do not repeat semantically equivalent searches. After a few reasonable attempts, answer with the best available knowledge instead of searching again.',
   'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
   'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
+  'For save_draft, use the exact pageId returned by get_page, then pass complete replacement Markdown in contentSource. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
   'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
 ].join('\n');
 

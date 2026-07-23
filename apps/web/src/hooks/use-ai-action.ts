@@ -8,13 +8,28 @@ export type AiClientEvent = { type: AiEventType; payload: Record<string, unknown
 
 export function useAiAction() {
   const sourceRef = useRef<EventSource | null>(null);
+  const actionIdRef = useRef<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
-  const cancel = useCallback(() => {
+  const cancel = useCallback(async () => {
+    const actionId = actionIdRef.current;
+    actionIdRef.current = null;
     sourceRef.current?.close();
     sourceRef.current = null;
     setRunning(false);
+    if (!actionId) return;
+    try {
+      // Closing an EventSource only stops delivery to the browser. Flag the
+      // server action too, so its provider request receives the cancellation.
+      await fetch(`/api/ai/actions/${actionId}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+    } catch {
+      // The stream is already detached. A transient cancellation request
+      // failure must not turn the current chat message into a user-facing error.
+    }
   }, []);
 
   const start = useCallback(async (
@@ -22,7 +37,7 @@ export function useAiAction() {
     input: unknown,
     onEvent: (event: AiClientEvent) => void,
   ): Promise<AiActionAccepted> => {
-    cancel();
+    void cancel();
     setError(null);
     setRunning(true);
     const response = await fetch(path, {
@@ -39,6 +54,7 @@ export function useAiAction() {
       throw apiError;
     }
     const action = body as AiActionAccepted;
+    actionIdRef.current = action.id;
     const source = new EventSource(action.eventsUrl);
     sourceRef.current = source;
     const eventTypes: AiEventType[] = [
@@ -52,7 +68,8 @@ export function useAiAction() {
         onEvent({ type, payload });
         if (type === 'completed' || type === 'error') {
           source.close();
-          sourceRef.current = null;
+          if (sourceRef.current === source) sourceRef.current = null;
+          if (actionIdRef.current === action.id) actionIdRef.current = null;
           setRunning(false);
           if (type === 'error') setError({ code: String(payload.code ?? 'AI_ERROR'), message: String(payload.message ?? 'AI action failed') });
         }

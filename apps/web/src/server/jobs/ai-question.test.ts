@@ -241,6 +241,7 @@ describe('Wiki question worker', () => {
     // Capped at the answer ceiling and well below the model's 32k window.
     expect(requested).toBe(8192);
     expect(requested).toBeLessThan(32_000);
+    expect(streamText.mock.calls[0]![0].timeoutMs).toBeNull();
   });
 
   it('retries a transient query-embedding failure before retrieving sources', async () => {
@@ -309,10 +310,11 @@ describe('Wiki question worker', () => {
       type: 'reasoning_delta',
       payload: expect.objectContaining({ text: 'I should inspect the current Wiki context.' }),
     }));
-    const request = streamText.mock.calls[0]![0] as { system: string };
+    const request = streamText.mock.calls[0]![0] as { system: string; timeoutMs: number | null };
     expect(request.system).toContain('conversational knowledge agent embedded in this Next Wiki instance');
     expect(request.system).toContain('current Wiki is your working knowledge environment');
     expect(request.system).toContain('perform the appropriate tool calls instead of merely explaining');
+    expect(request.timeoutMs).toBeNull();
   });
 
   it('compresses attached sources and retries after a context-length error', async () => {

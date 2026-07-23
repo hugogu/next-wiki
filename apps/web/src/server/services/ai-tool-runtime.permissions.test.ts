@@ -34,6 +34,7 @@ const searchTool = getToolDefinition('search_wiki')!;
 const getPageTool = getToolDefinition('get_page')!;
 const listPagesTool = getToolDefinition('list_pages')!;
 const createPageTool = getToolDefinition('create_page')!;
+const saveDraftTool = getToolDefinition('save_draft')!;
 const readerCtx = buildUserCtx('reader-1', 'reader');
 const adminCtx = buildUserCtx('admin-1', 'admin');
 const execCtx = {
@@ -198,5 +199,21 @@ describe('read tool permission projection (026)', () => {
       nature: 'generated',
     }));
     expect(result.ok).toBe(true);
+  });
+
+  it('keeps the existing page title when a save_draft call supplies only replacement content', async () => {
+    content.getPageById.mockResolvedValue({ id: 'page-sun-quan', title: '孙权' });
+    content.createDraft.mockResolvedValue({ version: 3 });
+
+    const result = await executeTool(adminCtx, saveDraftTool, {
+      pageId: '33333333-3333-4333-8333-333333333333',
+      contentSource: '# 孙权\n\nExpanded content.',
+    }, { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' });
+
+    expect(content.createDraft).toHaveBeenCalledWith(adminCtx, '33333333-3333-4333-8333-333333333333', {
+      title: '孙权',
+      contentSource: '# 孙权\n\nExpanded content.',
+    });
+    expect(result).toMatchObject({ ok: true, summary: 'Saved draft revision v3.' });
   });
 });

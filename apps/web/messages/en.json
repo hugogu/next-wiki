@@ -1976,6 +1976,7 @@
       },
       "placeholder": "Ask about this Wiki",
       "send": "Send",
+      "stop": "Stop response",
       "retry": "Retry",
       "insufficient": "The Wiki does not contain enough evidence to answer.",
       "thinking": "Thinking",
@@ -1984,7 +1985,9 @@
       "capacity": "The full Wiki is too large for the selected model. Use retrieval mode.",
       "citations": "Sources",
       "conversationView": {
-        "noAnswerYet": "No answer yet."
+        "noAnswerYet": "No answer yet.",
+        "responseInterrupted": "The response ended before it could produce a final answer.",
+        "responseStopped": "The response was stopped."
       },
       "tools": {
         "title": "Tool activity",

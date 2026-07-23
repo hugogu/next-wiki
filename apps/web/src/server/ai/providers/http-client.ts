@@ -1,7 +1,8 @@
 import { env } from '@/server/config';
 import { AiProviderError, sanitizeProviderMessage, type ProviderRuntimeConfig } from '../types';
 
-function combineSignals(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+function combineSignals(signal: AbortSignal | undefined, timeoutMs: number | null): AbortSignal | undefined {
+  if (timeoutMs === null) return signal;
   const timeout = AbortSignal.timeout(timeoutMs);
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
@@ -40,7 +41,7 @@ export async function providerFetch(
   config: ProviderRuntimeConfig,
   path: string,
   init: RequestInit = {},
-  timeoutMs = env.AI_PROVIDER_REQUEST_TIMEOUT_MS,
+  timeoutMs: number | null = env.AI_PROVIDER_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
   const url = new URL(path.replace(/^\//, ''), `${config.baseUrl.replace(/\/+$/, '')}/`);
   let response: Response;

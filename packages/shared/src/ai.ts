@@ -238,8 +238,6 @@ export const TOOL_MAX_CALLS_MIN = 1;
 export const TOOL_MAX_CALLS_MAX = 100;
 export const TOOL_PLANNER_TEMPERATURE_MIN = 0;
 export const TOOL_PLANNER_TEMPERATURE_MAX = 2;
-export const TOOL_PLANNER_TIMEOUT_MS_MIN = 5_000;
-export const TOOL_PLANNER_TIMEOUT_MS_MAX = 600_000;
 export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN = 256;
 export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX = 65_536;
 export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT = 32_768;
@@ -257,12 +255,6 @@ export const aiRuntimeParamsUpdateSchema = z.object({
     .int()
     .min(TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN)
     .max(TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX)
-    .optional(),
-  plannerTimeoutMs: z
-    .number()
-    .int()
-    .min(TOOL_PLANNER_TIMEOUT_MS_MIN)
-    .max(TOOL_PLANNER_TIMEOUT_MS_MAX)
     .optional(),
 });
 export type AiRuntimeParamsUpdate = z.infer<typeof aiRuntimeParamsUpdateSchema>;
@@ -282,7 +274,6 @@ export const aiRuntimeSettingsViewSchema = z.object({
     toolMaxCalls: z.number().int(),
     plannerTemperature: z.number(),
     plannerMaxOutputTokens: z.number().int(),
-    plannerTimeoutMs: z.number().int(),
   }),
   prompts: z.object({
     // Null means the built-in default is in effect (no admin override stored).

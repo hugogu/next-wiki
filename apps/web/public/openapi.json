@@ -5872,8 +5872,7 @@
           }
         },
         "required": [
-          "pageId",
-          "title"
+          "pageId"
         ]
       },
       "searchArgs": {

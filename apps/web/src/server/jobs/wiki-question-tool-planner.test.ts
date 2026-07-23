@@ -118,6 +118,7 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).toContain('perform the appropriate tool calls instead of merely explaining');
     expect(prompt).toContain('- create_page (page_draft)');
     expect(prompt).toContain('contentFromConversation=true');
+    expect(prompt).toContain('For save_draft, use the exact pageId returned by get_page');
   });
 });
 

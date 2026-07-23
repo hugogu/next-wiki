@@ -162,6 +162,23 @@ export function XIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function SendIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </Icon>
+  );
+}
+
+export function StopIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="6" y="6" width="12" height="12" rx="1" />
+    </Icon>
+  );
+}
+
 export function PauseIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

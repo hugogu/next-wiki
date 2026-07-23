@@ -32,7 +32,6 @@ describe('ai runtime settings (026)', () => {
     expect(config.maxToolCalls).toBe(100);
     expect(config.plannerTemperature).toBeCloseTo(0.1);
     expect(config.plannerMaxOutputTokens).toBe(32_768);
-    expect(config.plannerTimeoutMs).toBe(120_000);
     expect(config.assistantSystemPrompt).toBeNull();
     expect(config.toolSystemPrompt).toBeNull();
   });
@@ -54,13 +53,11 @@ describe('ai runtime settings (026)', () => {
       toolMaxCalls: 40,
       plannerTemperature: 0.35,
       plannerMaxOutputTokens: 2048,
-      plannerTimeoutMs: 30_000,
     });
     const config = await resolveAiRuntimeConfig();
     expect(config.maxToolCalls).toBe(40);
     expect(config.plannerTemperature).toBeCloseTo(0.35);
     expect(config.plannerMaxOutputTokens).toBe(2048);
-    expect(config.plannerTimeoutMs).toBe(30_000);
   });
 
   it('stores a prompt override and clears it back to the default when blanked', async () => {

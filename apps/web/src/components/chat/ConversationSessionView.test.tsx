@@ -40,9 +40,10 @@ describe('ConversationSessionView', () => {
     expect(html).not.toContain('No answer yet.');
   });
 
-  it('shows the error message instead of the answer when the conversation failed', () => {
+  it('shows a human-readable interruption instead of the provider error when the conversation failed', () => {
     const html = render(conversation({ status: 'failed', errorMessage: 'The provider timed out.', answer: '' }));
-    expect(html).toContain('The provider timed out.');
+    expect(html).toContain('The response ended before it could produce a final answer.');
+    expect(html).not.toContain('The provider timed out.');
     expect(html).toContain('Failed');
   });
 

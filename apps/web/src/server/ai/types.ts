@@ -58,7 +58,8 @@ export type TextGenerationInput = {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   maxOutputTokens?: number;
   temperature?: number;
-  timeoutMs?: number;
+  /** `null` disables the transport timeout; callers must then supply an abort signal. */
+  timeoutMs?: number | null;
   abortSignal: AbortSignal;
 };
 export type TextGenerationEvent =

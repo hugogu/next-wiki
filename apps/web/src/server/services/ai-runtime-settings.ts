@@ -11,7 +11,7 @@ import { TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT } from '@next-wiki/shared';
 
 /**
  * Wiki AI runtime tuning (026). The planner parameters (max tool calls, sampling
- * temperature, max output tokens, timeout) and the two runtime prompts
+ * temperature, max output tokens) and the two runtime prompts
  * (assistant system prompt, tool system prompt) live on the `ai_settings`
  * singleton so operators can tune the tool loop without a redeploy. Parameters
  * are edited from Bots > General; prompts from AI > Prompts. `null` prompts mean
@@ -22,7 +22,6 @@ const RUNTIME_DEFAULTS = {
   maxToolCalls: 100,
   plannerTemperature: 0.1,
   plannerMaxOutputTokens: TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT,
-  plannerTimeoutMs: 120_000,
 };
 
 export type AiRuntimeConfig = {
@@ -30,7 +29,6 @@ export type AiRuntimeConfig = {
   /** Sampling temperature in [0, 2]. */
   plannerTemperature: number;
   plannerMaxOutputTokens: number;
-  plannerTimeoutMs: number;
   /** Null means use the built-in default prompt. */
   assistantSystemPrompt: string | null;
   toolSystemPrompt: string | null;
@@ -43,7 +41,6 @@ export async function resolveAiRuntimeConfig(): Promise<AiRuntimeConfig> {
     maxToolCalls: row?.toolMaxCalls ?? RUNTIME_DEFAULTS.maxToolCalls,
     plannerTemperature: (row?.toolPlannerTemperature ?? 10) / 100,
     plannerMaxOutputTokens: row?.toolPlannerMaxOutputTokens ?? RUNTIME_DEFAULTS.plannerMaxOutputTokens,
-    plannerTimeoutMs: row?.toolPlannerTimeoutMs ?? RUNTIME_DEFAULTS.plannerTimeoutMs,
     assistantSystemPrompt: row?.assistantSystemPrompt ?? null,
     toolSystemPrompt: row?.toolSystemPrompt ?? null,
   };
@@ -63,7 +60,6 @@ export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSetti
       toolMaxCalls: config.maxToolCalls,
       plannerTemperature: config.plannerTemperature,
       plannerMaxOutputTokens: config.plannerMaxOutputTokens,
-      plannerTimeoutMs: config.plannerTimeoutMs,
     },
     prompts: {
       assistantSystemPrompt: config.assistantSystemPrompt,
@@ -97,7 +93,6 @@ export async function updateAiRuntimeSettings(
     patch.toolPlannerTemperature = Math.round(input.plannerTemperature * 100);
   }
   if (input.plannerMaxOutputTokens !== undefined) patch.toolPlannerMaxOutputTokens = input.plannerMaxOutputTokens;
-  if (input.plannerTimeoutMs !== undefined) patch.toolPlannerTimeoutMs = input.plannerTimeoutMs;
   const assistant = normalizePrompt(input.assistantSystemPrompt);
   if (assistant !== undefined) patch.assistantSystemPrompt = assistant;
   const tool = normalizePrompt(input.toolSystemPrompt);

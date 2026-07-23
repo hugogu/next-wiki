@@ -122,7 +122,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Save a new draft revision of an existing page for review. Use contentFromConversation=true to reuse the latest assistant answer.',
+    description: 'Save a new draft revision of an existing page for review. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
   },
   {
     name: 'update_page_metadata',

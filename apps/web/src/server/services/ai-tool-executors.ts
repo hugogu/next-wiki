@@ -100,7 +100,9 @@ const createPageArgs = z
   }));
 const saveDraftArgs = z.object({
   pageId: z.string().uuid(),
-  title: z.string().min(1).max(200),
+  // A draft normally keeps the page's existing title. Requiring the model to
+  // repeat it made an otherwise valid content revision fail for no benefit.
+  title: z.string().min(1).max(200).optional(),
   contentSource: z.string().min(1).max(500_000).optional(),
   contentFromConversation: z.boolean().optional(),
 }).refine((args) => args.contentFromConversation || args.contentSource, {
@@ -227,8 +229,10 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
 
 async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = saveDraftArgs.parse(rawArgs);
+  const page = args.title ? null : await content.getPageById(ctx, args.pageId);
+  if (!args.title && !page) return fail('NOT_FOUND', 'No readable page matched.');
   const revision = await content.createDraft(ctx, args.pageId, {
-    title: args.title,
+    title: args.title ?? page!.title,
     contentSource: resolvePageContent(args, execCtx),
   });
   return { ok: true, summary: `Saved draft revision v${revision.version}.`, draftPageId: args.pageId, data: { pageId: args.pageId, version: revision.version } };

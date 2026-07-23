@@ -1976,6 +1976,7 @@
       },
       "placeholder": "询问关于此 Wiki 的问题",
       "send": "发送",
+      "stop": "停止回复",
       "retry": "重试",
       "insufficient": "Wiki 中没有足够依据回答该问题。",
       "thinking": "思考中",
@@ -1984,7 +1985,9 @@
       "capacity": "全部 Wiki 内容超出当前模型容量，请使用检索模式。",
       "citations": "来源",
       "conversationView": {
-        "noAnswerYet": "暂无回答。"
+        "noAnswerYet": "暂无回答。",
+        "responseInterrupted": "回复在生成最终答案前中断。",
+        "responseStopped": "回复已停止。"
       },
       "tools": {
         "title": "工具活动",

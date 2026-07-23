@@ -78,6 +78,32 @@ type ToolEnabledQuestionInput = {
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
 const MAX_TOOL_PROTOCOL_RETRIES = 3;
 
+/**
+ * Keep a provider stream cancellable without imposing an arbitrary response
+ * deadline. The browser's Stop control flags the action in PostgreSQL; this
+ * lightweight watcher turns that durable flag into an AbortSignal for an
+ * in-flight provider request.
+ */
+function watchActionCancellation(actionId: string) {
+  const controller = new AbortController();
+  let checking = false;
+  const check = async () => {
+    if (checking || controller.signal.aborted) return;
+    checking = true;
+    try {
+      if (await isCancellationRequested(actionId)) controller.abort();
+    } finally {
+      checking = false;
+    }
+  };
+  void check();
+  const interval = setInterval(() => void check(), 250);
+  return {
+    signal: controller.signal,
+    dispose: () => clearInterval(interval),
+  };
+}
+
 function appendSourceLinks(answer: string, citations: AiCitation[]): string {
   if (citations.length === 0) return answer;
   const existing = new Set<string>();
@@ -145,6 +171,7 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   const feishuStream = await startFeishuAnswerStream(actionId);
   let answer = '';
   let usage: Record<string, unknown> = { ...retrievalUsage };
+  const cancellation = watchActionCancellation(actionId);
   // Sources actually sent to the model. A context-overflow retry compresses
   // these, and citations must resolve against whatever the model finally saw.
   let promptSources = sources;
@@ -164,7 +191,8 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
           messages: [{ role: 'user', content: prompt.user }],
           maxOutputTokens,
           temperature: 0.1,
-          abortSignal: new AbortController().signal,
+          abortSignal: cancellation.signal,
+          timeoutMs: null,
         })) {
           if (await isCancellationRequested(actionId))
             throw new DomainError('CANCELLED', 'Question action was cancelled');
@@ -212,6 +240,8 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   } catch (error) {
     if (feishuStream) await failFeishuAnswerStream(feishuStream, actionId);
     throw error;
+  } finally {
+    cancellation.dispose();
   }
   // Deliver a Feishu-originated answer promptly (no-op for web-originated ones).
   await nudgeAnswerDelivery(actionId);
@@ -276,6 +306,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
     toolSystemPrompt: runtimeConfig.toolSystemPrompt,
   });
+  const cancellation = watchActionCancellation(actionId);
   const planner: ToolPlanner = async (state) => {
     const basePrompt = buildPlannerUserPrompt(state);
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
@@ -297,8 +328,8 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
             runtimeConfig.plannerMaxOutputTokens,
           ),
           temperature: runtimeConfig.plannerTemperature,
-          timeoutMs: runtimeConfig.plannerTimeoutMs,
-          abortSignal: new AbortController().signal,
+          timeoutMs: null,
+          abortSignal: cancellation.signal,
         })) {
           if (event.type === 'delta') output += event.text;
           else if (event.type === 'reasoning_delta') {
@@ -345,8 +376,14 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     });
   } catch (error) {
     const current = await getWorkflowByAction(actionId);
-    if (current?.status === 'running') await transitionWorkflow(current.id, 'failed');
+    const cancelled =
+      (error instanceof AiProviderError && error.code === 'CANCELLED') ||
+      (error instanceof DomainError && error.code === 'CANCELLED') ||
+      (await isCancellationRequested(actionId));
+    if (current?.status === 'running') await transitionWorkflow(current.id, cancelled ? 'cancelled' : 'failed');
     throw error;
+  } finally {
+    cancellation.dispose();
   }
 
   if (result.status === 'cancelled') {

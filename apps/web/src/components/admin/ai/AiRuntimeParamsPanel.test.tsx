@@ -6,7 +6,7 @@ import { getMessages } from '@/i18n/catalog';
 import { AiRuntimeParamsPanel } from './AiRuntimeParamsPanel';
 
 const view: AiRuntimeSettingsView = {
-  params: { toolMaxCalls: 42, plannerTemperature: 0.25, plannerMaxOutputTokens: 32_768, plannerTimeoutMs: 30000 },
+  params: { toolMaxCalls: 42, plannerTemperature: 0.25, plannerMaxOutputTokens: 32_768 },
   prompts: { assistantSystemPrompt: null, toolSystemPrompt: null },
   defaults: { assistantSystemPrompt: 'default assistant', toolSystemPrompt: 'default tool {{TOOLS}}' },
 };
@@ -28,6 +28,6 @@ describe('AiRuntimeParamsPanel', () => {
     expect(html).toContain('value="42"');
     expect(html).toContain('value="0.25"');
     expect(html).toContain('value="32768"');
-    expect(html).toContain('value="30000"');
+    expect(html).not.toContain('Planner timeout');
   });
 });

@@ -30,7 +30,7 @@ export function AiImageGenerationDialog({
   const [artifact, setArtifact] = useState<{ id: string; previewUrl: string } | null>(null);
   const [promoting, setPromoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => () => cancelAction(), [cancelAction]);
+  useEffect(() => () => { void cancelAction(); }, [cancelAction]);
 
   async function discard() {
     if (artifact) await fetch(`/api/ai/generated-artifacts/${artifact.id}`, { method: 'DELETE' }).catch(() => undefined);

@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AiEntitlementView, AiQuestionMode } from '@next-wiki/shared';
+import type { AiEntitlementView } from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
-import { ChevronRightIcon, PlusIcon, SparklesIcon } from '@/components/icons';
+import { ChevronRightIcon, InfoIcon, PlusIcon, SendIcon, SparklesIcon, StopIcon } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { ChatAnswer } from './ChatAnswer';
@@ -15,11 +14,10 @@ import { ChatCitations } from './ChatCitations';
 import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 
-function setAiUrl(open: boolean, mode: AiQuestionMode) {
+function setAiUrl(open: boolean) {
   const url = new URL(window.location.href);
   if (open) url.searchParams.set('ai', 'open');
   else url.searchParams.delete('ai');
-  url.searchParams.set('aiMode', mode);
   window.history.replaceState(null, '', url);
 }
 
@@ -41,13 +39,12 @@ export function AiChatPane({
   useEffect(() => {
     // Hydration is deferred (skipHydration) so the pre-mount render matches
     // the server, then we restore the persisted session and let an explicit
-    // `?ai=open`/`?aiMode=full` link (e.g. a shared URL) override it.
+    // `?ai=open` links (e.g. a shared URL) override persisted state.
     let cancelled = false;
     void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
       if (cancelled) return;
       const url = new URL(window.location.href);
       if (url.searchParams.get('ai') === 'open') chat.setOpen(true);
-      if (url.searchParams.get('aiMode') === 'full') chat.setMode('full');
     });
     return () => {
       cancelled = true;
@@ -65,7 +62,7 @@ export function AiChatPane({
             size="icon"
             className="rounded-full shadow-lg"
             aria-label={t('ai.chat.open')}
-            onClick={() => { chat.setOpen(true); setAiUrl(true, chat.mode); }}
+            onClick={() => { chat.setOpen(true); setAiUrl(true); }}
           >
             <SparklesIcon />
           </Button>
@@ -78,8 +75,14 @@ export function AiChatPane({
     <aside className="flex h-full min-h-0 w-[24rem] max-w-full shrink-0 flex-col overflow-hidden border-l border-border bg-surface">
       <div className="shrink-0 flex items-center justify-between border-b border-border p-md">
         <div>
-          <h2 className="font-display font-semibold">{t('ai.chat.title')}</h2>
-          <p className="text-xs text-muted">{t('ai.chat.providerNotice')}</p>
+          <div className="flex items-center gap-xs">
+            <h2 className="font-display font-semibold">{t('ai.chat.title')}</h2>
+            <Tooltip label={t('ai.chat.providerNotice')}>
+              <span tabIndex={0} aria-label={t('ai.chat.providerNotice')} className="inline-flex text-muted outline-none focus:text-foreground">
+                <InfoIcon className="h-4 w-4" />
+              </span>
+            </Tooltip>
+          </div>
         </div>
         <div className="flex items-center gap-xs">
           <Tooltip label={t('ai.chat.newSession')}>
@@ -98,7 +101,7 @@ export function AiChatPane({
               size="icon"
               variant="ghost"
               aria-label={t('ai.chat.collapse')}
-              onClick={() => { chat.setOpen(false); setAiUrl(false, chat.mode); }}
+              onClick={() => { chat.setOpen(false); setAiUrl(false); }}
             >
               <ChevronRightIcon />
             </Button>
@@ -141,7 +144,7 @@ export function AiChatPane({
                 onClick={() => {
                   const index = chat.messages.findIndex((item) => item.id === message.id);
                   const previous = index > 0 ? chat.messages[index - 1] : null;
-                  if (previous?.role === 'user') void chat.ask(previous.text, chat.mode);
+                  if (previous?.role === 'user') void chat.ask(previous.text, 'retrieval');
                 }}
               >
                 {t('ai.chat.retry')}
@@ -152,36 +155,33 @@ export function AiChatPane({
         ))}
       </div>
       <form
-        className="shrink-0 space-y-sm border-t border-border p-md"
+        className="flex shrink-0 items-end gap-sm border-t border-border p-md"
         onSubmit={(event) => {
           event.preventDefault();
           const value = question.trim();
           if (!value || chat.running) return;
           setQuestion('');
-          void chat.ask(value, chat.mode);
+          void chat.ask(value, 'retrieval');
         }}
       >
-        <Select
-          value={chat.mode}
-          onChange={(event) => {
-            const mode = event.target.value as AiQuestionMode;
-            chat.setMode(mode);
-            setAiUrl(true, mode);
-          }}
-        >
-          <option value="retrieval">{t('ai.chat.mode.retrieval')}</option>
-          <option value="full">{t('ai.chat.mode.full')}</option>
-        </Select>
         <textarea
-          className="min-h-24 w-full rounded-md border border-border bg-background p-sm text-sm"
+          className="min-h-10 max-h-40 min-w-0 flex-1 resize-y rounded-md border border-border bg-background p-sm text-sm"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           placeholder={t('ai.chat.placeholder')}
           maxLength={16_000}
         />
-        <Button type="submit" disabled={chat.running || !question.trim()} className="w-full">
-          {chat.running ? t('ai.chat.streaming') : t('ai.chat.send')}
-        </Button>
+        <Tooltip label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}>
+          <Button
+            type={chat.running ? 'button' : 'submit'}
+            size="icon"
+            aria-label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}
+            disabled={!chat.running && !question.trim()}
+            onClick={chat.running ? () => { void chat.cancel(); } : undefined}
+          >
+            {chat.running ? <StopIcon /> : <SendIcon />}
+          </Button>
+        </Tooltip>
       </form>
     </aside>
   );

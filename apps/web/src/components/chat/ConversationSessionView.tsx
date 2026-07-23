@@ -130,8 +130,10 @@ function ConversationTurn({
         )}
         {conversation.insufficient ? (
           <p className="text-muted">{t('ai.chat.insufficient')}</p>
-        ) : conversation.errorMessage ? (
-          <p className="text-danger">{conversation.errorMessage}</p>
+        ) : conversation.status === 'cancelled' ? (
+          <p className="text-muted">{t('ai.chat.conversationView.responseStopped')}</p>
+        ) : conversation.errorMessage || conversation.status === 'failed' ? (
+          <p className="text-muted">{t('ai.chat.conversationView.responseInterrupted')}</p>
         ) : conversation.answer ? (
           <ChatAnswer text={conversation.answer} citations={conversation.citations} done={done} />
         ) : (
