@@ -8,6 +8,7 @@
 
 - **Maximize reading space**: Functional UI (action buttons, indicators, tools) should use absolute positioning or header placement — not inline blocks that consume vertical reading space. Reference pattern: `ShareButton` in `(public)/[...path]/page.tsx` and `ProvenanceIndicators` publish-link button in `spaces/[space]/[[...path]]/page.tsx`.
 - Action buttons on page view should live in the header bar alongside the title, not stacked in the content body.
+- Prefer platform-native UI behavior when it is adequate, then an existing framework primitive. Do not build a custom interaction or visual implementation when either exists. Shared wrappers such as tooltips belong in `src/components/ui`.
 
 ## Background Job Cache Context
 

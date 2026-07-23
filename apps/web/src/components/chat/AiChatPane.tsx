@@ -94,7 +94,7 @@ export function AiChatPane({
         <div>
           <div className="flex items-center gap-xs">
             <h2 className="font-display text-base font-semibold">{t('ai.chat.title')}</h2>
-            <Tooltip label={t('ai.chat.providerNotice')} placement="bottom" align="start">
+            <Tooltip label={t('ai.chat.providerNotice')}>
               <span tabIndex={0} aria-label={t('ai.chat.providerNotice')} className="inline-flex text-muted outline-none focus:text-foreground">
                 <InfoIcon className="h-4 w-4" />
               </span>
@@ -102,7 +102,7 @@ export function AiChatPane({
           </div>
         </div>
         <div className="flex items-center gap-xs">
-          <Tooltip label={t('ai.chat.newSession')} placement="bottom" align="end">
+          <Tooltip label={t('ai.chat.newSession')}>
             <Button
               size="icon"
               variant="ghost"
@@ -113,11 +113,7 @@ export function AiChatPane({
               <PlusIcon />
             </Button>
           </Tooltip>
-          <Tooltip
-            label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}
-            placement="bottom"
-            align="end"
-          >
+          <Tooltip label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}>
             <Button
               size="icon"
               variant="ghost"
@@ -128,7 +124,7 @@ export function AiChatPane({
               {maximized ? <RestoreIcon /> : <ExpandIcon />}
             </Button>
           </Tooltip>
-          <Tooltip label={t('ai.chat.collapse')} placement="bottom" align="end">
+          <Tooltip label={t('ai.chat.collapse')}>
             <Button
               size="icon"
               variant="ghost"

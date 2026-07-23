@@ -1,15 +1,18 @@
 // @vitest-environment node
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { tooltipPositionClassName } from './Tooltip';
+import { Tooltip } from './Tooltip';
 
-describe('Tooltip positioning', () => {
-  it('keeps the existing centered-above placement as the default geometry', () => {
-    expect(tooltipPositionClassName('top', 'center')).toBe(
-      'bottom-full mb-xs left-1/2 -translate-x-1/2',
+describe('Tooltip', () => {
+  it('uses the browser-native title tooltip', () => {
+    const html = renderToStaticMarkup(
+      <Tooltip label="New session">
+        <button type="button">+</button>
+      </Tooltip>,
     );
-  });
 
-  it('can open below and align its right edge inside a toolbar', () => {
-    expect(tooltipPositionClassName('bottom', 'end')).toBe('top-full mt-xs right-0');
+    expect(html).toContain('title="New session"');
+    expect(html).not.toContain('role="tooltip"');
+    expect(html).not.toContain('group-hover');
   });
 });
