@@ -93,11 +93,17 @@ export async function createWikiQuestion(
 
 /** Whether a model has the discovered/overridden `tool_calling` capability.
  * The current provider-agnostic tool loop uses a textual fenced JSON protocol,
- * so missing capability metadata is treated as usable; explicit negative
- * detector/manual rows still disable tool-enabled questions and trigger fallback. */
+ * so missing capability metadata is treated as usable. When capability rows do
+ * exist, the highest-precedence source decides (manual > provider > catalog,
+ * matching ai-admin's resolution), so an explicit negative — e.g. a manual admin
+ * override of `supported=false` — is never bypassed by a provider/detector row
+ * and correctly disables tool-enabled questions, triggering fallback. */
 export async function modelSupportsToolCalling(modelId: string): Promise<boolean> {
   const rows = await db
-    .select({ supported: schema.aiModelCapabilities.supported })
+    .select({
+      supported: schema.aiModelCapabilities.supported,
+      source: schema.aiModelCapabilities.source,
+    })
     .from(schema.aiModelCapabilities)
     .where(
       and(
@@ -105,7 +111,10 @@ export async function modelSupportsToolCalling(modelId: string): Promise<boolean
         eq(schema.aiModelCapabilities.capability, 'tool_calling'),
       ),
     );
-  return rows.length === 0 || rows.some((row) => row.supported);
+  if (rows.length === 0) return true;
+  const priority = { manual: 3, provider: 2, catalog: 1 } as const;
+  const effective = rows.reduce((best, row) => (priority[row.source] > priority[best.source] ? row : best));
+  return effective.supported;
 }
 
 /**

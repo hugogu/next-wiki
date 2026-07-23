@@ -104,6 +104,26 @@ describe('modelSupportsToolCalling', () => {
     await expect(modelSupportsToolCalling(modelId)).resolves.toBe(false);
   });
 
+  it('lets a manual override win over a provider/detector row (source precedence)', async () => {
+    const modelId = await createModel();
+    await db.insert(schema.aiModelCapabilities).values([
+      { modelId, capability: 'tool_calling', supported: true, source: 'provider' },
+      { modelId, capability: 'tool_calling', supported: true, source: 'catalog' },
+      // A manual admin override to false must not be bypassed by the positive rows.
+      { modelId, capability: 'tool_calling', supported: false, source: 'manual' },
+    ]);
+    await expect(modelSupportsToolCalling(modelId)).resolves.toBe(false);
+  });
+
+  it('treats the capability as supported when the highest-precedence row is positive', async () => {
+    const modelId = await createModel();
+    await db.insert(schema.aiModelCapabilities).values([
+      { modelId, capability: 'tool_calling', supported: false, source: 'catalog' },
+      { modelId, capability: 'tool_calling', supported: true, source: 'provider' },
+    ]);
+    await expect(modelSupportsToolCalling(modelId)).resolves.toBe(true);
+  });
+
   it('creates tool-enabled questions as the canonical wiki_question action feature', async () => {
     await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
     const userId = await createAiTestUser('admin');

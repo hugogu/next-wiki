@@ -37,14 +37,20 @@ Rules:
 
 ## Built-in Tool Categories
 
-| Category | Example tools | Risk | Default review |
+The `Default review policy` column uses the static `AiToolDefaultReviewPolicy`
+enum (`allow_immediate` / `policy_review` / `always_review`) declared on each
+tool definition — not the resolved review *decision* (`none` / `admin_review`),
+which the server computes per call from this default, Admin policy, and the
+actor. A read-risk tool always resolves to `none` regardless of its category.
+
+| Category | Example tools | Risk | Default review policy |
 |---|---|---|---|
-| `read` | `search_wiki`, `get_page`, `list_pages`, `get_backlinks`, `get_neighborhood` | Read-only | none |
-| `page_draft` | `create_page`, `save_draft`, `update_page_metadata` | Draft write | admin_review |
-| `tag` | `list_tags`, `create_tag`, `rename_tag`, `delete_tag`, `merge_tag` | Non-page mutation | admin_review |
-| `metadata` | `update_page_properties`, page tag replacement | Non-page/page metadata mutation | admin_review |
-| `batch` | `batch_update_pages`, `batch_soft_delete_pages` | Multi-resource mutation | admin_review |
-| `raw_evidence` | create Tool Evidence Raw entry, link evidence | Evidence write | policy_review |
+| `read` | `search_wiki`, `get_page`, `list_pages`, `get_backlinks`, `get_neighborhood` | Read-only | `allow_immediate` |
+| `page_draft` | `create_page`, `save_draft`, `update_page_metadata` | Draft write | `always_review` |
+| `tag` | `list_tags` (read), `create_tag`, `rename_tag`, `delete_tag`, `merge_tag` | Non-page mutation | `always_review` |
+| `metadata` | `update_page_properties`, page tag replacement | Non-page/page metadata mutation | `always_review` |
+| `batch` | `batch_update_pages`, `batch_soft_delete_pages` | Multi-resource mutation | `always_review` |
+| `raw_evidence` | create Tool Evidence Raw entry, link evidence | Evidence write | `policy_review` |
 
 ## Tool Result Semantics
 
