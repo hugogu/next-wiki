@@ -7,9 +7,11 @@ import type { TranslationKey } from '@/i18n/keys';
 export function ToolCallTimeline({
   calls = [],
   proposals = [],
+  embedded = false,
 }: {
   calls?: AiToolCallEventPayload[];
   proposals?: AiToolProposalEventPayload[];
+  embedded?: boolean;
 }) {
   const { t } = useTranslation();
   if (calls.length === 0 && proposals.length === 0) return null;
@@ -17,10 +19,15 @@ export function ToolCallTimeline({
   return (
     <div className="min-w-0 max-w-full space-y-xxs overflow-hidden text-xs">
       <p className="sr-only">{t('ai.chat.tools.title')}</p>
-      <ol className="space-y-xxs">
+      <ol className={embedded ? '' : 'space-y-xxs'}>
         {calls.map((call) => (
-          <li key={call.toolCallId} className="min-w-0">
-            <details className="group min-w-0 max-w-full overflow-hidden rounded-md border border-border bg-background">
+          <li
+            key={call.toolCallId}
+            className={embedded ? 'min-w-0 border-t border-border first:border-t-0' : 'min-w-0'}
+          >
+            <details className={embedded
+              ? 'group min-w-0 max-w-full overflow-hidden'
+              : 'group min-w-0 max-w-full overflow-hidden rounded-md border border-border bg-background'}>
               <summary className="flex min-h-8 min-w-0 cursor-pointer list-none items-center gap-xs px-sm py-xs marker:hidden">
                 <span className="text-muted transition-transform group-open:rotate-90">&gt;</span>
                 <span className="shrink-0 font-medium">{call.toolName}</span>

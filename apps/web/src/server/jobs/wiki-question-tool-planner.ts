@@ -1,7 +1,9 @@
 import type { AiToolReviewDecision } from '@next-wiki/shared';
 
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
+import { buildWikiAssistantSystemPrompt } from '@/server/ai/prompts/wiki-question';
 import type { ToolPlanStep } from '@/server/services/ai-tool-runtime';
+import type { ToolDefinition } from '@/server/services/ai-tool-registry';
 
 export type ToolPlannerState = {
   question: string;
@@ -11,6 +13,36 @@ export type ToolPlannerState = {
 };
 
 export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls' };
+
+export function buildWikiToolSystemPrompt(tools: ToolDefinition[]): string {
+  const toolList = tools.map((tool) => `- ${tool.name} (${tool.category}): ${tool.description}`).join('\n');
+  return buildWikiAssistantSystemPrompt([
+    'You can inspect and prepare governed changes to this Wiki with the tools listed below. Tool availability and permissions are enforced by the server.',
+    'Treat tool results as authoritative for whether an operation succeeded. Never claim a Wiki operation succeeded before receiving a successful tool result.',
+    'When the user explicitly asks you to create, edit, organize, or otherwise operate on the Wiki, perform the appropriate tool calls instead of merely explaining what could be done.',
+    'Durable knowledge changes must remain permission-scoped, audited, reviewable, and reversible; follow the review disposition and outcome returned by the server.',
+    'Available tools:',
+    toolList,
+    '',
+    'To use tools, reply with ONLY a fenced code block and nothing else:',
+    '```tool',
+    '{"tool_calls":[{"tool":"search_wiki","arguments":{"query":"..."},"review":"none"}]}',
+    '```',
+    'Set "review" to "admin_review" for changes that should be reviewed. After receiving tool results, either call more tools in the same format or write the final answer as plain prose.',
+    'Baseline Wiki sources are provided in the user prompt. Tool-read pages are cited through the tool runtime.',
+    'Do not repeat semantically equivalent searches. After a few reasonable attempts, answer with the best available knowledge instead of searching again.',
+    'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
+    'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
+    'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
+  ]);
+}
+
+export function extractTaggedThinking(output: string): string {
+  return [...output.matchAll(/<think>([\s\S]*?)<\/think>/gi)]
+    .map((match) => match[1]?.trim())
+    .filter((text): text is string => Boolean(text))
+    .join('\n\n');
+}
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
   const sources = state.wikiSources.length > 0

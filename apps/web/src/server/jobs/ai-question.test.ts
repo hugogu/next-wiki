@@ -26,7 +26,7 @@ vi.mock('@/server/services/ai-admin', async (original) => {
   };
 });
 
-import { createWikiQuestion } from '@/server/services/ai-question';
+import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
 import { AiProviderError } from '@/server/ai/types';
 import { runWikiQuestionAction } from './ai-question';
 
@@ -241,6 +241,34 @@ describe('Wiki question worker', () => {
     // Capped at the answer ceiling and well below the model's 32k window.
     expect(requested).toBe(8192);
     expect(requested).toBeLessThan(32_000);
+  });
+
+  it('retains provider reasoning and the shared Wiki AI role in tool-enabled answers', async () => {
+    streamText.mockImplementationOnce(async function* () {
+      yield { type: 'reasoning_delta', text: 'I should inspect the current Wiki context.' };
+      yield { type: 'delta', text: 'Grounded answer [S1]' };
+    });
+    const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'retrieval',
+      requestedReview: 'admin_review',
+    });
+    expect(created.fallback).toBe(false);
+    if (created.fallback) throw new Error('Expected a tool-enabled action');
+
+    await runWikiQuestionAction(created.action.id);
+
+    const events = await db.query.aiActionEvents.findMany({
+      where: eq(schema.aiActionEvents.actionId, created.action.id),
+    });
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'reasoning_delta',
+      payload: expect.objectContaining({ text: 'I should inspect the current Wiki context.' }),
+    }));
+    const request = streamText.mock.calls[0]![0] as { system: string };
+    expect(request.system).toContain('conversational knowledge agent embedded in this Next Wiki instance');
+    expect(request.system).toContain('current Wiki is your working knowledge environment');
+    expect(request.system).toContain('perform the appropriate tool calls instead of merely explaining');
   });
 
   it('compresses attached sources and retries after a context-length error', async () => {

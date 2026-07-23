@@ -111,10 +111,13 @@ export function AiChatPane({
           <article key={message.id} className={`min-w-0 max-w-full overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
               <div className="min-w-0 space-y-sm">
-                {message.thinking && (
-                  <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId} />
+                {(message.thinking || message.toolCalls?.length || message.toolProposals?.length) && (
+                  <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId}>
+                    {(message.toolCalls?.length || message.toolProposals?.length) && (
+                      <ToolCallTimeline calls={message.toolCalls} proposals={message.toolProposals} embedded />
+                    )}
+                  </ChatThinking>
                 )}
-                <ToolCallTimeline calls={message.toolCalls} proposals={message.toolProposals} />
                 {message.text ? (
                   <ChatAnswer
                     text={message.text}

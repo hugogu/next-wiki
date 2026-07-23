@@ -50,7 +50,12 @@ import {
   startFeishuAnswerStream,
 } from '@/server/services/feishu-answer-streams';
 import { getCitationHref } from '@/lib/path';
-import { buildPlannerUserPrompt, parseToolPlan } from './wiki-question-tool-planner';
+import {
+  buildPlannerUserPrompt,
+  buildWikiToolSystemPrompt,
+  extractTaggedThinking,
+  parseToolPlan,
+} from './wiki-question-tool-planner';
 
 type QuestionInput = {
   question: string;
@@ -97,40 +102,6 @@ function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
     }
   }
   return [...merged.values()];
-}
-
-/** System prompt describing the available tools and the provider-agnostic
- * JSON tool-call protocol the model drives over ordinary text streaming. */
-function buildToolSystemPrompt(tools: ToolDefinition[]): string {
-  const toolList = tools.map((tool) => `- ${tool.name} (${tool.category}): ${tool.description}`).join('\n');
-  return [
-    'You are Wiki AI. You can inspect and prepare governed changes to this wiki using tools.',
-    'Available tools:',
-    toolList,
-    '',
-    'To use tools, reply with ONLY a fenced code block and nothing else:',
-    '```tool',
-    '{"tool_calls":[{"tool":"search_wiki","arguments":{"query":"..."},"review":"none"}]}',
-    '```',
-    'Set "review" to "admin_review" for changes that should be reviewed. After you',
-    'receive tool results, either call more tools the same way, or write your final',
-    'answer as plain prose (no code block), citing the pages you read.',
-    'Baseline Wiki sources are provided in the user prompt. For informational',
-    'questions, use those sources first and cite claims they support with source',
-    'ids in plain ASCII brackets exactly like [S1]. Tool-read pages are cited',
-    'through the tool runtime. When Wiki evidence is absent or insufficient,',
-    'answer helpfully from general model knowledge without inventing Wiki citations.',
-    'Do not repeat semantically equivalent searches. After a few reasonable search',
-    'attempts, answer with the best available knowledge instead of searching again.',
-    'If the user asks to save, write, or turn previous conversation content into a',
-    'wiki page, use create_page or save_draft with admin_review instead of only',
-    'answering conversationally.',
-    'For create_page, use arguments path, title, and contentSource. When saving',
-    'the latest assistant answer from this conversation, use',
-    'contentFromConversation=true instead of repeating that answer in contentSource.',
-    'Never guess a page path for get_page. Use the baseline sources, search_wiki,',
-    'or list_pages first, then pass an exact returned path or pageId to get_page.',
-  ].join('\n');
 }
 
 export async function runWikiQuestionAction(actionId: string): Promise<void> {
@@ -298,7 +269,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   }
 
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
-  const system = buildToolSystemPrompt(enabledTools);
+  const system = buildWikiToolSystemPrompt(enabledTools);
   const planner: ToolPlanner = async (state) => {
     const basePrompt = buildPlannerUserPrompt(state);
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
@@ -326,6 +297,9 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
           abortSignal: new AbortController().signal,
         })) {
           if (event.type === 'delta') output += event.text;
+          else if (event.type === 'reasoning_delta') {
+            await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
+          }
         }
       } catch (error) {
         const normalized = normalizeProviderError(error);
@@ -339,6 +313,12 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
         throw normalized;
       }
       const parsed = parseToolPlan(output);
+      if (parsed.kind === 'tool_calls') {
+        const taggedThinking = extractTaggedThinking(output);
+        if (taggedThinking) {
+          await appendActionEvent(actionId, 'reasoning_delta', { text: taggedThinking });
+        }
+      }
       if (parsed.kind !== 'invalid_tool_calls') return parsed;
     }
     throw new DomainError('INVALID_RESPONSE', 'The AI provider repeatedly returned an invalid tool call.');

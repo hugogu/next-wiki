@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlannerUserPrompt, parseToolPlan } from '@/server/jobs/wiki-question-tool-planner';
+import {
+  buildPlannerUserPrompt,
+  buildWikiToolSystemPrompt,
+  extractTaggedThinking,
+  parseToolPlan,
+} from '@/server/jobs/wiki-question-tool-planner';
+import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 describe('parseToolPlan — provider-agnostic tool protocol', () => {
   it('parses a tool-call block into an iterative tool_calls step', () => {
@@ -91,5 +97,28 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('<wiki_sources>');
     expect(prompt).toContain('<source id="S1" title="张飞" path="history/china/zhang-fei">');
     expect(prompt).toContain('张飞，字益德');
+  });
+});
+
+describe('buildWikiToolSystemPrompt', () => {
+  it('extends the shared Wiki AI identity and environment rules with the tool protocol', () => {
+    const searchTool = getToolDefinition('search_wiki');
+    const createTool = getToolDefinition('create_page');
+    const prompt = buildWikiToolSystemPrompt([searchTool!, createTool!]);
+
+    expect(prompt).toContain('conversational knowledge agent embedded in this Next Wiki instance');
+    expect(prompt).toContain('current Wiki is your working knowledge environment');
+    expect(prompt).toContain('answer helpfully from general model knowledge');
+    expect(prompt).toContain('Markdown math syntax');
+    expect(prompt).toContain('perform the appropriate tool calls instead of merely explaining');
+    expect(prompt).toContain('- create_page (page_draft)');
+    expect(prompt).toContain('contentFromConversation=true');
+  });
+});
+
+describe('extractTaggedThinking', () => {
+  it('retains tagged reasoning that precedes a tool-call block', () => {
+    expect(extractTaggedThinking('<think>Inspect the Wiki first.</think>\n```tool\n{}\n```'))
+      .toBe('Inspect the Wiki first.');
   });
 });
