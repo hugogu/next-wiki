@@ -88,6 +88,7 @@ export function AiChatPane({
     );
   }
   const lastAssistantId = [...chat.messages].reverse().find((message) => message.role === 'assistant')?.id;
+  const streamingAssistantId = chat.running ? lastAssistantId : undefined;
   return (
     <aside className={aiChatPaneClassName(maximized)}>
       <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-border px-sm py-sm">
@@ -143,7 +144,7 @@ export function AiChatPane({
             {message.role === 'assistant' ? (
               <div className="min-w-0 space-y-sm">
                 {(message.thinking || message.toolCalls?.length || message.toolProposals?.length) && (
-                  <ChatThinking thinking={message.thinking} streaming={chat.running && message.id === lastAssistantId}>
+                  <ChatThinking thinking={message.thinking} streaming={message.id === streamingAssistantId}>
                     {(message.toolCalls?.length || message.toolProposals?.length) && (
                       <ToolCallTimeline calls={message.toolCalls} proposals={message.toolProposals} embedded />
                     )}
@@ -153,13 +154,13 @@ export function AiChatPane({
                   <ChatAnswer
                     text={message.text}
                     citations={message.citations}
-                    done={!chat.running || message.id !== lastAssistantId}
+                    done={message.id !== streamingAssistantId}
                   />
                 ) : message.insufficient ? (
                   <p className="text-muted">{t('ai.chat.insufficient')}</p>
-                ) : (
-                  <div className="text-muted">{chat.running ? t('ai.chat.streaming') : ''}</div>
-                )}
+                ) : message.id === streamingAssistantId ? (
+                  <div className="text-muted">{t('ai.chat.streaming')}</div>
+                ) : null}
               </div>
             ) : (
               <div className="min-w-0 whitespace-pre-wrap break-words">{message.text}</div>
