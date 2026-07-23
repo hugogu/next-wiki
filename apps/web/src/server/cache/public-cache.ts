@@ -1,5 +1,8 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getPageHref } from '@/lib/path';
+
+const dataCacheContext = new AsyncLocalStorage<{ disabled: boolean }>();
 
 /** Shared data cache for anonymous, publicly readable wiki content. */
 export const PUBLIC_CONTENT_CACHE_TAG = 'public-content';
@@ -8,7 +11,16 @@ export const PUBLIC_CONTENT_CACHE_TAG = 'public-content';
 export const SITE_SHELL_CACHE_TAG = 'site-shell';
 
 export function shouldUseDataCache(): boolean {
-  return process.env.NODE_ENV !== 'test' && process.env.NEXT_WIKI_E2E !== 'true';
+  return (
+    dataCacheContext.getStore()?.disabled !== true &&
+    process.env.NODE_ENV !== 'test' &&
+    process.env.NEXT_WIKI_E2E !== 'true'
+  );
+}
+
+/** Run server-side work that has no Next.js request cache context. */
+export function runWithoutDataCache<T>(operation: () => T): T {
+  return dataCacheContext.run({ disabled: true }, operation);
 }
 
 export function invalidatePublicContentCache(): void {

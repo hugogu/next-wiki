@@ -13,7 +13,11 @@ import { runGitExport } from './git-export';
 import { tickScheduledGitExport } from '@/server/services/git-export';
 import { registerAiActionHandler, runAiAction } from './ai-actions';
 import { runAiCleanup } from './ai-cleanup';
-import { findRecoverableActionIds, queueForFeature } from '@/server/services/ai-actions';
+import {
+  findRecoverableRawConversationCaptureActionIds,
+  findRecoverableActionIds,
+  queueForFeature,
+} from '@/server/services/ai-actions';
 import { runModelSyncAction, runProviderTestAction } from './ai-admin';
 import { runIndexRebuildAction } from './ai-index';
 import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
@@ -168,7 +172,7 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
       }
     },
   );
-  await boss.work(QUEUES.rawConversationCapture, async (jobs: JobBatch) => {
+  await boss.work(QUEUES.rawConversationCapture, { batchSize: 50 }, async (jobs: JobBatch) => {
     for (const job of jobs) await runRawConversationCapture(job.data);
   });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
@@ -202,6 +206,14 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   for (const { id: actionId, feature } of await findRecoverableActionIds()) {
     await boss.send(queueForFeature(feature), { actionId });
     logger.info('re-enqueued interrupted AI action', { actionId });
+  }
+  for (const actionId of await findRecoverableRawConversationCaptureActionIds()) {
+    await boss.send(
+      QUEUES.rawConversationCapture,
+      { actionId },
+      { priority: 10, singletonKey: actionId, singletonSeconds: 60 },
+    );
+    logger.info('re-enqueued recoverable Raw Conversation capture', { actionId });
   }
   for (const runId of await findRecoverableTransferRunIds()) {
     const run = await db.query.transferRuns.findFirst({

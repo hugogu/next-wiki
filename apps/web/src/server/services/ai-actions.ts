@@ -215,14 +215,11 @@ export async function deleteActionInput(actionId: string): Promise<void> {
 }
 
 /**
- * 023: coalesced Raw Conversation capture trigger. Lives here (not imported
- * from raw-conversations.ts) to avoid a circular import — raw-conversations.ts
- * already depends on ai-index.ts, which depends on this module for
- * `createAction`. `enqueue`'s `singletonKey` + `singletonNextSlot` mean a
- * burst of calls during token streaming collapses into at most one extra run,
- * so it is safe to call after every event append, not just at terminal state.
+ * Raw snapshots are queued only when a Wiki AI action reaches a terminal
+ * state. Enqueueing after every streamed token created one pg-boss job per
+ * event because `singletonNextSlot` does not deduplicate without a time slot.
  */
-async function maybeEnqueueRawConversationCapture(actionId: string): Promise<void> {
+async function enqueueRawConversationCaptureIfEligible(actionId: string): Promise<void> {
   const action = await db.query.aiActions.findFirst({
     where: eq(schema.aiActions.id, actionId),
     columns: { feature: true, rawConversationCaptureStatus: true },
@@ -233,7 +230,11 @@ async function maybeEnqueueRawConversationCapture(actionId: string): Promise<voi
     (action?.feature === 'wiki_question' || action?.feature === 'wiki_tool_chat') &&
     (action.rawConversationCaptureStatus === 'pending' || action.rawConversationCaptureStatus === 'captured')
   ) {
-    await enqueue(QUEUES.rawConversationCapture, { actionId }, { singletonKey: actionId, singletonNextSlot: true });
+    await enqueue(
+      QUEUES.rawConversationCapture,
+      { actionId },
+      { priority: 10, singletonKey: actionId, singletonSeconds: 60 },
+    );
   }
 }
 
@@ -251,16 +252,6 @@ export async function appendActionEvent(
     .insert(schema.aiActionEvents)
     .values({ actionId, type, payload, expiresAt: expiry(settings.eventRetentionHours) })
     .returning({ id: schema.aiActionEvents.id });
-  // Fire-and-forget: this runs on every streamed token, and enqueueing must
-  // never add latency to the chat stream (plan.md performance goal). A failed
-  // enqueue here is not fatal — the next event append, or the terminal
-  // 'completed'/'error' event, tries again.
-  void maybeEnqueueRawConversationCapture(actionId).catch((error) => {
-    logger.warn('failed to enqueue raw conversation capture', {
-      actionId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
   return row!.id;
 }
 
@@ -721,6 +712,16 @@ export async function finishAction(
       ? { status }
       : { status, code: details.errorCode ?? status.toUpperCase(), message: details.errorMessage ?? status },
   );
+  try {
+    await enqueueRawConversationCaptureIfEligible(actionId);
+  } catch (error) {
+    // The terminal event is durable. Boot recovery retries pending captures if
+    // pg-boss is temporarily unavailable at this point.
+    logger.warn('failed to enqueue terminal raw conversation capture', {
+      actionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
   await deleteActionInput(actionId);
 }
 
@@ -746,6 +747,21 @@ export async function findRecoverableActionIds(): Promise<Array<{ id: string; fe
       .where(inArray(schema.aiActions.id, rows.map((row) => row.id)));
   }
   return rows;
+}
+
+export async function findRecoverableRawConversationCaptureActionIds(): Promise<string[]> {
+  const rows = await db
+    .select({ id: schema.aiActions.id })
+    .from(schema.aiActions)
+    .where(
+      and(
+        inArray(schema.aiActions.feature, ['wiki_question', 'wiki_tool_chat']),
+        inArray(schema.aiActions.status, ['completed', 'failed', 'cancelled']),
+        inArray(schema.aiActions.rawConversationCaptureStatus, ['pending', 'failed']),
+        gt(schema.aiActions.expiresAt, new Date()),
+      ),
+    );
+  return rows.map((row) => row.id);
 }
 
 /**

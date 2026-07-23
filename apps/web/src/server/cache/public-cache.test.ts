@@ -7,7 +7,7 @@ const cache = vi.hoisted(() => ({
 
 vi.mock('next/cache', () => cache);
 
-import { invalidatePublicLinkPaths } from './public-cache';
+import { invalidatePublicLinkPaths, runWithoutDataCache, shouldUseDataCache } from './public-cache';
 
 describe('invalidatePublicLinkPaths', () => {
   afterEach(() => {
@@ -31,5 +31,18 @@ describe('invalidatePublicLinkPaths', () => {
     invalidatePublicLinkPaths(['docs/payments']);
 
     expect(cache.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('disables the Next data cache across an async background operation and restores it afterward', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_WIKI_E2E', 'false');
+
+    expect(shouldUseDataCache()).toBe(true);
+    await runWithoutDataCache(async () => {
+      expect(shouldUseDataCache()).toBe(false);
+      await Promise.resolve();
+      expect(shouldUseDataCache()).toBe(false);
+    });
+    expect(shouldUseDataCache()).toBe(true);
   });
 });

@@ -9,6 +9,10 @@
 - **Maximize reading space**: Functional UI (action buttons, indicators, tools) should use absolute positioning or header placement — not inline blocks that consume vertical reading space. Reference pattern: `ShareButton` in `(public)/[...path]/page.tsx` and `ProvenanceIndicators` publish-link button in `spaces/[space]/[[...path]]/page.tsx`.
 - Action buttons on page view should live in the header bar alongside the title, not stacked in the content body.
 
+## Background Job Cache Context
+
+- pg-boss workers and other background handlers do not have a Next.js request cache context. Service boundaries called from them must use `runWithoutDataCache` before reaching code that may invoke `unstable_cache` or revalidation APIs.
+
 ## Active Technologies
 - TypeScript 5.6, Node.js 20.9+, Next.js 16, React 19, Drizzle ORM, pg-boss (004-system-ai-support)
 - PostgreSQL 16 with pgvector 0.8.x; existing Database/Local/S3 content storage (004-system-ai-support)

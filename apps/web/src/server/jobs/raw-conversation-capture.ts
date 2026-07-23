@@ -20,8 +20,9 @@ export function isRawConversationCaptureJobData(data: unknown): data is RawConve
 /**
  * Worker entry point for the `raw-conversation-capture` queue. Capture itself
  * is idempotent and internally records failure state on the action
- * (see `captureConversation`), so this wrapper does not retry on failure —
- * the next Wiki AI event or terminal status re-enqueues a fresh attempt.
+ * (see `captureConversation`), so this wrapper does not retry on failure.
+ * Boot recovery re-enqueues failed captures after transient or deployment
+ * errors are resolved.
  *
  * 025 (US6): every successful capture also writes an audit entry whose
  * `origin` mirrors the capture's channel (`'feishu'` → `'feishu'`, anything

@@ -18,6 +18,7 @@ import {
   createAction,
   deleteSession,
   finishAction,
+  findRecoverableRawConversationCaptureActionIds,
   getAction,
   getActionEvents,
   getAllActionEvents,
@@ -293,60 +294,63 @@ describe('AI actions', () => {
   });
 
   describe('raw conversation capture triggers (023)', () => {
-    // appendActionEvent enqueues capture fire-and-forget (never blocking the
-    // streaming caller), so assertions poll briefly instead of racing it.
-    async function waitForEnqueueCall(timeoutMs = 500): Promise<void> {
-      const start = Date.now();
-      while (jobsRuntime.enqueue.mock.calls.length === 0) {
-        if (Date.now() - start > timeoutMs) throw new Error('timed out waiting for enqueue() call');
-        await new Promise((resolve) => setTimeout(resolve, 5));
-      }
-    }
-
-    it('enqueues capture when an event is appended to a pending-capture wiki_question action', async () => {
+    it('does not enqueue Raw capture work for streamed intermediate events', async () => {
       const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'pending' });
       await appendActionEvent(actionId, 'question', { text: 'Where is the config?' });
-      await waitForEnqueueCall();
+      await appendActionEvent(actionId, 'reasoning_delta', { text: 'Inspecting the Wiki.' });
+      await appendActionEvent(actionId, 'text_delta', { text: 'The config is...' });
+      expect(jobsRuntime.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('enqueues exactly one high-priority capture when a Wiki question reaches a terminal state', async () => {
+      const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'pending' });
+      await appendActionEvent(actionId, 'question', { text: 'Where is the config?' });
+      await appendActionEvent(actionId, 'text_delta', { text: 'The config is here.' });
+      await finishAction(actionId, 'completed');
+
+      expect(jobsRuntime.enqueue).toHaveBeenCalledTimes(1);
       expect(jobsRuntime.enqueue).toHaveBeenCalledWith(
         QUEUES.rawConversationCapture,
         { actionId },
-        { singletonKey: actionId, singletonNextSlot: true },
+        { priority: 10, singletonKey: actionId, singletonSeconds: 60 },
       );
     });
 
-    it('enqueues capture for legacy pending-capture wiki_tool_chat actions', async () => {
+    it('enqueues terminal capture for legacy wiki_tool_chat actions', async () => {
       const actionId = await createWikiQuestionAction(userId, {
         feature: 'wiki_tool_chat',
         rawConversationCaptureStatus: 'pending',
       });
       await appendActionEvent(actionId, 'question', { text: 'Please use tools.' });
-      await waitForEnqueueCall();
+      await finishAction(actionId, 'failed', {
+        errorCode: 'INVALID_RESPONSE',
+        errorMessage: 'No valid tool plan.',
+      });
       expect(jobsRuntime.enqueue).toHaveBeenCalledWith(
         QUEUES.rawConversationCapture,
         { actionId },
-        { singletonKey: actionId, singletonNextSlot: true },
+        { priority: 10, singletonKey: actionId, singletonSeconds: 60 },
       );
     });
 
-    it('enqueues capture again on the terminal event finishAction appends', async () => {
+    it('refreshes a previously captured session on a later terminal event', async () => {
       const actionId = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'captured', rawConversationPageId: null });
       jobsRuntime.enqueue.mockClear();
       await finishAction(actionId, 'completed', { resultMetadata: { insufficientEvidence: false } });
-      await waitForEnqueueCall();
       expect(jobsRuntime.enqueue).toHaveBeenCalledWith(
         QUEUES.rawConversationCapture,
         { actionId },
-        expect.anything(),
+        { priority: 10, singletonKey: actionId, singletonSeconds: 60 },
       );
     });
 
     it('never enqueues capture for a disabled or not_applicable action', async () => {
       const disabled = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'disabled' });
       await appendActionEvent(disabled, 'question', { text: 'q' });
+      await finishAction(disabled, 'failed');
       const notApplicable = await createWikiQuestionAction(userId, { rawConversationCaptureStatus: 'not_applicable' });
       await appendActionEvent(notApplicable, 'question', { text: 'q' });
-      // Give the fire-and-forget checks a moment to (not) fire, then assert none did.
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await finishAction(notApplicable, 'failed');
       const captureCalls = jobsRuntime.enqueue.mock.calls.filter(([queue]) => queue === QUEUES.rawConversationCapture);
       expect(captureCalls).toHaveLength(0);
     });
@@ -356,9 +360,32 @@ describe('AI actions', () => {
       const action = await createAction(ctx, { feature: 'semantic_search', input: { query: 'q' } });
       jobsRuntime.enqueue.mockClear();
       await appendActionEvent(action.id, 'text_delta', { text: 'partial' });
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await finishAction(action.id, 'failed');
       const captureCalls = jobsRuntime.enqueue.mock.calls.filter(([queue]) => queue === QUEUES.rawConversationCapture);
       expect(captureCalls).toHaveLength(0);
+    });
+
+    it('finds terminal pending and failed captures for boot recovery but excludes running actions', async () => {
+      const terminalId = await createWikiQuestionAction(userId, {
+        rawConversationCaptureStatus: 'pending',
+        status: 'failed',
+      });
+      const failedCaptureId = await createWikiQuestionAction(userId, {
+        rawConversationCaptureStatus: 'failed',
+        status: 'completed',
+      });
+      await createWikiQuestionAction(userId, {
+        rawConversationCaptureStatus: 'pending',
+        status: 'running',
+      });
+      await createWikiQuestionAction(userId, {
+        rawConversationCaptureStatus: 'disabled',
+        status: 'completed',
+      });
+
+      expect(await findRecoverableRawConversationCaptureActionIds()).toEqual(
+        expect.arrayContaining([terminalId, failedCaptureId]),
+      );
     });
   });
 });

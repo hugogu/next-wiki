@@ -21,7 +21,7 @@ import { addReplicationTasks, kickReplication } from '@/server/services/storage-
 import { resolveSpace } from '@/server/services/spaces';
 import { ensureSystemCategory } from '@/server/services/raw-categories';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
-import { enqueue, QUEUES } from '@/server/jobs/runtime';
+import { runWithoutDataCache } from '@/server/cache/public-cache';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type AiActionRow = typeof schema.aiActions.$inferSelect;
@@ -444,21 +444,6 @@ async function writeConversationRevision(
   return { pageId };
 }
 
-/**
- * Enqueues (or coalesces into) one `raw-conversation-capture` job for this
- * action. `singletonKey` + `singletonNextSlot` mirror the git-export queue's
- * coalescing pattern (D4): a burst of event appends while a capture is
- * already running collapses into at most one more run afterward, instead of
- * queuing a job per streamed token.
- */
-export async function enqueueRawConversationCapture(actionId: string): Promise<void> {
-  await enqueue(
-    QUEUES.rawConversationCapture,
-    { actionId },
-    { singletonKey: actionId, singletonNextSlot: true },
-  );
-}
-
 export type CaptureOutcome =
   | {
       status: 'captured';
@@ -483,6 +468,10 @@ export type CaptureOutcome =
  * never create two pages (see contracts/api-delta.md "Capture Job Contract").
  */
 export async function captureConversation(actionId: string): Promise<CaptureOutcome> {
+  return runWithoutDataCache(() => captureConversationWithoutDataCache(actionId));
+}
+
+async function captureConversationWithoutDataCache(actionId: string): Promise<CaptureOutcome> {
   try {
     const outcome = await db.transaction(async (tx) => {
       // Read the row once to identify the conversation scope, then lock the
