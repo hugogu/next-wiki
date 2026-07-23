@@ -131,7 +131,7 @@
 - [X] T049 [P] [US3] Add service tests for proposal item conflict detection and apply/reject behavior in `apps/web/src/server/services/ai-tool-proposals.test.ts`
 - [X] T050 [P] [US3] Add route tests for proposal list, detail, approve, reject, and apply APIs in `apps/web/app/api/ai/tool-proposals/route.test.ts`
 - [X] T051 [P] [US3] Add component tests for proposal detail states and item-level before/after rendering in `apps/web/src/components/admin/ai/ToolProposalDetail.test.tsx`
-- [X] T052 [P] [US3] Add Playwright coverage for page draft review and tag proposal apply/reject in `apps/web/e2e/ai-tool-proposals.spec.ts`
+- [ ] T052 [P] [US3] Add Playwright coverage for tag proposal apply/reject in `apps/web/e2e/ai-tool-proposals.spec.ts`
 
 ### Implementation for User Story 3
 
@@ -144,6 +144,9 @@
 - [X] T059 [US3] Create proposal review page route in `apps/web/app/(admin)/admin/ai/tools/proposals/[id]/page.tsx`
 - [X] T060 [US3] Create proposal detail UI with approve, reject, apply, conflict, and per-item result states in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx`
 - [X] T061 [US3] Regenerate OpenAPI artifacts for proposal route annotations in `apps/web/app/api/openapi.json`
+- [X] T102 [US3] Route Admin Pages draft titles and actions to the existing history review/publish flow, including pending drafts on published pages, in `apps/web/src/components/admin/pages/AdminPagesPanel.tsx` and `apps/web/src/server/services/pages.ts`
+- [X] T103 [P] [US3] Add service, component, path, and Playwright coverage for opening and publishing page drafts from Admin Pages in `apps/web/src/server/services/pages-admin-list.test.ts`, `apps/web/src/components/admin/pages/AdminPagesPanel.test.tsx`, `apps/web/src/lib/path.test.ts`, and `apps/web/e2e/ai-tool-proposals.spec.ts`
+- [X] T104 [US3] Mark pages created by the Wiki AI `create_page` tool as generated provenance even though mutations execute under the initiating user's permissions in `apps/web/src/server/services/ai-tool-executors.ts`
 
 **Checkpoint**: User Story 3 is functional and independently testable.
 
@@ -207,16 +210,16 @@
 
 ### Tests for User Story 6
 
-- [ ] T078 [P] [US6] Add registry tests for provider identity, tool metadata completeness, and no implicit provider discovery in `apps/web/src/server/services/ai-tool-registry.test.ts`
-- [ ] T079 [P] [US6] Add MCP metadata compatibility tests against existing tool names in `packages/mcp-server/src/tools/tools.test.ts`
-- [ ] T080 [P] [US6] Add Admin UI tests for future external-provider disabled state in `apps/web/src/components/admin/ai/AiToolsPanel.test.tsx`
+- [x] T078 [P] [US6] Add registry tests for provider identity, tool metadata completeness, and no implicit provider discovery in `apps/web/src/server/services/ai-tool-registry.test.ts`
+- [x] T079 [P] [US6] Add MCP metadata compatibility tests against existing tool names in `packages/mcp-server/src/tools/tools.test.ts`
+- [x] T080 [P] [US6] Add Admin UI tests for future external-provider disabled state in `apps/web/src/components/admin/ai/AiToolsPanel.test.tsx`
 
 ### Implementation for User Story 6
 
-- [ ] T081 [US6] Add provider-aware metadata exports for built-in tools in `apps/web/src/server/services/ai-tool-registry.ts`
-- [ ] T082 [US6] Add MCP-compatible built-in tool metadata exports in `packages/mcp-server/src/tool-metadata.ts`
-- [ ] T083 [US6] Ensure external provider kinds remain visible but non-activatable in `apps/web/src/server/services/ai-tool-policy.ts`
-- [ ] T084 [US6] Document external MCP provider extension constraints in `specs/026-wiki-ai-tool-runtime/contracts/tool-contract.md`
+- [x] T081 [US6] Add provider-aware metadata exports for built-in tools in `apps/web/src/server/services/ai-tool-registry.ts`
+- [x] T082 [US6] Add MCP-compatible built-in tool metadata exports in `packages/mcp-server/src/tool-metadata.ts`
+- [x] T083 [US6] Ensure external provider kinds remain visible but non-activatable in `apps/web/src/server/services/ai-tool-policy.ts`
+- [x] T084 [US6] Document external MCP provider extension constraints in `specs/026-wiki-ai-tool-runtime/contracts/tool-contract.md`
 
 **Checkpoint**: User Story 6 is functional and independently testable.
 

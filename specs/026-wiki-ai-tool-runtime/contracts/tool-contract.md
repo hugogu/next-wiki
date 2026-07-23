@@ -106,11 +106,28 @@ Evidence is not required when:
 
 ## Future External MCP Provider Compatibility
 
+The built-in provider publishes provider-aware metadata that a future external
+provider must mirror so it reuses the same policy, risk, permission, retention,
+and review surface with no runtime discovery:
+
+- `apps/web/src/server/services/ai-tool-registry.ts` — `buildBuiltinToolMetadata()`
+  returns the provider identity plus every tool's full contract.
+- `packages/mcp-server/src/tool-metadata.ts` — the MCP-compatible manifest of the
+  same tool vocabulary; `tool-metadata.test.ts` guards that these names stay
+  aligned with the MCP server's registered tools.
+
 Future providers must supply:
 
-- Provider identity and trust/risk classification.
-- Tool definitions with category, risk, input/output schemas, timeout, and retention policy.
+- Provider identity and trust/risk classification (`kind`, `activation_status`).
+- Tool definitions with category, risk, required scope, input/output schemas,
+  timeout, and result-retention policy — every field explicit, none implicit.
 - A secret-management model.
 - Permission and evidence semantics equivalent to the built-in provider.
+
+External provider **kinds** are modeled and visible now (`external_mcp`,
+`activation_status: future_external`) but cannot be activated in this phase: the
+policy service rejects enabling any non-built-in provider
+(`EXTERNAL_PROVIDER_NOT_ACTIVATABLE`), and the Admin Tools UI shows the external
+provider as unavailable.
 
 This phase stores provider identity and policy but does not activate external provider execution.

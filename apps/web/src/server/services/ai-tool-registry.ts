@@ -237,3 +237,31 @@ export function listToolsByCategory(category: AiToolCategory): ToolDefinition[] 
 export function isReadOnlyTool(tool: ToolDefinition): boolean {
   return tool.riskLevel === 'read';
 }
+
+/** One tool's full contract, tagged with its owning provider. The shape a
+ * future external MCP provider must also supply so it reuses the same policy,
+ * risk, permission, retention, and review surface (026, US6). */
+export type ProviderToolMetadata = ToolDefinition & { providerKey: string; providerKind: ProviderDefinition['kind'] };
+
+export type ProviderMetadata = {
+  provider: ProviderDefinition;
+  tools: ProviderToolMetadata[];
+};
+
+/**
+ * Provider-aware metadata for the built-in provider. Every tool carries its
+ * provider identity plus the complete category / risk / permission / retention
+ * / default-review contract — no field is implicit — so external providers can
+ * be described with the same manifest and no tool is ever discovered at runtime
+ * (constitution P10).
+ */
+export function buildBuiltinToolMetadata(): ProviderMetadata {
+  return {
+    provider: BUILTIN_PROVIDER,
+    tools: BUILTIN_TOOLS.map((tool) => ({
+      ...tool,
+      providerKey: BUILTIN_PROVIDER.key,
+      providerKind: BUILTIN_PROVIDER.kind,
+    })),
+  };
+}
