@@ -3,14 +3,15 @@
 import { useRef } from 'react';
 import { useAiAction } from './use-ai-action';
 import { type ChatMessage, useChatStore } from '@/components/chat/chat-store';
-import type {
-  AiCitation,
-  AiQuestionMode,
-  AiToolCallEventPayload,
-  AiToolProposalEventPayload,
+import {
+  isLegacyInsufficientWikiAnswer,
+  LEGACY_INSUFFICIENT_WIKI_EVIDENCE_MARKER,
+  type AiCitation,
+  type AiQuestionMode,
+  type AiToolCallEventPayload,
+  type AiToolProposalEventPayload,
 } from '@next-wiki/shared';
 
-const INSUFFICIENT_MARKER = 'INSUFFICIENT_WIKI_EVIDENCE';
 const THINK_OPEN = '<think>';
 const THINK_CLOSE = '</think>';
 
@@ -18,6 +19,7 @@ export type StreamState = {
   markerBuffer: string;
   tagBuffer: string;
   insideThink: boolean;
+  discardLegacyInsufficient?: boolean;
 };
 
 /**
@@ -123,13 +125,14 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
   const stateRef = useRef<StreamState>({ markerBuffer: '', tagBuffer: '', insideThink: false });
 
   function emitAnswer(assistantId: string, text: string) {
-    if (!text) return;
+    if (!text || stateRef.current.discardLegacyInsufficient) return;
     stateRef.current.markerBuffer += text;
-    const trimmed = stateRef.current.markerBuffer.trim();
-    if (trimmed === INSUFFICIENT_MARKER) {
+    const trimmed = stateRef.current.markerBuffer.trimStart();
+    if (isLegacyInsufficientWikiAnswer(trimmed)) {
       store.insufficient(assistantId);
       stateRef.current.markerBuffer = '';
-    } else if (INSUFFICIENT_MARKER.startsWith(trimmed)) {
+      stateRef.current.discardLegacyInsufficient = true;
+    } else if (LEGACY_INSUFFICIENT_WIKI_EVIDENCE_MARKER.startsWith(trimmed.trimEnd())) {
       // accumulating a possible marker; don't render yet
     } else {
       store.append(assistantId, stateRef.current.markerBuffer);
@@ -140,7 +143,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
   async function ask(question: string, mode: AiQuestionMode) {
     const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
-    stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false };
+    stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
     store.add({ id: userId, role: 'user', text: question });
     store.add({ id: assistantId, role: 'assistant', text: '' });
 
@@ -179,7 +182,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
             store.append(assistantId, stateRef.current.markerBuffer);
             stateRef.current.markerBuffer = '';
           }
-          stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false };
+          stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
         }
       });
     } catch (error) {

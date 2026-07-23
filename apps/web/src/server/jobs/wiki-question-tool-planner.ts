@@ -25,7 +25,7 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [
         '<wiki_sources>',
-        'No baseline Wiki sources were retrieved. For informational answers, use read/search tools before answering; if the Wiki still does not support an answer, reply with INSUFFICIENT_WIKI_EVIDENCE.',
+        'No baseline Wiki sources were retrieved. For informational answers, make a few useful read/search attempts when the Wiki is likely to help. If it still lacks relevant evidence, answer normally from general model knowledge without Wiki citations.',
         '</wiki_sources>',
         '',
       ];

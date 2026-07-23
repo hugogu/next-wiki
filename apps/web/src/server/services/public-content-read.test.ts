@@ -329,6 +329,39 @@ describe('public content read facade', () => {
     expect(hit!.excerpt!.length).toBeLessThan(40);
   });
 
+  it('applies the shared relevance threshold to content-bearing searches used by Wiki tools', async () => {
+    const editor = await createPublicApiUser('public-tool-threshold-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-tool-threshold-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+    await db.insert(schema.searchSettings).values({ id: 'default', minRelevanceScore: 75 });
+
+    await pageService.create(editorCtx, {
+      path: 'docs/threshold-title',
+      title: 'ThresholdToken Guide',
+      contentSource: 'Strong title match.',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/threshold-title', version: 1 });
+    await pageService.create(editorCtx, {
+      path: 'docs/threshold-content',
+      title: 'Unrelated title',
+      contentSource: 'ThresholdToken appears only once in this body.',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/threshold-content', version: 1 });
+
+    const result = await publicContent.searchPages(readerCtx, {
+      q: 'ThresholdToken',
+      scope: 'all',
+      status: 'published',
+      limit: 20,
+      include: ['publishedRevision'],
+      excerptLength: 100,
+    });
+
+    expect(result.items.map((item) => item.page.path)).toEqual(['docs/threshold-title']);
+    expect(result.items[0]?.score).toBeGreaterThanOrEqual(0.75);
+  });
+
   it('revision list omits contentSource; a single revision fetch includes it', async () => {
     const editor = await createPublicApiUser('public-revlist-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-revlist-reader@example.com', 'reader');

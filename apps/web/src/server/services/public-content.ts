@@ -867,15 +867,15 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
     return { items: [], nextCursor: null };
   }
+  const settings = await getSearchSettings();
 
   // The capability adapters index current published revisions. Preserve the
   // legacy read path for draft/all, cursor, and expanded-revision requests
   // while moving the common published search to the immediate engines.
   if (query.status !== 'published' || query.cursor || query.include.length > 0) {
-    return searchPagesWithLegacyFilters(ctx, query);
+    return searchPagesWithLegacyFilters(ctx, query, settings.minRelevanceScore);
   }
 
-  const settings = await getSearchSettings();
   const result = await runCoordinatedSearch(ctx, {
     q: query.q.trim(),
     limit: query.limit,
@@ -886,8 +886,7 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
       semantic: false,
     },
     excerpt: { windowSize: query.excerptLength, show: true },
-    // The existing GET contract has no administrator relevance threshold.
-    minRelevanceScore: 0,
+    minRelevanceScore: settings.minRelevanceScore,
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
     spaceIds: [space.id],
     spaceSlugs: [space.slug],
@@ -927,7 +926,11 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
   return { items, nextCursor: null };
 }
 
-async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearchQuery): Promise<PublicPageSearchResponse> {
+async function searchPagesWithLegacyFilters(
+  ctx: PermCtx,
+  query: PublicPageSearchQuery,
+  minRelevanceScore: number,
+): Promise<PublicPageSearchResponse> {
   // Fetch through the internal (content-included) path rather than the public
   // listPages, since matchType/excerpt need contentSource before the public
   // page shape strips it.
@@ -965,7 +968,11 @@ async function searchPagesWithLegacyFilters(ctx: PermCtx, query: PublicPageSearc
       const score = scoreSearchMatch(matchType, page, query.q);
       return { page: stripPageContent(page), matchType, excerpt, score };
     })
-    .filter((item) => query.scope === 'all' || item.matchType === query.scope)
+    .filter(
+      (item) =>
+        item.score >= minRelevanceScore &&
+        (query.scope === 'all' || item.matchType === query.scope),
+    )
     // Real relevance ranking within this page of results; pagination itself still
     // walks the underlying table by recency (see listPagesInternal), since a
     // globally-ranked cursor would need a real search index rather than ILIKE.

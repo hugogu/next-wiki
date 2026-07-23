@@ -8,7 +8,7 @@ import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { retrieve } from '@/server/services/ai-retrieval';
-import { getBotGeneralSettings } from '@/server/services/bot-settings';
+import { getSearchSettings } from '@/server/services/search-settings';
 import { loadReadableFullContext } from './full-context';
 
 export function filterWikiQuestionResults(
@@ -32,11 +32,11 @@ export async function loadWikiQuestionSources(input: {
     };
   }
 
-  const [generation, botSettings] = await Promise.all([
+  const [generation, searchSettings] = await Promise.all([
     db.query.aiIndexGenerations.findFirst({
       where: eq(schema.aiIndexGenerations.isActive, true),
     }),
-    getBotGeneralSettings(),
+    getSearchSettings(),
   ]);
   if (!generation || generation.status !== 'ready') {
     throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
@@ -65,7 +65,7 @@ export async function loadWikiQuestionSources(input: {
   const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8);
   return {
     sources: searchResultsToSources(
-      filterWikiQuestionResults(results, botSettings.wikiQuestionMinRelevanceScore),
+      filterWikiQuestionResults(results, searchSettings.minRelevanceScore),
     ),
     usage: embedded.usage ?? {},
   };

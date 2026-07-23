@@ -93,7 +93,7 @@
 - [X] T093 [P] [US2] Add chat payload coverage for default tool-enabled follow-up turns in `apps/web/src/hooks/use-ai-chat.test.ts`
 - [X] T094 [P] [US2] Add Feishu delegation coverage for using tool chat first and ordinary Q&A fallback second in `apps/web/src/server/services/feishu-delegation.test.ts`
 - [X] T102 [P] [US2] Add retrieval-threshold, source-evidence, and Admin review-bypass coverage in `apps/web/src/server/ai/retrieval/wiki-question-sources.test.ts`, `apps/web/src/server/services/ai-tool-runtime.test.ts`, and `apps/web/src/server/services/ai-tool-policy.test.ts`
-- [X] T103 [P] [US2] Add Bots General settings service and component coverage in `apps/web/src/server/services/bot-settings.test.ts` and `apps/web/src/components/admin/bots/BotGeneralSettingsPanel.test.tsx`
+- [X] T103 [P] [US2] Add shared relevance-setting coverage in `apps/web/src/server/services/search-settings.test.ts` and `apps/web/src/server/services/public-content-read.test.ts`
 
 ### Implementation for User Story 2
 
@@ -111,9 +111,10 @@
 - [X] T097 [US2] Include bounded prior turns in the tool planner prompt in `apps/web/src/server/jobs/ai-tool-chat.ts`
 - [X] T098 [US2] Route Feishu inbound AI turns through `createWikiToolChat` with fallback to `createWikiQuestion` in `apps/web/src/server/services/feishu-delegation.ts`
 - [X] T099 [US2] Rebuild Feishu conversation context from canonical `wiki_question` actions, with legacy `wiki_tool_chat` compatibility in `apps/web/src/server/services/feishu-sessions.ts`
-- [X] T104 [US2] Add persisted Wiki answer minimum-relevance configuration and Admin API/UI under Bots > General in `apps/web/src/server/services/bot-settings.ts`, `apps/web/app/api/settings/bots/general/route.ts`, and `apps/web/src/components/admin/bots/BotGeneralSettingsPanel.tsx`
+- [X] T104 [US2] Reuse the persisted minimum-relevance configuration under Search Settings for Search, Wiki AI RAG, and bot/tool page retrieval in `apps/web/src/server/services/search-settings.ts`, `apps/web/src/server/services/public-content.ts`, and `apps/web/src/server/ai/retrieval/wiki-question-sources.ts`
 - [X] T105 [US2] Filter semantic RAG candidates before prompt construction and exclude search/list discovery candidates from final Sources in `apps/web/src/server/ai/retrieval/wiki-question-sources.ts` and `apps/web/src/server/services/ai-tool-runtime.ts`
 - [X] T106 [US2] Bypass Admin self-review while preserving permission, audit, and reversibility controls in `apps/web/src/server/services/ai-tool-policy.ts`
+- [X] T107 [US2] Allow general-knowledge fallback when Wiki evidence is insufficient and suppress legacy internal markers across live chat, retained conversations, and Feishu delivery in `apps/web/src/server/ai/prompts/wiki-question.ts`, `apps/web/src/server/jobs/ai-question.ts`, and conversation reconstruction services
 
 **Checkpoint**: User Story 2 is functional and independently testable.
 

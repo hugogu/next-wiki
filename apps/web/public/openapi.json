@@ -12223,60 +12223,6 @@
         }
       }
     },
-    "/settings/bots/general": {
-      "get": {
-        "operationId": "get-settings-bots-general",
-        "summary": "Get general bot settings",
-        "description": "",
-        "tags": [
-          "Bot Admin"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "operationId": "patch-settings-bots-general",
-        "summary": "Update general bot settings",
-        "description": "",
-        "tags": [
-          "Bot Admin"
-        ],
-        "parameters": [],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/feishu/bindings": {
       "post": {
         "operationId": "post-feishu-bindings",
@@ -17352,9 +17298,6 @@
     },
     {
       "name": "Auth"
-    },
-    {
-      "name": "Bot Admin"
     },
     {
       "name": "Feishu"

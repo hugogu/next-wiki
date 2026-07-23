@@ -600,7 +600,7 @@
       },
       "minRelevance": {
         "label": "Minimum relevance score",
-        "help": "Only show results whose keyword or vector relevance score is at least this value. Use 0 for permissive matching; try 0.65+ to hide weak vector matches."
+        "help": "Only use search or Wiki AI retrieval results whose keyword or vector relevance score is at least this value. Use 0 for permissive matching; try 0.65+ to hide weak matches."
       },
       "excerpts": {
         "title": "Result descriptions",
@@ -1550,15 +1550,6 @@
       "description": "Connect chat bots so your team can ask the wiki, search pages, and receive notifications without leaving the conversation.",
       "tabs": {
         "general": "General"
-      },
-      "general": {
-        "retrieval": {
-          "title": "Wiki answer retrieval",
-          "description": "Control which semantic search results may enter Wiki AI and bot answer context.",
-          "minimumScore": "Minimum relevance score",
-          "minimumScoreHelp": "Results below this cosine similarity score are discarded. Higher values reduce unrelated context but may return fewer sources."
-        },
-        "saved": "Bot settings saved."
       }
     },
     "feishu": {

@@ -140,6 +140,7 @@ As a future integrator, I want the tool-management model to distinguish the buil
 - A public wiki page is changed through an approved tool proposal: public readers see the change only after the normal publish/apply action completes and public delivery invalidation has run.
 - An AI provider cannot perform tool calling for the selected model: the chat explains that tool use is unavailable for that model and falls back to ordinary Q&A when possible.
 - A tool call returns content from pages the user cannot read: those results are filtered or denied before the assistant can use them.
+- Search and tool retrieval find no sufficiently relevant Wiki page: Wiki AI answers helpfully from general model knowledge without fabricating Wiki citations or exposing internal control markers.
 
 ## Requirements *(mandatory)*
 
@@ -164,8 +165,9 @@ As a future integrator, I want the tool-management model to distinguish the buil
 - **FR-012**: Tool workflows MUST be cancellable by the user while they are running; cancellation MUST NOT approve pending proposals or roll back already-completed, audited operations unless a normal revert operation is explicitly requested.
 - **FR-034**: Web Wiki AI and configured bot channels MUST pass bounded recent conversation context into tool-enabled chat so follow-up instructions such as "write the above into a page" can operate on the prior answer.
 - **FR-035**: Feishu bot AI turns MUST use the same Wiki AI tool-chat service as the web chat pane when tools are available, and MUST fall back to ordinary Q&A only when the selected model or policy makes tool use unavailable.
-- **FR-036**: Admins MUST be able to configure the minimum semantic relevance score for Wiki AI and bot answer retrieval under Bots > General, and candidates below that threshold MUST be discarded before entering model context.
+- **FR-036**: Admins MUST be able to configure one minimum relevance score under Search Settings, and Search, Wiki AI RAG, and bot/tool page retrieval MUST all discard candidates below that shared threshold before displaying or using them.
 - **FR-037**: Search and page-list tool results MUST remain discovery candidates and MUST NOT be presented as final Sources unless the assistant actually reads the page; final Sources MUST contain only cited baseline retrieval sources and content-bearing page reads.
+- **FR-038**: Wiki AI MUST prefer and cite relevant Wiki evidence, but when available Wiki evidence is absent or insufficient it MUST provide a useful answer from general model knowledge without fabricated Wiki citations. Internal protocol markers and error identifiers MUST NOT appear as assistant prose.
 
 **Review and application of changes**
 

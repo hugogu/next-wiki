@@ -52,7 +52,7 @@ describe('reconstructSessionFromEvents', () => {
 
   it('flags an insufficient-evidence answer and clears its text', () => {
     const events: AiActionEvent[] = [
-      event({ id: 1, type: 'text_delta', payload: { text: 'INSUFFICIENT_WIKI_EVIDENCE' } }),
+      event({ id: 1, type: 'text_delta', payload: { text: 'INSUFFICIENT_WIKI_EVIDENCE\n\nSources:\n- unrelated' } }),
     ];
     const result = reconstructSessionFromEvents(events);
     expect(result.insufficient).toBe(true);

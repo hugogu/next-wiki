@@ -1,7 +1,5 @@
-import type { AiActionEvent, AiCitation } from '@next-wiki/shared';
+import { isLegacyInsufficientWikiAnswer, type AiActionEvent, type AiCitation } from '@next-wiki/shared';
 import { processTextDelta, flushStreamState, type StreamState } from '@/hooks/use-ai-chat';
-
-const INSUFFICIENT_MARKER = 'INSUFFICIENT_WIKI_EVIDENCE';
 
 export type ReconstructedSession = {
   question: string;
@@ -45,6 +43,6 @@ export function reconstructSessionFromEvents(events: AiActionEvent[]): Reconstru
   answer += flushed.answerText;
   thinking += flushed.thinkingText;
 
-  const insufficient = answer.trim() === INSUFFICIENT_MARKER;
+  const insufficient = isLegacyInsufficientWikiAnswer(answer);
   return { question, answer: insufficient ? '' : answer, thinking, citations, insufficient, errorMessage };
 }

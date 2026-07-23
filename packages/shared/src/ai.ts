@@ -744,6 +744,13 @@ export const rawConversationSourceMetadataSchema = z.object({
 });
 export type RawConversationSourceMetadata = z.infer<typeof rawConversationSourceMetadataSchema>;
 
+/** Backward-compatibility only. New Wiki answers no longer use this sentinel. */
+export const LEGACY_INSUFFICIENT_WIKI_EVIDENCE_MARKER = 'INSUFFICIENT_WIKI_EVIDENCE';
+
+export function isLegacyInsufficientWikiAnswer(text: string): boolean {
+  return text.trimStart().startsWith(LEGACY_INSUFFICIENT_WIKI_EVIDENCE_MARKER);
+}
+
 export const aiApiErrorCodeSchema = z.enum([
   'AI_DISABLED',
   'AI_NOT_CONFIGURED',

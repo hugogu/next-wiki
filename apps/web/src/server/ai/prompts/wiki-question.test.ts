@@ -3,7 +3,6 @@ import {
   compressQuestionSources,
   computeAnswerMaxOutputTokens,
   estimatePromptTokens,
-  isInsufficientAnswer,
   normalizeQuestionCitations,
   type QuestionSource,
 } from './wiki-question';
@@ -36,9 +35,11 @@ describe('Wiki question prompts', () => {
     ]);
   });
 
-  it('detects explicit or source-free insufficient evidence', () => {
-    expect(isInsufficientAnswer('INSUFFICIENT_WIKI_EVIDENCE', sources)).toBe(true);
-    expect(isInsufficientAnswer('anything', [])).toBe(true);
+  it('allows a useful general-knowledge fallback without inventing citations', () => {
+    const prompt = buildWikiQuestionPrompt('Who is Guan Yu?', []);
+    expect(prompt.system).toContain('answer helpfully from general model knowledge');
+    expect(prompt.system).not.toContain('INSUFFICIENT_WIKI_EVIDENCE');
+    expect(normalizeQuestionCitations('Guan Yu was a Han dynasty general.', [])).toEqual([]);
   });
 });
 

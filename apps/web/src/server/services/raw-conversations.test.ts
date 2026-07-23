@@ -77,7 +77,9 @@ describe('raw conversations service', () => {
         resultMetadata: { insufficientEvidence: true },
       });
       await appendConversationEvent(actionId, 'question', { text: 'Unanswerable question?' });
-      await appendConversationEvent(actionId, 'text_delta', { text: 'INSUFFICIENT_WIKI_EVIDENCE' });
+      await appendConversationEvent(actionId, 'text_delta', {
+        text: 'INSUFFICIENT_WIKI_EVIDENCE\n\nSources:\n- unrelated',
+      });
       await appendConversationEvent(actionId, 'completed', { status: 'completed' });
 
       const result = await reconstructConversation(actionId);

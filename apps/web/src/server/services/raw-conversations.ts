@@ -1,5 +1,6 @@
 import { asc, and, eq, max, sql } from 'drizzle-orm';
 import {
+  isLegacyInsufficientWikiAnswer,
   rawConversationSourceMetadataSchema,
   type AiActionStatus,
   type AiCitation,
@@ -27,12 +28,6 @@ type AiActionRow = typeof schema.aiActions.$inferSelect;
 // `wiki_tool_chat` is legacy compatibility for rows created before tool-enabled
 // Wiki AI was folded back into the canonical `wiki_question` feature.
 type CapturableConversationFeature = 'wiki_question' | 'wiki_tool_chat';
-
-/** The exact sentinel the wiki-question prompt asks the model to reply with
- * when no wiki evidence supports an answer (see ai/prompts/wiki-question.ts).
- * Captured here as a marker to strip from the transcript rather than an
- * import, so this service does not depend on prompt-layer internals. */
-const INSUFFICIENT_MARKER = 'INSUFFICIENT_WIKI_EVIDENCE';
 
 export const CONVERSATION_CATEGORY_SYSTEM_KEY = 'conversation';
 
@@ -134,7 +129,7 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
   }
 
   const resultMetadata = action.resultMetadata as Record<string, unknown> | null;
-  const insufficient = resultMetadata?.insufficientEvidence === true || answer.trim() === INSUFFICIENT_MARKER;
+  const insufficient = resultMetadata?.insufficientEvidence === true || isLegacyInsufficientWikiAnswer(answer);
 
   return {
     status: mapConversationStatus(action.status),

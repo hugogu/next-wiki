@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { isLegacyInsufficientWikiAnswer } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 
@@ -170,11 +171,7 @@ export async function getConversationContext(
     const payload = event.payload as { text?: string };
     if (event.type === 'question' && typeof payload.text === 'string')
       turn.question += payload.text;
-    if (
-      event.type === 'text_delta' &&
-      typeof payload.text === 'string' &&
-      payload.text !== 'INSUFFICIENT_WIKI_EVIDENCE'
-    ) {
+    if (event.type === 'text_delta' && typeof payload.text === 'string') {
       turn.answer += payload.text;
     }
     byAction.set(event.actionId, turn);
@@ -185,7 +182,7 @@ export async function getConversationContext(
     .filter((turn): turn is ConversationTurn => Boolean(turn?.question))
     .map((turn) => ({
       question: turn.question.slice(0, 2_000),
-      answer: turn.answer.slice(0, 4_000),
+      answer: isLegacyInsufficientWikiAnswer(turn.answer) ? '' : turn.answer.slice(0, 4_000),
     }));
 }
 

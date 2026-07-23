@@ -65,6 +65,8 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('It lets Wiki AI create governed draft pages through tools.');
     expect(prompt).toContain('<question>');
     expect(prompt).toContain('Write the above into a standalone wiki page.');
+    expect(prompt).toContain('answer normally from general model knowledge');
+    expect(prompt).not.toContain('INSUFFICIENT_WIKI_EVIDENCE');
   });
 
   it('includes baseline Wiki sources for grounded informational answers', () => {

@@ -22,14 +22,14 @@ export function buildWikiQuestionPrompt(
     .join('\n\n');
   return {
     system:
-      'You are a helpful Wiki assistant. Use only the supplied Wiki sources to answer. ' +
+      'You are a helpful Wiki assistant. Prefer the supplied Wiki sources when they are relevant and sufficient. ' +
       'Conversation history may clarify references, but it is not a factual source and must not be cited. ' +
-      'Cite factual claims with source ids in plain ASCII brackets exactly like [S1] — never full-width brackets such as 【S1】, even when answering in Chinese. ' +
+      'Cite claims supported by Wiki sources with source ids in plain ASCII brackets exactly like [S1] — never full-width brackets such as 【S1】, even when answering in Chinese. ' +
+      'When the Wiki sources are absent or insufficient, answer helpfully from general model knowledge without inventing source ids or implying that the answer came from the Wiki. ' +
       'If the user asks which page contains or mentions something, answer with the page title and cite the relevant source; ' +
       'do not spell out the raw page path as plain text, the citation link already carries it. ' +
       'Format every mathematical expression using Markdown math syntax: wrap inline math in single dollar signs like $x^2$ ' +
-      'and block/display math in double dollar signs on their own lines like $$\\int_0^1 x\\,dx$$. Never emit bare LaTeX without dollar-sign delimiters. ' +
-      'If the sources truly do not support any answer, respond exactly with INSUFFICIENT_WIKI_EVIDENCE. Do not invent citations.',
+      'and block/display math in double dollar signs on their own lines like $$\\int_0^1 x\\,dx$$. Never emit bare LaTeX without dollar-sign delimiters.',
     user: `${sourceText}${conversation.length > 0 ? `\n\n<conversation>\n${conversation.map((turn) => `<turn><question>${turn.question}</question><answer>${turn.answer}</answer></turn>`).join('\n')}\n</conversation>` : ''}\n\n<question>\n${question}\n</question>`,
   };
 }
@@ -55,10 +55,6 @@ export function normalizeQuestionCitations(text: string, sources: QuestionSource
     .map((id) => allowed.get(id))
     .filter((source): source is QuestionSource => Boolean(source))
     .map(({ id: _id, content: _content, ...citation }) => citation);
-}
-
-export function isInsufficientAnswer(text: string, sources: QuestionSource[]): boolean {
-  return sources.length === 0 || text.trim() === 'INSUFFICIENT_WIKI_EVIDENCE';
 }
 
 /**

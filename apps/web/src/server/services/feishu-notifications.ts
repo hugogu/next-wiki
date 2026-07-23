@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
-import type { AiCitation } from '@next-wiki/shared';
+import { isLegacyInsufficientWikiAnswer, type AiCitation } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
@@ -79,13 +79,16 @@ export async function reconstructAnswer(actionId: string): Promise<Reconstructed
   for (const ev of events) {
     if (ev.type === 'text_delta') {
       const p = ev.payload as { text?: string };
-      if (typeof p.text === 'string' && p.text !== 'INSUFFICIENT_WIKI_EVIDENCE') text += p.text;
+      if (typeof p.text === 'string') text += p.text;
     } else if (ev.type === 'citations') {
       const p = ev.payload as { citations?: AiCitation[] };
       if (Array.isArray(p.citations)) {
         citations = toFeishuCitations(p.citations);
       }
     }
+  }
+  if (isLegacyInsufficientWikiAnswer(text)) {
+    return { status: 'insufficient_evidence', text: '', citations: [] };
   }
   return { status: 'completed', text: text.trim(), citations };
 }

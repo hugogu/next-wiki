@@ -10,7 +10,6 @@ import {
   compressQuestionSources,
   computeAnswerMaxOutputTokens,
   estimatePromptTokens,
-  isInsufficientAnswer,
   normalizeQuestionCitations,
 } from '@/server/ai/prompts/wiki-question';
 import { isContextLengthExceededError } from '@/server/ai/types';
@@ -115,10 +114,12 @@ function buildToolSystemPrompt(tools: ToolDefinition[]): string {
     'receive tool results, either call more tools the same way, or write your final',
     'answer as plain prose (no code block), citing the pages you read.',
     'Baseline Wiki sources are provided in the user prompt. For informational',
-    'questions, use those sources first and cite factual claims with source ids',
-    'in plain ASCII brackets exactly like [S1]. Do not answer from general model',
-    'knowledge when the Wiki sources and tool-read pages do not support it;',
-    'reply with INSUFFICIENT_WIKI_EVIDENCE instead.',
+    'questions, use those sources first and cite claims they support with source',
+    'ids in plain ASCII brackets exactly like [S1]. Tool-read pages are cited',
+    'through the tool runtime. When Wiki evidence is absent or insufficient,',
+    'answer helpfully from general model knowledge without inventing Wiki citations.',
+    'Do not repeat semantically equivalent searches. After a few reasonable search',
+    'attempts, answer with the best available knowledge instead of searching again.',
     'If the user asks to save, write, or turn previous conversation content into a',
     'wiki page, use create_page or save_draft with admin_review instead of only',
     'answering conversationally.',
@@ -166,16 +167,6 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
     textContextWindow: textModel.contextWindow,
   });
 
-  if (sources.length === 0) {
-    await appendActionEvent(actionId, 'text_delta', { text: 'INSUFFICIENT_WIKI_EVIDENCE' });
-    await finishAction(actionId, 'completed', {
-      resultMetadata: { insufficientEvidence: true, citationCount: 0 },
-    });
-    // If this question came from Feishu, wake the delivery worker to send the
-    // "no accessible material" answer promptly.
-    await nudgeAnswerDelivery(actionId);
-    return;
-  }
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   const feishuStream = await startFeishuAnswerStream(actionId);
   let answer = '';
@@ -231,16 +222,14 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
       }
     }
     await assertAiFeature(ctx, 'question');
-    const citations = isInsufficientAnswer(answer, promptSources)
-      ? []
-      : normalizeQuestionCitations(answer, promptSources);
+    const citations = normalizeQuestionCitations(answer, promptSources);
     if (feishuStream) {
       await completeFeishuAnswerStream(feishuStream, actionId, toFeishuCitations(citations));
     }
     await appendActionEvent(actionId, 'citations', { citations });
     await finishAction(actionId, 'completed', {
       resultMetadata: {
-        insufficientEvidence: isInsufficientAnswer(answer, promptSources),
+        insufficientEvidence: false,
         citationCount: citations.length,
       },
       usageMetadata: usage,
@@ -360,23 +349,12 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     throw new DomainError('CANCELLED', 'Tool-enabled question was cancelled');
   }
 
-  let answer =
+  const answer =
     result.answer ||
     (result.status === 'limit_reached'
       ? 'I reached the tool-call limit for this turn before finishing.'
       : '');
-  if (
-    wikiSources.length === 0 &&
-    result.calls === 0 &&
-    answer.trim() &&
-    answer.trim() !== 'INSUFFICIENT_WIKI_EVIDENCE'
-  ) {
-    answer = 'INSUFFICIENT_WIKI_EVIDENCE';
-  }
-  const insufficientEvidence = answer.trim() === 'INSUFFICIENT_WIKI_EVIDENCE';
-  const wikiCitations = insufficientEvidence
-    ? []
-    : normalizeQuestionCitations(answer, wikiSources);
+  const wikiCitations = normalizeQuestionCitations(answer, wikiSources);
   const citations = mergeCitations(wikiCitations, result.citations);
   const finalAnswer = appendSourceLinks(answer, citations);
   if (finalAnswer) await appendActionEvent(actionId, 'text_delta', { text: finalAnswer });
@@ -384,7 +362,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   await finishAction(actionId, 'completed', {
     resultMetadata: {
       toolWorkflowStatus: result.status,
-      insufficientEvidence,
+      insufficientEvidence: false,
       citationCount: citations.length,
     },
     usageMetadata: retrievalUsage,
