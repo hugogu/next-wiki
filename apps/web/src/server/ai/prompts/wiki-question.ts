@@ -103,8 +103,9 @@ export function computeAnswerMaxOutputTokens(
   estPromptTokens: number,
   contextWindow: number | null,
   modelMaxOutput: number | null,
+  ceiling: number = ANSWER_TOKEN_CEILING,
 ): number {
-  let maxOut = Math.min(modelMaxOutput ?? ANSWER_TOKEN_CEILING, ANSWER_TOKEN_CEILING);
+  let maxOut = Math.min(modelMaxOutput ?? ceiling, ceiling);
   if (contextWindow && contextWindow > 0) {
     maxOut = Math.min(maxOut, contextWindow - estPromptTokens - 512);
   }

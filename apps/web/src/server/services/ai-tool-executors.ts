@@ -211,11 +211,16 @@ function resolvePageContent(
 
 async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = createPageArgs.parse(rawArgs);
+  // AI-authored pages belong in the generated space, but only admins have write
+  // access there (the generated space is admin-curated). Non-admin actors fall
+  // back to the default (wiki) space so the operation doesn't 403.
+  const isAdmin = ctx.actor.kind === 'user' && ctx.actor.role === 'admin';
   const page = await content.createPage(ctx, {
     path: args.path,
     title: args.title,
     contentSource: resolvePageContent(args, execCtx),
     nature: 'generated',
+    space: isAdmin ? 'generated' : 'default',
   });
   return { ok: true, summary: `Created draft page "${page.title}".`, draftPageId: page.id, data: { pageId: page.id, path: page.path } };
 }

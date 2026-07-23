@@ -144,5 +144,12 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
     }
     return { kind: 'invalid_tool_calls' };
   }
+  // An opening fence with no matching close means the model's tool-call block
+  // was truncated by the output token budget before it could finish. Treat it
+  // as invalid (retryable) instead of silently accepting the truncated text as
+  // a final answer.
+  if (/```(?:tool|json)?\s*\n/.test(output)) {
+    return { kind: 'invalid_tool_calls' };
+  }
   return { kind: 'final', text: output.trim() };
 }

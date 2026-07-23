@@ -51,6 +51,11 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     const output = '```tool\n{"tool_calls":[{"tool":"create_page","arguments":{"path":"history/china/figures/zhang-fei","title":"张飞","content":"# 张飞"},"review":"admin_review"}}\n```';
     expect(parseToolPlan(output)).toEqual({ kind: 'invalid_tool_calls' });
   });
+
+  it('detects a tool block truncated by output token limit (no closing fence)', () => {
+    const output = '我先扩充内容。\n\n```tool\n{"tool_calls":[{"tool":"save_draft","arguments":{"pageId":"abc","title":"孙权","contentSource":"# 孙权（182年—252年）\n\n孙权，字仲谋，是三国时期';
+    expect(parseToolPlan(output)).toEqual({ kind: 'invalid_tool_calls' });
+  });
 });
 
 describe('buildPlannerUserPrompt', () => {

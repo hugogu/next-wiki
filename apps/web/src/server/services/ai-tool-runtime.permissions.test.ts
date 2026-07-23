@@ -176,7 +176,27 @@ describe('read tool permission projection (026)', () => {
       title: '张飞',
       contentSource: '# 张飞\n\n蜀汉名将。',
       nature: 'generated',
+      space: 'generated',
     });
+    expect(result.ok).toBe(true);
+  });
+
+  it('falls back to the default space for non-admin actors', async () => {
+    const editorCtx = buildUserCtx('editor-1', 'editor');
+    content.createPage.mockResolvedValue({
+      id: 'page-editor',
+      path: 'drafts/test',
+      title: 'Test',
+    });
+    const result = await executeTool(editorCtx, createPageTool, {
+      path: 'drafts/test',
+      title: 'Test',
+      contentSource: '# Test',
+    }, { ...execCtx, actorUserId: 'editor-1', effectiveReview: 'none' });
+    expect(content.createPage).toHaveBeenCalledWith(editorCtx, expect.objectContaining({
+      space: 'default',
+      nature: 'generated',
+    }));
     expect(result.ok).toBe(true);
   });
 });

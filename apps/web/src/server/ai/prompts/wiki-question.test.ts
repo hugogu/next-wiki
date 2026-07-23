@@ -64,6 +64,14 @@ describe('computeAnswerMaxOutputTokens', () => {
   it('respects a smaller honest per-model output cap', () => {
     expect(computeAnswerMaxOutputTokens(1000, 128000, 2048)).toBe(2048);
   });
+
+  it('honours a higher ceiling for planner output that includes tool-call arguments', () => {
+    // With the default ceiling (8192), a model with maxOutputTokens=16384 is
+    // capped at 8192. Passing ceiling=16384 lifts that cap so the planner can
+    // emit large inline content (e.g. an expanded wiki page).
+    expect(computeAnswerMaxOutputTokens(1000, 128000, 16384)).toBe(8192);
+    expect(computeAnswerMaxOutputTokens(1000, 128000, 16384, 16384)).toBe(16384);
+  });
 });
 
 describe('compressQuestionSources', () => {

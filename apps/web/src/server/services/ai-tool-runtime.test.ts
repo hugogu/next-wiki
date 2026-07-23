@@ -19,6 +19,7 @@ import {
   type ToolPlanner,
 } from '@/server/services/ai-tool-runtime';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
+import { setModeInternal } from '@/server/services/writing-mode';
 
 async function seedToolEnabledQuestionAction(): Promise<string> {
   const [action] = await db
@@ -28,7 +29,7 @@ async function seedToolEnabledQuestionAction(): Promise<string> {
   return action!.id;
 }
 
-async function seedUserCtx(role: 'reader' | 'editor' = 'reader'): Promise<{ userId: string; ctx: PermCtx }> {
+async function seedUserCtx(role: 'reader' | 'editor' | 'admin' = 'reader'): Promise<{ userId: string; ctx: PermCtx }> {
   const [user] = await db
     .insert(schema.users)
     .values({ email: `loop-${crypto.randomUUID()}@example.com`, passwordHash: 'HASH', role, status: 'active' })
@@ -240,8 +241,12 @@ describe('ai tool runtime — bounded loop', () => {
   });
 
   it('creates a page from the latest assistant answer without echoing it in tool arguments', async () => {
-    await db.insert(schema.spaces).values({ slug: 'default', name: 'Default' }).onConflictDoNothing();
-    const { userId, ctx: editorCtx } = await seedUserCtx('editor');
+    await setModeInternal('llm-wiki', null);
+    await db.insert(schema.spaces).values([
+      { slug: 'default', name: 'Default' },
+      { slug: 'generated', name: 'Generated', kind: 'generated' },
+    ]).onConflictDoNothing();
+    const { userId, ctx: adminCtx } = await seedUserCtx('admin');
     const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: userId, maxCalls: 5 });
     await transitionWorkflow(workflow.id, 'running');
     const path = `conversation-pages/${crypto.randomUUID()}`;
@@ -250,7 +255,7 @@ describe('ai tool runtime — bounded loop', () => {
     const result = await runToolLoop({
       actionId,
       workflowId: workflow.id,
-      ctx: editorCtx,
+      ctx: adminCtx,
       actorUserId: userId,
       question: 'Create a page from the answer above.',
       conversation: [{ question: 'Introduce Guan Yu.', answer }],
@@ -278,7 +283,9 @@ describe('ai tool runtime — bounded loop', () => {
     const revision = page
       ? await db.query.pageRevisions.findFirst({ where: (revisions, { eq }) => eq(revisions.pageId, page.id) })
       : null;
-    expect(revision?.contentSource).toBe(answer);
+    // The generated space injects OKF frontmatter; verify the body survived.
+    expect(revision?.contentSource).toContain(answer);
+    expect(page?.spaceId).toBe((await db.query.spaces.findFirst({ where: (s, { eq }) => eq(s.slug, 'generated') }))?.id);
   });
 
   it('blocks a disabled tool without executing it', async () => {
