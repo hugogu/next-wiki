@@ -27,6 +27,7 @@ import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, LinkIcon, SearchIcon, Spark
 import { useChatStore } from '@/components/chat/chat-store';
 import { ConversationSessionView } from '@/components/chat/ConversationSessionView';
 import { reconstructSessionFromEvents } from '@/components/chat/reconstruct-session';
+import { resolveSessionId } from '@/components/chat/resolve-session-id';
 import { buildConversationViewModel } from './build-conversation-view-model';
 
 const PAGE_SIZE = 20;
@@ -145,6 +146,7 @@ export function AiSessionsPanel({ initial }: { initial: AiConversationListRespon
       const latest = turns[turns.length - 1] ?? turns[0];
       if (!latest) return;
       loadSession({
+        sessionId: resolveSessionId(conversation, conversationDetail),
         mode: conversationDetail.turns.at(-1)?.action.questionMode ?? 'retrieval',
         question: latest.question,
         answer: latest.answer,

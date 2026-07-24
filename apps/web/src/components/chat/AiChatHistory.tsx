@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { PlusIcon, SparklesIcon } from '@/components/icons';
 import { useChatStore } from './chat-store';
 import { reconstructSessionFromEvents } from './reconstruct-session';
+import { resolveSessionId } from './resolve-session-id';
 
 const PAGE_SIZE = 50;
 
@@ -81,6 +82,7 @@ export function AiChatHistory() {
         });
       }
       restoreSession({
+        sessionId: resolveSessionId(conversation, detail),
         mode: detail.turns.at(-1)?.action.questionMode ?? 'retrieval',
         messages,
       });
