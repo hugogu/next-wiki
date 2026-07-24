@@ -7,13 +7,13 @@
   --color-primary: #b45309;
   --color-primary-text: #ffffff;
   --color-primary-hover: #92400e;
-  --color-background: #fafaf9;
-  --color-surface: #ffffff;
-  --color-surface-elevated: #f5f5f4;
+  --color-background: #ffffff;
+  --color-surface: #f5f5f4;
+  --color-surface-elevated: #e7e5e4;
   --color-border: #e7e5e4;
   --color-border-strong: #d6d3d1;
-  --color-muted: #78716c;
-  --color-foreground: #292524;
+  --color-muted: #57534e;
+  --color-foreground: #1c1917;
   --color-ring: rgba(180, 83, 9, 0.25);
   --color-danger: #dc2626;
   --color-warning: #d97706;
@@ -371,7 +371,7 @@ html.dark .prose .hljs-section {
 .prose .hljs-comment,
 .prose .hljs-quote,
 .prose .hljs-deletion {
-  color: #78716c;
+  color: #57534e;
   font-style: italic;
 }
 
