@@ -1959,7 +1959,7 @@
       "continue": "Continue",
       "delete": "Delete",
       "deleteTitle": "Delete this conversation?",
-      "deleteMessage": "{count, plural, one {This permanently deletes the # turn, its answer, and its citations. This cannot be undone.} other {This permanently deletes all # turns, their answers, and their citations. This cannot be undone.}}",
+      "deleteMessage": "{count, plural, one {'This' permanently deletes the # turn, its answer, and its citations. This cannot be undone.} other {'This' permanently deletes all # turns, their answers, and their citations. This cannot be undone.}}",
       "deleteFailed": "Could not delete this session.",
       "detailTitle": "Session detail",
       "loading": "Loading…",
