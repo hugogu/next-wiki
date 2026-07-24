@@ -110,11 +110,13 @@ function MoreActionsMenu({
   showDelete,
   onOpenSettings,
   onRequestDelete,
+  onTranslate,
 }: {
   pageContext: NonNullable<PageContext>;
   showDelete: boolean;
   onOpenSettings: () => void;
   onRequestDelete: () => void;
+  onTranslate?: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -132,7 +134,7 @@ function MoreActionsMenu({
   const showEdit = pageContext.canEdit;
   const showHistory = pageContext.space !== 'raw';
 
-  if (!showEdit && !showHistory && !showSettings && !showDelete && !hasLanguages) return null;
+  if (!showEdit && !showHistory && !showSettings && !showDelete && !hasLanguages && !onTranslate) return null;
 
   return (
     <div className="group relative">
@@ -159,6 +161,12 @@ function MoreActionsMenu({
             <HistoryIcon />
             <span>{t('page.header.history')}</span>
           </Link>
+        )}
+        {onTranslate && (
+          <button type="button" onClick={onTranslate} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
+            <LanguagesIcon />
+            <span>{t('page.header.translate')}</span>
+          </button>
         )}
         {showSettings && (
           <button type="button" onClick={onOpenSettings} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
@@ -355,18 +363,13 @@ export function Header({
                 </IconButton>
               )}
 
-              {canTranslate && (
-                <IconButton onClick={() => setTranslateOpen(true)} label={t('page.header.translate')}>
-                  <LanguagesIcon />
-                </IconButton>
-              )}
-
               {pageContext && (
                 <MoreActionsMenu
                   pageContext={pageContext}
                   showDelete={canDeletePage}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onRequestDelete={requestDelete}
+                  onTranslate={canTranslate ? () => setTranslateOpen(true) : undefined}
                 />
               )}
 
