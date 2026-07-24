@@ -1443,7 +1443,10 @@
         "delete": "删除模型",
         "active": "已激活",
         "activate": "激活",
-        "activateDimensionsHint": "为 {name} 设置向量维度后激活。需与该模型实际输出维度一致。"
+        "activateDimensionsHint": "为 {name} 设置向量维度后激活。需与该模型实际输出维度一致。",
+        "contextSortAsc": "按上下文窗口排序（从小到大）",
+        "contextSortDesc": "按上下文窗口排序（从大到小）",
+        "contextSortReset": "恢复默认排序（激活的模型置顶）"
       },
       "chatCapability": {
         "vision": "视觉理解",

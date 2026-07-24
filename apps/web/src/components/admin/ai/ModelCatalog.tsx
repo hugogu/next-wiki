@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { AudioIcon, CheckIcon, CircleIcon, EyeIcon, PlusIcon, SparklesIcon, TrashIcon, XIcon } from '@/components/icons';
+import { AudioIcon, ArrowDownIcon, ArrowUpDownIcon, CheckIcon, CircleIcon, EyeIcon, PlusIcon, SparklesIcon, TrashIcon, XIcon } from '@/components/icons';
 import { Switch } from '@/components/ui/Switch';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -82,6 +82,10 @@ export function ModelCatalog({
   const [deleting, setDeleting] = useState<AiModelView | null>(null);
   const [activating, setActivating] = useState<AiModelView | null>(null);
   const [activateDims, setActivateDims] = useState('');
+  // null = default ("active model on top, rest in catalog order"); 'desc'/'asc' =
+  // explicit sort by context window. Clicking the Context header cycles
+  // null → desc → asc → null.
+  const [contextSortDir, setContextSortDir] = useState<null | 'desc' | 'asc'>(null);
   const catalogType = providers[0]?.type ?? models[0]?.providerType ?? 'chat';
   const providerOptions = useMemo(
     () => [...new Map(models.map((model) => [model.providerId, model.providerName])).entries()],
@@ -92,6 +96,29 @@ export function ModelCatalog({
     const matchesQuery = !query || `${model.displayName} ${model.externalId}`.toLowerCase().includes(query.toLowerCase());
     return matchesQuery && (!providerId || model.providerId === providerId);
   });
+  // Default ordering keeps the active model pinned to the top so it's always
+  // visible in a long catalog. Stable sort preserves catalog order for ties.
+  if (contextSortDir) {
+    const dir = contextSortDir === 'desc' ? -1 : 1;
+    filtered.sort((a, b) => {
+      const ac = a.contextWindow;
+      const bc = b.contextWindow;
+      if (ac == null && bc == null) return 0;
+      if (ac == null) return 1;
+      if (bc == null) return -1;
+      if (ac === bc) return 0;
+      return ac > bc ? dir : -dir;
+    });
+  } else if (activeModelId) {
+    filtered.sort((a, b) => {
+      if (a.id === activeModelId) return -1;
+      if (b.id === activeModelId) return 1;
+      return 0;
+    });
+  }
+  const cycleContextSort = () => {
+    setContextSortDir((current) => (current === null ? 'desc' : current === 'desc' ? 'asc' : null));
+  };
   const toggle = async (model: AiModelView, capability: AiCapability, supported: boolean) => {
     const key = `${model.id}:${capability}`;
     setBusy(key);
@@ -178,7 +205,25 @@ export function ModelCatalog({
             <DataTableHeader>{t('admin.ai.models.provider')}</DataTableHeader>
             <DataTableHeader>{t('admin.ai.models.type')}</DataTableHeader>
             {catalogType !== 'image' && (
-              <DataTableHeader>{t('admin.ai.models.context')}</DataTableHeader>
+              <DataTableHeader aria-sort={contextSortDir === 'asc' ? 'ascending' : contextSortDir === 'desc' ? 'descending' : 'none'}>
+                <button
+                  type="button"
+                  onClick={cycleContextSort}
+                  className="inline-flex items-center gap-xs rounded text-sm font-medium transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  aria-label={
+                    contextSortDir === null
+                      ? t('admin.ai.models.contextSortDesc')
+                      : contextSortDir === 'desc'
+                        ? t('admin.ai.models.contextSortAsc')
+                        : t('admin.ai.models.contextSortReset')
+                  }
+                >
+                  <span>{t('admin.ai.models.context')}</span>
+                  {contextSortDir === null && <ArrowUpDownIcon className="h-3.5 w-3.5 text-muted" />}
+                  {contextSortDir === 'desc' && <ArrowDownIcon className="h-3.5 w-3.5 text-foreground" />}
+                  {contextSortDir === 'asc' && <ArrowDownIcon className="h-3.5 w-3.5 text-foreground rotate-180" />}
+                </button>
+              </DataTableHeader>
             )}
             {catalogType === 'chat' && (
               <DataTableHeader>{t('admin.ai.models.chatCapabilities')}</DataTableHeader>
@@ -202,7 +247,7 @@ export function ModelCatalog({
                 key={model.id}
                 className={
                   isActive
-                    ? 'bg-success/10 [&>td:first-child]:border-l-2 [&>td:first-child]:border-l-success'
+                    ? 'bg-success/15 [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-success [&>td:first-child]:pl-md'
                     : ''
                 }
               >

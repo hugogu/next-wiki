@@ -1443,7 +1443,10 @@
         "delete": "Delete model",
         "active": "Active",
         "activate": "Activate",
-        "activateDimensionsHint": "Set the embedding dimensions for {name} to activate it. This must match the model's actual output size."
+        "activateDimensionsHint": "Set the embedding dimensions for {name} to activate it. This must match the model's actual output size.",
+        "contextSortAsc": "Sort by context window (smallest first)",
+        "contextSortDesc": "Sort by context window (largest first)",
+        "contextSortReset": "Reset sort (active model on top)"
       },
       "chatCapability": {
         "vision": "Vision",
