@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import type { AiActionEvent, AiActionStatus, AiSessionListResponse, AiSessionSummary, RawConversationPointer } from '@next-wiki/shared';
+import type { AiActionStatus, AiSessionListResponse, AiSessionSummary } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 import { apiGet, apiDelete } from '@/lib/api/client';
@@ -20,7 +20,7 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, LinkIcon, SearchIcon, SparklesIcon, TrashIcon } from '@/components/icons';
 import { useChatStore } from '@/components/chat/chat-store';
 import { ConversationSessionView } from '@/components/chat/ConversationSessionView';
-import { reconstructSessionFromEvents, type ReconstructedSession } from '@/components/chat/reconstruct-session';
+import { recoverSessionFromServer, type ReconstructedSession } from '@/components/chat/reconstruct-session';
 
 const PAGE_SIZE = 20;
 
@@ -43,23 +43,24 @@ const STATUSES = Object.keys(STATUS_LABELS) as AiActionStatus[];
  * are unaffected — they keep reconstructing from the event log exactly as
  * before.
  */
-async function fetchDetail(id: string): Promise<ReconstructedSession> {
-  const { events, rawConversation } = await apiGet<{
-    events: AiActionEvent[];
-    rawConversation: RawConversationPointer | null;
-  }>(`/api/ai/sessions/${id}`);
-  const captured = rawConversation?.conversation;
-  if (captured) {
+async function fetchDetail(id: string): Promise<ReconstructedSession & { status: string }> {
+  const recovered = await recoverSessionFromServer(id);
+  if (!recovered) {
+    // Permission revoked / session expired / not found. Fall back to an empty
+    // shell so the modal still renders; the status badge conveys the truth.
     return {
-      question: captured.question,
-      answer: captured.answer,
-      thinking: captured.thinking,
-      citations: captured.citations,
-      insufficient: captured.insufficient,
-      errorMessage: captured.errorMessage,
+      question: '',
+      answer: '',
+      thinking: '',
+      citations: [],
+      toolCalls: [],
+      searchResults: [],
+      insufficient: false,
+      errorMessage: null,
+      status: 'not_found',
     };
   }
-  return reconstructSessionFromEvents(events);
+  return recovered;
 }
 
 export function AiSessionsPanel({ initial }: { initial: AiSessionListResponse }) {

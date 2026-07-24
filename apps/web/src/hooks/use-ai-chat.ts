@@ -251,7 +251,11 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
     });
 
     try {
-      await startWikiQuestionAction(action.start, payload, handleEvent);
+      const accepted = await startWikiQuestionAction(action.start, payload, handleEvent);
+      // Persist the server actionId so a later mount can reconcile this
+      // turn with the authoritative server state if it ever ended up failed
+      // client-side (e.g. POST/EventSource interrupted by a proxy).
+      store.setActionId(assistantId, accepted.id);
     } catch (error) {
       store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
     }

@@ -18,6 +18,7 @@ import {
 } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
+import { recoverSessionFromServer } from './reconstruct-session';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
 import { ChatRetrieval } from './ChatRetrieval';
@@ -63,6 +64,41 @@ export function AiChatPane({
       if (cancelled) return;
       const url = new URL(window.location.href);
       if (url.searchParams.get('ai') === 'open') chat.setOpen(true);
+      // After rehydration, reconcile any assistant message that was marked
+      // failed client-side with the authoritative server state. The server
+      // may have completed the turn despite a proxy/VPN interrupting the
+      // POST or EventSource, and a stored actionId is the only handle we
+      // need to ask `/api/ai/sessions/{actionId}` for the durable record
+      // (preferring the captured Raw conversation over event reconstruction).
+      const store = useChatStore.getState();
+      const stale = store.messages.filter(
+        (message) => message.role === 'assistant' && message.error && message.actionId,
+      );
+      for (const message of stale) {
+        const actionId = message.actionId!;
+        void recoverSessionFromServer(actionId).then((recovered) => {
+          if (cancelled || !recovered) return;
+          const { answer, thinking, citations, toolCalls, searchResults, insufficient, errorMessage, status } = recovered;
+          if (status === 'completed') {
+            store.recoverMessage(message.id, {
+              text: insufficient ? '' : answer,
+              thinking,
+              citations,
+              toolCalls,
+              searchResults,
+              insufficient,
+            });
+          } else if (status === 'failed' || status === 'cancelled' || status === 'expired') {
+            // The server confirms the failure — overwrite the (possibly less
+            // accurate) client-side error string with whatever the server has.
+            store.recoverMessage(message.id, { error: errorMessage ?? 'AI request failed' });
+          }
+          // queued/running: leave the message alone; the server is still
+          // processing and the EventSource would have handled it otherwise.
+        }).catch(() => {
+          // Network blip — keep the persisted error, try again next mount.
+        });
+      }
     });
     return () => {
       cancelled = true;

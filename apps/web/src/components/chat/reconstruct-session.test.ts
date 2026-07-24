@@ -1,5 +1,5 @@
 import type { AiActionEvent } from '@next-wiki/shared';
-import { reconstructSessionFromEvents } from './reconstruct-session';
+import { reconstructSessionFromEvents, recoverSessionFromServer } from './reconstruct-session';
 
 function event(overrides: Partial<AiActionEvent>): AiActionEvent {
   return {
@@ -36,6 +36,8 @@ describe('reconstructSessionFromEvents', () => {
       answer: 'The answer is [S1].',
       thinking: 'Thinking it through. ',
       citations: [citation],
+      toolCalls: [],
+      searchResults: [],
       insufficient: false,
       errorMessage: null,
     });
@@ -65,5 +67,68 @@ describe('reconstructSessionFromEvents', () => {
     ];
     const result = reconstructSessionFromEvents(events);
     expect(result.errorMessage).toBe('Provider timed out');
+  });
+});
+
+describe('recoverSessionFromServer', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('prefers the captured Raw conversation over event reconstruction', async () => {
+    const apiGet = vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      action: { status: 'completed' },
+      events: [
+        event({ id: 1, type: 'text_delta', payload: { text: 'partial stale' } }),
+      ],
+      rawConversation: {
+        pageId: 'page-1',
+        pagePath: 'conversations/wiki-ai/x',
+        url: '/spaces/raw/conversations/wiki-ai/x',
+        channel: 'wiki-ai',
+        captureStatus: 'captured',
+        conversation: {
+          question: 'Q',
+          answer: 'A from raw',
+          thinking: 'T',
+          citations: [],
+          insufficient: false,
+          errorMessage: null,
+        },
+      },
+    });
+    const result = await recoverSessionFromServer('action-1');
+    expect(result).toMatchObject({
+      status: 'completed',
+      question: 'Q',
+      answer: 'A from raw',
+      thinking: 'T',
+      toolCalls: [],
+      searchResults: [],
+    });
+    expect(apiGet).toHaveBeenCalledWith('/api/ai/sessions/action-1');
+  });
+
+  it('falls back to event reconstruction when no captured conversation exists', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      action: { status: 'completed' },
+      events: [
+        event({ id: 1, type: 'question', payload: { text: 'Q' } }),
+        event({ id: 2, type: 'text_delta', payload: { text: 'event-recovered' } }),
+      ],
+      rawConversation: null,
+    });
+    const result = await recoverSessionFromServer('action-1');
+    expect(result).toMatchObject({
+      status: 'completed',
+      question: 'Q',
+      answer: 'event-recovered',
+    });
+  });
+
+  it('returns null when the server rejects the lookup', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockRejectedValue(new Error('NOT_FOUND'));
+    const result = await recoverSessionFromServer('action-1');
+    expect(result).toBeNull();
   });
 });

@@ -30,6 +30,13 @@ export type ChatMessage = {
   searchResults?: ChatRetrievalResult[];
   error?: string;
   insufficient?: boolean;
+  /**
+   * Server-side `ai_actions.id` for the assistant turn, set when `action.start`
+   * succeeds. Persisted so the pane can reconcile a failed message with the
+   * authoritative server state on mount (the server may have completed the
+   * turn even if the client's POST/EventSource was interrupted by a proxy).
+   */
+  actionId?: string;
 };
 
 type ChatState = {
@@ -48,6 +55,31 @@ type ChatState = {
   insufficient: (id: string) => void;
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
+  /**
+   * Stamp an assistant message with the server-side actionId so the pane can
+   * reconcile it with the authoritative server state on mount if the
+   * client-side stream was interrupted.
+   */
+  setActionId: (id: string, actionId: string) => void;
+  /**
+   * Overwrite an assistant message with recovered server state. Used by the
+   * pane auto-recovery effect when a failed message turns out to have
+   * actually completed server-side (the client's POST/EventSource was
+   * interrupted, but the server still finished the turn and captured it
+   * into the raw conversation). Pass the fields that should be replaced.
+   */
+  recoverMessage: (
+    id: string,
+    recovery: {
+      text?: string;
+      thinking?: string;
+      citations?: AiCitation[];
+      toolCalls?: AiToolCallEventPayload[];
+      searchResults?: ChatRetrievalResult[];
+      error?: string;
+      insufficient?: boolean;
+    },
+  ) => void;
   newSession: () => void;
   loadSession: (session: {
     mode: AiQuestionMode;
@@ -76,6 +108,9 @@ export const useChatStore = create<ChatState>()(
       add: (message) => set((state) => ({ messages: [...state.messages, message] })),
       append: (id, text) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, text: message.text + text } : message),
+      })),
+      setActionId: (id, actionId) => set((state) => ({
+        messages: state.messages.map((message) => message.id === id ? { ...message, actionId } : message),
       })),
       think: (id, text) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, thinking: (message.thinking ?? '') + text } : message),
@@ -113,6 +148,26 @@ export const useChatStore = create<ChatState>()(
       })),
       fail: (id, error) => set((state) => ({
         messages: state.messages.map((message) => message.id === id ? { ...message, error } : message),
+      })),
+  recoverMessage: (id, recovery) => set((state) => ({
+        messages: state.messages.map((message) => {
+          if (message.id !== id) return message;
+          const next: ChatMessage = { ...message };
+          if ('text' in recovery) next.text = recovery.text ?? '';
+          if ('thinking' in recovery) next.thinking = recovery.thinking ?? '';
+          if ('citations' in recovery) next.citations = recovery.citations ?? [];
+          if ('toolCalls' in recovery) next.toolCalls = recovery.toolCalls ?? [];
+          if ('searchResults' in recovery) next.searchResults = recovery.searchResults ?? [];
+          if ('insufficient' in recovery) next.insufficient = recovery.insufficient ?? false;
+          // A successful recovery always clears the error; an explicit error
+          // recovery (e.g. server says failed/cancelled) sets it.
+          if (recovery.error !== undefined) {
+            next.error = recovery.error;
+          } else if (!recovery.insufficient) {
+            next.error = undefined;
+          }
+          return next;
+        }),
       })),
       newSession: () => set({ messages: [], sessionId: createChatSessionId() }),
       loadSession: ({ mode, question, answer, citations, insufficient }) => set({
