@@ -30,7 +30,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@/components/ui/DataTable';
-import { getPageHref } from '@/lib/path';
+import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
@@ -253,7 +253,7 @@ export function AiActionAuditTable({
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.page')}</h3>
                 {viewing.pagePath ? (
                   <Link
-                    href={getPageHref(viewing.pagePath)}
+                    href={getSpaceHref(readerSpaceFromSlug(viewing.pageSpaceSlug ?? 'wiki'), viewing.pagePath)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-primary hover:underline break-all"
