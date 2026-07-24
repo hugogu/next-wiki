@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AiActionStatus,
   AiConversationDetail,
@@ -27,6 +27,7 @@ import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, LinkIcon, SearchIcon, Spark
 import { useChatStore } from '@/components/chat/chat-store';
 import { ConversationSessionView } from '@/components/chat/ConversationSessionView';
 import { reconstructSessionFromEvents } from '@/components/chat/reconstruct-session';
+import { buildConversationViewModel } from './build-conversation-view-model';
 
 const PAGE_SIZE = 20;
 
@@ -74,6 +75,16 @@ export function AiSessionsPanel({ initial }: { initial: AiConversationListRespon
   const [deleteTarget, setDeleteTarget] = useState<AiConversationSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!detail || detailLoading || !panelRef.current) return;
+    const panel = panelRef.current;
+    const frame = requestAnimationFrame(() => {
+      panel.scrollTo({ top: panel.scrollHeight, behavior: 'auto' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [detail, detailLoading]);
 
   const load = useCallback(async (targetPage: number, searchTerm: string, statusTerm: string) => {
     setLoading(true);
@@ -114,27 +125,6 @@ export function AiSessionsPanel({ initial }: { initial: AiConversationListRespon
   // Reconstruct every turn's view model and stamp its own status so the
   // shared ConversationSessionView renders the full transcript (status
   // badge per turn, multi-question/answer layout).
-  function buildConversationViewModel(detail: AiConversationDetail) {
-    const turns = detail.turns.map((turn) => {
-      const reconstructed = reconstructSessionFromEvents(turn.events);
-      return {
-        status: turn.action.status,
-        question: reconstructed.question,
-        answer: reconstructed.answer,
-        thinking: reconstructed.thinking,
-        citations: reconstructed.citations,
-        toolCalls: reconstructed.toolCalls as never,
-        insufficient: reconstructed.insufficient,
-        errorMessage: reconstructed.errorMessage,
-        queuedAt: turn.action.queuedAt,
-        startedAt: turn.action.startedAt,
-        finishedAt: turn.action.finishedAt,
-      };
-    });
-    const latest = turns[0] ?? turns[turns.length - 1];
-    if (!latest) throw new Error('Conversation detail returned zero turns');
-    return { ...latest, turns };
-  }
 
   const handleContinue = async (conversation: AiConversationSummary) => {
     setContinuingKey(conversation.conversationKey);
@@ -344,6 +334,7 @@ export function AiSessionsPanel({ initial }: { initial: AiConversationListRespon
 
       {viewing && (
         <ModalDialog
+          ref={panelRef}
           title={t('userCenter.aiSessions.detailTitle')}
           description={formatDate(viewing.latestQueuedAt)}
           onClose={() => setViewing(null)}
