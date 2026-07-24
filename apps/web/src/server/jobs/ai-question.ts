@@ -317,6 +317,20 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
     toolSystemPrompt: runtimeConfig.toolSystemPrompt,
   });
   const cancellation = watchActionCancellation(actionId);
+  // Streaming usage accumulated across every planner iteration. A tool-enabled
+  // answer can take several LLM turns; summing the per-iteration tokens gives
+  // the admin usage panel an accurate per-action total instead of just the
+  // last call's usage (or nothing at all if the field was never wired).
+  const plannerUsage: Record<string, number> = {};
+  const accumulatePlannerUsage = (event: { inputTokens?: number; outputTokens?: number; cachedInputTokens?: number }) => {
+    if (typeof event.inputTokens === 'number') plannerUsage.inputTokens = event.inputTokens;
+    if (typeof event.outputTokens === 'number') {
+      plannerUsage.outputTokens = (plannerUsage.outputTokens ?? 0) + event.outputTokens;
+    }
+    if (typeof event.cachedInputTokens === 'number') {
+      plannerUsage.cachedInputTokens = (plannerUsage.cachedInputTokens ?? 0) + event.cachedInputTokens;
+    }
+  };
   const planner: ToolPlanner = async (state) => {
     const basePrompt = buildPlannerUserPrompt(state);
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
@@ -348,6 +362,8 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
           if (event.type === 'delta') output += event.text;
           else if (event.type === 'reasoning_delta') {
             await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
+          } else if (event.type === 'usage') {
+            accumulatePlannerUsage(event);
           }
         }
       } catch (error) {
@@ -421,7 +437,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       citationCount: citations.length,
       ...(retrieval.degradation ? { retrievalDegraded: retrieval.degradation } : {}),
     },
-    usageMetadata: retrievalUsage,
+    usageMetadata: { ...retrievalUsage, ...plannerUsage },
   });
   await nudgeAnswerDelivery(actionId);
 }

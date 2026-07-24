@@ -292,6 +292,7 @@ describe('Wiki question worker', () => {
     streamText.mockImplementationOnce(async function* () {
       yield { type: 'reasoning_delta', text: 'I should inspect the current Wiki context.' };
       yield { type: 'delta', text: 'Grounded answer [S1]' };
+      yield { type: 'usage', inputTokens: 17, outputTokens: 9, cachedInputTokens: 3 };
     });
     const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
       question: 'Where is the answer?',
@@ -315,6 +316,14 @@ describe('Wiki question worker', () => {
     expect(request.system).toContain('current Wiki is your working knowledge environment');
     expect(request.system).toContain('perform the appropriate tool calls instead of merely explaining');
     expect(request.timeoutMs).toBeNull();
+    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
+    // The streaming usage frame must reach the persisted usageMetadata so the
+    // admin "AI usage" panel can sum outputTokens across completed chats.
+    expect(storedAction?.usageMetadata).toMatchObject({
+      inputTokens: 17,
+      outputTokens: 9,
+      cachedInputTokens: 3,
+    });
   });
 
   it('compresses attached sources and retries after a context-length error', async () => {
