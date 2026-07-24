@@ -248,7 +248,7 @@ export function AiActionAuditTable({
         >
           <div className="space-y-sm">
             {viewing.errorMessage && <p className="text-sm text-danger">{viewing.errorMessage}</p>}
-            {viewing.pageId && (
+            {viewing.pageId && viewing.feature !== 'index_rebuild' && (
               <section className="space-y-xs">
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.page')}</h3>
                 {viewing.pagePath ? (
