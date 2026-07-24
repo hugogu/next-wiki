@@ -203,6 +203,8 @@ export default async function PageRead({ params }: { params: PageParams }) {
     translationLocales,
     currentLocale: isTranslation ? resolved.locale : null,
     linkTargetPath: page.linkTargetPath,
+    date: page.metadata.date,
+    summary: page.metadata.summary,
   };
 
   const bodyHtml = injectHeadingIds(page.contentHtml);

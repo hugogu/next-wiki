@@ -42,6 +42,6 @@ describe('Header localization', () => {
     );
 
     expect(html).toContain('href="/h/history/zhuge-liang?space=generated"');
-    expect(html).toContain('title="View history"');
+    expect(html).toContain('>View history<');
   });
 });

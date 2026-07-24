@@ -313,6 +313,10 @@
       }
     },
     "properties": {
+      "dialog": {
+        "title": "页面配置",
+        "description": "更新标题、日期与摘要，保存后立即发布。"
+      },
       "button": {
         "submitting": "保存中...",
         "submit": "保存属性"
@@ -397,7 +401,9 @@
       "original": "原文",
       "newPage": "新建页面",
       "admin": "管理",
-      "translate": "翻译此页"
+      "translate": "翻译此页",
+      "actions": "更多操作",
+      "settings": "页面配置"
     },
     "translate": {
       "title": "翻译此页",

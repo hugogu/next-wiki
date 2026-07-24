@@ -23,6 +23,10 @@ export type PageContext = {
   space?: ReaderSpace;
   /** When the page is a link, the canonical path of the target generated page. */
   linkTargetPath?: string;
+  /** Frontmatter date (YYYY-MM-DD) used to seed the properties dialog. */
+  date?: string | null;
+  /** Page summary used to seed the properties dialog. */
+  summary?: string | null;
 } | null;
 
 export type AppShellProps = {

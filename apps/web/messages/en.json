@@ -313,6 +313,10 @@
       }
     },
     "properties": {
+      "dialog": {
+        "title": "Page settings",
+        "description": "Update the title, date, and summary. Changes publish immediately."
+      },
       "button": {
         "submitting": "Saving...",
         "submit": "Save properties"
@@ -397,7 +401,9 @@
       "original": "Original",
       "newPage": "New page",
       "admin": "Admin",
-      "translate": "Translate this page"
+      "translate": "Translate this page",
+      "actions": "More actions",
+      "settings": "Page settings"
     },
     "translate": {
       "title": "Translate this page",

@@ -92,6 +92,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
   const status = latestRevision?.status === 'draft' ? 'draft' : page.status;
   const pageContext = {
     pageId: page.id,
+    revisionId: latestRevision?.id,
     path: page.path,
     title: page.title,
     status,
@@ -99,6 +100,8 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     canPublish: space === 'generated' && latestRevision?.status === 'draft' && latestRevision.canPublish,
     version: latestRevision?.version ?? page.publishedRevision?.version ?? 1,
     space,
+    date: page.metadata?.date ?? null,
+    summary: page.metadata?.summary ?? null,
   };
   const canPublishAsLink = space === 'generated' && page.status === 'published';
 

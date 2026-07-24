@@ -141,6 +141,10 @@ export function getPublicApiPageUrl(id: string): string {
   return `/api/v1/pages/${encodeURIComponent(id)}`;
 }
 
+export function getPublicApiPageMetadataUrl(id: string): string {
+  return `/api/v1/pages/${encodeURIComponent(id)}/metadata`;
+}
+
 export function getPublicApiPagesUrl(): string {
   return '/api/v1/pages';
 }
