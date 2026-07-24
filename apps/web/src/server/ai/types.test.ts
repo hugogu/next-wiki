@@ -1,4 +1,4 @@
-import { AiProviderError, isContextLengthExceededError, normalizeProviderError, streamTextWithRetry } from './types';
+import { AiProviderError, isContextLengthExceededError, normalizeProviderError, streamTextWithRetry, type TextGenerationEvent } from './types';
 
 describe('isContextLengthExceededError', () => {
   it('recognizes the OpenRouter maximum-context-length 400', () => {
@@ -43,15 +43,15 @@ describe('normalizeProviderError', () => {
 
 describe('streamTextWithRetry', () => {
   async function collect(
-    factory: () => AsyncIterable<{ type: string; text?: string }>,
+    factory: () => AsyncIterable<TextGenerationEvent>,
     opts: Parameters<typeof streamTextWithRetry>[1] = {},
-  ): Promise<{ events: unknown[]; calls: number }> {
+  ): Promise<{ events: TextGenerationEvent[]; calls: number }> {
     const calls = { n: 0 };
     const wrapped = () => {
       calls.n += 1;
       return factory();
     };
-    const events: unknown[] = [];
+    const events: TextGenerationEvent[] = [];
     for await (const ev of streamTextWithRetry(wrapped, opts)) events.push(ev);
     return { events, calls: calls.n };
   }
