@@ -44,6 +44,7 @@ export function AppShell({
   const [user, setUser] = useState<Actor>(initialUser);
   const [aiEntitlements, setAiEntitlements] = useState<AiEntitlementView | null | undefined>(initialAiEntitlements);
   const [writingMode, setWritingMode] = useState<WritingMode | undefined>(initialWritingMode);
+  const [aiMaximized, setAiMaximized] = useState(false);
 
   useEffect(() => {
     if (!hydrateSession) return;
@@ -126,34 +127,54 @@ export function AppShell({
             user={user}
             space={space}
             writingMode={writingMode}
+            aiChatMaximized={aiMaximized}
           />
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer
               instead of pushing the footer into a blank second screen. */}
-          <main className="min-h-0 min-w-0 flex-1 relative flex flex-col">
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
-              {/* Two content-region modes:
-                  - fitViewport (e.g. the split editor): h-full shrink-0 gives
-                    the wrapper the full scroll-viewport height (not minus the
-                    footer) so an h-full child fills the screen and owns its
-                    internal scrollbars, while the footer is pushed just below
-                    the fold and only appears when scrolled to the very bottom.
-                  - default (reader/document pages): grow shrink-0 basis-auto
-                    (flex: 1 0 auto) grows to push the footer to the viewport
-                    bottom on short pages but never shrinks below content on
-                    long ones, keeping the footer at the very bottom of the
-                    flow instead of floating mid-content. */}
-              <div className={fitViewport ? 'h-full min-w-0 shrink-0' : 'grow shrink-0 basis-auto'}>
-                <PageEditProvider
-                  value={{ canEdit: resolvedPageContext?.canEdit ?? false, pageId: resolvedPageContext?.pageId }}
-                >
-                  {children}
-                </PageEditProvider>
+          {aiMaximized && aiEntitlements && !admin ? (
+            <AiChatPane
+              entitlements={aiEntitlements}
+              pageContext={resolvedPageContext}
+              maximized={aiMaximized}
+              onMaximizedChange={setAiMaximized}
+            />
+          ) : (
+            <main className="min-h-0 min-w-0 flex-1 relative flex flex-col">
+              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain flex flex-col">
+                {/* Keep exactly one vertical scroll container.  The content wrapper
+                    lets min-height pages size against the area above the site footer
+                    instead of pushing the footer into a blank second screen. */}
+                <div className={fitViewport ? 'h-full min-w-0 shrink-0' : 'grow shrink-0 basis-auto'}>
+                  {/* Two content-region modes:
+                      - fitViewport (e.g. the split editor): h-full shrink-0 gives
+                        the wrapper the full scroll-viewport height (not minus the
+                        footer) so an h-full child fills the screen and owns its
+                        internal scrollbars, while the footer is pushed just below
+                        the fold and only appears when scrolled to the very bottom.
+                      - default (reader/document pages): grow shrink-0 basis-auto
+                        (flex: 1 0 auto) grows to push the footer to the viewport
+                        bottom on short pages but never shrinks below content on
+                        long ones, keeping the footer at the very bottom of the
+                        flow instead of floating mid-content. */}
+                  <PageEditProvider
+                    value={{ canEdit: resolvedPageContext?.canEdit ?? false, pageId: resolvedPageContext?.pageId }}
+                  >
+                    {children}
+                  </PageEditProvider>
+                </div>
+                {footer}
               </div>
-              {footer}
-            </div>
-          </main>
-          {aiEntitlements && !admin && <AiChatPane entitlements={aiEntitlements} pageContext={resolvedPageContext} />}
+            </main>
+          )}
+          {!aiMaximized && aiEntitlements && !admin && (
+            <AiChatPane
+              entitlements={aiEntitlements}
+              pageContext={resolvedPageContext}
+              maximized={aiMaximized}
+              onMaximizedChange={setAiMaximized}
+            />
+          )}
         </div>
       </div>
     </AiAvailabilityProvider>

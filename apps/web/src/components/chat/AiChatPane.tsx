@@ -34,7 +34,7 @@ function setAiUrl(open: boolean) {
 
 export function aiChatPaneClassName(maximized: boolean): string {
   const position = maximized
-    ? 'fixed inset-0 z-50 h-dvh w-full max-w-none'
+    ? 'relative h-full w-full flex-1 max-w-none'
     : 'relative h-full w-[24rem] max-w-full shrink-0 border-l border-border';
   return `${position} flex min-h-0 flex-col overflow-hidden bg-surface`;
 }
@@ -42,13 +42,22 @@ export function aiChatPaneClassName(maximized: boolean): string {
 export function AiChatPane({
   entitlements,
   pageContext,
+  maximized: maximizedProp,
+  onMaximizedChange,
 }: {
   entitlements: AiEntitlementView;
   pageContext?: PageContext;
+  maximized?: boolean;
+  onMaximizedChange?: (maximized: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [question, setQuestion] = useState('');
-  const [maximized, setMaximized] = useState(false);
+  const [internalMaximized, setInternalMaximized] = useState(false);
+  const maximized = maximizedProp ?? internalMaximized;
+  const setMaximized = (value: boolean) => {
+    onMaximizedChange?.(value);
+    setInternalMaximized(value);
+  };
   const chat = useAiChat(
     pageContext?.pageId && pageContext.revisionId
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
@@ -212,7 +221,7 @@ export function AiChatPane({
               variant="ghost"
               aria-label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}
               aria-pressed={maximized}
-              onClick={() => setMaximized((value) => !value)}
+              onClick={() => setMaximized(!maximized)}
             >
               {maximized ? <RestoreIcon /> : <ExpandIcon />}
             </Button>

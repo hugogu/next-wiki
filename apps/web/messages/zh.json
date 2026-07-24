@@ -2005,6 +2005,16 @@
         "responseInterrupted": "回复在生成最终答案前中断。",
         "responseStopped": "回复已停止。"
       },
+      "history": {
+        "title": "历史会话",
+        "empty": "暂无历史会话",
+        "newSession": "新建会话",
+        "continue": "继续",
+        "loading": "加载中…",
+        "loadError": "无法加载历史会话。",
+        "contentExpired": "内容已过期",
+        "turnCount": "{count, plural, other {# 轮}}"
+      },
       "errors": {
         "invalidResponse": "AI 未能生成有效的 Wiki 操作，请重试或换一种说法。",
         "providerUnavailable": "AI 服务暂时不可用，请稍后重试。",

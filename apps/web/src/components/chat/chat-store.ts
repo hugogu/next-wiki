@@ -88,6 +88,7 @@ type ChatState = {
     citations: AiCitation[];
     insufficient: boolean;
   }) => void;
+  restoreSession: (session: { mode: AiQuestionMode; messages: ChatMessage[] }) => void;
 };
 
 /**
@@ -178,6 +179,12 @@ export const useChatStore = create<ChatState>()(
           { id: crypto.randomUUID(), role: 'user', text: question },
           { id: crypto.randomUUID(), role: 'assistant', text: answer, citations, insufficient },
         ],
+      }),
+      restoreSession: ({ mode, messages }) => set({
+        sessionId: createChatSessionId(),
+        mode,
+        open: true,
+        messages,
       }),
     }),
     {

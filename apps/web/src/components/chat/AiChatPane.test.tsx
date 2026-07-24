@@ -53,7 +53,7 @@ describe('AiChatPane viewport modes', () => {
   });
 
   it('uses the entire dynamic viewport when maximized', () => {
-    expect(aiChatPaneClassName(true)).toContain('fixed inset-0 z-50 h-dvh w-full max-w-none');
+    expect(aiChatPaneClassName(true)).toContain('relative h-full w-full flex-1 max-w-none');
     expect(aiChatPaneClassName(false)).toContain('relative h-full w-[24rem]');
   });
 

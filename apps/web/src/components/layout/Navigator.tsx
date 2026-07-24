@@ -35,6 +35,7 @@ import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 import type { Actor } from '@/server/permissions';
 import { NavFooterMenu } from './NavFooterMenu';
+import { AiChatHistory } from '@/components/chat/AiChatHistory';
 import type { WritingMode } from '@next-wiki/shared';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
@@ -266,6 +267,7 @@ export function Navigator({
   user,
   space = 'wiki',
   writingMode,
+  aiChatMaximized = false,
 }: {
   tree: LazyPublicPageTreeNode[];
   admin?: boolean;
@@ -276,6 +278,7 @@ export function Navigator({
   user: Actor;
   space?: ReaderSpace;
   writingMode?: WritingMode;
+  aiChatMaximized?: boolean;
 }) {
   const { t } = useTranslation();
   // Editors and admins may create pages, so they get the per-row "new child"
@@ -552,11 +555,13 @@ export function Navigator({
       >
         <div className="flex items-center justify-between p-md border-b border-border lg:hidden">
           <span className="font-display font-semibold text-lg">
-            {admin
-              ? t('layout.nav.adminTitle')
-              : userCenter
-                ? t('userCenter.title')
-                : t('layout.nav.pagesTitle')}
+            {aiChatMaximized
+              ? t('ai.chat.history.title')
+              : admin
+                ? t('layout.nav.adminTitle')
+                : userCenter
+                  ? t('userCenter.title')
+                  : t('layout.nav.pagesTitle')}
           </span>
           <button
             type="button"
@@ -575,7 +580,9 @@ export function Navigator({
           }
           className="flex-1 overflow-y-auto p-sm"
         >
-          {userCenter ? (
+          {aiChatMaximized ? (
+            <AiChatHistory />
+          ) : userCenter ? (
             <ul className="space-y-xs">
               {USER_CENTER_ITEMS.map((item) => {
                 const active =
