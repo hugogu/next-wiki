@@ -274,11 +274,7 @@ export async function reconcilePageAcrossIndexes(pageId: string, ctx?: PermCtx):
           providerId: generation.providerId,
           modelId: generation.modelId,
           indexGenerationId: generation.id,
-          // Deliberately no pageId: the queued rebuild coalesces every
-          // pending page-state for the generation, so the trigger page is
-          // not "the page this action is about". Setting pageId here made
-          // the audit UI show a misleading single-page link (e.g. a
-          // wiki-ai conversation page that happened to trigger reconcile).
+          pageId,
           requestMetadata: { reconciliation: true, pageId },
         });
       }
