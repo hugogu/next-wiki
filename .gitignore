@@ -72,6 +72,10 @@ AGENTS.md
 .playwright-mcp/
 .claude/workflows
 
+# Worktrees
+.worktrees/
+worktrees/
+
 # Caddy TLS certificates
 docker/caddy/certs/*.pem
 docker/caddy/certs/*.crt
