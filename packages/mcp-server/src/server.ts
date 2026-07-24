@@ -95,7 +95,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await getPage(client, args)) }],
   }));
 
-  server.tool('create_page', 'Create a new page, raw evidence entry, or generated-content link with an initial revision.', createPageSchema, async (args) => ({
+  server.tool('create_page', 'Create a new page, raw evidence entry, or generated-content link with an initial revision. Use this when the target page does not already exist.', createPageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await createPage(client, args)) }],
   }));
 
@@ -111,7 +111,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await createRawCategory(client, args)) }],
   }));
 
-  server.tool('save_draft', 'Save a new draft revision of an existing page.', saveDraftSchema, async (args) => ({
+  server.tool('save_draft', 'Save a new draft revision of an existing page. Requires an existing page; create it first with create_page if it does not exist.', saveDraftSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await saveDraft(client, args)) }],
   }));
 
