@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Header } from './Header';
 import { Navigator } from './Navigator';
 import type { AppShellProps } from './types';
@@ -45,6 +46,18 @@ export function AppShell({
   const [aiEntitlements, setAiEntitlements] = useState<AiEntitlementView | null | undefined>(initialAiEntitlements);
   const [writingMode, setWritingMode] = useState<WritingMode | undefined>(initialWritingMode);
   const [aiMaximized, setAiMaximized] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // `?ai=open` or `?chat=...` both mean the chat pane should take over the
+    // main viewport on initial load. We set this once from the URL after
+    // hydration: the default is already SSR-safe, so this avoids a markup
+    // mismatch without deriving layout from search params during render.
+    if (searchParams?.get('ai') === 'open' || searchParams?.get('chat')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAiMaximized(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!hydrateSession) return;

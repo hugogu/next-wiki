@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 const chatState = vi.hoisted(() => ({
   newSession: vi.fn(),
-  restoreSession: vi.fn(),
 }));
 
 vi.mock('@/i18n/client', () => ({
@@ -19,17 +18,8 @@ vi.mock('./chat-store', () => ({
   useChatStore: () => chatState,
 }));
 
-vi.mock('./reconstruct-session', () => ({
-  reconstructSessionFromEvents: vi.fn(() => ({
-    question: 'What is Wiki?',
-    answer: 'A wiki is a collaborative website.',
-    thinking: '',
-    citations: [],
-    toolCalls: [],
-    searchResults: [],
-    insufficient: false,
-    errorMessage: null,
-  })),
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 import { AiChatHistory } from './AiChatHistory';

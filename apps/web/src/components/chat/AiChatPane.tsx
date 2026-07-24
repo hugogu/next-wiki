@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { AiEntitlementView } from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
@@ -18,17 +19,46 @@ import {
 } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
-import { recoverSessionFromServer } from './reconstruct-session';
+import { fetchHistoryDetail } from './history-api';
+import { recoverSessionFromServer, reconstructSessionFromEvents } from './reconstruct-session';
+import { resolveSessionId } from './resolve-session-id';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
 import { ChatRetrieval } from './ChatRetrieval';
 import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 
-function setAiUrl(open: boolean) {
+export function buildMessagesFromDetail(detail: import('@next-wiki/shared').AiConversationDetail) {
+  const messages: ReturnType<typeof useChatStore.getState>['messages'] = [];
+  // Server returns turns newest-first; render them oldest-first like a live chat.
+  for (const turn of [...detail.turns].reverse()) {
+    const reconstructed = reconstructSessionFromEvents(turn.events);
+    messages.push({
+      id: crypto.randomUUID(),
+      role: 'user',
+      text: reconstructed.question,
+    });
+    messages.push({
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      text: reconstructed.insufficient ? '' : reconstructed.answer,
+      thinking: reconstructed.thinking,
+      citations: reconstructed.citations,
+      toolCalls: reconstructed.toolCalls,
+      searchResults: reconstructed.searchResults,
+      insufficient: reconstructed.insufficient,
+      error: reconstructed.errorMessage ?? undefined,
+    });
+  }
+  return messages;
+}
+
+function setAiUrl(open: boolean, chatKey?: string | null) {
   const url = new URL(window.location.href);
   if (open) url.searchParams.set('ai', 'open');
   else url.searchParams.delete('ai');
+  if (chatKey) url.searchParams.set('chat', chatKey);
+  else url.searchParams.delete('chat');
   window.history.replaceState(null, '', url);
 }
 
@@ -51,6 +81,9 @@ export function AiChatPane({
   onMaximizedChange?: (maximized: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const searchParams = useSearchParams();
+  const chatKey = searchParams?.get('chat') ?? null;
+  const [rehydrated, setRehydrated] = useState(false);
   const [question, setQuestion] = useState('');
   const [internalMaximized, setInternalMaximized] = useState(false);
   const maximized = maximizedProp ?? internalMaximized;
@@ -63,6 +96,26 @@ export function AiChatPane({
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
       : undefined,
   );
+
+  const loadedChatKeyRef = useRef<string | null>(null);
+  const restoreSession = chat.restoreSession;
+
+  const loadChat = useCallback(async (key: string) => {
+    const detail = await fetchHistoryDetail(key);
+    if (!detail) return;
+    const messages = buildMessagesFromDetail(detail);
+    restoreSession({
+      sessionId: resolveSessionId(detail.conversation, detail),
+      mode: detail.turns.at(-1)?.action.questionMode ?? 'retrieval',
+      messages,
+    });
+  }, [restoreSession]);
+
+  useEffect(() => {
+    if (!rehydrated || !chatKey || chatKey === loadedChatKeyRef.current) return;
+    loadedChatKeyRef.current = chatKey;
+    void loadChat(chatKey);
+  }, [rehydrated, chatKey, loadChat]);
 
   // Scroll persistence for the message list. The pane is a floating,
   // app-like region whose content lives in sessionStorage; without this,
@@ -122,12 +175,13 @@ export function AiChatPane({
   useEffect(() => {
     // Hydration is deferred (skipHydration) so the pre-mount render matches
     // the server, then we restore the persisted session and let an explicit
-    // `?ai=open` links (e.g. a shared URL) override persisted state.
+    // `?ai=open` link or `?chat=...` link override persisted state.
     let cancelled = false;
     void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
       if (cancelled) return;
+      setRehydrated(true);
       const url = new URL(window.location.href);
-      if (url.searchParams.get('ai') === 'open') chat.setOpen(true);
+      if (url.searchParams.get('ai') === 'open' || url.searchParams.get('chat')) chat.setOpen(true);
       // After rehydration, reconcile any assistant message that was marked
       // failed client-side with the authoritative server state. The server
       // may have completed the turn despite a proxy/VPN interrupting the
@@ -210,7 +264,7 @@ export function AiChatPane({
               variant="ghost"
               aria-label={t('ai.chat.newSession')}
               disabled={chat.messages.length === 0}
-              onClick={() => { chat.cancel(); chat.newSession(); }}
+              onClick={() => { chat.cancel(); chat.newSession(); setAiUrl(true); }}
             >
               <PlusIcon />
             </Button>
