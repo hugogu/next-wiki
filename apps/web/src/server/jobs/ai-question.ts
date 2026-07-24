@@ -12,7 +12,7 @@ import {
   estimatePromptTokens,
   normalizeQuestionCitations,
 } from '@/server/ai/prompts/wiki-question';
-import { AiProviderError, isContextLengthExceededError, normalizeProviderError } from '@/server/ai/types';
+import { AiProviderError, isContextLengthExceededError, normalizeProviderError, streamTextWithRetry } from '@/server/ai/types';
 import { loadWikiQuestionSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
@@ -187,16 +187,20 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
         textModel.maxOutputTokens,
       );
       try {
-        for await (const event of adapter.streamText({
-          actionId,
-          modelExternalId: textModel.externalId,
-          system: prompt.system,
-          messages: [{ role: 'user', content: prompt.user }],
-          maxOutputTokens,
-          temperature: 0.1,
-          abortSignal: cancellation.signal,
-          timeoutMs: null,
-        })) {
+        for await (const event of streamTextWithRetry(
+          () =>
+            adapter.streamText({
+              actionId,
+              modelExternalId: textModel.externalId,
+              system: prompt.system,
+              messages: [{ role: 'user', content: prompt.user }],
+              maxOutputTokens,
+              temperature: 0.1,
+              abortSignal: cancellation.signal,
+              timeoutMs: null,
+            }),
+          { signal: cancellation.signal },
+        )) {
           if (await isCancellationRequested(actionId))
             throw new DomainError('CANCELLED', 'Question action was cancelled');
           if (event.type === 'delta') {
@@ -322,21 +326,25 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       const prompt = `${basePrompt}${retryInstruction}`;
       let output = '';
       try {
-        for await (const event of adapter.streamText({
-          actionId,
-          modelExternalId: textModel.externalId,
-          system,
-          messages: [{ role: 'user', content: prompt }],
-          maxOutputTokens: computeAnswerMaxOutputTokens(
-            estimatePromptTokens(system, prompt),
-            textModel.contextWindow,
-            textModel.maxOutputTokens,
-            runtimeConfig.plannerMaxOutputTokens,
-          ),
-          temperature: runtimeConfig.plannerTemperature,
-          timeoutMs: null,
-          abortSignal: cancellation.signal,
-        })) {
+        for await (const event of streamTextWithRetry(
+          () =>
+            adapter.streamText({
+              actionId,
+              modelExternalId: textModel.externalId,
+              system,
+              messages: [{ role: 'user', content: prompt }],
+              maxOutputTokens: computeAnswerMaxOutputTokens(
+                estimatePromptTokens(system, prompt),
+                textModel.contextWindow,
+                textModel.maxOutputTokens,
+                runtimeConfig.plannerMaxOutputTokens,
+              ),
+              temperature: runtimeConfig.plannerTemperature,
+              timeoutMs: null,
+              abortSignal: cancellation.signal,
+            }),
+          { signal: cancellation.signal },
+        )) {
           if (event.type === 'delta') output += event.text;
           else if (event.type === 'reasoning_delta') {
             await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });

@@ -166,6 +166,75 @@ export function normalizeProviderError(error: unknown): AiProviderError {
   return new AiProviderError(code, String(value?.message ?? 'AI provider request failed'), true);
 }
 
+/**
+ * Resolve after `ms`, rejecting early with an `AbortError` if `signal` aborts
+ * during the wait. Keeps retry backoff responsive to user cancellation.
+ */
+function abortableDelay(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new AiProviderError('CANCELLED', 'AI request was cancelled'));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(new AiProviderError('CANCELLED', 'AI request was cancelled'));
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * Maximum number of times a mid-stream connection drop is retried before the
+ * failure surfaces. Long-running streaming requests to a provider (notably
+ * OpenRouter) can be reset mid-stream by intermediary proxies/VPNs; retrying
+ * salvages turns that would otherwise be lost entirely.
+ */
+export const STREAM_RETRY_MAX_DEFAULT = 2;
+export const STREAM_RETRY_BASE_DELAY_MS = 750;
+
+/**
+ * Drive a streaming text generation with bounded retries on transient
+ * provider failures. A retry is only attempted while **no answer text has
+ * committed**: once a `delta` event (the actual answer/tool-plan text) has
+ * been yielded, the stream is committed and a subsequent failure propagates,
+ * so a partial answer/tool-plan is never duplicated.
+ *
+ * `reasoning_delta` does NOT commit the stream — reasoning is auxiliary, so a
+ * drop during the reasoning phase (the common case for deep-reasoning models)
+ * is retried. The retried attempt may re-emit reasoning, which the caller
+ * appends; this is preferable to losing the whole turn.
+ */
+export async function* streamTextWithRetry(
+  invoke: () => AsyncIterable<TextGenerationEvent>,
+  options: { maxRetries?: number; baseDelayMs?: number; signal?: AbortSignal } = {},
+): AsyncGenerator<TextGenerationEvent> {
+  const maxRetries = options.maxRetries ?? STREAM_RETRY_MAX_DEFAULT;
+  const baseDelayMs = options.baseDelayMs ?? STREAM_RETRY_BASE_DELAY_MS;
+  let committed = false;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      for await (const event of invoke()) {
+        if (event.type === 'delta') committed = true;
+        yield event;
+      }
+      return;
+    } catch (error) {
+      const normalized = normalizeProviderError(error);
+      const canRetry =
+        !committed &&
+        attempt < maxRetries &&
+        normalized.retryable &&
+        normalized.code !== 'CANCELLED' &&
+        !options.signal?.aborted;
+      if (!canRetry) throw normalized;
+      const delay = normalized.retryAfterMs ?? baseDelayMs * 2 ** attempt;
+      await abortableDelay(delay, options.signal);
+    }
+  }
+}
+
 export function sanitizeProviderMessage(message: string): string {
   return message
     .replace(/bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
