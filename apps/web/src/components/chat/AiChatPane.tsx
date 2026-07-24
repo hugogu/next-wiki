@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AiEntitlementView } from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
@@ -54,6 +54,61 @@ export function AiChatPane({
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
       : undefined,
   );
+
+  // Scroll persistence for the message list. The pane is a floating,
+  // app-like region whose content lives in sessionStorage; without this,
+  // navigating between pages (which remounts the shell and thus the pane)
+  // always snaps the list back to the top. Persist scrollTop in
+  // sessionStorage and restore it on mount; on scroll, save it again.
+  const SCROLL_STORAGE_KEY = 'ai-chat-scroll-top';
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hasLoadedRef = useRef(false);
+  const prevCountRef = useRef(0);
+
+  // Restore the saved scrollTop once per mount, after the first messages
+  // have rendered (the pane rehydrates asynchronously, so waiting for the
+  // list to populate avoids restoring into an empty container).
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    const list = scrollRef.current;
+    if (!list || chat.messages.length === 0) return;
+    const saved = Number(sessionStorage.getItem(SCROLL_STORAGE_KEY) ?? 0);
+    if (saved > 0) {
+      // Defer one frame so the browser has laid out the restored messages.
+      requestAnimationFrame(() => {
+        list.scrollTop = saved;
+        prevCountRef.current = chat.messages.length;
+        hasLoadedRef.current = true;
+      });
+    } else {
+      hasLoadedRef.current = true;
+      prevCountRef.current = chat.messages.length;
+    }
+  }, [chat.messages.length]);
+
+  // Keep scroll pinned to the bottom when a new turn is appended (the user
+  // sent a question, or an assistant turn started streaming) so the live
+  // response is always visible; otherwise a previously saved scrollTop is
+  // honored. Only fires after the initial load has restored scrollTop, so
+  // a fresh mount doesn't override the restore.
+  useEffect(() => {
+    const list = scrollRef.current;
+    if (!list || !hasLoadedRef.current) return;
+    if (chat.messages.length > prevCountRef.current) {
+      list.scrollTop = list.scrollHeight;
+      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(list.scrollHeight));
+    }
+    prevCountRef.current = chat.messages.length;
+  }, [chat.messages.length]);
+
+  // Save scrollTop on scroll (throttled to one write per animation frame).
+  const onMessageListScroll = () => {
+    const list = scrollRef.current;
+    if (!list) return;
+    requestAnimationFrame(() => {
+      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(list.scrollTop));
+    });
+  };
 
   useEffect(() => {
     // Hydration is deferred (skipHydration) so the pre-mount render matches
@@ -174,7 +229,7 @@ export function AiChatPane({
           </Tooltip>
         </div>
       </div>
-      <div className="min-w-0 flex-1 space-y-md overflow-auto p-md">
+      <div ref={scrollRef} onScroll={onMessageListScroll} className="min-w-0 flex-1 space-y-md overflow-auto p-md">
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}
         {chat.messages.map((message) => (
           <article key={message.id} className={`min-w-0 max-w-full overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
