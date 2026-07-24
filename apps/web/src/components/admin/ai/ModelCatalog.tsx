@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { AudioIcon, ArrowDownIcon, ArrowUpDownIcon, CheckIcon, CircleIcon, EyeIcon, PlusIcon, SparklesIcon, TrashIcon, XIcon } from '@/components/icons';
+import { AudioIcon, ArrowDownIcon, ArrowUpDownIcon, CheckIcon, EyeIcon, PlusIcon, SparklesIcon, TrashIcon } from '@/components/icons';
 import { Switch } from '@/components/ui/Switch';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -234,7 +234,6 @@ export function ModelCatalog({
                 <DataTableHeader>{t('admin.ai.models.multilingualSupport')}</DataTableHeader>
               </>
             )}
-            <DataTableHeader>{t('admin.ai.providers.status')}</DataTableHeader>
             <DataTableHeader align="right">{t('admin.ai.actions.table.actions')}</DataTableHeader>
           </DataTableRow>
         </DataTableHead>
@@ -332,31 +331,16 @@ export function ModelCatalog({
                     </DataTableCell>
                   </>
                 )}
-                <DataTableCell>
-                  <Tooltip label={t(`admin.ai.modelAvailability.${model.availability}` as TranslationKey)}>
-                    <span
-                      className={
-                        model.availability === 'available'
-                          ? 'text-success'
-                          : model.availability === 'unavailable'
-                            ? 'text-danger'
-                            : 'text-muted'
-                      }
-                    >
-                      {model.availability === 'available' ? (
-                        <CheckIcon className="h-4 w-4" />
-                      ) : model.availability === 'unavailable' ? (
-                        <XIcon className="h-4 w-4" />
-                      ) : (
-                        <CircleIcon className="h-4 w-4" />
-                      )}
-                    </span>
-                  </Tooltip>
-                </DataTableCell>
                 <DataTableCell align="right">
                   <div className="flex items-center justify-end gap-xs">
                     {!isActive && (
-                      <Tooltip label={t('admin.ai.models.activate')}>
+                      <Tooltip
+                        label={
+                          model.availability === 'unavailable'
+                            ? t(`admin.ai.modelAvailability.unavailable` as TranslationKey)
+                            : t('admin.ai.models.activate')
+                        }
+                      >
                         <Button
                           size="icon"
                           variant="ghost"
@@ -386,7 +370,7 @@ export function ModelCatalog({
           })}
           {filtered.length === 0 && (
             <DataTableRow>
-              <DataTableCell colSpan={catalogType === 'image' ? 5 : catalogType === 'embedding' ? 8 : 7} className="py-xl text-center text-muted">
+              <DataTableCell colSpan={catalogType === 'image' ? 4 : catalogType === 'embedding' ? 7 : 6} className="py-xl text-center text-muted">
                 {t('admin.ai.models.empty')}
               </DataTableCell>
             </DataTableRow>
