@@ -16,7 +16,7 @@ vi.mock('@/server/jobs/runtime', async (importOriginal) => {
 import {
   appendActionEvent,
   createAction,
-  deleteSession,
+  deleteConversation,
   finishAction,
   findRecoverableRawConversationCaptureActionIds,
   getAction,
@@ -24,7 +24,7 @@ import {
   getAllActionEvents,
   getUsageStats,
   listActions,
-  listUserSessions,
+  listUserConversations,
   readActionInput,
   recordTerminalAction,
   requestActionCancellation,
@@ -181,10 +181,47 @@ describe('AI actions', () => {
         feature: 'wiki_question', status: 'completed', actorUserId: otherUserId, expiresAt,
       });
 
-      const { items, total } = await listUserSessions(ctx);
+      const { items, total } = await listUserConversations(ctx);
       expect(total).toBe(1);
-      expect(items[0]).toMatchObject({ id: mine!.id, questionExcerpt: 'What is pi?' });
+      expect(items[0]).toMatchObject({
+        latestActionId: mine!.id,
+        questionExcerpt: 'What is pi?',
+        turnCount: 1,
+        completedTurnCount: 1,
+      });
       await removeAiTestUser(otherUserId);
+    });
+
+    it('groups multiple turns of the same webSessionId into one conversation, ordered by latest turn', async () => {
+      const ctx = buildUserCtx(userId, 'admin');
+      const expiresAt = new Date(Date.now() + 60_000);
+      const webSessionId = 'sess-1';
+      const earlier = new Date(Date.now() - 60_000);
+      const later = new Date();
+      const [a] = await db.insert(schema.aiActions).values({
+        feature: 'wiki_question', status: 'failed', actorUserId: userId, expiresAt,
+        queuedAt: earlier, requestMetadata: { webSessionId },
+      }).returning();
+      const [b] = await db.insert(schema.aiActions).values({
+        feature: 'wiki_question', status: 'completed', actorUserId: userId, expiresAt,
+        queuedAt: later, requestMetadata: { webSessionId },
+      }).returning();
+      await db.insert(schema.aiActionEvents).values([
+        { actionId: a!.id, type: 'question', payload: { text: 'q1' }, expiresAt },
+        { actionId: b!.id, type: 'question', payload: { text: 'q2' }, expiresAt },
+      ]);
+
+      const { items, total } = await listUserConversations(ctx);
+      expect(total).toBe(1);
+      expect(items[0]).toMatchObject({
+        conversationKey: `legacy:${webSessionId}`,
+        latestActionId: b!.id,
+        latestStatus: 'completed',
+        turnCount: 2,
+        completedTurnCount: 1,
+        failedTurnCount: 1,
+        turnActionIds: [b!.id, a!.id],
+      });
     });
 
     it('prefers the durable Raw-derived question once the event-log question has expired (023)', async () => {
@@ -218,13 +255,13 @@ describe('AI actions', () => {
       // No 'question' event exists at all — simulates the retention window
       // having already elapsed for this captured session.
 
-      const { items } = await listUserSessions(ctx);
-      const row = items.find((item) => item.id === captured!.id);
+      const { items } = await listUserConversations(ctx);
+      const row = items.find((item) => item.latestActionId === captured!.id);
       expect(row?.questionExcerpt).toBe('What is the durable capture question?');
       expect(row?.rawConversation).toMatchObject({ pageId: page!.id, captureStatus: 'captured' });
 
-      const search = await listUserSessions(ctx, { search: 'durable capture' });
-      expect(search.items.map((item) => item.id)).toContain(captured!.id);
+      const search = await listUserConversations(ctx, { search: 'durable capture' });
+      expect(search.items.map((item) => item.latestActionId)).toContain(captured!.id);
 
       await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revision!.id));
       await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
@@ -240,12 +277,12 @@ describe('AI actions', () => {
         { actionId: a!.id, type: 'question', payload: { text: 'Tell me about the Gaussian integral' }, expiresAt },
         { actionId: b!.id, type: 'question', payload: { text: 'What is the capital of France?' }, expiresAt },
       ]);
-      const result = await listUserSessions(ctx, { search: 'gaussian' });
+      const result = await listUserConversations(ctx, { search: 'gaussian' });
       expect(result.total).toBe(1);
-      expect(result.items[0]?.id).toBe(a!.id);
+      expect(result.items[0]?.latestActionId).toBe(a!.id);
     });
 
-    it('hard-deletes a session and cascades its events, but only for the owner', async () => {
+    it('hard-deletes a conversation (all turns) and cascades its events, but only for the owner', async () => {
       const ctx = buildUserCtx(userId, 'admin');
       const otherUserId = await createAiTestUser('reader');
       const otherCtx = buildUserCtx(otherUserId, 'reader');
@@ -255,9 +292,9 @@ describe('AI actions', () => {
       }).returning();
       await db.insert(schema.aiActionEvents).values({ actionId: action!.id, type: 'question', payload: { text: 'q' }, expiresAt });
 
-      await expect(deleteSession(otherCtx, action!.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(deleteConversation(otherCtx, `legacy:turn:${action!.id}`)).rejects.toMatchObject({ code: 'NOT_FOUND' });
 
-      await deleteSession(ctx, action!.id);
+      await deleteConversation(ctx, `legacy:turn:${action!.id}`);
       expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action!.id) })).toBeUndefined();
       expect(await db.query.aiActionEvents.findMany({ where: eq(schema.aiActionEvents.actionId, action!.id) })).toHaveLength(0);
       await removeAiTestUser(otherUserId);
@@ -282,7 +319,7 @@ describe('AI actions', () => {
         rawConversationPageId: page!.id, rawConversationCaptureStatus: 'captured',
       }).returning();
 
-      await expect(deleteSession(ctx, captured!.id)).rejects.toMatchObject({ code: 'RAW_CONVERSATION_IMMUTABLE' });
+      await expect(deleteConversation(ctx, page!.id)).rejects.toMatchObject({ code: 'RAW_CONVERSATION_IMMUTABLE' });
       const stillThere = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, captured!.id) });
       expect(stillThere).toMatchObject({ rawConversationPageId: page!.id });
       expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) })).toBeTruthy();

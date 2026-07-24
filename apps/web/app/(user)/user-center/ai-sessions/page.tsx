@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { AiSessionsPanel } from '@/components/user-center/AiSessionsPanel';
 import { getCurrentActor } from '@/server/services/auth';
-import { listUserSessions } from '@/server/services/ai-actions';
+import { listUserConversations } from '@/server/services/ai-actions';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,7 @@ export default async function AiSessionsPage() {
     redirect('/auth/login');
   }
 
-  const initial = await listUserSessions({ actor });
+  const initial = await listUserConversations({ actor });
   return (
     <div className="w-full min-w-0">
       <AiSessionsPanel initial={initial} />

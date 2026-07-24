@@ -9,7 +9,8 @@ import {
   type AiActionView,
   type AiEventType,
   type AiQuestionMode,
-  type AiSessionSummary,
+  type AiConversationSummary,
+  type AiConversationDetail,
   type AiUsageStatsView,
   type RawConversationCaptureStatus,
   type RawConversationPointer,
@@ -426,48 +427,6 @@ export async function resolveRawConversationPointer(
   };
 }
 
-/** Batch variant of `resolveRawConversationPointer` for list endpoints, so N
- * sessions never cost N page lookups. */
-async function resolveRawConversationPointers(
-  rows: Array<{ id: string; rawConversationPageId: string | null; rawConversationCaptureStatus: RawConversationCaptureStatus }>,
-): Promise<Map<string, RawConversationPointer | null>> {
-  const pageIds = rows.map((row) => row.rawConversationPageId).filter((id): id is string => id !== null);
-  const pages = pageIds.length
-    ? await db
-        .select({ id: schema.pages.id, path: schema.pages.path, currentPublishedVersionId: schema.pages.currentPublishedVersionId })
-        .from(schema.pages)
-        .where(inArray(schema.pages.id, pageIds))
-    : [];
-  const revisionIds = pages.map((page) => page.currentPublishedVersionId).filter((id): id is string => id !== null);
-  const revisions = revisionIds.length
-    ? await db
-        .select({ id: schema.pageRevisions.id, sourceMetadata: schema.pageRevisions.sourceMetadata })
-        .from(schema.pageRevisions)
-        .where(inArray(schema.pageRevisions.id, revisionIds))
-    : [];
-  const channelByRevisionId = new Map(revisions.map((revision) => [revision.id, channelFromSourceMetadata(revision.sourceMetadata)]));
-  const pageById = new Map(pages.map((page) => [page.id, page]));
-  const result = new Map<string, RawConversationPointer | null>();
-  for (const row of rows) {
-    const page = row.rawConversationPageId ? pageById.get(row.rawConversationPageId) : undefined;
-    result.set(
-      row.id,
-      row.rawConversationPageId && page
-        ? {
-            pageId: row.rawConversationPageId,
-            path: page.path,
-            url: `/spaces/raw/${page.path}`,
-            captureStatus: row.rawConversationCaptureStatus,
-            channel: page.currentPublishedVersionId
-              ? (channelByRevisionId.get(page.currentPublishedVersionId) ?? 'wiki-ai')
-              : 'wiki-ai',
-          }
-        : null,
-    );
-  }
-  return result;
-}
-
 const USAGE_CATEGORY: Partial<Record<AiActionFeature, keyof AiUsageStatsView>> = {
   wiki_question: 'chat',
   text_optimization: 'chat',
@@ -556,16 +515,32 @@ function requireSessionUserId(ctx: PermCtx): string {
 }
 
 /**
- * Lists the signed-in user's own wiki_question sessions for the user-center
- * history panel — never other actors' sessions, regardless of role. Search
- * matches against the `question` event text (see runWikiQuestionAction),
- * which is retained for the same window as the rest of the conversation, so
- * a session past its retention window simply won't match a search term.
+ * Build a stable conversation key for a wiki_question action: a captured
+ * turn (non-null `raw_conversation_page_id`) groups with its sibling turns
+ * by Raw page; an uncaptured turn falls back to its live-chat `webSessionId`
+ * from `requestMetadata`. Turns of the same chat session share the key,
+ * so a conversation is exactly one row in the user-facing history panel
+ * regardless of how many turns it contains.
  */
-export async function listUserSessions(
+function conversationKeyFor(row: { rawConversationPageId: string | null; requestMetadata: unknown; id: string }): string {
+  if (row.rawConversationPageId) return row.rawConversationPageId;
+  const webSessionId = (row.requestMetadata as { webSessionId?: unknown } | null)?.webSessionId;
+  if (typeof webSessionId === 'string' && webSessionId) return `legacy:${webSessionId}`;
+  return `legacy:turn:${row.id}`;
+}
+
+/**
+ * Lists the signed-in user's own Wiki AI conversations (one row per
+ * conversation, aggregating every turn that belongs to the same chat
+ * session). Search matches against the `question` event text of any turn
+ * or the captured Raw's `sourceMetadata.question`. The `status` filter
+ * scopes to the latest turn's status (use the row badge to drill into
+ * per-turn breakdown via the detail endpoint).
+ */
+export async function listUserConversations(
   ctx: PermCtx,
   filters: { search?: string; status?: AiActionStatus; limit?: number; offset?: number } = {},
-): Promise<{ items: AiSessionSummary[]; total: number }> {
+): Promise<{ items: AiConversationSummary[]; total: number }> {
   const userId = requireSessionUserId(ctx);
   const predicates = [
     eq(schema.aiActions.actorUserId, userId),
@@ -594,32 +569,64 @@ export async function listUserSessions(
   const where = and(...predicates);
   const limit = Math.min(filters.limit ?? 20, 100);
   const offset = Math.max(filters.offset ?? 0, 0);
-  const [rows, totals] = await Promise.all([
-    db
-      .select()
-      .from(schema.aiActions)
-      .where(where)
-      .orderBy(desc(schema.aiActions.queuedAt))
-      .limit(limit)
-      .offset(offset),
-    db.select({ value: count() }).from(schema.aiActions).where(where),
-  ]);
-  const ids = rows.map((row) => row.id);
-  const questionEvents = ids.length
+
+  // Pull every eligible turn for this user once. For a single user's history
+  // (bounded by event retention, typically dozens to low thousands) this is
+  // cheaper than maintaining a per-conversation materialized view and keeps
+  // pagination/filtering in lockstep with the row-level predicates.
+  const rows = await db
+    .select({
+      id: schema.aiActions.id,
+      rawConversationPageId: schema.aiActions.rawConversationPageId,
+      rawConversationCaptureStatus: schema.aiActions.rawConversationCaptureStatus,
+      requestMetadata: schema.aiActions.requestMetadata,
+      status: schema.aiActions.status,
+      queuedAt: schema.aiActions.queuedAt,
+    })
+    .from(schema.aiActions)
+    .where(where)
+    .orderBy(desc(schema.aiActions.queuedAt));
+
+  type TurnRow = typeof rows[number];
+  const byKey = new Map<string, {
+    turns: TurnRow[];
+    latest: TurnRow;
+  }>();
+  for (const row of rows) {
+    const key = conversationKeyFor(row);
+    const bucket = byKey.get(key);
+    if (!bucket) {
+      byKey.set(key, { turns: [row], latest: row });
+    } else {
+      bucket.turns.push(row);
+      if (row.queuedAt > bucket.latest.queuedAt) bucket.latest = row;
+    }
+  }
+  // Sort conversations by their latest turn's queuedAt (the same order the
+  // legacy per-turn list produced for the most recent turn of each).
+  const conversations = [...byKey.values()].sort(
+    (a, b) => b.latest.queuedAt.getTime() - a.latest.queuedAt.getTime(),
+  );
+  const total = conversations.length;
+  const page = conversations.slice(offset, offset + limit);
+  const pageRows = page.flatMap((c) => c.turns);
+  // One DB round-trip to fetch each turn's `question` event for the excerpt
+  // (captured turns may have lost their event-log question to retention).
+  const questionEvents = pageRows.length
     ? await db
         .select({ actionId: schema.aiActionEvents.actionId, payload: schema.aiActionEvents.payload })
         .from(schema.aiActionEvents)
-        .where(and(inArray(schema.aiActionEvents.actionId, ids), eq(schema.aiActionEvents.type, 'question')))
+        .where(and(
+          inArray(schema.aiActionEvents.actionId, pageRows.map((r) => r.id)),
+          eq(schema.aiActionEvents.type, 'question'),
+        ))
     : [];
   const questionByAction = new Map(
     questionEvents.map((row) => [row.actionId, String((row.payload as Record<string, unknown>).text ?? '')]),
   );
-
-  // 023: for a captured session, the event-log question can disappear once
-  // its retention window elapses even though the Raw page persists forever —
-  // prefer the durable Raw-derived question so the row never regresses to
-  // "content expired" for a session that actually has a canonical record.
-  const capturedPageIds = rows.map((row) => row.rawConversationPageId).filter((id): id is string => id !== null);
+  const capturedPageIds = pageRows
+    .map((row) => row.rawConversationPageId)
+    .filter((id): id is string => id !== null);
   const capturedQuestions = capturedPageIds.length
     ? await db
         .select({
@@ -630,20 +637,91 @@ export async function listUserSessions(
         .innerJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
         .where(inArray(schema.pages.id, capturedPageIds))
     : [];
-  const capturedQuestionByPageId = new Map(capturedQuestions.map((row) => [row.pageId, row.question]));
-
-  const pointerByAction = await resolveRawConversationPointers(rows);
-  const items = await Promise.all(
-    rows.map(async (row) => {
-      const rawQuestion = row.rawConversationPageId ? capturedQuestionByPageId.get(row.rawConversationPageId) : undefined;
-      return {
-        ...(await toView(row)),
-        questionExcerpt: (rawQuestion ?? questionByAction.get(row.id))?.slice(0, 200) ?? null,
-        rawConversation: pointerByAction.get(row.id) ?? null,
-      };
-    }),
+  const capturedQuestionByPageId = new Map(
+    capturedQuestions.map((row) => [row.pageId, row.question]),
   );
-  return { items, total: totals[0]?.value ?? 0 };
+  // One pointer per captured conversation (they share the Raw page).
+  const pointerByPageId = await resolveRawConversationPointersByPageId(capturedPageIds);
+  const items: AiConversationSummary[] = page.map((conv) => {
+    const rawPageId = conv.turns.find((t) => t.rawConversationPageId !== null)?.rawConversationPageId ?? null;
+    const rawQuestion = rawPageId ? capturedQuestionByPageId.get(rawPageId) : undefined;
+    const firstTurn = conv.turns[conv.turns.length - 1]!;
+    const excerpt = (rawQuestion ?? questionByAction.get(firstTurn.id))?.slice(0, 200) ?? null;
+    let completedTurnCount = 0;
+    let failedTurnCount = 0;
+    let cancelledTurnCount = 0;
+    for (const turn of conv.turns) {
+      if (turn.status === 'completed') completedTurnCount += 1;
+      else if (turn.status === 'failed') failedTurnCount += 1;
+      else if (turn.status === 'cancelled' || turn.status === 'expired') cancelledTurnCount += 1;
+    }
+    return {
+      conversationKey: conversationKeyFor(conv.latest),
+      latestActionId: conv.latest.id,
+      latestQueuedAt: conv.latest.queuedAt.toISOString(),
+      latestStatus: conv.latest.status,
+      questionExcerpt: excerpt,
+      rawConversation: rawPageId ? (pointerByPageId.get(rawPageId) ?? null) : null,
+      turnCount: conv.turns.length,
+      completedTurnCount,
+      failedTurnCount,
+      cancelledTurnCount,
+      turnActionIds: conv.turns.map((t) => t.id),
+    };
+  });
+  return { items, total };
+}
+
+/**
+ * Batch variant of `resolveRawConversationPointer` keyed by raw_page_id
+ * instead of action_id, for conversation-level list endpoints where
+ * several turns share the same Raw page.
+ */
+async function resolveRawConversationPointersByPageId(
+  pageIds: string[],
+): Promise<Map<string, RawConversationPointer | null>> {
+  const pages = pageIds.length
+    ? await db
+        .select({
+          id: schema.pages.id,
+          path: schema.pages.path,
+          currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+        })
+        .from(schema.pages)
+        .where(inArray(schema.pages.id, pageIds))
+    : [];
+  const revisionIds = pages
+    .map((page) => page.currentPublishedVersionId)
+    .filter((id): id is string => id !== null);
+  const revisions = revisionIds.length
+    ? await db
+        .select({ id: schema.pageRevisions.id, sourceMetadata: schema.pageRevisions.sourceMetadata })
+        .from(schema.pageRevisions)
+        .where(inArray(schema.pageRevisions.id, revisionIds))
+    : [];
+  const channelByRevisionId = new Map(
+    revisions.map((revision) => [revision.id, channelFromSourceMetadata(revision.sourceMetadata)]),
+  );
+  const pageById = new Map(pages.map((page) => [page.id, page]));
+  const result = new Map<string, RawConversationPointer | null>();
+  for (const id of pageIds) {
+    const page = pageById.get(id);
+    result.set(
+      id,
+      page
+        ? {
+            pageId: id,
+            path: page.path,
+            url: `/spaces/raw/${page.path}`,
+            captureStatus: 'captured',
+            channel: page.currentPublishedVersionId
+              ? (channelByRevisionId.get(page.currentPublishedVersionId) ?? 'wiki-ai')
+              : 'wiki-ai',
+          }
+        : null,
+    );
+  }
+  return result;
 }
 
 /** Hard-deletes a session (and its cascaded inputs/events) after an ownership check. */
@@ -661,6 +739,169 @@ export async function deleteSession(ctx: PermCtx, actionId: string): Promise<voi
     throw new DomainError('RAW_CONVERSATION_IMMUTABLE', 'This conversation was captured as Raw evidence and cannot be deleted from history');
   }
   await db.delete(schema.aiActions).where(eq(schema.aiActions.id, actionId));
+}
+
+/**
+ * Return the full conversation payload (summary + every turn's action +
+ * events) for the view modal. The caller passes the `conversationKey`
+ * minted by `listUserConversations`: either a `raw_conversation_page_id`
+ * for captured conversations or `legacy:<webSessionId>` for uncaptured.
+ */
+export async function getConversationDetail(
+  ctx: PermCtx,
+  conversationKey: string,
+): Promise<AiConversationDetail | null> {
+  const userId = requireSessionUserId(ctx);
+  const legacyPrefix = 'legacy:';
+  const isLegacy = conversationKey.startsWith(legacyPrefix);
+  const legacyId = isLegacy ? conversationKey.slice(legacyPrefix.length) : null;
+  // A turn without webSessionId falls back to `legacy:turn:{actionId}` so
+  // it groups as a singleton conversation; resolve it by action id rather
+  // than by the requestMetadata->webSessionId predicate.
+  const isSingleTurnKey = legacyId?.startsWith('turn:') === true;
+  const turnActionId = isSingleTurnKey ? legacyId!.slice('turn:'.length) : null;
+
+  const predicates = and(
+    eq(schema.aiActions.actorUserId, userId),
+    eq(schema.aiActions.feature, 'wiki_question' as const),
+    isSingleTurnKey
+      ? eq(schema.aiActions.id, turnActionId!)
+      : isLegacy
+        ? sql`(${schema.aiActions.requestMetadata} ->> 'webSessionId') = ${legacyId}`
+        : eq(schema.aiActions.rawConversationPageId, conversationKey),
+  );
+
+  const turnRows = await db
+    .select()
+    .from(schema.aiActions)
+    .where(predicates)
+    .orderBy(desc(schema.aiActions.queuedAt));
+
+  if (turnRows.length === 0) return null;
+  const latest = turnRows[0]!;
+  const turnIds = turnRows.map((row) => row.id);
+
+  const eventRows = await db
+    .select()
+    .from(schema.aiActionEvents)
+    .where(inArray(schema.aiActionEvents.actionId, turnIds))
+    .orderBy(asc(schema.aiActionEvents.id));
+  const eventsByTurn = new Map<string, typeof eventRows>();
+  for (const event of eventRows) {
+    const list = eventsByTurn.get(event.actionId) ?? [];
+    list.push(event);
+    eventsByTurn.set(event.actionId, list);
+  }
+
+  const questionEvents = eventRows.filter((event) => event.type === 'question');
+  const questionByAction = new Map(
+    questionEvents.map((event) => [event.actionId, String((event.payload as Record<string, unknown>).text ?? '')]),
+  );
+
+  const rawPageId = turnRows.find((row) => row.rawConversationPageId !== null)?.rawConversationPageId ?? null;
+  let capturedQuestion: string | null = null;
+  let pointer: RawConversationPointer | null = null;
+  if (rawPageId) {
+    const capturedPage = await db
+      .select({
+        id: schema.pages.id,
+        path: schema.pages.path,
+        currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+      })
+      .from(schema.pages)
+      .where(eq(schema.pages.id, rawPageId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+    if (capturedPage) {
+      const revision = capturedPage.currentPublishedVersionId
+        ? await db.query.pageRevisions.findFirst({
+            where: (rev, { eq }) => eq(rev.id, capturedPage.currentPublishedVersionId!),
+          })
+        : null;
+      const channel = revision ? channelFromSourceMetadata(revision.sourceMetadata) : 'wiki-ai';
+      capturedQuestion = revision
+        ? String(((revision.sourceMetadata as Record<string, unknown> | null)?.question as unknown) ?? '')
+        : null;
+      pointer = {
+        pageId: rawPageId,
+        path: capturedPage.path,
+        url: `/spaces/raw/${capturedPage.path}`,
+        captureStatus: 'captured',
+        channel,
+      };
+    }
+  }
+
+  const firstTurn = turnRows[turnRows.length - 1]!;
+  const excerpt = (capturedQuestion ?? questionByAction.get(firstTurn.id) ?? '').slice(0, 200) || null;
+
+  let completedTurnCount = 0;
+  let failedTurnCount = 0;
+  let cancelledTurnCount = 0;
+  for (const turn of turnRows) {
+    if (turn.status === 'completed') completedTurnCount += 1;
+    else if (turn.status === 'failed') failedTurnCount += 1;
+    else if (turn.status === 'cancelled' || turn.status === 'expired') cancelledTurnCount += 1;
+  }
+
+  const turns = await Promise.all(
+    turnRows.map(async (row) => ({
+      action: await toView(row),
+      events: eventsByTurn.get(row.id) ?? [],
+    })),
+  );
+
+  return {
+    conversation: {
+      conversationKey,
+      latestActionId: latest.id,
+      latestQueuedAt: latest.queuedAt.toISOString(),
+      latestStatus: latest.status,
+      questionExcerpt: excerpt,
+      rawConversation: pointer,
+      turnCount: turnRows.length,
+      completedTurnCount,
+      failedTurnCount,
+      cancelledTurnCount,
+      turnActionIds: turnIds,
+    },
+    turns,
+  } as unknown as AiConversationDetail;
+}
+
+/**
+ * Hard-delete every turn of a conversation. Refused (with
+ * RAW_CONVERSATION_IMMUTABLE) when any turn was captured as a Raw page,
+ * mirroring the per-turn `deleteSession` invariant.
+ */
+export async function deleteConversation(ctx: PermCtx, conversationKey: string): Promise<void> {
+  const userId = requireSessionUserId(ctx);
+  const legacyPrefix = 'legacy:';
+  const isLegacy = conversationKey.startsWith(legacyPrefix);
+  const legacyId = isLegacy ? conversationKey.slice(legacyPrefix.length) : null;
+  const isSingleTurnKey = legacyId?.startsWith('turn:') === true;
+  const turnActionId = isSingleTurnKey ? legacyId!.slice('turn:'.length) : null;
+  const turnRows = await db
+    .select({ id: schema.aiActions.id, rawConversationPageId: schema.aiActions.rawConversationPageId })
+    .from(schema.aiActions)
+    .where(
+      and(
+        eq(schema.aiActions.actorUserId, userId),
+        eq(schema.aiActions.feature, 'wiki_question' as const),
+        isSingleTurnKey
+          ? eq(schema.aiActions.id, turnActionId!)
+          : isLegacy
+            ? sql`(${schema.aiActions.requestMetadata} ->> 'webSessionId') = ${legacyId}`
+            : eq(schema.aiActions.rawConversationPageId, conversationKey),
+      ),
+    );
+  if (turnRows.length === 0) throw new DomainError('NOT_FOUND', 'AI action not found');
+  if (turnRows.some((row) => row.rawConversationPageId !== null)) {
+    throw new DomainError('RAW_CONVERSATION_IMMUTABLE', 'This conversation was captured as Raw evidence and cannot be deleted from history');
+  }
+  await db
+    .delete(schema.aiActions)
+    .where(inArray(schema.aiActions.id, turnRows.map((row) => row.id)));
 }
 
 export async function requestActionCancellation(ctx: PermCtx, actionId: string): Promise<AiActionView> {

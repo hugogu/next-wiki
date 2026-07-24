@@ -589,6 +589,45 @@ export const aiSessionListResponseSchema = z.object({
 export type AiSessionListResponse = z.infer<typeof aiSessionListResponseSchema>;
 
 /**
+ * One row in the AI Chat History panel, aggregated across every turn that
+ * belongs to the same conversation. A conversation is identified by
+ * `raw_conversation_page_id` when the turns were captured into a Raw page,
+ * or by `webSessionId` (from `requestMetadata`) for legacy / uncaptured
+ * sessions. All turn-level details (per-turn events, full transcript) are
+ * fetched lazily via `GET /api/ai/sessions/{conversationKey}`.
+ */
+export const aiConversationSummarySchema = z.object({
+  /**
+   * Conversation key: `raw_conversation_page_id` (captured) or
+   * `legacy:<webSessionId>` (uncaptured). Stable across turns so the panel
+   * can use it for view/continue/delete.
+   */
+  conversationKey: z.string().min(1),
+  /** UUID of the latest turn, suitable for "view latest" affordances. */
+  latestActionId: z.string().uuid(),
+  /** When the latest turn was queued (drives the Date column). */
+  latestQueuedAt: z.string(),
+  latestStatus: aiActionStatusSchema,
+  /** Question text from the conversation's first turn (or the captured Raw). */
+  questionExcerpt: z.string().nullable(),
+  /** Captured Raw pointer, or null for legacy uncaptured conversations. */
+  rawConversation: rawConversationPointerSchema.nullable(),
+  /** Total turns in this conversation (across all statuses). */
+  turnCount: z.number().int().nonnegative(),
+  completedTurnCount: z.number().int().nonnegative(),
+  failedTurnCount: z.number().int().nonnegative(),
+  cancelledTurnCount: z.number().int().nonnegative(),
+  /** All turn action ids (latest first), so the detail view can replay each. */
+  turnActionIds: z.array(z.string().uuid()),
+});
+export type AiConversationSummary = z.infer<typeof aiConversationSummarySchema>;
+export const aiConversationListResponseSchema = z.object({
+  items: z.array(aiConversationSummarySchema),
+  total: z.number().int().nonnegative(),
+});
+export type AiConversationListResponse = z.infer<typeof aiConversationListResponseSchema>;
+
+/**
  * Admin AI action audit view (023): adds the bounded, operator-only capture
  * failure diagnostic. Deliberately NOT part of `aiActionViewSchema` — that
  * type is also returned to a session's own owner (a non-admin asker), who
@@ -628,6 +667,21 @@ export const aiActionEventSchema = z.object({
   createdAt: z.string(),
 });
 export type AiActionEvent = z.infer<typeof aiActionEventSchema>;
+
+/**
+ * Detail payload for one conversation: the conversation summary plus the
+ * reconstructed state for every turn, ordered latest-first. Each turn
+ * carries its own `action` (full `AiActionView`) and `events` so the view
+ * modal can render the full transcript across turns.
+ */
+export const aiConversationDetailSchema = z.object({
+  conversation: aiConversationSummarySchema,
+  turns: z.array(z.object({
+    action: aiActionViewSchema,
+    events: z.array(aiActionEventSchema),
+  })),
+});
+export type AiConversationDetail = z.infer<typeof aiConversationDetailSchema>;
 
 export const aiSearchResultSchema = aiCitationSchema.extend({
   excerpt: z.string(),

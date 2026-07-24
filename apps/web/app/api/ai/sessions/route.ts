@@ -4,9 +4,9 @@ import { aiActionStatusSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
-import { listUserSessions } from '@/server/services/ai-actions';
+import { listUserConversations } from '@/server/services/ai-actions';
 
-/** @openapi @summary List my AI chat sessions @tag AI @auth bearer */
+/** @openapi @summary List my AI chat conversations @tag AI @auth bearer */
 export async function GET(request: NextRequest) {
   const ctx = await createApiContext();
   const params = request.nextUrl.searchParams;
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const offset = z.coerce.number().int().min(0).safeParse(params.get('offset'));
   try {
     return NextResponse.json(
-      await listUserSessions(ctx, {
+      await listUserConversations(ctx, {
         search: params.get('search') ?? undefined,
         status: status.success ? status.data : undefined,
         limit: limit.success ? limit.data : undefined,
