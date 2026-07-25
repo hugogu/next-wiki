@@ -1,39 +1,65 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CodeBlock } from './CodeBlock';
 import { MermaidZoomModal } from './MermaidZoomModal';
 import { ExpandIcon } from '@/components/icons';
 import { mermaidThemeVariables } from './mermaid-theme';
 import { useTranslation } from '@/i18n/client';
+import { useTheme } from '@/components/theme/ThemeProvider';
 
-export function MermaidBlock({ children, source }: { children: React.ReactNode; source: string }) {
+export function MermaidBlock({ source }: { source: string }) {
   const { t } = useTranslation();
+  const { resolved } = useTheme();
   const [mode, setMode] = useState<'diagram' | 'code'>('diagram');
   const [zoomOpen, setZoomOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const baseId = useId().replace(/:/g, '_');
+  const renderId = useRef(0);
 
   useEffect(() => {
     if (mode !== 'diagram') return;
-    const nodes = containerRef.current?.querySelectorAll('.mermaid');
-    if (!nodes || nodes.length === 0) return;
 
     let cancelled = false;
-    import('mermaid').then((mermaidModule) => {
-      if (cancelled) return;
-      const mermaid = mermaidModule.default;
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: 'default',
-        themeVariables: mermaidThemeVariables(),
+    const id = `${baseId}-${renderId.current++}`;
+
+    import('mermaid')
+      .then((mermaidModule) => {
+        if (cancelled) return;
+        const mermaid = mermaidModule.default;
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'default',
+          themeVariables: mermaidThemeVariables(),
+        });
+        return mermaid.render(id, source);
+      })
+      .then((result) => {
+        if (!cancelled && result) {
+          setFailed(false);
+          setSvg(result.svg);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('[MermaidBlock] mermaid.render failed:', err);
+          setFailed(true);
+        }
       });
-      void mermaid.run({ nodes: Array.from(nodes) as HTMLElement[] });
-    });
 
     return () => {
       cancelled = true;
     };
-  }, [mode]);
+  }, [mode, source, resolved, baseId]);
+
+  const codePanel = (
+    <CodeBlock source={source}>
+      <pre>
+        <code>{source}</code>
+      </pre>
+    </CodeBlock>
+  );
 
   return (
     <div className="my-md">
@@ -73,13 +99,17 @@ export function MermaidBlock({ children, source }: { children: React.ReactNode; 
           >
             <ExpandIcon className="w-4 h-4" />
           </button>
-          <div ref={containerRef}>{children}</div>
+          {failed ? (
+            codePanel
+          ) : svg ? (
+            <div className="mermaid" dangerouslySetInnerHTML={{ __html: svg }} />
+          ) : (
+            <pre className="mermaid">{source}</pre>
+          )}
           {zoomOpen && <MermaidZoomModal source={source} onClose={() => setZoomOpen(false)} />}
         </div>
       ) : (
-        <CodeBlock source={source}>
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `\u003cpre\u003e\u003ccode\u003e${source}\u003c/code\u003e\u003c/pre\u003e` }} />
-        </CodeBlock>
+        codePanel
       )}
     </div>
   );
