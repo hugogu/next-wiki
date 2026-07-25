@@ -903,12 +903,26 @@ export async function deleteConversation(ctx: PermCtx, conversationKey: string):
 
   await db.transaction(async (tx) => {
     if (rawPageIds.length > 0) {
-      await tx.delete(schema.pages).where(inArray(schema.pages.id, rawPageIds));
+      // Soft-delete the captured Raw pages rather than hard-deleting them.
+      // Raw pages have revisions and other dependent rows; the app treats
+      // `deleted_at IS NOT NULL` as removed, so this avoids FK violations
+      // while still cascading the deletion from the user's history view.
+      await tx
+        .update(schema.pages)
+        .set({ deletedAt: new Date() })
+        .where(inArray(schema.pages.id, rawPageIds));
     }
     await tx
       .delete(schema.aiActions)
       .where(inArray(schema.aiActions.id, turnRows.map((row) => row.id)));
   });
+
+  for (const pageId of rawPageIds) {
+    // Reconcile the now-deleted Raw page out of any active AI index without
+    // creating a static import cycle (ai-index already imports ai-actions).
+    const { reconcilePageAcrossIndexes } = await import('@/server/services/ai-index');
+    await reconcilePageAcrossIndexes(pageId, ctx);
+  }
 }
 
 export async function requestActionCancellation(ctx: PermCtx, actionId: string): Promise<AiActionView> {

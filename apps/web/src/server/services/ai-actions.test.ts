@@ -79,8 +79,9 @@ describe('AI actions', () => {
     expect(view.pagePath).toBe('docs/doc');
 
     await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
-    await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
-  });
+      await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
+      await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
+    });
 
   it('paginates the audit listing with limit/offset and a total count', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
@@ -321,8 +322,11 @@ describe('AI actions', () => {
 
       await deleteConversation(ctx, page!.id);
       expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, captured!.id) })).toBeUndefined();
-      expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) })).toBeUndefined();
+      const deletedPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) });
+      expect(deletedPage?.deletedAt).not.toBeNull();
 
+      await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, page!.id));
+      await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
       await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
     });
   });
