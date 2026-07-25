@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AiConversationListResponse, AiConversationSummary } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
-import { apiGet } from '@/lib/api/client';
+import { apiDelete, apiGet, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
-import { PlusIcon, SparklesIcon } from '@/components/icons';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { PlusIcon, SparklesIcon, TrashIcon } from '@/components/icons';
 import { useChatStore } from './chat-store';
 
 const PAGE_SIZE = 50;
@@ -20,6 +21,9 @@ export function AiChatHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [continuingKey, setContinuingKey] = useState<string | null>(null);
+  const [deleteKey, setDeleteKey] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +54,22 @@ export function AiChatHistory() {
     setContinuingKey(null);
   };
 
+  const handleDelete = async () => {
+    if (!deleteKey) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await apiDelete<void>(`/api/ai/sessions/${encodeURIComponent(deleteKey)}`);
+      setItems((prev) => prev.filter((item) => item.conversationKey !== deleteKey));
+      setDeleteKey(null);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setDeleteError(apiError.message || t('ai.chat.history.deleteError'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const formatDate = (value: string) => new Date(value).toLocaleString(locale);
 
   return (
@@ -77,12 +97,12 @@ export function AiChatHistory() {
       {items.length > 0 && (
         <ul className="space-y-1">
           {items.map((conversation) => (
-            <li key={conversation.conversationKey}>
+            <li key={conversation.conversationKey} className="flex items-stretch gap-1">
               <button
                 type="button"
                 onClick={() => void handleContinue(conversation)}
                 disabled={continuingKey === conversation.conversationKey}
-                className="w-full rounded-md px-md py-2 text-left text-sm transition-colors hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                className="min-w-0 flex-1 rounded-md px-md py-2 text-left text-sm transition-colors hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
               >
                 <div className="flex items-start justify-between gap-xs">
                   <span className="min-w-0 flex-1 truncate font-medium">
@@ -98,9 +118,34 @@ export function AiChatHistory() {
                   <span>{formatDate(conversation.latestQueuedAt)}</span>
                 </div>
               </button>
+              <button
+                type="button"
+                onClick={() => setDeleteKey(conversation.conversationKey)}
+                disabled={deleting}
+                aria-label={t('ai.chat.history.delete')}
+                title={t('ai.chat.history.delete')}
+                className="shrink-0 rounded-md px-sm text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {deleteKey && (
+        <ConfirmDialog
+          title={t('ai.chat.history.deleteConfirmTitle')}
+          message={t('ai.chat.history.deleteConfirmMessage')}
+          confirmLabel={t('ai.chat.history.delete')}
+          confirmVariant="danger"
+          pending={deleting}
+          error={deleteError ?? undefined}
+          onConfirm={handleDelete}
+          onCancel={() => {
+            if (!deleting) setDeleteKey(null);
+          }}
+        />
       )}
     </div>
   );

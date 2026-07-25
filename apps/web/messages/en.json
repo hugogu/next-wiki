@@ -1984,7 +1984,11 @@
         "loading": "Loading...",
         "loadError": "Could not load conversation history.",
         "contentExpired": "Content expired",
-        "turnCount": "{count, plural, one {# turn} other {# turns}}"
+        "turnCount": "{count, plural, one {# turn} other {# turns}}",
+        "delete": "Delete",
+        "deleteConfirmTitle": "Delete conversation?",
+        "deleteConfirmMessage": "Delete this conversation? This cannot be undone.",
+        "deleteError": "Could not delete conversation."
       },
       "errors": {
         "invalidResponse": "The AI could not produce a valid Wiki operation. Retry or rephrase the request.",

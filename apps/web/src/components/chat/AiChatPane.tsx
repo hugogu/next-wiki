@@ -313,7 +313,7 @@ export function AiChatPane({
       <div ref={scrollRef} onScroll={onMessageListScroll} className="min-w-0 flex-1 space-y-md overflow-auto p-md">
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}
         {chat.messages.map((message) => (
-          <article key={message.id} className={`min-w-0 max-w-full overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
+          <article key={message.id} className={`min-w-0 overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-auto mr-lg max-w-[50%] bg-primary text-primary-text' : 'mr-lg max-w-full bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
               <div className="min-w-0 space-y-sm">
                 {(message.thinking || message.searchResults?.length || message.toolCalls?.length || message.toolProposals?.length) && (
