@@ -32,8 +32,8 @@ test.describe('Admin AI Tools configuration', () => {
     ).toBeVisible();
 
     // Tool rows render across categories.
-    await expect(page.getByText('search_wiki')).toBeVisible();
-    await expect(page.getByText('rename_tag')).toBeVisible();
+    await expect(page.getByText('search_wiki', { exact: true })).toBeVisible();
+    await expect(page.getByText('rename_tag', { exact: true })).toBeVisible();
 
     // Disable a mutating tool through the UI and confirm it persists server-side.
     const toggle = page.getByRole('switch', { name: /rename_tag/ });
