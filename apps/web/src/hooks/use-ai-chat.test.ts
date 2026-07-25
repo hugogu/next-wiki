@@ -84,6 +84,8 @@ describe('useAiChat payload helpers', () => {
       .toBe('ai.chat.errors.providerUnavailable');
     expect(wikiAiErrorTranslationKey({ code: 'NETWORK_ERROR' }))
       .toBe('ai.chat.errors.connectionFailed');
+    expect(wikiAiErrorTranslationKey({ code: 'TIMEOUT' }))
+      .toBe('ai.chat.errors.timeout');
     expect(wikiAiErrorTranslationKey({ code: 'UNAUTHORIZED' }))
       .toBe('ai.chat.errors.sessionExpired');
     expect(wikiAiErrorTranslationKey({ code: 'BAD_REQUEST' }))

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { AiEntitlementView } from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
@@ -18,23 +19,53 @@ import {
 } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
-import { recoverSessionFromServer } from './reconstruct-session';
+import { fetchHistoryDetail } from './history-api';
+import { recoverSessionFromServer, reconstructSessionFromEvents } from './reconstruct-session';
+import { resolveSessionId } from './resolve-session-id';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
 import { ChatRetrieval } from './ChatRetrieval';
 import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 
-function setAiUrl(open: boolean) {
+export function buildMessagesFromDetail(detail: import('@next-wiki/shared').AiConversationDetail) {
+  const messages: ReturnType<typeof useChatStore.getState>['messages'] = [];
+  // Server returns turns newest-first; render them oldest-first like a live chat.
+  for (const turn of [...detail.turns].reverse()) {
+    const reconstructed = reconstructSessionFromEvents(turn.events);
+    messages.push({
+      id: crypto.randomUUID(),
+      role: 'user',
+      text: reconstructed.question,
+    });
+    messages.push({
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      text: reconstructed.insufficient ? '' : reconstructed.answer,
+      thinking: reconstructed.thinking,
+      citations: reconstructed.citations,
+      toolCalls: reconstructed.toolCalls,
+      searchResults: reconstructed.searchResults,
+      insufficient: reconstructed.insufficient,
+      error: reconstructed.errorMessage ?? undefined,
+    });
+  }
+  return messages;
+}
+
+function setChatUrl(chatKey?: string | null) {
   const url = new URL(window.location.href);
-  if (open) url.searchParams.set('ai', 'open');
-  else url.searchParams.delete('ai');
+  // The legacy `?ai=open` parameter is no longer used; clean it up if it
+  // remains in an old bookmark.
+  url.searchParams.delete('ai');
+  if (chatKey) url.searchParams.set('chat', chatKey);
+  else url.searchParams.delete('chat');
   window.history.replaceState(null, '', url);
 }
 
 export function aiChatPaneClassName(maximized: boolean): string {
   const position = maximized
-    ? 'fixed inset-0 z-50 h-dvh w-full max-w-none'
+    ? 'relative h-full w-full flex-1 max-w-none'
     : 'relative h-full w-[24rem] max-w-full shrink-0 border-l border-border';
   return `${position} flex min-h-0 flex-col overflow-hidden bg-surface`;
 }
@@ -42,18 +73,50 @@ export function aiChatPaneClassName(maximized: boolean): string {
 export function AiChatPane({
   entitlements,
   pageContext,
+  maximized: maximizedProp,
+  onMaximizedChange,
 }: {
   entitlements: AiEntitlementView;
   pageContext?: PageContext;
+  maximized?: boolean;
+  onMaximizedChange?: (maximized: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const searchParams = useSearchParams();
+  const chatKey = searchParams?.get('chat') ?? null;
+  const [rehydrated, setRehydrated] = useState(false);
   const [question, setQuestion] = useState('');
-  const [maximized, setMaximized] = useState(false);
+  const [internalMaximized, setInternalMaximized] = useState(false);
+  const maximized = maximizedProp ?? internalMaximized;
+  const setMaximized = (value: boolean) => {
+    onMaximizedChange?.(value);
+    setInternalMaximized(value);
+  };
   const chat = useAiChat(
     pageContext?.pageId && pageContext.revisionId
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
       : undefined,
   );
+
+  const loadedChatKeyRef = useRef<string | null>(null);
+  const restoreSession = chat.restoreSession;
+
+  const loadChat = useCallback(async (key: string) => {
+    const detail = await fetchHistoryDetail(key);
+    if (!detail) return;
+    const messages = buildMessagesFromDetail(detail);
+    restoreSession({
+      sessionId: resolveSessionId(detail.conversation, detail),
+      mode: detail.turns.at(-1)?.action.questionMode ?? 'retrieval',
+      messages,
+    });
+  }, [restoreSession]);
+
+  useEffect(() => {
+    if (!rehydrated || !chatKey || chatKey === loadedChatKeyRef.current) return;
+    loadedChatKeyRef.current = chatKey;
+    void loadChat(chatKey);
+  }, [rehydrated, chatKey, loadChat]);
 
   // Scroll persistence for the message list. The pane is a floating,
   // app-like region whose content lives in sessionStorage; without this,
@@ -101,7 +164,23 @@ export function AiChatPane({
     prevCountRef.current = chat.messages.length;
   }, [chat.messages.length]);
 
-  // Save scrollTop on scroll (throttled to one write per animation frame).
+  // When the pane is open and holds any conversation, mirror the current
+  // session key into the URL so the link is shareable. This covers fresh
+  // sessions after the first turn, reopening a collapsed chat, and continuing
+  // from history (history already writes a key; this keeps it in sync).
+  const lastChatKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!chat.open || chat.messages.length === 0) return;
+    const key = `legacy:${chat.sessionId}`;
+    if (lastChatKeyRef.current === key) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('chat') === key) {
+      lastChatKeyRef.current = key;
+      return;
+    }
+    setChatUrl(key);
+    lastChatKeyRef.current = key;
+  }, [chat.open, chat.messages.length, chat.sessionId]);
   const onMessageListScroll = () => {
     const list = scrollRef.current;
     if (!list) return;
@@ -112,13 +191,14 @@ export function AiChatPane({
 
   useEffect(() => {
     // Hydration is deferred (skipHydration) so the pre-mount render matches
-    // the server, then we restore the persisted session and let an explicit
-    // `?ai=open` links (e.g. a shared URL) override persisted state.
+    // the server, then we restore the persisted session. A `?chat=...` link
+    // opens the pane and resumes that conversation.
     let cancelled = false;
     void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
       if (cancelled) return;
+      setRehydrated(true);
       const url = new URL(window.location.href);
-      if (url.searchParams.get('ai') === 'open') chat.setOpen(true);
+      if (url.searchParams.get('chat')) chat.setOpen(true);
       // After rehydration, reconcile any assistant message that was marked
       // failed client-side with the authoritative server state. The server
       // may have completed the turn despite a proxy/VPN interrupting the
@@ -171,7 +251,7 @@ export function AiChatPane({
             size="icon"
             className="rounded-full shadow-lg"
             aria-label={t('ai.chat.open')}
-            onClick={() => { chat.setOpen(true); setAiUrl(true); }}
+            onClick={() => { chat.setOpen(true); }}
           >
             <SparklesIcon />
           </Button>
@@ -201,7 +281,7 @@ export function AiChatPane({
               variant="ghost"
               aria-label={t('ai.chat.newSession')}
               disabled={chat.messages.length === 0}
-              onClick={() => { chat.cancel(); chat.newSession(); }}
+              onClick={() => { chat.cancel(); chat.newSession(); setChatUrl(null); }}
             >
               <PlusIcon />
             </Button>
@@ -212,7 +292,7 @@ export function AiChatPane({
               variant="ghost"
               aria-label={maximized ? t('ai.chat.restore') : t('ai.chat.maximize')}
               aria-pressed={maximized}
-              onClick={() => setMaximized((value) => !value)}
+              onClick={() => setMaximized(!maximized)}
             >
               {maximized ? <RestoreIcon /> : <ExpandIcon />}
             </Button>
@@ -222,7 +302,7 @@ export function AiChatPane({
               size="icon"
               variant="ghost"
               aria-label={t('ai.chat.collapse')}
-              onClick={() => { setMaximized(false); chat.setOpen(false); setAiUrl(false); }}
+              onClick={() => { setMaximized(false); chat.setOpen(false); setChatUrl(null); }}
             >
               <ChevronRightIcon />
             </Button>
@@ -232,7 +312,7 @@ export function AiChatPane({
       <div ref={scrollRef} onScroll={onMessageListScroll} className="min-w-0 flex-1 space-y-md overflow-auto p-md">
         {chat.messages.length === 0 && <p className="text-sm text-muted">{t('ai.chat.empty')}</p>}
         {chat.messages.map((message) => (
-          <article key={message.id} className={`min-w-0 max-w-full overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-lg bg-primary text-primary-text' : 'mr-lg bg-surface-elevated'}`}>
+          <article key={message.id} className={`min-w-0 overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-auto mr-lg max-w-[50%] bg-primary text-primary-text' : 'mr-lg max-w-full bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
               <div className="min-w-0 space-y-sm">
                 {(message.thinking || message.searchResults?.length || message.toolCalls?.length || message.toolProposals?.length) && (

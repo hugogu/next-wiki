@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { SVGProps } from 'react';
 import {
   TransformWrapper,
@@ -12,6 +12,7 @@ import { PlusIcon } from '@/components/icons';
 import { CodeBlock } from './CodeBlock';
 import { mermaidThemeVariables } from './mermaid-theme';
 import { useTranslation } from '@/i18n/client';
+import { useTheme } from '@/components/theme/ThemeProvider';
 
 /**
  * Renders mermaid `source` inside a TransformWrapper so the user can zoom
@@ -32,15 +33,18 @@ export function MermaidZoomModal({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { resolved } = useTheme();
+  const baseId = useId().replace(/:/g, '_');
+  const renderId = useRef(0);
+  const [svg, setSvg] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (failed) return;
-    const nodes = containerRef.current?.querySelectorAll('.mermaid');
-    if (!nodes || nodes.length === 0) return;
 
     let cancelled = false;
+    const id = `${baseId}-${renderId.current++}`;
+
     import('mermaid')
       .then((mermaidModule) => {
         if (cancelled) return;
@@ -50,24 +54,25 @@ export function MermaidZoomModal({
           theme: 'default',
           themeVariables: mermaidThemeVariables(),
         });
-        return mermaid.run({ nodes: Array.from(nodes) as HTMLElement[] });
+        return mermaid.render(id, source);
       })
-      .then(() => {
-        if (cancelled) return;
-        // mermaid.run replaces the <pre> with an <svg>; if no svg appeared, treat as failure.
-        const svg = containerRef.current?.querySelector('svg');
-        if (!svg) setFailed(true);
+      .then((result) => {
+        if (!cancelled && result) {
+          setFailed(false);
+          setSvg(result.svg);
+        }
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        console.error('[MermaidZoomModal] mermaid.run failed:', err);
-        setFailed(true);
+        if (!cancelled) {
+          console.error('[MermaidZoomModal] mermaid.render failed:', err);
+          setFailed(true);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [failed]);
+  }, [failed, source, resolved, baseId]);
 
   return (
     <ModalDialog
@@ -100,11 +105,12 @@ export function MermaidZoomModal({
                   wrapperStyle={{ width: '100%', height: '100%' }}
                   contentStyle={{ width: '100%', height: '100%' }}
                 >
-                  <div
-                    ref={containerRef}
-                    className="flex items-center justify-center p-lg"
-                  >
-                    <pre className="mermaid">{source}</pre>
+                  <div className="flex items-center justify-center p-lg">
+                    {svg ? (
+                      <div className="mermaid" dangerouslySetInnerHTML={{ __html: svg }} />
+                    ) : (
+                      <pre className="mermaid">{source}</pre>
+                    )}
                   </div>
                 </TransformComponent>
               </div>

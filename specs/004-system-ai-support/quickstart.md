@@ -108,7 +108,7 @@ credential.
 
 ## Verify Wiki Q&A
 
-1. Open a reader page with `?ai=open&aiMode=retrieval`.
+1. Open a reader page and open Wiki AI from the floating action.
 2. Ask a question with a known Wiki answer.
 3. Confirm response deltas arrive through SSE.
 4. Confirm every citation opens a readable page/revision.

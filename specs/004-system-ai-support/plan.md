@@ -259,8 +259,9 @@ and returns bounded excerpts and canonical page/revision citations.
 
 ### D8 — Full-context and retrieval Q&A
 
-The persistent AI side pane uses `?ai=open&aiMode=full|retrieval` and receives
-current page identity as contextual metadata.
+The persistent AI side pane is a user-controlled surface. The only URL state is
+`?chat=<conversationKey>`, which opens the pane and resumes that conversation.
+Current page identity is passed as contextual metadata.
 
 - **Full-context mode** loads all readable current published revisions in a
   deterministic order. It computes a conservative input estimate from UTF-8
@@ -360,7 +361,7 @@ updated `apps/web/public/openapi.json`.
 Canonical user routes:
 
 - `/search?q=...&mode=semantic`
-- existing reader/editor/admin layouts with `?ai=open&aiMode=...`
+- existing reader/editor/admin layouts with `?chat=<conversationKey>`
 - `/admin/ai`
 - `/admin/ai/providers`
 - `/admin/ai/providers/{id}`

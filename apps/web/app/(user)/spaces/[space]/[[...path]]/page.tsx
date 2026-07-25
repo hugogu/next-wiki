@@ -116,7 +116,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
         <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
             {canPublishAsLink && (
-              <div className="absolute right-lg top-md z-10">
+              <div className="absolute right-lg top-md">
                 <PublishLinkButton pageId={page.id} targetTitle={page.title} currentPath={page.path} />
               </div>
             )}

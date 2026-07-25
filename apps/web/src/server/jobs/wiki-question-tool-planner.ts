@@ -49,6 +49,8 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
   'After create_page succeeds, always include a Markdown link to the new page in the final answer, using the exact title and href returned by the tool result. Do not replace this page link with a citation marker.',
   'For save_draft, use the exact pageId returned by get_page, then pass complete replacement Markdown in contentSource. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
+  'If the target page for saving content does not exist after using search_wiki, list_pages, or get_page, create it with create_page. Do not repeatedly search for a page that does not exist.',
+  'save_draft only works on existing pages; never call save_draft for a page that has not been created or successfully retrieved.',
   'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
 ].join('\n');
 
@@ -129,7 +131,11 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
 /** Parse one planner turn: a valid tool-call block requests tools; malformed
  * protocol output is explicitly retried by the caller; plain prose is final. */
 export function parseToolPlan(output: string): ToolPlannerParseResult {
-  const match = output.match(/```(?:tool|json)?\s*([\s\S]*?)```/);
+  // Only `tool` or `json` fences are part of the protocol. Other language
+  // identifiers (e.g. `mermaid`) must not be parsed as tool calls, otherwise
+  // a user asking for a diagram causes the planner to error out instead of
+  // returning a plain-text answer.
+  const match = output.match(/```(?:tool|json)\b\s*([\s\S]*?)```/);
   if (match) {
     try {
       const source = match[1]!.trim();
@@ -163,7 +169,7 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
   // was truncated by the output token budget before it could finish. Treat it
   // as invalid (retryable) instead of silently accepting the truncated text as
   // a final answer.
-  if (/```(?:tool|json)?\s*\n/.test(output)) {
+  if (/```(?:tool|json)\b\s*\n/.test(output)) {
     return { kind: 'invalid_tool_calls' };
   }
   return { kind: 'final', text: output.trim() };

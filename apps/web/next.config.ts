@@ -13,6 +13,21 @@ const nextConfig: NextConfig = {
     turbopackMemoryLimit: 4096,
   },
   distDir: process.env.NEXT_WIKI_E2E === 'true' ? '.next-e2e' : '.next',
+  async rewrites() {
+    return [
+      // Raw Markdown export for private content spaces (generated/raw).
+      // Must precede the public wiki rewrite so /spaces/... is handled here.
+      {
+        source: '/spaces/:space/:path*.md',
+        destination: '/api/raw-md/spaces/:space/:path*',
+      },
+      // Raw Markdown export for public wiki pages (including /{locale}/...).
+      {
+        source: '/:path*.md',
+        destination: '/api/raw-md/:path*',
+      },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');

@@ -1779,7 +1779,6 @@
       "apiKeys": "API Keys",
       "audit": "Audit Log",
       "readingTheme": "Reading theme",
-      "aiSessions": "AI Chat History",
       "feishu": "Feishu binding",
       "settings": "User Settings"
     },
@@ -1937,34 +1936,6 @@
       "next": "Next",
       "prev": "Previous",
       "allKeys": "All keys"
-    },
-    "aiSessions": {
-      "metadataTitle": "AI Chat History",
-      "title": "AI Chat History",
-      "description": "Search, review, resume, or permanently delete your past Ask AI conversations.",
-      "searchLabel": "Search",
-      "searchPlaceholder": "Search by question text",
-      "filterByStatus": "Status",
-      "allStatuses": "All",
-      "empty": "No AI chat sessions yet.",
-      "question": "Question",
-      "turns": "Turns",
-      "turnCount": "{count, plural, one {# turn} other {# turns}}",
-      "turnsFailed": "({count, plural, one {# failed} other {# failed}})",
-      "status": "Status",
-      "date": "Date",
-      "actions": "Actions",
-      "contentExpired": "Content expired",
-      "view": "View",
-      "continue": "Continue",
-      "delete": "Delete",
-      "deleteTitle": "Delete this conversation?",
-      "deleteMessage": "{count, plural, one {This permanently deletes the # turn, its answer, and its citations. This cannot be undone.} other {This permanently deletes all # turns, their answers, and their citations. This cannot be undone.}}",
-      "deleteFailed": "Could not delete this session.",
-      "detailTitle": "Session detail",
-      "loading": "Loading…",
-      "captureImmutable": "Captured as Raw evidence — cannot be deleted from history.",
-      "openRawPage": "Open Raw page"
     }
   },
   "ai": {
@@ -2005,6 +1976,20 @@
         "responseInterrupted": "The response ended before it could produce a final answer.",
         "responseStopped": "The response was stopped."
       },
+      "history": {
+        "title": "History",
+        "empty": "No past conversations.",
+        "newSession": "New session",
+        "continue": "Continue",
+        "loading": "Loading...",
+        "loadError": "Could not load conversation history.",
+        "contentExpired": "Content expired",
+        "turnCount": "{count, plural, one {# turn} other {# turns}}",
+        "delete": "Delete",
+        "deleteConfirmTitle": "Delete conversation?",
+        "deleteConfirmMessage": "Delete this conversation? This cannot be undone.",
+        "deleteError": "Could not delete conversation."
+      },
       "errors": {
         "invalidResponse": "The AI could not produce a valid Wiki operation. Retry or rephrase the request.",
         "providerUnavailable": "The AI provider is temporarily unavailable. Please retry shortly.",
@@ -2013,6 +1998,7 @@
         "sessionExpired": "Your session has expired. Sign in again to use Wiki AI.",
         "invalidRequest": "Wiki AI could not use this conversation context. Start a new session and retry.",
         "notAvailable": "Wiki AI is not currently available. Check the AI configuration or your access.",
+        "timeout": "The AI provider timed out while starting this request. Please retry.",
         "requestFailed": "Wiki AI could not start this request. Please retry."
       },
       "tools": {

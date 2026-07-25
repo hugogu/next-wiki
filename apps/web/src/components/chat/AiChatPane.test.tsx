@@ -23,11 +23,36 @@ vi.mock('@/hooks/use-ai-chat', () => ({
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('./chat-store', () => ({
-  useChatStore: { persist: { rehydrate: vi.fn() } },
+  useChatStore: { persist: { rehydrate: vi.fn() }, getState: vi.fn() },
+}));
+vi.mock('./history-api', () => ({
+  fetchHistoryDetail: vi.fn(),
+}));
+vi.mock('./reconstruct-session', () => ({
+  reconstructSessionFromEvents: vi.fn((events: Array<{ type?: string; payload?: { text?: string } }>) => {
+    const question = events?.find((e) => e.type === 'question')?.payload?.text ?? 'Unknown';
+    return {
+      question,
+      answer: `A:${question}`,
+      thinking: '',
+      citations: [],
+      toolCalls: [],
+      searchResults: [],
+      insufficient: false,
+      errorMessage: null,
+    };
+  }),
+  recoverSessionFromServer: vi.fn(),
+}));
+vi.mock('./resolve-session-id', () => ({
+  resolveSessionId: () => 'resolved-session-id',
 }));
 
-import { AiChatPane, aiChatPaneClassName } from './AiChatPane';
+import { AiChatPane, aiChatPaneClassName, buildMessagesFromDetail } from './AiChatPane';
 
 const entitlements = {
   userId: '00000000-0000-4000-8000-000000000001',
@@ -53,7 +78,7 @@ describe('AiChatPane viewport modes', () => {
   });
 
   it('uses the entire dynamic viewport when maximized', () => {
-    expect(aiChatPaneClassName(true)).toContain('fixed inset-0 z-50 h-dvh w-full max-w-none');
+    expect(aiChatPaneClassName(true)).toContain('relative h-full w-full flex-1 max-w-none');
     expect(aiChatPaneClassName(false)).toContain('relative h-full w-[24rem]');
   });
 
@@ -102,5 +127,35 @@ describe('AiChatPane viewport modes', () => {
     expect(html).toContain('ai.chat.retrievedPages');
     expect(html).toContain('Payments');
     expect(html).toContain('ai.chat.streaming');
+  });
+});
+
+describe('buildMessagesFromDetail', () => {
+  it('reverses newest-first turns into oldest-first chat messages', () => {
+    const detail = {
+      conversation: { conversationKey: 'legacy:test' },
+      turns: [
+        {
+          action: { questionMode: 'retrieval' },
+          events: [{ type: 'question', payload: { text: 'Second' } }],
+        },
+        {
+          action: { questionMode: 'retrieval' },
+          events: [{ type: 'question', payload: { text: 'First' } }],
+        },
+      ],
+    } as unknown as import('@next-wiki/shared').AiConversationDetail;
+
+    const messages = buildMessagesFromDetail(detail);
+
+    expect(messages).toHaveLength(4);
+    expect(messages[0]!.role).toBe('user');
+    expect(messages[0]!.text).toBe('First');
+    expect(messages[1]!.role).toBe('assistant');
+    expect(messages[1]!.text).toBe('A:First');
+    expect(messages[2]!.role).toBe('user');
+    expect(messages[2]!.text).toBe('Second');
+    expect(messages[3]!.role).toBe('assistant');
+    expect(messages[3]!.text).toBe('A:Second');
   });
 });

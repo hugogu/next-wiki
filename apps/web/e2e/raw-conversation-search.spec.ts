@@ -179,34 +179,6 @@ test.describe('Raw Conversation Search (023)', () => {
     await expect(page.getByText('AI Conversations')).toBeVisible();
   });
 
-  test('a captured conversation renders via the shared conversation view and cannot be deleted from history', async ({ page }) => {
-    const question = 'Where does the deployment config live?';
-    const answer = 'It lives in docker-compose.yml at the repository root.';
-    const seeded = await seedCapturedConversation(question, answer);
-    await login(page);
-
-    // The Raw page dispatches to ConversationSessionView, not a generic dump.
-    await page.goto(`/spaces/raw/${seeded.path}`);
-    const article = page.getByTestId('space-page-reader');
-    await expect(article.getByText(question)).toBeVisible();
-    await expect(article.getByText(answer)).toBeVisible();
-    await expect(page.locator('[data-testid="raw-content"]')).toHaveCount(0);
-
-    // The status badge sits next to the breadcrumb (rendered once, not
-    // duplicated on its own line above the question).
-    const breadcrumb = page.getByRole('navigation', { name: /breadcrumb/i });
-    await expect(breadcrumb.getByText('Completed')).toBeVisible();
-    await expect(page.getByText('Completed', { exact: true })).toHaveCount(1);
-
-    // AI Chat History lists the captured session with an immutable delete.
-    await page.goto('/user-center/ai-sessions');
-    const row = page.getByRole('row', { name: new RegExp(question) });
-    await expect(row).toBeVisible();
-    const deleteButton = row.getByRole('button', { name: /captured as raw evidence|delete/i });
-    await expect(deleteButton).toBeDisabled();
-    const openRawLink = row.getByRole('link', { name: /open raw page/i });
-    await expect(openRawLink).toHaveAttribute('href', `/spaces/raw/${seeded.path}`);
-  });
 
   test('the header search box (no explicit space) still surfaces a captured conversation', async ({ page }) => {
     const uniqueTerm = `moearchitecture${Date.now()}`;

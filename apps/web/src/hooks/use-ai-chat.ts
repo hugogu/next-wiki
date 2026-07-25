@@ -132,6 +132,7 @@ export function wikiAiErrorTranslationKey(error: {
   if (code === 'RATE_LIMITED') return 'ai.chat.errors.rateLimited';
   if (code === 'CANCELLED') return 'ai.chat.conversationView.responseStopped';
   if (code === 'NETWORK_ERROR') return 'ai.chat.errors.connectionFailed';
+  if (code === 'TIMEOUT') return 'ai.chat.errors.timeout';
   if (code === 'UNAUTHORIZED') return 'ai.chat.errors.sessionExpired';
   if (code === 'BAD_REQUEST') return 'ai.chat.errors.invalidRequest';
   if (

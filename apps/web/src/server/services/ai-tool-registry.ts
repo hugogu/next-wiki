@@ -113,7 +113,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'create',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Create a new page as a draft revision for review. Args: path, title, and either contentSource or contentFromConversation=true. The path must be lowercase letters, numbers, hyphens, and slashes. If contentSource includes YAML frontmatter it must contain a non-empty "type" field; when unsure, omit the frontmatter block entirely. Returns the canonical page href.',
+    description: 'Create a new page as a draft revision for review. Use this when the user wants to save content and search_wiki, list_pages, or get_page cannot locate an existing target page. Args: path, title, and either contentSource or contentFromConversation=true. The path must be lowercase letters, numbers, hyphens, and slashes. If contentSource includes YAML frontmatter it must contain a non-empty "type" field; when unsure, omit the frontmatter block entirely. Returns the canonical page href.',
   },
   {
     name: 'save_draft',
@@ -122,7 +122,8 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Save a new draft revision of an existing page for review. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. If contentSource includes YAML frontmatter it must contain a non-empty "type" field. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
+    description: 'Save a new draft revision of an existing page for review. The page must already exist; call create_page first if search_wiki, list_pages, or get_page cannot locate it. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. If contentSource includes YAML frontmatter it must contain a non-empty "type" field. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
+
   },
   {
     name: 'update_page_metadata',

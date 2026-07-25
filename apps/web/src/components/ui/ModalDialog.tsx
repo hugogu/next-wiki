@@ -1,24 +1,32 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useId, useRef, type ReactNode } from 'react';
 import { XIcon } from '@/components/icons';
 
-export function ModalDialog({
-  title,
-  description,
-  children,
-  onClose,
-  maxWidth = 'max-w-2xl',
-}: {
+export const ModalDialog = forwardRef<HTMLDivElement, {
   title: string;
   description?: string;
   children: ReactNode;
   onClose: () => void;
   maxWidth?: string;
-}) {
+}>(function ModalDialog(
+  { title, description, children, onClose, maxWidth = 'max-w-2xl' },
+  ref,
+) {
   const titleId = useId();
   const descriptionId = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
+  const internalPanelRef = useRef<HTMLDivElement>(null);
+  const setPanelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      internalPanelRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    },
+    [ref],
+  );
   // Hold the latest onClose so the mount-only effect below never has to list it
   // as a dependency. Re-running that effect on every render (which happens when
   // the parent passes an inline onClose) would re-focus the dialog on every
@@ -33,8 +41,8 @@ export function ModalDialog({
     // Prefer the first form field. The close button is first in DOM order, so
     // querying for buttons too would land initial focus on it instead of the
     // input the user actually wants to fill in.
-    const field = panelRef.current?.querySelector<HTMLElement>('input, select, textarea');
-    (field ?? panelRef.current?.querySelector<HTMLElement>('button'))?.focus();
+    const field = internalPanelRef.current?.querySelector<HTMLElement>('input, select, textarea');
+    (field ?? internalPanelRef.current?.querySelector<HTMLElement>('button'))?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCloseRef.current();
     };
@@ -53,7 +61,7 @@ export function ModalDialog({
       }}
     >
       <div
-        ref={panelRef}
+        ref={setPanelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -78,4 +86,6 @@ export function ModalDialog({
       </div>
     </div>
   );
-}
+});
+
+ModalDialog.displayName = 'ModalDialog';

@@ -1779,7 +1779,6 @@
       "apiKeys": "API 密钥",
       "audit": "审计日志",
       "readingTheme": "阅读主题",
-      "aiSessions": "AI 会话历史",
       "feishu": "飞书绑定",
       "settings": "用户设置"
     },
@@ -1937,34 +1936,6 @@
       "next": "下一页",
       "prev": "上一页",
       "allKeys": "全部密钥"
-    },
-    "aiSessions": {
-      "metadataTitle": "AI 会话历史",
-      "title": "AI 会话历史",
-      "description": "搜索、查看、继续或永久删除你过去与 Ask AI 的对话。",
-      "searchLabel": "搜索",
-      "searchPlaceholder": "按问题内容搜索",
-      "filterByStatus": "状态",
-      "allStatuses": "全部",
-      "empty": "暂无 AI 会话记录。",
-      "question": "问题",
-      "turns": "轮次",
-      "turnCount": "{count, plural, other {# 轮}}",
-      "turnsFailed": "（{count, plural, other {# 失败}}）",
-      "status": "状态",
-      "date": "时间",
-      "actions": "操作",
-      "contentExpired": "内容已过期",
-      "view": "查看",
-      "continue": "继续会话",
-      "delete": "删除",
-      "deleteTitle": "删除此会话？",
-      "deleteMessage": "{count, plural, other {此操作将永久删除该会话的全部 # 轮（含问题、回答与引用），且无法撤销。}}",
-      "deleteFailed": "删除会话失败。",
-      "detailTitle": "会话详情",
-      "loading": "加载中…",
-      "captureImmutable": "已作为原始证据采集,无法从历史记录中删除。",
-      "openRawPage": "打开原始页面"
     }
   },
   "ai": {
@@ -2005,6 +1976,20 @@
         "responseInterrupted": "回复在生成最终答案前中断。",
         "responseStopped": "回复已停止。"
       },
+      "history": {
+        "title": "历史会话",
+        "empty": "暂无历史会话",
+        "newSession": "新建会话",
+        "continue": "继续",
+        "loading": "加载中…",
+        "loadError": "无法加载历史会话。",
+        "contentExpired": "内容已过期",
+        "turnCount": "{count, plural, other {# 轮}}",
+        "delete": "删除",
+        "deleteConfirmTitle": "删除会话？",
+        "deleteConfirmMessage": "确定删除这个会话？此操作不可恢复。",
+        "deleteError": "删除会话失败。"
+      },
       "errors": {
         "invalidResponse": "AI 未能生成有效的 Wiki 操作，请重试或换一种说法。",
         "providerUnavailable": "AI 服务暂时不可用，请稍后重试。",
@@ -2013,6 +1998,7 @@
         "sessionExpired": "登录状态已失效，请重新登录后使用 Wiki AI。",
         "invalidRequest": "Wiki AI 无法使用当前会话上下文，请新建会话后重试。",
         "notAvailable": "Wiki AI 当前不可用，请检查 AI 配置或账号权限。",
+        "timeout": "AI 服务在启动本次请求时超时，请重试。",
         "requestFailed": "Wiki AI 无法开始本次请求，请重试。"
       },
       "tools": {

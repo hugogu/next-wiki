@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { I18nProvider } from '@/i18n/client';
 import { messages } from '@/i18n/catalog';
@@ -16,7 +16,7 @@ function getLocaleFromDocument(): Locale {
   return defaultLocale;
 }
 
-export function ContentRenderer({ html }: { html: string }) {
+export const ContentRenderer = memo(function ContentRenderer({ html }: { html: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rootsRef = useRef(new Map<HTMLElement, Root>());
   const islandRef = useRef(new Map<HTMLElement, { source: string; rawHtml: string; kind: 'code' | 'mermaid' }>());
@@ -51,17 +51,15 @@ export function ContentRenderer({ html }: { html: string }) {
       );
     };
 
-    const renderMermaidIsland = (el: HTMLElement, source: string, rawHtml: string) => {
+    const renderMermaidIsland = (el: HTMLElement, source: string) => {
       activeElements.add(el);
-      islandRef.current.set(el, { source, rawHtml, kind: 'mermaid' });
+      islandRef.current.set(el, { source, rawHtml: '', kind: 'mermaid' });
       const root = rootsRef.current.get(el) ?? createRoot(el);
       rootsRef.current.set(el, root);
       root.render(
         <I18nProvider initialLocale={locale} messages={messages[locale]}>
           <ThemeProvider>
-            <MermaidBlock source={source}>
-              <div dangerouslySetInnerHTML={{ __html: rawHtml }} />
-            </MermaidBlock>
+            <MermaidBlock source={source} key={source} />
           </ThemeProvider>
         </I18nProvider>,
       );
@@ -78,7 +76,7 @@ export function ContentRenderer({ html }: { html: string }) {
       const element = el as HTMLElement;
       const pre = element.querySelector('pre');
       if (!pre && !rootsRef.current.has(element)) return;
-      renderMermaidIsland(element, pre?.textContent ?? '', pre?.outerHTML ?? '');
+      renderMermaidIsland(element, pre?.textContent ?? '');
     });
 
     for (const [element, root] of rootsRef.current) {
@@ -96,4 +94,4 @@ export function ContentRenderer({ html }: { html: string }) {
       <MathPlotLayer containerRef={containerRef} html={html} locale={locale} />
     </div>
   );
-}
+});
