@@ -6,7 +6,7 @@ export function rawMarkdownResultToResponse(result: RawMarkdownResult): Response
       return new Response(result.content, {
         headers: {
           'Content-Type': MARKDOWN_CONTENT_TYPE_HEADER,
-          'Content-Disposition': `inline; filename*="UTF-8''${encodeURIComponent(result.title)}.md"`,
+          'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(result.title)}.md`,
         },
       });
     case 'unavailable':

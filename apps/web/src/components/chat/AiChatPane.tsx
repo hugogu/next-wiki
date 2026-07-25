@@ -171,8 +171,7 @@ export function AiChatPane({
   const lastChatKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!chat.open || chat.messages.length === 0) return;
-    const state = useChatStore.getState();
-    const key = `legacy:${state.sessionId}`;
+    const key = `legacy:${chat.sessionId}`;
     if (lastChatKeyRef.current === key) return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('chat') === key) {
@@ -181,7 +180,7 @@ export function AiChatPane({
     }
     setChatUrl(key);
     lastChatKeyRef.current = key;
-  });
+  }, [chat.open, chat.messages.length, chat.sessionId]);
   const onMessageListScroll = () => {
     const list = scrollRef.current;
     if (!list) return;

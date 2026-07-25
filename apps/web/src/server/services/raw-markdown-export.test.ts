@@ -25,7 +25,7 @@ vi.mock('@/server/db', () => ({ default: db, db }));
 vi.mock('@/server/content-store/read-router', () => ({ readMarkdownFromDatabase }));
 vi.mock('@/server/services/writing-mode', () => ({ isLlmWikiMode }));
 
-import { getSpaceRawMarkdown, getWikiRawMarkdown, MARKDOWN_CONTENT_TYPE_HEADER } from './raw-markdown-export';
+import { getSpaceRawMarkdown, getWikiRawMarkdown, MARKDOWN_CONTENT_TYPE_HEADER, UNSUPPORTED_STATUS_CODE } from './raw-markdown-export';
 
 function revision(overrides: { contentType?: string; contentSource?: string | null } = {}) {
   return {
@@ -182,6 +182,10 @@ describe('getSpaceRawMarkdown', () => {
 
 describe('raw-markdown-export constants', () => {
   it('uses 415 for unsupported content type', () => {
+    expect(UNSUPPORTED_STATUS_CODE).toBe(415);
+  });
+
+  it('sets the markdown content type header', () => {
     expect(MARKDOWN_CONTENT_TYPE_HEADER).toBe('text/markdown; charset=utf-8');
   });
 });
