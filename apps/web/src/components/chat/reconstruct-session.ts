@@ -76,11 +76,14 @@ export function reconstructSessionFromEvents(events: AiActionEvent[]): Reconstru
  */
 export async function recoverSessionFromServer(actionId: string): Promise<(ReconstructedSession & { status: string }) | null> {
   try {
+    // The conversation-detail endpoint keys conversations, not individual
+    // action ids. A single uncaptured turn is keyed as `legacy:turn:{actionId}`,
+    // and that is exactly the handle we persist for recovery.
     const { action, events, rawConversation } = await apiGet<{
       action: { status: string };
       events: AiActionEvent[];
       rawConversation: (RawConversationPointer & { conversation?: { question?: string; answer?: string; thinking?: string; citations?: AiCitation[]; insufficient?: boolean; errorMessage?: string | null } | null }) | null;
-    }>(`/api/ai/sessions/${actionId}`);
+    }>(`/api/ai/sessions/legacy:turn:${actionId}`);
     const captured = rawConversation?.conversation;
     const base = captured
       ? {
