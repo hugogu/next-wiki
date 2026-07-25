@@ -53,11 +53,14 @@ export function AppShell({
     // main viewport on initial load. We set this once from the URL after
     // hydration: the default is already SSR-safe, so this avoids a markup
     // mismatch without deriving layout from search params during render.
+    // Admin and User Center pages are full-page contexts, so the chat should
+    // never maximize there even if the URL still carries `?ai=open`.
+    if (userCenter || admin) return;
     if (searchParams?.get('ai') === 'open' || searchParams?.get('chat')) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAiMaximized(true);
     }
-  }, [searchParams]);
+  }, [searchParams, userCenter, admin]);
 
   useEffect(() => {
     if (!hydrateSession) return;
@@ -145,7 +148,7 @@ export function AppShell({
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer
               instead of pushing the footer into a blank second screen. */}
-          {aiMaximized && aiEntitlements && !admin ? (
+          {aiMaximized && aiEntitlements && !admin && !userCenter ? (
             <AiChatPane
               entitlements={aiEntitlements}
               pageContext={resolvedPageContext}
