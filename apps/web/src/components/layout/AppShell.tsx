@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Header } from './Header';
 import { Navigator } from './Navigator';
 import type { AppShellProps } from './types';
@@ -46,21 +45,6 @@ export function AppShell({
   const [aiEntitlements, setAiEntitlements] = useState<AiEntitlementView | null | undefined>(initialAiEntitlements);
   const [writingMode, setWritingMode] = useState<WritingMode | undefined>(initialWritingMode);
   const [aiMaximized, setAiMaximized] = useState(false);
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    // `?ai=open` or `?chat=...` both mean the chat pane should take over the
-    // main viewport on initial load. We set this once from the URL after
-    // hydration: the default is already SSR-safe, so this avoids a markup
-    // mismatch without deriving layout from search params during render.
-    // Admin and User Center pages are full-page contexts, so the chat should
-    // never maximize there even if the URL still carries `?ai=open`.
-    if (userCenter || admin) return;
-    if (searchParams?.get('ai') === 'open' || searchParams?.get('chat')) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAiMaximized(true);
-    }
-  }, [searchParams, userCenter, admin]);
 
   useEffect(() => {
     if (!hydrateSession) return;
@@ -148,7 +132,7 @@ export function AppShell({
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer
               instead of pushing the footer into a blank second screen. */}
-          {aiMaximized && aiEntitlements && !admin && !userCenter ? (
+          {aiMaximized && aiEntitlements ? (
             <AiChatPane
               entitlements={aiEntitlements}
               pageContext={resolvedPageContext}
@@ -183,7 +167,7 @@ export function AppShell({
               </div>
             </main>
           )}
-          {!aiMaximized && aiEntitlements && !admin && (
+          {!aiMaximized && aiEntitlements && (
             <AiChatPane
               entitlements={aiEntitlements}
               pageContext={resolvedPageContext}

@@ -37,18 +37,21 @@ not canonical search state and may remain client/server state.
 ## AI chat side pane
 
 The pane is available within the existing reader, editor, and admin canonical
-routes.
+routes. It is opened by the user through the in-page toggle.
+
+The only shareable URL state for a conversation is the session key:
 
 ```text
-?ai=open&aiMode=retrieval
-?ai=open&aiMode=full
+?chat=legacy:<conversationKey>
 ```
 
 Rules:
 
-- closed pane omits `ai` or uses `ai=closed`;
-- opening/closing pushes or replaces browser history consistently;
-- mode is preserved on refresh/back/forward;
+- the pane's open/closed state and question mode are transient UI state, not URL
+  parameters;
+- the `?chat` parameter opens the pane and resumes the referenced conversation;
+- closing the pane clears the `?chat` parameter so the page does not reopen on
+  refresh or share;
 - current page identity comes from the canonical route, not a duplicated query
   parameter;
 - when AI is globally disabled or unavailable to the current user, invalid AI

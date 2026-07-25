@@ -205,7 +205,7 @@ reconnect, and zero disclosure from an inaccessible page.
 - [x] T081 [US4] Implement the Wiki question action endpoint with OpenAPI annotations in `apps/web/app/api/ai/questions/route.ts`
 - [x] T082 [P] [US4] Implement the Zustand session chat store and action/SSE reconnect hooks in `apps/web/src/components/chat/chat-store.ts`, `apps/web/src/hooks/use-ai-action.ts`, and `apps/web/src/hooks/use-ai-chat.ts`
 - [x] T083 [P] [US4] Build the collapsible side pane, mode selector, provider notice, streamed transcript, retry, and citation list in `apps/web/src/components/chat/AiChatPane.tsx`
-- [x] T084 [US4] Mount the chat pane in reader, editor, and Admin layouts and synchronize `ai`/`aiMode` URL parameters in `apps/web/src/components/layout/AppShell.tsx` and `apps/web/src/components/common/PublicLayout.tsx`
+- [x] T084 [US4] Mount the chat pane in reader, editor, and Admin layouts and synchronize the `chat` URL parameter in `apps/web/src/components/layout/AppShell.tsx` and `apps/web/src/components/chat/AiChatPane.tsx`
 - [x] T085 [US4] Add English and Chinese chat, mode, provider disclosure, citation, insufficient-evidence, capacity, retry, and streaming translations in `apps/web/src/i18n/locales/en.ts` and `apps/web/src/i18n/locales/zh.ts`
 
 **Checkpoint**: Authorized users can ask grounded Wiki questions in both modes

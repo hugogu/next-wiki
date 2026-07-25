@@ -45,7 +45,6 @@ export function AiChatHistory() {
     // Reflect the continued conversation in the URL so it can be shared.
     // The chat pane itself reads the `chat` query param and loads the detail.
     const params = new URLSearchParams(window.location.search);
-    params.set('ai', 'open');
     params.set('chat', conversation.conversationKey);
     router.replace(`${window.location.pathname}?${params.toString()}`);
     setContinuingKey(null);

@@ -53,10 +53,11 @@ export function buildMessagesFromDetail(detail: import('@next-wiki/shared').AiCo
   return messages;
 }
 
-function setAiUrl(open: boolean, chatKey?: string | null) {
+function setChatUrl(chatKey?: string | null) {
   const url = new URL(window.location.href);
-  if (open) url.searchParams.set('ai', 'open');
-  else url.searchParams.delete('ai');
+  // The legacy `?ai=open` parameter is no longer used; clean it up if it
+  // remains in an old bookmark.
+  url.searchParams.delete('ai');
   if (chatKey) url.searchParams.set('chat', chatKey);
   else url.searchParams.delete('chat');
   window.history.replaceState(null, '', url);
@@ -178,7 +179,7 @@ export function AiChatPane({
       lastChatKeyRef.current = key;
       return;
     }
-    setAiUrl(true, key);
+    setChatUrl(key);
     lastChatKeyRef.current = key;
   });
   const onMessageListScroll = () => {
@@ -191,14 +192,14 @@ export function AiChatPane({
 
   useEffect(() => {
     // Hydration is deferred (skipHydration) so the pre-mount render matches
-    // the server, then we restore the persisted session and let an explicit
-    // `?ai=open` link or `?chat=...` link override persisted state.
+    // the server, then we restore the persisted session. A `?chat=...` link
+    // opens the pane and resumes that conversation.
     let cancelled = false;
     void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
       if (cancelled) return;
       setRehydrated(true);
       const url = new URL(window.location.href);
-      if (url.searchParams.get('ai') === 'open' || url.searchParams.get('chat')) chat.setOpen(true);
+      if (url.searchParams.get('chat')) chat.setOpen(true);
       // After rehydration, reconcile any assistant message that was marked
       // failed client-side with the authoritative server state. The server
       // may have completed the turn despite a proxy/VPN interrupting the
@@ -251,7 +252,7 @@ export function AiChatPane({
             size="icon"
             className="rounded-full shadow-lg"
             aria-label={t('ai.chat.open')}
-            onClick={() => { chat.setOpen(true); setAiUrl(true); }}
+            onClick={() => { chat.setOpen(true); }}
           >
             <SparklesIcon />
           </Button>
@@ -281,7 +282,7 @@ export function AiChatPane({
               variant="ghost"
               aria-label={t('ai.chat.newSession')}
               disabled={chat.messages.length === 0}
-              onClick={() => { chat.cancel(); chat.newSession(); setAiUrl(true); }}
+              onClick={() => { chat.cancel(); chat.newSession(); setChatUrl(null); }}
             >
               <PlusIcon />
             </Button>
@@ -302,7 +303,7 @@ export function AiChatPane({
               size="icon"
               variant="ghost"
               aria-label={t('ai.chat.collapse')}
-              onClick={() => { setMaximized(false); chat.setOpen(false); setAiUrl(false); }}
+              onClick={() => { setMaximized(false); chat.setOpen(false); setChatUrl(null); }}
             >
               <ChevronRightIcon />
             </Button>
