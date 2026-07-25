@@ -13,6 +13,7 @@ import * as tags from '@/server/services/tags';
 import { auditImmediateToolMutation } from '@/server/services/audit';
 import { createProposal } from '@/server/services/ai-tool-proposals';
 import { getToolDefinition, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { logger } from '@/server/logger';
 
 /**
  * Built-in tool execution adapters (026, US2). Every adapter runs the operation
@@ -58,8 +59,11 @@ function fail(errorCode: string, errorMessage: string): ToolExecutionResult {
 
 /** Convert a thrown service error into a safe assistant-facing failure so a
  * denied permission or disabled category never leaks internals or crashes the
- * loop (T048). */
-function toSafeFailure(error: unknown): ToolExecutionResult {
+ * loop (T048). For ZodError, also emit a structured warning with the full
+ * issue list and the caller's tool name so log-only debugging can attribute
+ * "The tool arguments were invalid" responses back to the exact schema
+ * mismatch that caused them. */
+function toSafeFailure(error: unknown, context: { toolName: string; actionId?: string; workflowId?: string; toolCallId?: string; argumentKeys?: string[] }): ToolExecutionResult {
   if (error instanceof DomainError) {
     if (error.code === 'FORBIDDEN') {
       return fail('FORBIDDEN', 'You do not have permission to perform that operation.');
@@ -67,8 +71,33 @@ function toSafeFailure(error: unknown): ToolExecutionResult {
     return fail(error.code, error.message);
   }
   if (error instanceof z.ZodError) {
+    // Capture the full Zod issue list so future "invalid tool call" failures
+    // can be triaged from log alone: which field path failed, what the schema
+    // rejected (code + message), and which tool the issue belongs to.
+    // Argument values are intentionally NOT logged (assistant inputs may be
+    // PII / long / sensitive); only the schema path and code leak.
+    logger.warn('tool argument validation failed', {
+      actionId: context.actionId,
+      workflowId: context.workflowId,
+      toolCallId: context.toolCallId,
+      toolName: context.toolName,
+      argumentKeys: context.argumentKeys,
+      zodIssues: error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        code: issue.code,
+        message: issue.message,
+      })),
+    });
     return fail('BAD_REQUEST', 'The tool arguments were invalid.');
   }
+  logger.error('tool execution threw an unrecognized error', {
+    actionId: context.actionId,
+    workflowId: context.workflowId,
+    toolCallId: context.toolCallId,
+    toolName: context.toolName,
+    errorName: error instanceof Error ? error.name : undefined,
+    errorMessage: error instanceof Error ? error.message : String(error),
+  });
   return fail('TOOL_FAILED', 'The tool could not complete.');
 }
 
@@ -456,7 +485,16 @@ export async function executeTool(
   try {
     return await executor(ctx, args, execCtx);
   } catch (error) {
-    return toSafeFailure(error);
+    return toSafeFailure(error, {
+      toolName: tool.name,
+      actionId: execCtx.actionId,
+      workflowId: execCtx.workflowId,
+      toolCallId: execCtx.toolCallId,
+      argumentKeys:
+        args !== null && typeof args === 'object' && !Array.isArray(args)
+          ? Object.keys(args)
+          : undefined,
+    });
   }
 }
 

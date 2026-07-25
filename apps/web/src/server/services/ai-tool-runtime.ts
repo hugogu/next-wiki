@@ -16,6 +16,7 @@ import { auditToolCall } from '@/server/services/audit';
 import { executeTool, resolveExecutableTool } from '@/server/services/ai-tool-executors';
 import { getProposalRow } from '@/server/services/ai-tool-proposals';
 import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { logger } from '@/server/logger';
 
 /**
  * Tool workflow + tool-call persistence primitives and state-transition guards
@@ -380,16 +381,51 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   let answer = '';
   let calls = 0;
   const citations = new Map<string, AiCitation>();
+  const loopStartedAt = Date.now();
+  let iterations = 0;
+
+  logger.info('tool loop started', {
+    actionId: params.actionId,
+    workflowId: params.workflowId,
+    actorUserId: params.actorUserId,
+    questionBytes: Buffer.byteLength(params.question),
+    conversationTurns: (params.conversation ?? []).length,
+    wikiSourceCount: (params.wikiSources ?? []).length,
+  });
 
   for (;;) {
+    iterations += 1;
     if (params.isCancelled && (await params.isCancelled())) {
+      logger.info('tool loop cancelled', {
+        actionId: params.actionId,
+        workflowId: params.workflowId,
+        iterations,
+        calls,
+        durationMs: Date.now() - loopStartedAt,
+      });
       await transitionWorkflow(params.workflowId, 'cancelled');
       return { status: 'cancelled', answer, calls, citations: [...citations.values()] };
     }
 
     const step = await params.planner(state);
+    logger.info('tool loop planner step', {
+      actionId: params.actionId,
+      workflowId: params.workflowId,
+      iteration: iterations,
+      kind: step.kind,
+      plannedCallCount: step.kind === 'tool_calls' ? step.calls.length : 0,
+    });
     if (step.kind === 'final') {
       answer = step.text;
+      logger.info('tool loop completed', {
+        actionId: params.actionId,
+        workflowId: params.workflowId,
+        iterations,
+        calls,
+        citations: citations.size,
+        answerBytes: Buffer.byteLength(answer),
+        durationMs: Date.now() - loopStartedAt,
+      });
       await transitionWorkflow(params.workflowId, 'completed');
       return { status: 'completed', answer, calls, citations: [...citations.values()] };
     }
@@ -412,6 +448,15 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         });
         if (call) {
           calls += 1;
+          logger.warn('tool call blocked by policy', {
+            actionId: params.actionId,
+            workflowId: params.workflowId,
+            toolCallId: call.id,
+            toolName: planned.toolName,
+            reason: !tool ? 'tool-not-registered' : 'tool-disabled',
+            requestedReview: planned.requestedReview,
+            argumentKeys: Object.keys(planned.arguments),
+          });
           await blockToolCall(call.id, {
             errorCode: 'TOOL_NOT_ENABLED',
             errorMessage: 'That tool is disabled by policy.',
@@ -437,13 +482,21 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         workflowId: params.workflowId,
         aiActionId: params.actionId,
         providerKey: BUILTIN_PROVIDER.key,
-        toolName: planned.toolName,
+        toolName: tool.name,
         commandMarkdown: command,
         arguments: planned.arguments,
         requestedReview: planned.requestedReview,
         effectiveReview,
       });
       if (limitReached || !call) {
+        logger.warn('tool loop hit per-turn call limit', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          iterations,
+          calls,
+          limitReached,
+          toolName: tool.name,
+        });
         await transitionWorkflow(params.workflowId, 'limit_reached');
         return { status: 'limit_reached', answer, calls, citations: [...citations.values()] };
       }
@@ -460,6 +513,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         effectiveReview,
       });
 
+      const toolStartedAt = Date.now();
       const result = await executeTool(params.ctx, tool, planned.arguments, {
         actorUserId: params.actorUserId,
         effectiveReview,
@@ -468,6 +522,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         actionId: params.actionId,
         conversation: state.conversation,
       });
+      const toolDurationMs = Date.now() - toolStartedAt;
 
       if (result.ok) {
         for (const citation of collectToolCitations(tool.name, result.data)) {
@@ -500,6 +555,18 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
             });
           }
         }
+        logger.info('tool call succeeded', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          toolCallId: call.id,
+          toolName: tool.name,
+          category: tool.category,
+          sequence: call.sequence,
+          effectiveReview,
+          citations: collectToolCitations(tool.name, result.data).length,
+          summaryBytes: result.summary.length,
+          durationMs: toolDurationMs,
+        });
         state.transcript.push(`TOOL ${tool.name} -> ${JSON.stringify({ summary: result.summary, data: result.data })}`);
       } else {
         await failToolCall(call.id, {
@@ -521,6 +588,18 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           effectiveReview,
           errorCode: result.errorCode ?? 'TOOL_FAILED',
           errorMessage: result.errorMessage ?? result.summary,
+        });
+        logger.warn('tool call failed', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          toolCallId: call.id,
+          toolName: tool.name,
+          category: tool.category,
+          sequence: call.sequence,
+          effectiveReview,
+          errorCode: result.errorCode ?? 'TOOL_FAILED',
+          errorMessage: result.errorMessage ?? result.summary,
+          durationMs: toolDurationMs,
         });
         state.transcript.push(`TOOL ${tool.name} -> failed: ${result.errorMessage ?? result.summary}`);
       }

@@ -5,6 +5,7 @@ import type {
   AiProviderType,
   AiProviderVendor,
 } from '@next-wiki/shared';
+import { logger } from '@/server/logger';
 
 export type ProviderCredentials = {
   apiKey?: string;
@@ -149,13 +150,26 @@ export function isContextLengthExceededError(error: unknown): boolean {
   );
 }
 
-export function normalizeProviderError(error: unknown): AiProviderError {
-  if (error instanceof AiProviderError) return error;
+export function normalizeProviderError(error: unknown, context?: { actionId?: string; providerName?: string; modelExternalId?: string }): AiProviderError {
+  if (error instanceof AiProviderError) {
+    logger.warn('AI provider returned a normalized error', {
+      actionId: context?.actionId,
+      providerName: context?.providerName,
+      modelExternalId: context?.modelExternalId,
+      code: error.code,
+      retryable: error.retryable,
+      retryAfterMs: error.retryAfterMs,
+      message: error.message,
+    });
+    return error;
+  }
   const errorName = error instanceof Error ? error.name : undefined;
   if (errorName === 'TimeoutError') {
+    logger.warn('AI provider timed out', { actionId: context?.actionId, providerName: context?.providerName });
     return new AiProviderError('TIMEOUT', 'AI provider response timed out', true);
   }
   if (errorName === 'AbortError') {
+    logger.info('AI provider request aborted (likely user cancel)', { actionId: context?.actionId });
     return new AiProviderError('CANCELLED', 'AI request was cancelled');
   }
   const value = error as { code?: unknown; message?: unknown };
@@ -163,7 +177,18 @@ export function normalizeProviderError(error: unknown): AiProviderError {
     typeof value?.code === 'string' && SAFE_CODES.has(value.code as AiApiErrorCode)
       ? (value.code as AiApiErrorCode)
       : 'PROVIDER_UNAVAILABLE';
-  return new AiProviderError(code, String(value?.message ?? 'AI provider request failed'), true);
+  const message = String(value?.message ?? 'AI provider request failed');
+  // Unrecognized shapes get logged with the full error so we can triage unknown
+  // provider failure modes from log alone — without context this is just noise.
+  logger.warn('AI provider returned an unrecognized error shape', {
+    actionId: context?.actionId,
+    providerName: context?.providerName,
+    modelExternalId: context?.modelExternalId,
+    normalizedCode: code,
+    rawErrorName: errorName,
+    rawMessage: message,
+  });
+  return new AiProviderError(code, message, true);
 }
 
 /**
@@ -208,7 +233,7 @@ export const STREAM_RETRY_BASE_DELAY_MS = 750;
  */
 export async function* streamTextWithRetry(
   invoke: () => AsyncIterable<TextGenerationEvent>,
-  options: { maxRetries?: number; baseDelayMs?: number; signal?: AbortSignal } = {},
+  options: { maxRetries?: number; baseDelayMs?: number; signal?: AbortSignal; actionId?: string; providerName?: string; modelExternalId?: string } = {},
 ): AsyncGenerator<TextGenerationEvent> {
   const maxRetries = options.maxRetries ?? STREAM_RETRY_MAX_DEFAULT;
   const baseDelayMs = options.baseDelayMs ?? STREAM_RETRY_BASE_DELAY_MS;
@@ -219,17 +244,56 @@ export async function* streamTextWithRetry(
         if (event.type === 'delta') committed = true;
         yield event;
       }
+      if (attempt > 0) {
+        logger.info('AI stream recovered after retry', {
+          actionId: options.actionId,
+          providerName: options.providerName,
+          modelExternalId: options.modelExternalId,
+          attempts: attempt + 1,
+        });
+      }
       return;
     } catch (error) {
-      const normalized = normalizeProviderError(error);
+      const normalized = normalizeProviderError(error, {
+        actionId: options.actionId,
+        providerName: options.providerName,
+        modelExternalId: options.modelExternalId,
+      });
       const canRetry =
         !committed &&
         attempt < maxRetries &&
         normalized.retryable &&
         normalized.code !== 'CANCELLED' &&
         !options.signal?.aborted;
-      if (!canRetry) throw normalized;
+      if (!canRetry) {
+        logger.warn('AI stream failed without retry', {
+          actionId: options.actionId,
+          providerName: options.providerName,
+          modelExternalId: options.modelExternalId,
+          attempts: attempt + 1,
+          committed,
+          code: normalized.code,
+          retryable: normalized.retryable,
+          reason: committed
+            ? 'stream-already-committed'
+            : attempt >= maxRetries
+              ? 'max-retries-exceeded'
+              : normalized.code === 'CANCELLED'
+                ? 'cancelled'
+                : 'not-retryable',
+        });
+        throw normalized;
+      }
       const delay = normalized.retryAfterMs ?? baseDelayMs * 2 ** attempt;
+      logger.warn('AI stream retrying', {
+        actionId: options.actionId,
+        providerName: options.providerName,
+        modelExternalId: options.modelExternalId,
+        attempt: attempt + 1,
+        maxAttempts: maxRetries + 1,
+        code: normalized.code,
+        delayMs: delay,
+      });
       await abortableDelay(delay, options.signal);
     }
   }
