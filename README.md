@@ -2,290 +2,340 @@
 
 # next-wiki
 
-**A conversational, self-growing AI memory wiki.**
+**A self-hosted, AI-native wiki for turning conversations and sources into durable knowledge.**
 
-Talk with AI, preserve what was learned, and let the same knowledge base become
-the grounding memory every assistant reads from and writes back to. Self-hosted,
-`docker compose up` simple, and never locked to a single AI vendor.
+Capture what you learn, keep the evidence, ask AI to retrieve and organize it,
+and publish a readable wiki when it is ready. next-wiki is built for people who
+want an AI memory they can run, inspect, export, and connect to any compatible
+client.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20.9%2B-339933?logo=node.js&logoColor=white)](package.json)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](apps/web/package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](tsconfig.base.json)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 
 </div>
 
----
-
-## Screenshots
+> **Project status:** next-wiki is actively developed and currently in an
+> early open-source release. Interfaces and configuration may evolve.
 
 ![Knowledge base home](docs/screenshots/welcome.png)
 
-| AI Native integration                            | Public REST API reference                           |
-| ------------------------------------------------ | --------------------------------------------------- |
+| AI administration | Public REST API reference |
+| --- | --- |
 | ![AI settings](docs/screenshots/ai-settings.png) | ![API documentation](docs/screenshots/api-docs.png) |
 
-## Why next-wiki
+## Why next-wiki?
 
-- **AI-native creation, never vendor-locked.** A persistent AI chat side pane
-  and an [MCP](https://modelcontextprotocol.io) server are the default way to
-  draft pages, restructure the page tree, and refine content through dialogue
-  — but the manual editor stays fully capable and the wiki never depends on a
-  live model connection to be readable, searchable, and editable.
-- **A self-growing knowledge loop.** Conversations, external references,
-  fetched originals, and command output can be preserved as append-only raw
-  evidence. AI can synthesize that evidence into generated knowledge, and owners
-  can publish the curated result without copying it away from its source.
-- **Your portable AI memory.** Any MCP-compatible client (Claude, Cursor, or a
-  future assistant) can search, read, and write into the same
-  permission-scoped store that backs the web UI, so your knowledge outlives
-  any single AI vendor.
-- **Personal by default.** One `docker compose up` gives a single owner full
-  read/write access with zero configuration — no multi-user setup or
-  organization concept required to get started.
-- **Simple deployment.** PostgreSQL is the only required stateful service.
-  Optional features (multi-user sharing, object storage, MCP) never grow the
-  default footprint.
-- **Everything is versioned and grounded.** Every save creates an immutable
-  revision; deletion is soft by default; diffs between any two revisions are
-  always available. AI answers and generated pages stay tied to retrievable
-  source material.
-- **Fast public reading.** Published public documents and navigation use
-  static/ISR delivery; login-specific controls hydrate separately, so readers
-  do not wait on a session or database query for the document body.
-- **Open standards.** A REST + OpenAPI public content API, OAuth2/OIDC for
-  federated auth, and Markdown + frontmatter export — no proprietary lock-in
-  in the critical path.
+Most wikis are good at storing pages, while most AI assistants are good at
+answering questions. next-wiki joins the two into a governed knowledge loop:
 
-## Architecture
+```text
+conversation / source / command output
+              │
+              ▼
+       raw, append-only evidence
+              │
+              ▼
+    AI retrieval, synthesis, and drafts
+              │
+              ▼
+       human review and publication
+              │
+              ▼
+       durable, searchable wiki memory
+```
 
-![Knowledge base home](docs/imgs/architecture.png)
+The goal is not to hide an AI agent behind a chat box. The goal is to make
+knowledge useful to both people and agents while keeping ownership, evidence,
+permissions, revisions, and publication boundaries visible.
 
-## Quick start
+## Highlights
 
-Prerequisites: [Docker](https://www.docker.com/) and Docker Compose.
+### A complete Markdown wiki
+
+- Edit Markdown with a split source/preview editor and a familiar page tree.
+- Render GitHub-Flavored Markdown, syntax-highlighted code, math with KaTeX,
+  Mermaid diagrams, images, frontmatter, tags, and metadata.
+- Save drafts, publish explicit revisions, compare any two revisions, and
+  soft-delete pages without losing their history.
+- Navigate backlinks, outbound links, page neighborhoods, tags, and related
+  content from the reader.
+- Export page Markdown directly, or use the versioned ZIP transfer flow for
+  published pages and referenced local images.
+
+### AI that can read, reason, and help curate
+
+- Persistent Wiki AI chat is grounded in the wiki through hybrid keyword and
+  semantic retrieval, with visible sources and retrievable citations.
+- Chat sessions are retained, shareable through their URL, and restorable with
+  their conversation context.
+- Configure chat, embedding, and image capabilities independently. The admin
+  surface manages providers, models, capability detection, assignments,
+  prompts, runtime parameters, usage, and vector index rebuilds.
+- Use AI for page drafting, text improvement, image generation, and queued
+  multilingual translation workflows with immutable provenance.
+- When a selected model cannot use tools, Wiki AI degrades to ordinary
+  question answering instead of silently pretending it performed a mutation.
+
+### A governed Wiki AI tool runtime
+
+Wiki AI can use a built-in, MCP-compatible `next-wiki` tool provider to work
+with the same permission-checked services used by the web UI and REST API.
+The runtime provides:
+
+- read tools for search, page retrieval, page listing, tags, backlinks, and
+  page neighborhoods;
+- draft and organization tools for creating/saving page drafts, changing
+  metadata and properties, managing tags, and proposing batch operations;
+- a bounded, provider-agnostic tool loop with live tool-call status in chat;
+- server-enforced risk, permission, retention, and review policies;
+- Admin proposal review with approve, reject, apply, conflict detection, and
+  per-item results;
+- Tool Evidence Raw entries when tool output becomes durable source material;
+- audit events and normal page revision/publication boundaries for durable
+  changes.
+
+Only the built-in wiki provider is enabled inside Wiki AI today. External MCP
+providers are intentionally not auto-discovered or activated in this phase.
+The separately packaged MCP server is available when an external AI client
+should connect to next-wiki directly.
+
+### A self-growing memory model
+
+Choose the authoring model that fits the instance:
+
+| Mode | Best for | Content model |
+| --- | --- | --- |
+| **Copilot** | A conventional collaborative wiki | Human and AI work in the default wiki space; drafts and publication remain the primary workflow. |
+| **LLM Wiki** | Evidence-first personal or team memory | `raw` stores append-only source material, `generated` stores AI-produced concepts with provenance, and `default` remains the curated public wiki. |
+
+In LLM Wiki mode, raw entries can preserve extracted text together with
+original bytes such as PDF, HTML, JSON, images, and logs. Generated concepts
+can be published into the public tree through a soft link, without copying the
+knowledge away from its source. Raw and generated spaces have independent
+visibility controls and remain permission-scoped.
+
+### Self-hosted and portable by design
+
+- The default deployment is one web container plus PostgreSQL 16 with
+  pgvector; background jobs run through the existing PostgreSQL-backed pg-boss
+  setup.
+- PostgreSQL is the default content store. Local filesystem and S3-compatible
+  content backends are available when binary or Markdown content should live
+  outside the database.
+- Published content can be synchronized one-way to a Git repository, with
+  scheduled reconciliation and automatic sync on publish.
+- The public content API is documented with OpenAPI and exposes search, page
+  CRUD, revisions, publishing, links, graph queries, tags, assets, batch
+  operations, and health statistics.
+- API keys are scoped, encrypted at rest, and audited. Web, API, MCP, and
+  Feishu actions resolve through the same permission model.
+- English and Chinese UI catalogs are included, with user-level appearance and
+  reading-theme preferences.
+
+## Quick start with Docker
+
+Prerequisites: [Docker](https://docs.docker.com/get-docker/) with Docker
+Compose.
 
 ```bash
 git clone https://github.com/hugogu/next-wiki.git
 cd next-wiki
-cp .env.example .env   # edit as needed (registry mirrors, ports, encryption key)
+cp .env.example .env
 docker compose up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — the app seeds itself on
-first run. PostgreSQL is the only required service; everything else (object
-storage, alternate content backends) is opt-in via Compose profiles, e.g.
-`docker compose --profile storage-s3 up`.
-
-### Optional Feishu integration
-
-An optional [Feishu](https://open.feishu.cn/) integration lets users bind their
-Wiki account, ask grounded questions, and receive event notifications from
-within Feishu. It is an **in-process module of the web app** — no separate
-container, process, or Compose profile — and stays inert until an administrator
-configures it, so the default `docker compose up` is unchanged and needs no
-Feishu variables.
-
-Configure it entirely in the admin UI at `/admin/feishu`: generate and scan a
-Feishu QR code to associate an existing app or create a new one. The App Secret
-and short-lived device code are stored encrypted in PostgreSQL and never
-returned to the browser or logged. The bot receives events through an outbound
-WebSocket long connection, so it needs neither a callback URL nor a public
-ingress configuration. Every bot action is attributed to the bound Wiki user
-and passes the same permission checks as the web UI.
-
-### Production deployment with Caddy + Cloudflare
-
-For public deployments, run Caddy in front of the `web` service so Cloudflare can
-use **Full (strict)** TLS to the origin.
-
-1. Provision a Cloudflare Origin CA certificate for your domain and download the
-   certificate (`*.pem` or `*.crt`) and private key (`*.key` or `*.pem`).
-2. Place the files in `docker/caddy/certs/`.
-3. Edit `.env`:
-
-   ```bash
-   # Public domain and app URL
-   APP_URL=https://wiki.example.com
-   CADDY_HOST=wiki.example.com
-
-   # Match these paths to the filenames you uploaded
-   CADDY_CERT_PATH=/etc/caddy/certs/wiki.example.com.crt
-   CADDY_KEY_PATH=/etc/caddy/certs/wiki.example.com.key
-
-   # Bind the web container to localhost only; Caddy reaches it through the
-   # Docker network. This prevents direct access to port 3000 from the internet.
-   WEB_PORT=127.0.0.1:3000
-   ```
-
-4. Start the stack with the Caddy overlay:
-
-   ```bash
-   # Dev build (builds image locally)
-   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
-
-   # Prod build (pulls published image, e.g. hugogu/next-wiki-web:latest)
-   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
-   ```
-
-5. In Cloudflare, set the SSL/TLS encryption mode to **Full (strict)** and point
-   the domain's A record to your server IP.
-
-### Local testing with a self-signed certificate
-
-You can test the Caddy overlay locally without Cloudflare by generating a
-self-signed certificate.
-
-1. Generate a certificate with SANs for `wiki.local` and `localhost`:
-
-   ```bash
-   mkdir -p docker/caddy/certs
-   cat > /tmp/localhost.conf <<'EOF'
-   [req]
-   distinguished_name = req_distinguished_name
-   x509_extensions = v3_req
-   prompt = no
-
-   [req_distinguished_name]
-   CN = wiki.local
-
-   [v3_req]
-   keyUsage = keyEncipherment, dataEncipherment
-   extendedKeyUsage = serverAuth
-   subjectAltName = @alt_names
-
-   [alt_names]
-   DNS.1 = wiki.local
-   DNS.2 = localhost
-   IP.1 = 127.0.0.1
-   IP.2 = ::1
-   EOF
-   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-     -keyout docker/caddy/certs/localhost.key \
-     -out docker/caddy/certs/localhost.crt \
-     -config /tmp/localhost.conf
-   ```
-
-   The generated key and certificate are ignored by Git.
-
-2. Configure `.env`:
-
-   ```bash
-   CADDY_HOST=wiki.local
-   CADDY_CERT_PATH=/etc/caddy/certs/localhost.crt
-   CADDY_KEY_PATH=/etc/caddy/certs/localhost.key
-   CADDY_CERTS_DIR=./docker/caddy/certs
-
-   # Use non-privileged ports if 80/443 are unavailable
-   CADDY_HTTP_PORT=8080
-   CADDY_HTTPS_PORT=8443
-   APP_URL=https://wiki.local:8443
-   ```
-
-3. Start the stack with the Caddy overlay:
-
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
-   ```
-
-4. Verify HTTPS and the HTTP→HTTPS redirect:
-
-   ```bash
-   curl -k --resolve wiki.local:8443:127.0.0.1 https://wiki.local:8443/healthz
-   curl -I --resolve wiki.local:8080:127.0.0.1 http://wiki.local:8080/
-   ```
-
-5. Optionally add `wiki.local` to `/etc/hosts` to use a browser:
-   ```text
-   127.0.0.1 wiki.local
-   ```
-   Then open `https://wiki.local:8443` and accept the self-signed certificate.
-
-### Local development
+On a fresh production-style start, open
+[http://localhost:3000/setup](http://localhost:3000/setup) and create the first
+Admin account. Demo data is opt-in:
 
 ```bash
-pnpm install
-pnpm dev          # turbo run dev, all workspaces
-pnpm build        # turbo run build
-pnpm lint          # turbo run lint
-pnpm typecheck     # turbo run typecheck
-pnpm test          # turbo run test
+NEXT_WIKI_SEED=true docker compose up -d --build
 ```
 
-Per-app commands live under `apps/web`, e.g. `pnpm --filter @next-wiki/web test:e2e`
-for Playwright end-to-end tests. Database migrations use Drizzle:
-`pnpm db:generate` / `pnpm db:migrate`.
+The seeded development account is `admin@example.com` / `admin123`. Do not use
+these credentials in a real deployment.
 
-## Writing modes
+The default stack only requires PostgreSQL. To experiment with the optional
+S3-compatible content backend, start MinIO with the Compose profile:
 
-First-run setup asks the administrator to choose one of two content-authoring
-models. The choice can later be reviewed and changed at `/admin/writing-mode`.
+```bash
+docker compose --profile storage-s3 up -d --build
+```
 
-- **Copilot** keeps human and AI work in the default wiki space. This is the
-  simplest option for collaborative editing.
-- **LLM Wiki** turns next-wiki into an evidence-to-knowledge pipeline. `raw`
-  stores append-only source material such as AI conversations, fetched originals,
-  and command output. `generated` stores AI-produced OKF concepts with provenance
-  and human-modified status. The public wiki stays separate, and administrators
-  can publish a generated concept to a public wiki path as a soft link.
+For production image deployment, TLS, automated deployment, and backups, see
+the [production deployment guide](docs/deployment.md). A Caddy overlay is
+provided for deployments using Cloudflare Full (strict) TLS.
 
-Switching from Copilot to LLM Wiki is immediate. Returning to Copilot queues a
-transactional migration: raw pages move under `raw/...`, generated pages under
-`generated/...`, and published soft links are materialized as ordinary wiki
-pages. The administrator chooses public or Admin-only visibility independently
-for raw and generated content. While the migration is pending, all content
-mutations return `MODE_SWITCH_IN_PROGRESS`; reads remain available. Conflicting
-paths receive deterministic numeric suffixes and are reported in the admin UI.
-Generated concepts retain their OKF frontmatter and can be exported through the
-normal transfer flow. MCP clients use the same `space` and `filterType`
-arguments described in [the MCP server guide](packages/mcp-server/README.md),
-including append-only raw-entry writes.
+## Configure AI
 
-## Tech stack
+AI is optional: the wiki remains readable, searchable, editable, and
+exportable without a configured model. After setup, an Admin can open
+**Admin → AI** to:
 
-Next.js 16 (App Router) · TypeScript 5 · PostgreSQL + Drizzle ORM · pg-boss for
-background jobs · a pluggable Markdown rendering pipeline (remark/rehype,
-KaTeX, Mermaid) · MCP server for AI clients.
+1. add provider connections and synchronize available models;
+2. map models to Wiki text, Wiki embedding, and Wiki image capabilities;
+3. enable semantic search by building an embedding index;
+4. tune Wiki AI prompts and runtime parameters;
+5. configure the **Tools** policy surface and proposal review workflow.
 
-## Project structure
+The provider registry includes OpenAI-compatible providers, OpenRouter,
+Anthropic, Kimi, Z.ai, Voyage AI, MiniMax image generation, and custom
+OpenAI-compatible endpoints where the capability is supported. A global
+`OPENROUTER_API_KEY` may be supplied in `.env`; provider credentials entered
+through Admin AI are stored server-side and are not returned to the browser.
+
+## Feishu integration
+
+Feishu is an optional in-process integration; it adds no container, worker, or
+Compose profile. An Admin configures it from `/admin/feishu` by scanning the
+native Feishu QR flow to associate an existing app or create one.
+
+The bot uses an outbound WebSocket long connection, so it does not require a
+callback URL, public ingress, or manually copied App Secret. Credentials and
+short-lived device codes are encrypted in PostgreSQL. After users bind their
+Wiki identity, Feishu questions and tool-enabled turns are attributed to that
+user and pass the same permission checks as the web UI.
+
+## API and MCP integrations
+
+### REST + OpenAPI
+
+Open the interactive API reference at
+[`/api-docs`](http://localhost:3000/api-docs). The public OpenAPI document is
+served at [`/api/public-openapi.json`](http://localhost:3000/api/public-openapi.json)
+and the complete document at `/api/openapi.json`.
+
+The versioned API base is `/api/v1`. Create an API key from **User Center → API
+Keys**, then use it with the API:
+
+```bash
+curl \
+  -H "Authorization: Bearer nwk_your_api_key" \
+  http://localhost:3000/api/v1/pages?limit=20
+```
+
+API keys combine the owner's role with explicit scopes, so a key cannot grant
+more access than its owner. API activity is recorded in the audit log.
+
+### MCP server for external AI clients
+
+The [`@next-wiki/mcp-server`](packages/mcp-server/README.md) package connects
+Claude Code, Cursor, OpenCode, OpenClaw, and other MCP-compatible clients to
+the same API. It supports retrieval, page authoring, drafts and publishing,
+revision history and diffs, links and graph navigation, tags, raw evidence,
+batch operations, assets, and wiki health checks.
+
+Install it with:
+
+```bash
+npx -y @next-wiki/mcp-server
+```
+
+Configure `NEXT_WIKI_API_URL` (for example,
+`http://localhost:3000/api/v1`) and `NEXT_WIKI_API_KEY`. See the
+[MCP server guide](packages/mcp-server/README.md) for client-specific
+configuration and LLM Wiki memory conventions.
+
+## Content import, export, and storage
+
+Admin transfer tools support:
+
+- versioned ZIP export of published pages, frontmatter, and referenced assets;
+- safe archive import with preview, validation, size/entry limits, and cleanup;
+- Wiki.js source discovery, preview, conversion, and import;
+- pause, resume, cancel, retry, and item-level transfer status.
+
+See [content import and export](docs/content-import-export.md) for archive
+details and recovery behavior.
+
+The storage admin surface can switch between PostgreSQL, local content storage,
+and S3-compatible storage through a migration workflow. A Git export backend
+provides one-way synchronization of the published snapshot; Git is not used as
+a read source.
+
+## Architecture
+
+![next-wiki architecture](docs/imgs/architecture.png)
+
+next-wiki is a pnpm workspace and Turborepo monorepo:
 
 ```text
-apps/web/                # Next.js app (App Router)
-  app/                    # routes (RSC) + REST route handlers under app/api/
-  src/server/             # db (Drizzle), services, permissions, pipeline, api
-  src/components/         # UI; design-system primitives in src/components/ui/
-  messages/               # namespaced next-intl UI catalogs (en/zh JSON)
-  src/i18n/               # locale resolver, request config, formats, types
-packages/shared/          # zero-dep shared Zod schemas/types
-packages/editor/          # editor package
-packages/mcp-server/      # @next-wiki/mcp-server — MCP tools for AI clients
-specs/                    # Spec Kit feature specs/plans/tasks
-docs/                     # architecture docs, plans, reviews
+apps/web/                # Next.js 16 App Router application
+  app/                    # pages, route handlers, API and health endpoints
+  src/server/             # Drizzle schema, services, permissions, AI and jobs
+  src/components/         # UI, editor, chat, admin and design primitives
+  messages/               # English and Chinese UI catalogs
+packages/shared/          # shared Zod contracts and TypeScript types
+packages/mcp-server/      # published MCP adapter for AI clients
+specs/                    # Spec Kit feature specifications and plans
+docs/                     # architecture, deployment and feature documentation
 ```
 
-## AI integration (MCP)
+Important design boundaries:
 
-`@next-wiki/mcp-server` exposes the public wiki content API as MCP tools —
-search, read, create, publish, and manage pages from Claude Desktop, Cursor,
-or any MCP-compatible client. In LLM Wiki mode those tools let agents work with
-the same growth loop as the web app: append raw evidence, search raw/generated
-spaces, create generated concepts, and publish curated links to the public wiki.
-See
-[packages/mcp-server/README.md](packages/mcp-server/README.md) for setup.
+- AI actions and long-running work use the PostgreSQL-backed async job
+  lifecycle rather than blocking request handlers.
+- Tool execution reuses permission-checked services and re-checks permissions
+  when a proposal is reviewed or applied.
+- Page content is versioned; public content changes go through the normal
+  draft/revision/publication and cache-invalidation path.
+- Raw evidence is the source layer for durable AI memory; indexes, summaries,
+  and retrieval projections are rebuildable.
+- Public reading is optimized for static/ISR delivery, while session-specific
+  controls hydrate separately.
+
+## Local development
+
+Use Docker Compose for PostgreSQL, then run the monorepo locally:
+
+```bash
+docker compose up -d db
+pnpm install
+pnpm dev
+```
+
+Common checks:
+
+```bash
+pnpm build
+pnpm lint
+pnpm typecheck
+pnpm test
+
+# Web end-to-end tests (requires a dedicated test database)
+pnpm --filter @next-wiki/web test:e2e
+
+# Database schema and migrations
+pnpm db:generate
+pnpm db:migrate
+```
+
+Database migrations are generated from the Drizzle schema; do not hand-author
+SQL migration files. See the package READMEs and the
+[architecture documentation](docs/architecture) for more focused guidance.
 
 ## Documentation
 
-- [`docs/architecture`](docs/architecture) — architectural mandates and
-  design docs
-- [`docs/architecture/mandates.md#search-retrieval-architecture`](docs/architecture/mandates.md#search-retrieval-architecture) — registered, complementary search capability architecture
-- [`.specify/memory/constitution.md`](.specify/memory/constitution.md) —
-  binding project principles
-- [`specs/`](specs) — feature specs, plans, and tasks (Spec Kit workflow)
+- [Production deployment](docs/deployment.md)
+- [Content import and export](docs/content-import-export.md)
+- [Architecture](docs/architecture)
+- [MCP server guide](packages/mcp-server/README.md)
+- [Feature specifications and plans](specs)
+- [Project constitution](.specify/memory/constitution.md)
 
 ## Contributing
 
-Issues and pull requests are welcome. Please keep changes focused, follow the
-existing code conventions, and add tests for new behavior.
+Issues, documentation improvements, tests, and focused pull requests are
+welcome. Before opening a change:
+
+1. search for an existing service, shared contract, or UI primitive to reuse;
+2. keep the change focused and follow the existing TypeScript/React patterns;
+3. add or update unit, integration, and end-to-end coverage as appropriate;
+4. run the relevant lint, typecheck, and test commands;
+5. update the matching API or feature documentation when behavior changes.
 
 ## License
 
