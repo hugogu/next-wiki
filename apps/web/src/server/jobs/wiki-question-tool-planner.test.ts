@@ -84,6 +84,23 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     const output = '我先扩充内容。\n\n```tool\n{"tool_calls":[{"tool":"save_draft","arguments":{"pageId":"abc","title":"孙权","contentSource":"# 孙权（182年—252年）\n\n孙权，字仲谋，是三国时期';
     expect(parseToolPlan(output)).toEqual({ kind: 'invalid_tool_calls' });
   });
+
+  it('treats a mermaid diagram block as plain prose, not an invalid tool call', () => {
+    const output = [
+      'Sure, here is a Mermaid diagram:',
+      '',
+      '```mermaid',
+      'graph TD',
+      '  A --> B',
+      '```',
+    ].join('\n');
+    expect(parseToolPlan(output)).toEqual({ kind: 'final', text: output.trim() });
+  });
+
+  it('does not confuse a jsonl fence with the tool-call protocol', () => {
+    const output = 'Some logs:\n```jsonl\n{"a":1}\n{"b":2}\n```';
+    expect(parseToolPlan(output)).toEqual({ kind: 'final', text: output.trim() });
+  });
 });
 
 describe('buildPlannerUserPrompt', () => {

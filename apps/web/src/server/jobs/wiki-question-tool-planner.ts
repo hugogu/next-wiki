@@ -131,7 +131,11 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
 /** Parse one planner turn: a valid tool-call block requests tools; malformed
  * protocol output is explicitly retried by the caller; plain prose is final. */
 export function parseToolPlan(output: string): ToolPlannerParseResult {
-  const match = output.match(/```(?:tool|json)?\s*([\s\S]*?)```/);
+  // Only `tool` or `json` fences are part of the protocol. Other language
+  // identifiers (e.g. `mermaid`) must not be parsed as tool calls, otherwise
+  // a user asking for a diagram causes the planner to error out instead of
+  // returning a plain-text answer.
+  const match = output.match(/```(?:tool|json)\b\s*([\s\S]*?)```/);
   if (match) {
     try {
       const source = match[1]!.trim();
@@ -165,7 +169,7 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
   // was truncated by the output token budget before it could finish. Treat it
   // as invalid (retryable) instead of silently accepting the truncated text as
   // a final answer.
-  if (/```(?:tool|json)?\s*\n/.test(output)) {
+  if (/```(?:tool|json)\b\s*\n/.test(output)) {
     return { kind: 'invalid_tool_calls' };
   }
   return { kind: 'final', text: output.trim() };
