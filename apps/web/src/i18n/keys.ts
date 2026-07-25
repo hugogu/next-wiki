@@ -1451,6 +1451,7 @@ export const translationKeys = [
   "ai.chat.errors.sessionExpired",
   "ai.chat.errors.invalidRequest",
   "ai.chat.errors.notAvailable",
+  "ai.chat.errors.timeout",
   "ai.chat.errors.requestFailed",
   "ai.chat.tools.title",
   "ai.chat.tools.status.queued",

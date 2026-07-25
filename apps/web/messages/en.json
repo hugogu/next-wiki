@@ -2023,6 +2023,7 @@
         "sessionExpired": "Your session has expired. Sign in again to use Wiki AI.",
         "invalidRequest": "Wiki AI could not use this conversation context. Start a new session and retry.",
         "notAvailable": "Wiki AI is not currently available. Check the AI configuration or your access.",
+        "timeout": "The AI provider timed out while starting this request. Please retry.",
         "requestFailed": "Wiki AI could not start this request. Please retry."
       },
       "tools": {

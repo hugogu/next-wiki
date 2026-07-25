@@ -2023,6 +2023,7 @@
         "sessionExpired": "登录状态已失效，请重新登录后使用 Wiki AI。",
         "invalidRequest": "Wiki AI 无法使用当前会话上下文，请新建会话后重试。",
         "notAvailable": "Wiki AI 当前不可用，请检查 AI 配置或账号权限。",
+        "timeout": "AI 服务在启动本次请求时超时，请重试。",
         "requestFailed": "Wiki AI 无法开始本次请求，请重试。"
       },
       "tools": {
