@@ -1779,7 +1779,6 @@
       "apiKeys": "API 密钥",
       "audit": "审计日志",
       "readingTheme": "阅读主题",
-      "aiSessions": "AI 会话历史",
       "feishu": "飞书绑定",
       "settings": "用户设置"
     },
@@ -1937,34 +1936,6 @@
       "next": "下一页",
       "prev": "上一页",
       "allKeys": "全部密钥"
-    },
-    "aiSessions": {
-      "metadataTitle": "AI 会话历史",
-      "title": "AI 会话历史",
-      "description": "搜索、查看、继续或永久删除你过去与 Ask AI 的对话。",
-      "searchLabel": "搜索",
-      "searchPlaceholder": "按问题内容搜索",
-      "filterByStatus": "状态",
-      "allStatuses": "全部",
-      "empty": "暂无 AI 会话记录。",
-      "question": "问题",
-      "turns": "轮次",
-      "turnCount": "{count, plural, other {# 轮}}",
-      "turnsFailed": "（{count, plural, other {# 失败}}）",
-      "status": "状态",
-      "date": "时间",
-      "actions": "操作",
-      "contentExpired": "内容已过期",
-      "view": "查看",
-      "continue": "继续会话",
-      "delete": "删除",
-      "deleteTitle": "删除此会话？",
-      "deleteMessage": "{count, plural, other {此操作将永久删除该会话的全部 # 轮（含问题、回答与引用），且无法撤销。}}",
-      "deleteFailed": "删除会话失败。",
-      "detailTitle": "会话详情",
-      "loading": "加载中…",
-      "captureImmutable": "已作为原始证据采集,无法从历史记录中删除。",
-      "openRawPage": "打开原始页面"
     }
   },
   "ai": {

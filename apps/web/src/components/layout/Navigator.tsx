@@ -412,11 +412,6 @@ export function Navigator({
       icon: <EyeIcon className="shrink-0" />,
     },
     {
-      href: '/user-center/ai-sessions',
-      label: t('userCenter.nav.aiSessions'),
-      icon: <SparklesIcon className="shrink-0" />,
-    },
-    {
       href: '/user-center/feishu',
       label: t('userCenter.nav.feishu'),
       icon: <FeishuIcon className="shrink-0" />,
