@@ -1974,7 +1974,8 @@
       "conversationView": {
         "noAnswerYet": "暂无回答。",
         "responseInterrupted": "回复在生成最终答案前中断。",
-        "responseStopped": "回复已停止。"
+        "responseStopped": "回复已停止。",
+        "latestAt": "最新消息：{time}"
       },
       "history": {
         "title": "历史会话",
@@ -1984,10 +1985,9 @@
         "loading": "加载中…",
         "loadError": "无法加载历史会话。",
         "contentExpired": "内容已过期",
-        "turnCount": "{count, plural, other {# 轮}}",
         "delete": "删除",
         "deleteConfirmTitle": "删除会话？",
-        "deleteConfirmMessage": "确定删除这个会话？此操作不可恢复。",
+        "deleteConfirmMessage": "确定删除这个会话？相关的 Raw 证据页也会被删除。此操作不可恢复。",
         "deleteError": "删除会话失败。"
       },
       "errors": {

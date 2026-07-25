@@ -1974,7 +1974,8 @@
       "conversationView": {
         "noAnswerYet": "No answer yet.",
         "responseInterrupted": "The response ended before it could produce a final answer.",
-        "responseStopped": "The response was stopped."
+        "responseStopped": "The response was stopped.",
+        "latestAt": "Latest message: {time}"
       },
       "history": {
         "title": "History",
@@ -1984,10 +1985,9 @@
         "loading": "Loading...",
         "loadError": "Could not load conversation history.",
         "contentExpired": "Content expired",
-        "turnCount": "{count, plural, one {# turn} other {# turns}}",
         "delete": "Delete",
         "deleteConfirmTitle": "Delete conversation?",
-        "deleteConfirmMessage": "Delete this conversation? This cannot be undone.",
+        "deleteConfirmMessage": "Delete this conversation? Any associated Raw evidence will also be deleted. This cannot be undone.",
         "deleteError": "Could not delete conversation."
       },
       "errors": {

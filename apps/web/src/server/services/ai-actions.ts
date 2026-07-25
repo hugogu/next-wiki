@@ -870,9 +870,9 @@ export async function getConversationDetail(
 }
 
 /**
- * Hard-delete every turn of a conversation. Refused (with
- * RAW_CONVERSATION_IMMUTABLE) when any turn was captured as a Raw page,
- * mirroring the per-turn `deleteSession` invariant.
+ * Hard-delete every turn of a conversation. Any Raw Conversation pages
+ * captured from the conversation are also deleted, so the history panel
+ * deletion cascades to the append-only evidence record.
  */
 export async function deleteConversation(ctx: PermCtx, conversationKey: string): Promise<void> {
   const userId = requireSessionUserId(ctx);
@@ -896,12 +896,19 @@ export async function deleteConversation(ctx: PermCtx, conversationKey: string):
       ),
     );
   if (turnRows.length === 0) throw new DomainError('NOT_FOUND', 'AI action not found');
-  if (turnRows.some((row) => row.rawConversationPageId !== null)) {
-    throw new DomainError('RAW_CONVERSATION_IMMUTABLE', 'This conversation was captured as Raw evidence and cannot be deleted from history');
-  }
-  await db
-    .delete(schema.aiActions)
-    .where(inArray(schema.aiActions.id, turnRows.map((row) => row.id)));
+
+  const rawPageIds = Array.from(
+    new Set(turnRows.map((row) => row.rawConversationPageId).filter((pageId): pageId is string => pageId !== null)),
+  );
+
+  await db.transaction(async (tx) => {
+    if (rawPageIds.length > 0) {
+      await tx.delete(schema.pages).where(inArray(schema.pages.id, rawPageIds));
+    }
+    await tx
+      .delete(schema.aiActions)
+      .where(inArray(schema.aiActions.id, turnRows.map((row) => row.id)));
+  });
 }
 
 export async function requestActionCancellation(ctx: PermCtx, actionId: string): Promise<AiActionView> {

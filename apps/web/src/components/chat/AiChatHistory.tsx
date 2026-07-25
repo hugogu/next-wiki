@@ -13,7 +13,7 @@ import { useChatStore } from './chat-store';
 const PAGE_SIZE = 50;
 
 export function AiChatHistory() {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const newSession = useChatStore((state) => state.newSession);
 
@@ -70,8 +70,6 @@ export function AiChatHistory() {
     }
   };
 
-  const formatDate = (value: string) => new Date(value).toLocaleString(locale);
-
   return (
     <div className="space-y-sm">
       <div className="flex items-center justify-between px-md py-sm">
@@ -97,26 +95,24 @@ export function AiChatHistory() {
       {items.length > 0 && (
         <ul className="space-y-1">
           {items.map((conversation) => (
-            <li key={conversation.conversationKey} className="flex items-stretch gap-1">
+            <li
+              key={conversation.conversationKey}
+              className="group flex items-center gap-1 rounded-md transition-colors hover:bg-surface-elevated"
+            >
               <button
                 type="button"
                 onClick={() => void handleContinue(conversation)}
                 disabled={continuingKey === conversation.conversationKey}
-                className="min-w-0 flex-1 rounded-md px-md py-2 text-left text-sm transition-colors hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                className="min-w-0 flex-1 rounded-md px-md py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
               >
-                <div className="flex items-start justify-between gap-xs">
+                <span className="flex items-center gap-xs">
                   <span className="min-w-0 flex-1 truncate font-medium">
                     {conversation.questionExcerpt ?? t('ai.chat.history.contentExpired')}
                   </span>
                   {continuingKey === conversation.conversationKey && (
                     <SparklesIcon className="h-4 w-4 shrink-0 text-muted" />
                   )}
-                </div>
-                <div className="mt-xs flex items-center gap-xs text-xs text-muted">
-                  <span>{t('ai.chat.history.turnCount', { count: conversation.turnCount })}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{formatDate(conversation.latestQueuedAt)}</span>
-                </div>
+                </span>
               </button>
               <button
                 type="button"
@@ -124,7 +120,7 @@ export function AiChatHistory() {
                 disabled={deleting}
                 aria-label={t('ai.chat.history.delete')}
                 title={t('ai.chat.history.delete')}
-                className="shrink-0 rounded-md px-sm text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                className="shrink-0 rounded-md px-sm text-muted transition-colors hover:text-danger focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
               >
                 <TrashIcon className="h-4 w-4" />
               </button>

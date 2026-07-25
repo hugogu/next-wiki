@@ -300,7 +300,7 @@ describe('AI actions', () => {
       await removeAiTestUser(otherUserId);
     });
 
-    it('rejects deleting a captured session, preserving its Raw Conversation pointer (023)', async () => {
+    it('hard-deletes a captured conversation and cascades to its Raw Conversation page', async () => {
       const ctx = buildUserCtx(userId, 'admin');
       const expiresAt = new Date(Date.now() + 60_000);
       const [space] = await db
@@ -319,13 +319,10 @@ describe('AI actions', () => {
         rawConversationPageId: page!.id, rawConversationCaptureStatus: 'captured',
       }).returning();
 
-      await expect(deleteConversation(ctx, page!.id)).rejects.toMatchObject({ code: 'RAW_CONVERSATION_IMMUTABLE' });
-      const stillThere = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, captured!.id) });
-      expect(stillThere).toMatchObject({ rawConversationPageId: page!.id });
-      expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) })).toBeTruthy();
+      await deleteConversation(ctx, page!.id);
+      expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, captured!.id) })).toBeUndefined();
+      expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) })).toBeUndefined();
 
-      await db.delete(schema.aiActions).where(eq(schema.aiActions.id, captured!.id));
-      await db.delete(schema.pages).where(eq(schema.pages.id, page!.id));
       await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
     });
   });

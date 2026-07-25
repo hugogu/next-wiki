@@ -81,7 +81,7 @@ export function AiChatPane({
   maximized?: boolean;
   onMaximizedChange?: (maximized: boolean) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const searchParams = useSearchParams();
   const chatKey = searchParams?.get('chat') ?? null;
   const [rehydrated, setRehydrated] = useState(false);
@@ -109,6 +109,7 @@ export function AiChatPane({
       sessionId: resolveSessionId(detail.conversation, detail),
       mode: detail.turns.at(-1)?.action.questionMode ?? 'retrieval',
       messages,
+      latestQueuedAt: detail.conversation.latestQueuedAt,
     });
   }, [restoreSession]);
 
@@ -242,6 +243,8 @@ export function AiChatPane({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const formatDate = (value: string) => new Date(value).toLocaleString(locale);
+
   if (!entitlements.aiEnabled || !entitlements.questionAnsweringEnabled) return null;
   if (!chat.open) {
     return (
@@ -273,6 +276,15 @@ export function AiChatPane({
               </span>
             </Tooltip>
           </div>
+          {chat.latestQueuedAt && (
+            <time
+              className="block text-xs text-muted"
+              dateTime={chat.latestQueuedAt}
+              title={t('ai.chat.conversationView.latestAt', { time: formatDate(chat.latestQueuedAt) })}
+            >
+              {formatDate(chat.latestQueuedAt)}
+            </time>
+          )}
         </div>
         <div className="flex items-center gap-xs">
           <Tooltip label={t('ai.chat.newSession')}>

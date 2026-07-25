@@ -27,9 +27,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 /**
- * Permanently delete a conversation (every turn). Refused when any turn
- * was captured as a Raw page; the Raw Conversation page is the canonical,
- * append-only evidence record and outlives the history panel.
+ * Permanently delete a conversation (every turn) and any Raw Conversation
+ * pages captured from it. This is not reversible.
  *
  * @openapi @summary Permanently delete one of my AI chat conversations @tag AI @auth bearer @response 204
  */

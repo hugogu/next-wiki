@@ -44,6 +44,7 @@ type ChatState = {
   mode: AiQuestionMode;
   messages: ChatMessage[];
   open: boolean;
+  latestQueuedAt?: string;
   setMode: (mode: AiQuestionMode) => void;
   setOpen: (open: boolean) => void;
   add: (message: ChatMessage) => void;
@@ -89,7 +90,7 @@ type ChatState = {
     citations: AiCitation[];
     insufficient: boolean;
   }) => void;
-  restoreSession: (session: { sessionId?: string; mode: AiQuestionMode; messages: ChatMessage[] }) => void;
+  restoreSession: (session: { sessionId?: string; mode: AiQuestionMode; messages: ChatMessage[]; latestQueuedAt?: string }) => void;
 };
 
 /**
@@ -171,7 +172,7 @@ export const useChatStore = create<ChatState>()(
           return next;
         }),
       })),
-      newSession: () => set({ messages: [], sessionId: createChatSessionId() }),
+      newSession: () => set({ messages: [], sessionId: createChatSessionId(), latestQueuedAt: undefined }),
       loadSession: ({ sessionId, mode, question, answer, citations, insufficient }) => set({
         sessionId: sessionId ?? createChatSessionId(),
         mode,
@@ -181,18 +182,19 @@ export const useChatStore = create<ChatState>()(
           { id: crypto.randomUUID(), role: 'assistant', text: answer, citations, insufficient },
         ],
       }),
-      restoreSession: ({ sessionId, mode, messages }) => set({
+      restoreSession: ({ sessionId, mode, messages, latestQueuedAt }) => set({
         sessionId: sessionId ?? createChatSessionId(),
         mode,
         open: true,
         messages,
+        latestQueuedAt,
       }),
     }),
     {
       name: 'ai-chat',
       storage: createJSONStorage(() => sessionStorage),
       skipHydration: true,
-      partialize: (state) => ({ sessionId: state.sessionId, mode: state.mode, messages: state.messages, open: state.open }),
+      partialize: (state) => ({ sessionId: state.sessionId, mode: state.mode, messages: state.messages, open: state.open, latestQueuedAt: state.latestQueuedAt }),
     },
   ),
 );
