@@ -149,13 +149,13 @@ describe('buildMessagesFromDetail', () => {
     const messages = buildMessagesFromDetail(detail);
 
     expect(messages).toHaveLength(4);
-    expect(messages[0].role).toBe('user');
-    expect(messages[0].text).toBe('First');
-    expect(messages[1].role).toBe('assistant');
-    expect(messages[1].text).toBe('A:First');
-    expect(messages[2].role).toBe('user');
-    expect(messages[2].text).toBe('Second');
-    expect(messages[3].role).toBe('assistant');
-    expect(messages[3].text).toBe('A:Second');
+    expect(messages[0]!.role).toBe('user');
+    expect(messages[0]!.text).toBe('First');
+    expect(messages[1]!.role).toBe('assistant');
+    expect(messages[1]!.text).toBe('A:First');
+    expect(messages[2]!.role).toBe('user');
+    expect(messages[2]!.text).toBe('Second');
+    expect(messages[3]!.role).toBe('assistant');
+    expect(messages[3]!.text).toBe('A:Second');
   });
 });

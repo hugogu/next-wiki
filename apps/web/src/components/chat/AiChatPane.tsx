@@ -163,7 +163,24 @@ export function AiChatPane({
     prevCountRef.current = chat.messages.length;
   }, [chat.messages.length]);
 
-  // Save scrollTop on scroll (throttled to one write per animation frame).
+  // When the pane is open and holds any conversation, mirror the current
+  // session key into the URL so the link is shareable. This covers fresh
+  // sessions after the first turn, reopening a collapsed chat, and continuing
+  // from history (history already writes a key; this keeps it in sync).
+  const lastChatKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!chat.open || chat.messages.length === 0) return;
+    const state = useChatStore.getState();
+    const key = `legacy:${state.sessionId}`;
+    if (lastChatKeyRef.current === key) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('chat') === key) {
+      lastChatKeyRef.current = key;
+      return;
+    }
+    setAiUrl(true, key);
+    lastChatKeyRef.current = key;
+  });
   const onMessageListScroll = () => {
     const list = scrollRef.current;
     if (!list) return;
