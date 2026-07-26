@@ -1638,6 +1638,53 @@
         "status": "Status",
         "completed": "Completed",
         "showFailed": "Show failed pages"
+      },
+      "skills": {
+        "title": "Skills",
+        "description": "Reusable, file-based procedures the assistant can follow for recurring wiki tasks. A skill tells the assistant how to approach a task; what it may actually do is still decided by permissions and the review policy.",
+        "intro": "Enabled skills are offered to the assistant by name and description. It loads the full instructions only when one applies.",
+        "create": "New skill",
+        "rescan": "Rescan directory",
+        "name": "Name",
+        "descriptionHint": "Use when someone asks to…",
+        "descriptionMatters": "The description is how the assistant decides whether this skill applies. Name the task and the words people actually use.",
+        "source": "Source",
+        "files": "Files",
+        "enabled": "Enabled",
+        "lastUsed": "Last used",
+        "neverUsed": "Never",
+        "empty": "No skills are available.",
+        "overridden": "Edited",
+        "readOnly": "Read-only",
+        "readOnlyHint": "This skill comes from the mounted skills directory. Edit it on the host and rescan; the service never writes to the mount.",
+        "rejected": "Not loaded",
+        "rejectedHint": "These packages were found but could not be registered. Fix them on the host and rescan.",
+        "backToList": "All skills",
+        "selectFile": "Select a file.",
+        "scriptHint": "Reference material. Skill scripts are shown to the assistant as text and are never executed by the service.",
+        "notViewable": "{type}, {size} bytes",
+        "notViewableDetail": "{path} is {type}, {size} bytes. It cannot be displayed or edited here.",
+        "deleteFile": "Delete file",
+        "saved": "Saved.",
+        "reset": "Reset to default",
+        "resetConfirm": "Discard your edits and restore the skill's shipped content? Edit history is kept.",
+        "sourceLabel": {
+          "builtin": "Built-in",
+          "directory": "Directory",
+          "managed": "Custom"
+        },
+        "rejectReason": {
+          "missing_instruction_file": "No SKILL.md",
+          "invalid_frontmatter": "Invalid frontmatter",
+          "duplicate_name": "Duplicate name",
+          "too_large": "Too large",
+          "too_many_files": "Too many files",
+          "path_escape": "Path escapes package",
+          "unreadable": "Unreadable"
+        },
+        "error": {
+          "generic": "Something went wrong."
+        }
       }
     },
     "bots": {

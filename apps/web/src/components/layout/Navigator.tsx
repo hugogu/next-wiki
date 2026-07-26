@@ -325,6 +325,11 @@ export function Navigator({
           icon: <SlidersIcon className="shrink-0" />,
         },
         {
+          href: '/admin/ai/skills',
+          label: t('admin.ai.skills.title'),
+          icon: <PenSparkIcon className="shrink-0" />,
+        },
+        {
           href: '/admin/bots',
           label: t('admin.nav.bots'),
           icon: <BotIcon className="shrink-0" />,
@@ -590,8 +595,10 @@ export function Navigator({
                   (item.href === '/admin/ai' &&
                     pathname.startsWith('/admin/ai/') &&
                     !pathname.startsWith('/admin/ai/tools') &&
+                    !pathname.startsWith('/admin/ai/skills') &&
                     !pathname.startsWith('/admin/ai/prompts')) ||
-                  (item.href === '/admin/ai/tools' && pathname.startsWith('/admin/ai/tools/'));
+                  (item.href === '/admin/ai/tools' && pathname.startsWith('/admin/ai/tools/')) ||
+                  (item.href === '/admin/ai/skills' && pathname.startsWith('/admin/ai/skills/'));
                 return (
                   <li key={item.href}>
                     <Link

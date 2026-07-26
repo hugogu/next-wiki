@@ -127,10 +127,10 @@ mount (US5). The registry is built with pluggable sources so those slot in later
 ### Tests for User Story 2
 
 - [X] T031 [P] [US2] Add `apps/web/src/server/services/skills/package.test.ts` for the validation table in contracts/skill-package-format.md §2, including name pattern, description bounds, and declared-name-wins on directory mismatch (FR-013a)
-- [ ] T032 [P] [US2] Add `apps/web/src/server/services/skills/registry.test.ts` for registration order, first-claim-wins duplicate rejection with `conflictsWith`, determinism for a given state, and `invalidateSkillRegistry()` behaviour
+- [X] T032 [P] [US2] Add `apps/web/src/server/services/skills/registry.test.ts` for registration order, first-claim-wins duplicate rejection with `conflictsWith`, determinism for a given state, and `invalidateSkillRegistry()` behaviour
 - [X] T033 [P] [US2] Add `apps/web/src/server/services/skills/no-execution.test.ts`: assert no `child_process`, `vm`, `eval`, or dynamic `import()` appears anywhere under `apps/web/src/server/services/skills/`, plus behavioural cases proving a script in a built-in or admin-authored skill produces no side effect (SC-007, R10)
-- [ ] T034 [P] [US2] Add skill-tool tests to `apps/web/src/server/services/ai-tool-executors.test.ts`: `load_skill` on a disabled skill is denied with a safe message, a user without AI access is denied, and any user with AI access may load any enabled skill (FR-022, FR-022a)
-- [ ] T035 [P] [US2] Add `apps/web/app/api/ai/skills/route.test.ts` asserting `can(ctx, 'manage_ai')` on every method and a 403 with no detail for a non-admin
+- [X] T034 [P] [US2] Add skill-tool tests to `apps/web/src/server/services/ai-tool-executors.test.ts`: `load_skill` on a disabled skill is denied with a safe message, a user without AI access is denied, and any user with AI access may load any enabled skill (FR-022, FR-022a)
+- [X] T035 [P] [US2] Add `apps/web/app/api/ai/skills/route.test.ts` asserting `can(ctx, 'manage_ai')` on every method and a 403 with no detail for a non-admin
 
 ### Implementation for User Story 2
 
@@ -142,13 +142,13 @@ mount (US5). The registry is built with pluggable sources so those slot in later
 - [X] T041 [US2] Register `load_skill` and `read_skill_file` in `apps/web/src/server/services/ai-tool-registry.ts` as `category: read`, `riskLevel: read`, `requiredScope: use_ai_qa`, `resultRetention: never_full_result`, `defaultReviewPolicy: allow_immediate`
 - [X] T042 [US2] Implement both skill executors in `apps/web/src/server/services/ai-tool-executors.ts`, returning text only, enforcing the per-turn skill content budget, and truncating with an explicit marker recorded on the tool-call row (FR-020, FR-021)
 - [X] T043 [US2] Add the `{{SKILLS}}` placeholder and enabled-skill catalogue injection to `apps/web/src/server/jobs/wiki-question-tool-planner.ts`, mirroring the existing `{{TOOLS}}` mechanism, and update `DEFAULT_TOOL_SYSTEM_PROMPT` to reference it
-- [ ] T044 [US2] Implement `GET`/`POST` in `apps/web/app/api/ai/skills/route.ts` per contracts/admin-skills-api.md, including the `rejected` and `directory` payload sections
-- [ ] T045 [US2] Implement `GET`/`PATCH`/`DELETE` in `apps/web/app/api/ai/skills/[name]/route.ts`, returning `409 SKILL_NAME_TAKEN` with `conflictsWith` on a name collision (FR-016)
-- [ ] T046 [US2] Create `apps/web/src/components/admin/ai/SkillsPanel.tsx` listing skills with source, enabled toggle, validation state, and the rejection list
-- [ ] T047 [US2] Create the route `apps/web/app/(admin)/admin/ai/skills/page.tsx` loading the panel under `manage_ai`
-- [ ] T048 [US2] Add the `/admin/ai/skills` nav entry and its active-path handling to `apps/web/src/components/layout/Navigator.tsx`, keeping one canonical entry point per P11
-- [ ] T049 [P] [US2] Add `admin.ai.skills.*` keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
-- [ ] T050 [US2] Emit audit records for skill create, delete, enable, and disable in `apps/web/src/server/services/audit.ts` call sites (FR-017)
+- [X] T044 [US2] Implement `GET`/`POST` in `apps/web/app/api/ai/skills/route.ts` per contracts/admin-skills-api.md, including the `rejected` and `directory` payload sections
+- [X] T045 [US2] Implement `GET`/`PATCH`/`DELETE` in `apps/web/app/api/ai/skills/[name]/route.ts`, returning `409 SKILL_NAME_TAKEN` with `conflictsWith` on a name collision (FR-016)
+- [X] T046 [US2] Create `apps/web/src/components/admin/ai/SkillsPanel.tsx` listing skills with source, enabled toggle, validation state, and the rejection list
+- [X] T047 [US2] Create the route `apps/web/app/(admin)/admin/ai/skills/page.tsx` loading the panel under `manage_ai`
+- [X] T048 [US2] Add the `/admin/ai/skills` nav entry and its active-path handling to `apps/web/src/components/layout/Navigator.tsx`, keeping one canonical entry point per P11
+- [X] T049 [P] [US2] Add `admin.ai.skills.*` keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
+- [X] T050 [US2] Emit audit records for skill create, delete, enable, and disable in `apps/web/src/server/services/audit.ts` call sites (FR-017)
 
 **Checkpoint**: Skills are manageable and reach the model, using admin-authored
 skills alone.
@@ -203,16 +203,16 @@ assistant turn, then reset to default.
 
 ### Implementation for User Story 4
 
-- [ ] T066 [US4] Extract the CodeMirror setup from `apps/web/src/components/admin/appearance/CssEditor.tsx` into a new primitive `apps/web/src/components/ui/CodeEditor.tsx` and refactor `CssEditor` onto it, per P6 and the plan's Constitution Check
-- [ ] T067 [US4] Implement `GET`/`PUT`/`DELETE` in `apps/web/app/api/ai/skills/[name]/files/[...path]/route.ts` per contracts/admin-skills-api.md, with the path guard applied before any storage or filesystem access
-- [ ] T068 [US4] Enforce the mandatory `revision` concurrency token and reject `directory` sources with `409 SKILL_READ_ONLY` in `apps/web/src/server/services/skills/store.ts`
-- [ ] T069 [US4] Validate `SKILL.md` on every write and refuse a save that would leave the skill invalid, in `apps/web/src/server/services/skills/store.ts` (FR-033)
-- [ ] T070 [US4] Create the built-in override row on first write and implement reset via soft-delete in `apps/web/src/server/services/skills/store.ts`, exposed at `apps/web/app/api/ai/skills/[name]/reset/route.ts`
-- [ ] T071 [US4] Create `apps/web/src/components/admin/ai/SkillDetail.tsx` with the file tree, `ui/CodeEditor`, save, reset, and read-only presentation for directory sources
-- [ ] T072 [US4] Create the route `apps/web/app/(admin)/admin/ai/skills/[name]/page.tsx`, keeping the selected file in a `?file=` search param so the state is linkable and browser navigation works (P11)
-- [ ] T073 [US4] Show non-viewable files by name, type, and size without breaking the tree, in `apps/web/src/components/admin/ai/SkillDetail.tsx` (FR-037)
-- [ ] T074 [US4] Emit audit records for every skill file write, delete, rename, and reset from `apps/web/app/api/ai/skills/[name]/files/[...path]/route.ts` and `apps/web/app/api/ai/skills/[name]/reset/route.ts` (FR-032, FR-035)
-- [ ] T075 [P] [US4] Add the editor and conflict/validation error message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
+- [X] T066 [US4] Extract the CodeMirror setup from `apps/web/src/components/admin/appearance/CssEditor.tsx` into a new primitive `apps/web/src/components/ui/CodeEditor.tsx` and refactor `CssEditor` onto it, per P6 and the plan's Constitution Check
+- [X] T067 [US4] Implement `GET`/`PUT`/`DELETE` in `apps/web/app/api/ai/skills/[name]/files/[...path]/route.ts` per contracts/admin-skills-api.md, with the path guard applied before any storage or filesystem access
+- [X] T068 [US4] Enforce the mandatory `revision` concurrency token and reject `directory` sources with `409 SKILL_READ_ONLY` in `apps/web/src/server/services/skills/store.ts`
+- [X] T069 [US4] Validate `SKILL.md` on every write and refuse a save that would leave the skill invalid, in `apps/web/src/server/services/skills/store.ts` (FR-033)
+- [X] T070 [US4] Create the built-in override row on first write and implement reset via soft-delete in `apps/web/src/server/services/skills/store.ts`, exposed at `apps/web/app/api/ai/skills/[name]/reset/route.ts`
+- [X] T071 [US4] Create `apps/web/src/components/admin/ai/SkillDetail.tsx` with the file tree, `ui/CodeEditor`, save, reset, and read-only presentation for directory sources
+- [X] T072 [US4] Create the route `apps/web/app/(admin)/admin/ai/skills/[name]/page.tsx`, keeping the selected file in a `?file=` search param so the state is linkable and browser navigation works (P11)
+- [X] T073 [US4] Show non-viewable files by name, type, and size without breaking the tree, in `apps/web/src/components/admin/ai/SkillDetail.tsx` (FR-037)
+- [X] T074 [US4] Emit audit records for every skill file write, delete, rename, and reset from `apps/web/app/api/ai/skills/[name]/files/[...path]/route.ts` and `apps/web/app/api/ai/skills/[name]/reset/route.ts` (FR-032, FR-035)
+- [X] T075 [P] [US4] Add the editor and conflict/validation error message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
 
 **Checkpoint**: Skills are adaptable from the admin interface.
 
@@ -232,17 +232,17 @@ and confirm it disappears.
 - [X] T076 [P] [US5] Add `apps/web/src/server/services/skills/directory-loader.test.ts` for every bound in research.md R6: depth, package count, file count, per-file bytes, per-package bytes
 - [X] T077 [P] [US5] Add tests to `apps/web/src/server/services/skills/directory-loader.test.ts` that one malformed package never aborts the scan and its reason is reported, and that a missing, unreadable, or unconfigured root yields an informational notice rather than a failure (FR-025, FR-028)
 - [X] T078 [P] [US5] Add a path-escape test to `apps/web/src/server/services/skills/directory-loader.test.ts` using a symlink pointing outside the package, asserting the file is never exposed and the reason is recorded (FR-029)
-- [ ] T079 [P] [US5] Add a duplicate-name test to `apps/web/src/server/services/skills/registry.test.ts`: a directory package colliding with a built-in is rejected with both locations named, the incumbent keeps working, and a host rename plus rescan clears the conflict (FR-014, SC-010)
+- [X] T079 [P] [US5] Add a duplicate-name test to `apps/web/src/server/services/skills/registry.test.ts`: a directory package colliding with a built-in is rejected with both locations named, the incumbent keeps working, and a host rename plus rescan clears the conflict (FR-014, SC-010)
 - [X] T080 [P] [US5] Add a behavioural no-execution test for a script inside a directory-sourced skill to `apps/web/src/server/services/skills/no-execution.test.ts`, completing SC-007 coverage across all three sources
 
 ### Implementation for User Story 5
 
 - [X] T081 [US5] Create `apps/web/src/server/services/skills/directory-loader.ts` implementing the one-level bounded scan, per-entry validation, typed rejection reasons, and symlink resolution with escape rejection
-- [ ] T082 [US5] Register the directory source with the registry in `apps/web/src/server/services/skills/registry.ts`, last in the registration order so built-in and managed skills keep their names
+- [X] T082 [US5] Register the directory source with the registry in `apps/web/src/server/services/skills/registry.ts`, last in the registration order so built-in and managed skills keep their names
 - [X] T083 [US5] Guarantee the service never writes to the skills root — no create, edit, rename, or delete path may target it — in `apps/web/src/server/services/skills/store.ts` (FR-026a)
-- [ ] T084 [US5] Implement `POST /api/ai/skills/rescan` in `apps/web/app/api/ai/skills/rescan/route.ts`, invalidating the registry and returning the refreshed catalogue and rejections, audited
-- [ ] T085 [US5] Add the rescan control, the mount status, and the rejection list with reasons to `apps/web/src/components/admin/ai/SkillsPanel.tsx`
-- [ ] T086 [P] [US5] Add mount status, notice, and rejection-reason message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
+- [X] T084 [US5] Implement `POST /api/ai/skills/rescan` in `apps/web/app/api/ai/skills/rescan/route.ts`, invalidating the registry and returning the refreshed catalogue and rejections, audited
+- [X] T085 [US5] Add the rescan control, the mount status, and the rejection list with reasons to `apps/web/src/components/admin/ai/SkillsPanel.tsx`
+- [X] T086 [P] [US5] Add mount status, notice, and rejection-reason message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
 - [ ] T087 [US5] Document the host mount workflow in `apps/web/README.md` and the deployment docs, including that the mount is read-only and edits made in the UI do not write back to the host
 
 **Checkpoint**: Teams can bring their own skill library via a volume mount.
@@ -276,7 +276,7 @@ and the specific rejection reason.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T095 [P] Add OpenAPI JSDoc to every new route under `apps/web/app/api/ai/skills/`, following the project's `next-openapi-gen` conventions (comment above the export, no single-line JSDoc, literal `@response` copies)
+- [X] T095 [P] Add OpenAPI JSDoc to every new route under `apps/web/app/api/ai/skills/`, following the project's `next-openapi-gen` conventions (comment above the export, no single-line JSDoc, literal `@response` copies)
 - [ ] T096 [P] Add the E2E spec `apps/web/e2e/admin-ai-skills.spec.ts` covering catalogue, enable/disable, file edit, reset, and rescan, modelled on `apps/web/e2e/admin-ai-tools.spec.ts`
 - [ ] T097 [P] Add an E2E spec covering a skill-driven turn producing a reviewable proposal, extending `apps/web/e2e/ai-tool-proposals.spec.ts`
 - [ ] T098 Verify against `apps/web/src/server/services/public-content.ts` and the ISR revalidation call sites that no skill content reaches a public surface and that no new ISR path or cache tag was introduced, per the Public Content Delivery section of `specs/028-skill-system/plan.md`

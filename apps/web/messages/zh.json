@@ -1638,6 +1638,53 @@
         "status": "状态",
         "completed": "已完成",
         "showFailed": "查看失败页面"
+      },
+      "skills": {
+        "title": "技能",
+        "description": "可复用的、基于文件的操作流程，供助手处理重复的 Wiki 任务。技能只说明「怎么做」；实际能做什么仍由权限和审核策略决定。",
+        "intro": "已启用的技能会以名称和描述的形式提供给助手，只有在匹配时才会加载完整说明。",
+        "create": "新建技能",
+        "rescan": "重新扫描目录",
+        "name": "名称",
+        "descriptionHint": "当有人要求……时使用",
+        "descriptionMatters": "助手依据描述判断该技能是否适用。请写清任务本身以及用户实际会用的说法。",
+        "source": "来源",
+        "files": "文件",
+        "enabled": "启用",
+        "lastUsed": "最近使用",
+        "neverUsed": "从未使用",
+        "empty": "暂无可用技能。",
+        "overridden": "已修改",
+        "readOnly": "只读",
+        "readOnlyHint": "该技能来自挂载的技能目录。请在宿主机上修改后重新扫描；服务永远不会写入挂载目录。",
+        "rejected": "未加载",
+        "rejectedHint": "这些包已被发现但无法注册。请在宿主机上修复后重新扫描。",
+        "backToList": "全部技能",
+        "selectFile": "请选择一个文件。",
+        "scriptHint": "参考材料。技能脚本仅以文本形式提供给助手，服务不会执行它们。",
+        "notViewable": "{type}，{size} 字节",
+        "notViewableDetail": "{path} 为 {type}，{size} 字节，无法在此显示或编辑。",
+        "deleteFile": "删除文件",
+        "saved": "已保存。",
+        "reset": "恢复默认",
+        "resetConfirm": "放弃你的修改并恢复该技能的出厂内容？编辑历史会保留。",
+        "sourceLabel": {
+          "builtin": "内置",
+          "directory": "目录",
+          "managed": "自定义"
+        },
+        "rejectReason": {
+          "missing_instruction_file": "缺少 SKILL.md",
+          "invalid_frontmatter": "frontmatter 无效",
+          "duplicate_name": "名称重复",
+          "too_large": "体积过大",
+          "too_many_files": "文件过多",
+          "path_escape": "路径越界",
+          "unreadable": "无法读取"
+        },
+        "error": {
+          "generic": "操作失败。"
+        }
       }
     },
     "bots": {
