@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
 import { Select } from '@/components/ui/Select';
+import { Switch } from '@/components/ui/Switch';
 
 type Filters = { sourceType: string; providerKey: string; operation: string; outcome: string };
 
@@ -67,7 +68,6 @@ export function RequestLogPanel({
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const page = parsePage(searchParams.get('page'));
-  const enabledId = useId();
   const levelId = useId();
   const retentionId = useId();
   const [settings, setSettings] = useState(initialSettings);
@@ -149,18 +149,20 @@ export function RequestLogPanel({
   return (
     <div className="space-y-xl">
       <section className="rounded-lg border border-border bg-surface p-lg">
-        <h1 className="font-display text-2xl font-semibold">{t('admin.requestLog.title')}</h1>
-        <p className="mt-xs text-sm text-muted">{t('admin.requestLog.description')}</p>
-        <div className="mt-lg grid gap-md md:grid-cols-3">
-          <label className="flex items-center gap-sm text-sm font-medium" htmlFor={enabledId}>
-            <input
-              id={enabledId}
-              type="checkbox"
+        <div className="flex items-center justify-between gap-md">
+          <h1 className="font-display text-2xl font-semibold">{t('admin.requestLog.title')}</h1>
+          <label className="flex items-center gap-sm text-sm font-medium">
+            <span>{t('admin.requestLog.enabled')}</span>
+            <Switch
               checked={form.enabled}
-              onChange={(e) => setForm((value) => ({ ...value, enabled: e.target.checked }))}
+              disabled={saving}
+              aria-label={t('admin.requestLog.enabled')}
+              onClick={() => setForm((value) => ({ ...value, enabled: !value.enabled }))}
             />
-            {t('admin.requestLog.enabled')}
           </label>
+        </div>
+        <p className="mt-xs text-sm text-muted">{t('admin.requestLog.description')}</p>
+        <div className="mt-lg grid gap-md md:grid-cols-2">
           <label className="text-sm font-medium" htmlFor={levelId}>
             {t('admin.requestLog.level')}
             <Select
