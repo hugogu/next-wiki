@@ -126,22 +126,22 @@ mount (US5). The registry is built with pluggable sources so those slot in later
 
 ### Tests for User Story 2
 
-- [ ] T031 [P] [US2] Add `apps/web/src/server/services/skills/package.test.ts` for the validation table in contracts/skill-package-format.md §2, including name pattern, description bounds, and declared-name-wins on directory mismatch (FR-013a)
+- [X] T031 [P] [US2] Add `apps/web/src/server/services/skills/package.test.ts` for the validation table in contracts/skill-package-format.md §2, including name pattern, description bounds, and declared-name-wins on directory mismatch (FR-013a)
 - [ ] T032 [P] [US2] Add `apps/web/src/server/services/skills/registry.test.ts` for registration order, first-claim-wins duplicate rejection with `conflictsWith`, determinism for a given state, and `invalidateSkillRegistry()` behaviour
-- [ ] T033 [P] [US2] Add `apps/web/src/server/services/skills/no-execution.test.ts`: assert no `child_process`, `vm`, `eval`, or dynamic `import()` appears anywhere under `apps/web/src/server/services/skills/`, plus behavioural cases proving a script in a built-in or admin-authored skill produces no side effect (SC-007, R10)
+- [X] T033 [P] [US2] Add `apps/web/src/server/services/skills/no-execution.test.ts`: assert no `child_process`, `vm`, `eval`, or dynamic `import()` appears anywhere under `apps/web/src/server/services/skills/`, plus behavioural cases proving a script in a built-in or admin-authored skill produces no side effect (SC-007, R10)
 - [ ] T034 [P] [US2] Add skill-tool tests to `apps/web/src/server/services/ai-tool-executors.test.ts`: `load_skill` on a disabled skill is denied with a safe message, a user without AI access is denied, and any user with AI access may load any enabled skill (FR-022, FR-022a)
 - [ ] T035 [P] [US2] Add `apps/web/app/api/ai/skills/route.test.ts` asserting `can(ctx, 'manage_ai')` on every method and a 403 with no detail for a non-admin
 
 ### Implementation for User Story 2
 
-- [ ] T036 [US2] Create `apps/web/src/server/services/skills/package.ts`: parse `SKILL.md` frontmatter with the existing `yaml` dependency, validate name and description, classify file kinds, and provide the path guard that rejects any path normalising outside the package root
-- [ ] T037 [US2] Create `apps/web/src/server/services/skills/store.ts`: managed-skill CRUD, built-in override read/write, `skill_files` writes with revision increment, and immutable `skill_file_revisions` appends
-- [ ] T038 [US2] Create `apps/web/src/server/services/skills/registry.ts`: a module-cached bounded registry assembled from pluggable sources in the fixed order of data-model.md, producing entries plus typed rejections, with a single `invalidateSkillRegistry()` entry point and no import-time I/O
-- [ ] T039 [US2] Create `apps/web/src/server/services/skills/builtin.ts` exporting the explicitly enumerated `BUILTIN_SKILL_PACKAGES` list and its loader; the list is empty until US3 populates it
-- [ ] T040 [US2] Implement effective-enabled resolution and `last_used_at` writes against `skill_settings` in `apps/web/src/server/services/skills/registry.ts`, defaulting every source to enabled per research.md R8
-- [ ] T041 [US2] Register `load_skill` and `read_skill_file` in `apps/web/src/server/services/ai-tool-registry.ts` as `category: read`, `riskLevel: read`, `requiredScope: use_ai_qa`, `resultRetention: never_full_result`, `defaultReviewPolicy: allow_immediate`
-- [ ] T042 [US2] Implement both skill executors in `apps/web/src/server/services/ai-tool-executors.ts`, returning text only, enforcing the per-turn skill content budget, and truncating with an explicit marker recorded on the tool-call row (FR-020, FR-021)
-- [ ] T043 [US2] Add the `{{SKILLS}}` placeholder and enabled-skill catalogue injection to `apps/web/src/server/jobs/wiki-question-tool-planner.ts`, mirroring the existing `{{TOOLS}}` mechanism, and update `DEFAULT_TOOL_SYSTEM_PROMPT` to reference it
+- [X] T036 [US2] Create `apps/web/src/server/services/skills/package.ts`: parse `SKILL.md` frontmatter with the existing `yaml` dependency, validate name and description, classify file kinds, and provide the path guard that rejects any path normalising outside the package root
+- [X] T037 [US2] Create `apps/web/src/server/services/skills/store.ts`: managed-skill CRUD, built-in override read/write, `skill_files` writes with revision increment, and immutable `skill_file_revisions` appends
+- [X] T038 [US2] Create `apps/web/src/server/services/skills/registry.ts`: a module-cached bounded registry assembled from pluggable sources in the fixed order of data-model.md, producing entries plus typed rejections, with a single `invalidateSkillRegistry()` entry point and no import-time I/O
+- [X] T039 [US2] Create `apps/web/src/server/services/skills/builtin.ts` exporting the explicitly enumerated `BUILTIN_SKILL_PACKAGES` list and its loader; the list is empty until US3 populates it
+- [X] T040 [US2] Implement effective-enabled resolution and `last_used_at` writes against `skill_settings` in `apps/web/src/server/services/skills/registry.ts`, defaulting every source to enabled per research.md R8
+- [X] T041 [US2] Register `load_skill` and `read_skill_file` in `apps/web/src/server/services/ai-tool-registry.ts` as `category: read`, `riskLevel: read`, `requiredScope: use_ai_qa`, `resultRetention: never_full_result`, `defaultReviewPolicy: allow_immediate`
+- [X] T042 [US2] Implement both skill executors in `apps/web/src/server/services/ai-tool-executors.ts`, returning text only, enforcing the per-turn skill content budget, and truncating with an explicit marker recorded on the tool-call row (FR-020, FR-021)
+- [X] T043 [US2] Add the `{{SKILLS}}` placeholder and enabled-skill catalogue injection to `apps/web/src/server/jobs/wiki-question-tool-planner.ts`, mirroring the existing `{{TOOLS}}` mechanism, and update `DEFAULT_TOOL_SYSTEM_PROMPT` to reference it
 - [ ] T044 [US2] Implement `GET`/`POST` in `apps/web/app/api/ai/skills/route.ts` per contracts/admin-skills-api.md, including the `rejected` and `directory` payload sections
 - [ ] T045 [US2] Implement `GET`/`PATCH`/`DELETE` in `apps/web/app/api/ai/skills/[name]/route.ts`, returning `409 SKILL_NAME_TAKEN` with `conflictsWith` on a name collision (FR-016)
 - [ ] T046 [US2] Create `apps/web/src/components/admin/ai/SkillsPanel.tsx` listing skills with source, enabled toggle, validation state, and the rejection list
@@ -166,17 +166,17 @@ matching skill and produce a reviewable proposal, never a direct publish.
 
 ### Tests for User Story 3
 
-- [ ] T051 [P] [US3] Add `apps/web/src/server/skills/builtin/builtin-packages.test.ts` asserting all three packages parse, declare unique names matching their directory, and stay within the size and file-count bounds
+- [X] T051 [P] [US3] Add `apps/web/src/server/skills/builtin/builtin-packages.test.ts` asserting all three packages parse, declare unique names matching their directory, and stay within the size and file-count bounds
 - [ ] T052 [P] [US3] Add Wiki Linker constraint tests in `apps/web/src/server/services/skills/linker-constraints.test.ts`: no link inside an existing link, code span, fenced block, heading, or URL; keywords without a target left unchanged; ambiguous and unreadable targets skipped; first occurrence only (FR-042, SC-009)
 - [ ] T053 [US3] Add an integration test in `apps/web/src/server/jobs/ai-question.test.ts` that each built-in skill produces a reviewable draft or proposal and never publishes (FR-039, FR-040, FR-041)
 - [ ] T054 [US3] Add a trigger-accuracy test in `apps/web/src/server/jobs/wiki-question-tool-planner.test.ts` asserting each built-in skill loads for its task phrased three different ways and does not load for an ordinary question (SC-012)
 
 ### Implementation for User Story 3
 
-- [ ] T055 [P] [US3] Author the Wiki Writer package under `apps/web/src/server/skills/builtin/wiki-writer/` (`SKILL.md` plus reference and script files), instructing draft-or-propose only, never publish
-- [ ] T056 [P] [US3] Author the Wiki Tagger package under `apps/web/src/server/skills/builtin/wiki-tagger/`, instructing before/after tag proposals through the existing change-proposal path
-- [ ] T057 [P] [US3] Author the Wiki Linker package under `apps/web/src/server/skills/builtin/wiki-linker/`, encoding every constraint in contracts/skill-package-format.md §6
-- [ ] T058 [US3] Populate `BUILTIN_SKILL_PACKAGES` in `apps/web/src/server/services/skills/builtin.ts` with the three packages and confirm they load enabled by default (FR-044)
+- [X] T055 [P] [US3] Author the Wiki Writer package under `apps/web/src/server/skills/builtin/wiki-writer/` (`SKILL.md` plus reference and script files), instructing draft-or-propose only, never publish
+- [X] T056 [P] [US3] Author the Wiki Tagger package under `apps/web/src/server/skills/builtin/wiki-tagger/`, instructing before/after tag proposals through the existing change-proposal path
+- [X] T057 [P] [US3] Author the Wiki Linker package under `apps/web/src/server/skills/builtin/wiki-linker/`, encoding every constraint in contracts/skill-package-format.md §6
+- [X] T058 [US3] Populate `BUILTIN_SKILL_PACKAGES` in `apps/web/src/server/services/skills/builtin.ts` with the three packages and confirm they load enabled by default (FR-044)
 - [ ] T059 [US3] Bound each built-in skill's work to the pages named in the conversation and the existing per-turn tool-call limit, and make the assistant state which pages it covered and which it did not when the limit is reached, in `apps/web/src/server/services/ai-tool-runtime.ts` and the skill texts (FR-044a, FR-044b)
 - [ ] T060 [US3] Render the Wiki Linker link list — keyword, location, target page — from the recorded tool-call arguments in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx` and the draft review view, so the reviewer sees the structured list alongside the diff (FR-043)
 - [ ] T061 [US3] Write each built-in skill's `description` for trigger match quality — naming the task and the phrasings users actually use — and iterate against T054
@@ -229,17 +229,17 @@ and confirm it disappears.
 
 ### Tests for User Story 5
 
-- [ ] T076 [P] [US5] Add `apps/web/src/server/services/skills/directory-loader.test.ts` for every bound in research.md R6: depth, package count, file count, per-file bytes, per-package bytes
-- [ ] T077 [P] [US5] Add tests to `apps/web/src/server/services/skills/directory-loader.test.ts` that one malformed package never aborts the scan and its reason is reported, and that a missing, unreadable, or unconfigured root yields an informational notice rather than a failure (FR-025, FR-028)
-- [ ] T078 [P] [US5] Add a path-escape test to `apps/web/src/server/services/skills/directory-loader.test.ts` using a symlink pointing outside the package, asserting the file is never exposed and the reason is recorded (FR-029)
+- [X] T076 [P] [US5] Add `apps/web/src/server/services/skills/directory-loader.test.ts` for every bound in research.md R6: depth, package count, file count, per-file bytes, per-package bytes
+- [X] T077 [P] [US5] Add tests to `apps/web/src/server/services/skills/directory-loader.test.ts` that one malformed package never aborts the scan and its reason is reported, and that a missing, unreadable, or unconfigured root yields an informational notice rather than a failure (FR-025, FR-028)
+- [X] T078 [P] [US5] Add a path-escape test to `apps/web/src/server/services/skills/directory-loader.test.ts` using a symlink pointing outside the package, asserting the file is never exposed and the reason is recorded (FR-029)
 - [ ] T079 [P] [US5] Add a duplicate-name test to `apps/web/src/server/services/skills/registry.test.ts`: a directory package colliding with a built-in is rejected with both locations named, the incumbent keeps working, and a host rename plus rescan clears the conflict (FR-014, SC-010)
-- [ ] T080 [P] [US5] Add a behavioural no-execution test for a script inside a directory-sourced skill to `apps/web/src/server/services/skills/no-execution.test.ts`, completing SC-007 coverage across all three sources
+- [X] T080 [P] [US5] Add a behavioural no-execution test for a script inside a directory-sourced skill to `apps/web/src/server/services/skills/no-execution.test.ts`, completing SC-007 coverage across all three sources
 
 ### Implementation for User Story 5
 
-- [ ] T081 [US5] Create `apps/web/src/server/services/skills/directory-loader.ts` implementing the one-level bounded scan, per-entry validation, typed rejection reasons, and symlink resolution with escape rejection
+- [X] T081 [US5] Create `apps/web/src/server/services/skills/directory-loader.ts` implementing the one-level bounded scan, per-entry validation, typed rejection reasons, and symlink resolution with escape rejection
 - [ ] T082 [US5] Register the directory source with the registry in `apps/web/src/server/services/skills/registry.ts`, last in the registration order so built-in and managed skills keep their names
-- [ ] T083 [US5] Guarantee the service never writes to the skills root — no create, edit, rename, or delete path may target it — in `apps/web/src/server/services/skills/store.ts` (FR-026a)
+- [X] T083 [US5] Guarantee the service never writes to the skills root — no create, edit, rename, or delete path may target it — in `apps/web/src/server/services/skills/store.ts` (FR-026a)
 - [ ] T084 [US5] Implement `POST /api/ai/skills/rescan` in `apps/web/app/api/ai/skills/rescan/route.ts`, invalidating the registry and returning the refreshed catalogue and rejections, audited
 - [ ] T085 [US5] Add the rescan control, the mount status, and the rejection list with reasons to `apps/web/src/components/admin/ai/SkillsPanel.tsx`
 - [ ] T086 [P] [US5] Add mount status, notice, and rejection-reason message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`

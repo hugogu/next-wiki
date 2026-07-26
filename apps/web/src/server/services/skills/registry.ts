@@ -226,7 +226,7 @@ function directoryEntry(pkg: LoadedSkillPackage): RegistryEntry {
     readFile: async (filePath) => {
       const file = byPath.get(filePath);
       if (!file) return null;
-      return readDirectorySkillFile(pkg.directory, file);
+      return readDirectorySkillFile(pkg, file);
     },
   };
 }

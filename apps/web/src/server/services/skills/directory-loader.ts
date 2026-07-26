@@ -38,6 +38,12 @@ export type LoadedSkillPackage = {
   name: string;
   description: string;
   directory: string;
+  /** The package root with symlinks resolved. Containment checks compare
+   * against this rather than `directory`, because the skills root itself is
+   * routinely reached through a symlink (a bind mount, or /tmp on macOS) and
+   * comparing a resolved file path against an unresolved root would reject
+   * every file in the package. */
+  realDirectory: string;
   files: LoadedSkillFile[];
 };
 
@@ -119,6 +125,7 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
     name,
     directory,
   });
+  const realDirectory = await fs.realpath(directory).catch(() => directory);
 
   let instructionSource: string;
   try {
@@ -128,7 +135,7 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
     // something outside the package, so resolve before reading.
     if (stat.isSymbolicLink()) {
       const real = await fs.realpath(instructionPath);
-      if (!isInsidePackage(directory, real)) {
+      if (!isInsidePackage(realDirectory, real)) {
         return reject('path_escape', `${INSTRUCTION_FILE} is a symbolic link pointing outside the package.`);
       }
     }
@@ -167,7 +174,7 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
         // Follow it once and drop anything that lands outside the package
         // rather than rejecting the whole skill for one stray link.
         const real = await fs.realpath(absolutePath).catch(() => null);
-        if (!real || !isInsidePackage(current, real)) {
+        if (!real || !isInsidePackage(realDirectory, real)) {
           logger.info('skipped skill file resolving outside its package', { relativePath });
           continue;
         }
@@ -214,6 +221,7 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
     name: parsed.value.name,
     description: parsed.value.description,
     directory,
+    realDirectory,
     files,
   };
 }
@@ -223,11 +231,13 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
  * here rather than trusted from the scan, because the caller supplies the path.
  */
 export async function readDirectorySkillFile(
-  packageDirectory: string,
+  pkg: Pick<LoadedSkillPackage, 'realDirectory'>,
   file: LoadedSkillFile,
 ): Promise<string | null> {
-  const real = await fs.realpath(file.absolutePath).catch(() => null);
-  if (!real || !isInsidePackage(packageDirectory, real)) return null;
   if (!file.viewable) return null;
+  const real = await fs.realpath(file.absolutePath).catch(() => null);
+  // Re-validated here rather than trusted from the scan, because the caller
+  // supplies the path and the filesystem may have changed since.
+  if (!real || !isInsidePackage(pkg.realDirectory, real)) return null;
   return fs.readFile(real, 'utf8');
 }
