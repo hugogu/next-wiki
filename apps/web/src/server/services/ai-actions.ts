@@ -944,7 +944,16 @@ export async function startAction(actionId: string) {
     .set({ status: 'running', startedAt: new Date() })
     .where(and(eq(schema.aiActions.id, actionId), eq(schema.aiActions.status, 'queued')))
     .returning();
-  if (row) await appendActionEvent(actionId, 'status', { status: 'running' });
+  if (row) {
+    logger.info('AI action started', {
+      actionId,
+      feature: row.feature,
+      providerId: row.providerId,
+      modelId: row.modelId,
+      actorUserId: row.actorUserId,
+    });
+    await appendActionEvent(actionId, 'status', { status: 'running' });
+  }
   return row ?? null;
 }
 
@@ -957,6 +966,7 @@ export async function finishAction(
     errorCode?: string | null;
     errorMessage?: string | null;
     errorDetail?: string | null;
+    durationMs?: number;
   } = {},
 ): Promise<void> {
   await db
@@ -978,6 +988,30 @@ export async function finishAction(
       ? { status }
       : { status, code: details.errorCode ?? status.toUpperCase(), message: details.errorMessage ?? status },
   );
+  // Surface terminal failures at error level so alerting can key on them; the
+  // terminal event row already records the message, so this just adds structured
+  // context for log-only diagnosis.
+  if (status === 'failed') {
+    logger.error('AI action failed', {
+      actionId,
+      errorCode: details.errorCode ?? null,
+      errorMessage: details.errorMessage ?? null,
+      errorDetailBytes: details.errorDetail ? details.errorDetail.length : 0,
+      durationMs: details.durationMs,
+    });
+  } else if (status === 'cancelled') {
+    logger.info('AI action cancelled', {
+      actionId,
+      durationMs: details.durationMs,
+    });
+  } else {
+    logger.info('AI action completed', {
+      actionId,
+      durationMs: details.durationMs,
+      hasResultMetadata: Boolean(details.resultMetadata && Object.keys(details.resultMetadata).length),
+      hasUsageMetadata: Boolean(details.usageMetadata && Object.keys(details.usageMetadata).length),
+    });
+  }
   try {
     await enqueueRawConversationCaptureIfEligible(actionId);
   } catch (error) {
