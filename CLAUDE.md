@@ -16,7 +16,8 @@ apps/web/                # Next.js 16 app (App Router)
   src/server/            # server-only: db (Drizzle schema/migrations), services,
                          #   permissions (can() chokepoint), pipeline, api, crypto
   src/components/         # UI; primitives isolated in src/components/ui/
-  src/i18n/               # custom i18n (locales/en.ts canonical + zh.ts)
+  src/i18n/               # next-intl config/catalog loader
+  messages/               # message catalogs (en.json canonical + zh.json)
 packages/shared/          # zero-dep shared Zod schemas/types (@next-wiki/shared)
 packages/editor/          # editor package
 specs/                    # Spec Kit feature specs/plans/tasks
@@ -37,6 +38,12 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 ## Recent Changes
 
 - 003-content-storage-backends: Added TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor).
+- 028-skill-system: Skill system + provider-agnostic tool calling. No new
+  dependency. Adds a neutral tool-call envelope in `packages/shared`, native
+  tool calling on the provider adapters behind
+  `ai_models.tool_call_strategy`, and a bounded skill registry under
+  `apps/web/src/server/services/skills/` fed by shipped packages, an optional
+  read-only `SKILLS_BASE_PATH` mount, and admin-authored rows.
 
 <!-- MANUAL ADDITIONS START -->
 

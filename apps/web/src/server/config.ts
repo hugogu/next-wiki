@@ -23,6 +23,13 @@ const envSchema = z.object({
   // Host-side bind mount shown to administrators for deployment diagnostics.
   // This is informational inside the container; Docker Compose owns the mount.
   CONTENT_LOCAL_HOST_PATH: z.string().optional(),
+  // Optional base directory for host-installed Agent Skills (028). Mounted
+  // read-only; the service never writes here. Absent or unreadable is a notice,
+  // not an error — built-in and admin-authored skills still load.
+  SKILLS_BASE_PATH: z.string().min(1).default('/data/skills'),
+  // Host-side bind mount shown to administrators for deployment diagnostics.
+  // This is informational inside the container; Docker Compose owns the mount.
+  SKILLS_HOST_PATH: z.string().optional(),
   AI_PROVIDER_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   AI_PROVIDER_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   AI_EVENT_RETENTION_HOURS: z.coerce.number().int().min(1).max(168).default(24),

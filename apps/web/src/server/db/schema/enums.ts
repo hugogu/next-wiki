@@ -526,3 +526,27 @@ export const aiToolEvidenceTargetKindEnum = pgEnum('ai_tool_evidence_target_kind
   'tag_mutation',
   'metadata_change',
 ]);
+
+// ---- Agent Skills (028) -----------------------------------------------------
+
+/** Where a skill came from. `directory` is never persisted — directory skills
+ * are derived from the read-only mount on each scan, which is what makes
+ * removing one from the host remove it from the catalogue. */
+export const skillSourceEnum = pgEnum('skill_source', ['builtin', 'directory', 'managed']);
+/** A skill that fails validation is listed for the admin but never offered to
+ * the model. */
+export const skillValidationStateEnum = pgEnum('skill_validation_state', ['valid', 'invalid']);
+/** Role of one file inside a skill package. Scripts are reference material in
+ * this release: they are stored and returned as text and never executed. */
+export const skillFileKindEnum = pgEnum('skill_file_kind', ['instruction', 'reference', 'script']);
+/** Immutable history operation recorded for each skill file save. */
+export const skillFileOperationEnum = pgEnum('skill_file_operation', [
+  'create',
+  'update',
+  'delete',
+  'rename',
+]);
+/** How tool calls reach a model. `auto` prefers the provider's native
+ * function-calling and falls back to the text protocol; the explicit values are
+ * the Administrator override. */
+export const toolCallStrategyEnum = pgEnum('tool_call_strategy', ['auto', 'native', 'text']);

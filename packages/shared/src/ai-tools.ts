@@ -404,3 +404,62 @@ export const aiToolErrorCodeSchema = z.enum([
   'EXTERNAL_PROVIDER_NOT_ACTIVATABLE',
 ]);
 export type AiToolErrorCode = z.infer<typeof aiToolErrorCodeSchema>;
+
+// ---- Provider-neutral tool-call envelope (028) ------------------------------
+
+/**
+ * One representation of a tool interaction, shared by every provider adapter.
+ *
+ * The native strategy (a provider's own function-calling) and the text-protocol
+ * fallback both produce and consume these shapes, which is what makes tool
+ * availability, permissions, and review identical across vendors. The field set
+ * is deliberately minimal and structurally MCP-compatible (name + description +
+ * JSON Schema input) so a future external tool source maps 1:1.
+ */
+
+/** A tool as offered to the model. `inputSchema` is a JSON Schema object; remote
+ * and `$ref` references are not supported because not every provider resolves
+ * them. */
+export const neutralToolDefinitionSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9_]+$/, 'Tool names are lowercase, digits, and underscores'),
+  description: z.string().min(1).max(1_024),
+  inputSchema: z.record(z.string(), z.unknown()),
+});
+export type NeutralToolDefinition = z.infer<typeof neutralToolDefinitionSchema>;
+
+/** A tool call requested by the model. `arguments` is already parsed: an adapter
+ * that cannot parse the provider's payload raises a normalized provider error
+ * rather than emitting a partially parsed call. */
+export const neutralToolCallSchema = z.object({
+  /** Provider-supplied when available, adapter-assigned otherwise. Correlates
+   * the call with its result. */
+  id: z.string().min(1).max(256),
+  name: z.string().min(1).max(64),
+  arguments: z.record(z.string(), z.unknown()),
+});
+export type NeutralToolCall = z.infer<typeof neutralToolCallSchema>;
+
+/** The runtime's answer to one tool call. `content` is the bounded,
+ * permission-safe summary the tool runtime already produces — never a raw
+ * payload. */
+export const neutralToolResultSchema = z.object({
+  callId: z.string().min(1).max(256),
+  ok: z.boolean(),
+  content: z.string(),
+  isError: z.boolean().default(false),
+});
+export type NeutralToolResult = z.infer<typeof neutralToolResultSchema>;
+
+/** How tool calls reach a model. `auto` prefers native function-calling and
+ * falls back to the text protocol; the explicit values are the Administrator
+ * override. Mirrors the `tool_call_strategy` DB enum. */
+export const toolCallStrategySchema = z.enum(['auto', 'native', 'text']);
+export type ToolCallStrategy = z.infer<typeof toolCallStrategySchema>;
+
+/** The strategy actually used for a turn, after resolution. */
+export const resolvedToolCallStrategySchema = z.enum(['native', 'text']);
+export type ResolvedToolCallStrategy = z.infer<typeof resolvedToolCallStrategySchema>;

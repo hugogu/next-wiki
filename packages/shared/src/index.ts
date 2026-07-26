@@ -11,6 +11,7 @@ export * from './request-log';
 export * from './content-storage';
 export * from './ai';
 export * from './ai-tools';
+export * from './skills';
 export * from './transfers';
 export * from './translations';
 export * from './user-appearance';

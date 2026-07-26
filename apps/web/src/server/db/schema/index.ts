@@ -36,6 +36,7 @@ import {
   aiModelAvailabilityEnum,
   aiCapabilityEnum,
   aiCapabilitySourceEnum,
+  toolCallStrategyEnum,
   aiPurposeEnum,
   aiIndexStatusEnum,
   aiPageIndexStatusEnum,
@@ -1164,6 +1165,16 @@ export const aiModels = pgTable(
     outputModalities: text('output_modalities').array().notNull().default([]),
     rawMetadata: jsonb('raw_metadata').notNull().default({}),
     manuallyAdded: boolean('manually_added').notNull().default(false),
+    // 028: how tool calls reach this model. `auto` prefers the provider's
+    // native function-calling and falls back to the text protocol. This is
+    // deliberately separate from the `tool_calling` capability, which answers
+    // whether the model may drive the tool loop at all.
+    toolCallStrategy: toolCallStrategyEnum('tool_call_strategy').notNull().default('auto'),
+    // Set when a native tool payload was rejected at runtime, so the next turn
+    // goes straight to the text protocol instead of paying for another failed
+    // attempt. Cleared when an admin changes the strategy or the model is
+    // re-synced.
+    nativeToolCallFailedAt: timestamp('native_tool_call_failed_at', { withTimezone: true }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -2003,3 +2014,8 @@ export const analyticsProviderSettings = pgTable('analytics_provider_settings', 
 // the base tables above; this trailing re-export keeps that one-directional.
 export * from './ai-tools';
 export * from './request-logs';
+
+// ---- Agent Skills (028) -----------------------------------------------------
+// Skill/override rows, their files, immutable file history, and per-skill admin
+// settings. Re-exported after the base tables they reference, same as 026.
+export * from './skills';

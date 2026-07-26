@@ -42,6 +42,8 @@ services:
       CONTENT_LOCAL_HOST_PATH: ${CONTENT_LOCAL_HOST_PATH:-./.content-data}
       TRANSFER_ARTIFACT_BASE_PATH: ${TRANSFER_ARTIFACT_BASE_PATH:-/data/content/transfers}
       TRANSFER_ARTIFACT_RETENTION_HOURS: ${TRANSFER_ARTIFACT_RETENTION_HOURS:-72}
+      SKILLS_BASE_PATH: ${SKILLS_BASE_PATH:-/data/skills}
+      SKILLS_HOST_PATH: ${SKILLS_HOST_PATH:-./.skills}
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:
@@ -49,6 +51,10 @@ services:
       # Local backend with base directory /data/content; harmless otherwise. The
       # default deployment keeps content in PostgreSQL.
       - ${CONTENT_LOCAL_HOST_PATH:-./.content-data}:${CONTENT_LOCAL_BASE_PATH:-/data/content}
+      # Optional host-installed Agent Skills (028). Read-only: the service never
+      # writes here, and skill edits made in the admin UI are stored in
+      # PostgreSQL rather than written back to the host.
+      - ${SKILLS_HOST_PATH:-./.skills}:${SKILLS_BASE_PATH:-/data/skills}:ro
     depends_on:
       db:
         condition: service_healthy
