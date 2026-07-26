@@ -28,7 +28,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/026-wiki-ai-tool-runtime/plan.md
+at specs/027-request-logging/plan.md
 <!-- SPECKIT END -->
 
 ## Database Migrations (Drizzle) — never hand-author
