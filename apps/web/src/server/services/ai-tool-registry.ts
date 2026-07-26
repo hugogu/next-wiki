@@ -18,6 +18,19 @@ import type { Action } from '@/server/permissions';
  * separately by the runtime (US2); this module owns identity and metadata only.
  */
 
+/** JSON Schema object describing a tool's arguments. Hand-authored rather than
+ * derived from the executor's Zod schema: several executors use `refine` and
+ * `transform`, which have no JSON Schema equivalent, and what the model is shown
+ * should be what we mean rather than a lossy mechanical projection. The Zod
+ * schema still validates at execution time, so a drifted hint costs the model
+ * one rejected call — it can never let bad arguments through. */
+export type ToolInputSchema = {
+  type: 'object';
+  properties: Record<string, Record<string, unknown>>;
+  required?: string[];
+  additionalProperties?: boolean;
+};
+
 export type ToolDefinition = {
   /** Stable, MCP-compatible tool name. */
   name: string;
@@ -28,6 +41,10 @@ export type ToolDefinition = {
   resultRetention: AiToolResultRetention;
   defaultReviewPolicy: AiToolDefaultReviewPolicy;
   description: string;
+  /** Argument contract offered to models that call tools natively. The text
+   * protocol describes the same arguments in prose, so both planners present
+   * one catalogue (028, FR-004). */
+  inputSchema: ToolInputSchema;
 };
 
 export type ProviderDefinition = {
@@ -59,6 +76,14 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
     description: 'Search wiki pages by keyword or meaning.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Keywords or a natural-language description.' },
+        limit: { type: 'integer', minimum: 1, maximum: 100 },
+      },
+      required: ['query'],
+    },
   },
   {
     name: 'get_page',
@@ -68,6 +93,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
     description: 'Read a page including its Markdown source and revision metadata.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'Page id returned by a previous tool call.' },
+        path: { type: 'string', description: 'Exact page path. Supply this or pageId.' },
+      },
+    },
   },
   {
     name: 'list_pages',
@@ -77,6 +109,15 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
     description: 'List visible pages. Args: path or pathPrefix for a subtree, optional space, optional limit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Exact parent path.' },
+        pathPrefix: { type: 'string', description: 'List a subtree under this prefix.' },
+        space: { type: 'string', enum: ['wiki', 'raw', 'generated'] },
+        limit: { type: 'integer', minimum: 1, maximum: 100 },
+      },
+    },
   },
   {
     name: 'get_backlinks',
@@ -86,6 +127,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
     description: 'Find pages linking to a target page.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string' },
+        path: { type: 'string', description: 'Supply this or pageId.' },
+      },
+    },
   },
   {
     name: 'get_neighborhood',
@@ -95,6 +143,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
     description: 'Read a page together with its parent, siblings, and children.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string' },
+        path: { type: 'string', description: 'Supply this or pageId.' },
+      },
+    },
   },
   {
     name: 'list_tags',
@@ -104,6 +159,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
     description: 'List reusable wiki tags.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', description: 'Filter tags by substring.' },
+        limit: { type: 'integer', minimum: 1, maximum: 100 },
+      },
+    },
   },
   // --- page_draft ---
   {
@@ -114,6 +176,22 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Create a new page as a draft revision for review. Use this when the user wants to save content and search_wiki, list_pages, or get_page cannot locate an existing target page. Args: path, title, and either contentSource or contentFromConversation=true. The path must be lowercase letters, numbers, hyphens, and slashes. If contentSource includes YAML frontmatter it must contain a non-empty "type" field; when unsure, omit the frontmatter block entirely. Returns the canonical page href.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Lowercase letters, numbers, hyphens, and slashes.',
+        },
+        title: { type: 'string' },
+        contentSource: { type: 'string', description: 'Complete Markdown body.' },
+        contentFromConversation: {
+          type: 'boolean',
+          description: 'Save the previous assistant answer verbatim instead of contentSource.',
+        },
+      },
+      required: ['path', 'title'],
+    },
   },
   {
     name: 'save_draft',
@@ -123,6 +201,19 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Save a new draft revision of an existing page for review. The page must already exist; call create_page first if search_wiki, list_pages, or get_page cannot locate it. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. If contentSource includes YAML frontmatter it must contain a non-empty "type" field. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'Id of an existing page.' },
+        title: { type: 'string', description: 'Optional; the page title is kept by default.' },
+        contentSource: { type: 'string', description: 'Complete replacement Markdown.' },
+        contentFromConversation: {
+          type: 'boolean',
+          description: 'Save the previous assistant answer verbatim instead of contentSource.',
+        },
+      },
+      required: ['pageId'],
+    },
 
   },
   {
@@ -133,6 +224,16 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Propose date/summary/tag metadata changes for a page.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string' },
+        date: { type: ['string', 'null'], description: 'YYYY-MM-DD, or null to clear.' },
+        summary: { type: ['string', 'null'] },
+        tags: { type: ['array', 'null'], items: { type: 'string' } },
+      },
+      required: ['pageId'],
+    },
   },
   {
     name: 'update_page_properties',
@@ -142,6 +243,15 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Propose title or path property changes for a page.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string' },
+        title: { type: 'string' },
+        path: { type: 'string' },
+      },
+      required: ['pageId'],
+    },
   },
   // --- tag ---
   {
@@ -152,6 +262,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Create a reusable tag.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string' } },
+      required: ['name'],
+    },
   },
   {
     name: 'rename_tag',
@@ -161,6 +276,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Rename a reusable tag across every page that uses it.',
+    inputSchema: {
+      type: 'object',
+      properties: { tagId: { type: 'string' }, name: { type: 'string' } },
+      required: ['tagId', 'name'],
+    },
   },
   {
     name: 'delete_tag',
@@ -170,6 +290,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Retire a reusable tag.',
+    inputSchema: {
+      type: 'object',
+      properties: { tagId: { type: 'string' } },
+      required: ['tagId'],
+    },
   },
   {
     name: 'merge_tag',
@@ -179,6 +304,14 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Merge one tag into another across every page.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tagId: { type: 'string', description: 'Tag to merge away.' },
+        targetTagId: { type: 'string', description: 'Tag to keep.' },
+      },
+      required: ['tagId', 'targetTagId'],
+    },
   },
   {
     name: 'replace_page_tags',
@@ -188,6 +321,14 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: "Replace a page's complete tag set.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'The complete new tag set.' },
+      },
+      required: ['pageId', 'tags'],
+    },
   },
   // --- batch ---
   {
@@ -198,6 +339,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Propose a coordinated update across several pages.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        updates: { type: 'array', items: { type: 'object' } },
+      },
+      required: ['updates'],
+    },
   },
   {
     name: 'batch_soft_delete_pages',
@@ -207,6 +355,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
     description: 'Propose soft-deletion of several pages.',
+    inputSchema: {
+      type: 'object',
+      properties: { pageIds: { type: 'array', items: { type: 'string' } } },
+      required: ['pageIds'],
+    },
   },
   // --- raw_evidence ---
   {
@@ -217,6 +370,14 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'raw_when_durable',
     defaultReviewPolicy: 'policy_review',
     description: 'Capture tool output as a Tool Evidence Raw entry for durable knowledge.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+      },
+      required: ['title', 'content'],
+    },
   },
 ];
 

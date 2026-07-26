@@ -12,7 +12,12 @@ import {
   estimatePromptTokens,
   normalizeQuestionCitations,
 } from '@/server/ai/prompts/wiki-question';
-import { AiProviderError, isContextLengthExceededError, normalizeProviderError, streamTextWithRetry } from '@/server/ai/types';
+import {
+  AiProviderError,
+  isContextLengthExceededError,
+  isNativeToolUnsupportedError,
+  streamTextWithRetry,
+} from '@/server/ai/types';
 import { loadWikiQuestionSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
@@ -50,12 +55,16 @@ import {
   startFeishuAnswerStream,
 } from '@/server/services/feishu-answer-streams';
 import { getCitationHref } from '@/lib/path';
+import { logger } from '@/server/logger';
+import { buildWikiToolSystemPrompt } from './wiki-question-tool-planner';
 import {
-  buildPlannerUserPrompt,
-  buildWikiToolSystemPrompt,
-  extractTaggedThinking,
-  parseToolPlan,
-} from './wiki-question-tool-planner';
+  createNativeToolPlanner,
+  createTextProtocolPlanner,
+} from '@/server/services/ai-tool-planners';
+import {
+  markNativeToolCallFailed,
+  resolveToolCallStrategy,
+} from '@/server/services/ai-tool-strategy';
 
 type QuestionInput = {
   question: string;
@@ -76,7 +85,6 @@ type ToolEnabledQuestionInput = {
 // reports the request exceeded its context window. Sources are halved each
 // time, so three retries send as little as ~1/8 of the original body.
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
-const MAX_TOOL_PROTOCOL_RETRIES = 3;
 
 /**
  * Keep a provider stream cancellable without imposing an arbitrary response
@@ -331,62 +339,55 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       plannerUsage.cachedInputTokens = (plannerUsage.cachedInputTokens ?? 0) + event.cachedInputTokens;
     }
   };
+  const plannerDeps = {
+    adapter,
+    actionId,
+    modelExternalId: textModel.externalId,
+    system,
+    temperature: runtimeConfig.plannerTemperature,
+    abortSignal: cancellation.signal,
+    maxOutputTokens: (systemPrompt: string, prompt: string) =>
+      computeAnswerMaxOutputTokens(
+        estimatePromptTokens(systemPrompt, prompt),
+        textModel.contextWindow,
+        textModel.maxOutputTokens,
+        runtimeConfig.plannerMaxOutputTokens,
+      ),
+    onReasoning: async (text: string) => {
+      await appendActionEvent(actionId, 'reasoning_delta', { text });
+    },
+    onUsage: accumulatePlannerUsage,
+  };
+  // Which strategy this model uses. Both planners return the same ToolPlanStep,
+  // so nothing below here — policy, review, audit, chat events — can tell them
+  // apart (028, FR-004).
+  const strategy = resolveToolCallStrategy({
+    strategy: textModel.toolCallStrategy,
+    nativeFailedAt: textModel.nativeToolCallFailedAt,
+    adapterSupportsNativeTools: adapter.supportsNativeTools,
+  });
+  logger.info('tool-call strategy resolved', {
+    actionId,
+    modelId: textModel.id,
+    strategy: strategy.strategy,
+    reason: strategy.reason,
+  });
+  const textPlanner = createTextProtocolPlanner(plannerDeps);
+  const nativePlanner = createNativeToolPlanner({ ...plannerDeps, tools: () => enabledTools });
+  // A model that advertises tool support but rejects the payload must not cost
+  // the user their turn: downgrade for next time and finish this one on the
+  // text protocol.
+  let useNative = strategy.strategy === 'native';
   const planner: ToolPlanner = async (state) => {
-    const basePrompt = buildPlannerUserPrompt(state);
-    for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
-      const retryInstruction = attempt > 0
-        ? '\n\nYour previous tool-call block was invalid or truncated. Re-emit the complete tool call as valid YAML or JSON using the exact documented argument names. Prefer a YAML block scalar (`contentSource: |`) for multiline Markdown.'
-        : '';
-      const prompt = `${basePrompt}${retryInstruction}`;
-      let output = '';
-      try {
-        for await (const event of streamTextWithRetry(
-          () =>
-            adapter.streamText({
-              actionId,
-              modelExternalId: textModel.externalId,
-              system,
-              messages: [{ role: 'user', content: prompt }],
-              maxOutputTokens: computeAnswerMaxOutputTokens(
-                estimatePromptTokens(system, prompt),
-                textModel.contextWindow,
-                textModel.maxOutputTokens,
-                runtimeConfig.plannerMaxOutputTokens,
-              ),
-              temperature: runtimeConfig.plannerTemperature,
-              timeoutMs: null,
-              abortSignal: cancellation.signal,
-            }),
-          { signal: cancellation.signal },
-        )) {
-          if (event.type === 'delta') output += event.text;
-          else if (event.type === 'reasoning_delta') {
-            await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
-          } else if (event.type === 'usage') {
-            accumulatePlannerUsage(event);
-          }
-        }
-      } catch (error) {
-        const normalized = normalizeProviderError(error);
-        if (normalized.code === 'TIMEOUT') {
-          throw new AiProviderError(
-            'TIMEOUT',
-            'The AI provider timed out while preparing the next Wiki action.',
-            true,
-          );
-        }
-        throw normalized;
-      }
-      const parsed = parseToolPlan(output);
-      if (parsed.kind === 'tool_calls') {
-        const taggedThinking = extractTaggedThinking(output);
-        if (taggedThinking) {
-          await appendActionEvent(actionId, 'reasoning_delta', { text: taggedThinking });
-        }
-      }
-      if (parsed.kind !== 'invalid_tool_calls') return parsed;
+    if (!useNative) return textPlanner(state);
+    try {
+      return await nativePlanner(state);
+    } catch (error) {
+      if (!isNativeToolUnsupportedError(error)) throw error;
+      useNative = false;
+      await markNativeToolCallFailed(textModel.id);
+      return textPlanner(state);
     }
-    throw new DomainError('INVALID_RESPONSE', 'The AI provider repeatedly returned an invalid tool call.');
   };
 
   let result;

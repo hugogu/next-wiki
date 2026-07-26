@@ -37,7 +37,9 @@ export type ModelPayload = {
 
 export class OpenAiCompatibleAdapter implements AiProviderAdapter {
   readonly kind: AiProviderKind = 'openai_compatible';
-  readonly supportsNativeTools = true;
+  // Widened so subclasses that cannot generate text at all (voyage, minimax)
+  // can declare false.
+  readonly supportsNativeTools: boolean = true;
   constructor(protected readonly config: ProviderRuntimeConfig) {}
 
   async testConnection(): Promise<ProviderHealth> {

@@ -18,6 +18,10 @@ export async function startAiProviderFixture(options: {
   delayMs?: number;
   malformed?: boolean;
   toolMode?: FixtureToolMode;
+  /** Text streamed for a tool-free chat request. Lets a test drive the fenced
+   * text tool protocol through the same fixture that serves native calls, so
+   * both planners can be compared on one scenario. */
+  textResponse?: string;
 } = {}) {
   const requests: Array<{ path: string; body: unknown }> = [];
   const dimensions = options.embeddingDimensions ?? 3;
@@ -91,11 +95,9 @@ export async function startAiProviderFixture(options: {
         );
         return response.end();
       }
+      const anthropicText = options.textResponse ?? 'fixture answer';
       response.write(
-        `data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: 'fixture ' } })}\n\n`,
-      );
-      response.write(
-        `data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: 'answer' } })}\n\n`,
+        `data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: anthropicText } })}\n\n`,
       );
       response.write(
         `data: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'end_turn' } })}\n\n`,
@@ -118,8 +120,9 @@ export async function startAiProviderFixture(options: {
         for (const frame of openAiToolFrames(toolMode)) response.write(`data: ${frame}\n\n`);
         return response.end('data: [DONE]\n\n');
       }
-      response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: 'fixture ' } }] })}\n\n`);
-      response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: 'answer' }, finish_reason: 'stop' }] })}\n\n`);
+      const text = options.textResponse ?? 'fixture answer';
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n`);
       return response.end('data: [DONE]\n\n');
     }
     response.writeHead(404, { 'content-type': 'application/json' });

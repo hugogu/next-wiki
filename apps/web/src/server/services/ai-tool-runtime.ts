@@ -323,6 +323,32 @@ export function buildCommandMarkdown(
     .join('\n');
 }
 
+/**
+ * One bounded rendering of a tool result for the model, shared by both
+ * tool-call strategies (028, FR-006).
+ *
+ * Before this existed the whole `data` payload went verbatim into the next
+ * prompt, so a single wide `list_pages` could crowd out the conversation it was
+ * meant to inform. Truncation is marked in-band so the model can tell the
+ * difference between "that is all there is" and "there was more".
+ */
+export const MAX_TOOL_RESULT_CHARS = 8_000;
+
+export function formatToolResultForModel(
+  toolName: string,
+  result: { summary: string; data?: unknown },
+): { text: string; truncated: boolean } {
+  const rendered = JSON.stringify({ summary: result.summary, data: result.data });
+  if (rendered.length <= MAX_TOOL_RESULT_CHARS) {
+    return { text: `TOOL ${toolName} -> ${rendered}`, truncated: false };
+  }
+  const kept = rendered.slice(0, MAX_TOOL_RESULT_CHARS);
+  return {
+    text: `TOOL ${toolName} -> ${kept}\n[truncated: the result exceeded ${MAX_TOOL_RESULT_CHARS} characters. Narrow the query or read a specific item instead of relying on the omitted part.]`,
+    truncated: true,
+  };
+}
+
 function hashResult(data: unknown): string {
   return createHash('sha256').update(JSON.stringify(data ?? null)).digest('hex');
 }
@@ -529,7 +555,13 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           citations.set(`${citation.pageId}:${citation.revisionId}`, citation);
         }
         const resultHash = result.data !== undefined ? hashResult(result.data) : null;
-        await succeedToolCall(call.id, { resultSummary: result.summary.slice(0, 500), resultHash });
+        const rendered = formatToolResultForModel(tool.name, result);
+        // Truncation is part of the durable record, not just a prompt detail:
+        // an answer built on a truncated result should be explicable later.
+        const storedSummary = rendered.truncated
+          ? `${result.summary.slice(0, 480)} (result truncated)`
+          : result.summary.slice(0, 500);
+        await succeedToolCall(call.id, { resultSummary: storedSummary, resultHash });
         await auditToolCall(params.actorUserId, { toolName: tool.name, status: 'succeeded' });
         await emitCall(params.actionId, call.id, {
           sequence: call.sequence,
@@ -539,7 +571,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           status: 'succeeded',
           requestedReview: planned.requestedReview,
           effectiveReview,
-          resultSummary: result.summary.slice(0, 500),
+          resultSummary: storedSummary,
           proposalId: result.proposalId ?? null,
           evidencePageId: result.evidencePageId ?? null,
         });
@@ -565,9 +597,10 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           effectiveReview,
           citations: collectToolCitations(tool.name, result.data).length,
           summaryBytes: result.summary.length,
+          resultTruncated: rendered.truncated,
           durationMs: toolDurationMs,
         });
-        state.transcript.push(`TOOL ${tool.name} -> ${JSON.stringify({ summary: result.summary, data: result.data })}`);
+        state.transcript.push(rendered.text);
       } else {
         await failToolCall(call.id, {
           errorCode: result.errorCode ?? 'TOOL_FAILED',
