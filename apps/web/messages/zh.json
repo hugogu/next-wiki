@@ -1132,6 +1132,8 @@
       "response": "响应",
       "headers": "请求头",
       "body": "正文",
+      "wrap": "自动换行",
+      "pretty": "格式化",
       "error": "错误",
       "unavailable": "所选记录级别未采集此数据。",
       "sensitive": "敏感数据",

@@ -1132,6 +1132,8 @@
       "response": "Response",
       "headers": "Headers",
       "body": "Body",
+      "wrap": "Wrap lines",
+      "pretty": "Pretty format",
       "error": "Error",
       "unavailable": "Not captured at the selected detail level.",
       "sensitive": "Sensitive data",

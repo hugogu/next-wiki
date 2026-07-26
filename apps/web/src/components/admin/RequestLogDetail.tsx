@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { RequestLogDetail as RequestLogDetailType } from '@next-wiki/shared';
 import { getDictionary, getLocale } from '@/i18n/server';
+import { RequestLogBodyViewer } from './RequestLogBodyViewer';
 
 function Pretty({ value }: { value: unknown }) {
   return (
@@ -40,7 +41,7 @@ export async function RequestLogDetail({ entry }: { entry: RequestLogDetailType 
             {t('admin.requestLog.body')}{' '}
             <span className="text-muted">({t('admin.requestLog.sensitive')})</span>
           </h3>
-          {entry.requestBody ? <Pretty value={entry.requestBody} /> : unavailable}
+          {entry.requestBody ? <RequestLogBodyViewer body={entry.requestBody} /> : unavailable}
         </div>
         <div className="space-y-md">
           <h2 className="font-display text-lg font-semibold">{t('admin.requestLog.response')}</h2>
@@ -53,7 +54,7 @@ export async function RequestLogDetail({ entry }: { entry: RequestLogDetailType 
             {t('admin.requestLog.body')}{' '}
             <span className="text-muted">({t('admin.requestLog.sensitive')})</span>
           </h3>
-          {entry.responseBody ? <Pretty value={entry.responseBody} /> : unavailable}
+          {entry.responseBody ? <RequestLogBodyViewer body={entry.responseBody} /> : unavailable}
           <h3 className="text-sm font-medium">
             {t('admin.requestLog.error')}{' '}
             <span className="text-muted">({t('admin.requestLog.sensitive')})</span>

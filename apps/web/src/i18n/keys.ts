@@ -791,6 +791,8 @@ export const translationKeys = [
   "admin.requestLog.response",
   "admin.requestLog.headers",
   "admin.requestLog.body",
+  "admin.requestLog.wrap",
+  "admin.requestLog.pretty",
   "admin.requestLog.error",
   "admin.requestLog.unavailable",
   "admin.requestLog.sensitive",
