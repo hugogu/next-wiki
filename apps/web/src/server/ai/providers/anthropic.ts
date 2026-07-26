@@ -13,6 +13,11 @@ import {
   type TextGenerationInput,
 } from '../types';
 import { providerFetch, readBoundedJson } from './http-client';
+import {
+  AnthropicToolBlockAccumulator,
+  toAnthropicMessages,
+  toAnthropicTools,
+} from './tool-envelope';
 
 type AnthropicModel = {
   id?: unknown;
@@ -23,6 +28,7 @@ type AnthropicModel = {
 
 export class AnthropicAdapter implements AiProviderAdapter {
   readonly kind = 'anthropic' as const;
+  readonly supportsNativeTools = true;
 
   constructor(private readonly config: ProviderRuntimeConfig) {}
 
@@ -75,7 +81,10 @@ export class AnthropicAdapter implements AiProviderAdapter {
       body: JSON.stringify({
         model: input.modelExternalId,
         system: input.system,
-        messages: input.messages,
+        messages: toAnthropicMessages(input.messages),
+        // Omitted entirely when no tools are offered, so a plain completion is
+        // byte-for-byte what it was before tools existed.
+        ...(input.tools?.length ? { tools: toAnthropicTools(input.tools) } : {}),
         max_tokens: input.maxOutputTokens ?? 4096,
         temperature: input.temperature,
         stream: true,
@@ -85,6 +94,7 @@ export class AnthropicAdapter implements AiProviderAdapter {
     if (requestId) yield { type: 'provider_request_id', id: requestId };
     if (!response.body) throw new AiProviderError('INVALID_RESPONSE', 'Provider stream is empty');
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    const toolBlocks = new AnthropicToolBlockAccumulator();
     let buffer = '';
     while (true) {
       const { done, value } = await reader.read();
@@ -98,7 +108,14 @@ export class AnthropicAdapter implements AiProviderAdapter {
           if (!data) continue;
           let event: {
             type?: string;
-            delta?: { type?: string; text?: unknown; stop_reason?: unknown };
+            index?: unknown;
+            content_block?: { type?: unknown; id?: unknown; name?: unknown };
+            delta?: {
+              type?: string;
+              text?: unknown;
+              partial_json?: unknown;
+              stop_reason?: unknown;
+            };
             usage?: { input_tokens?: number; output_tokens?: number };
           };
           try {
@@ -106,8 +123,25 @@ export class AnthropicAdapter implements AiProviderAdapter {
           } catch {
             throw new AiProviderError('INVALID_RESPONSE', 'Provider returned a malformed stream');
           }
+          const index = typeof event.index === 'number' ? event.index : 0;
+          if (event.type === 'content_block_start' && event.content_block) {
+            toolBlocks.start(index, event.content_block);
+          }
           if (event.type === 'content_block_delta' && typeof event.delta?.text === 'string') {
             yield { type: 'delta', text: event.delta.text.slice(0, 64_000) };
+          }
+          if (
+            event.type === 'content_block_delta' &&
+            event.delta?.type === 'input_json_delta' &&
+            typeof event.delta.partial_json === 'string'
+          ) {
+            toolBlocks.delta(index, event.delta.partial_json);
+          }
+          if (event.type === 'content_block_stop') {
+            // A tool_use block is complete only at stop; before that its input
+            // is partial JSON.
+            const call = toolBlocks.stop(index);
+            if (call) yield { type: 'tool_call', call };
           }
           if (event.usage) {
             yield {

@@ -11,6 +11,8 @@ import { OpenAiCompatibleAdapter } from './openai-compatible';
 
 export class VoyageAdapter extends OpenAiCompatibleAdapter {
   override readonly kind = 'voyage' as const;
+  // Embedding-only provider: it has no chat endpoint, so it can never carry tools.
+  override readonly supportsNativeTools = false;
 
   constructor(config: ProviderRuntimeConfig) {
     super(config);

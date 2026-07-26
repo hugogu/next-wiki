@@ -20,6 +20,8 @@ const MINIMAX_AUTH_STATUS = new Set([1004, 2049]);
 
 export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
   override readonly kind = 'minimax' as const;
+  // Image-only provider: it has no chat endpoint, so it can never carry tools.
+  override readonly supportsNativeTools = false;
 
   constructor(config: ProviderRuntimeConfig) {
     super(config);

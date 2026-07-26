@@ -4,6 +4,9 @@ import type {
   AiProviderKind,
   AiProviderType,
   AiProviderVendor,
+  NeutralToolCall,
+  NeutralToolDefinition,
+  NeutralToolResult,
 } from '@next-wiki/shared';
 import { logger } from '@/server/logger';
 
@@ -52,11 +55,28 @@ export type DiscoveredModel = {
   rawMetadata: Record<string, unknown>;
 };
 
+/**
+ * One turn in a conversation. `toolCalls` records what an assistant turn asked
+ * for; `toolResults` carries the runtime's bounded answers back. Adapters place
+ * both wherever their wire format expects — assistant `tool_calls` plus `role:
+ * "tool"` messages for OpenAI-compatible endpoints, `tool_use` and `tool_result`
+ * content blocks for Anthropic — so callers never branch on vendor (028, FR-001).
+ */
+export type TextGenerationMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  toolCalls?: NeutralToolCall[];
+  toolResults?: NeutralToolResult[];
+};
+
 export type TextGenerationInput = {
   actionId: string;
   modelExternalId: string;
   system: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: TextGenerationMessage[];
+  /** Tools offered to the model for this turn. Omitted or empty means the
+   * request is a plain text completion and must behave exactly as before. */
+  tools?: NeutralToolDefinition[];
   maxOutputTokens?: number;
   temperature?: number;
   /** `null` disables the transport timeout; callers must then supply an abort signal. */
@@ -66,6 +86,9 @@ export type TextGenerationInput = {
 export type TextGenerationEvent =
   | { type: 'delta'; text: string }
   | { type: 'reasoning_delta'; text: string }
+  /** Emitted once per completed tool call, after its arguments are whole.
+   * Partial argument fragments are buffered by the adapter, never emitted. */
+  | { type: 'tool_call'; call: NeutralToolCall }
   | { type: 'usage'; inputTokens?: number; outputTokens?: number; cachedInputTokens?: number }
   | { type: 'provider_request_id'; id: string }
   | { type: 'done'; finishReason?: string };
@@ -97,6 +120,12 @@ export type ImageGenerationOutput =
 
 export interface AiProviderAdapter {
   readonly kind: AiProviderKind;
+  /** Whether this adapter can express tools in the provider's own protocol.
+   * A static property of the adapter, not of the configured model — per-model
+   * selection lives in `ai_models.tool_call_strategy`. An adapter that returns
+   * false MUST reject a request carrying tools rather than silently dropping
+   * them, so a caller can never believe tools were offered when they were not. */
+  readonly supportsNativeTools: boolean;
   testConnection(): Promise<ProviderHealth>;
   listModels(): Promise<DiscoveredModel[]>;
   streamText(input: TextGenerationInput): AsyncIterable<TextGenerationEvent>;
@@ -109,6 +138,31 @@ export function unsupportedProviderOperation(operation: string): never {
     'CAPABILITY_UNSUPPORTED',
     `The configured provider protocol does not support ${operation}`,
   );
+}
+
+/**
+ * Recognize a provider rejecting the tool payload itself — as opposed to
+ * failing for an unrelated reason. Used to downgrade a model to the text
+ * protocol and retry the same turn, so the user's request never fails merely
+ * because a model advertised tool support it does not have (028, FR-002).
+ */
+export function isNativeToolUnsupportedError(error: unknown): boolean {
+  if (!(error instanceof AiProviderError)) return false;
+  if (error.code === 'CAPABILITY_UNSUPPORTED') return true;
+  // Only a client-side rejection counts. Rate limits and 5xx are transient and
+  // must never mark a model as tool-incapable, even if their prose happens to
+  // mention tools — the downgrade is persistent.
+  if (error.code !== 'INVALID_RESPONSE') return false;
+  // Providers report this as a 400 with free-text prose rather than a stable
+  // code, and the two halves of the sentence arrive in either order:
+  // "'tools' is not supported with this model", "does not support tool use".
+  const mentionsTools =
+    /\btools?\b|\btool[_ ](?:choice|call|use)s?\b|\bfunction[_ ]call(?:ing)?\b/i.test(error.message);
+  const mentionsUnsupported =
+    /not supported|unsupported|not permitted|does not support|no support for|invalid parameter/i.test(
+      error.message,
+    );
+  return mentionsTools && mentionsUnsupported;
 }
 
 const SAFE_CODES = new Set<AiApiErrorCode>([

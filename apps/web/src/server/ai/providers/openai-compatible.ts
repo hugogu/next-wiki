@@ -14,6 +14,12 @@ import {
 } from '../types';
 import type { AiProviderKind } from '@next-wiki/shared';
 import { providerFetch, readBoundedJson } from './http-client';
+import {
+  OpenAiToolCallAccumulator,
+  toOpenAiMessages,
+  toOpenAiTools,
+  type OpenAiToolCallDelta,
+} from './tool-envelope';
 
 export type ModelPayload = {
   id?: unknown;
@@ -31,6 +37,7 @@ export type ModelPayload = {
 
 export class OpenAiCompatibleAdapter implements AiProviderAdapter {
   readonly kind: AiProviderKind = 'openai_compatible';
+  readonly supportsNativeTools = true;
   constructor(protected readonly config: ProviderRuntimeConfig) {}
 
   async testConnection(): Promise<ProviderHealth> {
@@ -124,7 +131,10 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
       body: JSON.stringify({
         model: input.modelExternalId,
         stream: true,
-        messages: [{ role: 'system', content: input.system }, ...input.messages],
+        messages: toOpenAiMessages(input.system, input.messages),
+        // Omitted entirely when no tools are offered, so a plain completion is
+        // byte-for-byte what it was before tools existed.
+        ...(input.tools?.length ? { tools: toOpenAiTools(input.tools) } : {}),
         max_tokens: input.maxOutputTokens,
         temperature: input.temperature,
         stream_options: { include_usage: true },
@@ -134,6 +144,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
     if (requestId) yield { type: 'provider_request_id', id: requestId };
     if (!response.body) throw new AiProviderError('INVALID_RESPONSE', 'Provider stream is empty');
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    const toolCalls = new OpenAiToolCallAccumulator();
     let buffer = '';
     while (true) {
       const { done, value } = await reader.read();
@@ -146,7 +157,15 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           const data = line.slice(5).trim();
           if (!data || data === '[DONE]') continue;
           let event: {
-            choices?: Array<{ delta?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown }; finish_reason?: unknown }>;
+            choices?: Array<{
+              delta?: {
+                content?: unknown;
+                reasoning_content?: unknown;
+                reasoning?: unknown;
+                tool_calls?: OpenAiToolCallDelta[];
+              };
+              finish_reason?: unknown;
+            }>;
             usage?: {
               prompt_tokens?: number;
               completion_tokens?: number;
@@ -163,6 +182,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
           if (typeof text === 'string' && text) yield { type: 'delta', text: text.slice(0, 64_000) };
           const reasoning = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning;
           if (typeof reasoning === 'string' && reasoning) yield { type: 'reasoning_delta', text: reasoning.slice(0, 64_000) };
+          toolCalls.push(choice?.delta?.tool_calls);
           if (event.usage) {
             yield {
               type: 'usage',
@@ -171,11 +191,18 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
               cachedInputTokens: event.usage.prompt_tokens_details?.cached_tokens,
             };
           }
-          if (choice?.finish_reason) yield { type: 'done', finishReason: String(choice.finish_reason) };
+          if (choice?.finish_reason) {
+            // Calls are surfaced only once the turn is over: until then the
+            // accumulated arguments are partial JSON and cannot be trusted.
+            for (const call of toolCalls.drain()) yield { type: 'tool_call', call };
+            yield { type: 'done', finishReason: String(choice.finish_reason) };
+          }
         }
       }
       if (done) break;
     }
+    // A stream that ends without a finish_reason still must not swallow calls.
+    for (const call of toolCalls.drain()) yield { type: 'tool_call', call };
   }
 
   async embed(input: EmbeddingInput): Promise<EmbeddingOutput> {
