@@ -97,6 +97,9 @@ export function AiChatPane({
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
       : undefined,
   );
+  // Destructure the pieces we need in effect dependency arrays. `cancel` is
+  // stable; `running` is the reactive signal that starts/stops recovery polling.
+  const { running, cancel } = chat;
 
   const loadedChatKeyRef = useRef<string | null>(null);
   const restoreSession = chat.restoreSession;
@@ -204,8 +207,8 @@ export function AiChatPane({
       // failed client-side with the authoritative server state. The server
       // may have completed the turn despite a proxy/VPN interrupting the
       // POST or EventSource, and a stored actionId is the only handle we
-      // need to ask `/api/ai/sessions/{actionId}` for the durable record
-      // (preferring the captured Raw conversation over event reconstruction).
+      // need to ask `/api/ai/sessions/legacy:turn:{actionId}` for the durable
+      // record (preferring the captured Raw conversation over event reconstruction).
       const store = useChatStore.getState();
       const stale = store.messages.filter(
         (message) => message.role === 'assistant' && message.error && message.actionId,
@@ -244,6 +247,44 @@ export function AiChatPane({
   }, []);
 
   const formatDate = (value: string) => new Date(value).toLocaleString(locale);
+
+  // If the EventSource silently stalls (proxy/VPN dropped the connection and
+  // the browser did not reconnect), poll the authoritative server state for the
+  // running turn. This converts a "frozen spinner" into a recovered answer
+  // without requiring the user to refresh the page.
+  useEffect(() => {
+    if (!rehydrated || !running) return;
+    let cancelled = false;
+    const poll = async () => {
+      const store = useChatStore.getState();
+      const lastAssistant = [...store.messages].reverse().find((message) => message.role === 'assistant');
+      if (!lastAssistant?.actionId) return;
+      const recovered = await recoverSessionFromServer(lastAssistant.actionId);
+      if (cancelled || !recovered) return;
+      const { answer, thinking, citations, toolCalls, searchResults, insufficient, errorMessage, status } = recovered;
+      if (status === 'completed') {
+        store.recoverMessage(lastAssistant.id, {
+          text: insufficient ? '' : answer,
+          thinking,
+          citations,
+          toolCalls,
+          searchResults,
+          insufficient,
+        });
+        cancel();
+      } else if (status === 'failed' || status === 'cancelled' || status === 'expired') {
+        store.recoverMessage(lastAssistant.id, { error: errorMessage ?? 'AI request failed' });
+        cancel();
+      }
+      // queued/running: keep polling.
+    };
+    const interval = window.setInterval(() => { void poll(); }, 10_000);
+    void poll();
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [rehydrated, running, cancel]);
 
   if (!entitlements.aiEnabled || !entitlements.questionAnsweringEnabled) return null;
   if (!chat.open) {

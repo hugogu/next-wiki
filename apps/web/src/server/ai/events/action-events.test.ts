@@ -23,4 +23,39 @@ describe('AI action SSE', () => {
     expect(await response.text()).toContain('event: completed');
     await removeAiTestUser(userId);
   });
+
+  it('stays open without a hard deadline and recovers after a delayed terminal event', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('admin');
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    const ctx = buildUserCtx(userId, 'admin');
+    const action = await createAction(ctx, { feature: 'semantic_search', input: { query: 'q' } });
+    const stream = await createActionEventStream(ctx, action.id);
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+
+    // The stream should send a retry directive and heartbeat comments instead
+    // of closing after a short fixed deadline.
+    let prefix = '';
+    while (!prefix.includes(': heartbeat')) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      prefix += decoder.decode(value, { stream: true });
+    }
+    expect(prefix).toContain('retry: 2000');
+    expect(prefix).toContain(': heartbeat');
+
+    // A terminal event appended later must still be delivered.
+    await appendActionEvent(action.id, 'completed', { status: 'completed' });
+    let rest = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      rest += decoder.decode(value, { stream: true });
+      if (rest.includes('event: completed')) break;
+    }
+    expect(rest).toContain('event: completed');
+    await reader.releaseLock();
+    await removeAiTestUser(userId);
+  });
 });

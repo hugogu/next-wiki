@@ -106,7 +106,7 @@ describe('recoverSessionFromServer', () => {
       toolCalls: [],
       searchResults: [],
     });
-    expect(apiGet).toHaveBeenCalledWith('/api/ai/sessions/action-1');
+    expect(apiGet).toHaveBeenCalledWith('/api/ai/sessions/legacy:turn:action-1');
   });
 
   it('falls back to event reconstruction when no captured conversation exists', async () => {
