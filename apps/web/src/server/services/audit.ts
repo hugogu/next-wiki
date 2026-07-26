@@ -93,6 +93,23 @@ async function writeToolAuditEntry(input: {
   });
 }
 
+/**
+ * Agent Skill administration (028). Skills are configuration that steers the
+ * assistant, so every change to which ones exist, which are enabled, and what
+ * they say is auditable — the same bar as tool policy.
+ */
+export function auditSkillChange(
+  userId: string | null,
+  change: { action: string; name: string; path?: string | null },
+): Promise<void> {
+  return writeToolAuditEntry({
+    userId,
+    method: 'PATCH',
+    action: `skills/${change.name}/${change.action}${change.path ? `/${change.path}` : ''}`,
+    outcome: 'success',
+  });
+}
+
 export function auditToolPolicyChange(
   userId: string | null,
   scope: { providerKey: string; category?: string | null; toolName?: string | null },
