@@ -56,6 +56,7 @@ import {
 } from '@/server/services/feishu-answer-streams';
 import { getCitationHref } from '@/lib/path';
 import { logger } from '@/server/logger';
+import { listEnabledSkills } from '@/server/services/skills/registry';
 import { buildWikiToolSystemPrompt } from './wiki-question-tool-planner';
 import {
   createNativeToolPlanner,
@@ -320,10 +321,17 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   }
 
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
-  const system = buildWikiToolSystemPrompt(enabledTools, {
-    assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
-    toolSystemPrompt: runtimeConfig.toolSystemPrompt,
-  });
+  // Only names and descriptions: the model pulls full skill content on demand
+  // through load_skill, so 20 installed skills cost 20 lines, not 20 documents.
+  const enabledSkills = await listEnabledSkills();
+  const system = buildWikiToolSystemPrompt(
+    enabledTools,
+    {
+      assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
+      toolSystemPrompt: runtimeConfig.toolSystemPrompt,
+    },
+    enabledSkills.map((skill) => ({ name: skill.name, description: skill.description })),
+  );
   const cancellation = watchActionCancellation(actionId);
   // Streaming usage accumulated across every planner iteration. A tool-enabled
   // answer can take several LLM turns; summing the per-iteration tokens gives

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  SKILL_LIMITS,
   publicPageSearchQuerySchema,
   type AiToolReviewDecision,
   type PublicPageInclude,
@@ -14,6 +15,8 @@ import { auditImmediateToolMutation } from '@/server/services/audit';
 import { createProposal } from '@/server/services/ai-tool-proposals';
 import { getToolDefinition, type ToolDefinition } from '@/server/services/ai-tool-registry';
 import { logger } from '@/server/logger';
+import { findSkill, recordSkillUsage } from '@/server/services/skills/registry';
+import { INSTRUCTION_FILE as SKILL_INSTRUCTION_FILE, safeRelativePath } from '@/server/services/skills/package';
 
 /**
  * Built-in tool execution adapters (026, US2). Every adapter runs the operation
@@ -441,6 +444,104 @@ async function execMergeTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecuti
   });
 }
 
+// ---- Skills (028) -----------------------------------------------------------
+
+const loadSkillArgs = z.object({ name: z.string().min(1).max(64) });
+const readSkillFileArgs = z.object({
+  name: z.string().min(1).max(64),
+  path: z.string().min(1).max(255),
+});
+
+/**
+ * Load an enabled skill's instructions.
+ *
+ * There is no per-skill authorisation: any user with AI access may load any
+ * enabled skill, because a skill confers no authority of its own. What the turn
+ * may actually do is still decided by the user's permissions and the review
+ * policy, so the safety boundary sits where it already was rather than being
+ * duplicated here (FR-022a, FR-023).
+ */
+async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+  const args = loadSkillArgs.parse(rawArgs ?? {});
+  const skill = await findSkill(args.name);
+  if (!skill) return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
+  if (!skill.enabled) {
+    // Deliberately the same message as "not found": whether a disabled skill
+    // exists is not something a chat turn needs to reveal.
+    return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
+  }
+  const instructions = await skill.entry.readFile(SKILL_INSTRUCTION_FILE);
+  if (instructions === null) {
+    return fail('SKILL_INVALID', `The skill "${args.name}" has no readable instruction file.`);
+  }
+  await recordSkillUsage(skill.name);
+  const bounded = boundSkillContent(instructions);
+  return {
+    ok: true,
+    summary: `Loaded skill ${skill.name}.`,
+    data: {
+      name: skill.name,
+      description: skill.description,
+      instructions: bounded.text,
+      truncated: bounded.truncated,
+      // The file list travels with the instructions so the model knows what it
+      // may read next without guessing at paths.
+      files: skill.entry.files
+        .filter((file) => file.path !== SKILL_INSTRUCTION_FILE)
+        .map((file) => ({ path: file.path, kind: file.kind, viewable: file.viewable })),
+    },
+  };
+}
+
+/** Read one reference file inside a skill. Text only — nothing here executes. */
+async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+  const args = readSkillFileArgs.parse(rawArgs ?? {});
+  const skill = await findSkill(args.name);
+  if (!skill || !skill.enabled) {
+    return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
+  }
+  const relativePath = safeRelativePath(args.path);
+  if (!relativePath) return fail('SKILL_PATH_INVALID', 'That skill file path is not valid.');
+  const file = skill.entry.files.find((item) => item.path === relativePath);
+  if (!file) return fail('SKILL_FILE_NOT_FOUND', `The skill has no file at "${relativePath}".`);
+  if (!file.viewable) {
+    return fail(
+      'SKILL_FILE_NOT_VIEWABLE',
+      `"${relativePath}" is binary or too large to read (${file.byteSize} bytes).`,
+    );
+  }
+  const content = await skill.entry.readFile(relativePath);
+  if (content === null) return fail('SKILL_FILE_NOT_FOUND', `The skill has no file at "${relativePath}".`);
+  await recordSkillUsage(skill.name);
+  const bounded = boundSkillContent(content);
+  return {
+    ok: true,
+    summary: `Read ${relativePath} from skill ${skill.name}.`,
+    data: {
+      name: skill.name,
+      path: relativePath,
+      contentType: file.contentType,
+      content: bounded.text,
+      truncated: bounded.truncated,
+      ...(file.kind === 'script'
+        ? { note: 'This is reference material. The server does not execute skill scripts.' }
+        : {}),
+    },
+  };
+}
+
+/** Bound one piece of skill content, marking truncation in-band so the model
+ * can tell "that is all" from "there was more" (FR-021). */
+function boundSkillContent(content: string): { text: string; truncated: boolean } {
+  if (content.length <= SKILL_LIMITS.maxTurnContentBytes) {
+    return { text: content, truncated: false };
+  }
+  return {
+    text: `${content.slice(0, SKILL_LIMITS.maxTurnContentBytes)}\n\n[truncated: this skill file exceeds the per-turn content budget.]`,
+    truncated: true,
+  };
+}
+
 // ---- Dispatch ---------------------------------------------------------------
 
 type Executor = (ctx: PermCtx, args: unknown, execCtx: ToolExecutionContext) => Promise<ToolExecutionResult>;
@@ -461,6 +562,8 @@ const EXECUTORS: Record<string, Executor> = {
   rename_tag: execRenameTag,
   delete_tag: execDeleteTag,
   merge_tag: execMergeTag,
+  load_skill: (ctx, args) => execLoadSkill(ctx, args),
+  read_skill_file: (ctx, args) => execReadSkillFile(ctx, args),
 };
 
 export function hasExecutor(toolName: string): boolean {

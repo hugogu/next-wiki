@@ -144,6 +144,23 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'PROPOSAL_CONFLICT':
     case 'PROPOSAL_NOT_APPLICABLE':
       return apiError(code, message, 409);
+    // Agent Skills (028).
+    case 'SKILL_NOT_FOUND':
+    case 'SKILL_FILE_NOT_FOUND':
+      return apiError(code, message, 404);
+    case 'SKILL_NAME_TAKEN':
+    case 'SKILL_READ_ONLY':
+    case 'SKILL_FILE_CONFLICT':
+    case 'SKILL_FILE_NOT_VIEWABLE':
+      return apiError(code, message, 409);
+    case 'SKILL_INVALID':
+      return apiError(code, message, 422);
+    case 'SKILL_FILE_TOO_LARGE':
+      return apiError(code, message, 413);
+    case 'SKILL_PATH_INVALID':
+      return apiError(code, message, 400);
+    case 'SKILL_DISABLED':
+      return apiError(code, message, 403);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

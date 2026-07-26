@@ -361,6 +361,47 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       required: ['pageIds'],
     },
   },
+  // --- skills (028) ---
+  // Skill loading is a tool call rather than a side channel, which buys five
+  // things at once: it shows up in the chat timeline, it is permission-checked
+  // at the same chokepoint, it is bounded by the per-turn call limit, it is
+  // recorded in ai_tool_calls (so "which skills produced this change?" is
+  // answerable), and it works identically under both tool-call strategies.
+  {
+    name: 'load_skill',
+    category: 'read',
+    riskLevel: 'read',
+    requiredScope: 'use_ai_qa',
+    // Skill instructions are configuration, not evidence: they must never be
+    // captured as Raw evidence when a turn produces durable knowledge.
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'allow_immediate',
+    description:
+      'Load an enabled skill\'s instructions before following its procedure. Call this when a listed skill matches the request.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'Skill name from the listed catalogue.' } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'read_skill_file',
+    category: 'read',
+    riskLevel: 'read',
+    requiredScope: 'use_ai_qa',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'allow_immediate',
+    description:
+      'Read one reference file inside a loaded skill. Scripts are returned as text for reference only and are never executed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        path: { type: 'string', description: 'File path relative to the skill package.' },
+      },
+      required: ['name', 'path'],
+    },
+  },
   // --- raw_evidence ---
   {
     name: 'capture_tool_evidence',

@@ -20,6 +20,12 @@ export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls'
  * a tool never requires editing the prompt. */
 export const TOOL_CATALOG_PLACEHOLDER = '{{TOOLS}}';
 
+/** Marker where the runtime injects the enabled skill catalogue. Only names and
+ * one-line descriptions go in: full content is pulled on demand with
+ * `load_skill`, so a large skill library costs a few lines per turn rather than
+ * scaling with the library (028, FR-018). */
+export const SKILL_CATALOG_PLACEHOLDER = '{{SKILLS}}';
+
 /**
  * Built-in default for the admin-editable tool system prompt (AI > Prompts).
  * The `{{TOOLS}}` placeholder is replaced at runtime with the current enabled
@@ -33,6 +39,10 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'Durable knowledge changes must remain permission-scoped, audited, reviewable, and reversible; follow the review disposition and outcome returned by the server.',
   'Available tools:',
   TOOL_CATALOG_PLACEHOLDER,
+  '',
+  'Skills are procedures for recurring Wiki tasks. Each is listed with a name and a short description; call load_skill with the name to read its full instructions before following it, and read_skill_file for any reference file it mentions. A skill tells you HOW to approach a task — it never grants permission, and every change it leads to still goes through the normal review path. Skill scripts are reference material: the server does not execute them.',
+  'Available skills:',
+  SKILL_CATALOG_PLACEHOLDER,
   '',
   'To use tools, reply with ONLY a fenced code block and nothing else. YAML is preferred because Markdown content can use a block scalar:',
   '```tool',
@@ -54,6 +64,9 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
 ].join('\n');
 
+/** One line of the skill catalogue shown to the model. */
+export type SkillCatalogEntry = { name: string; description: string };
+
 export type WikiToolPromptOverrides = {
   assistantSystemPrompt?: string | null;
   toolSystemPrompt?: string | null;
@@ -68,13 +81,23 @@ export type WikiToolPromptOverrides = {
 export function buildWikiToolSystemPrompt(
   tools: ToolDefinition[],
   overrides: WikiToolPromptOverrides = {},
+  skills: SkillCatalogEntry[] = [],
 ): string {
   const toolList = tools.map((tool) => `- ${tool.name} (${tool.category}): ${tool.description}`).join('\n');
+  const skillList =
+    skills.length > 0
+      ? skills.map((skill) => `- ${skill.name}: ${skill.description}`).join('\n')
+      : '(none enabled)';
   const template = overrides.toolSystemPrompt?.trim() ? overrides.toolSystemPrompt : DEFAULT_TOOL_SYSTEM_PROMPT;
   const toolSection = template.includes(TOOL_CATALOG_PLACEHOLDER)
     ? template.replaceAll(TOOL_CATALOG_PLACEHOLDER, toolList)
     : `${template}\n\nAvailable tools:\n${toolList}`;
-  return buildWikiAssistantSystemPrompt([toolSection], overrides.assistantSystemPrompt);
+  // Appended when an admin has edited the prompt and dropped the marker, so
+  // enabling a skill never requires editing a prompt to take effect.
+  const withSkills = toolSection.includes(SKILL_CATALOG_PLACEHOLDER)
+    ? toolSection.replaceAll(SKILL_CATALOG_PLACEHOLDER, skillList)
+    : `${toolSection}\n\nAvailable skills:\n${skillList}`;
+  return buildWikiAssistantSystemPrompt([withSkills], overrides.assistantSystemPrompt);
 }
 
 export function extractTaggedThinking(output: string): string {
