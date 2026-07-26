@@ -318,6 +318,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
                   <DataTableHeader>{t('admin.apiAudit.status')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.duration')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.authStatus')}</DataTableHeader>
+                  <DataTableHeader>{t('admin.apiAudit.metadata')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.ip')}</DataTableHeader>
                   <DataTableHeader>{t('admin.apiAudit.timestamp')}</DataTableHeader>
                 </tr>
@@ -333,6 +334,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
                     <DataTableCell className={`font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</DataTableCell>
                     <DataTableCell>{entry.durationMs}ms</DataTableCell>
                     <DataTableCell>{entry.authStatus}</DataTableCell>
+                    <DataTableCell className="max-w-xs truncate font-mono text-xs">{entry.metadata ? JSON.stringify(entry.metadata) : '—'}</DataTableCell>
                     <DataTableCell className="font-mono text-xs">{entry.ip ?? '—'}</DataTableCell>
                     <DataTableCell className="text-muted">{new Date(entry.createdAt).toLocaleString(locale)}</DataTableCell>
                   </DataTableRow>

@@ -483,6 +483,7 @@ export const apiAuditEntries = pgTable(
     durationMs: integer('duration_ms').notNull(),
     authStatus: text('auth_status').notNull(),
     errorMessage: text('error_message'),
+    metadata: jsonb('metadata'),
     // Source IP of the request, parsed from x-forwarded-for / x-real-ip.
     // Nullable so historical rows and requests without a proxy header stay valid.
     ip: text('ip'),
@@ -2001,3 +2002,4 @@ export const analyticsProviderSettings = pgTable('analytics_provider_settings', 
 // barrel and Drizzle relational client see them. The ai-tools module imports
 // the base tables above; this trailing re-export keeps that one-directional.
 export * from './ai-tools';
+export * from './request-logs';

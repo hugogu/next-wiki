@@ -387,6 +387,11 @@ export function Navigator({
           label: t('admin.nav.apiAudit'),
           icon: <ClipboardListIcon className="shrink-0" />,
         },
+        {
+          href: '/admin/request-log',
+          label: t('admin.nav.requestLog'),
+          icon: <ClipboardListIcon className="shrink-0" />,
+        },
       ],
     },
   ];

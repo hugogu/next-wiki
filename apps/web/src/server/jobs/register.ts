@@ -44,6 +44,7 @@ import {
   type WritingModeSwitchJobData,
 } from './writing-mode-switch';
 import { runRawConversationCapture } from './raw-conversation-capture';
+import { runRequestLogPersist } from './request-log-persist';
 
 type JobBatch = { data: unknown }[];
 
@@ -117,6 +118,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   });
   await boss.work(QUEUES.aiCleanup, async () => {
     await runAiCleanup();
+  });
+  await boss.work(QUEUES.requestLogPersist, { batchSize: 25 }, async (jobs: JobBatch) => {
+    for (const job of jobs) await runRequestLogPersist(job.data as Record<string, unknown>);
   });
   await boss.work(QUEUES.transferExport, async (jobs: JobBatch) => {
     for (const job of jobs) await runTransferExport((job.data as { runId: string }).runId);

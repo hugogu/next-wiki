@@ -74,6 +74,7 @@ export type Action =
   | 'manage_translations'
   | 'manage_appearance'
   | 'manage_tags'
+  | 'manage_request_logs'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -93,7 +94,8 @@ export type Resource =
   | { kind: 'transfers' }
   | { kind: 'translations' }
   | { kind: 'appearance' }
-  | { kind: 'tags' };
+  | { kind: 'tags' }
+  | { kind: 'request_logs' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -172,6 +174,7 @@ function roleAllows(
     case 'manage_transfers':
     case 'manage_translations':
     case 'manage_appearance':
+    case 'manage_request_logs':
       return role === 'admin';
     case 'manage_tags':
       // Tags are shared editorial vocabulary. Editors may curate it when a
@@ -214,6 +217,7 @@ export function can(
       action === 'manage_ai' ||
       action === 'manage_translations' ||
       action === 'manage_appearance' ||
+      action === 'manage_request_logs' ||
       action === 'use_ai_text_optimization' ||
       action === 'use_ai_image_generation'
     ) {

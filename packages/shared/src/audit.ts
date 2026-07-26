@@ -17,6 +17,21 @@ export type AuditEntryType = z.infer<typeof auditEntryTypeSchema>;
 export const auditOriginSchema = z.enum(['web', 'api', 'feishu']);
 export type AuditOrigin = z.infer<typeof auditOriginSchema>;
 
+export const requestLogSettingsAuditMetadataSchema = z.object({
+  kind: z.literal('request_log_settings_change'),
+  previous: z.object({
+    enabled: z.boolean(),
+    level: z.enum(['status', 'header', 'all']),
+    retentionHours: z.number().int().min(1).max(168),
+  }),
+  next: z.object({
+    enabled: z.boolean(),
+    level: z.enum(['status', 'header', 'all']),
+    retentionHours: z.number().int().min(1).max(168),
+  }),
+});
+export type RequestLogSettingsAuditMetadata = z.infer<typeof requestLogSettingsAuditMetadataSchema>;
+
 export const auditEntrySchema = z.object({
   id: z.string(),
   keyId: z.string().nullable(),
@@ -32,6 +47,7 @@ export const auditEntrySchema = z.object({
   durationMs: z.number(),
   authStatus: authStatusSchema,
   errorMessage: z.string().nullable(),
+  metadata: requestLogSettingsAuditMetadataSchema.nullable(),
   ip: z.string().nullable(),
   createdAt: z.string(),
 });

@@ -3,6 +3,15 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 export const userRoleEnum = pgEnum('user_role', ['admin', 'editor', 'reader']);
 export const userStatusEnum = pgEnum('user_status', ['active', 'disabled']);
 export const revisionStatusEnum = pgEnum('revision_status', ['draft', 'published']);
+export const requestLogLevelEnum = pgEnum('request_log_level', ['status', 'header', 'all']);
+export const outboundRequestOutcomeEnum = pgEnum('outbound_request_outcome', [
+  'success',
+  'http_error',
+  'transport_error',
+  'timeout',
+  'cancelled',
+  'invalid_response',
+]);
 // 022 (Phase 11): page_revisions.content_type is an open MIME-type string, not a
 // closed enum — raw entries carry PDF/HTML/JSON/image/log content types. Grammar
 // is enforced by a DB CHECK plus a service-layer MIME parser.

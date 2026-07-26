@@ -19,7 +19,7 @@ description: "Implementation tasks for outbound request logging"
 
 - [ ] T001 Add deterministic outbound-response fixtures covering success, HTTP error, pre-response transport failure, timeout, cancellation, malformed JSON/SSE, duplicate headers, empty bodies, and binary bodies in `apps/web/src/server/ai/providers/http-client.test.ts`.
 - [ ] T002 Add shared request-log test factories for settings, source descriptors, metadata, encrypted detail envelopes, and expiration timestamps in `apps/web/src/server/services/request-log.test.ts`.
-- [ ] T003 Record the feature-specific Docker, migration, focused-test, OpenAPI, and i18n validation commands in `specs/027-request-logging/quickstart.md` and keep them aligned with the implementation paths.
+- [X] T003 Record the feature-specific Docker, migration, focused-test, OpenAPI, and i18n validation commands in `specs/027-request-logging/quickstart.md` and keep them aligned with the implementation paths.
 
 ---
 
@@ -29,18 +29,18 @@ description: "Implementation tasks for outbound request logging"
 
 **⚠️ CRITICAL**: No user-story implementation should begin until this phase is complete.
 
-- [ ] T004 [P] Define shared request-log enums, source descriptors, settings schemas, list filters, list summaries, detail envelopes, and API error shapes in `packages/shared/src/request-log.ts`.
-- [ ] T005 Export the request-log shared types and schemas from `packages/shared/src/index.ts` after `packages/shared/src/request-log.ts` is defined.
-- [ ] T006 [P] Add `request_log_level` and request outcome enum definitions in `apps/web/src/server/db/schema/enums.ts`, following the existing Drizzle enum conventions.
-- [ ] T007 Define the singleton `request_log_settings` and append-only `outbound_request_logs` tables, encrypted columns, nullable-response semantics, retention columns, foreign-key attribution, and stable list/cleanup indexes in `apps/web/src/server/db/schema/request-logs.ts`; add the non-sensitive settings-change audit metadata column in `apps/web/src/server/db/schema/index.ts`.
-- [ ] T008 Re-export the request-log schema from the main Drizzle schema entry point in `apps/web/src/server/db/schema/index.ts`.
-- [ ] T009 Generate the Drizzle migration and matching snapshot/journal entries from the edited schema using `pnpm db:generate`, writing generated artifacts only under `apps/web/src/server/db/migrations/`; do not hand-author SQL or metadata.
-- [ ] T010 Re-run `pnpm db:generate` and verify the schema is clean with no changes reported, using `apps/web/src/server/db/schema/request-logs.ts` as the source of truth.
-- [ ] T011 Add the dedicated `manage_request_logs` action and `request_logs` resource, including Admin-only and API-key-denied behavior, in `apps/web/src/server/permissions/index.ts`.
+- [X] T004 [P] Define shared request-log enums, source descriptors, settings schemas, list filters, list summaries, detail envelopes, and API error shapes in `packages/shared/src/request-log.ts`.
+- [X] T005 Export the request-log shared types and schemas from `packages/shared/src/index.ts` after `packages/shared/src/request-log.ts` is defined.
+- [X] T006 [P] Add `request_log_level` and request outcome enum definitions in `apps/web/src/server/db/schema/enums.ts`, following the existing Drizzle enum conventions.
+- [X] T007 Define the singleton `request_log_settings` and append-only `outbound_request_logs` tables, encrypted columns, nullable-response semantics, retention columns, foreign-key attribution, and stable list/cleanup indexes in `apps/web/src/server/db/schema/request-logs.ts`; add the non-sensitive settings-change audit metadata column in `apps/web/src/server/db/schema/index.ts`.
+- [X] T008 Re-export the request-log schema from the main Drizzle schema entry point in `apps/web/src/server/db/schema/index.ts`.
+- [X] T009 Generate the Drizzle migration and matching snapshot/journal entries from the edited schema using `pnpm db:generate`, writing generated artifacts only under `apps/web/src/server/db/migrations/`; do not hand-author SQL or metadata.
+- [X] T010 Re-run `pnpm db:generate` and verify the schema is clean with no changes reported, using `apps/web/src/server/db/schema/request-logs.ts` as the source of truth.
+- [X] T011 Add the dedicated `manage_request_logs` action and `request_logs` resource, including Admin-only and API-key-denied behavior, in `apps/web/src/server/permissions/index.ts`.
 - [ ] T012 [P] Add permission and schema regression tests for Admin, Editor, anonymous, and API-key actors in `apps/web/src/server/db/request-log-schema.test.ts` and `apps/web/src/server/permissions/request-log-permissions.test.ts`.
-- [ ] T013 Implement the generic capture service and immutable source/operation registry in `apps/web/src/server/services/request-log.ts`, including one capture decision per attempt, Status/Header/All field boundaries, ordered duplicate header values, absent-versus-empty body markers, safe bounded target/error metadata, correlation and attempt fields, encryption before queueing, and non-recursive failure isolation; add idempotent encrypted persistence through `apps/web/src/server/jobs/request-log-persist.ts`, declare the queue in `apps/web/src/server/jobs/runtime.ts`, and register its worker in `apps/web/src/server/jobs/register.ts` without awaiting persistence from the original outbound operation.
+- [X] T013 Implement the generic capture service and immutable source/operation registry in `apps/web/src/server/services/request-log.ts`, including one capture decision per attempt, Status/Header/All field boundaries, ordered duplicate header values, absent-versus-empty body markers, safe bounded target/error metadata, correlation and attempt fields, encryption before queueing, and non-recursive failure isolation; add idempotent encrypted persistence through `apps/web/src/server/jobs/request-log-persist.ts`, declare the queue in `apps/web/src/server/jobs/runtime.ts`, and register its worker in `apps/web/src/server/jobs/register.ts` without awaiting persistence from the original outbound operation.
 - [ ] T014 Add unit and worker coverage for disabled capture, source-registry validation, level conformance, encryption before queueing, idempotent persistence, body/header preservation, correlation, retries, pre-response failures, logging-write failure isolation, and expiry calculation in `apps/web/src/server/services/request-log.test.ts` and `apps/web/src/server/jobs/request-log-persist.test.ts`.
-- [ ] T015 Add shared settings/list/detail validation schemas and scanner-compatible response definitions in `apps/web/src/server/api/openapi-schemas.ts`, keeping raw encrypted fields out of list schemas.
+- [X] T015 Add shared settings/list/detail validation schemas and scanner-compatible response definitions in `apps/web/src/server/api/openapi-schemas.ts`, keeping raw encrypted fields out of list schemas.
 
 **Checkpoint**: Database schema, shared types, permission boundary, encrypted capture service, and validation contracts are ready for story work.
 
@@ -60,8 +60,8 @@ description: "Implementation tasks for outbound request logging"
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Implement settings read/update, singleton initialization defaults, retention validation, sensitive-capture confirmation, immutable per-attempt level selection, and non-sensitive previous/new setting-change audit metadata in `apps/web/src/server/services/request-log.ts`.
-- [ ] T020 [US1] Implement the Admin-session-only dynamic settings route with `createApiContext`, permission checks, shared schemas, `withApiAudit`, `mapDomainError`, `Cache-Control: no-store`, and OpenAPI annotations in `apps/web/app/api/request-log/settings/route.ts`.
+- [X] T019 [US1] Implement settings read/update, singleton initialization defaults, retention validation, sensitive-capture confirmation, immutable per-attempt level selection, and non-sensitive previous/new setting-change audit metadata in `apps/web/src/server/services/request-log.ts`.
+- [X] T020 [US1] Implement the Admin-session-only dynamic settings route with `createApiContext`, permission checks, shared schemas, `withApiAudit`, `mapDomainError`, `Cache-Control: no-store`, and OpenAPI annotations in `apps/web/app/api/request-log/settings/route.ts`.
 - [ ] T021 [US1] Refactor the complete existing AI provider operation boundary so capture wraps fetch, response parsing, and stream consumption while preserving the original consumer stream, timeout, cancellation, retry, and error behavior; encrypt and hand off capture persistence without awaiting it in `apps/web/src/server/ai/providers/http-client.ts`.
 - [ ] T022 [US1] Register source type, provider key, operation, attempt, and correlation identifiers for model discovery, chat streaming, embeddings, image generation, and provider-test operations across `apps/web/src/server/ai/providers/openai-compatible.ts`, `apps/web/src/server/ai/providers/openrouter.ts`, `apps/web/src/server/ai/providers/anthropic.ts`, `apps/web/src/server/ai/providers/voyage.ts`, and `apps/web/src/server/ai/providers/minimax.ts`.
 - [ ] T023 [US1] Update each existing AI provider call site to pass the explicit request-log descriptor and complete operation callback without serializing request bodies or consulting capture storage when capture is disabled in `apps/web/src/server/ai/providers/http-client.ts`, `apps/web/src/server/ai/providers/openai-compatible.ts`, `apps/web/src/server/ai/providers/openrouter.ts`, `apps/web/src/server/ai/providers/anthropic.ts`, `apps/web/src/server/ai/providers/voyage.ts`, and `apps/web/src/server/ai/providers/minimax.ts`.
@@ -84,13 +84,13 @@ description: "Implementation tasks for outbound request logging"
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Implement request-log list and detail query services with metadata-only list selection, bounded filters/page sizes, deterministic `(created_at, id)` ordering, expiry predicates, Admin permission checks, and detail decryption in `apps/web/src/server/services/request-log.ts`.
-- [ ] T028 [US2] Implement the dynamic Admin-session-only paginated list route with all documented filters, shared response schemas, audit wrapper, `Cache-Control: no-store`, and OpenAPI annotations in `apps/web/app/api/request-log/route.ts`.
-- [ ] T029 [US2] Implement the dynamic Admin-session-only detail route that returns complete level-allowed values only after authorization, preserves unavailable-versus-empty semantics, returns forbidden access without metadata, and maps only unknown/expired IDs to not-found in `apps/web/app/api/request-log/[id]/route.ts`.
+- [X] T027 [US2] Implement request-log list and detail query services with metadata-only list selection, bounded filters/page sizes, deterministic `(created_at, id)` ordering, expiry predicates, Admin permission checks, and detail decryption in `apps/web/src/server/services/request-log.ts`.
+- [X] T028 [US2] Implement the dynamic Admin-session-only paginated list route with all documented filters, shared response schemas, audit wrapper, `Cache-Control: no-store`, and OpenAPI annotations in `apps/web/app/api/request-log/route.ts`.
+- [X] T029 [US2] Implement the dynamic Admin-session-only detail route that returns complete level-allowed values only after authorization, preserves unavailable-versus-empty semantics, returns forbidden access without metadata, and maps only unknown/expired IDs to not-found in `apps/web/app/api/request-log/[id]/route.ts`.
 - [ ] T030 [US2] Build the URL-restorable settings/filter/list table, newest-first pagination, sensitivity warnings, empty states, and navigation to detail in `apps/web/src/components/admin/request-log/RequestLogPanel.tsx`.
 - [ ] T031 [US2] Build the summary-first detail view with collapsed sensitive sections for request/response headers, bodies, and complete error details in `apps/web/src/components/admin/request-log/RequestLogDetail.tsx`.
 - [ ] T032 [US2] Add the canonical Admin list and detail pages with dynamic rendering, a route-derived breadcrumb, current-list back navigation, and existing Admin layout primitives in `apps/web/app/(admin)/admin/request-log/page.tsx` and `apps/web/app/(admin)/admin/request-log/[id]/page.tsx`.
-- [ ] T033 [US2] Add exactly one `REQUEST LOG` item to the existing `DATA & OPERATIONS` navigation group and wire the page labels, settings, filters, outcomes, columns, warnings, sensitive sections, empty states, accessibility labels, and permission messages in `apps/web/src/components/layout/Navigator.tsx`, `apps/web/src/i18n/keys.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
+- [X] T033 [US2] Add exactly one `REQUEST LOG` item to the existing `DATA & OPERATIONS` navigation group and wire the page labels, settings, filters, outcomes, columns, warnings, sensitive sections, empty states, accessibility labels, and permission messages in `apps/web/src/components/layout/Navigator.tsx`, `apps/web/src/i18n/keys.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
 
 **Checkpoint**: The Admin can find and inspect captured records from the canonical navigation surface without raw payloads leaking into list rows, URLs, notifications, or ordinary logs.
 
@@ -133,8 +133,8 @@ description: "Implementation tasks for outbound request logging"
 
 ### Implementation for User Story 4
 
-- [ ] T044 [US4] Extend the existing API audit wrapper so the settings route attaches one typed non-sensitive previous/new enabled, level, and retention envelope to its normal PATCH audit row; store and display it with the acting Admin in `apps/web/src/server/api/audit-wrapper.ts`, `apps/web/src/server/services/audit.ts`, `apps/web/src/components/admin/AdminAuditTable.tsx`, `packages/shared/src/audit.ts`, and `apps/web/app/api/request-log/settings/route.ts`.
-- [ ] T045 [US4] Extend the existing scheduled cleanup path to delete expired request-log rows in bounded batches, without touching pages, revisions, AI actions, or audit entries, in `apps/web/src/server/jobs/ai-cleanup.ts` and `apps/web/src/server/jobs/register.ts`.
+- [X] T044 [US4] Extend the existing API audit wrapper so the settings route attaches one typed non-sensitive previous/new enabled, level, and retention envelope to its normal PATCH audit row; store and display it with the acting Admin in `apps/web/src/server/api/audit-wrapper.ts`, `apps/web/src/server/services/audit.ts`, `apps/web/src/components/admin/AdminAuditTable.tsx`, `packages/shared/src/audit.ts`, and `apps/web/app/api/request-log/settings/route.ts`.
+- [X] T045 [US4] Extend the existing scheduled cleanup path to delete expired request-log rows in bounded batches, without touching pages, revisions, AI actions, or audit entries, in `apps/web/src/server/jobs/ai-cleanup.ts` and `apps/web/src/server/jobs/register.ts`.
 - [ ] T046 [US4] Harden the Admin request-log components so raw values remain out of list projections, URL state, notifications, ordinary logs, and retained client state after permission loss in `apps/web/src/components/admin/request-log/RequestLogPanel.tsx` and `apps/web/src/components/admin/request-log/RequestLogDetail.tsx`.
 - [ ] T047 [US4] Add security and retention documentation for the temporary sensitive-data boundary, default 24-hour retention, 1–168 hour policy, cleanup behavior, and operational warning in `specs/027-request-logging/quickstart.md`.
 
@@ -146,10 +146,10 @@ description: "Implementation tasks for outbound request logging"
 
 **Purpose**: Complete generated API documentation, full validation, accessibility/localization checks, and implementation handoff evidence.
 
-- [ ] T048 Add the three request-log route groups and shared schemas to the scanner-compatible OpenAPI definitions, then regenerate the committed document with `pnpm --filter @next-wiki/web openapi:generate` in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/public/openapi.json`.
-- [ ] T049 Validate English and Simplified Chinese completeness, accessible labels/keyboard behavior, and absence of browser alert popups for the request-log surface in `apps/web/src/i18n/keys.ts`, `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/components/admin/request-log/RequestLogPanel.tsx`.
+- [X] T048 Add the three request-log route groups and shared schemas to the scanner-compatible OpenAPI definitions, then regenerate the committed document with `pnpm --filter @next-wiki/web openapi:generate` in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/public/openapi.json`.
+- [X] T049 Validate English and Simplified Chinese completeness, accessible labels/keyboard behavior, and absence of browser alert popups for the request-log surface in `apps/web/src/i18n/keys.ts`, `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/components/admin/request-log/RequestLogPanel.tsx`.
 - [ ] T050 Run the focused Vitest suites and Playwright scenario from `specs/027-request-logging/quickstart.md`, including `apps/web/src/server/services/request-log.test.ts`, `apps/web/src/server/ai/providers/http-client.test.ts`, `apps/web/src/server/services/request-log-routes.test.ts`, `apps/web/src/components/admin/request-log/RequestLogPanel.test.tsx`, and `apps/web/e2e/request-log.spec.ts`.
-- [ ] T051 Run `pnpm --filter @next-wiki/web lint`, `pnpm --filter @next-wiki/web typecheck`, `pnpm --filter @next-wiki/web i18n:validate`, and the generated-migration no-change check documented in `apps/web/package.json` and `apps/web/src/server/db/migrations/`.
+- [X] T051 Run `pnpm --filter @next-wiki/web lint`, `pnpm --filter @next-wiki/web typecheck`, `pnpm --filter @next-wiki/web i18n:validate`, and the generated-migration no-change check documented in `apps/web/package.json` and `apps/web/src/server/db/migrations/`.
 - [ ] T052 Run the Docker-backed quickstart with `docker compose up -d --build`, verify the Admin manual scenarios, and record any implementation-specific setup notes in `specs/027-request-logging/quickstart.md`.
 
 ---

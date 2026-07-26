@@ -91,6 +91,9 @@
           "pagePath": {
             "type": "object"
           },
+          "pageSpaceSlug": {
+            "type": "object"
+          },
           "questionMode": {
             "type": [
               "string",
@@ -160,6 +163,7 @@
           "indexGenerationId",
           "pageId",
           "pagePath",
+          "pageSpaceSlug",
           "questionMode",
           "requestMetadata",
           "resultMetadata",
@@ -1262,6 +1266,74 @@
                   ],
                   "description": "Error message, or null when the request succeeded."
                 },
+                "metadata": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "request_log_settings_change"
+                      ]
+                    },
+                    "previous": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "status",
+                            "header",
+                            "all"
+                          ]
+                        },
+                        "retentionHours": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "level",
+                        "retentionHours"
+                      ]
+                    },
+                    "next": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "status",
+                            "header",
+                            "all"
+                          ]
+                        },
+                        "retentionHours": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "level",
+                        "retentionHours"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "previous",
+                    "next"
+                  ],
+                  "description": "Non-sensitive metadata for a request-log setting change, or null."
+                },
                 "createdAt": {
                   "type": "string",
                   "description": "Timestamp when the entry was recorded."
@@ -1279,6 +1351,7 @@
                 "durationMs",
                 "authStatus",
                 "errorMessage",
+                "metadata",
                 "createdAt"
               ]
             },
@@ -5610,6 +5683,527 @@
         ],
         "description": "Storage backend replication sync progress."
       },
+      "RequestLogDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceType": {
+            "type": "string"
+          },
+          "providerKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "method": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusCode": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "success",
+              "http_error",
+              "transport_error",
+              "timeout",
+              "cancelled",
+              "invalid_response"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "providerRequestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "correlationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "captureLevel": {
+            "type": "string",
+            "enum": [
+              "status",
+              "header",
+              "all"
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requestHeaders": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "values"
+              ]
+            }
+          },
+          "responseHeaders": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "values"
+              ]
+            }
+          },
+          "requestBody": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "encoding": {
+                "type": "string",
+                "enum": [
+                  "utf8",
+                  "base64"
+                ]
+              },
+              "contentType": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contentEncoding": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "byteLength": {
+                "type": "integer"
+              },
+              "data": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "encoding",
+              "contentType",
+              "contentEncoding",
+              "byteLength",
+              "data"
+            ]
+          },
+          "responseBody": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "encoding": {
+                "type": "string",
+                "enum": [
+                  "utf8",
+                  "base64"
+                ]
+              },
+              "contentType": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contentEncoding": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "byteLength": {
+                "type": "integer"
+              },
+              "data": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "encoding",
+              "contentType",
+              "contentEncoding",
+              "byteLength",
+              "data"
+            ]
+          },
+          "errorDetail": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "id",
+          "sourceType",
+          "providerKey",
+          "operation",
+          "attempt",
+          "method",
+          "targetHost",
+          "targetPath",
+          "statusCode",
+          "outcome",
+          "errorCode",
+          "errorMessage",
+          "providerRequestId",
+          "correlationId",
+          "durationMs",
+          "captureLevel",
+          "startedAt",
+          "completedAt",
+          "expiresAt",
+          "target",
+          "requestHeaders",
+          "responseHeaders",
+          "requestBody",
+          "responseBody",
+          "errorDetail"
+        ],
+        "description": "Complete captured outbound request. Sensitive fields are present only at the selected capture level."
+      },
+      "RequestLogListResponse": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequestLogSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "description": "Paginated outbound request-log summaries."
+      },
+      "RequestLogSettingsUpdate": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "status",
+              "header",
+              "all"
+            ]
+          },
+          "retentionHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 168
+          },
+          "confirmSensitiveCapture": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "level",
+          "retentionHours"
+        ],
+        "description": "Update global outbound request-log capture settings."
+      },
+      "RequestLogSettingsView": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "status",
+              "header",
+              "all"
+            ]
+          },
+          "retentionHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 168
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedBy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "email"
+            ]
+          },
+          "allConfirmationRequired": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "level",
+          "retentionHours",
+          "updatedAt",
+          "updatedBy",
+          "allConfirmationRequired"
+        ],
+        "description": "Current global outbound request-log capture settings."
+      },
+      "RequestLogSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceType": {
+            "type": "string"
+          },
+          "providerKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "method": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusCode": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "success",
+              "http_error",
+              "transport_error",
+              "timeout",
+              "cancelled",
+              "invalid_response"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "providerRequestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "correlationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "captureLevel": {
+            "type": "string",
+            "enum": [
+              "status",
+              "header",
+              "all"
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sourceType",
+          "providerKey",
+          "operation",
+          "attempt",
+          "method",
+          "targetHost",
+          "targetPath",
+          "statusCode",
+          "outcome",
+          "errorCode",
+          "errorMessage",
+          "providerRequestId",
+          "correlationId",
+          "durationMs",
+          "captureLevel",
+          "startedAt",
+          "completedAt",
+          "expiresAt"
+        ],
+        "description": "Non-sensitive summary of one captured outbound request."
+      },
       "ResetPasswordInput": {
         "type": "object",
         "properties": {
@@ -8244,6 +8838,34 @@
     "responses": {}
   },
   "paths": {
+    "/request-log": {
+      "get": {
+        "operationId": "get-request-log",
+        "summary": "List captured outbound requests",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestLogListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/feishu": {
       "get": {
         "operationId": "get-admin-feishu",
@@ -8288,6 +8910,108 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuditListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-log/{id}": {
+      "get": {
+        "operationId": "get-request-log-{id}",
+        "summary": "Read captured outbound request detail",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestLogDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-log/settings": {
+      "get": {
+        "operationId": "get-request-log-settings",
+        "summary": "Read request-log capture settings",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestLogSettingsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-request-log-settings",
+        "summary": "Update request-log capture settings",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestLogSettingsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestLogSettingsView"
                 }
               }
             }
@@ -8788,7 +9512,7 @@
     "/ai/sessions": {
       "get": {
         "operationId": "get-ai-sessions",
-        "summary": "List my AI chat sessions @tag AI @auth bearer",
+        "summary": "List my AI chat conversations @tag AI @auth bearer",
         "description": "",
         "tags": [
           "AI"
@@ -8978,7 +9702,7 @@
     "/ai/sessions/{id}": {
       "get": {
         "operationId": "get-ai-sessions-{id}",
-        "summary": "Get one of my AI chat sessions @tag AI @auth bearer",
+        "summary": "Get one of my AI chat conversations @tag AI @auth bearer",
         "description": "",
         "tags": [
           "AI"
@@ -9015,7 +9739,7 @@
       },
       "delete": {
         "operationId": "delete-ai-sessions-{id}",
-        "summary": "Permanently delete one of my AI chat sessions @tag AI @auth bearer @response 204",
+        "summary": "Permanently delete one of my AI chat conversations @tag AI @auth bearer @response 204",
         "description": "",
         "tags": [
           "AI"
@@ -13255,6 +13979,62 @@
         "responses": {}
       }
     },
+    "/raw-md/{path}": {
+      "get": {
+        "operationId": "get-raw-md-{path}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Raw-md"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/raw-md/spaces/{space}/{path}": {
+      "get": {
+        "operationId": "get-raw-md-spaces-{space}-{path}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Raw-md"
+        ],
+        "parameters": [
+          {
+            "name": "space",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: space"
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example",
+            "description": "Path parameter: path"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/v1/pages/{id}/revisions": {
       "get": {
         "operationId": "get-v1-pages-{id}-revisions",
@@ -17385,6 +18165,9 @@
     },
     {
       "name": "Raw-assets"
+    },
+    {
+      "name": "Raw-md"
     },
     {
       "name": "Revisions"

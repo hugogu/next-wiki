@@ -1,5 +1,6 @@
 import { env } from '@/server/config';
 import { AiProviderError, sanitizeProviderMessage, type ProviderRuntimeConfig } from '../types';
+import { beginOutboundRequestCapture } from '@/server/services/request-log';
 
 function combineSignals(signal: AbortSignal | undefined, timeoutMs: number | null): AbortSignal | undefined {
   if (timeoutMs === null) return signal;
@@ -44,32 +45,53 @@ export async function providerFetch(
   timeoutMs: number | null = env.AI_PROVIDER_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
   const url = new URL(path.replace(/^\//, ''), `${config.baseUrl.replace(/\/+$/, '')}/`);
+  const headers = init.headers ?? providerHeaders(config);
+  const operation = path.replace(/^\//, '').replace('chat/completions', 'chat.completions').replace('images/generations', 'images.generations');
+  const capture = await beginOutboundRequestCapture({
+    source: { sourceType: 'ai', providerKey: config.providerId, operation },
+    method: init.method ?? 'GET',
+    target: url.toString(),
+    requestHeaders: headers,
+    requestBody: init.body,
+  }).catch(() => null);
   let response: Response;
   try {
     response = await fetch(url, {
       ...init,
-      headers: init.headers ?? providerHeaders(config),
+      headers,
       redirect: 'error',
       signal: combineSignals(init.signal ?? undefined, timeoutMs),
     });
   } catch (error) {
     if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      throw new AiProviderError(
+      const normalized = new AiProviderError(
         error.name === 'AbortError' ? 'CANCELLED' : 'TIMEOUT',
         error.name === 'AbortError' ? 'AI request was cancelled' : 'AI provider request timed out',
         error.name !== 'AbortError',
       );
+      capture?.({ outcome: error.name === 'AbortError' ? 'cancelled' : 'timeout', error: normalized });
+      throw normalized;
     }
-    throw new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider is unavailable', true);
+    const normalized = new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider is unavailable', true);
+    capture?.({ outcome: 'transport_error', error: normalized });
+    throw normalized;
   }
   const contentLength = Number(response.headers.get('content-length') ?? 0);
   if (contentLength > 16 * 1024 * 1024) {
     await response.body?.cancel();
     throw new AiProviderError('INPUT_TOO_LARGE', 'Provider response is too large');
   }
-  if (response.ok) return response;
+  if (response.ok) {
+    capture?.({
+      response: response.clone(),
+      outcome: 'success',
+      providerRequestId: response.headers.get('x-request-id') ?? response.headers.get('request-id') ?? undefined,
+    });
+    return response;
+  }
 
   const retryAfter = response.headers.get('retry-after');
+  const captureResponse = response.clone();
   const text = sanitizeProviderMessage(
     new TextDecoder().decode(await readBoundedBytes(response, 64 * 1024).catch(() => new Uint8Array())),
   );
@@ -81,17 +103,33 @@ export async function providerFetch(
     response: { status: response.status, body: text },
   };
   if (response.status === 401 || response.status === 403) {
-    throw new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider rejected the credentials', false, undefined, detail);
+    const normalized = new AiProviderError('PROVIDER_UNAVAILABLE', 'AI provider rejected the credentials', false, undefined, detail);
+    capture?.({ response: captureResponse, outcome: 'http_error', error: normalized });
+    throw normalized;
   }
-  if (response.status === 404) throw new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found', false, undefined, detail);
-  if (response.status === 413) throw new AiProviderError('INPUT_TOO_LARGE', 'AI provider rejected the input size', false, undefined, detail);
+  if (response.status === 404) {
+    const normalized = new AiProviderError('MODEL_NOT_FOUND', 'AI model was not found', false, undefined, detail);
+    capture?.({ response: captureResponse, outcome: 'http_error', error: normalized });
+    throw normalized;
+  }
+  if (response.status === 413) {
+    const normalized = new AiProviderError('INPUT_TOO_LARGE', 'AI provider rejected the input size', false, undefined, detail);
+    capture?.({ response: captureResponse, outcome: 'http_error', error: normalized });
+    throw normalized;
+  }
   if (response.status === 429) {
-    throw new AiProviderError('RATE_LIMITED', 'AI provider rate limit exceeded', true, parseRetryAfter(retryAfter), detail);
+    const normalized = new AiProviderError('RATE_LIMITED', 'AI provider rate limit exceeded', true, parseRetryAfter(retryAfter), detail);
+    capture?.({ response: captureResponse, outcome: 'http_error', error: normalized });
+    throw normalized;
   }
   if (response.status >= 500) {
-    throw new AiProviderError('PROVIDER_UNAVAILABLE', text || 'AI provider is unavailable', true, undefined, detail);
+    const normalized = new AiProviderError('PROVIDER_UNAVAILABLE', text || 'AI provider is unavailable', true, undefined, detail);
+    capture?.({ response: captureResponse, outcome: 'http_error', error: normalized });
+    throw normalized;
   }
-  throw new AiProviderError('INVALID_RESPONSE', text || `AI provider returned ${response.status}`, false, undefined, detail);
+  const normalized = new AiProviderError('INVALID_RESPONSE', text || `AI provider returned ${response.status}`, false, undefined, detail);
+  capture?.({ response: captureResponse, outcome: 'http_error', error: normalized });
+  throw normalized;
 }
 
 function parseRetryAfter(value: string | null): number | undefined {

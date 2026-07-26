@@ -1,4 +1,5 @@
 import { cleanupExpiredAiData, expireOrphanedActions, findActionsWithExpiringCapture } from '@/server/services/ai-actions';
+import { cleanupExpiredRequestLogs } from '@/server/services/request-log';
 import { captureConversation } from '@/server/services/raw-conversations';
 import { logger } from '@/server/logger';
 
@@ -19,4 +20,5 @@ export async function runAiCleanup(): Promise<void> {
     }
   }
   await cleanupExpiredAiData();
+  await cleanupExpiredRequestLogs();
 }

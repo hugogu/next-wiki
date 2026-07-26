@@ -13,6 +13,7 @@ export const QUEUES = {
   // generation or text optimization.
   aiIndex: 'ai-index',
   aiCleanup: 'ai-cleanup',
+  requestLogPersist: 'request-log-persist',
   transferExport: 'transfer-export',
   transferPreview: 'transfer-preview',
   transferImport: 'transfer-import',

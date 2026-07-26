@@ -253,6 +253,13 @@
       "when": 1784786998697,
       "tag": "0035_modern_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785047875852,
+      "tag": "0036_bumpy_alex_power",
+      "breakpoints": true
     }
   ]
 }

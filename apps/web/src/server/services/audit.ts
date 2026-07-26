@@ -3,12 +3,14 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { can, type PermCtx } from '@/server/permissions';
+import { requestLogSettingsAuditMetadataSchema } from '@next-wiki/shared';
 import type {
   AuditQueryParams,
   AuditListResponse,
   AuthStatus,
   AuditEntryType,
   AuditOrigin,
+  RequestLogSettingsAuditMetadata,
 } from '@next-wiki/shared';
 
 export type AuditEntryInput = {
@@ -27,6 +29,7 @@ export type AuditEntryInput = {
   origin?: AuditOrigin;
   /** Non-secret Feishu correlation id; never a raw prompt/answer/secret. */
   externalCorrelationId?: string | null;
+  metadata?: RequestLogSettingsAuditMetadata | null;
 };
 
 /**
@@ -51,6 +54,7 @@ export async function writeEntry(input: AuditEntryInput): Promise<void> {
     entryType: input.entryType,
     origin: input.origin ?? 'web',
     externalCorrelationId: input.externalCorrelationId ?? null,
+    metadata: input.metadata ?? null,
     method: input.method,
     path: input.path,
     statusCode: input.statusCode,
@@ -172,6 +176,7 @@ function mapEntry(row: {
   entryType: string;
   origin: string;
   externalCorrelationId: string | null;
+  metadata: unknown;
   method: string;
   path: string;
   statusCode: number;
@@ -192,6 +197,7 @@ function mapEntry(row: {
     entryType: row.entryType as AuditEntryType,
     origin: row.origin as AuditOrigin,
     externalCorrelationId: row.externalCorrelationId,
+    metadata: requestLogSettingsAuditMetadataSchema.safeParse(row.metadata).data ?? null,
     method: row.method,
     path: row.path,
     statusCode: row.statusCode,

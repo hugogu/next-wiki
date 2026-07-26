@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { headers } from 'next/headers';
 import { resolveActor } from '@/server/services/auth';
-import { apiContextStore } from './api-context-store';
+import { apiContextStore, type ApiContext } from './api-context-store';
 import * as audit from '@/server/services/audit';
 import { apiError, internalError } from './errors';
 import type { AuthStatus } from '@next-wiki/shared';
@@ -81,7 +81,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
       return apiError('UNAUTHORIZED', formatAuthError(resolved.authError ?? 'invalid_key'), status);
     }
 
-    const apiContext = {
+    const apiContext: ApiContext = {
       actor: resolved.actor ?? { kind: 'anonymous' as const },
       apiKeyInfo: resolved.apiKeyInfo,
     };
@@ -110,6 +110,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
           durationMs: duration,
           authStatus: 'authenticated',
           errorMessage,
+          metadata: apiContext.auditMetadata ?? null,
           ip,
         });
       } catch {
