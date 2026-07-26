@@ -70,6 +70,10 @@ type PersistedPayload = {
   errorMessage?: string;
   providerRequestId?: string;
   correlationId?: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
   startedAt: string;
   completedAt: string;
   durationMs: number;
@@ -133,6 +137,59 @@ function bodyFromInput(
     };
   }
   return null;
+}
+
+function jsonObject(text: string): Record<string, unknown> | null {
+  try {
+    const value = JSON.parse(text);
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function tokenCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
+type UsageFields = Pick<
+  PersistedPayload,
+  'model' | 'inputTokens' | 'outputTokens' | 'cachedInputTokens'
+>;
+
+function usageFromObject(value: Record<string, unknown>): UsageFields {
+  const usage = value.usage && typeof value.usage === 'object'
+    ? (value.usage as Record<string, unknown>)
+    : value;
+  const details = usage.prompt_tokens_details && typeof usage.prompt_tokens_details === 'object'
+    ? (usage.prompt_tokens_details as Record<string, unknown>)
+    : {};
+  return {
+    model: typeof value.model === 'string' ? value.model : undefined,
+    inputTokens: tokenCount(usage.prompt_tokens) ?? tokenCount(usage.input_tokens) ?? tokenCount(usage.inputTokens),
+    outputTokens: tokenCount(usage.completion_tokens) ?? tokenCount(usage.output_tokens) ?? tokenCount(usage.outputTokens),
+    cachedInputTokens: tokenCount(details.cached_tokens) ?? tokenCount(usage.cache_read_input_tokens) ?? tokenCount(usage.cached_input_tokens) ?? tokenCount(usage.cachedInputTokens),
+  };
+}
+
+function usageFromBody(body: RequestLogBody | null): UsageFields {
+  if (!body || body.encoding !== 'utf8') return {};
+  const direct = jsonObject(body.data);
+  if (direct) return usageFromObject(direct);
+  const usage: UsageFields = {};
+  for (const line of body.data.split(/\r?\n/)) {
+    if (!line.startsWith('data:')) continue;
+    const event = jsonObject(line.slice(5).trim());
+    if (!event) continue;
+    const next = usageFromObject(event);
+    if (next.model) usage.model = next.model;
+    if (next.inputTokens !== undefined) usage.inputTokens = next.inputTokens;
+    if (next.outputTokens !== undefined) usage.outputTokens = next.outputTokens;
+    if (next.cachedInputTokens !== undefined) usage.cachedInputTokens = next.cachedInputTokens;
+  }
+  return usage;
 }
 
 async function bodyFromResponse(response: Response): Promise<RequestLogBody | null> {
@@ -298,8 +355,10 @@ export async function beginOutboundRequestCapture(
   const startedAt = new Date();
   const id = randomUUID();
   const requestHeaders = headersToPairs(input.requestHeaders);
-  const requestBody =
-    settings.level === 'all' ? bodyFromInput(input.requestBody, input.requestHeaders) : null;
+  const parsedRequestBody = bodyFromInput(input.requestBody, input.requestHeaders);
+  const requestBody = settings.level === 'all' ? parsedRequestBody : null;
+  const requestModel =
+    parsedRequestBody?.encoding === 'utf8' ? jsonObject(parsedRequestBody.data)?.model : undefined;
   const target = new URL(input.target);
 
   return (completion) => {
@@ -310,6 +369,7 @@ export async function beginOutboundRequestCapture(
         const responseHeaders = response ? headersToPairs(response.headers) : null;
         const responseBody =
           settings.level === 'all' && response ? await bodyFromResponse(response.clone()) : null;
+        const usage = usageFromBody(responseBody);
         const error = safeError(completion.error);
         const expiresAt = new Date(
           (completedAt.getTime() || startedAt.getTime()) + settings.retentionHours * 60 * 60 * 1000,
@@ -329,6 +389,10 @@ export async function beginOutboundRequestCapture(
           errorMessage: error.message,
           providerRequestId: completion.providerRequestId,
           correlationId: input.source.correlationId,
+          model: typeof requestModel === 'string' ? requestModel : usage.model,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          cachedInputTokens: usage.cachedInputTokens,
           startedAt: startedAt.toISOString(),
           completedAt: completedAt.toISOString(),
           durationMs: Math.max(0, completedAt.getTime() - startedAt.getTime()),
@@ -375,6 +439,10 @@ export async function persistOutboundRequestLog(payload: PersistedPayload): Prom
       errorMessage: payload.errorMessage ?? null,
       providerRequestId: payload.providerRequestId ?? null,
       correlationId: payload.correlationId ?? null,
+      model: payload.model ?? null,
+      inputTokens: payload.inputTokens ?? null,
+      outputTokens: payload.outputTokens ?? null,
+      cachedInputTokens: payload.cachedInputTokens ?? null,
       startedAt: new Date(payload.startedAt),
       completedAt: new Date(payload.completedAt),
       durationMs: payload.durationMs,
@@ -406,6 +474,10 @@ function mapSummary(row: typeof schema.outboundRequestLogs.$inferSelect): Reques
     errorMessage: row.errorMessage,
     providerRequestId: row.providerRequestId,
     correlationId: row.correlationId,
+    model: row.model,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    cachedInputTokens: row.cachedInputTokens,
     durationMs: row.durationMs,
     captureLevel: row.captureLevel as RequestLogLevel,
     startedAt: row.startedAt.toISOString(),

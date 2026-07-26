@@ -41,6 +41,10 @@ export const outboundRequestLogs = pgTable(
     errorMessage: text('error_message'),
     providerRequestId: text('provider_request_id'),
     correlationId: text('correlation_id'),
+    model: text('model'),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    cachedInputTokens: integer('cached_input_tokens'),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     durationMs: integer('duration_ms'),
@@ -67,4 +71,3 @@ export const outboundRequestLogs = pgTable(
     expiresIdx: index('outbound_request_logs_expires_idx').on(t.expiresAt),
   }),
 );
-

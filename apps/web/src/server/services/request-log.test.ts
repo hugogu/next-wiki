@@ -63,6 +63,10 @@ describe('request log service', () => {
       durationMs: 1,
       captureLevel: 'all' as const,
       expiresAt: new Date(now.getTime() + 60_000).toISOString(),
+      model: 'fixture/chat',
+      inputTokens: 12,
+      outputTokens: 4,
+      cachedInputTokens: 2,
       targetEncrypted: encryptAiJson('https://provider.example/v1/chat/completions'),
       requestHeadersEncrypted: encryptAiJson([
         { name: 'authorization', values: ['Bearer secret'] },
@@ -84,6 +88,7 @@ describe('request log service', () => {
     const detail = await getRequestLogDetail(admin, id);
     expect(detail.target).toContain('provider.example');
     expect(detail.requestHeaders).toEqual([{ name: 'authorization', values: ['Bearer secret'] }]);
+    expect(detail).toMatchObject({ model: 'fixture/chat', inputTokens: 12, outputTokens: 4, cachedInputTokens: 2 });
   });
 
   it('removes expired rows without affecting unexpired rows', async () => {

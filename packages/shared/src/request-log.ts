@@ -90,6 +90,10 @@ export const requestLogSummarySchema = z.object({
   errorMessage: z.string().nullable(),
   providerRequestId: z.string().nullable(),
   correlationId: z.string().nullable(),
+  model: z.string().nullable(),
+  inputTokens: z.number().int().nullable(),
+  outputTokens: z.number().int().nullable(),
+  cachedInputTokens: z.number().int().nullable(),
   durationMs: z.number().int().nullable(),
   captureLevel: requestLogLevelSchema,
   startedAt: z.string(),
@@ -115,4 +119,3 @@ export const requestLogDetailSchema = requestLogSummarySchema.extend({
   errorDetail: z.record(z.unknown()).nullable(),
 });
 export type RequestLogDetail = z.infer<typeof requestLogDetailSchema>;
-

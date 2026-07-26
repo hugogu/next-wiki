@@ -19,7 +19,7 @@ describe('request-log schemas', () => {
 
   it('accepts details that omit data unavailable at the selected level', () => {
     const result = requestLogDetailSchema.safeParse({
-      id: '00000000-0000-4000-8000-000000000001', sourceType: 'ai', providerKey: 'provider', operation: 'models', attempt: 1, method: 'GET', targetHost: null, targetPath: null, statusCode: 200, outcome: 'success', errorCode: null, errorMessage: null, providerRequestId: null, correlationId: null, durationMs: 10, captureLevel: 'status', startedAt: new Date().toISOString(), completedAt: new Date().toISOString(), expiresAt: new Date().toISOString(), target: null, requestHeaders: null, responseHeaders: null, requestBody: null, responseBody: null, errorDetail: null,
+      id: '00000000-0000-4000-8000-000000000001', sourceType: 'ai', providerKey: 'provider', operation: 'models', attempt: 1, method: 'GET', targetHost: null, targetPath: null, statusCode: 200, outcome: 'success', errorCode: null, errorMessage: null, providerRequestId: null, correlationId: null, model: null, inputTokens: null, outputTokens: null, cachedInputTokens: null, durationMs: 10, captureLevel: 'status', startedAt: new Date().toISOString(), completedAt: new Date().toISOString(), expiresAt: new Date().toISOString(), target: null, requestHeaders: null, responseHeaders: null, requestBody: null, responseBody: null, errorDetail: null,
     });
     expect(result.success).toBe(true);
   });

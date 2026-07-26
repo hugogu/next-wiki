@@ -5761,6 +5761,30 @@
               "null"
             ]
           },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cachedInputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "durationMs": {
             "type": [
               "integer",
@@ -5944,6 +5968,10 @@
           "errorMessage",
           "providerRequestId",
           "correlationId",
+          "model",
+          "inputTokens",
+          "outputTokens",
+          "cachedInputTokens",
           "durationMs",
           "captureLevel",
           "startedAt",
@@ -6154,6 +6182,30 @@
               "null"
             ]
           },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cachedInputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "durationMs": {
             "type": [
               "integer",
@@ -6196,6 +6248,10 @@
           "errorMessage",
           "providerRequestId",
           "correlationId",
+          "model",
+          "inputTokens",
+          "outputTokens",
+          "cachedInputTokens",
           "durationMs",
           "captureLevel",
           "startedAt",
