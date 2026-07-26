@@ -1,8 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { AiCapability, AiModelView, AiProviderView, AiPurpose } from '@next-wiki/shared';
-import { apiDelete, apiPost, apiPut, type ApiError } from '@/lib/api/client';
+import type {
+  AiCapability,
+  AiModelView,
+  AiProviderView,
+  AiPurpose,
+  ToolCallStrategy,
+} from '@next-wiki/shared';
+import { apiDelete, apiPatch, apiPost, apiPut, type ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { ModalDialog } from '@/components/ui/ModalDialog';
@@ -129,6 +135,19 @@ export function ModelCatalog({
     });
     window.location.reload();
   };
+  // Choosing a strategy also clears any runtime downgrade, so a provider that
+  // has fixed its tool support is one selection away from native again.
+  const setStrategy = async (model: AiModelView, toolCallStrategy: ToolCallStrategy) => {
+    setBusy(`${model.id}:strategy`);
+    setError(null);
+    try {
+      await apiPatch(`/api/ai/models/${model.id}`, { toolCallStrategy });
+      window.location.reload();
+    } catch (value) {
+      setError((value as ApiError).message ?? t('admin.ai.error.generic'));
+      setBusy(null);
+    }
+  };
   const remove = async (model: AiModelView) => {
     setBusy(`${model.id}:delete`);
     setError(null);
@@ -228,6 +247,9 @@ export function ModelCatalog({
             {catalogType === 'chat' && (
               <DataTableHeader>{t('admin.ai.models.chatCapabilities')}</DataTableHeader>
             )}
+            {catalogType === 'chat' && (
+              <DataTableHeader>{t('admin.ai.models.toolCallStrategy')}</DataTableHeader>
+            )}
             {catalogType === 'embedding' && (
               <>
                 <DataTableHeader>{t('admin.ai.models.embeddingDimensions')}</DataTableHeader>
@@ -314,6 +336,31 @@ export function ModelCatalog({
                           </Tooltip>
                         );
                       })}
+                    </div>
+                  </DataTableCell>
+                )}
+                {catalogType === 'chat' && (
+                  <DataTableCell>
+                    <div className="flex items-center gap-xs">
+                      <Select
+                        value={model.toolCallStrategy}
+                        disabled={busy === `${model.id}:strategy`}
+                        aria-label={`${model.displayName}: ${t('admin.ai.models.toolCallStrategy')}`}
+                        onChange={(event) =>
+                          void setStrategy(model, event.target.value as ToolCallStrategy)
+                        }
+                      >
+                        <option value="auto">{t('admin.ai.models.toolStrategy.auto')}</option>
+                        <option value="native">{t('admin.ai.models.toolStrategy.native')}</option>
+                        <option value="text">{t('admin.ai.models.toolStrategy.text')}</option>
+                      </Select>
+                      {model.nativeToolCallFailedAt && model.toolCallStrategy === 'auto' && (
+                        <Tooltip label={t('admin.ai.models.toolStrategy.downgradedHint')}>
+                          <StatusBadge tone="warning">
+                            {t('admin.ai.models.toolStrategy.downgraded')}
+                          </StatusBadge>
+                        </Tooltip>
+                      )}
                     </div>
                   </DataTableCell>
                 )}

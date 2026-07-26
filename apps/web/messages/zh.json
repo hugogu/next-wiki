@@ -1500,7 +1500,15 @@
         "activateDimensionsHint": "为 {name} 设置向量维度后激活。需与该模型实际输出维度一致。",
         "contextSortAsc": "按上下文窗口排序（从小到大）",
         "contextSortDesc": "按上下文窗口排序（从大到小）",
-        "contextSortReset": "恢复默认排序（激活的模型置顶）"
+        "contextSortReset": "恢复默认排序（激活的模型置顶）",
+        "toolCallStrategy": "工具调用",
+        "toolStrategy": {
+          "auto": "自动",
+          "native": "原生",
+          "text": "文本协议",
+          "downgraded": "已回退",
+          "downgradedHint": "该模型拒绝了原生工具调用，已回退到文本协议。重新选择一次策略即可再试原生方式。"
+        }
       },
       "chatCapability": {
         "vision": "视觉理解",

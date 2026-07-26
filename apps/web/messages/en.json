@@ -1500,7 +1500,15 @@
         "activateDimensionsHint": "Set the embedding dimensions for {name} to activate it. This must match the model's actual output size.",
         "contextSortAsc": "Sort by context window (smallest first)",
         "contextSortDesc": "Sort by context window (largest first)",
-        "contextSortReset": "Reset sort (active model on top)"
+        "contextSortReset": "Reset sort (active model on top)",
+        "toolCallStrategy": "Tool calls",
+        "toolStrategy": {
+          "auto": "Auto",
+          "native": "Native",
+          "text": "Text protocol",
+          "downgraded": "Text fallback",
+          "downgradedHint": "This model rejected a native tool payload, so tool calls fall back to the text protocol. Choose a strategy to try native again."
+        }
       },
       "chatCapability": {
         "vision": "Vision",

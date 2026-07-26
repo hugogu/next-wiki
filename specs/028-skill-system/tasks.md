@@ -100,9 +100,9 @@ only the provider request bodies differ.
 - [X] T025 [US1] Add `createNativeToolPlanner` to `apps/web/src/server/services/ai-tool-planners.ts`: map the policy-filtered `listToolDefinitions()` to `NeutralToolDefinition[]`, stream with `tools` set, convert `tool_call` events to `PlannedToolCall[]` with `requestedReview: 'none'`, and treat a text-only turn as `{ kind: 'final' }`
 - [X] T026 [US1] Wire strategy selection into `apps/web/src/server/jobs/ai-question.ts`: pick the planner from `ai-tool-strategy.ts`, and on a tool-shaped provider rejection set the downgrade marker and retry the same turn with the text planner so the user's request never fails
 - [X] T027 [US1] Apply one truncation and summarisation policy to tool results across both planners and record when truncation occurred, in `apps/web/src/server/services/ai-tool-runtime.ts` (FR-006)
-- [ ] T028 [US1] Expose the `tool_call_strategy` per-model override in `apps/web/app/api/ai/models/[id]/route.ts` (or the existing model update handler) with `can(ctx, 'manage_ai')`, clearing `native_tool_call_failed_at` on change
-- [ ] T029 [US1] Add the strategy selector and the current effective strategy to `apps/web/src/components/admin/ai/ModelCatalog.tsx`
-- [ ] T030 [P] [US1] Add `admin.ai.models.toolCallStrategy.*` keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
+- [X] T028 [US1] Expose the `tool_call_strategy` per-model override in `apps/web/app/api/ai/models/[id]/route.ts` (or the existing model update handler) with `can(ctx, 'manage_ai')`, clearing `native_tool_call_failed_at` on change
+- [X] T029 [US1] Add the strategy selector and the current effective strategy to `apps/web/src/components/admin/ai/ModelCatalog.tsx`
+- [X] T030 [P] [US1] Add `admin.ai.models.toolCallStrategy.*` keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
 
 **Checkpoint**: US1 is independently deliverable — existing tool-enabled chat now
 runs natively on capable models and by text protocol elsewhere, with no

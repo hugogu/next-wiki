@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { aiToolChatOptionSchema } from './ai-tools';
+import { aiToolChatOptionSchema, toolCallStrategySchema } from './ai-tools';
 
 export const aiProviderTypeSchema = z.enum(['chat', 'embedding', 'image']);
 export type AiProviderType = z.infer<typeof aiProviderTypeSchema>;
@@ -381,7 +381,15 @@ export const aiModelCreateSchema = z.object({
   embeddingDimensions: z.number().int().positive().nullable().optional(),
 });
 export type AiModelCreate = z.infer<typeof aiModelCreateSchema>;
-export const aiModelUpdateSchema = aiModelCreateSchema.omit({ externalId: true }).partial();
+export const aiModelUpdateSchema = aiModelCreateSchema
+  .omit({ externalId: true })
+  .partial()
+  .extend({
+    // 028: how tool calls reach this model. Setting it clears any runtime
+    // downgrade, so a provider that has fixed its tool support is one action
+    // away from being usable natively again.
+    toolCallStrategy: toolCallStrategySchema.optional(),
+  });
 export type AiModelUpdate = z.infer<typeof aiModelUpdateSchema>;
 export const aiCapabilityOverrideSchema = z.object({ supported: z.boolean(), details: jsonObjectSchema });
 export const aiAssignmentUpdateSchema = z.object({
@@ -406,6 +414,11 @@ export const aiModelViewSchema = z.object({
   outputModalities: z.array(z.string()),
   manuallyAdded: z.boolean(),
   capabilities: z.array(aiCapabilityViewSchema),
+  /** 028: Administrator override for how tool calls reach this model. */
+  toolCallStrategy: toolCallStrategySchema,
+  /** 028: set when a native tool payload was rejected at runtime, so the admin
+   * can see why a model is running on the text protocol. */
+  nativeToolCallFailedAt: z.string().nullable(),
   lastSeenAt: z.string().nullable(),
 });
 export type AiModelView = z.infer<typeof aiModelViewSchema>;

@@ -14,6 +14,7 @@ import {
   type AiProviderView,
   type AiPurpose,
   type AiSettingsUpdate,
+  type ToolCallStrategy,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -393,6 +394,8 @@ export async function listModels(ctx: PermCtx, providerId?: string): Promise<AiM
     inputModalities: model.inputModalities,
     outputModalities: model.outputModalities,
     manuallyAdded: model.manuallyAdded,
+    toolCallStrategy: model.toolCallStrategy,
+    nativeToolCallFailedAt: model.nativeToolCallFailedAt?.toISOString() ?? null,
     capabilities: [...(capabilities.get(model.id)?.values() ?? [])].map((row) => ({
       capability: row.capability,
       supported: row.supported,
@@ -449,12 +452,19 @@ export async function updateModel(
     contextWindow?: number | null;
     maxOutputTokens?: number | null;
     embeddingDimensions?: number | null;
+    toolCallStrategy?: ToolCallStrategy;
   },
 ): Promise<AiModelView> {
   assertCanManageAi(ctx);
   const [row] = await db
     .update(schema.aiModels)
-    .set({ ...input, updatedAt: new Date() })
+    .set({
+      ...input,
+      // Choosing a strategy is also the way to retry native tool calling after
+      // a runtime downgrade, so the marker never outlives an admin decision.
+      ...(input.toolCallStrategy ? { nativeToolCallFailedAt: null } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.aiModels.id, modelId))
     .returning();
   if (!row) throw new DomainError('MODEL_NOT_FOUND', 'AI model not found');
