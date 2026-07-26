@@ -15,11 +15,14 @@ through an Admin-only `REQUEST LOG` page under `DATA & OPERATIONS`.
 
 The implementation keeps provider-specific request handling in the existing AI
 HTTP boundary, but moves capture decisions and persistence into a generic
-request-log service. Sensitive raw fields are encrypted at rest and only
-decrypted for an authorized Admin detail view. Request logging is best effort:
-capture failures never alter the original provider result. Existing pg-boss
-cleanup work removes expired records; no new service is added to the default
-deployment.
+request-log service with one immutable, explicit source/operation registry.
+Sensitive raw fields are encrypted before they leave the source operation and
+only decrypted for an authorized Admin detail view. Request logging is best
+effort: after a request attempt finishes, the encrypted record is handed to an
+existing pg-boss worker without delaying or changing the original provider
+result; the worker persists by preassigned log ID so retries are idempotent.
+The existing worker process also removes expired records; no new service or
+queue backend is added to the default deployment.
 
 ## Technical Context
 
@@ -27,17 +30,17 @@ deployment.
 
 **Primary Dependencies**: Existing Next.js route handlers and Admin App Router pages, Drizzle ORM, PostgreSQL 16, pg-boss cleanup worker, Zod schemas in `packages/shared`, existing AES-256-GCM key encryption, TanStack Query, existing table/pagination/UI primitives, and the existing AI provider adapter registry.
 
-**Storage**: PostgreSQL 16. Add a singleton `request_log_settings` row and one generic `outbound_request_logs` table. Store metadata needed for filtering in normal columns; store raw target/header/body/error envelopes encrypted at rest. Generate the migration from Drizzle schema changes with `pnpm db:generate`; never hand-author SQL, journal entries, or snapshots.
+**Storage**: PostgreSQL 16. Add a singleton `request_log_settings` row and one generic `outbound_request_logs` table. Store metadata needed for filtering in normal columns; store raw target/header/body/error envelopes encrypted at rest. Extend the existing API audit record with non-sensitive request-log setting-change metadata (before/after enabled, level, and retention) so the actor and transition are reviewable. Generate the migration from Drizzle schema changes with `pnpm db:generate`; never hand-author SQL, journal entries, or snapshots.
 
-**Testing**: Vitest unit/integration tests for capture levels, body/header preservation, streaming and transport failures, encryption/decryption, settings and retention services, permissions, and routes; React tests for the settings/list/detail states; Playwright E2E for Admin capture, AI reproduction, filters, detail inspection, and non-Admin denial. Run lint, typecheck, and the relevant test suites.
+**Testing**: Vitest unit/integration tests for capture levels, body/header preservation, streaming and transport failures, encryption/decryption, idempotent worker persistence, settings/setting-change audit metadata and retention services, permissions, and routes; React tests for the settings/list/detail states and permission-loss clearing; Playwright E2E for Admin capture, AI reproduction, filters, detail inspection, cache headers, and non-Admin/API-key denial. Run lint, typecheck, and the relevant test suites.
 
 **Target Platform**: Existing Docker Compose/Kubernetes deployment with the Next.js web app, worker process, and PostgreSQL. No new default container, queue backend, cache service, or object store.
 
 **Project Type**: Full-stack web-service monorepo using pnpm workspaces and Turborepo.
 
-**Performance Goals**: Disabled capture adds no payload serialization and only the existing settings decision check at the AI request boundary. Enabled capture must not delay the original provider result on a logging write failure. The Admin list must return the first page of 1,000 records within 2 seconds under normal conditions; detail payload reads may be larger and are authenticated/non-cached. Expired-record cleanup runs in the existing background cleanup schedule.
+**Performance Goals**: Disabled capture adds no payload serialization and only the settings decision check at the AI request boundary. Enabled capture must not await persistence or delay the original provider result; queue and persistence failures are bounded diagnostics only. For a data set of 1,000 records, the first filtered page (20 by default, 100 maximum) returns within 2 seconds under normal conditions; detail payload reads may be larger and are authenticated/non-cached. Expired-record cleanup runs in the existing background cleanup schedule.
 
-**Constraints**: Capture is off by default and only Admins can change settings or read records. `Status`, `Header`, and `All` have strict field boundaries. Raw values may contain credentials and user content, so they are encrypted at rest, omitted from list responses, excluded from ordinary application logs/URLs, and revealed only on the Admin detail surface. The provider request must continue to support streaming, timeout, cancellation, retry, and malformed-response behavior. The logging path must not call or recursively log another outbound service. All API responses are dynamic and must not be cached.
+**Constraints**: Capture is off by default and only Admin session actors can change settings or read records; API-key actors are denied. `Status`, `Header`, and `All` have strict field boundaries. Raw values may contain credentials and user content, so they are encrypted before queueing and at rest, omitted from list responses, excluded from ordinary application logs/URLs, and revealed only on the Admin detail surface. The provider request must continue to support streaming, timeout, cancellation, retry, and malformed-response behavior. The logging path must not call or recursively log another outbound service. Source types/operations are explicitly registered, not discovered at runtime. All API responses are dynamic, use `Cache-Control: no-store`, and must not be cached.
 
 **Scale/Scope**: One global capture setting and one shared log collection. First delivery instruments all requests traversing the existing AI provider HTTP boundary: provider tests/model discovery, chat streaming, embeddings, and image generation. A future integration can opt in through the explicit common contract; broad interception of arbitrary browser `fetch` calls or retrofitting every existing external integration is out of scope. Initial retention is 24 hours and configurable from 1 to 168 hours.
 
@@ -54,13 +57,13 @@ Spec Kit context.
 | P2 AI-Native / Never Vendor-Locked | PASS | Capture is below the provider adapter boundary and applies equally to configured provider kinds and future integrations; no vendor SDK is introduced. |
 | P3 Portable, Self-Growing AI Memory | PASS | Request records are operational evidence only and do not become durable wiki knowledge automatically. If later used as source material, existing Raw/provenance rules remain the governing path. |
 | P4 Rendering Pipeline | PASS | No page rendering or content pipeline changes. |
-| P5 Permissions First-Class | PASS | Add a dedicated Admin-only `manage_request_logs` permission action; API-key actors and non-Admins have no access, and every route/service checks current permission. |
+| P5 Permissions First-Class | PASS | Add a dedicated Admin-only `manage_request_logs` permission action; API-key actors and non-Admins have no access, every route/service checks current permission, and permission loss clears decrypted client state. |
 | P6 Style System & UI Consistency | PASS | Reuses existing Admin layout, DataTable, Pagination, Button, Select, disclosure, and design tokens; adds no feature-local visual system. |
-| P7 Async-First | PASS | AI calls remain in existing pg-boss actions; capture persistence and expiry cleanup are non-blocking/batch worker work, not new synchronous model work. |
+| P7 Async-First | PASS | AI calls remain in existing pg-boss actions; encrypted capture persistence is handed to an existing pg-boss worker and expiry cleanup reuses the existing worker process, so neither is a new synchronous model operation. |
 | P8 Version Everything | PASS | The feature does not mutate pages or revisions. Request records are append-only operational attempts with an explicit expiry policy. |
 | P9 Open Standards | PASS | Admin routes use REST + JSON and shared Zod/OpenAPI schemas; the capture contract is provider-agnostic. |
-| P10 Explicit Over Implicit | PASS | AI provider capture is registered at the explicit provider HTTP boundary; future sources must explicitly adopt the request-log contract. No global runtime interception or filesystem discovery is used. |
-| P11 Native Navigation & Unified Entries | PASS | One canonical `REQUEST LOG` entry is added to the existing Data & Operations group; list filters and pagination are URL-restorable and detail navigation has a back link. |
+| P10 Explicit Over Implicit | PASS | AI provider capture is registered at the explicit provider HTTP boundary; a single immutable request-log registry validates source types and operations, and future sources must be added there explicitly. No global runtime interception, mutable global registration, or filesystem discovery is used. |
+| P11 Native Navigation & Unified Entries | PASS | One canonical `REQUEST LOG` entry is added to the existing Data & Operations group; list filters and pagination are URL-restorable, and the detail route has a route-derived breadcrumb plus a back link. |
 | P12 Public Reading Static by Default | PASS | The authenticated Admin surface and request records never enter anonymous public documents or caches. |
 | API Architecture | PASS | Route handlers stay thin over shared schemas and services; all request-log endpoints are dynamic and non-cached. |
 | AI Knowledge Layer | PASS | Captured request data is diagnostic operational data, not canonical knowledge or an index source. |
@@ -99,25 +102,28 @@ apps/web/
 │   ├── components/admin/request-log/{RequestLogPanel.tsx,RequestLogDetail.tsx}
 │   ├── server/
 │   │   ├── db/schema/{enums.ts,index.ts,request-logs.ts}
-│   │   ├── services/request-log.ts
+│   │   ├── services/{request-log.ts,audit.ts}
 │   │   ├── ai/providers/http-client.ts
 │   │   ├── permissions/index.ts
-│   │   ├── jobs/ai-cleanup.ts
+│   │   ├── jobs/{request-log-persist.ts,ai-cleanup.ts,register.ts,runtime.ts}
 │   │   └── api/openapi-schemas.ts
 │   └── i18n/keys.ts
 ├── messages/{en.json,zh.json}
 └── public/openapi.json
 
-packages/shared/src/{index.ts,request-log.ts}
+packages/shared/src/{index.ts,request-log.ts,audit.ts}
 ```
 
 **Structure Decision**: Keep durable records in PostgreSQL and the capture
 boundary in `apps/web/src/server/ai/providers/http-client.ts`, because every
 current AI provider operation already passes through that explicit boundary.
-Expose the reusable capture interface from
+Expose the reusable capture interface and immutable source registry from
 `apps/web/src/server/services/request-log.ts`; future outbound integrations opt
-in by calling that service/wrapper explicitly. Keep shared request-log enums,
-query schemas, settings views, list summaries, and detail envelopes in
+in by adding a source definition there and passing the explicit descriptor to
+the wrapper. After encryption, the wrapper submits an idempotent persistence
+job to `apps/web/src/server/jobs/request-log-persist.ts` through the existing
+pg-boss registration. Keep shared request-log enums, query schemas, settings
+views, list summaries, and detail envelopes in
 `packages/shared/src/request-log.ts`. Keep Admin route handlers thin and put
 filtering, authorization, decryption, retention, and settings transitions in
 the service.
@@ -142,7 +148,7 @@ the service.
 ## Post-Design Constitution Re-check
 
 Re-evaluated after Phase 1 design: all gates still PASS. The design keeps the
-request logger explicit and provider-agnostic, encrypts sensitive fields at
-rest, denies API-key/non-Admin access, keeps raw diagnostic data outside public
-content, and reuses the existing background cleanup path without adding a
-default service.
+request logger explicit and provider-agnostic, encrypts sensitive fields before
+queueing and at rest, denies API-key/non-Admin access, keeps raw diagnostic
+data outside public content, and reuses the existing pg-boss worker footprint
+without adding a default service or queue backend.

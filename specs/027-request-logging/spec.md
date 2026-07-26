@@ -214,10 +214,12 @@ verify all access is denied without revealing the record.
 - **FR-003**: The system MUST provide the detail levels `Status`, `Header`, and
   `All`, and MUST apply the selected level to each newly captured request.
 - **FR-004**: `Status` MUST record the request identity and lifecycle metadata,
-  including source type, provider/integration, operation, target, timestamp,
-  duration, correlation identifier when available, outcome, status code when
-  available, and a diagnostic error summary when available; it MUST NOT record
-  request or response headers or bodies.
+including source type, provider/integration, operation, target, timestamp,
+duration, correlation identifier when available, outcome, status code when
+available, and a diagnostic error summary when available; it MUST NOT record
+request or response headers or bodies. The summary MUST be bounded and safe for
+metadata/list display: it MUST NOT copy raw headers, bodies, credentials, or a
+provider error payload.
 - **FR-005**: `Header` MUST include all `Status` fields plus every request and
   response header name and value, including duplicate names and multiple values.
 - **FR-006**: `All` MUST include all `Header` fields plus complete request and
@@ -235,12 +237,15 @@ verify all access is denied without revealing the record.
 #### Common Outbound Request Contract
 
 - **FR-010**: The system MUST expose one bounded, explicit contract for
-  recording supported outbound requests, independent of AI provider or
-  integration vendor.
+recording supported outbound requests, independent of AI provider or
+integration vendor. Supported source types and operations MUST come from one
+immutable, explicitly maintained registry at the request-log service boundary;
+runtime source discovery or mutable global registration is prohibited.
 - **FR-011**: Every record MUST identify its source type, provider or
-  integration, operation, target, request attempt, and correlation identifier
-  when one exists, so records from different external systems can be searched
-  and reconstructed consistently.
+integration, operation, target, request attempt, and correlation identifier
+when one exists. The source type and operation MUST be validated against the
+explicit source registry, so records from different external systems can be
+searched and reconstructed consistently.
 - **FR-012**: AI provider requests MUST use this common contract for model,
   embedding, image, and other supported provider operations rather than a
   separate AI-only logging path.
@@ -251,8 +256,12 @@ verify all access is denied without revealing the record.
   transport failures, timeouts, cancellations, retries, and failures that occur
   before a response is received.
 - **FR-015**: A failure in request logging MUST NOT change the success, failure,
-  timeout, or cancellation result of the original outbound request, and the
-  logging path MUST NOT recursively record its own outbound activity.
+timeout, or cancellation result of the original outbound request, and the
+logging path MUST NOT recursively record its own outbound activity. Once an
+attempt has finished collecting its capture-level data, persistence MUST be
+handed to the existing pg-boss worker without awaiting it from the original
+outbound operation; queued raw detail MUST already be encrypted and persistence
+MUST be idempotent by request-log ID.
 
 #### Request Log Surface
 
@@ -280,7 +289,8 @@ verify all access is denied without revealing the record.
   list records, open details, or access captured headers, content, and error
   data; anonymous users, Editors, ordinary users, and API keys MUST be denied.
 - **FR-023**: Changes to the capture switch and level MUST be audited with the
-  acting Admin, time, previous value, and new value.
+acting Admin, time, previous value, and new value. Retention changes MUST be
+included in the same non-sensitive setting-change audit metadata.
 - **FR-024**: Access to request-log records MUST respect current permissions;
   losing Admin access MUST prevent further access without requiring a restart.
 - **FR-025**: Captured records MUST have a bounded, configurable retention
@@ -291,8 +301,11 @@ verify all access is denied without revealing the record.
   payloads through URLs, list previews, browser notifications, or unrelated
   application logs.
 - **FR-027**: The system MUST make it clear in the request-log surface that
-  `Header` and `All` may contain secrets and external-service data, and MUST
-  show the capture level and capture time for every record.
+`Header` and `All` may contain secrets and external-service data, and MUST
+show the capture level and capture time for every record.
+- **FR-028**: Settings, list, and detail responses MUST be dynamic and send
+`Cache-Control: no-store`; response bodies and browser state MUST never cache
+or retain decrypted raw diagnostic values after permission is denied.
 
 ### Public Content Delivery *(required when a feature changes anonymously readable published content)*
 
@@ -333,10 +346,10 @@ verify all access is denied without revealing the record.
 - **SC-004**: An Admin can enable capture, select a level, reproduce a failing
   AI call, find it in `REQUEST LOG`, and open its detail in under 2 minutes
   during usability testing.
-- **SC-005**: For a test set of at least 1,000 captured records, an Admin can
-  filter by source, outcome, status, time range, and correlation identifier and
-  receive the matching first page within 2 seconds under normal operating
-  conditions.
+- **SC-005**: For a data set containing at least 1,000 captured records, an
+Admin can filter by source, outcome, status, time range, and correlation
+identifier and receive the matching first page (default 20, maximum 100 rows)
+within 2 seconds under normal operating conditions.
 - **SC-006**: In permission tests, 100% of non-Admin attempts to access
   request-log settings, metadata, headers, bodies, or errors are denied without
   disclosing whether a matching record exists.

@@ -13,7 +13,8 @@ individual integrations.
 
 List filters and pagination must be encoded in the list URL so refresh,
 deep-link, browser back/forward, and copied diagnostic links restore the same
-result set. The detail page has a visible back link to the current list URL.
+result set. The detail page has a route-derived breadcrumb and a visible back
+link to the current list URL.
 
 ## Settings panel
 
@@ -87,11 +88,12 @@ primitive and does not push the page action bar into the document body.
 
 ## Permission and failure states
 
-- Non-Admins and API-key actors receive the normal not-found/forbidden behavior
-  and no record existence or metadata.
+- Missing sessions receive the normal sign-in behavior; non-Admins and API-key
+  actors receive the normal forbidden behavior and no record metadata. Unknown
+  or expired detail IDs use the normal not-found state.
 - If an Admin loses permission after opening the page, the next settings/list/
-  detail request is denied; the UI clears sensitive data instead of retaining it
-  in client state.
+  detail request is denied; the UI clears sensitive data and query cache entries
+  instead of retaining them in client state.
 - If a capture write fails, the Admin list may omit that attempt; the original
   AI operation still reports its own provider result and the application logs a
   bounded internal diagnostic without request payloads.
@@ -99,6 +101,8 @@ primitive and does not push the page action bar into the document body.
   the concrete timeout/cancel/transport outcome.
 - If a response has a status but no body, show status and “empty body”; if no
   response exists, show “response unavailable”.
+- Settings, list, and detail API responses use `Cache-Control: no-store`; the UI
+  must not persist decrypted request-log detail in browser storage.
 
 ## Localization and accessibility
 

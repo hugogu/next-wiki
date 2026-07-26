@@ -3,7 +3,9 @@
 ## R1 — Capture at the explicit provider HTTP boundary
 
 **Decision**: Implement a reusable `withOutboundRequestLog` contract in the web
-server and use it from the existing AI provider request boundary. Refactor the
+server and use it from the existing AI provider request boundary. Its source
+type and operation are validated against one immutable service-owned registry;
+future sources are added by code change, never runtime discovery. Refactor the
 provider adapter operations so the wrapper observes the complete operation, not
 only the initial `fetch`, including response parsing and streaming failures.
 
@@ -24,6 +26,8 @@ empty stream, cancellation, or a wrong response shape.
   inconsistent.
 - Capture only `providerFetch` status codes: rejected because parser and stream
   errors are part of the failure the operator needs to diagnose.
+- Let integrations register source names dynamically: rejected by P10 because
+  the supported source surface would no longer have one traceable entry point.
 
 ## R2 — One generic table plus one singleton settings row
 
@@ -131,19 +135,25 @@ details that exist.
 
 ## R7 — Best-effort persistence with no recursive outbound logging
 
-**Decision**: The request logger persists through the local database path only,
-  never through an HTTP endpoint. Persistence failures are caught, emitted as a
-  bounded application diagnostic, and cannot change the provider operation's
-  result or trigger another request-log record.
+**Decision**: The request logger encrypts detail envelopes before submitting an
+idempotent `requestLogPersist` job to the existing pg-boss worker process; it
+never persists through an HTTP endpoint. The original outbound operation does
+not await queueing or persistence. Queue/persistence failures are caught,
+emitted as a bounded application diagnostic, and cannot change the provider
+operation's result or trigger another request-log record.
 
 **Rationale**: Logging must remain an observability aid, not a new failure mode.
-The local database is already the default stateful dependency. Keeping the
-write path local also avoids a recursive request-capture loop.
+The local database and pg-boss worker are already part of the default
+deployment. Encrypting before queueing keeps raw diagnostic content out of the
+job payload in plaintext, while an assigned request-log ID makes worker retries
+safe. Keeping the write path local also avoids a recursive request-capture loop.
 
 **Alternatives considered**:
 
 - Send records to a remote logging service: rejected by P1 and because it would
   itself be an outbound request to capture.
+- Await persistence from the provider operation: rejected because it can delay
+  completion and violates the async-first requirement.
 - Throw when persistence fails: rejected because the spec requires the original
   request to retain its normal result.
 - Write raw payloads to process stdout: rejected because normal application logs
@@ -154,12 +164,15 @@ write path local also avoids a recursive request-capture loop.
 **Decision**: Add `manage_request_logs` to the server permission chokepoint and
   a `request_logs` resource kind. Only session Admins pass it; no API-key scope
   maps to it. Wrap list/detail/settings routes with the existing API audit
-  wrapper and add explicit settings-change audit context where needed.
+  wrapper and add non-sensitive previous/new settings metadata for the PATCH
+  transition.
 
 **Rationale**: Reusing `manage_users` would give the feature the wrong semantic
   permission, while reusing `manage_storage` would be misleading. The existing
   API audit table already records authenticated route access, method, path,
-  status, duration, and actor, so a second access-event table is unnecessary.
+  status, duration, and actor. Extending it with bounded setting-change metadata
+  avoids a second access-event table while preserving the required before/after
+  audit evidence.
 
 **Alternatives considered**:
 
@@ -197,7 +210,8 @@ without increasing deployment footprint.
 **Decision**: Add `/admin/request-log` as one canonical Data & Operations nav
 entry, with `/admin/request-log/[id]` for detail. Filters and pagination are
 encoded in the list URL. Settings are shown on the list page and use the
-existing Admin form/query primitives.
+existing Admin form/query primitives. The detail route renders a route-derived
+breadcrumb as well as a back link to the current list URL.
 
 **Rationale**: The existing Admin navigation already has a `Data & Operations`
 group and URL-synced list patterns in `AdminAuditTable` and transfer pages. A

@@ -1,9 +1,16 @@
 # API Contract Delta: Outbound Request Logging
 
-All routes are authenticated Admin operations. They use the existing JSON error
-envelope, `createApiContext`, permission checks, `mapDomainError`, and
-`withApiAudit`. They are dynamic and must not be cached. API-key actors are
-denied even when the owning user has an Admin role.
+All routes are authenticated Admin-session operations. They use the existing
+JSON error envelope, `createApiContext`, permission checks, `mapDomainError`,
+and `withApiAudit`. They are dynamic and send `Cache-Control: no-store` on both
+success and error responses. API-key actors are denied even when the owning
+user has an Admin role.
+
+Authentication/authorization behavior is uniform: a missing or invalid session
+returns `UNAUTHORIZED`; a session actor without `manage_request_logs`, and any
+API-key actor, returns `FORBIDDEN` without request-log metadata. The detail
+route returns `NOT_FOUND` only for an unknown or expired ID, so normal Admin
+access does not reveal a record through a stale identifier.
 
 The shared runtime schemas live in `packages/shared/src/request-log.ts`; the
 OpenAPI scanner copies the route shapes into
@@ -52,7 +59,8 @@ Rules:
 - `retentionHours` is an integer from `1` through `168`.
 - `confirmSensitiveCapture` is required and must be `true` when enabling `all`.
 - Turning capture off does not delete existing rows.
-- The service records the previous/new setting in the existing API audit trail.
+- The service records non-sensitive previous/new `enabled`, `level`, and
+  `retentionHours` values with the acting Admin in the existing API audit trail.
 
 Response: the updated settings view.
 
@@ -147,8 +155,8 @@ The detail response is never placed in a URL or list preview. The UI renders
 raw sections collapsed behind a sensitivity warning, but the API returns the
 complete captured values to the authorized Admin detail request.
 
-Errors: `NOT_FOUND` is returned for an unknown, expired, or unauthorized record
-so the route does not disclose record existence.
+Errors: `UNAUTHORIZED`, `FORBIDDEN`, and `NOT_FOUND`. `NOT_FOUND` is returned
+only for an unknown or expired record; `FORBIDDEN` carries no record metadata.
 
 ## OpenAPI and non-public scope
 
@@ -158,4 +166,5 @@ so the route does not disclose record existence.
 - Annotate the three route groups with Admin-only summaries and responses.
 - Do not add these routes to the public `/api/v1` content API or to API-key
   scopes. They are authenticated operational endpoints only.
-- Keep all responses dynamic/non-cached, including the list and detail routes.
+- Keep all responses dynamic and set `Cache-Control: no-store`, including list,
+  detail, and error responses.

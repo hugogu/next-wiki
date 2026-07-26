@@ -31,6 +31,7 @@ Run the focused tests first, then the repository checks:
 
 ```bash
 pnpm --filter @next-wiki/web test -- src/server/services/request-log.test.ts src/server/ai/providers/http-client.test.ts
+pnpm --filter @next-wiki/web test -- src/server/jobs/request-log-persist.test.ts src/server/services/request-log-security.test.ts
 pnpm --filter @next-wiki/web test -- src/server/services/request-log-routes.test.ts
 pnpm --filter @next-wiki/web test -- src/components/admin/request-log/RequestLogPanel.test.tsx
 pnpm --filter @next-wiki/web exec playwright test e2e/request-log.spec.ts
@@ -45,6 +46,8 @@ Expected outcomes:
 - all focused Vitest tests pass;
 - Playwright proves Admin-only access, URL-restorable filters, and complete
   level-specific detail;
+- capture persistence is idempotent, queued raw envelopes are encrypted, and a
+  logger failure does not delay or change the original provider result;
 - lint has zero warnings/errors;
 - typecheck and i18n validation pass;
 - generated OpenAPI contains the request-log schemas/routes and no route is
@@ -83,6 +86,8 @@ Expected:
 - the UI identifies sensitive sections and does not put raw values in list rows,
   URLs, browser notifications, or normal process logs;
 - the stored raw fields are unreadable without the application encryption key.
+- the original AI request does not wait for request-log persistence; a queued
+  persistence retry still produces at most one durable record for the attempt.
 
 ## Manual scenario 3 — Stream, timeout, cancellation, and parser failures
 
@@ -99,6 +104,21 @@ Expected:
 - timeout and cancellation have no HTTP status when no response exists and are
   classified separately;
 - each retry attempt is a separate row and shares the operation correlation ID.
+
+## Source-adoption contract
+
+Future HTTP or SDK integrations adopt request logging by changing the immutable
+source registry in `apps/web/src/server/services/request-log.ts`, adding the
+source type and allowed operations in the same change as their adapter, and
+passing the resulting explicit descriptor to the shared wrapper. Production
+code must not dynamically register a source. Tests may inject a fixture registry
+through the service constructor to prove the common contract without widening
+the production registry.
+
+The wrapper snapshots the capture setting at attempt start, encrypts raw detail
+before handing the complete record to the existing pg-boss persistence worker,
+and uses the preassigned log ID to make worker retries idempotent. The source
+operation never awaits that persistence path.
 
 ## Manual scenario 4 — Generic source reuse
 
@@ -125,11 +145,13 @@ Expected:
 
 Expected:
 
-- every non-Admin/API-key access is denied without revealing record existence;
-- settings/list/detail responses are dynamic and not stored as anonymous cache;
+- every non-Admin/API-key access is denied without returning record metadata;
+- settings/list/detail responses are dynamic with `Cache-Control: no-store` and
+  are not stored as anonymous or browser cache;
 - expired rows are absent from normal list/detail reads after cleanup;
 - settings changes and request-log route access remain visible in the existing
-  Admin audit trail.
+  Admin audit trail, with non-sensitive previous/new enabled, level, and
+  retention values for each setting mutation.
 
 ## Troubleshooting the validation
 
@@ -140,6 +162,9 @@ Expected:
   provider parsing; the consumer branch must remain the adapter's source.
 - If a detail route returns raw data to a non-Admin, stop and fix the permission
   check before continuing; do not weaken the test.
+- If a source is rejected by the request-log wrapper, add it and its allowed
+  operations to the immutable source registry; do not create a runtime global
+  registration escape hatch.
 - If `db:generate` prompts interactively or folds unrelated changes together,
   stop and repair the missing Drizzle snapshot according to `AGENTS.md` rather
   than hand-authoring migration files.

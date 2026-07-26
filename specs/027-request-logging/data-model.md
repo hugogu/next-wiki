@@ -53,9 +53,9 @@ single user action may produce multiple rows sharing `correlation_id`.
 | Field | Type | Rules |
 |---|---|---|
 | `id` | UUID | Primary key |
-| `source_type` | text | Bounded registered source identifier, e.g. `ai` |
+| `source_type` | text | Canonical identifier from the immutable request-log source registry, e.g. `ai` |
 | `provider_key` | text nullable | Provider/integration key, e.g. configured AI provider name |
-| `operation` | text | Bounded operation identifier, e.g. `chat.completions`, `embeddings`, `models` |
+| `operation` | text | Operation identifier registered for `source_type`, e.g. `chat.completions`, `embeddings`, `models` |
 | `attempt` | integer | Positive retry/attempt number; default `1` |
 | `method` | text | Uppercase request method |
 | `target_host` | text nullable | Safe host metadata used for list context; no credentials |
@@ -63,7 +63,7 @@ single user action may produce multiple rows sharing `correlation_id`.
 | `status_code` | integer nullable | HTTP status when a response exists; null for pre-response failures |
 | `outcome` | enum/text | `success`, `http_error`, `transport_error`, `timeout`, `cancelled`, or `invalid_response` |
 | `error_code` | text nullable | Normalized provider/transport code when available |
-| `error_message` | text nullable | Bounded normalized summary safe for list/detail metadata |
+| `error_message` | text nullable | Bounded normalized summary safe for list/detail metadata; it excludes raw headers, bodies, credentials, and provider error payloads |
 | `provider_request_id` | text nullable | Provider-issued request identifier when available |
 | `correlation_id` | text nullable | Bounded non-secret trace identifier |
 | `started_at` | timestamp | Request start |
@@ -94,12 +94,12 @@ filter routes never select or return encrypted columns.
 
 Create indexes for the query contract:
 
-- `(created_at DESC)` for newest-first pagination and time ranges.
-- `(source_type, created_at DESC)` for source filtering.
-- `(provider_key, created_at DESC)` for provider filtering.
-- `(operation, created_at DESC)` for operation filtering.
-- `(outcome, created_at DESC)` and `(status_code, created_at DESC)` for outcome/status filters.
-- `(correlation_id)` for trace lookup.
+- `(created_at DESC, id DESC)` for newest-first pagination and time ranges.
+- `(source_type, created_at DESC, id DESC)` for source filtering.
+- `(provider_key, created_at DESC, id DESC)` for provider filtering.
+- `(operation, created_at DESC, id DESC)` for operation filtering.
+- `(outcome, created_at DESC, id DESC)` and `(status_code, created_at DESC, id DESC)` for outcome/status filters.
+- `(correlation_id, created_at DESC, id DESC)` for trace lookup and deterministic result ordering.
 - `(expires_at)` for cleanup.
 
 The implementation should use a bounded page size (default `20`, maximum `100`)
@@ -119,6 +119,14 @@ uses the decision made when the wrapper began; it is never silently split.
 
 ## Source registration contract
 
+`source_type` and `operation` are not free-form input. The request-log service
+owns one immutable source registry, checked when a wrapper is constructed. The
+production registry initially contains `ai` and its supported operations. A
+future integration changes that registry in the same change set as its adapter
+and tests; it does not register itself dynamically at runtime. Tests may inject
+a fixture registry into the service constructor, which keeps the production
+registry immutable and avoids a mutable global singleton.
+
 The generic wrapper receives an explicit source descriptor:
 
 ```ts
@@ -135,7 +143,26 @@ The wrapper also receives the request method/target and an operation callback
 that consumes the response. This keeps the record complete for parser and
 stream failures, not merely HTTP transport failures. AI provider adapters are
 the first registered source; future integrations must pass an explicit
-descriptor and must not be discovered implicitly.
+descriptor validated against the registry and must not be discovered
+implicitly.
+
+## Persistence lifecycle
+
+1. At wrapper start, read the effective setting once and snapshot the selected
+   capture level and retention window for the attempt. Disabled capture returns
+   without payload serialization.
+2. At operation completion (including parser, stream, timeout, cancellation,
+   and transport failures), collect the fields allowed by the snapshotted
+   level. Assign the request-log UUID before persistence.
+3. Encrypt every raw target/header/body/error envelope before enqueueing. The
+   pg-boss job payload contains only metadata and encrypted envelopes; it never
+   contains plaintext diagnostic content.
+4. Submit the record to a `requestLogPersist` job handled by the existing
+   pg-boss worker process. The original outbound operation does not await this
+   persistence path. Queue/encryption/persistence failures are bounded
+   operational diagnostics and never recurse into request logging.
+5. The worker inserts by the preassigned UUID with idempotent conflict handling
+   so a retry creates at most one durable row per captured attempt.
 
 ## Relationships to existing entities
 
@@ -144,25 +171,42 @@ descriptor and must not be discovered implicitly.
   may not have one. AI calls carry `source_type = ai`, provider/operation, and a
   correlation identifier supplied by the AI action when available.
 - Existing `api_audit_entries` records authenticated settings/list/detail route
-  access and settings changes. It is an audit projection, not a foreign-key
-  parent of the request record.
+  access. Add a nullable non-sensitive audit metadata envelope for a settings
+  mutation: previous and new `enabled`, `level`, and `retention_hours`; this is
+  an audit projection, not a foreign-key parent of the request record and MUST
+  never contain captured headers, bodies, targets, or errors.
+
+  ```ts
+  type RequestLogSettingsAuditMetadata = {
+    kind: 'request_log_settings_change';
+    previous: { enabled: boolean; level: 'status' | 'header' | 'all'; retentionHours: number };
+    next: { enabled: boolean; level: 'status' | 'header' | 'all'; retentionHours: number };
+  };
+  ```
+
+  The settings route passes this envelope to the existing API-audit wrapper;
+  the wrapper writes it on the normal authenticated PATCH audit row rather than
+  creating a second audit entry.
 - No request log row is linked to page revisions, Raw pages, or generated pages
   automatically.
 
 ## Retention behavior
 
-At capture time, calculate `expires_at = completed_at or started_at +
+At capture time, calculate `expires_at = (completed_at ?? started_at) +
 retention_hours`. The existing scheduled cleanup worker periodically removes
 expired request-log rows and their encrypted payloads. Normal list/detail
 queries also constrain `expires_at > now()` so expired data is invisible even
-before the cleanup pass completes.
+before the cleanup pass completes. The persister calculates expiry from the
+attempt's snapshotted retention window, never the setting current when its job
+runs.
 
 Retention cleanup is operational data expiry, not a page-content deletion path;
 it must not touch `pages`, `page_revisions`, `ai_actions`, or audit records.
 
 ## Migration requirements
 
-1. Add the new enum values/tables to the actual Drizzle schema files.
+1. Add the new enum values/tables and the non-sensitive API-audit metadata
+   column to the actual Drizzle schema files.
 2. Run `pnpm db:generate` from the repository root to produce the next
    migration and matching snapshot/journal entry.
 3. Never hand-author the SQL migration, snapshot, or journal.
