@@ -179,7 +179,7 @@ matching skill and produce a reviewable proposal, never a direct publish.
 - [X] T058 [US3] Populate `BUILTIN_SKILL_PACKAGES` in `apps/web/src/server/services/skills/builtin.ts` with the three packages and confirm they load enabled by default (FR-044)
 - [X] T059 [US3] Bound each built-in skill's work to the pages named in the conversation and the existing per-turn tool-call limit, and make the assistant state which pages it covered and which it did not when the limit is reached, in `apps/web/src/server/services/ai-tool-runtime.ts` and the skill texts (FR-044a, FR-044b)
 - [ ] T060 [US3] Render the Wiki Linker link list — keyword, location, target page — from the recorded tool-call arguments in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx` and the draft review view, so the reviewer sees the structured list alongside the diff (FR-043)
-- [ ] T061 [US3] Write each built-in skill's `description` for trigger match quality — naming the task and the phrasings users actually use — and iterate against T054
+- [X] T061 [US3] Write each built-in skill's `description` for trigger match quality — naming the task and the phrasings users actually use — and iterate against T054
 
 **Checkpoint**: The three built-in skills work end to end on a fresh install.
 
