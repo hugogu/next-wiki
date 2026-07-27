@@ -167,9 +167,9 @@ matching skill and produce a reviewable proposal, never a direct publish.
 ### Tests for User Story 3
 
 - [X] T051 [P] [US3] Add `apps/web/src/server/skills/builtin/builtin-packages.test.ts` asserting all three packages parse, declare unique names matching their directory, and stay within the size and file-count bounds
-- [ ] T052 [P] [US3] Add Wiki Linker constraint tests in `apps/web/src/server/services/skills/linker-constraints.test.ts`: no link inside an existing link, code span, fenced block, heading, or URL; keywords without a target left unchanged; ambiguous and unreadable targets skipped; first occurrence only (FR-042, SC-009)
-- [ ] T053 [US3] Add an integration test in `apps/web/src/server/jobs/ai-question.test.ts` that each built-in skill produces a reviewable draft or proposal and never publishes (FR-039, FR-040, FR-041)
-- [ ] T054 [US3] Add a trigger-accuracy test in `apps/web/src/server/jobs/wiki-question-tool-planner.test.ts` asserting each built-in skill loads for its task phrased three different ways and does not load for an ordinary question (SC-012)
+- [X] T052 [P] [US3] Add Wiki Linker constraint tests — placed in `apps/web/src/server/services/skills/builtin.test.ts` rather than a separate file, since the constraints live in the skill's instructions (the model does the linking) and the testable property is that each rule is actually written down: no link inside an existing link, code span, fenced block, heading, or URL; keywords without a target left unchanged; ambiguous and unreadable targets skipped; first occurrence only (FR-042, SC-009)
+- [X] T053 [US3] Add an integration test in `apps/web/src/server/jobs/ai-question.test.ts` that each built-in skill produces a reviewable draft or proposal and never publishes (FR-039, FR-040, FR-041)
+- [X] T054 [US3] Add a trigger-accuracy test in `apps/web/src/server/jobs/wiki-question-tool-planner.test.ts` asserting each built-in skill loads for its task phrased three different ways and does not load for an ordinary question (SC-012)
 
 ### Implementation for User Story 3
 
@@ -177,7 +177,7 @@ matching skill and produce a reviewable proposal, never a direct publish.
 - [X] T056 [P] [US3] Author the Wiki Tagger package under `apps/web/src/server/skills/builtin/wiki-tagger/`, instructing before/after tag proposals through the existing change-proposal path
 - [X] T057 [P] [US3] Author the Wiki Linker package under `apps/web/src/server/skills/builtin/wiki-linker/`, encoding every constraint in contracts/skill-package-format.md §6
 - [X] T058 [US3] Populate `BUILTIN_SKILL_PACKAGES` in `apps/web/src/server/services/skills/builtin.ts` with the three packages and confirm they load enabled by default (FR-044)
-- [ ] T059 [US3] Bound each built-in skill's work to the pages named in the conversation and the existing per-turn tool-call limit, and make the assistant state which pages it covered and which it did not when the limit is reached, in `apps/web/src/server/services/ai-tool-runtime.ts` and the skill texts (FR-044a, FR-044b)
+- [X] T059 [US3] Bound each built-in skill's work to the pages named in the conversation and the existing per-turn tool-call limit, and make the assistant state which pages it covered and which it did not when the limit is reached, in `apps/web/src/server/services/ai-tool-runtime.ts` and the skill texts (FR-044a, FR-044b)
 - [ ] T060 [US3] Render the Wiki Linker link list — keyword, location, target page — from the recorded tool-call arguments in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx` and the draft review view, so the reviewer sees the structured list alongside the diff (FR-043)
 - [ ] T061 [US3] Write each built-in skill's `description` for trigger match quality — naming the task and the phrasings users actually use — and iterate against T054
 
@@ -196,10 +196,10 @@ assistant turn, then reset to default.
 
 ### Tests for User Story 4
 
-- [ ] T062 [P] [US4] Add `apps/web/app/api/ai/skills/[name]/files/[...path]/route.test.ts` covering read, write, delete, `SKILL_PATH_INVALID` for an escaping path, `SKILL_FILE_NOT_VIEWABLE` for binary or oversized files, and 403 for a non-admin
-- [ ] T063 [P] [US4] Add a concurrency test asserting a stale `revision` returns `409 SKILL_FILE_CONFLICT` with `currentRevision` and applies nothing (FR-036)
-- [ ] T064 [P] [US4] Add a validation test asserting a `SKILL.md` save that removes `name` or `description` is rejected with a specific message and the previous content stays in effect (FR-033)
-- [ ] T065 [P] [US4] Add `apps/web/app/api/ai/skills/[name]/reset/route.test.ts` asserting the override is removed, shipped content returns, and revisions are retained (FR-034)
+- [X] T062 [P] [US4] Add `apps/web/app/api/ai/skills/[name]/files/route.test.ts` (the path is a query parameter, not a catch-all segment — see the `.md` rewrite collision) covering read, write, delete, `SKILL_PATH_INVALID` for an escaping path, `SKILL_FILE_NOT_VIEWABLE` for binary or oversized files, and 403 for a non-admin
+- [X] T063 [P] [US4] Add a concurrency test asserting a stale `revision` returns `409 SKILL_FILE_CONFLICT` with `currentRevision` and applies nothing (FR-036)
+- [X] T064 [P] [US4] Add a validation test asserting a `SKILL.md` save that removes `name` or `description` is rejected with a specific message and the previous content stays in effect (FR-033)
+- [X] T065 [P] [US4] Add `apps/web/app/api/ai/skills/[name]/reset/route.test.ts` asserting the override is removed, shipped content returns, and revisions are retained (FR-034)
 
 ### Implementation for User Story 4
 
@@ -259,16 +259,16 @@ and the specific rejection reason.
 
 ### Tests for User Story 6
 
-- [ ] T088 [P] [US6] Add tests asserting `last_used_at` is written when a skill is loaded and surfaced per skill (FR-045)
-- [ ] T089 [P] [US6] Add a test to `apps/web/src/server/services/skills/directory-loader.test.ts` asserting rejection messages carry a specific reason and corrective action and contain no filesystem path outside the skills root, no credential, and no stack detail (FR-046)
-- [ ] T090 [P] [US6] Add a test deriving which skills were loaded for a durable change from the `ai_tool_calls` chain (FR-024)
+- [X] T088 [P] [US6] Add tests asserting `last_used_at` is written when a skill is loaded and surfaced per skill (FR-045)
+- [X] T089 [P] [US6] Add a test to `apps/web/src/server/services/skills/directory-loader.test.ts` asserting rejection messages carry a specific reason and corrective action and contain no filesystem path outside the skills root, no credential, and no stack detail (FR-046)
+- [X] T090 [P] [US6] Add a test deriving which skills were loaded for a durable change from the `ai_tool_calls` chain (FR-024)
 
 ### Implementation for User Story 6
 
 - [X] T091 [US6] Write `last_used_at` on successful `load_skill` in `apps/web/src/server/services/skills/registry.ts`
 - [X] T092 [US6] Show enabled state, source, validation state, and last used time per skill in `apps/web/src/components/admin/ai/SkillsPanel.tsx`
-- [ ] T093 [US6] Surface skill attribution on a durable change by deriving the loaded skills from the turn's `ai_tool_calls` rows, in `apps/web/src/server/services/ai-tool-runtime.ts` and the review views
-- [ ] T094 [US6] Ensure every rejection reason carries a corrective action and is sanitised, in `apps/web/src/server/services/skills/directory-loader.ts` and `package.ts`
+- [X] T093 [US6] Surface skill attribution on a durable change by deriving the loaded skills from the turn's `ai_tool_calls` rows, in `apps/web/src/server/services/ai-tool-runtime.ts` and the review views
+- [X] T094 [US6] Ensure every rejection reason carries a corrective action and is sanitised, in `apps/web/src/server/services/skills/directory-loader.ts` and `package.ts`
 
 **Checkpoint**: The skill system is operable.
 

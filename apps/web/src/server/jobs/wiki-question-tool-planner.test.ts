@@ -176,3 +176,65 @@ describe('extractTaggedThinking', () => {
       .toBe('Inspect the Wiki first.');
   });
 });
+
+/**
+ * The skill catalogue reaches the model as names and descriptions only (028,
+ * FR-018, SC-005, SC-012).
+ *
+ * Under model-driven selection the description is the only thing between a
+ * request and the right skill, so these pin both halves: that the catalogue
+ * stays compact, and that each built-in description actually names the task and
+ * the words users say.
+ */
+describe('skill catalogue injection', () => {
+  const tool = {
+    name: 'search_wiki',
+    category: 'read' as const,
+    riskLevel: 'read' as const,
+    requiredScope: 'read' as const,
+    resultRetention: 'raw_when_durable' as const,
+    defaultReviewPolicy: 'allow_immediate' as const,
+    description: 'Search wiki pages.',
+    inputSchema: { type: 'object' as const, properties: {} },
+  };
+
+  it('injects one short line per enabled skill and no skill body', () => {
+    const prompt = buildWikiToolSystemPrompt([tool], {}, [
+      { name: 'wiki-linker', description: 'Turn keywords into links.' },
+      { name: 'wiki-writer', description: 'Draft and expand pages.' },
+    ]);
+    expect(prompt).toContain('- wiki-linker: Turn keywords into links.');
+    expect(prompt).toContain('- wiki-writer: Draft and expand pages.');
+    expect(prompt).toContain('load_skill');
+  });
+
+  it('scales with catalogue size, not with skill content', () => {
+    const many = Array.from({ length: 20 }, (_, index) => ({
+      name: `skill-${index}`,
+      description: 'A one-line description.',
+    }));
+    const withOne = buildWikiToolSystemPrompt([tool], {}, many.slice(0, 1));
+    const withTwenty = buildWikiToolSystemPrompt([tool], {}, many);
+    const growth = withTwenty.length - withOne.length;
+    // 19 extra skills cost 19 short lines, not 19 documents.
+    expect(growth).toBeLessThan(19 * 80);
+  });
+
+  it('says so plainly when nothing is enabled', () => {
+    expect(buildWikiToolSystemPrompt([tool], {}, [])).toContain('(none enabled)');
+  });
+
+  it('still lists skills when an admin has removed the placeholder from the prompt', () => {
+    // Enabling a skill must never require editing a prompt to take effect.
+    const prompt = buildWikiToolSystemPrompt([tool], { toolSystemPrompt: 'Custom prompt.' }, [
+      { name: 'wiki-tagger', description: 'Propose tags.' },
+    ]);
+    expect(prompt).toContain('wiki-tagger');
+  });
+
+  it('tells the model to report partial coverage rather than imply completeness', () => {
+    const prompt = buildWikiToolSystemPrompt([tool], {}, []);
+    expect(prompt).toMatch(/pages the user named/i);
+    expect(prompt).toMatch(/never present partial coverage as complete/i);
+  });
+});

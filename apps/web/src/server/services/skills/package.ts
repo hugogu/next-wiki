@@ -50,7 +50,7 @@ export function parseInstructionFile(source: string): ParseResult {
       ok: false,
       error: {
         reason: 'invalid_frontmatter',
-        detail: `${INSTRUCTION_FILE} must start with a YAML frontmatter block delimited by --- lines.`,
+        detail: `${INSTRUCTION_FILE} must start with a YAML frontmatter block delimited by --- lines. Add one declaring "name" and "description".`,
       },
     };
   }
@@ -62,14 +62,17 @@ export function parseInstructionFile(source: string): ParseResult {
       ok: false,
       error: {
         reason: 'invalid_frontmatter',
-        detail: `The YAML frontmatter could not be parsed: ${error instanceof Error ? error.message : 'unknown error'}`,
+        detail: `The YAML frontmatter could not be parsed: ${error instanceof Error ? error.message : 'unknown error'}. Quote any value containing a colon.`,
       },
     };
   }
   if (!frontmatter || typeof frontmatter !== 'object' || Array.isArray(frontmatter)) {
     return {
       ok: false,
-      error: { reason: 'invalid_frontmatter', detail: 'The frontmatter must be a YAML mapping.' },
+      error: {
+        reason: 'invalid_frontmatter',
+        detail: 'The frontmatter must be a YAML mapping of "name" and "description" keys, not a list or scalar.',
+      },
     };
   }
   const record = frontmatter as Record<string, unknown>;
@@ -80,7 +83,7 @@ export function parseInstructionFile(source: string): ParseResult {
       error: {
         reason: 'invalid_frontmatter',
         detail:
-          'The frontmatter must declare a "name" of lowercase words separated by single hyphens, 1-64 characters.',
+          'The frontmatter must declare a "name" of lowercase words separated by single hyphens, 1-64 characters. Rename it, for example "release-notes".',
       },
     };
   }
@@ -90,7 +93,8 @@ export function parseInstructionFile(source: string): ParseResult {
       ok: false,
       error: {
         reason: 'invalid_frontmatter',
-        detail: 'The frontmatter must declare a non-empty "description" of at most 1024 characters.',
+        detail:
+          'The frontmatter must declare a non-empty "description" of at most 1024 characters. Name the task and the phrasings users actually use, since it is how the assistant decides the skill applies.',
       },
     };
   }

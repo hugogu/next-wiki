@@ -21,8 +21,11 @@ import {
  */
 type Params = { params: Promise<{ name: string }> };
 
+// Read from the standard URL rather than `nextUrl`, so the handler is exercisable
+// with a plain Request in tests and depends on no Next-specific surface for
+// something this simple.
 function filePath(request: NextRequest): string | null {
-  const value = request.nextUrl.searchParams.get('path');
+  const value = new URL(request.url).searchParams.get('path');
   return value && value.length > 0 ? value : null;
 }
 

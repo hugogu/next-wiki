@@ -432,7 +432,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
   const answer =
     result.answer ||
     (result.status === 'limit_reached'
-      ? 'I reached the tool-call limit for this turn before finishing.'
+      ? 'I reached the tool-call limit for this turn before finishing, so this covers only part of what you asked for. Tell me which pages to continue with and I will pick up from there.'
       : '');
   const wikiCitations = normalizeQuestionCitations(answer, wikiSources);
   const citations = mergeCitations(wikiCitations, result.citations);

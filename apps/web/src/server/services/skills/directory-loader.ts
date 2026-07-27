@@ -103,7 +103,7 @@ export async function scanSkillsDirectory(root: string | null): Promise<Director
   for (const overflow of entries.slice(SKILL_LIMITS.maxPackagesPerScan)) {
     rejected.push({
       reason: 'too_many_files',
-      detail: `The scan is limited to ${SKILL_LIMITS.maxPackagesPerScan} packages. Remove unused skills from the mount.`,
+      detail: `The scan is limited to ${SKILL_LIMITS.maxPackagesPerScan} packages. Remove unused skills from the mount, then rescan.`,
       name: null,
       directory: path.join(root, overflow),
     });
@@ -136,11 +136,17 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
     if (stat.isSymbolicLink()) {
       const real = await fs.realpath(instructionPath);
       if (!isInsidePackage(realDirectory, real)) {
-        return reject('path_escape', `${INSTRUCTION_FILE} is a symbolic link pointing outside the package.`);
+        return reject(
+          'path_escape',
+          `${INSTRUCTION_FILE} is a symbolic link pointing outside the package. Replace it with a real file inside the package directory.`,
+        );
       }
     }
     if (stat.size > SKILL_LIMITS.maxFileBytes) {
-      return reject('too_large', `${INSTRUCTION_FILE} exceeds ${SKILL_LIMITS.maxFileBytes} bytes.`);
+      return reject(
+        'too_large',
+        `${INSTRUCTION_FILE} exceeds ${SKILL_LIMITS.maxFileBytes} bytes. Move the detail into a file under reference/ and keep the instructions short.`,
+      );
     }
     instructionSource = await fs.readFile(instructionPath, 'utf8');
   } catch (error) {
@@ -151,7 +157,10 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
         `The package has no ${INSTRUCTION_FILE}. Add one declaring "name" and "description" in YAML frontmatter.`,
       );
     }
-    return reject('unreadable', `The package could not be read (${code ?? 'unknown error'}).`);
+    return reject(
+      'unreadable',
+      `The package could not be read (${code ?? 'unknown error'}). Check that the service user can read the directory, then rescan.`,
+    );
   }
 
   const parsed = parseInstructionFile(instructionSource);
@@ -165,7 +174,11 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
       dirents = await fs.readdir(current, { withFileTypes: true });
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      return reject('unreadable', `A directory inside the package could not be read (${code ?? 'unknown error'}).`, parsed.value.name);
+      return reject(
+        'unreadable',
+        `A directory inside the package could not be read (${code ?? 'unknown error'}). Check that the service user can read every directory in the package, then rescan.`,
+        parsed.value.name,
+      );
     }
     for (const dirent of [...dirents].sort((a, b) => a.name.localeCompare(b.name))) {
       const absolutePath = path.join(current, dirent.name);
@@ -188,7 +201,7 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
       if (files.length >= SKILL_LIMITS.maxFilesPerPackage) {
         return reject(
           'too_many_files',
-          `The package has more than ${SKILL_LIMITS.maxFilesPerPackage} files.`,
+          `The package has more than ${SKILL_LIMITS.maxFilesPerPackage} files. Remove files it does not need, then rescan.`,
           parsed.value.name,
         );
       }
@@ -198,7 +211,7 @@ async function loadPackage(directory: string): Promise<LoadedSkillPackage | Load
       if (totalBytes > SKILL_LIMITS.maxPackageBytes) {
         return reject(
           'too_large',
-          `The package exceeds ${SKILL_LIMITS.maxPackageBytes} bytes in total.`,
+          `The package exceeds ${SKILL_LIMITS.maxPackageBytes} bytes in total. Trim its reference files, then rescan.`,
           parsed.value.name,
         );
       }

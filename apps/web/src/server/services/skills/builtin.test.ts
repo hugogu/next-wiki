@@ -44,14 +44,41 @@ describe('built-in skill packages', () => {
     expect(body).toContain('save_draft');
   });
 
-  it('states every Wiki Linker positional constraint a reviewer relies on', async () => {
-    const linker = (await loadBuiltinSkills()).find((skill) => skill.name === 'wiki-linker');
-    const text = (linker?.files ?? []).map((file) => file.content).join('\n').toLowerCase();
-    // SC-009: no link may be proposed in a position where it would break the
-    // page, and an ambiguous or missing target must be left alone.
-    for (const constraint of ['existing link', 'code', 'heading', 'ambiguous', 'first']) {
-      expect(text).toContain(constraint);
-    }
+  /**
+   * Wiki Linker's constraints live in its instructions, not in code — the model
+   * does the linking. So the testable property is that each rule a reviewer
+   * depends on is actually written down: a constraint the skill never states is
+   * a constraint the model will not follow (FR-042, FR-043, SC-009).
+   */
+  describe('Wiki Linker states every constraint a reviewer relies on', () => {
+    const linkerText = async () => {
+      const linker = (await loadBuiltinSkills()).find((skill) => skill.name === 'wiki-linker');
+      expect(linker).toBeDefined();
+      return (linker!.files ?? []).map((file) => file.content).join('\n').toLowerCase();
+    };
+
+    it.each([
+      ['never nests inside an existing link', /existing link/],
+      ['never links inside a code span or fenced block', /code span|code block|fenced/],
+      ['never links inside a heading', /heading/],
+      ['never links inside a URL or image reference', /url|image/],
+      ['never links inside frontmatter', /frontmatter/],
+      ['leaves a keyword with no target page as plain text', /no page stays plain text|without an existing/],
+      ['skips an ambiguous match rather than guessing', /ambiguous|several pages/],
+      ['skips a target the user cannot read', /cannot read/],
+      ['links the first occurrence only', /first occurrence/],
+      ['never links a page to itself', /self-link|itself/],
+    ])('%s', async (_label, pattern) => {
+      expect(await linkerText()).toMatch(pattern);
+    });
+
+    it('requires the answer to list keyword, location, and target per link', async () => {
+      // FR-043: the structured list is what a reviewer reads alongside the
+      // diff, so the skill must ask for it explicitly.
+      const text = await linkerText();
+      expect(text).toMatch(/one line per proposed link|keyword.*location.*target/s);
+      expect(text).toMatch(/skipped/);
+    });
   });
 
   it('tells Wiki Tagger to read the existing vocabulary before proposing', async () => {
