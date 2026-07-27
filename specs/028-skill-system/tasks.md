@@ -178,7 +178,7 @@ matching skill and produce a reviewable proposal, never a direct publish.
 - [X] T057 [P] [US3] Author the Wiki Linker package under `apps/web/src/server/skills/builtin/wiki-linker/`, encoding every constraint in contracts/skill-package-format.md §6
 - [X] T058 [US3] Populate `BUILTIN_SKILL_PACKAGES` in `apps/web/src/server/services/skills/builtin.ts` with the three packages and confirm they load enabled by default (FR-044)
 - [X] T059 [US3] Bound each built-in skill's work to the pages named in the conversation and the existing per-turn tool-call limit, and make the assistant state which pages it covered and which it did not when the limit is reached, in `apps/web/src/server/services/ai-tool-runtime.ts` and the skill texts (FR-044a, FR-044b)
-- [ ] T060 [US3] Render the Wiki Linker link list — keyword, location, target page — from the recorded tool-call arguments in `apps/web/src/components/admin/ai/ToolProposalDetail.tsx` and the draft review view, so the reviewer sees the structured list alongside the diff (FR-043)
+- [X] T060 [US3] **Closed as not needed.** The reviewable artifact is the draft diff, which already shows each link's keyword (the link text), its location (the hunk), and its target (the href), and is accepted or rejected as one unit. Wiki Linker's whole output is edited Markdown: a wiki derives its link graph from the source at read time (`findMarkdownLinks` in `public-content.ts`), so there is no link record to render and no `link` proposal kind to add. Adding one would bind the skill to next-wiki's storage and stop it working anywhere else, which defeats the point of a skill
 - [X] T061 [US3] Write each built-in skill's `description` for trigger match quality — naming the task and the phrasings users actually use — and iterate against T054
 
 **Checkpoint**: The three built-in skills work end to end on a fresh install.
@@ -386,14 +386,15 @@ existing library — and neither blocks the other.
 
 ## Notes
 
-- **T060 is a judgment call worth reviewing.** FR-043 requires the Wiki Linker
-  proposal to show each link's keyword, location, and target page. The spec's own
-  Assumptions state that this feature introduces no new review model and reuses
-  the draft/diff path for page-content changes, so T060 renders the structured
-  link list from the recorded tool-call arguments alongside the diff rather than
-  adding a new proposal kind. If a first-class `link` proposal kind is wanted
-  instead, that is a schema change and must be folded into T004–T008 before the
-  migration is generated — retrofitting it later means a second migration.
+- **T060 was resolved by looking at what a link actually is.** FR-043 asks the
+  Wiki Linker proposal to show each link's keyword, location, and target page.
+  A Markdown diff shows all three, and a draft is accepted or rejected as one
+  unit, so the existing draft/diff path satisfies it with no new surface. The
+  alternative considered — a first-class `link` proposal kind — was rejected:
+  a wiki's link graph is derived from the Markdown at read time rather than
+  stored, so there would be no record to propose, and binding the skill to
+  next-wiki's storage would stop it working in any other tool. A skill has to
+  stay portable.
 - **Directory skills load enabled by default** (research.md R8). If the more
   conservative "mounted means visible, admin makes it active" reading is
   preferred, only T040's default changes.

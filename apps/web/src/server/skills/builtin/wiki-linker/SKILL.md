@@ -5,8 +5,19 @@ description: "Turn keywords in a page into links to wiki pages that already expl
 
 # Wiki Linker
 
-Find terms in a page that already have a wiki page explaining them, and propose
-turning exactly those terms into links.
+Find terms in a page that are already the subject of another wiki page, and
+replace the plain text with a Markdown link to it.
+
+That is the whole job. The only thing you produce is edited Markdown:
+
+```text
+plain text: We follow the backup policy for all spaces.
+linked:     We follow the [backup policy](guides/backup-policy) for all spaces.
+```
+
+There is nothing to register. A wiki's link graph — backlinks, related pages,
+orphan detection — is derived from the Markdown when a page is read, so editing
+the text is the entire change.
 
 ## When to use
 
@@ -48,6 +59,10 @@ Accept a candidate only when:
 - You could read the page. If it did not come back, it is not linkable for this
   user.
 
+Use the target page's own path as the link destination, exactly as `get_page`
+returned it — for example `guides/backup-policy`. A leading slash is fine and is
+ignored; a guessed or prettified path is not.
+
 ### 4. Check where the term sits
 
 Never create a link:
@@ -62,17 +77,21 @@ Never create a link:
 Link the **first** occurrence in the page only. Linking every mention of the
 same term turns prose into a link farm.
 
-### 5. Propose the change
+Never link a page to itself.
+
+### 5. Save the edited Markdown
 
 `save_draft` with the complete updated Markdown. The change lands as a draft
-whose diff a reviewer approves or rejects as one unit.
+whose diff a reviewer approves or rejects as one unit — and a Markdown diff
+already shows each change's keyword, its location, and its target, so no
+separate list needs to be filed anywhere.
 
-### 6. List what you did
+### 6. Report what you did and did not do
 
 In your answer, give one line per proposed link:
 
 ```text
-- "backup policy" (first paragraph) → /guides/backup-policy
+- "backup policy" (first paragraph) → guides/backup-policy
 ```
 
 Then list what you deliberately skipped and why — ambiguous, no page, inside
@@ -85,5 +104,7 @@ usually where the interesting judgement was.
 - Linking every occurrence instead of the first.
 - Linking inside a code block, which changes what the code says.
 - Treating a fuzzy search hit as a match without opening the page.
+- Looking for a tool that registers a link. There isn't one, and there does not
+  need to be.
 
 See `reference/link-rules.md` for the positional rules in detail.

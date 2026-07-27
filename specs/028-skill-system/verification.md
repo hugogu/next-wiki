@@ -19,7 +19,7 @@ does not prove is stated under SC-003 and SC-013.
 | **SC-006** — edit a built-in, see it take effect, restore the default | **PASS** | Verified end to end in the browser: edited `wiki-linker/SKILL.md`, the override was created on first write (`revision: 1`, `overridden: true`), the change was served on the next read, and *Reset to default* restored the shipped content with the revision history retained. Also covered by `admin-ai-skills.spec.ts`. |
 | **SC-007** — no skill script is ever executed | **PASS** | `no-execution.test.ts` asserts structurally that no execution primitive (`child_process`, `vm`, `eval`, dynamic `import`) appears anywhere under `server/services/skills/`, and behaviourally that a side-effecting script in a directory-sourced skill leaves no trace. `governance.test.ts` adds that both skill tools are read-risk with `never_full_result` retention. |
 | **SC-008** — expand, tag, and link each produce a reviewable proposal | **PARTIAL** | The governing properties are tested: `governance.test.ts` asserts each built-in routes through the draft or proposal path, names only tools that exist, and never instructs a publish. A live model turn producing an actual draft was **not** exercised — that needs a configured provider, so it is asserted at the instruction and tool-contract level rather than end to end. |
-| **SC-009** — Linker links only unambiguous, readable, existing targets | **PARTIAL** | Each constraint a reviewer depends on is asserted to be stated in the skill (`builtin.test.ts`, ten individual rules plus the required answer format). The linking itself is performed by the model, so there is no server-side implementation to test against a page corpus. |
+| **SC-009** — Linker links only unambiguous, readable, existing targets | **PARTIAL** | Each constraint a reviewer depends on is asserted to be stated in the skill (`builtin.test.ts`, ten individual rules plus the required answer format). The linking itself is performed by the model editing Markdown, so there is no server-side implementation to test against a page corpus. A wrong link is visible in the draft diff and resolves as dangling through the existing link resolution, so it fails safe. |
 | **SC-010** — no two usable skills share a name | **PASS** | `registry.test.ts` (registration order, first-claim-wins) and `directory-loader.test.ts`. Verified in the browser: a mounted `wiki-writer` collided with the built-in, was reported with both locations, and the incumbent kept working; renaming on the host and rescanning cleared the conflict with no restart. |
 | **SC-011** — no skill causes a change its user could not make; attribution | **PASS** | `attribution.test.ts` derives loaded skills from the `ai_tool_calls` chain and excludes loads that did not succeed. `governance.test.ts` pins that skill loading is read-risk only. Permission enforcement is the existing `PermCtx` path, unchanged by this feature. |
 | **SC-012** — each built-in triggers on its task, not on ordinary questions | **PARTIAL** | The catalogue mechanics are tested (`wiki-question-tool-planner.test.ts`) and each description is asserted to name the task and the phrasings users use (`builtin.test.ts`). Measuring real trigger accuracy needs a live model and is not automated. |
@@ -39,13 +39,14 @@ does not prove is stated under SC-003 and SC-013.
 
 ## Known gaps
 
-- **T060** — the Wiki Linker review view does not render a structured
-  keyword → location → target list. Linker output is a page draft, and
-  `save_draft` carries the whole replacement document rather than a link list,
-  so there is nothing structured to render without a first-class `link`
-  proposal kind. That is a schema change and remains the open decision it was
-  when the tasks were written; the skill currently requires the model to state
-  the list in its answer instead.
+- **T060 is closed, not outstanding.** FR-043 is satisfied by the draft diff:
+  it shows each link's keyword (the link text), its location (the hunk), and its
+  target (the href), and is accepted or rejected as one unit. Wiki Linker's
+  entire output is edited Markdown, because a wiki derives its link graph from
+  the source at read time (`findMarkdownLinks` in `public-content.ts`) rather
+  than storing it. There is therefore no link record to render, and no schema
+  change is warranted — a `link` proposal kind would bind the skill to
+  next-wiki's storage and stop it working in any other tool.
 - **T097** — no E2E for a skill-driven turn producing a proposal. It needs a
   configured provider in the E2E environment.
 - The three PARTIAL rows above all share one cause: they describe model

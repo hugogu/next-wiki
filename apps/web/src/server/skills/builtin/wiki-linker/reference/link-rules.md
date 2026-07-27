@@ -3,6 +3,15 @@
 Reference material for the Wiki Linker skill. Every rule here exists because
 breaking it produces a page that is worse than the unlinked original.
 
+## What a link is
+
+Plain Markdown: `[link text](path/to/page)`. The link text stays exactly as the
+prose had it; the path is the target page's own path.
+
+Nothing else is involved. A wiki derives its link graph from the Markdown, so
+the edited text *is* the change — there is no index to update and no separate
+record to file.
+
 ## Never link inside
 
 | Context | Example | Why |
