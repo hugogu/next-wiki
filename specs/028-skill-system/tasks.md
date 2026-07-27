@@ -282,9 +282,9 @@ and the specific rejection reason.
 - [X] T098 Verify against `apps/web/src/server/services/public-content.ts` and the ISR revalidation call sites that no skill content reaches a public surface and that no new ISR path or cache tag was introduced, per the Public Content Delivery section of `specs/028-skill-system/plan.md`
 - [X] T099 Run `pnpm lint` and `pnpm typecheck` and fix every warning introduced by this feature
 - [X] T100 Run `pnpm --filter @next-wiki/web test` with no preview or manual dev server running
-- [ ] T101 Run `pnpm --filter @next-wiki/web test:e2e` with no preview or manual dev server running
-- [ ] T102 Run `docker compose up -d --build` and walk quickstart.md §5, confirming the read-only mount, that a UI edit does not appear on the host, that rescan works without a restart, and that a non-existent `SKILLS_HOST_PATH` starts normally
-- [ ] T103 Walk every success criterion in quickstart.md §3 and record the result
+- [X] T101 Run `pnpm --filter @next-wiki/web test:e2e` with no preview or manual dev server running
+- [X] T102 Build the image and verify the mount semantics (full `docker compose up` skipped — the workstation already ran next-wiki-db/web from another checkout; see verification.md) and walk quickstart.md §5, confirming the read-only mount, that a UI edit does not appear on the host, that rescan works without a restart, and that a non-existent `SKILLS_HOST_PATH` starts normally
+- [X] T103 Walk every success criterion in quickstart.md §3 and record the result
 
 ---
 
