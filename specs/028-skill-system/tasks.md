@@ -277,11 +277,11 @@ and the specific rejection reason.
 ## Phase 9: Polish & Cross-Cutting Concerns
 
 - [X] T095 [P] Add OpenAPI JSDoc to every new route under `apps/web/app/api/ai/skills/`, following the project's `next-openapi-gen` conventions (comment above the export, no single-line JSDoc, literal `@response` copies)
-- [ ] T096 [P] Add the E2E spec `apps/web/e2e/admin-ai-skills.spec.ts` covering catalogue, enable/disable, file edit, reset, and rescan, modelled on `apps/web/e2e/admin-ai-tools.spec.ts`
+- [X] T096 [P] Add the E2E spec `apps/web/e2e/admin-ai-skills.spec.ts` covering catalogue, enable/disable, file edit, reset, and rescan, modelled on `apps/web/e2e/admin-ai-tools.spec.ts`
 - [ ] T097 [P] Add an E2E spec covering a skill-driven turn producing a reviewable proposal, extending `apps/web/e2e/ai-tool-proposals.spec.ts`
-- [ ] T098 Verify against `apps/web/src/server/services/public-content.ts` and the ISR revalidation call sites that no skill content reaches a public surface and that no new ISR path or cache tag was introduced, per the Public Content Delivery section of `specs/028-skill-system/plan.md`
-- [ ] T099 Run `pnpm lint` and `pnpm typecheck` and fix every warning introduced by this feature
-- [ ] T100 Run `pnpm --filter @next-wiki/web test` with no preview or manual dev server running
+- [X] T098 Verify against `apps/web/src/server/services/public-content.ts` and the ISR revalidation call sites that no skill content reaches a public surface and that no new ISR path or cache tag was introduced, per the Public Content Delivery section of `specs/028-skill-system/plan.md`
+- [X] T099 Run `pnpm lint` and `pnpm typecheck` and fix every warning introduced by this feature
+- [X] T100 Run `pnpm --filter @next-wiki/web test` with no preview or manual dev server running
 - [ ] T101 Run `pnpm --filter @next-wiki/web test:e2e` with no preview or manual dev server running
 - [ ] T102 Run `docker compose up -d --build` and walk quickstart.md §5, confirming the read-only mount, that a UI edit does not appear on the host, that rescan works without a restart, and that a non-existent `SKILLS_HOST_PATH` starts normally
 - [ ] T103 Walk every success criterion in quickstart.md §3 and record the result
