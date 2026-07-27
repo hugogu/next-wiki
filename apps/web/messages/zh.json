@@ -2125,7 +2125,9 @@
         "evidenceLinked": "已关联证据",
         "reviewProposal": "审核提案",
         "unavailable": "所选模型不支持工具调用。",
-        "disabled": "该工具已被策略停用。"
+        "disabled": "该工具已被策略停用。",
+        "skillsUsed": "使用的技能",
+        "skillLabel": "技能"
       }
     },
     "optimize": {

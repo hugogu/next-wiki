@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { and, count, eq } from 'drizzle-orm';
-import type {
-  AiCitation,
+import {
+  isSkillToolName,
+  type AiCitation,
   AiToolCallEventPayload,
   AiToolCallStatus,
   AiToolReviewDecision,
@@ -490,6 +491,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           await emitCall(params.actionId, call.id, {
             sequence: call.sequence,
             toolName: planned.toolName,
+            skillName: skillNameOf(planned.toolName, planned.arguments),
             command,
             status: 'blocked',
             requestedReview: planned.requestedReview,
@@ -532,6 +534,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       await emitCall(params.actionId, call.id, {
         sequence: call.sequence,
         toolName: tool.name,
+        skillName: skillNameOf(tool.name, planned.arguments),
         category: tool.category,
         command,
         status: 'running',
@@ -566,6 +569,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         await emitCall(params.actionId, call.id, {
           sequence: call.sequence,
           toolName: tool.name,
+          skillName: skillNameOf(tool.name, planned.arguments),
           category: tool.category,
           command,
           status: 'succeeded',
@@ -614,6 +618,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         await emitCall(params.actionId, call.id, {
           sequence: call.sequence,
           toolName: tool.name,
+          skillName: skillNameOf(tool.name, planned.arguments),
           category: tool.category,
           command,
           status: 'failed',
@@ -652,4 +657,16 @@ async function emitCall(
     commandMarkdown: command,
     ...rest,
   });
+}
+
+/**
+ * The skill a call is about, when it is about one (028).
+ *
+ * Read from the arguments the runtime already holds rather than parsed back out
+ * of the command record, so the chat can say "Skill: wiki-linker" instead of
+ * showing a bare `load_skill` that a reader has to decode.
+ */
+function skillNameOf(toolName: string, args: Record<string, unknown>): string | null {
+  if (!isSkillToolName(toolName)) return null;
+  return typeof args.name === 'string' && args.name.length > 0 ? args.name : null;
 }

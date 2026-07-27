@@ -2125,7 +2125,9 @@
         "evidenceLinked": "Evidence linked",
         "reviewProposal": "Review proposal",
         "unavailable": "Tool use is unavailable for the selected model.",
-        "disabled": "That tool is disabled by policy."
+        "disabled": "That tool is disabled by policy.",
+        "skillsUsed": "Skills used",
+        "skillLabel": "Skill"
       }
     },
     "optimize": {

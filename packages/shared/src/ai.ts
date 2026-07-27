@@ -513,6 +513,10 @@ export const conversationToolCallSchema = z.object({
   toolName: z.string(),
   status: z.string(),
   commandMarkdown: z.string(),
+  /** 028: the skill this call was about, when it was about one, so a reopened
+   * conversation names the procedure the assistant followed rather than showing
+   * a bare `load_skill`. */
+  skillName: z.string().nullable().optional(),
 });
 export type ConversationToolCall = z.infer<typeof conversationToolCallSchema>;
 

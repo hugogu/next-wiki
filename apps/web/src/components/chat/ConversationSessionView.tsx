@@ -121,7 +121,15 @@ function ConversationTurn({
             {conversation.toolCalls?.length
               ? conversation.toolCalls.map((call, index) => (
                   <details key={`${call.toolName}-${index}`} className="border-t border-border px-sm py-xs text-xs text-muted first:border-t-0">
-                    <summary className="cursor-pointer select-none">{call.toolName} ({call.status})</summary>
+                    {/* A reopened conversation should say which procedure the
+                        assistant followed, not make the reader decode
+                        `load_skill`. */}
+                    <summary className="cursor-pointer select-none">
+                      {call.skillName
+                        ? `${t('ai.chat.tools.skillLabel')}: ${call.skillName}`
+                        : call.toolName}{' '}
+                      ({call.status})
+                    </summary>
                     {call.commandMarkdown && <pre className="mt-xs overflow-x-auto whitespace-pre-wrap font-mono">{call.commandMarkdown}</pre>}
                   </details>
                 ))

@@ -278,8 +278,21 @@ export const aiToolCallEventPayloadSchema = z.object({
   errorMessage: z.string().nullable().optional(),
   proposalId: z.string().uuid().nullable().optional(),
   evidencePageId: z.string().uuid().nullable().optional(),
+  /** Set when the call loaded a skill or one of its files (028). Carried
+   * explicitly rather than parsed back out of the command record, so the chat
+   * can name the procedure the assistant followed instead of showing a bare
+   * `load_skill`. */
+  skillName: z.string().nullable().optional(),
 });
 export type AiToolCallEventPayload = z.infer<typeof aiToolCallEventPayloadSchema>;
+
+/** Tools whose calls represent a skill being consulted rather than the wiki
+ * being read or changed. Shared so the runtime and the chat agree. */
+export const SKILL_TOOL_NAMES = ['load_skill', 'read_skill_file'] as const;
+
+export function isSkillToolName(toolName: string): boolean {
+  return (SKILL_TOOL_NAMES as readonly string[]).includes(toolName);
+}
 
 /** Payload of a `tool_proposal` action event. */
 export const aiToolProposalEventPayloadSchema = z.object({

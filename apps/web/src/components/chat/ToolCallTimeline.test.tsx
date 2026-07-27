@@ -65,3 +65,69 @@ describe('ToolCallTimeline', () => {
     expect(html).not.toContain('RAW_RESULT_BODY');
   });
 });
+
+/**
+ * Skill visibility in the conversation (028).
+ *
+ * Loading a skill is a tool call, so it already appeared here — but as a bare
+ * `load_skill` row that a reader has to decode. These pin that the chat names
+ * the procedure instead.
+ */
+describe('ToolCallTimeline — skills', () => {
+  const loaded = (name: string, status: AiToolCallEventPayload['status'] = 'succeeded') =>
+    call({
+      toolName: 'load_skill',
+      skillName: name,
+      status,
+      resultSummary: `Loaded skill ${name}.`,
+      commandMarkdown: '```tool-call\nload_skill\n```',
+    });
+
+  it('names the skill rather than the tool', () => {
+    const html = render([loaded('wiki-linker')]);
+    expect(html).toContain('Skill: wiki-linker');
+    expect(html).not.toContain('>load_skill<');
+  });
+
+  it('summarises the skills consulted above the call list', () => {
+    // Visible without expanding anything: which procedure the assistant
+    // followed is the part a reader wants at a glance.
+    const html = render([
+      call({ toolName: 'search_wiki', status: 'succeeded' }),
+      loaded('wiki-linker'),
+      loaded('wiki-writer'),
+    ]);
+    expect(html).toContain('Skills used');
+    expect(html).toContain('wiki-linker, wiki-writer');
+  });
+
+  it('lists a skill once however many of its files were read', () => {
+    const html = render([
+      loaded('wiki-linker'),
+      call({
+        toolName: 'read_skill_file',
+        skillName: 'wiki-linker',
+        status: 'succeeded',
+        resultSummary: 'Read reference/link-rules.md from skill wiki-linker.',
+      }),
+    ]);
+    expect(html.match(/wiki-linker/g)?.length).toBeGreaterThan(0);
+    expect(html.split('Skills used')[1]).toContain('wiki-linker');
+    // One entry in the summary, not one per file read.
+    const summary = html.split('Skills used')[1]?.split('</p>')[0] ?? '';
+    expect(summary.match(/wiki-linker/g)).toHaveLength(1);
+  });
+
+  it('does not claim a skill that failed to load shaped the answer', () => {
+    const html = render([loaded('wiki-tagger', 'failed')]);
+    expect(html).not.toContain('Skills used');
+    // The attempt itself stays visible in the timeline.
+    expect(html).toContain('Skill: wiki-tagger');
+  });
+
+  it('leaves ordinary tool calls untouched', () => {
+    const html = render([call({ toolName: 'search_wiki', status: 'succeeded' })]);
+    expect(html).toContain('search_wiki');
+    expect(html).not.toContain('Skills used');
+  });
+});

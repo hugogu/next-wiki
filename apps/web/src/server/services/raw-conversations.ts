@@ -45,6 +45,9 @@ export type ReconstructedConversation = {
     toolName: string;
     status: string;
     commandMarkdown: string;
+    /** 028: the skill a call was about, so a reopened conversation names the
+     * procedure the assistant followed rather than a bare `load_skill`. */
+    skillName?: string | null;
   }[];
   insufficient: boolean;
   errorMessage: string | null;
@@ -113,6 +116,7 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
           toolName: typeof payload.toolName === 'string' ? payload.toolName : 'tool',
           status: typeof payload.status === 'string' ? payload.status : 'running',
           commandMarkdown: typeof payload.commandMarkdown === 'string' ? payload.commandMarkdown : '',
+          skillName: typeof payload.skillName === 'string' ? payload.skillName : null,
         });
         break;
       case 'error':

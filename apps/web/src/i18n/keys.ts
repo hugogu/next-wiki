@@ -1540,6 +1540,8 @@ export const translationKeys = [
   "ai.chat.tools.reviewProposal",
   "ai.chat.tools.unavailable",
   "ai.chat.tools.disabled",
+  "ai.chat.tools.skillsUsed",
+  "ai.chat.tools.skillLabel",
   "ai.optimize.toolbar",
   "ai.optimize.title",
   "ai.optimize.instruction.clarity",
