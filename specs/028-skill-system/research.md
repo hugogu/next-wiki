@@ -184,10 +184,17 @@ the Skills admin surface (FR-025, FR-046). One bad package never aborts the scan
 A missing, unreadable, or unconfigured root yields an informational notice, not
 an error (FR-028).
 
-The registry is a module-level cached value with one explicit invalidation entry
-point (`invalidateSkillRegistry()`), rebuilt lazily on next access. It is not a
-mutable global: nothing outside the module can write to it, and tests construct
-their own instance.
+The registry is memoized **per request** (React `cache()`), not across requests.
+
+A module-level cache with an explicit invalidation entry point was tried first
+and was wrong: Next.js gives route handlers and server components separate
+module instances, so a write that invalidated the route handler's copy left the
+page rendering from a stale one — an admin would save a skill and the catalogue
+would keep insisting nothing had changed. This was caught in browser
+verification, not by unit tests, because each test exercised a single module
+instance. Per-request memoization removes the class of bug and still collapses
+the several registry reads one request makes. Rebuilding per request is
+affordable precisely because the bounds above make the scan cheap.
 
 **Rationale**: P10 prohibits custom runtime filesystem discovery "unless the
 feature spec defines a bounded registry and testable loading contract". The spec

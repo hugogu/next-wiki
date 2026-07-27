@@ -243,7 +243,7 @@ and confirm it disappears.
 - [X] T084 [US5] Implement `POST /api/ai/skills/rescan` in `apps/web/app/api/ai/skills/rescan/route.ts`, invalidating the registry and returning the refreshed catalogue and rejections, audited
 - [X] T085 [US5] Add the rescan control, the mount status, and the rejection list with reasons to `apps/web/src/components/admin/ai/SkillsPanel.tsx`
 - [X] T086 [P] [US5] Add mount status, notice, and rejection-reason message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
-- [ ] T087 [US5] Document the host mount workflow in `apps/web/README.md` and the deployment docs, including that the mount is read-only and edits made in the UI do not write back to the host
+- [X] T087 [US5] Document the host mount workflow in `apps/web/README.md` and the deployment docs, including that the mount is read-only and edits made in the UI do not write back to the host
 
 **Checkpoint**: Teams can bring their own skill library via a volume mount.
 
@@ -265,8 +265,8 @@ and the specific rejection reason.
 
 ### Implementation for User Story 6
 
-- [ ] T091 [US6] Write `last_used_at` on successful `load_skill` in `apps/web/src/server/services/skills/registry.ts`
-- [ ] T092 [US6] Show enabled state, source, validation state, and last used time per skill in `apps/web/src/components/admin/ai/SkillsPanel.tsx`
+- [X] T091 [US6] Write `last_used_at` on successful `load_skill` in `apps/web/src/server/services/skills/registry.ts`
+- [X] T092 [US6] Show enabled state, source, validation state, and last used time per skill in `apps/web/src/components/admin/ai/SkillsPanel.tsx`
 - [ ] T093 [US6] Surface skill attribution on a durable change by deriving the loaded skills from the turn's `ai_tool_calls` rows, in `apps/web/src/server/services/ai-tool-runtime.ts` and the review views
 - [ ] T094 [US6] Ensure every rejection reason carries a corrective action and is sanitised, in `apps/web/src/server/services/skills/directory-loader.ts` and `package.ts`
 

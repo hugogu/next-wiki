@@ -49,7 +49,9 @@ export function SkillDetail({ skill }: { skill: SkillDetailView }) {
     queryKey,
     enabled: Boolean(selectedPath) && selected?.viewable === true,
     queryFn: () =>
-      apiGet<SkillFileContent>(`/api/ai/skills/${skill.name}/files/${selectedPath}`),
+      apiGet<SkillFileContent>(
+        `/api/ai/skills/${skill.name}/files?path=${encodeURIComponent(selectedPath!)}`,
+      ),
   });
 
   // Re-seed the editor when a different file — or a newer revision of the same
@@ -75,7 +77,7 @@ export function SkillDetail({ skill }: { skill: SkillDetailView }) {
       const updated = await apiPut<
         { content: string; revision?: number },
         SkillFileContent
-      >(`/api/ai/skills/${skill.name}/files/${file.path}`, {
+      >(`/api/ai/skills/${skill.name}/files?path=${encodeURIComponent(file.path)}`, {
         content: draft,
         revision: file.revision ?? undefined,
       });
@@ -95,7 +97,9 @@ export function SkillDetail({ skill }: { skill: SkillDetailView }) {
     setBusy(true);
     setError(null);
     try {
-      await apiDelete(`/api/ai/skills/${skill.name}/files/${file.path}`);
+      await apiDelete(
+        `/api/ai/skills/${skill.name}/files?path=${encodeURIComponent(file.path)}`,
+      );
       await queryClient.invalidateQueries({ queryKey: ['skill-file', skill.name] });
       router.push(pathname);
       router.refresh();

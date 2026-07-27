@@ -131,7 +131,13 @@ synchronous request rather than a job. Audited.
 
 ---
 
-## `GET /api/ai/skills/{name}/files/{path...}`
+## `GET /api/ai/skills/{name}/files?path={path}`
+
+**The file path is a query parameter, not a path segment.** It cannot be a
+segment: `next.config.ts` rewrites every `/:path*.md` URL to the raw-Markdown
+export route, so `.../files/SKILL.md` is swallowed before the handler runs.
+A query parameter is also immune to any future extension-based routing.
+
 
 **200** `{ "path", "kind", "contentType", "byteSize", "revision", "content", "editable" }`
 
@@ -140,7 +146,7 @@ synchronous request rather than a job. Audited.
 - **400** `{ "code": "SKILL_PATH_INVALID" }` for any path that normalises outside
   the package (FR-029) — checked before touching storage or the filesystem.
 
-## `PUT /api/ai/skills/{name}/files/{path...}`
+## `PUT /api/ai/skills/{name}/files?path={path}`
 
 Create or update. **Request**: `{ "content": "…", "revision": 3 }`
 
@@ -158,7 +164,7 @@ Create or update. **Request**: `{ "content": "…", "revision": 3 }`
 Editing a built-in skill's file creates its override row on first write.
 Every write appends a `skill_file_revisions` row.
 
-## `DELETE /api/ai/skills/{name}/files/{path...}`
+## `DELETE /api/ai/skills/{name}/files?path={path}`
 
 - **200** on success; appends a `delete` revision.
 - **409** `SKILL_READ_ONLY` for directory sources.
@@ -166,6 +172,8 @@ Every write appends a `skill_file_revisions` row.
 
 Rename is a `PUT` to the new path followed by a `DELETE` of the old one, recorded
 as a `rename` pair in revisions.
+
+A missing or empty `path` is a 400.
 
 ---
 

@@ -179,7 +179,47 @@ exportable without a configured model. After setup, an Admin can open
 2. map models to Wiki text, Wiki embedding, and Wiki image capabilities;
 3. enable semantic search by building an embedding index;
 4. tune Wiki AI prompts and runtime parameters;
-5. configure the **Tools** policy surface and proposal review workflow.
+5. configure the **Tools** policy surface and proposal review workflow;
+6. manage **Skills** — reusable, file-based procedures the assistant follows for
+   recurring wiki tasks.
+
+### Skills
+
+next-wiki ships with three skills — **Wiki Writer** (draft and expand pages),
+**Wiki Tagger** (propose tags and metadata), and **Wiki Linker** (turn keywords
+that already have wiki pages into links). They are enabled by default and need
+no configuration.
+
+A skill is instructions, not authority: it tells the assistant *how* to approach
+a task, while what it may actually do is still decided by the requesting user's
+permissions and the review policy. Changes still land as drafts or reviewable
+proposals.
+
+Skills reach the model by name and one-line description; the full instructions
+are loaded on demand, so a large library does not tax every conversation.
+
+Administrators can browse and edit every file in a skill from
+**Admin → AI → Skills**, including its reference scripts. **Scripts are
+reference material: next-wiki never executes them.**
+
+To use skills installed on the host, mount a directory of skill packages:
+
+```bash
+# .env
+SKILLS_HOST_PATH=./.skills
+SKILLS_BASE_PATH=/data/skills
+```
+
+Compose mounts it read-only. The service never writes there, so edits made in
+the admin UI are stored in PostgreSQL and are **not** written back to the host —
+change host skills on the host, then use **Rescan directory**. A package that
+fails to load never stops the others or the service; it is listed under *Not
+loaded* with the specific reason.
+
+A skill package is the published Anthropic layout — a directory containing a
+`SKILL.md` whose YAML frontmatter declares `name` and `description` — so skills
+written for other Claude-based tools load unchanged. Names must be unique across
+every source; a duplicate is reported rather than silently shadowing.
 
 The provider registry includes OpenAI-compatible providers, OpenRouter,
 Anthropic, Kimi, Z.ai, Voyage AI, MiniMax image generation, and custom

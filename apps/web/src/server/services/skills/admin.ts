@@ -7,12 +7,7 @@ import type {
 import { DomainError } from '@/server/errors';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { auditSkillChange } from '@/server/services/audit';
-import {
-  invalidateSkillRegistry,
-  findSkill,
-  getSkillCatalogue,
-  type ResolvedSkill,
-} from './registry';
+import { findSkill, getSkillCatalogue, type ResolvedSkill } from './registry';
 import { INSTRUCTION_FILE, safeRelativePath } from './package';
 import {
   createManagedSkill,
@@ -27,9 +22,9 @@ import {
 /**
  * Administrator operations on skills (028).
  *
- * Every entry point re-checks `manage_ai` rather than trusting the route, and
- * every mutation invalidates the registry — the cache exists so reads are cheap,
- * not so writes can be forgotten.
+ * Every entry point re-checks `manage_ai` rather than trusting the route. The
+ * registry is rebuilt per request, so a write is visible to the next read
+ * without any cache bookkeeping to forget.
  */
 
 function assertCanManageSkills(ctx: PermCtx): void {
@@ -87,7 +82,6 @@ export async function createSkill(
     );
   }
   await createManagedSkill({ ...input, actorUserId: getActorUserId(ctx) });
-  invalidateSkillRegistry();
   await audit(ctx, 'create', { name: input.name });
   const created = await findSkill(input.name);
   if (!created) throw new DomainError('SKILL_NOT_FOUND', 'Skill not found after creation');
@@ -103,7 +97,6 @@ export async function setSkillEnabledForAdmin(
   const skill = await findSkill(name);
   if (!skill) throw new DomainError('SKILL_NOT_FOUND', 'Skill not found');
   await setSkillEnabled({ name, enabled, actorUserId: getActorUserId(ctx) });
-  invalidateSkillRegistry();
   await audit(ctx, enabled ? 'enable' : 'disable', { name });
   return { ...toSummary(skill), enabled };
 }
@@ -123,7 +116,6 @@ export async function deleteSkill(ctx: PermCtx, name: string): Promise<void> {
   const stored = await findStoredSkill(name);
   if (!stored) throw new DomainError('SKILL_NOT_FOUND', 'Skill not found');
   await softDeleteSkill(stored.skill.id);
-  invalidateSkillRegistry();
   await audit(ctx, 'delete', { name });
 }
 
@@ -139,13 +131,16 @@ export async function resetSkill(ctx: PermCtx, name: string): Promise<void> {
   const stored = await findStoredSkill(name);
   if (!stored) return; // Never edited; already at its shipped default.
   await softDeleteSkill(stored.skill.id);
-  invalidateSkillRegistry();
   await audit(ctx, 'reset', { name });
 }
 
+/**
+ * Rebuild the catalogue from the mount. The registry is per-request, so this is
+ * simply "read it again" — the value is that it is an explicit, audited action
+ * an operator can point at after changing files on the host.
+ */
 export async function rescanSkills(ctx: PermCtx): Promise<SkillCatalogue> {
   assertCanManageSkills(ctx);
-  invalidateSkillRegistry();
   const catalogue = await getSkillCatalogue();
   await audit(ctx, 'rescan', { name: 'directory' });
   return catalogue;
@@ -200,7 +195,6 @@ export async function writeSkillFileForAdmin(
     expectedRevision: input.revision,
     actorUserId: getActorUserId(ctx),
   });
-  invalidateSkillRegistry();
   await audit(ctx, 'file-write', { name, path: result.path });
   return readSkillFileForAdmin(ctx, name, result.path);
 }
@@ -222,7 +216,6 @@ export async function deleteSkillFileForAdmin(
     path: filePath,
     actorUserId: getActorUserId(ctx),
   });
-  invalidateSkillRegistry();
   await audit(ctx, 'file-delete', { name, path: filePath });
 }
 

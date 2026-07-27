@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import {
   type SkillCatalogue,
   type SkillDirectoryStatus,
@@ -49,18 +50,20 @@ export type Registry = {
   directory: SkillDirectoryStatus;
 };
 
-let cached: Promise<Registry> | null = null;
-
-/** Drop the cached registry. The only way the catalogue changes shape without a
- * restart, and therefore the only thing a rescan has to do. */
-export function invalidateSkillRegistry(): void {
-  cached = null;
-}
-
-export function getSkillRegistry(): Promise<Registry> {
-  cached ??= buildRegistry();
-  return cached;
-}
+/**
+ * Memoized for the duration of one request, not across requests.
+ *
+ * A module-level cache looked cheaper but was wrong: Next.js gives route
+ * handlers and server components separate module instances, so a write that
+ * invalidated the route handler's copy left the page rendering from a stale
+ * one — an admin would save a skill and the catalogue would keep insisting
+ * nothing had changed. Per-request memoization removes that class of bug
+ * entirely and still collapses the several calls a single request makes.
+ *
+ * Rebuilding per request is affordable because discovery is bounded by
+ * construction (see SKILL_LIMITS): at most 100 packages of at most 16 files.
+ */
+export const getSkillRegistry = cache(async (): Promise<Registry> => buildRegistry());
 
 async function buildRegistry(): Promise<Registry> {
   const [builtins, stored, scan] = await Promise.all([
@@ -126,6 +129,22 @@ async function buildRegistry(): Promise<Registry> {
   };
 }
 
+/**
+ * Instruction file first, then everything else alphabetically.
+ *
+ * Plain alphabetical ordering differed by source — `SKILL.md` led for built-ins
+ * because uppercase sorts first in ASCII, but trailed `reference/…` for
+ * directory packages under locale collation — and it left the file tree opening
+ * on a reference document rather than the skill itself.
+ */
+function orderFiles<T extends { path: string }>(files: T[]): T[] {
+  return [...files].sort((a, b) => {
+    if (a.path === INSTRUCTION_FILE) return -1;
+    if (b.path === INSTRUCTION_FILE) return 1;
+    return a.path.localeCompare(b.path);
+  });
+}
+
 function sourceLabel(source: SkillSource): string {
   if (source === 'builtin') return 'built-in';
   if (source === 'managed') return 'custom';
@@ -138,8 +157,8 @@ function builtinEntry(builtin: BuiltinSkill, override: SkillWithFiles | null): R
   // than a fork of the whole package.
   const shipped = new Map(builtin.files.map((file) => [file.path, file.content]));
   const overridden = new Map((override?.files ?? []).map((file) => [file.path, file]));
-  const paths = [...new Set([...shipped.keys(), ...overridden.keys()])].sort();
-  const files: SkillFileView[] = paths.map((filePath) => {
+  const paths = [...new Set([...shipped.keys(), ...overridden.keys()])];
+  const files: SkillFileView[] = orderFiles(paths.map((path) => ({ path }))).map(({ path: filePath }) => {
     const stored = overridden.get(filePath);
     if (stored) {
       return {
@@ -189,14 +208,16 @@ function managedEntry(item: SkillWithFiles): RegistryEntry {
     source: 'managed',
     editable: true,
     overridden: false,
-    files: item.files.map((file) => ({
-      path: file.path,
-      kind: file.kind,
-      contentType: file.contentType,
-      byteSize: file.byteSize,
-      viewable: isViewable(file.path, file.byteSize),
-      revision: file.revision,
-    })),
+    files: orderFiles(
+      item.files.map((file) => ({
+        path: file.path,
+        kind: file.kind,
+        contentType: file.contentType,
+        byteSize: file.byteSize,
+        viewable: isViewable(file.path, file.byteSize),
+        revision: file.revision,
+      })),
+    ),
     readFile: async (filePath) => {
       const file = byPath.get(filePath);
       if (!file) return null;
@@ -215,14 +236,16 @@ function directoryEntry(pkg: LoadedSkillPackage): RegistryEntry {
     // bind is correct rather than merely tolerated.
     editable: false,
     overridden: false,
-    files: pkg.files.map((file) => ({
-      path: file.path,
-      kind: file.kind,
-      contentType: file.contentType,
-      byteSize: file.byteSize,
-      viewable: file.viewable,
-      revision: null,
-    })),
+    files: orderFiles(
+      pkg.files.map((file) => ({
+        path: file.path,
+        kind: file.kind,
+        contentType: file.contentType,
+        byteSize: file.byteSize,
+        viewable: file.viewable,
+        revision: null,
+      })),
+    ),
     readFile: async (filePath) => {
       const file = byPath.get(filePath);
       if (!file) return null;
