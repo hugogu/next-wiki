@@ -27,6 +27,7 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'transfers',
   'manage_tags',
   'ai.read',
+  'ai.image',
 ]);
 
 // ---- Content storage (003) -------------------------------------------------
@@ -454,6 +455,7 @@ export const aiToolCategoryEnum = pgEnum('ai_tool_category', [
   'tag',
   'batch',
   'raw_evidence',
+  'media',
 ]);
 export const aiToolRiskLevelEnum = pgEnum('ai_tool_risk_level', [
   'read',

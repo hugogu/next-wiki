@@ -41,6 +41,7 @@ export const aiToolCategorySchema = z.enum([
   'tag',
   'batch',
   'raw_evidence',
+  'media',
 ]);
 export type AiToolCategory = z.infer<typeof aiToolCategorySchema>;
 

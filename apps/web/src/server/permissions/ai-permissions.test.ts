@@ -14,6 +14,13 @@ describe('AI permissions', () => {
     expect(can(buildApiKeyCtx('e', 'editor', ['run'], 'k'), 'use_ai_qa', { kind: 'ai_page' })).toBe(false);
   });
 
+  it("allows image generation only to Editor/Admin API keys carrying 'ai.image'", () => {
+    expect(can(buildApiKeyCtx('e', 'editor', ['ai.image'], 'k'), 'use_ai_image_generation', { kind: 'ai_page' })).toBe(true);
+    expect(can(buildApiKeyCtx('a', 'admin', ['ai.image'], 'k'), 'use_ai_image_generation', { kind: 'ai_page' })).toBe(true);
+    expect(can(buildApiKeyCtx('r', 'reader', ['ai.image'], 'k'), 'use_ai_image_generation', { kind: 'ai_page' })).toBe(false);
+    expect(can(buildApiKeyCtx('e', 'editor', ['ai.read'], 'k'), 'use_ai_image_generation', { kind: 'ai_page' })).toBe(false);
+  });
+
   describe('ai.read scope (010-ai-curation-api)', () => {
     it('rejects use_ai_search for anonymous actors', () => {
       expect(can(buildAnonymousCtx(), 'use_ai_search', { kind: 'ai_index' })).toBe(false);

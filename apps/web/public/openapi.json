@@ -302,7 +302,8 @@
               "metadata",
               "tag",
               "batch",
-              "raw_evidence"
+              "raw_evidence",
+              "media"
             ],
             "description": "Category-level policy target; null/omitted for provider default."
           },
@@ -369,7 +370,8 @@
               "metadata",
               "tag",
               "batch",
-              "raw_evidence"
+              "raw_evidence",
+              "media"
             ],
             "description": "Category-level target, or null for provider/tool scope."
           },
@@ -906,7 +908,8 @@
                     "metadata",
                     "tag",
                     "batch",
-                    "raw_evidence"
+                    "raw_evidence",
+                    "media"
                   ],
                   "description": "Coarse capability category."
                 },
@@ -1064,7 +1067,10 @@
                 "run",
                 "storage",
                 "preferences",
-                "transfers"
+                "transfers",
+                "manage_tags",
+                "ai.read",
+                "ai.image"
               ]
             },
             "description": "Permission scopes granted to the key."
@@ -1152,7 +1158,10 @@
                   "run",
                   "storage",
                   "preferences",
-                  "transfers"
+                  "transfers",
+                  "manage_tags",
+                  "ai.read",
+                  "ai.image"
                 ]
               },
               "description": "Permission scopes granted to the key."
@@ -1674,7 +1683,10 @@
                 "run",
                 "storage",
                 "preferences",
-                "transfers"
+                "transfers",
+                "manage_tags",
+                "ai.read",
+                "ai.image"
               ]
             },
             "minItems": 1,
@@ -2822,6 +2834,98 @@
         ],
         "description": "An external (https://) Markdown link, not subject to the read-permission model."
       },
+      "PublicGeneratedArtifactIdPathParams": {
+        "type": "object",
+        "properties": {
+          "artifactId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable private generated image artifact identifier."
+          }
+        },
+        "required": [
+          "artifactId"
+        ],
+        "description": "Private generated image artifact path parameters."
+      },
+      "PublicGeneratedArtifactPromotionInput": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Page bound to the generated image action."
+          }
+        },
+        "required": [
+          "pageId"
+        ],
+        "description": "Promote a generated image artifact to a normal private Wiki asset."
+      },
+      "PublicGeneratedImageArtifact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Generated image artifact identifier."
+          },
+          "contentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicImageContentType"
+              }
+            ],
+            "description": "Generated image MIME type."
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Generated image size in bytes."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the unpromoted artifact expires (ISO 8601)."
+          },
+          "previewUrl": {
+            "type": "string",
+            "description": "Private API URL that serves the generated image bytes."
+          },
+          "promoteUrl": {
+            "type": "string",
+            "description": "Private API URL that promotes the artifact to a normal Wiki asset."
+          },
+          "discardUrl": {
+            "type": "string",
+            "description": "Private API URL that discards the transient artifact."
+          }
+        },
+        "required": [
+          "id",
+          "contentType",
+          "sizeBytes",
+          "expiresAt",
+          "previewUrl",
+          "promoteUrl",
+          "discardUrl"
+        ],
+        "description": "Private generated-image artifact metadata. Image bytes are never embedded in JSON."
+      },
+      "PublicImageActionIdPathParams": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable private image generation action identifier."
+          }
+        },
+        "required": [
+          "actionId"
+        ],
+        "description": "Private image generation action path parameters."
+      },
       "PublicImageContentType": {
         "type": "string",
         "enum": [
@@ -2831,6 +2935,175 @@
           "image/webp",
           "image/svg+xml"
         ]
+      },
+      "PublicImageGeneration": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable image generation action identifier."
+          },
+          "feature": {
+            "type": "string",
+            "enum": [
+              "image_generation"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "expired"
+            ],
+            "description": "Public image action lifecycle state."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the action was submitted (ISO 8601)."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Latest action lifecycle timestamp (ISO 8601)."
+          },
+          "pollUrl": {
+            "type": "string",
+            "description": "Private API URL to poll for the action status."
+          },
+          "artifact": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicGeneratedImageArtifact"
+              }
+            ],
+            "description": "Available only after successful generation."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable safe error code."
+              },
+              "message": {
+                "type": "string",
+                "description": "User-safe error message without provider diagnostics."
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "description": "Available only when image generation fails."
+          }
+        },
+        "required": [
+          "id",
+          "feature",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "pollUrl"
+        ],
+        "description": "Private image generation action resource."
+      },
+      "PublicImageGenerationInput": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Page that owns the requested image action."
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Current editable revision used as the image source."
+          },
+          "source": {
+            "$ref": "#/components/schemas/PublicImageGenerationSource"
+          },
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "1:1",
+              "2:3",
+              "3:2",
+              "3:4",
+              "4:3",
+              "4:5",
+              "5:4",
+              "9:16",
+              "16:9",
+              "21:9"
+            ],
+            "description": "Requested generated-image aspect ratio."
+          }
+        },
+        "required": [
+          "pageId",
+          "revisionId",
+          "source"
+        ],
+        "description": "Asynchronous page-bound Wiki image generation request."
+      },
+      "PublicImageGenerationSource": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "page"
+                ],
+                "description": "Generate from the bound page revision."
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "selection"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100000,
+                "description": "Selected text from the bound revision."
+              },
+              "hash": {
+                "type": "string",
+                "minLength": 16,
+                "maxLength": 128,
+                "description": "Hash of the selected text used for source validation."
+              }
+            },
+            "required": [
+              "kind",
+              "text",
+              "hash"
+            ]
+          }
+        ],
+        "description": "Page-bound image source. Remote URLs, image bytes, and edit instructions are not accepted."
       },
       "PublicLinkSource": {
         "type": "string",
@@ -11274,6 +11547,34 @@
                     "manuallyAdded": {
                       "type": "boolean"
                     },
+                    "toolCallStrategy": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "native"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "auto"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text"
+                          ]
+                        }
+                      ]
+                    },
+                    "nativeToolCallFailedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "lastSeenAt": {
                       "type": [
                         "string",
@@ -11443,6 +11744,8 @@
                     "inputModalities",
                     "outputModalities",
                     "manuallyAdded",
+                    "toolCallStrategy",
+                    "nativeToolCallFailedAt",
                     "lastSeenAt",
                     "providerType",
                     "embeddingMultilingualSupport",
@@ -11653,6 +11956,674 @@
             "description": "No Content"
           }
         }
+      }
+    },
+    "/v1/ai/images": {
+      "post": {
+        "operationId": "post-v1-ai-images",
+        "summary": "Submit an asynchronous private Wiki image generation request",
+        "description": "",
+        "tags": [
+          "AI images"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicImageGenerationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicImageGeneration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ai/generated-artifacts/{artifactId}": {
+      "get": {
+        "operationId": "get-v1-ai-generated-artifacts-{artifactId}",
+        "summary": "Download a private generated image preview",
+        "description": "",
+        "tags": [
+          "AI images"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifactId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable private generated image artifact identifier."
+            },
+            "description": "Stable private generated image artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset bytes.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-v1-ai-generated-artifacts-{artifactId}",
+        "summary": "Discard a private generated image preview",
+        "description": "",
+        "tags": [
+          "AI images"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifactId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable private generated image artifact identifier."
+            },
+            "description": "Stable private generated image artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/v1/ai/images/{actionId}": {
+      "get": {
+        "operationId": "get-v1-ai-images-{actionId}",
+        "summary": "Get a private image generation status",
+        "description": "",
+        "tags": [
+          "AI images"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "actionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable private image generation action identifier."
+            },
+            "description": "Stable private image generation action identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicImageGeneration"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-v1-ai-images-{actionId}",
+        "summary": "Cancel a private image generation request",
+        "description": "",
+        "tags": [
+          "AI images"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "actionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable private image generation action identifier."
+            },
+            "description": "Stable private image generation action identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/v1/ai/generated-artifacts/{artifactId}/asset": {
+      "post": {
+        "operationId": "post-v1-ai-generated-artifacts-{artifactId}-asset",
+        "summary": "Promote a generated image to a normal Wiki asset",
+        "description": "",
+        "tags": [
+          "AI images"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifactId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable private generated image artifact identifier."
+            },
+            "description": "Stable private generated image artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicGeneratedArtifactPromotionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicAssetResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/skills": {
+      "get": {
+        "operationId": "get-ai-skills",
+        "summary": "List Agent Skills",
+        "description": "Returns every known skill with its source and state, plus any",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-ai-skills",
+        "summary": "Create an Agent Skill",
+        "description": "Creates an admin-authored skill seeded with a valid instruction",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "lastUsedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "builtin"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "directory"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "managed"
+                          ]
+                        }
+                      ]
+                    },
+                    "validationState": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "valid"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "invalid"
+                          ]
+                        }
+                      ]
+                    },
+                    "validationError": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "editable": {
+                      "type": "boolean"
+                    },
+                    "overridden": {
+                      "type": "boolean"
+                    },
+                    "fileCount": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description",
+                    "lastUsedAt",
+                    "enabled",
+                    "source",
+                    "validationState",
+                    "validationError",
+                    "editable",
+                    "overridden",
+                    "fileCount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/skills/{name}": {
+      "get": {
+        "operationId": "get-ai-skills-{name}",
+        "summary": "Get an Agent Skill",
+        "description": "Returns one skill with its complete file tree.",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-ai-skills-{name}",
+        "summary": "Enable or disable an Agent Skill",
+        "description": "Applies to every source. A disabled skill is not listed to the",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-skills-{name}",
+        "summary": "Delete an Agent Skill",
+        "description": "Soft-deletes an admin-authored skill. Built-in skills are reset",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/skills/rescan": {
+      "post": {
+        "operationId": "post-ai-skills-rescan",
+        "summary": "Rescan the skills directory",
+        "description": "Rebuilds the skill catalogue from the mounted directory without",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/skills/{name}/files": {
+      "get": {
+        "operationId": "get-ai-skills-{name}-files",
+        "summary": "Read a skill file",
+        "description": "Returns the text content of one file inside a skill, selected by",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-ai-skills-{name}-files",
+        "summary": "Create or update a skill file",
+        "description": "Writes the file named by the `path` query parameter. `revision`",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-skills-{name}-files",
+        "summary": "Delete a skill file",
+        "description": "Removes the file named by the `path` query parameter and records",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/skills/{name}/reset": {
+      "post": {
+        "operationId": "post-ai-skills-{name}-reset",
+        "summary": "Reset a built-in Agent Skill",
+        "description": "Drops the stored override so the skill returns to its shipped",
+        "tags": [
+          "AI Skills"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "name",
+            "description": "Path parameter: name"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
       }
     },
     "/ai/tool-proposals": {
@@ -18182,6 +19153,12 @@
     },
     {
       "name": "AI Admin"
+    },
+    {
+      "name": "AI images"
+    },
+    {
+      "name": "AI Skills"
     },
     {
       "name": "AI Tools"

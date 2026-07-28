@@ -27,7 +27,7 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 });
 
 import { createImageGeneration } from './ai-image-generation';
-import { runImageGenerationAction } from '@/server/jobs/ai-image-generation';
+import { executeImageGenerationAction, runInlineImageGenerationAction } from './ai-image-runner';
 
 const PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2jZsAAAAASUVORK5CYII=';
@@ -80,8 +80,8 @@ describe('AI image generation', () => {
       revisionId,
       source: { kind: 'selection', text: 'Selected subject', hash: selectionHash('Selected subject') },
       aspectRatio: '16:9',
-    });
-    await runImageGenerationAction(action.id);
+    }, { enqueue: false });
+    await executeImageGenerationAction(action.id);
     expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({ aspectRatio: '16:9' }));
     expect(await db.query.aiGeneratedArtifacts.findFirst({
       where: eq(schema.aiGeneratedArtifacts.actionId, action.id),
@@ -96,4 +96,31 @@ describe('AI image generation', () => {
     })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     expect(generateImage).not.toHaveBeenCalled();
   });
+
+  it('honors a cancellation request before calling the provider', async () => {
+    const action = await createImageGeneration(buildUserCtx(editorId, 'editor'), {
+      pageId,
+      revisionId,
+      source: { kind: 'page' },
+    }, { enqueue: false });
+    await db.update(schema.aiActions).set({ cancelRequested: true }).where(eq(schema.aiActions.id, action.id));
+
+    await expect(executeImageGenerationAction(action.id)).rejects.toMatchObject({ code: 'CANCELLED' });
+    expect(generateImage).not.toHaveBeenCalled();
+  });
+
+  it('runs a child action inline without requiring a duplicate queue job', async () => {
+    const action = await createImageGeneration(buildUserCtx(editorId, 'editor'), {
+      pageId,
+      revisionId,
+      source: { kind: 'page' },
+    }, { enqueue: false });
+
+    await runInlineImageGenerationAction(action.id);
+
+    const stored = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
+    expect(stored?.status).toBe('completed');
+    expect(await db.query.aiGeneratedArtifacts.findFirst({ where: eq(schema.aiGeneratedArtifacts.actionId, action.id) })).toBeDefined();
+  });
+
 });

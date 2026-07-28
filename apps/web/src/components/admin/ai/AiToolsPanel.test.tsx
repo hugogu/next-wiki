@@ -55,6 +55,18 @@ const data: AiToolListResponse = {
       effectiveReview: 'admin_review',
       description: 'Rename a tag.',
     },
+    {
+      providerKey: 'next-wiki',
+      name: 'generate_image',
+      category: 'media',
+      riskLevel: 'immediate_write',
+      requiredScope: 'use_ai_image_generation',
+      enabled: true,
+      reviewPolicy: 'review_when_requested',
+      resultRetention: 'never_full_result',
+      effectiveReview: 'none',
+      description: 'Generate a private image artifact.',
+    },
   ],
 };
 
@@ -72,6 +84,8 @@ describe('AiToolsPanel', () => {
     expect(html).toContain('next-wiki');
     expect(html).toContain('search_wiki');
     expect(html).toContain('rename_tag');
+    expect(html).toContain('generate_image');
+    expect(html).toContain('Media');
   });
 
   it('shows the future external-provider disabled state', () => {

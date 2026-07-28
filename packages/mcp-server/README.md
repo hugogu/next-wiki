@@ -107,6 +107,9 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `list_revisions` | List revision history |
 | `get_revision` | Get revision detail |
 | `upload_image` | Upload an image and receive markdown reference |
+| `generate_image` | Queue a page-bound AI image generation request |
+| `get_image_generation` | Poll a generated image action for safe status and artifact metadata |
+| `promote_generated_image` | Promote a generated image to a reusable private asset without editing a page |
 | `get_page_tree` | Get the directory tree of pages |
 | `delete_page` | Soft-delete a page |
 | `get_backlinks` | Find pages linking to a target page |
@@ -138,7 +141,12 @@ because auth, parameter validation, and permission checks are handled internally
 - **Content creation**: `create_page`, `append_raw_entry`, `save_draft`, `publish_page`, `batch_create_pages`, `batch_update_pages`, `batch_soft_delete_pages`
 - **Raw taxonomy**: `list_raw_categories`, `create_raw_category`
 - **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`, `delete_page`, `get_backlinks`, `get_page_outbound_links`, `get_neighborhood`, `get_diff`, `get_stats`
-- **Media**: `upload_image` for inserting images into Markdown
+- **Media**: `upload_image` for caller-provided bytes; `generate_image`, `get_image_generation`, and `promote_generated_image` for configured AI image generation
+
+`generate_image` requires an Editor/Admin API key with both `ai.image` and
+`edit` scopes. It is asynchronous: poll with `get_image_generation`, then use
+`promote_generated_image` to receive ordinary Markdown for a later `save_draft`
+operation. Promotion never writes or publishes a page automatically.
 
 ### LLM Wiki mode
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import {
   SKILL_LIMITS,
   publicPageSearchQuerySchema,
@@ -7,6 +8,8 @@ import {
   type PublicPageResource,
 } from '@next-wiki/shared';
 import { DomainError } from '@/server/errors';
+import { db } from '@/server/db';
+import * as schema from '@/server/db/schema';
 import { getSpaceHref } from '@/lib/path';
 import type { PermCtx } from '@/server/permissions';
 import * as content from '@/server/services/public-content';
@@ -17,6 +20,9 @@ import { getToolDefinition, type ToolDefinition } from '@/server/services/ai-too
 import { logger } from '@/server/logger';
 import { findSkill, recordSkillUsage } from '@/server/services/skills/registry';
 import { INSTRUCTION_FILE as SKILL_INSTRUCTION_FILE, safeRelativePath } from '@/server/services/skills/package';
+import { createImageGeneration } from '@/server/services/ai-image-generation';
+import { runInlineImageGenerationAction } from '@/server/services/ai-image-runner';
+import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
 
 /**
  * Built-in tool execution adapters (026, US2). Every adapter runs the operation
@@ -167,6 +173,17 @@ const createTagArgs = z.object({ name: z.string().min(1).max(100) });
 const renameTagArgs = z.object({ tagId: z.string().uuid(), name: z.string().min(1).max(100) });
 const tagIdArgs = z.object({ tagId: z.string().uuid() });
 const mergeTagArgs = z.object({ tagId: z.string().uuid(), targetTagId: z.string().uuid() });
+const imageSourceArgs = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('page') }),
+  z.object({ kind: z.literal('selection'), text: z.string().min(1).max(100_000), hash: z.string().min(16).max(128) }),
+]);
+const generateImageArgs = z.object({
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  source: imageSourceArgs,
+  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
+});
+const promoteGeneratedImageArgs = z.object({ artifactId: z.string().uuid(), pageId: z.string().uuid() });
 
 // ---- Read executors ---------------------------------------------------------
 
@@ -315,6 +332,61 @@ async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecut
     contentSource: resolvePageContent(args, execCtx),
   });
   return { ok: true, summary: `Saved draft revision v${revision.version}.`, draftPageId: args.pageId, data: { pageId: args.pageId, version: revision.version } };
+}
+
+// ---- Media executors --------------------------------------------------------
+
+async function execGenerateImage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+  const args = generateImageArgs.parse(rawArgs);
+  try {
+    // The surrounding Wiki AI question is already a pg-boss job. Creating the
+    // child action with enqueue=false and running it here avoids a duplicate
+    // worker job while preserving the normal child action/event lifecycle.
+    const action = await createImageGeneration(ctx, args, { enqueue: false });
+    await runInlineImageGenerationAction(action.id);
+    const artifact = await db.query.aiGeneratedArtifacts.findFirst({
+      where: eq(schema.aiGeneratedArtifacts.actionId, action.id),
+    });
+    if (!artifact) return fail('IMAGE_GENERATION_FAILED', 'Image generation did not produce an artifact.');
+    return {
+      ok: true,
+      summary: 'Generated a private image artifact. Promote it before adding its Markdown to a draft.',
+      data: {
+        actionId: action.id,
+        artifactId: artifact.id,
+        contentType: artifact.contentType,
+        sizeBytes: artifact.sizeBytes,
+        expiresAt: artifact.expiresAt.toISOString(),
+        previewUrl: `/api/ai/generated-artifacts/${artifact.id}`,
+      },
+    };
+  } catch (error) {
+    if (error instanceof DomainError && ['FORBIDDEN', 'BAD_REQUEST', 'NOT_FOUND', 'CANCELLED'].includes(error.code)) throw error;
+    // Provider/error details may contain vendor diagnostics. The child action
+    // retains governed diagnostics for administrators; the model sees only a
+    // stable safe result.
+    return fail('IMAGE_GENERATION_FAILED', 'Image generation failed.');
+  }
+}
+
+async function execPromoteGeneratedImage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+  const args = promoteGeneratedImageArgs.parse(rawArgs);
+  try {
+    const asset = await promoteGeneratedArtifact(ctx, args.artifactId, args.pageId);
+    return {
+      ok: true,
+      summary: 'Promoted the generated image to a private Wiki asset. Use the returned Markdown in a separate draft save.',
+      data: {
+        assetId: asset.id,
+        contentType: asset.contentType,
+        sizeBytes: asset.sizeBytes,
+        markdown: `![image](${asset.url})`,
+      },
+    };
+  } catch (error) {
+    if (error instanceof DomainError && ['FORBIDDEN', 'NOT_FOUND', 'CANCELLED'].includes(error.code)) throw error;
+    return fail('ARTIFACT_NOT_PROMOTABLE', 'The generated image cannot be promoted.');
+  }
 }
 
 // ---- Non-page write executors (proposal when review, else immediate) --------
@@ -598,6 +670,8 @@ const EXECUTORS: Record<string, Executor> = {
   rename_tag: execRenameTag,
   delete_tag: execDeleteTag,
   merge_tag: execMergeTag,
+  generate_image: (ctx, args) => execGenerateImage(ctx, args),
+  promote_generated_image: (ctx, args) => execPromoteGeneratedImage(ctx, args),
   load_skill: (ctx, args) => execLoadSkill(ctx, args),
   read_skill_file: (ctx, args) => execReadSkillFile(ctx, args),
 };

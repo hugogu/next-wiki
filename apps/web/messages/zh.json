@@ -1260,7 +1260,8 @@
           "metadata": "元数据",
           "tag": "标签",
           "batch": "批量",
-          "raw_evidence": "原始证据"
+          "raw_evidence": "原始证据",
+          "media": "媒体"
         },
         "risk": {
           "read": "只读",
@@ -1998,7 +1999,8 @@
         "storage": "存储",
         "preferences": "偏好",
         "ai": {
-          "read": "AI 读取"
+          "read": "AI 读取",
+          "image": "AI 图片生成"
         }
       },
       "scopeDescriptions": {
@@ -2011,7 +2013,8 @@
         "storage": "管理内容存储配置与迁移(仅管理员)",
         "preferences": "更新你自己的主题和语言偏好",
         "ai": {
-          "read": "使用 AI 搜索与语义检索"
+          "read": "使用 AI 搜索与语义检索",
+          "image": "从可编辑页面内容生成私有 Wiki 图片"
         }
       },
       "maxKeysExceeded": "最多只能拥有 {max} 个有效密钥。",

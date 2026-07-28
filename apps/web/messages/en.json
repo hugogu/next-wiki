@@ -1260,7 +1260,8 @@
           "metadata": "Metadata",
           "tag": "Tags",
           "batch": "Batch",
-          "raw_evidence": "Raw evidence"
+          "raw_evidence": "Raw evidence",
+          "media": "Media"
         },
         "risk": {
           "read": "Read-only",
@@ -1998,7 +1999,8 @@
         "storage": "Storage",
         "preferences": "Preferences",
         "ai": {
-          "read": "AI read"
+          "read": "AI read",
+          "image": "AI image generation"
         }
       },
       "scopeDescriptions": {
@@ -2011,7 +2013,8 @@
         "storage": "Manage content storage configuration and migrations (admin only)",
         "preferences": "Update your own theme and language preferences",
         "ai": {
-          "read": "Use AI-powered search and semantic retrieval"
+          "read": "Use AI-powered search and semantic retrieval",
+          "image": "Generate private Wiki images from editable page content"
         }
       },
       "maxKeysExceeded": "You can have at most {max} active keys.",

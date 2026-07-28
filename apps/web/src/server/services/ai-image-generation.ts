@@ -5,14 +5,17 @@ import { createAction } from './ai-actions';
 import { getAssignedModel } from './ai-question';
 import { assertEditableRevision, selectionHash } from './ai-optimization';
 
+export type ImageGenerationInput = {
+  pageId: string;
+  revisionId: string;
+  source: { kind: 'page' } | { kind: 'selection'; text: string; hash: string };
+  aspectRatio?: string;
+};
+
 export async function createImageGeneration(
   ctx: PermCtx,
-  input: {
-    pageId: string;
-    revisionId: string;
-    source: { kind: 'page' } | { kind: 'selection'; text: string; hash: string };
-    aspectRatio?: string;
-  },
+  input: ImageGenerationInput,
+  options: { enqueue?: boolean } = {},
 ) {
   await assertAiFeature(ctx, 'image');
   const { page, revision } = await assertEditableRevision(ctx, input.pageId, input.revisionId);
@@ -35,5 +38,6 @@ export async function createImageGeneration(
       aspectRatio: input.aspectRatio ?? null,
       providerName: provider.name,
     },
+    enqueue: options.enqueue,
   });
 }

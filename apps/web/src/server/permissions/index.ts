@@ -109,6 +109,7 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   transfers: ['manage_transfers'],
   manage_tags: ['manage_tags'],
   'ai.read': ['use_ai_search', 'use_ai_qa'],
+  'ai.image': ['use_ai_image_generation'],
 };
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {
@@ -218,8 +219,7 @@ export function can(
       action === 'manage_translations' ||
       action === 'manage_appearance' ||
       action === 'manage_request_logs' ||
-      action === 'use_ai_text_optimization' ||
-      action === 'use_ai_image_generation'
+      action === 'use_ai_text_optimization'
     ) {
       return false;
     }

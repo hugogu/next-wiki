@@ -35,6 +35,8 @@ describe('ai tool registry metadata (026, US6)', () => {
     const names = listToolDefinitions().map((tool) => tool.name);
     expect(new Set(names).size).toBe(names.length);
     expect(names).toContain('search_wiki');
+    expect(getToolDefinition('generate_image')).toMatchObject({ category: 'media', requiredScope: 'use_ai_image_generation' });
+    expect(getToolDefinition('promote_generated_image')).toMatchObject({ category: 'media', riskLevel: 'immediate_write' });
     expect(getToolDefinition('search_wiki')?.category).toBe('read');
     expect(getToolDefinition('not_a_real_tool')).toBeUndefined();
   });

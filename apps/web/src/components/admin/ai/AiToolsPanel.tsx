@@ -22,7 +22,7 @@ import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/keys';
 
-const CATEGORIES: AiToolCategory[] = ['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'];
+const CATEGORIES: AiToolCategory[] = ['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence', 'media'];
 const REVIEW_POLICIES: AiToolReviewPolicy[] = [
   'always_review',
   'review_when_requested',

@@ -34,6 +34,9 @@ import { updatePageMetadata, updatePageMetadataSchema } from './tools/update-pag
 import { appendRawEntry, appendRawEntrySchema } from './tools/append-raw-entry';
 import { listRawCategories, listRawCategoriesSchema } from './tools/list-raw-categories';
 import { createRawCategory, createRawCategorySchema } from './tools/create-raw-category';
+import { generateImage, generateImageSchema } from './tools/generate-image';
+import { getImageGeneration, getImageGenerationSchema } from './tools/get-image-generation';
+import { promoteGeneratedImage, promoteGeneratedImageSchema } from './tools/promote-generated-image';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
   const server = new McpServer({
@@ -144,6 +147,27 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('upload_image', 'Upload an image and receive a Markdown-ready reference.', uploadImageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await uploadImage(client, args)) }],
   }));
+
+  server.tool(
+    'generate_image',
+    'Queue a page-bound AI image generation request. Requires an Editor/Admin API key with ai.image and edit scopes. The result is asynchronous; poll with get_image_generation.',
+    generateImageSchema,
+    async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await generateImage(client, args)) }] }),
+  );
+
+  server.tool(
+    'get_image_generation',
+    'Poll a private AI image generation request. The response contains safe lifecycle and artifact metadata, never image bytes or provider diagnostics.',
+    getImageGenerationSchema,
+    async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await getImageGeneration(client, args)) }] }),
+  );
+
+  server.tool(
+    'promote_generated_image',
+    'Promote a generated image into a reusable private Wiki asset. Requires ai.image and edit scopes. Returns Markdown but does not modify or publish a Wiki page.',
+    promoteGeneratedImageSchema,
+    async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await promoteGeneratedImage(client, args)) }] }),
+  );
 
   server.tool('delete_page', 'Soft-delete a wiki page, preserving its revision history.', deletePageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await deletePage(client, args)) }],

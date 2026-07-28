@@ -106,6 +106,9 @@ if (uploadAsset) setMultipartAssetRequest(uploadAsset);
 const getAssetContent = operation('/v1/assets/{id}/content', 'get');
 if (getAssetContent) setBinaryAssetResponse(getAssetContent);
 
+const getGeneratedArtifact = operation('/v1/ai/generated-artifacts/{artifactId}', 'get');
+if (getGeneratedArtifact) setBinaryAssetResponse(getGeneratedArtifact);
+
 const UUID_EXAMPLE = '550e8400-e29b-41d4-a716-446655440000';
 
 function fixPathParamExamples() {

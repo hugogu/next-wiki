@@ -3,8 +3,11 @@ import { ZodError } from 'zod';
 import { DomainError } from '@/server/errors';
 
 export type PublicApiErrorCode =
+  | 'INVALID_REQUEST'
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
+  | 'AI_IMAGE_NOT_ALLOWED'
+  | 'AI_UNAVAILABLE'
   | 'NOT_FOUND'
   | 'VALIDATION_FAILED'
   | 'CONFLICT'
@@ -38,7 +41,7 @@ export type PublicApiErrorBody = {
 };
 
 export function publicApiError(code: PublicApiErrorCode, message: string, status: number): NextResponse<PublicApiErrorBody> {
-  return NextResponse.json({ code, message }, { status });
+  return NextResponse.json({ code, message }, { status, headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 export function validationError(error: ZodError): NextResponse<PublicApiErrorBody> {
@@ -48,10 +51,24 @@ export function validationError(error: ZodError): NextResponse<PublicApiErrorBod
 
 export function mapPublicDomainErrorCode(code: DomainError['code']): { code: PublicApiErrorCode; status: number } {
   switch (code) {
+    case 'BAD_REQUEST':
+      return { code: 'INVALID_REQUEST', status: 400 };
     case 'UNAUTHORIZED':
       return { code: 'UNAUTHORIZED', status: 401 };
     case 'FORBIDDEN':
       return { code: 'FORBIDDEN', status: 403 };
+    case 'AI_DISABLED':
+    case 'AI_NOT_CONFIGURED':
+    case 'AI_FEATURE_DISABLED':
+    case 'PROVIDER_DISABLED':
+    case 'MODEL_UNAVAILABLE':
+    case 'CAPABILITY_MISMATCH':
+    case 'CAPABILITY_UNSUPPORTED':
+      return { code: 'AI_IMAGE_NOT_ALLOWED', status: 403 };
+    case 'PROVIDER_UNAVAILABLE':
+    case 'TIMEOUT':
+    case 'INVALID_RESPONSE':
+      return { code: 'AI_UNAVAILABLE', status: 503 };
     case 'NOT_FOUND':
       return { code: 'NOT_FOUND', status: 404 };
     case 'CONFLICT':
@@ -108,5 +125,10 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
 
 export function mapPublicDomainError(error: DomainError): NextResponse<PublicApiErrorBody> {
   const { code, status } = mapPublicDomainErrorCode(error.code);
-  return publicApiError(code, error.message, status);
+  const message = code === 'AI_IMAGE_NOT_ALLOWED'
+    ? 'Image generation is not currently available'
+    : code === 'AI_UNAVAILABLE'
+      ? 'Image generation is temporarily unavailable'
+      : error.message;
+  return publicApiError(code, message, status);
 }

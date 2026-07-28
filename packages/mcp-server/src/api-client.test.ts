@@ -96,7 +96,7 @@ describe('WikiApiClient', () => {
   });
 
   it('requests both revision relations when fetching a single page', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({}), { status: 200 }));
     globalThis.fetch = fetchMock;
 
     const client = createClient();
@@ -203,5 +203,28 @@ describe('WikiApiClient', () => {
     expect(url.toString()).toBe('http://localhost:3000/api/v1/assets');
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.headers as Headers).has('Content-Type')).toBe(false);
+  });
+
+  it('uses only public v1 image lifecycle routes', async () => {
+    const actionId = '11111111-1111-1111-1111-111111111111';
+    const artifactId = '22222222-2222-2222-2222-222222222222';
+    const pageId = '33333333-3333-3333-3333-333333333333';
+    const revisionId = '44444444-4444-4444-4444-444444444444';
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({}), { status: 200 }));
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+
+    await client.generateImage({ pageId, revisionId, source: { kind: 'page' }, aspectRatio: '16:9' });
+    await client.getImageGeneration(actionId);
+    await client.promoteGeneratedImage(artifactId, pageId);
+
+    const [generateUrl, generateInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const [getUrl] = fetchMock.mock.calls[1] as [URL];
+    const [promoteUrl, promoteInit] = fetchMock.mock.calls[2] as [URL, RequestInit];
+    expect(generateUrl.toString()).toBe('http://localhost:3000/api/v1/ai/images');
+    expect(generateInit).toMatchObject({ method: 'POST', body: JSON.stringify({ pageId, revisionId, source: { kind: 'page' }, aspectRatio: '16:9' }) });
+    expect(getUrl.toString()).toBe(`http://localhost:3000/api/v1/ai/images/${actionId}`);
+    expect(promoteUrl.toString()).toBe(`http://localhost:3000/api/v1/ai/generated-artifacts/${artifactId}/asset`);
+    expect(promoteInit).toMatchObject({ method: 'POST', body: JSON.stringify({ pageId }) });
   });
 });

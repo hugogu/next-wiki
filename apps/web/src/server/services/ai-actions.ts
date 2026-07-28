@@ -72,6 +72,8 @@ type CreateActionInput = {
    * every other feature stay `not_applicable` (the column default).
    */
   rawConversationCaptureStatus?: 'pending' | 'disabled';
+  /** The Wiki AI worker may execute a child action inline; every other caller queues it. */
+  enqueue?: boolean;
 };
 
 function expiry(hours: number): Date {
@@ -149,11 +151,13 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
     });
     return action!;
   });
-  const expireSeconds = expireSecondsForFeature(input.feature);
-  await enqueue(queueForFeature(input.feature), { actionId: created.id }, {
-    ...(expireSeconds ? { expireInSeconds: expireSeconds } : {}),
-    ...(input.priority !== undefined ? { priority: input.priority } : {}),
-  });
+  if (input.enqueue !== false) {
+    const expireSeconds = expireSecondsForFeature(input.feature);
+    await enqueue(queueForFeature(input.feature), { actionId: created.id }, {
+      ...(expireSeconds ? { expireInSeconds: expireSeconds } : {}),
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+    });
+  }
   return {
     id: created.id,
     feature: input.feature,

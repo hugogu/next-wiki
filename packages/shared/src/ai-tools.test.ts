@@ -31,6 +31,7 @@ describe('ai-tools shared contract', () => {
       'tag',
       'batch',
       'raw_evidence',
+      'media',
     ]);
   });
 

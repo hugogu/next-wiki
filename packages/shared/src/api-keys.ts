@@ -12,6 +12,7 @@ export const apiKeyScopeSchema = z.enum([
   'transfers',
   'manage_tags',
   'ai.read',
+  'ai.image',
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 

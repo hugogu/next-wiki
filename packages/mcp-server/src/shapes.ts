@@ -1,5 +1,6 @@
 import type {
   PublicAssetResource,
+  PublicImageGeneration,
   PublicNeighborhoodResponse,
   PublicOutboundLinksResponse,
   PublicPageBatchDeleteResult,
@@ -323,6 +324,46 @@ export function uploadImageResponse(source: PublicAssetResource): {
     contentType: source.contentType,
     sizeBytes: source.sizeBytes,
   };
+}
+
+export function generateImageResponse(source: PublicImageGeneration): {
+  id: string;
+  status: PublicImageGeneration['status'];
+  createdAt: string;
+  updatedAt: string;
+  pollUrl: string;
+} {
+  return {
+    id: source.id,
+    status: source.status,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
+    pollUrl: source.pollUrl,
+  };
+}
+
+export function getImageGenerationResponse(source: PublicImageGeneration): {
+  id: string;
+  status: PublicImageGeneration['status'];
+  createdAt: string;
+  updatedAt: string;
+  pollUrl: string;
+  artifact: PublicImageGeneration['artifact'] | null;
+  error: PublicImageGeneration['error'] | null;
+} {
+  return {
+    id: source.id,
+    status: source.status,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
+    pollUrl: source.pollUrl,
+    artifact: source.artifact ?? null,
+    error: source.error ?? null,
+  };
+}
+
+export function promoteGeneratedImageResponse(source: PublicAssetResource) {
+  return uploadImageResponse(source);
 }
 
 export type TreeNode = {

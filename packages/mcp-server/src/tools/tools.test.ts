@@ -21,6 +21,9 @@ import { mergeTag } from './merge-tag';
 import { updatePageMetadata } from './update-page-metadata';
 import { appendRawEntry } from './append-raw-entry';
 import { createPage } from './create-page';
+import { generateImage } from './generate-image';
+import { getImageGeneration } from './get-image-generation';
+import { promoteGeneratedImage } from './promote-generated-image';
 
 const metadataFixture = { date: '2026-07-10', summary: 'Summary', tags: [] };
 
@@ -44,6 +47,9 @@ describe('tools', () => {
       getRevision: vi.fn(),
       appendRawEntry: vi.fn(),
       uploadImage: vi.fn(),
+      generateImage: vi.fn(),
+      getImageGeneration: vi.fn(),
+      promoteGeneratedImage: vi.fn(),
       getPageTree: vi.fn(),
       submitSemanticSearch: vi.fn(),
       getSemanticSearchResults: vi.fn(),
@@ -519,6 +525,33 @@ describe('tools', () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.citations[0]?.contentHash).toBe('hash');
     expect(result.usage).toEqual({ inputTokens: 5 });
+  });
+
+  it('runs image lifecycle tools through typed public client methods without exposing bytes', async () => {
+    const pageId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const revisionId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+    const actionId = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
+    const artifactId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+    const generated = vi.fn().mockResolvedValue({
+      id: actionId, feature: 'image_generation', status: 'queued', createdAt: '', updatedAt: '', pollUrl: `/api/v1/ai/images/${actionId}`,
+    });
+    const polled = vi.fn().mockResolvedValue({
+      id: actionId, feature: 'image_generation', status: 'succeeded', createdAt: '', updatedAt: '', pollUrl: `/api/v1/ai/images/${actionId}`,
+      artifact: { id: artifactId, contentType: 'image/png', sizeBytes: 4, expiresAt: '', previewUrl: '/preview', promoteUrl: '/promote', discardUrl: '/discard' },
+    });
+    const promoted = vi.fn().mockResolvedValue({ id: artifactId, contentType: 'image/png', sizeBytes: 4, url: '/asset', markdown: '![image](/asset)', createdAt: '' });
+    const client = createClient({ generateImage: generated, getImageGeneration: polled, promoteGeneratedImage: promoted });
+
+    const queued = await generateImage(client, { pageId, revisionId, source: { kind: 'page' } });
+    const ready = await getImageGeneration(client, { actionId });
+    const asset = await promoteGeneratedImage(client, { artifactId, pageId });
+
+    expect(generated).toHaveBeenCalledWith({ pageId, revisionId, source: { kind: 'page' } });
+    expect(queued).toMatchObject({ id: actionId, status: 'queued' });
+    expect(ready).toMatchObject({ status: 'succeeded', artifact: { id: artifactId } });
+    expect(ready).not.toHaveProperty('bytes');
+    expect(promoted).toHaveBeenCalledWith(artifactId, pageId);
+    expect(asset.markdown).toBe('![image](/asset)');
   });
 
   it('get_page_outbound_links forwards pageId and returns classified buckets', async () => {

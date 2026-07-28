@@ -36,6 +36,15 @@ async function revokeApiKey(page: Page, name: string) {
 }
 
 test.describe('api keys', () => {
+  test('shows the scoped AI image capability in API-key creation', async ({ page }) => {
+    const timestamp = Date.now();
+    await register(page, `api-image-scope-${timestamp}@example.com`, 'Password123!');
+    await page.goto('/user-center/api-keys');
+    await page.getByRole('button', { name: 'Create API key' }).first().click();
+
+    await expect(page.getByRole('checkbox', { name: 'AI image generation' })).toBeVisible();
+  });
+
   test('view scope key can read but not write; create scope as reader is role-denied; revocation blocks access and audit logs attempts', async ({ page }) => {
     const timestamp = Date.now();
     const email = `api-keys-${timestamp}@example.com`;

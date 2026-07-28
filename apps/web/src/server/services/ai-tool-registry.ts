@@ -361,6 +361,46 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       required: ['pageIds'],
     },
   },
+  // --- media ---
+  {
+    name: 'generate_image',
+    category: 'media',
+    riskLevel: 'immediate_write',
+    requiredScope: 'use_ai_image_generation',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'allow_immediate',
+    description: 'Generate one private illustration from the current editable page or validated page selection. Returns safe artifact metadata; it never changes or publishes page content.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'Existing page id from get_page or the current page context.' },
+        revisionId: { type: 'string', description: 'Current editable revision id for the page.' },
+        source: {
+          type: 'object',
+          description: 'Either { kind: "page" } or { kind: "selection", text, hash } for text from that revision.',
+        },
+        aspectRatio: { type: 'string', enum: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] },
+      },
+      required: ['pageId', 'revisionId', 'source'],
+    },
+  },
+  {
+    name: 'promote_generated_image',
+    category: 'media',
+    riskLevel: 'immediate_write',
+    requiredScope: 'use_ai_image_generation',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'allow_immediate',
+    description: 'Promote a generated image artifact to a normal private Wiki asset. Returns Markdown for a separate save_draft call; it never writes or publishes a page.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Artifact id returned by generate_image.' },
+        pageId: { type: 'string', description: 'Page bound to the generated image action.' },
+      },
+      required: ['artifactId', 'pageId'],
+    },
+  },
   // --- skills (028) ---
   // Skill loading is a tool call rather than a side channel, which buys five
   // things at once: it shows up in the chat timeline, it is permission-checked

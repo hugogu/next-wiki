@@ -34,6 +34,7 @@ test.describe('Admin AI Tools configuration', () => {
     // Tool rows render across categories.
     await expect(page.getByText('search_wiki', { exact: true })).toBeVisible();
     await expect(page.getByText('rename_tag', { exact: true })).toBeVisible();
+    await expect(page.getByText('generate_image', { exact: true })).toBeVisible();
 
     // Disable a mutating tool through the UI and confirm it persists server-side.
     const toggle = page.getByRole('switch', { name: /rename_tag/ });
@@ -74,6 +75,24 @@ test.describe('Admin AI Tools configuration', () => {
     // Restore for isolation.
     await page.request.patch('/api/ai/tools/policies', {
       data: { providerKey: 'next-wiki', category: 'tag', enabled: true },
+    });
+  });
+
+  test('disabling the media category disables both generated-image tools', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const patched = await page.request.patch('/api/ai/tools/policies', {
+      data: { providerKey: 'next-wiki', category: 'media', enabled: false },
+    });
+    expect(patched.ok()).toBe(true);
+
+    const listing = await page.request.get('/api/ai/tools');
+    const body = (await listing.json()) as { tools: Array<{ name: string; category: string; enabled: boolean }> };
+    const mediaTools = body.tools.filter((tool) => tool.category === 'media');
+    expect(mediaTools.map((tool) => tool.name).sort()).toEqual(['generate_image', 'promote_generated_image']);
+    expect(mediaTools.every((tool) => tool.enabled === false)).toBe(true);
+
+    await page.request.patch('/api/ai/tools/policies', {
+      data: { providerKey: 'next-wiki', category: 'media', enabled: true },
     });
   });
 

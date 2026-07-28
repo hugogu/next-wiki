@@ -378,6 +378,45 @@ export const publicAssetResourceSchema = z.object({
 });
 export type PublicAssetResource = z.infer<typeof publicAssetResourceSchema>;
 
+// ---- 029: AI image tools ---------------------------------------------------
+
+export const publicImageSourceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('page') }),
+  z.object({ kind: z.literal('selection'), text: z.string().min(1).max(100_000), hash: z.string().min(16).max(128) }),
+]);
+export type PublicImageSource = z.infer<typeof publicImageSourceSchema>;
+
+export const publicImageGenerationInputSchema = z.object({
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  source: publicImageSourceSchema,
+  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
+});
+export type PublicImageGenerationInput = z.infer<typeof publicImageGenerationInputSchema>;
+
+export const publicGeneratedImageArtifactSchema = z.object({
+  id: z.string().uuid(),
+  contentType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']),
+  sizeBytes: z.number().int().nonnegative(),
+  expiresAt: z.string(),
+  previewUrl: z.string(),
+  promoteUrl: z.string(),
+  discardUrl: z.string(),
+});
+export type PublicGeneratedImageArtifact = z.infer<typeof publicGeneratedImageArtifactSchema>;
+
+export const publicImageGenerationSchema = z.object({
+  id: z.string().uuid(),
+  feature: z.literal('image_generation'),
+  status: z.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled', 'expired']),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  pollUrl: z.string(),
+  artifact: publicGeneratedImageArtifactSchema.optional(),
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type PublicImageGeneration = z.infer<typeof publicImageGenerationSchema>;
+
 // ---- 010: AI Curation API ----
 
 export const publicSemanticSearchSubmitInputSchema = z.object({
@@ -747,6 +786,24 @@ export class WikiApiClient {
     return this.request<PublicAssetResource>('/assets', {
       method: 'POST',
       body: formData,
+    });
+  }
+
+  async generateImage(input: PublicImageGenerationInput): Promise<PublicImageGeneration> {
+    return this.request<PublicImageGeneration>('/ai/images', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getImageGeneration(actionId: string): Promise<PublicImageGeneration> {
+    return this.request<PublicImageGeneration>(`/ai/images/${actionId}`);
+  }
+
+  async promoteGeneratedImage(artifactId: string, pageId: string): Promise<PublicAssetResource> {
+    return this.request<PublicAssetResource>(`/ai/generated-artifacts/${artifactId}/asset`, {
+      method: 'POST',
+      body: JSON.stringify({ pageId }),
     });
   }
 

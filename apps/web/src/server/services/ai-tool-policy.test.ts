@@ -12,6 +12,7 @@ import {
 const readTool = getToolDefinition('search_wiki')!;
 const tagTool = getToolDefinition('rename_tag')!;
 const evidenceTool = getToolDefinition('capture_tool_evidence')!;
+const mediaTool = getToolDefinition('generate_image')!;
 
 function layer(overrides: Partial<PolicyLayers['tool']> = {}): NonNullable<PolicyLayers['tool']> {
   return { enabled: true, reviewPolicy: 'always_review', maxCallsPerTurn: 8, timeoutMs: 30_000, ...overrides };
@@ -28,6 +29,7 @@ describe('ai tool review-policy resolution (026)', () => {
       expect(systemMinimumReviewPolicy(readTool)).toBe('review_when_requested');
       expect(systemMinimumReviewPolicy(tagTool)).toBe('allow_immediate_for_owner');
       expect(systemMinimumReviewPolicy(evidenceTool)).toBe('review_when_requested');
+      expect(systemMinimumReviewPolicy(mediaTool)).toBe('allow_immediate_for_owner');
     });
   });
 

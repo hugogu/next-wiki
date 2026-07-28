@@ -11,7 +11,7 @@
 
 export const BUILTIN_TOOL_PROVIDER_KEY = 'next-wiki';
 
-export type ToolCategory = 'read' | 'page_draft' | 'metadata' | 'tag' | 'batch' | 'raw_evidence';
+export type ToolCategory = 'read' | 'page_draft' | 'metadata' | 'tag' | 'batch' | 'raw_evidence' | 'media';
 export type ToolRisk = 'read' | 'draft_write' | 'reviewed_write' | 'immediate_write';
 
 export type BuiltinToolMetadata = {
@@ -38,6 +38,9 @@ export const BUILTIN_TOOL_METADATA: readonly BuiltinToolMetadata[] = [
   { name: 'merge_tag', category: 'tag', risk: 'reviewed_write', description: 'Merge one tag into another across every page.' },
   { name: 'batch_update_pages', category: 'batch', risk: 'reviewed_write', description: 'Propose a coordinated update across several pages.' },
   { name: 'batch_soft_delete_pages', category: 'batch', risk: 'reviewed_write', description: 'Propose soft-deletion of several pages.' },
+  { name: 'generate_image', category: 'media', risk: 'immediate_write', description: 'Queue a page-bound generated image and return a poll URL.' },
+  { name: 'get_image_generation', category: 'media', risk: 'read', description: 'Poll a private generated-image action for safe status and artifact metadata.' },
+  { name: 'promote_generated_image', category: 'media', risk: 'immediate_write', description: 'Promote a generated image to a reusable private Wiki asset without modifying a page.' },
 ];
 
 export function listBuiltinToolMetadata(): readonly BuiltinToolMetadata[] {

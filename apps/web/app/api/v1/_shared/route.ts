@@ -18,7 +18,9 @@ export type PublicRouteHandler<TParams extends Record<string, string | string[]>
 ) => Promise<Response> | Response;
 
 export function publicJson<T>(data: T, init?: ResponseInit): NextResponse<T> {
-  return NextResponse.json(data, init);
+  const headers = new Headers(init?.headers);
+  headers.set('Cache-Control', 'private, no-store');
+  return NextResponse.json(data, { ...init, headers });
 }
 
 export async function parsePublicJson<TOutput, TInput = TOutput>(

@@ -117,7 +117,7 @@ export const CreateApiKeyInput = z
   .object({
     name: z.string().min(1).max(100).describe('Human-readable name for the API key.'),
     scopes: z
-      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers']))
+      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image']))
       .min(1)
       .describe('Permission scopes granted to the key. At least one is required; scopes must be unique.'),
   })
@@ -129,7 +129,7 @@ export const ApiKeyViewList = z
       id: z.string().describe('API key identifier.'),
       name: z.string().describe('Human-readable name for the API key.'),
       scopes: z
-        .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers']))
+        .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image']))
         .describe('Permission scopes granted to the key.'),
       keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
       createdAt: z.string().describe('Timestamp when the key was created.'),
@@ -144,7 +144,7 @@ export const ApiKeyCreated = z
     id: z.string().describe('API key identifier.'),
     name: z.string().describe('Human-readable name for the API key.'),
     scopes: z
-      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers']))
+        .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image']))
       .describe('Permission scopes granted to the key.'),
     keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
     createdAt: z.string().describe('Timestamp when the key was created.'),
@@ -665,6 +665,18 @@ export const PublicSemanticSearchIdPathParams = z
     id: z.string().uuid().describe('Stable semantic search action identifier.'),
   })
   .describe('Public semantic search action ID path parameters.');
+
+export const PublicImageActionIdPathParams = z
+  .object({
+    actionId: z.string().uuid().describe('Stable private image generation action identifier.'),
+  })
+  .describe('Private image generation action path parameters.');
+
+export const PublicGeneratedArtifactIdPathParams = z
+  .object({
+    artifactId: z.string().uuid().describe('Stable private generated image artifact identifier.'),
+  })
+  .describe('Private generated image artifact path parameters.');
 
 export const PublicImageContentType = z.enum([
   'image/png',
@@ -1775,6 +1787,64 @@ export const PublicAssetUploadResult = z
   })
   .describe('Uploaded public wiki asset metadata.');
 
+export const PublicImageGenerationSource = z
+  .discriminatedUnion('kind', [
+    z.object({ kind: z.literal('page').describe('Generate from the bound page revision.') }),
+    z.object({
+      kind: z.literal('selection'),
+      text: z.string().min(1).max(100_000).describe('Selected text from the bound revision.'),
+      hash: z.string().min(16).max(128).describe('Hash of the selected text used for source validation.'),
+    }),
+  ])
+  .describe('Page-bound image source. Remote URLs, image bytes, and edit instructions are not accepted.');
+
+export const PublicImageGenerationInput = z
+  .object({
+    pageId: z.string().uuid().describe('Page that owns the requested image action.'),
+    revisionId: z.string().uuid().describe('Current editable revision used as the image source.'),
+    source: PublicImageGenerationSource,
+    aspectRatio: z
+      .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'])
+      .optional()
+      .describe('Requested generated-image aspect ratio.'),
+  })
+  .describe('Asynchronous page-bound Wiki image generation request.');
+
+export const PublicGeneratedImageArtifact = z
+  .object({
+    id: z.string().uuid().describe('Generated image artifact identifier.'),
+    contentType: PublicImageContentType.describe('Generated image MIME type.'),
+    sizeBytes: z.number().int().nonnegative().describe('Generated image size in bytes.'),
+    expiresAt: z.string().datetime().describe('Timestamp when the unpromoted artifact expires (ISO 8601).'),
+    previewUrl: z.string().describe('Private API URL that serves the generated image bytes.'),
+    promoteUrl: z.string().describe('Private API URL that promotes the artifact to a normal Wiki asset.'),
+    discardUrl: z.string().describe('Private API URL that discards the transient artifact.'),
+  })
+  .describe('Private generated-image artifact metadata. Image bytes are never embedded in JSON.');
+
+export const PublicImageGeneration = z
+  .object({
+    id: z.string().uuid().describe('Stable image generation action identifier.'),
+    feature: z.literal('image_generation'),
+    status: z.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled', 'expired']).describe('Public image action lifecycle state.'),
+    createdAt: z.string().datetime().describe('Timestamp when the action was submitted (ISO 8601).'),
+    updatedAt: z.string().datetime().describe('Latest action lifecycle timestamp (ISO 8601).'),
+    pollUrl: z.string().describe('Private API URL to poll for the action status.'),
+    artifact: PublicGeneratedImageArtifact.optional().describe('Available only after successful generation.'),
+    error: z
+      .object({
+        code: z.string().describe('Stable safe error code.'),
+        message: z.string().describe('User-safe error message without provider diagnostics.'),
+      })
+      .optional()
+      .describe('Available only when image generation fails.'),
+  })
+  .describe('Private image generation action resource.');
+
+export const PublicGeneratedArtifactPromotionInput = z
+  .object({ pageId: z.string().uuid().describe('Page bound to the generated image action.') })
+  .describe('Promote a generated image artifact to a normal private Wiki asset.');
+
 export const OkResponse = okResponseSchema;
 export const PreviewInput = previewInputSchema;
 export const PreviewOutput = previewOutputSchema;
@@ -1993,7 +2063,7 @@ export const AiToolsListOutput = z
           providerKey: z.string().describe('Owning provider key.'),
           name: z.string().describe('Stable MCP-compatible tool name.'),
           category: z
-            .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'])
+            .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence', 'media'])
             .describe('Coarse capability category.'),
           riskLevel: z
             .enum(['read', 'draft_write', 'reviewed_write', 'immediate_write'])
@@ -2020,7 +2090,7 @@ export const AiToolPolicyPatchInput = z
   .object({
     providerKey: z.string().min(1).max(100).describe('Provider whose policy is updated.'),
     category: z
-      .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'])
+      .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence', 'media'])
       .nullable()
       .optional()
       .describe('Category-level policy target; null/omitted for provider default.'),
@@ -2040,7 +2110,7 @@ export const AiToolPolicyResource = z
     id: z.string().uuid().describe('Policy identifier.'),
     providerKey: z.string().describe('Owning provider key.'),
     category: z
-      .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence'])
+      .enum(['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence', 'media'])
       .nullable()
       .describe('Category-level target, or null for provider/tool scope.'),
     toolName: z.string().nullable().describe('Tool-specific target, or null for category/provider scope.'),
