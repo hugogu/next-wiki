@@ -36,7 +36,7 @@ describe('built-in skills cannot exceed the governed path', () => {
     // A skill telling the model to call a tool the server does not have wastes
     // a turn and looks like the assistant malfunctioning.
     const known = new Set(listToolDefinitions().map((tool) => tool.name));
-    const mentioned = /\b(create_page|save_draft|update_page_metadata|update_page_properties|replace_page_tags|create_tag|rename_tag|merge_tag|delete_tag|list_tags|search_wiki|list_pages|get_page|get_backlinks|get_neighborhood)\b/g;
+    const mentioned = /\b(create_page|save_draft|update_page_metadata|update_page_properties|replace_page_tags|create_tag|rename_tag|merge_tag|delete_tag|list_tags|search_wiki|list_pages|get_page|get_backlinks|get_neighborhood|generate_image|promote_generated_image|load_skill|read_skill_file)\b/g;
     for (const skill of await loadBuiltinSkills()) {
       const text = skill.files.map((file) => file.content).join('\n');
       for (const match of text.matchAll(mentioned)) {

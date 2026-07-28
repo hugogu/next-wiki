@@ -69,6 +69,7 @@ each kind of content, do the second thing, not just the first:
 | An abstract theory | Define it | Add an analogy, where it came from, and where it is actually used |
 | A comparison or claim | Assert it | Put the numbers in a table and say where they came from |
 | A parameter or setting | List it | Give its default, its range, and what breaks at each extreme |
+| A scene, object, or artwork | Describe it | Generate an illustration (see below) |
 
 A page that defines terms and never shows one in use has not explained
 anything.
@@ -80,11 +81,30 @@ existing one, `save_draft` with `pageId` and the **complete** replacement
 Markdown — not a fragment, not a diff.
 
 Follow `reference/formatting.md` for the syntax this wiki actually renders.
-Two rules matter most because getting them wrong is silent:
+Three rules matter most because getting them wrong is silent:
 
 - **Diagrams are Mermaid.** Never draw with text characters — no ASCII art, no
   box-drawing, no aligned pipes pretending to be a diagram.
 - **Maths is KaTeX** in `$…$` / `$$…$$`, never inside a code fence.
+- **Structure gets a diagram, not a picture.** Generate an illustration only
+  for something a picture can show that prose cannot — a scene, an object, an
+  artistic or historical subject. Architectures, flows, and comparisons want
+  Mermaid or a table, which stay accurate and searchable.
+
+### Illustrating a page
+
+`generate_image` → `promote_generated_image` → `save_draft`, in that order.
+The first two never touch the page; the Markdown only lands when you save the
+draft yourself. A generated artifact is private and expires, so it must be
+promoted before it can be referenced.
+
+`generate_image` derives its prompt from the page or from a passage you select
+out of the current revision — there is no free-text prompt. Steer the picture by
+choosing the passage, not by describing it separately. `reference/formatting.md`
+has the exact arguments and the aspect ratios.
+
+Replace the placeholder `image` alt text that promotion returns with a real
+description before putting it in the page.
 
 ### 6. Ground it
 
@@ -109,8 +129,11 @@ figure you could not verify.
 - Dropping the original's images or links while "improving" it.
 - Padding length with restatement. Another paragraph saying the same thing is
   not depth; a worked example is.
-- Inventing an image URL. You have no tool that creates or uploads images —
-  reference only images that already exist.
+- Inventing an image URL. Reference an image the page already has, or create
+  one with `generate_image` + `promote_generated_image`; never write a URL you
+  did not get back from one of those.
+- Leaving the placeholder `![image](…)` alt text that promotion returns.
+- Generating a picture of an architecture or a flow. That is a Mermaid diagram.
 - Including YAML frontmatter without a non-empty `type` field. Omit the
   frontmatter block entirely if you are unsure.
 

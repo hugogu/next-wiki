@@ -77,12 +77,36 @@ describe('built-in skill packages', () => {
       expect(text).toMatch(/code fence|backticks/i);
     });
 
-    it('tells the model it cannot create images, only reference existing ones', async () => {
-      // There is no image generation or upload tool in the registry, so an
-      // invented URL is simply a broken image.
+    it('documents the image workflow in the order the tools require', async () => {
+      // generate_image produces a private, expiring artifact;
+      // promote_generated_image turns it into an asset and hands back Markdown;
+      // only save_draft puts it on the page. Getting the order wrong leaves the
+      // model referencing an artifact that expires out from under the page.
       const text = await writerText();
-      expect(text).toMatch(/cannot create images|no tool that creates or uploads images/i);
-      expect(text).toMatch(/already exist/i);
+      const generate = text.indexOf('generate_image');
+      const promote = text.indexOf('promote_generated_image');
+      expect(generate).toBeGreaterThan(-1);
+      expect(promote).toBeGreaterThan(generate);
+      expect(text).toMatch(/expires/i);
+      expect(text).toMatch(/save_draft/);
+    });
+
+    it('never tells the model to invent an image URL', async () => {
+      const text = await writerText();
+      expect(text).toMatch(/[Nn]ever invent a URL|Inventing an image URL/);
+    });
+
+    it('tells the model to replace the placeholder alt text promotion returns', async () => {
+      // promote_generated_image returns `![image](…)`; shipping that verbatim
+      // leaves every generated illustration with useless alt text.
+      expect(await writerText()).toMatch(/placeholder .*alt text|alt text.*placeholder/i);
+    });
+
+    it('sends structure to a diagram rather than to a generated picture', async () => {
+      // A generated picture of an architecture looks plausible and says
+      // nothing, and cannot be searched or read by a screen reader.
+      const text = await writerText();
+      expect(text).toMatch(/architectures?, flows?|[Ss]tructure gets a diagram/);
     });
 
     it('requires the abstract to be made concrete', async () => {

@@ -106,9 +106,54 @@ Standard Markdown: `![alt text](/path/or/url)`.
   both fall back to. Describe what the image shows, not "image".
 - **Place an image after the section it illustrates**, not before it, and
   follow it with a sentence saying what the reader should notice in it.
-- **You cannot create images.** There is no tool to generate or upload one, so
-  reference only images that already exist — usually ones the page already
-  had. A made-up URL is a broken image, which is worse than no image.
+- **Never invent a URL.** An image you did not either find on the page or
+  create through the tools below is a broken image, which is worse than none.
+
+### Generating an illustration
+
+Three separate calls, in order. Nothing is added to the page until the last
+one, and no tool here publishes anything.
+
+1. **`generate_image`** — needs `pageId`, `revisionId` (both returned by
+   `get_page`), and a `source`:
+   - `{ "kind": "page" }` illustrates the page as a whole;
+   - `{ "kind": "selection", "text": "…", "hash": "…" }` illustrates one
+     passage, where `text` is copied from that revision and `hash` is the
+     revision hash `get_page` returned.
+
+   Optionally `aspectRatio`: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`,
+   `9:16`, `16:9`, `21:9`. Prefer `16:9` for a wide diagram-like illustration
+   and `4:3` for a scene.
+
+   The prompt is derived from the page content — there is no free-text prompt
+   argument. To steer the image, select the passage that describes what you
+   want drawn rather than trying to describe it separately.
+
+2. **`promote_generated_image`** — needs the `artifactId` from step 1 and the
+   same `pageId`. A generated artifact is private and **expires**, so it is not
+   usable in a page until it has been promoted. Returns ready-made Markdown.
+
+3. **`save_draft`** — the returned Markdown is not written anywhere for you.
+   Insert it in the right place in the page body and save the whole document
+   as a draft, exactly as with any other edit.
+
+**Rewrite the alt text.** Step 2 returns `![image](…)` with placeholder alt
+text. Replace `image` with a real description of what the picture shows before
+it goes into the page — every other rule about alt text applies to generated
+images too.
+
+### When to generate one, and when not to
+
+Generate an illustration when a picture carries information prose cannot: a
+scene, a physical object, an artistic or historical subject.
+
+Do not generate one for anything with structure — architectures, flows,
+relations, timelines, comparisons. Those want a Mermaid diagram or a table,
+which stays accurate, searchable, and legible at any width. A generated picture
+of a system diagram looks plausible and says nothing.
+
+One illustration per major section at most. A generated image that merely
+decorates costs the reader load time and attention for nothing.
 
 ## Links
 
