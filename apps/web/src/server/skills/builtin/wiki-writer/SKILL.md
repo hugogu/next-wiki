@@ -1,12 +1,12 @@
 ---
 name: "wiki-writer"
-description: "Draft a new wiki page or expand an existing one. Use when asked to write, draft, create, expand, flesh out, enrich, or add detail to a page, or when a page is described as thin, stubby, or incomplete."
+description: "Draft a new wiki page or expand an existing one. Use when asked to write, draft, create, expand, flesh out, enrich, improve, deepen, or add detail to a page, or when a page is described as thin, stubby, a stub, or incomplete."
 ---
 
 # Wiki Writer
 
-Write and expand wiki pages so the result reads like the rest of the wiki and
-lands as a reviewable draft.
+Write and expand wiki pages so the result reads like the rest of the wiki, is
+concrete rather than abstract, and lands as a reviewable draft.
 
 ## When to use
 
@@ -39,38 +39,80 @@ Expanding a page well means matching what is around it: heading depth, whether
 pages use frontmatter, how they open, whether they link out. Read one or two
 sibling pages before writing.
 
-### 3. Write
+### 3. Expand — do not rewrite
+
+You are extending a document someone already wrote. Carry forward, verbatim
+unless it is wrong:
+
+- every existing image reference,
+- every external link and citation,
+- every claim, figure, and example that is still correct,
+- the page's own vocabulary for its subject.
+
+Losing any of these is the most common way an "improved" page ends up worse
+than the original. Rewriting a passage that was already fine also destroys
+review signal — the diff should show what you actually changed.
+
+If the original is scattered notes, reorganise it into a proper structure, but
+every fact in the notes must survive the move.
+
+### 4. Make the abstract concrete
+
+This is what separates a page worth reading from a summary of a summary. For
+each kind of content, do the second thing, not just the first:
+
+| Content | Not enough | Do this |
+|---|---|---|
+| A formula | State it | State it, then walk one worked example with real numbers |
+| An architecture or model | Describe it in prose | Add a Mermaid diagram of the parts and their relations |
+| An algorithm or process | Name the steps | Number the steps, then show one concrete input and its output |
+| An abstract theory | Define it | Add an analogy, where it came from, and where it is actually used |
+| A comparison or claim | Assert it | Put the numbers in a table and say where they came from |
+| A parameter or setting | List it | Give its default, its range, and what breaks at each extreme |
+
+A page that defines terms and never shows one in use has not explained
+anything.
+
+### 5. Write
 
 For a new page, `create_page` with `path`, `title`, and `contentSource`. For an
 existing one, `save_draft` with `pageId` and the **complete** replacement
 Markdown — not a fragment, not a diff.
 
-When expanding:
+Follow `reference/formatting.md` for the syntax this wiki actually renders.
+Two rules matter most because getting them wrong is silent:
 
-- Keep everything that is still correct. Rewriting a passage that was fine
-  destroys review signal: the diff should show what you actually changed.
-- Add what is missing rather than restating what is there.
-- If the existing text contradicts what you learned, say so in your answer
-  instead of quietly overwriting it.
+- **Diagrams are Mermaid.** Never draw with text characters — no ASCII art, no
+  box-drawing, no aligned pipes pretending to be a diagram.
+- **Maths is KaTeX** in `$…$` / `$$…$$`, never inside a code fence.
 
-### 4. Ground it
+### 6. Ground it
 
-Prefer facts you can point at — pages you read, tool results you received. Where
-you are inferring or generalising, say so in the text. A confidently wrong wiki
-page is worse than a short one.
+Prefer facts you can point at — pages you read, tool results you received.
+Where you are inferring or generalising, say so in the text. Cite sources for
+figures and benchmark numbers; an unsourced number is worse than no number,
+because the reader cannot check it.
 
-### 5. Report
+A confidently wrong wiki page is worse than a short one.
+
+### 7. Report
 
 After a successful `create_page`, include the returned title and href as a
-Markdown link in your answer. Say plainly what you changed and what you left
-alone.
+Markdown link in your answer. Say plainly what you added, what you left alone,
+and anything you deliberately did not do — a section you could not source, a
+figure you could not verify.
 
 ## Common mistakes
 
 - Calling `save_draft` for a page that does not exist yet. Use `create_page`.
 - Sending a partial body to `save_draft`. It replaces the whole page.
+- Dropping the original's images or links while "improving" it.
+- Padding length with restatement. Another paragraph saying the same thing is
+  not depth; a worked example is.
+- Inventing an image URL. You have no tool that creates or uploads images —
+  reference only images that already exist.
 - Including YAML frontmatter without a non-empty `type` field. Omit the
   frontmatter block entirely if you are unsure.
-- Expanding a page nobody asked you to touch.
 
-See `reference/structure.md` for page shapes that work well.
+See `reference/structure.md` for page shapes and `reference/formatting.md` for
+the exact syntax this wiki renders.

@@ -36,6 +36,68 @@ describe('built-in skill packages', () => {
     }
   });
 
+  /**
+   * Wiki Writer's guidance must match what this wiki actually renders.
+   *
+   * Telling the model to emit syntax the pipeline has no renderer for produces
+   * a page that is worse than the one it replaced — a wall of unhighlighted
+   * source where a diagram should be — and the model has no way to find that
+   * out. These pin the guidance against the pipeline's real capabilities.
+   */
+  describe('Wiki Writer guidance matches the render pipeline', () => {
+    const writerText = async () => {
+      const writer = (await loadBuiltinSkills()).find((skill) => skill.name === 'wiki-writer');
+      expect(writer).toBeDefined();
+      return writer!.files.map((file) => file.content).join('\n');
+    };
+
+    it('directs diagrams to Mermaid, which the pipeline renders', async () => {
+      const text = await writerText();
+      expect(text).toMatch(/```mermaid/);
+      expect(text).toMatch(/graph TD|sequenceDiagram|classDiagram/);
+    });
+
+    it('says PlantUML is not rendered here rather than recommending it', async () => {
+      // The pipeline has no PlantUML support at all; a ```plantuml block would
+      // render as source.
+      const text = await writerText();
+      expect(text).toMatch(/PlantUML is not rendered/i);
+      expect(text).not.toMatch(/use\s+PlantUML|```plantuml\n@startuml/i);
+    });
+
+    it('forbids drawing with text characters', async () => {
+      expect(await writerText()).toMatch(/ASCII art/i);
+    });
+
+    it('states the KaTeX delimiters and the forms that fail silently', async () => {
+      const text = await writerText();
+      expect(text).toMatch(/\$\$/);
+      expect(text).toMatch(/\\\[…\\\]|\\\(…\\\)/);
+      expect(text).toMatch(/own lines/i);
+      expect(text).toMatch(/code fence|backticks/i);
+    });
+
+    it('tells the model it cannot create images, only reference existing ones', async () => {
+      // There is no image generation or upload tool in the registry, so an
+      // invented URL is simply a broken image.
+      const text = await writerText();
+      expect(text).toMatch(/cannot create images|no tool that creates or uploads images/i);
+      expect(text).toMatch(/already exist/i);
+    });
+
+    it('requires the abstract to be made concrete', async () => {
+      const text = await writerText();
+      expect(text).toMatch(/worked example/i);
+      expect(text).toMatch(/real numbers/i);
+    });
+
+    it('requires the original\'s images and links to survive an expansion', async () => {
+      const text = await writerText();
+      expect(text).toMatch(/existing image reference/i);
+      expect(text).toMatch(/external link/i);
+    });
+  });
+
   it('states that Wiki Writer never publishes', async () => {
     const writer = (await loadBuiltinSkills()).find((skill) => skill.name === 'wiki-writer');
     const body = writer?.files.find((file) => file.path === 'SKILL.md')?.content ?? '';
