@@ -55,17 +55,19 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await page.getByRole('button', { name: 'Save' }).click();
   await page.waitForURL(`/h/${path}?compare=2..3`);
 
-  // Reset to the neutral (no comparison selected) state so the manual
-  // selection flow below exercises the click-to-select UI from scratch,
-  // rather than the post-save default pair.
+  // Opening History with no comparison in the URL lands on the two newest
+  // revisions, rather than an empty "select two revisions" pane.
   await page.goto(`/h/${path}`);
+  await expect(page.getByText('Comparing v2 to v3')).toBeVisible();
 
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Compare' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Publish this revision' }).first()).toHaveClass(
     /h-8/,
   );
-  await page.getByRole('button', { name: /Version 2/ }).click();
+  // Deselect v3 from the default pair, leaving v2 alone, so the manual
+  // click-to-select flow below still starts from a single selection.
+  await page.getByRole('button', { name: /Version 3/ }).click();
   await page.waitForURL(`/h/${path}?selected=2`);
   await expect(page.getByText('Initial heading')).toBeVisible();
   await page.getByRole('button', { name: /Version 3/ }).click();

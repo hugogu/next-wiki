@@ -113,6 +113,25 @@ export function parseRevisionPair(value: string): { earlier: number; later: numb
   return { earlier: Math.min(first, second), later: Math.max(first, second), reversed: first > second };
 }
 
+/**
+ * The comparison to show when History is opened without one in the URL.
+ *
+ * Opening History almost always means "what changed most recently", so landing
+ * on an empty "select two revisions" pane made every visitor do the same two
+ * clicks. Derived from the *visible* revisions rather than `latest - 1`, so a
+ * reader who cannot see drafts still gets the two newest revisions they are
+ * allowed to compare rather than a pair with a hole in it.
+ *
+ * Null when there is only one revision — there is nothing to compare.
+ */
+export function defaultComparePair(
+  revisions: { version: number }[],
+): { earlier: number; later: number } | null {
+  if (revisions.length < 2) return null;
+  const [latest, previous] = revisions;
+  return { earlier: previous!.version, later: latest!.version };
+}
+
 export function parseRevisionDiffOptions(params: URLSearchParams): RevisionDiffOptions {
   const context = params.get('context');
   const numericContext = context !== null && /^\d+$/.test(context) ? Number(context) : null;

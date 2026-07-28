@@ -11,6 +11,7 @@ import {
   getHistoryHref,
   getSpaceHref,
   getSpaceHistoryHref,
+  defaultComparePair,
   parseRevisionPair,
   type ReaderSpace,
 } from '@/lib/path';
@@ -94,11 +95,17 @@ export default async function HistoryPage({
       }
     : undefined;
 
+  // Opening History without a comparison means "what changed most recently",
+  // so default to the two newest visible revisions instead of an empty
+  // "select two revisions" pane. The bare URL still determines the view
+  // completely, so it stays shareable without a redirect.
+  const effectivePair = pair ?? (selectedVersion ? null : defaultComparePair(revisions));
+
   const [comparedRevisions, selectedRevision] = await Promise.all([
-    pair
+    effectivePair
       ? Promise.all([
-          pageService.getRevision({ actor }, path, pair.earlier, space),
-          pageService.getRevision({ actor }, path, pair.later, space),
+          pageService.getRevision({ actor }, path, effectivePair.earlier, space),
+          pageService.getRevision({ actor }, path, effectivePair.later, space),
         ])
       : Promise.resolve([undefined, undefined]),
     selectedVersion
@@ -106,6 +113,10 @@ export default async function HistoryPage({
       : Promise.resolve(undefined),
   ]);
   const visibleVersions = new Set(revisions.map((revision) => revision.version));
+  // Only an explicitly requested pair 404s. A derived default that cannot be
+  // fetched degrades to the neutral pane — the visitor asked for the history
+  // page, not for that pair, so losing the whole page would be the wrong
+  // failure.
   if (
     pair &&
     (!visibleVersions.has(pair.earlier) ||
@@ -115,6 +126,8 @@ export default async function HistoryPage({
   ) {
     notFound();
   }
+  const shownPair =
+    effectivePair && comparedRevisions[0] && comparedRevisions[1] ? effectivePair : undefined;
   if (selectedVersion && (!visibleVersions.has(selectedVersion) || !selectedRevision)) {
     notFound();
   }
@@ -140,7 +153,7 @@ export default async function HistoryPage({
             path={path}
             pageId={page?.pageId}
             space={space ?? 'wiki'}
-            selectedPair={pair ? { earlier: pair.earlier, later: pair.later } : undefined}
+            selectedPair={shownPair ? { earlier: shownPair.earlier, later: shownPair.later } : undefined}
             selectedVersion={selectedVersion}
             earlier={comparedRevisions[0] ?? undefined}
             later={comparedRevisions[1] ?? undefined}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  defaultComparePair,
   getRevisionDiffHref,
   getSpaceDraftReviewHref,
   parseRevisionDiffOptions,
@@ -42,5 +43,50 @@ describe('revision diff URLs', () => {
         sync: false,
       }),
     ).toBe('/revisions/3..8/guide/one?view=preview&context=full&ignoreWhitespace=1&sync=0');
+  });
+});
+
+/**
+ * History opens on the most recent change (018 follow-up).
+ *
+ * Opening History almost always means "what changed most recently", but the
+ * page landed on an empty "select two revisions" pane unless the URL already
+ * carried a comparison — which only happened on the post-save redirect. Every
+ * other visitor made the same two clicks.
+ */
+describe('defaultComparePair', () => {
+  // getHistory returns newest first.
+  const history = (...versions: number[]) => versions.map((version) => ({ version }));
+
+  it('compares the two newest revisions', () => {
+    expect(defaultComparePair(history(5, 4, 3, 2, 1))).toEqual({ earlier: 4, later: 5 });
+  });
+
+  it('returns null when there is nothing to compare', () => {
+    expect(defaultComparePair(history(1))).toBeNull();
+    expect(defaultComparePair([])).toBeNull();
+  });
+
+  it('uses the two newest VISIBLE revisions, not latest minus one', () => {
+    // A reader who cannot see drafts gets a list with holes in it. Deriving
+    // from `latest - 1` would produce a pair pointing at a revision they are
+    // not allowed to read, and 404 the whole page.
+    expect(defaultComparePair(history(9, 6, 2))).toEqual({ earlier: 6, later: 9 });
+  });
+
+  it('orders the pair earlier-before-later regardless of list order', () => {
+    const pair = defaultComparePair(history(12, 11));
+    expect(pair!.earlier).toBeLessThan(pair!.later);
+  });
+
+  it('agrees with what parseRevisionPair would produce for the same URL', () => {
+    // The default must be expressible as a URL the selector can round-trip,
+    // otherwise clicking a revision would jump somewhere unrelated.
+    const pair = defaultComparePair(history(3, 2))!;
+    expect(parseRevisionPair(`${pair.earlier}..${pair.later}`)).toEqual({
+      earlier: pair.earlier,
+      later: pair.later,
+      reversed: false,
+    });
   });
 });
