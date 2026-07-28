@@ -91,7 +91,22 @@ function toSafeFailure(error: unknown, context: { toolName: string; actionId?: s
         message: issue.message,
       })),
     });
-    return fail('BAD_REQUEST', 'The tool arguments were invalid.');
+    // Naming the offending arguments is what lets the model fix its next
+    // attempt. Only field names and Zod's own messages are echoed — never a
+    // submitted value, which could carry page content.
+    const detail = error.issues
+      .slice(0, 4)
+      .map((issue) => {
+        const field = issue.path.join('.');
+        return field ? `${field}: ${issue.message}` : issue.message;
+      })
+      .join('; ');
+    return fail(
+      'BAD_REQUEST',
+      detail
+        ? `The tool arguments were invalid — ${detail}. Check the argument names and types for this tool and retry.`
+        : 'The tool arguments were invalid. Check the argument names and types for this tool and retry.',
+    );
   }
   logger.error('tool execution threw an unrecognized error', {
     actionId: context.actionId,
@@ -116,7 +131,6 @@ const listArgs = z
     limit: z.number().int().min(1).max(MAX_LIST).optional(),
   })
   .strict();
-const pageIdArgs = z.object({ pageId: z.string().uuid() });
 const createPageArgs = z
   .object({
     path: z.string().min(1).max(200),
@@ -211,15 +225,37 @@ async function execListPages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecut
   return { ok: true, summary: `${items.length} readable page(s) listed.`, data: { items } };
 }
 
+/**
+ * Resolve a page reference that may be an id or a path.
+ *
+ * `get_page` has always accepted either, so a model that just read a page by
+ * path reasonably expects its neighbours and backlinks to take the same
+ * reference. Requiring a UUID here was an inconsistency the model could only
+ * discover by failing.
+ */
+async function resolvePageId(
+  ctx: PermCtx,
+  args: { pageId?: string; path?: string },
+): Promise<string | null> {
+  if (args.pageId) return args.pageId;
+  if (!args.path) return null;
+  const page = await content.getPageByPath(ctx, args.path, []);
+  return page?.id ?? null;
+}
+
 async function execGetBacklinks(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
-  const args = pageIdArgs.parse(rawArgs);
-  const result = await content.getBacklinks(ctx, args.pageId);
+  const args = pageRefArgs.parse(rawArgs);
+  const pageId = await resolvePageId(ctx, args);
+  if (!pageId) return fail('NOT_FOUND', 'No readable page matched. Use search_wiki or list_pages to discover an exact readable path.');
+  const result = await content.getBacklinks(ctx, pageId);
   return { ok: true, summary: `${result.items.length} backlink(s) found.`, data: result };
 }
 
 async function execGetNeighborhood(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
-  const args = pageIdArgs.parse(rawArgs);
-  const result = await content.getNeighborhood(ctx, args.pageId, 1, 'both');
+  const args = pageRefArgs.parse(rawArgs);
+  const pageId = await resolvePageId(ctx, args);
+  if (!pageId) return fail('NOT_FOUND', 'No readable page matched. Use search_wiki or list_pages to discover an exact readable path.');
+  const result = await content.getNeighborhood(ctx, pageId, 1, 'both');
   return { ok: true, summary: 'Read page neighborhood.', data: result };
 }
 
