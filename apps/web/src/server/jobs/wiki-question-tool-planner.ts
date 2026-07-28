@@ -152,6 +152,31 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
   ].join('\n');
 }
 
+/**
+ * Structural markers of a model emitting a tool call in its own dialect rather
+ * than the fenced protocol we asked for.
+ *
+ * Observed in the wild: `minimax/minimax-m3` through OpenRouter answered a
+ * tool-enabled turn with `<invoke name="get_neighborhood">` wrapped in
+ * `]<]minimax[>[` delimiters. Without this check the whole thing was returned as
+ * the assistant's answer — the user saw raw protocol in the chat and the page
+ * they asked about was never touched.
+ *
+ * These are structural tokens; ordinary prose that merely names a tool ("I used
+ * list_tags") contains none of them, so mentioning a tool stays a valid answer.
+ */
+const NATIVE_TOOL_SYNTAX = [
+  /<invoke\s+name\s*=/i,
+  /<\/?tool_call>/i,
+  /<\|?tool_calls?\|?>/i,
+  /<\/?function_calls>/i,
+  /\]<\]minimax\[>\[/,
+];
+
+function looksLikeForeignToolCall(output: string): boolean {
+  return NATIVE_TOOL_SYNTAX.some((pattern) => pattern.test(output));
+}
+
 /** Parse one planner turn: a valid tool-call block requests tools; malformed
  * protocol output is explicitly retried by the caller; plain prose is final. */
 export function parseToolPlan(output: string): ToolPlannerParseResult {
@@ -194,6 +219,12 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
   // as invalid (retryable) instead of silently accepting the truncated text as
   // a final answer.
   if (/```(?:tool|json)\b\s*\n/.test(output)) {
+    return { kind: 'invalid_tool_calls' };
+  }
+  // A model that tried to call a tool in its own dialect did not write an
+  // answer. Delivering this text would show the user raw protocol and silently
+  // drop the work they asked for, so retry with explicit protocol feedback.
+  if (looksLikeForeignToolCall(output)) {
     return { kind: 'invalid_tool_calls' };
   }
   return { kind: 'final', text: output.trim() };

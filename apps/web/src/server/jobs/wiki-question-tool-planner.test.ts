@@ -238,3 +238,44 @@ describe('skill catalogue injection', () => {
     expect(prompt).toMatch(/never present partial coverage as complete/i);
   });
 });
+
+/**
+ * A model calling a tool in its own dialect must never become the answer.
+ *
+ * Observed in production: `minimax/minimax-m3` through OpenRouter answered
+ * "更新孙权的介绍页面" with `<invoke name="get_neighborhood">` wrapped in
+ * `]<]minimax[>[` delimiters inside an unclosed ```tool fence. The whole thing
+ * was delivered as the assistant's answer — the user saw raw protocol and the
+ * page was never updated.
+ */
+describe('parseToolPlan — foreign tool-call dialects', () => {
+  const REAL_MINIMAX_OUTPUT =
+    '我先查看当前页面的最新内容和相关元信息，然后根据用户"更新孙权介绍页面"的要求进行改进。```tool\n' +
+    ']<]minimax[>[<invoke name="get_neighborhood">]<]minimax[>[<pageId>bbcd04e7-ea3d-4f46-81f3-d618298b9a47]<]minimax[>[</pageId>]<]minimax[>[</invoke>\n' +
+    ']<]minimax[>[<invoke name="list_tags">]<]minimax[>[<limit>50]<]minimax[>[</limit>]<]minimax[>[</invoke>\n' +
+    ']<]minimax[>[</tool_call>';
+
+  it('does not deliver the real MiniMax output as an answer', () => {
+    expect(parseToolPlan(REAL_MINIMAX_OUTPUT).kind).toBe('invalid_tool_calls');
+  });
+
+  it.each([
+    ['XML invoke with no fence', '好的。<invoke name="list_tags"><limit>50</limit></invoke>'],
+    ['a <tool_call> wrapper', '好的。<tool_call>{"name":"list_tags"}</tool_call>'],
+    ['bare MiniMax delimiters', '好的。]<]minimax[>[<invoke name="get_page">]<]minimax[>[</invoke>'],
+    ['a <function_calls> block', '好的。<function_calls><invoke name="get_page"></invoke></function_calls>'],
+  ])('retries rather than answering with %s', (_label, output) => {
+    expect(parseToolPlan(output).kind).toBe('invalid_tool_calls');
+  });
+
+  it.each([
+    ['names a tool in prose', '我用 list_tags 查过了，共有 12 个标签。'],
+    ['quotes a tool name in backticks', 'You can call `get_page` to read it.'],
+    ['contains ordinary angle brackets', 'Use a < b to compare, and 5 > 3 holds.'],
+    ['contains inline HTML', 'The page uses <strong>bold</strong> in one place.'],
+  ])('still treats a genuine answer that %s as final', (_label, output) => {
+    // The check keys on structural protocol tokens, not on tool names, so
+    // talking about tools remains a perfectly good answer.
+    expect(parseToolPlan(output).kind).toBe('final');
+  });
+});
