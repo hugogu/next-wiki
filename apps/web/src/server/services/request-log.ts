@@ -31,6 +31,11 @@ export const OUTBOUND_REQUEST_SOURCE_REGISTRY = {
     'images.generations',
     'messages',
     'image_generation',
+    // MiniMax has no health endpoint, so its credential probe POSTs the image
+    // endpoint with an empty prompt. Logged under its own operation so it is
+    // not mistaken for a failed image generation — the provider answers it with
+    // "prompt are required", which looks alarming and means the key is fine.
+    'image_generation.probe',
   ]),
 } as const;
 

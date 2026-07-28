@@ -40,6 +40,10 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
         'image_generation',
         { method: 'POST', body: JSON.stringify({ model: 'image-01', prompt: '' }) },
         env.AI_PROVIDER_CONNECT_TIMEOUT_MS,
+        // Not an image generation. Without this the probe is indistinguishable
+        // in the request log from a real generation that failed, and its
+        // "prompt are required" response reads as a broken feature.
+        'image_generation.probe',
       );
       const payload = await readBoundedJson<{ base_resp?: { status_code?: number; status_msg?: string } }>(response);
       const status = payload.base_resp?.status_code;

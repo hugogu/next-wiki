@@ -55,3 +55,48 @@ describe('MiniMaxAdapter.generateImage', () => {
     });
   });
 });
+
+/**
+ * The credential probe must not look like a failed image generation.
+ *
+ * MiniMax has no health endpoint, so testConnection POSTs the image endpoint
+ * with an empty prompt and reads base_resp: 1004/2049 mean the key was
+ * rejected, anything else means it was accepted. The provider answers the empty
+ * prompt with `2013 invalid params, prompt are required` — which is the
+ * *success* signal, but reads like a broken feature to anyone who finds it in
+ * the request log. It cost real debugging time once already.
+ */
+describe('MiniMaxAdapter.testConnection', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('treats an invalid-parameter answer as proof the key was accepted', async () => {
+    mockResponse({
+      id: 'x',
+      data: null,
+      base_resp: { status_code: 2013, status_msg: 'invalid params, prompt are required' },
+    });
+    const health = await new MiniMaxAdapter(config).testConnection();
+    expect(health.ok).toBe(true);
+    // The alarming provider text must not be surfaced as an error.
+    expect(health.errorMessage).toBeUndefined();
+  });
+
+  it.each([1004, 2049])('reports a rejected key (%i) as a failure', async (status) => {
+    mockResponse({ base_resp: { status_code: status, status_msg: 'invalid api key' } });
+    const health = await new MiniMaxAdapter(config).testConnection();
+    expect(health.ok).toBe(false);
+    expect(health.errorCode).toBe('PROVIDER_UNAVAILABLE');
+  });
+
+  it('probes with an empty prompt and no generation parameters', async () => {
+    // The empty prompt is the point: it proves the credential without paying
+    // for an image. Its shape is what distinguishes the probe from a real
+    // generation in the request log.
+    mockResponse({ base_resp: { status_code: 2013, status_msg: 'invalid params, prompt are required' } });
+    await new MiniMaxAdapter(config).testConnection();
+    const call = vi.mocked(fetch).mock.calls.at(-1);
+    const body = JSON.parse(String((call?.[1] as RequestInit).body));
+    expect(body).toEqual({ model: 'image-01', prompt: '' });
+    expect(body).not.toHaveProperty('response_format');
+  });
+});

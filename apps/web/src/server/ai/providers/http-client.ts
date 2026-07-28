@@ -43,10 +43,15 @@ export async function providerFetch(
   path: string,
   init: RequestInit = {},
   timeoutMs: number | null = env.AI_PROVIDER_REQUEST_TIMEOUT_MS,
+  /** Overrides the operation label derived from the path. Use it when one
+   * endpoint serves two purposes, so the request log can tell them apart. */
+  operationOverride?: string,
 ): Promise<Response> {
   const url = new URL(path.replace(/^\//, ''), `${config.baseUrl.replace(/\/+$/, '')}/`);
   const headers = init.headers ?? providerHeaders(config);
-  const operation = path.replace(/^\//, '').replace('chat/completions', 'chat.completions').replace('images/generations', 'images.generations');
+  const operation =
+    operationOverride ??
+    path.replace(/^\//, '').replace('chat/completions', 'chat.completions').replace('images/generations', 'images.generations');
   const capture = await beginOutboundRequestCapture({
     source: { sourceType: 'ai', providerKey: config.providerId, operation },
     method: init.method ?? 'GET',
