@@ -261,6 +261,37 @@ describe('Wiki question worker', () => {
     expect(storedAction?.resultMetadata).not.toHaveProperty('retrievalDegraded');
   });
 
+  it('degrades rather than failing when the embedding gateway reports its outage as a 4xx', async () => {
+    // A gateway returning HTTP 400 for "circuit breaker is open" normalizes to
+    // a non-retryable INVALID_RESPONSE. Retrieval is an enhancement, so it must
+    // not take the whole turn down with advice to rephrase the question.
+    embed.mockRejectedValue(
+      new AiProviderError('INVALID_RESPONSE', 'HTTP 400: circuit breaker is open', false),
+    );
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'retrieval',
+    });
+
+    await runWikiQuestionAction(action.id);
+
+    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
+    expect(storedAction).toMatchObject({
+      status: 'completed',
+      resultMetadata: { retrievalDegraded: { code: 'INVALID_RESPONSE' } },
+    });
+  });
+
+  it('still propagates a cancellation raised while embedding', async () => {
+    embed.mockRejectedValue(new AiProviderError('CANCELLED', 'AI request was cancelled', false));
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'retrieval',
+    });
+
+    await expect(runWikiQuestionAction(action.id)).rejects.toMatchObject({ code: 'CANCELLED' });
+  });
+
   it('continues a tool-enabled answer when the embedding provider remains temporarily unavailable', async () => {
     embed.mockRejectedValue(new AiProviderError('PROVIDER_UNAVAILABLE', 'Temporary embedding connection failure', true));
     const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {

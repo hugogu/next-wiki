@@ -115,10 +115,19 @@ export async function loadWikiQuestionSources(input: {
   } catch (error) {
     const normalized = normalizeProviderError(error);
     // RAG improves an answer but must not make the conversational agent
-    // unavailable when its embedding endpoint has a transient outage. Keep
-    // deterministic setup errors (missing index/model/provider) above as hard
-    // failures; only a retryable provider failure is allowed to degrade.
-    if (!normalized.retryable) throw normalized;
+    // unavailable when its embedding endpoint fails. The deterministic setup
+    // errors (missing index/model/provider) are thrown above, outside this
+    // try, so everything caught here is a failure of the embedding call
+    // itself and degrades to an unretrieved answer.
+    //
+    // This deliberately does not gate on `retryable`: an upstream gateway
+    // reports its own outage however it likes, and one returning HTTP 400 for
+    // "circuit breaker is open" was classified INVALID_RESPONSE —
+    // non-retryable — and killed the whole turn with "The AI could not
+    // produce a valid Wiki operation. Retry or rephrase the request.", advice
+    // no rephrasing could satisfy. A cancel still propagates: the user asked
+    // for the turn to stop, not for a degraded one.
+    if (normalized.code === 'CANCELLED') throw normalized;
     logger.warn('Wiki question retrieval degraded after embedding retries', {
       actionId: input.actionId,
       errorCode: normalized.code,
