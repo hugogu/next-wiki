@@ -90,7 +90,25 @@ describe('compressQuestionSources', () => {
 });
 
 describe('estimatePromptTokens', () => {
-  it('approximates four characters per token', () => {
-    expect(estimatePromptTokens('a'.repeat(40), 'b'.repeat(40))).toBe(20);
+  it('stays conservative for ASCII at three characters per token', () => {
+    expect(estimatePromptTokens('a'.repeat(40), 'b'.repeat(40))).toBe(27);
+  });
+
+  it('counts a CJK character as roughly one token', () => {
+    // A character count would call this 250 tokens; a Chinese prompt is close
+    // to one token per character, so the estimate must not be 4x optimistic.
+    const chinese = '风'.repeat(1_000);
+    expect(estimatePromptTokens('', chinese)).toBe(1_000);
+  });
+
+  it('keeps the output budget inside the window for a large Chinese prompt', () => {
+    // 30k Chinese characters into a 32k-token model. Under the old
+    // characters/4 estimate this looked like 7.5k tokens and left an output
+    // budget of ~24k — a request of 30k in + 24k out against a 32k window,
+    // which is the overflow computeAnswerMaxOutputTokens exists to prevent.
+    const chinese = '风'.repeat(30_000);
+    const estimated = estimatePromptTokens('', chinese);
+    const maxOut = computeAnswerMaxOutputTokens(estimated, 32_768, null);
+    expect(estimated + maxOut).toBeLessThanOrEqual(32_768);
   });
 });

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
-  SKILL_LIMITS,
   publicPageSearchQuerySchema,
   type AiToolReviewDecision,
   type PublicPageInclude,
@@ -633,10 +632,14 @@ async function execMergeTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecuti
 
 // ---- Skills (028) -----------------------------------------------------------
 
-const loadSkillArgs = z.object({ name: z.string().min(1).max(64) });
+const loadSkillArgs = z.object({
+  name: z.string().min(1).max(64),
+  contentOffset: z.number().int().min(0).optional(),
+});
 const readSkillFileArgs = z.object({
   name: z.string().min(1).max(64),
   path: z.string().min(1).max(255),
+  contentOffset: z.number().int().min(0).optional(),
 });
 
 /**
@@ -662,15 +665,20 @@ async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
     return fail('SKILL_INVALID', `The skill "${args.name}" has no readable instruction file.`);
   }
   await recordSkillUsage(skill.name);
-  const bounded = boundSkillContent(instructions);
+  const bounded = boundSkillContent(instructions, args.contentOffset);
   return {
     ok: true,
-    summary: `Loaded skill ${skill.name}.`,
+    summary: bounded.truncated
+      ? `Loaded skill ${skill.name} characters ${bounded.contentOffset}-${bounded.nextContentOffset} of ${bounded.contentLength}. Call load_skill again with contentOffset=${bounded.nextContentOffset} for the rest.`
+      : `Loaded skill ${skill.name}.`,
     data: {
       name: skill.name,
       description: skill.description,
       instructions: bounded.text,
       truncated: bounded.truncated,
+      contentOffset: bounded.contentOffset,
+      contentLength: bounded.contentLength,
+      ...(bounded.nextContentOffset === undefined ? {} : { nextContentOffset: bounded.nextContentOffset }),
       // The file list travels with the instructions so the model knows what it
       // may read next without guessing at paths.
       files: skill.entry.files
@@ -700,16 +708,21 @@ async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown): Promise<ToolE
   const content = await skill.entry.readFile(relativePath);
   if (content === null) return fail('SKILL_FILE_NOT_FOUND', `The skill has no file at "${relativePath}".`);
   await recordSkillUsage(skill.name);
-  const bounded = boundSkillContent(content);
+  const bounded = boundSkillContent(content, args.contentOffset);
   return {
     ok: true,
-    summary: `Read ${relativePath} from skill ${skill.name}.`,
+    summary: bounded.truncated
+      ? `Read ${relativePath} from skill ${skill.name} characters ${bounded.contentOffset}-${bounded.nextContentOffset} of ${bounded.contentLength}. Call again with contentOffset=${bounded.nextContentOffset} for the rest.`
+      : `Read ${relativePath} from skill ${skill.name}.`,
     data: {
       name: skill.name,
       path: relativePath,
       contentType: file.contentType,
       content: bounded.text,
       truncated: bounded.truncated,
+      contentOffset: bounded.contentOffset,
+      contentLength: bounded.contentLength,
+      ...(bounded.nextContentOffset === undefined ? {} : { nextContentOffset: bounded.nextContentOffset }),
       ...(file.kind === 'script'
         ? { note: 'This is reference material. The server does not execute skill scripts.' }
         : {}),
@@ -717,15 +730,33 @@ async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown): Promise<ToolE
   };
 }
 
-/** Bound one piece of skill content, marking truncation in-band so the model
- * can tell "that is all" from "there was more" (FR-021). */
-function boundSkillContent(content: string): { text: string; truncated: boolean } {
-  if (content.length <= SKILL_LIMITS.maxTurnContentBytes) {
-    return { text: content, truncated: false };
+/**
+ * Bound one piece of skill content, marking truncation in-band so the model can
+ * tell "that is all" from "there was more" (FR-021).
+ *
+ * The window matches a page read for the same reason: anything larger reaches
+ * the runtime's generic truncator, which chops the result without updating
+ * `truncated` — so the payload went on claiming the file was complete while
+ * most of it had been discarded. Total skill content across a turn is bounded
+ * by the planner's transcript budget, like every other tool result.
+ */
+function boundSkillContent(
+  content: string,
+  offset = 0,
+): { text: string; truncated: boolean; contentOffset: number; contentLength: number; nextContentOffset?: number } {
+  const start = Math.min(offset, content.length);
+  const slice = content.slice(start, start + MAX_PAGE_CONTENT_CHARS);
+  const end = start + slice.length;
+  const hasMore = end < content.length;
+  if (!hasMore) {
+    return { text: slice, truncated: false, contentOffset: start, contentLength: content.length };
   }
   return {
-    text: `${content.slice(0, SKILL_LIMITS.maxTurnContentBytes)}\n\n[truncated: this skill file exceeds the per-turn content budget.]`,
+    text: `${slice}\n\n[continues: characters ${end}-${content.length} not shown. Call again with contentOffset=${end}.]`,
     truncated: true,
+    contentOffset: start,
+    contentLength: content.length,
+    nextContentOffset: end,
   };
 }
 

@@ -1,0 +1,62 @@
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_TRANSCRIPT_CHARS,
+  MAX_TOOL_RESULT_CHARS,
+  boundTranscript,
+} from './ai-tool-runtime';
+
+/**
+ * The transcript is re-sent in full on every planner iteration, so an unbounded
+ * one grows as `calls × MAX_TOOL_RESULT_CHARS` — 800k characters at the default
+ * 100-call budget. One observed turn made 51 calls and was sending roughly 350k
+ * characters by the end.
+ */
+describe('boundTranscript', () => {
+  const entry = (n: number, size = 8_000) => `TOOL get_page#${n} -> ${'x'.repeat(size)}`;
+
+  it('leaves a transcript that fits alone', () => {
+    const transcript = [entry(1, 100), entry(2, 100)];
+    expect(boundTranscript(transcript, 10_000)).toEqual(transcript);
+  });
+
+  it('keeps the most recent entries and says how many it dropped', () => {
+    const transcript = [entry(1), entry(2), entry(3), entry(4), entry(5)];
+
+    const bounded = boundTranscript(transcript, 20_000);
+
+    // Recency wins: the planner needs what it just did to decide the next step.
+    expect(bounded.at(-1)).toBe(entry(5));
+    expect(bounded).not.toContain(entry(1));
+    expect(bounded[0]).toContain('earlier tool result(s) omitted');
+    expect(bounded.join('').length).toBeLessThan(20_000 + bounded[0]!.length);
+  });
+
+  it('announces the drop in-band rather than silently shrinking', () => {
+    const bounded = boundTranscript([entry(1), entry(2), entry(3)], 10_000);
+    // A model that cannot tell "nothing more" from "no longer visible" will
+    // confidently act on the gap — the same failure the result truncator avoids.
+    expect(bounded[0]).toMatch(/Call the tool again/);
+    expect(bounded[0]).toContain('2 earlier tool result(s) omitted');
+  });
+
+  it('still returns the newest entry when it alone exceeds the budget', () => {
+    const bounded = boundTranscript([entry(1), entry(2)], 100);
+    expect(bounded.at(-1)).toBe(entry(2));
+  });
+
+  it('bounds the worst case the call limit allows', () => {
+    // 100 calls is the default maxToolCalls; every one may render a full result.
+    const worstCase = Array.from({ length: 100 }, (_, index) => entry(index, MAX_TOOL_RESULT_CHARS));
+    expect(worstCase.join('').length).toBeGreaterThan(800_000);
+
+    const bounded = boundTranscript(worstCase);
+
+    expect(bounded.join('').length).toBeLessThanOrEqual(
+      DEFAULT_TRANSCRIPT_CHARS + MAX_TOOL_RESULT_CHARS + 200,
+    );
+  });
+
+  it('handles an empty transcript', () => {
+    expect(boundTranscript([], 10_000)).toEqual([]);
+  });
+});

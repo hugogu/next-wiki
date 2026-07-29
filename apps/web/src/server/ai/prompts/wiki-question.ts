@@ -78,12 +78,23 @@ export function normalizeQuestionCitations(text: string, sources: QuestionSource
 }
 
 /**
- * Rough token estimate for a built prompt. Four characters per token is the
- * standard heuristic for English/markdown; CJK is denser, but the generous
- * safety margins in {@link computeAnswerMaxOutputTokens} absorb the difference.
+ * Rough token estimate for a built prompt.
+ *
+ * Counted in UTF-8 bytes, not characters. Four characters per token is the
+ * standard English/markdown heuristic, but a CJK character is close to one
+ * token, so a character count under-estimates a Chinese prompt roughly
+ * threefold — and {@link computeAnswerMaxOutputTokens} subtracts this estimate
+ * from the context window to size the output budget. Under-estimating there
+ * asks for more output than fits and produces exactly the `input + output >
+ * context` rejection that function exists to prevent; its margin is 512
+ * tokens, nowhere near enough to absorb a 3x error.
+ *
+ * Bytes divided by three lands near one token per CJK character and stays
+ * conservative for ASCII (three characters per token rather than four), which
+ * is the safe direction for both. It matches `estimateFullContextTokens`.
  */
 export function estimatePromptTokens(system: string, user: string): number {
-  return Math.ceil((system.length + user.length) / 4);
+  return Math.ceil((Buffer.byteLength(system) + Buffer.byteLength(user)) / 3);
 }
 
 // A Wiki answer never needs the whole window; cap it so a bogus per-model

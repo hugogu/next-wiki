@@ -302,6 +302,10 @@ export type ToolLoopParams = {
   /** Effective enabled state for one tool (provider/category/tool policy). */
   isEnabled: (tool: ToolDefinition) => boolean;
   isCancelled?: () => Promise<boolean>;
+  /** Characters of prior tool output the planner prompt may carry. Defaults to
+   * {@link DEFAULT_TRANSCRIPT_CHARS}; callers that know the model's context
+   * window should size it from that. */
+  transcriptCharBudget?: number;
 };
 
 export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number; citations: AiCitation[] };
@@ -334,6 +338,48 @@ export function buildCommandMarkdown(
  * difference between "that is all there is" and "there was more".
  */
 export const MAX_TOOL_RESULT_CHARS = 8_000;
+
+/**
+ * Characters of prior tool output carried into the planner prompt.
+ *
+ * The transcript is re-sent in full on every iteration, so without a bound it
+ * grows as `calls × MAX_TOOL_RESULT_CHARS` — with the default 100-call budget
+ * that is 800k characters, several times any model's context window. One
+ * observed turn made 51 calls (40 of them the same `get_page`) and was sending
+ * a prompt of roughly 350k characters by the end; the model stopped tracking
+ * what it had read and rewrote a page from a fraction of it.
+ *
+ * The default is deliberately conservative because it must hold for the
+ * smallest model an operator might assign. Callers that know the real context
+ * window pass a budget derived from it.
+ */
+export const DEFAULT_TRANSCRIPT_CHARS = 48_000;
+
+/**
+ * Trim a tool transcript to its most recent `budget` characters.
+ *
+ * Recency wins: the planner needs the results of what it just did in order to
+ * decide the next step, and an entry it dropped can be fetched again. The drop
+ * is announced in-band for the same reason result truncation is — a model that
+ * cannot tell "there was nothing more" from "I can no longer see it" will
+ * confidently act on the gap.
+ */
+export function boundTranscript(transcript: string[], budget = DEFAULT_TRANSCRIPT_CHARS): string[] {
+  const kept: string[] = [];
+  let total = 0;
+  for (let index = transcript.length - 1; index >= 0; index -= 1) {
+    const entry = transcript[index]!;
+    if (total + entry.length > budget && kept.length > 0) {
+      return [
+        `[${index + 1} earlier tool result(s) omitted: the transcript exceeded ${budget} characters. Call the tool again if you need one of them; do not assume what it said.]`,
+        ...kept,
+      ];
+    }
+    kept.unshift(entry);
+    total += entry.length;
+  }
+  return kept;
+}
 
 export function formatToolResultForModel(
   toolName: string,
@@ -434,6 +480,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       return { status: 'cancelled', answer, calls, citations: [...citations.values()] };
     }
 
+    // Bound immediately before planning rather than on push: the loop keeps
+    // appending, and what matters is the size of the prompt actually sent.
+    state.transcript = boundTranscript(state.transcript, params.transcriptCharBudget);
     const step = await params.planner(state);
     logger.info('tool loop planner step', {
       actionId: params.actionId,

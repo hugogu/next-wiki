@@ -432,10 +432,17 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
     description:
-      'Load an enabled skill\'s instructions before following its procedure. Call this when a listed skill matches the request.',
+      'Load an enabled skill\'s instructions before following its procedure. Call this when a listed skill matches the request. Long instructions come back one window at a time: while truncated is true, call again with contentOffset set to nextContentOffset.',
     inputSchema: {
       type: 'object',
-      properties: { name: { type: 'string', description: 'Skill name from the listed catalogue.' } },
+      properties: {
+        name: { type: 'string', description: 'Skill name from the listed catalogue.' },
+        contentOffset: {
+          type: 'integer',
+          minimum: 0,
+          description: 'Character offset to continue from. Use nextContentOffset from the previous window; omit for the first.',
+        },
+      },
       required: ['name'],
     },
   },
@@ -447,12 +454,17 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
     description:
-      'Read one reference file inside a loaded skill. Scripts are returned as text for reference only and are never executed.',
+      'Read one reference file inside a loaded skill. Scripts are returned as text for reference only and are never executed. Long files come back one window at a time: while truncated is true, call again with contentOffset set to nextContentOffset.',
     inputSchema: {
       type: 'object',
       properties: {
         name: { type: 'string' },
         path: { type: 'string', description: 'File path relative to the skill package.' },
+        contentOffset: {
+          type: 'integer',
+          minimum: 0,
+          description: 'Character offset to continue from. Use nextContentOffset from the previous window; omit for the first.',
+        },
       },
       required: ['name', 'path'],
     },

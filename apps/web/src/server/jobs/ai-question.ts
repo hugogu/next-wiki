@@ -37,6 +37,7 @@ import {
 } from '@/server/services/ai-tool-policy';
 import { hasExecutor } from '@/server/services/ai-tool-executors';
 import {
+  DEFAULT_TRANSCRIPT_CHARS,
   createWorkflow,
   getWorkflowByAction,
   runToolLoop,
@@ -110,6 +111,19 @@ function watchActionCancellation(actionId: string) {
     signal: controller.signal,
     dispose: () => clearInterval(interval),
   };
+}
+
+/**
+ * Transcript budget for a model whose context window we know.
+ *
+ * A third of the window, counted at one token per character — the worst case,
+ * which is CJK — so accumulated tool output cannot crowd out the sources, the
+ * conversation, and the answer it is meant to inform. Falls back to the
+ * conservative default when a model reports no window.
+ */
+function transcriptCharBudgetFor(contextWindow: number | null): number {
+  if (!contextWindow || contextWindow <= 0) return DEFAULT_TRANSCRIPT_CHARS;
+  return Math.max(8_000, Math.floor(contextWindow / 3));
 }
 
 function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
@@ -397,6 +411,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       resolveReview,
       isEnabled,
       isCancelled: () => isCancellationRequested(actionId),
+      transcriptCharBudget: transcriptCharBudgetFor(textModel.contextWindow),
     });
   } catch (error) {
     const current = await getWorkflowByAction(actionId);
