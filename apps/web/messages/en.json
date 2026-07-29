@@ -1720,6 +1720,7 @@
           "title": "AI runtime parameters",
           "description": "Tune the Wiki AI tool loop. A per-provider tool policy limit still takes precedence over the max tool calls set here.",
           "maxCalls": "Max tool calls per turn",
+          "resultChars": "Tool result size (characters)",
           "temperature": "Planner temperature",
           "maxOutputTokens": "Planner max output tokens",
           "timeout": "Planner timeout (ms)",

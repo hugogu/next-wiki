@@ -3,7 +3,10 @@ import {
   DEFAULT_TRANSCRIPT_CHARS,
   MAX_TOOL_RESULT_CHARS,
   boundTranscript,
+  effectiveToolResultChars,
+  formatToolResultForModel,
 } from './ai-tool-runtime';
+import { pageContentWindowFor } from './ai-tool-executors';
 
 /**
  * The transcript is re-sent in full on every planner iteration, so an unbounded
@@ -58,5 +61,48 @@ describe('boundTranscript', () => {
 
   it('handles an empty transcript', () => {
     expect(boundTranscript([], 10_000)).toEqual([]);
+  });
+});
+
+/**
+ * The per-result cap is an admin dial. It must not be settable into a state
+ * where one result cannot fit the prompt the loop actually sends.
+ */
+describe('effectiveToolResultChars', () => {
+  it('uses the configured cap when the transcript can hold it', () => {
+    expect(effectiveToolResultChars(32_768, 48_000)).toBe(32_768);
+  });
+
+  it('clamps to the transcript budget on a small-context model', () => {
+    // 32k-token model: budget is contextWindow/3, smaller than the dial.
+    expect(effectiveToolResultChars(32_768, 10_922)).toBe(10_922);
+  });
+
+  it('never collapses below a usable floor', () => {
+    expect(effectiveToolResultChars(2_000, 100)).toBe(1_000);
+  });
+
+  it('leaves the content window room for the fields wrapped around it', () => {
+    const cap = effectiveToolResultChars(32_768, 48_000);
+    const windowChars = pageContentWindowFor(cap);
+    expect(windowChars).toBeLessThan(cap);
+
+    // A full window plus a realistic envelope must still render untruncated.
+    const rendered = formatToolResultForModel(
+      'get_page',
+      {
+        summary: 'Read page "x".',
+        data: {
+          pageId: '0'.repeat(36),
+          path: 'a/'.repeat(40),
+          title: 'x'.repeat(200),
+          revisionId: '0'.repeat(36),
+          revisionHash: '0'.repeat(64),
+          contentSource: 'y'.repeat(windowChars),
+        },
+      },
+      cap,
+    );
+    expect(rendered.truncated).toBe(false);
   });
 });

@@ -43,6 +43,10 @@ export type ToolExecutionContext = {
   toolCallId: string;
   actionId: string;
   conversation?: { question: string; answer: string }[];
+  /** Characters of page or skill content one read may return. Set from the
+   * admin-configured per-result cap, less the room the surrounding fields
+   * need, so a read never reaches the runtime's generic truncator. */
+  contentWindowChars?: number;
 };
 
 export type ToolExecutionResult = {
@@ -264,9 +268,26 @@ async function readPageByPath(ctx: PermCtx, path: string, space?: string) {
  * 40 times on an 18k-character page, always receiving the same truncated head,
  * then rewrote the page from the 43% it could see and dropped the rest.
  */
-const MAX_PAGE_CONTENT_CHARS = 6_000;
+const DEFAULT_PAGE_CONTENT_CHARS = 6_000;
 
-async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+/** Room reserved for a result's ids, path, title, hashes, and JSON envelope. */
+const CONTENT_ENVELOPE_CHARS = 2_000;
+
+/**
+ * Content window that fits inside a per-result cap. The runtime passes the
+ * result through `formatToolResultForModel`, so a read must leave room for the
+ * fields wrapped around it or the generic truncator cuts the content back off.
+ */
+export function pageContentWindowFor(resultMaxChars: number): number {
+  return Math.max(1_000, resultMaxChars - CONTENT_ENVELOPE_CHARS);
+}
+
+function contentWindow(execCtx?: ToolExecutionContext): number {
+  const budget = execCtx?.contentWindowChars;
+  return budget && budget > 0 ? Math.max(1_000, budget) : DEFAULT_PAGE_CONTENT_CHARS;
+}
+
+async function execGetPage(ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = pageRefArgs.parse(rawArgs);
   const page = args.pageId
     ? await content.getPageById(ctx, args.pageId, READ_INCLUDE)
@@ -279,7 +300,7 @@ async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutio
   }
   const contentLength = source.length;
   const offset = Math.min(args.contentOffset ?? 0, contentLength);
-  const slice = source.slice(offset, offset + MAX_PAGE_CONTENT_CHARS);
+  const slice = source.slice(offset, offset + contentWindow(execCtx));
   const end = offset + slice.length;
   const hasMore = end < contentLength;
   return {
@@ -651,7 +672,7 @@ const readSkillFileArgs = z.object({
  * policy, so the safety boundary sits where it already was rather than being
  * duplicated here (FR-022a, FR-023).
  */
-async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = loadSkillArgs.parse(rawArgs ?? {});
   const skill = await findSkill(args.name);
   if (!skill) return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
@@ -665,7 +686,7 @@ async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
     return fail('SKILL_INVALID', `The skill "${args.name}" has no readable instruction file.`);
   }
   await recordSkillUsage(skill.name);
-  const bounded = boundSkillContent(instructions, args.contentOffset);
+  const bounded = boundSkillContent(instructions, args.contentOffset, contentWindow(execCtx));
   return {
     ok: true,
     summary: bounded.truncated
@@ -689,7 +710,7 @@ async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
 }
 
 /** Read one reference file inside a skill. Text only — nothing here executes. */
-async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = readSkillFileArgs.parse(rawArgs ?? {});
   const skill = await findSkill(args.name);
   if (!skill || !skill.enabled) {
@@ -708,7 +729,7 @@ async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown): Promise<ToolE
   const content = await skill.entry.readFile(relativePath);
   if (content === null) return fail('SKILL_FILE_NOT_FOUND', `The skill has no file at "${relativePath}".`);
   await recordSkillUsage(skill.name);
-  const bounded = boundSkillContent(content, args.contentOffset);
+  const bounded = boundSkillContent(content, args.contentOffset, contentWindow(execCtx));
   return {
     ok: true,
     summary: bounded.truncated
@@ -743,9 +764,10 @@ async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown): Promise<ToolE
 function boundSkillContent(
   content: string,
   offset = 0,
+  windowChars = DEFAULT_PAGE_CONTENT_CHARS,
 ): { text: string; truncated: boolean; contentOffset: number; contentLength: number; nextContentOffset?: number } {
   const start = Math.min(offset, content.length);
-  const slice = content.slice(start, start + MAX_PAGE_CONTENT_CHARS);
+  const slice = content.slice(start, start + windowChars);
   const end = start + slice.length;
   const hasMore = end < content.length;
   if (!hasMore) {
@@ -766,7 +788,7 @@ type Executor = (ctx: PermCtx, args: unknown, execCtx: ToolExecutionContext) => 
 
 const EXECUTORS: Record<string, Executor> = {
   search_wiki: (ctx, args) => execSearchWiki(ctx, args),
-  get_page: (ctx, args) => execGetPage(ctx, args),
+  get_page: execGetPage,
   list_pages: (ctx, args) => execListPages(ctx, args),
   get_backlinks: (ctx, args) => execGetBacklinks(ctx, args),
   get_neighborhood: (ctx, args) => execGetNeighborhood(ctx, args),
@@ -782,8 +804,8 @@ const EXECUTORS: Record<string, Executor> = {
   merge_tag: execMergeTag,
   generate_image: (ctx, args) => execGenerateImage(ctx, args),
   promote_generated_image: (ctx, args) => execPromoteGeneratedImage(ctx, args),
-  load_skill: (ctx, args) => execLoadSkill(ctx, args),
-  read_skill_file: (ctx, args) => execReadSkillFile(ctx, args),
+  load_skill: execLoadSkill,
+  read_skill_file: execReadSkillFile,
 };
 
 export function hasExecutor(toolName: string): boolean {

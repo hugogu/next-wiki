@@ -412,6 +412,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       isEnabled,
       isCancelled: () => isCancellationRequested(actionId),
       transcriptCharBudget: transcriptCharBudgetFor(textModel.contextWindow),
+      toolResultMaxChars: runtimeConfig.toolResultMaxChars,
     });
   } catch (error) {
     const current = await getWorkflowByAction(actionId);

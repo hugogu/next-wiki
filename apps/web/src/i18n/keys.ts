@@ -1241,6 +1241,7 @@ export const translationKeys = [
   "admin.bots.general.runtime.title",
   "admin.bots.general.runtime.description",
   "admin.bots.general.runtime.maxCalls",
+  "admin.bots.general.runtime.resultChars",
   "admin.bots.general.runtime.temperature",
   "admin.bots.general.runtime.maxOutputTokens",
   "admin.bots.general.runtime.timeout",
@@ -1690,5 +1691,6 @@ export const translationKeys = [
   "errors.forbidden.message",
   "errors.forbidden.backHome",
 ] as const;
+
 
 export type TranslationKey = (typeof translationKeys)[number];

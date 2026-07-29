@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { and, count, eq } from 'drizzle-orm';
 import {
   isSkillToolName,
+  TOOL_RESULT_MAX_CHARS_DEFAULT,
   type AiCitation,
   AiToolCallEventPayload,
   AiToolCallStatus,
@@ -14,7 +15,7 @@ import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import type { PermCtx } from '@/server/permissions';
 import { appendToolCallEvent, appendToolProposalEvent } from '@/server/services/ai-actions';
 import { auditToolCall } from '@/server/services/audit';
-import { executeTool, resolveExecutableTool } from '@/server/services/ai-tool-executors';
+import { executeTool, pageContentWindowFor, resolveExecutableTool } from '@/server/services/ai-tool-executors';
 import { getProposalRow } from '@/server/services/ai-tool-proposals';
 import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool-registry';
 import { logger } from '@/server/logger';
@@ -306,6 +307,9 @@ export type ToolLoopParams = {
    * {@link DEFAULT_TRANSCRIPT_CHARS}; callers that know the model's context
    * window should size it from that. */
   transcriptCharBudget?: number;
+  /** Admin-configured characters of one tool result, clamped to the transcript
+   * budget by {@link effectiveToolResultChars}. */
+  toolResultMaxChars?: number;
 };
 
 export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number; citations: AiCitation[] };
@@ -337,14 +341,14 @@ export function buildCommandMarkdown(
  * meant to inform. Truncation is marked in-band so the model can tell the
  * difference between "that is all there is" and "there was more".
  */
-export const MAX_TOOL_RESULT_CHARS = 8_000;
+export const MAX_TOOL_RESULT_CHARS = TOOL_RESULT_MAX_CHARS_DEFAULT;
 
 /**
  * Characters of prior tool output carried into the planner prompt.
  *
  * The transcript is re-sent in full on every iteration, so without a bound it
- * grows as `calls × MAX_TOOL_RESULT_CHARS` — with the default 100-call budget
- * that is 800k characters, several times any model's context window. One
+ * grows as `calls × the per-result cap` — at the default 100 calls and 32k
+ * characters that is 3.2M characters, far past any context window. One
  * observed turn made 51 calls (40 of them the same `get_page`) and was sending
  * a prompt of roughly 350k characters by the end; the model stopped tracking
  * what it had read and rewrote a page from a fraction of it.
@@ -381,17 +385,34 @@ export function boundTranscript(transcript: string[], budget = DEFAULT_TRANSCRIP
   return kept;
 }
 
+/**
+ * Effective per-result cap for one turn.
+ *
+ * Clamped to the transcript budget because the transcript is what the prompt
+ * actually carries: a configured cap larger than the budget would produce a
+ * single result the loop must either drop whole or send over the window. The
+ * admin dial therefore cannot be set into failure on a small-context model —
+ * it just stops growing.
+ */
+export function effectiveToolResultChars(
+  configured: number = MAX_TOOL_RESULT_CHARS,
+  transcriptBudget: number = DEFAULT_TRANSCRIPT_CHARS,
+): number {
+  return Math.max(1_000, Math.min(configured, transcriptBudget));
+}
+
 export function formatToolResultForModel(
   toolName: string,
   result: { summary: string; data?: unknown },
+  maxChars: number = MAX_TOOL_RESULT_CHARS,
 ): { text: string; truncated: boolean } {
   const rendered = JSON.stringify({ summary: result.summary, data: result.data });
-  if (rendered.length <= MAX_TOOL_RESULT_CHARS) {
+  if (rendered.length <= maxChars) {
     return { text: `TOOL ${toolName} -> ${rendered}`, truncated: false };
   }
-  const kept = rendered.slice(0, MAX_TOOL_RESULT_CHARS);
+  const kept = rendered.slice(0, maxChars);
   return {
-    text: `TOOL ${toolName} -> ${kept}\n[truncated: the result exceeded ${MAX_TOOL_RESULT_CHARS} characters. Narrow the query or read a specific item instead of relying on the omitted part.]`,
+    text: `TOOL ${toolName} -> ${kept}\n[truncated: the result exceeded ${maxChars} characters. Read the omitted part with the tool's own paging argument (contentOffset) or narrow the query — do not rely on what is missing.]`,
     truncated: true,
   };
 }
@@ -451,6 +472,8 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     wikiSources: params.wikiSources ?? [],
     transcript: [],
   };
+  const transcriptBudget = params.transcriptCharBudget ?? DEFAULT_TRANSCRIPT_CHARS;
+  const resultMaxChars = effectiveToolResultChars(params.toolResultMaxChars, transcriptBudget);
   let answer = '';
   let calls = 0;
   const citations = new Map<string, AiCitation>();
@@ -482,7 +505,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
 
     // Bound immediately before planning rather than on push: the loop keeps
     // appending, and what matters is the size of the prompt actually sent.
-    state.transcript = boundTranscript(state.transcript, params.transcriptCharBudget);
+    state.transcript = boundTranscript(state.transcript, transcriptBudget);
     const step = await params.planner(state);
     logger.info('tool loop planner step', {
       actionId: params.actionId,
@@ -599,6 +622,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         toolCallId: call.id,
         actionId: params.actionId,
         conversation: state.conversation,
+        contentWindowChars: pageContentWindowFor(resultMaxChars),
       });
       const toolDurationMs = Date.now() - toolStartedAt;
 
@@ -607,7 +631,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           citations.set(`${citation.pageId}:${citation.revisionId}`, citation);
         }
         const resultHash = result.data !== undefined ? hashResult(result.data) : null;
-        const rendered = formatToolResultForModel(tool.name, result);
+        const rendered = formatToolResultForModel(tool.name, result, resultMaxChars);
         // Truncation is part of the durable record, not just a prompt detail:
         // an answer built on a truncated result should be explicable later.
         const storedSummary = rendered.truncated

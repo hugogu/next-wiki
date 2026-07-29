@@ -1720,6 +1720,7 @@
           "title": "AI 运行参数",
           "description": "调整 Wiki AI 工具循环。此处设置的最大工具调用次数会被单个提供方的工具策略上限覆盖。",
           "maxCalls": "每轮最大工具调用次数",
+          "resultChars": "单次工具结果上限（字符）",
           "temperature": "规划器温度",
           "maxOutputTokens": "规划器最大输出 token",
           "timeout": "规划器超时（毫秒）",

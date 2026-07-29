@@ -252,8 +252,28 @@ export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MAX = 65_536;
 export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT = 32_768;
 export const AI_RUNTIME_PROMPT_MAX_LENGTH = 20_000;
 
+/**
+ * Characters of one tool result the planner prompt may carry.
+ *
+ * A read that does not fit comes back as an explicit window the model can page
+ * through, so this is a throughput dial, not a wall: raising it means fewer
+ * round trips per page, lowering it means more. It is capped well below any
+ * context window because the transcript holds several results at once — the
+ * effective value is additionally clamped to the transcript budget at runtime,
+ * so a large setting cannot make a single result unsendable.
+ */
+export const TOOL_RESULT_MAX_CHARS_MIN = 2_000;
+export const TOOL_RESULT_MAX_CHARS_MAX = 200_000;
+export const TOOL_RESULT_MAX_CHARS_DEFAULT = 32 * 1024;
+
 export const aiRuntimeParamsUpdateSchema = z.object({
   toolMaxCalls: z.number().int().min(TOOL_MAX_CALLS_MIN).max(TOOL_MAX_CALLS_MAX).optional(),
+  toolResultMaxChars: z
+    .number()
+    .int()
+    .min(TOOL_RESULT_MAX_CHARS_MIN)
+    .max(TOOL_RESULT_MAX_CHARS_MAX)
+    .optional(),
   plannerTemperature: z
     .number()
     .min(TOOL_PLANNER_TEMPERATURE_MIN)
@@ -281,6 +301,7 @@ export type AiRuntimeSettingsUpdate = z.infer<typeof aiRuntimeSettingsUpdateSche
 export const aiRuntimeSettingsViewSchema = z.object({
   params: z.object({
     toolMaxCalls: z.number().int(),
+    toolResultMaxChars: z.number().int(),
     plannerTemperature: z.number(),
     plannerMaxOutputTokens: z.number().int(),
   }),

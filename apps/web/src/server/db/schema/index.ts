@@ -1110,6 +1110,9 @@ export const aiSettings = pgTable('ai_settings', {
   // override the hard-coded planner defaults; the per-provider tool policy's
   // max_calls_per_turn still takes precedence over tool_max_calls when set.
   toolMaxCalls: integer('tool_max_calls').notNull().default(100),
+  // Characters of one tool result carried into the planner prompt. A read that
+  // does not fit returns a pageable window rather than being cut off.
+  toolResultMaxChars: integer('tool_result_max_chars').notNull().default(32 * 1024),
   // Planner sampling temperature stored as hundredths (10 = 0.10, range 0-200).
   toolPlannerTemperature: integer('tool_planner_temperature').notNull().default(10),
   // Planner max output tokens; the tool loop always reads a concrete value.

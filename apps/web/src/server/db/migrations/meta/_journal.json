@@ -295,6 +295,13 @@
       "when": 1785296208505,
       "tag": "0041_bent_ender_wiggin",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1785309700511,
+      "tag": "0042_bright_franklin_storm",
+      "breakpoints": true
     }
   ]
 }

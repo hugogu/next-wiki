@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import type { AiRuntimeSettingsView } from '@next-wiki/shared';
+import {
+  TOOL_RESULT_MAX_CHARS_MAX,
+  TOOL_RESULT_MAX_CHARS_MIN,
+  type AiRuntimeSettingsView,
+} from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useTranslation } from '@/i18n/client';
@@ -13,6 +17,7 @@ import { useTranslation } from '@/i18n/client';
 export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
   const { t } = useTranslation();
   const [maxCalls, setMaxCalls] = useState(String(initial.params.toolMaxCalls));
+  const [resultChars, setResultChars] = useState(String(initial.params.toolResultMaxChars));
   const [temperature, setTemperature] = useState(String(initial.params.plannerTemperature));
   const [maxTokens, setMaxTokens] = useState(String(initial.params.plannerMaxOutputTokens));
   const [busy, setBusy] = useState(false);
@@ -27,6 +32,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           toolMaxCalls: Number(maxCalls),
+          toolResultMaxChars: Number(resultChars),
           plannerTemperature: Number(temperature),
           plannerMaxOutputTokens: Number(maxTokens),
         }),
@@ -51,6 +57,16 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
       <div className="grid gap-md sm:grid-cols-2">
         <Field label={t('admin.bots.general.runtime.maxCalls')}>
           <Input type="number" min={1} max={100} value={maxCalls} onChange={(e) => setMaxCalls(e.target.value)} />
+        </Field>
+        <Field label={t('admin.bots.general.runtime.resultChars')}>
+          <Input
+            type="number"
+            min={TOOL_RESULT_MAX_CHARS_MIN}
+            max={TOOL_RESULT_MAX_CHARS_MAX}
+            step={1024}
+            value={resultChars}
+            onChange={(e) => setResultChars(e.target.value)}
+          />
         </Field>
         <Field label={t('admin.bots.general.runtime.temperature')}>
           <Input type="number" min={0} max={2} step={0.05} value={temperature} onChange={(e) => setTemperature(e.target.value)} />

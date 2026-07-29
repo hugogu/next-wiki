@@ -7,7 +7,10 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DEFAULT_ASSISTANT_SYSTEM_PROMPT } from '@/server/ai/prompts/wiki-question';
 import { DEFAULT_TOOL_SYSTEM_PROMPT } from '@/server/jobs/wiki-question-tool-planner';
 
-import { TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT } from '@next-wiki/shared';
+import {
+  TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT,
+  TOOL_RESULT_MAX_CHARS_DEFAULT,
+} from '@next-wiki/shared';
 
 /**
  * Wiki AI runtime tuning (026). The planner parameters (max tool calls, sampling
@@ -20,12 +23,15 @@ import { TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT } from '@next-wiki/shared';
 
 const RUNTIME_DEFAULTS = {
   maxToolCalls: 100,
+  toolResultMaxChars: TOOL_RESULT_MAX_CHARS_DEFAULT,
   plannerTemperature: 0.1,
   plannerMaxOutputTokens: TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT,
 };
 
 export type AiRuntimeConfig = {
   maxToolCalls: number;
+  /** Characters of one tool result the planner prompt may carry. */
+  toolResultMaxChars: number;
   /** Sampling temperature in [0, 2]. */
   plannerTemperature: number;
   plannerMaxOutputTokens: number;
@@ -39,6 +45,7 @@ export async function resolveAiRuntimeConfig(): Promise<AiRuntimeConfig> {
   const row = await db.query.aiSettings.findFirst({ where: eq(schema.aiSettings.id, 'default') });
   return {
     maxToolCalls: row?.toolMaxCalls ?? RUNTIME_DEFAULTS.maxToolCalls,
+    toolResultMaxChars: row?.toolResultMaxChars ?? RUNTIME_DEFAULTS.toolResultMaxChars,
     plannerTemperature: (row?.toolPlannerTemperature ?? 10) / 100,
     plannerMaxOutputTokens: row?.toolPlannerMaxOutputTokens ?? RUNTIME_DEFAULTS.plannerMaxOutputTokens,
     assistantSystemPrompt: row?.assistantSystemPrompt ?? null,
@@ -58,6 +65,7 @@ export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSetti
   return {
     params: {
       toolMaxCalls: config.maxToolCalls,
+      toolResultMaxChars: config.toolResultMaxChars,
       plannerTemperature: config.plannerTemperature,
       plannerMaxOutputTokens: config.plannerMaxOutputTokens,
     },
@@ -89,6 +97,7 @@ export async function updateAiRuntimeSettings(
     updatedAt: new Date(),
   };
   if (input.toolMaxCalls !== undefined) patch.toolMaxCalls = input.toolMaxCalls;
+  if (input.toolResultMaxChars !== undefined) patch.toolResultMaxChars = input.toolResultMaxChars;
   if (input.plannerTemperature !== undefined) {
     patch.toolPlannerTemperature = Math.round(input.plannerTemperature * 100);
   }
