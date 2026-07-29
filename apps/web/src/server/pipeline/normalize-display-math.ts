@@ -29,7 +29,19 @@ function rewriteBlocks(text: string): string {
     /(^|\n)([ \t]{0,3})\$\$([\s\S]*?)\$\$[ \t]*(?=\n|$)/g,
     (whole, lineBreak: string, indent: string, inner: string) => {
       if (!inner.includes('\n')) return whole;
-      return `${lineBreak}${indent}$$\n${inner.trim()}\n$$`;
+
+      // Keep a display-math block inside its parent list/blockquote. The
+      // previous implementation trimmed the content and emitted the closing
+      // delimiter at column zero. For an ordered-list continuation such as
+      // `   $$`, that prematurely ended the list, so remark-math left the TeX
+      // body as ordinary Markdown text.
+      const content = inner
+        .trim()
+        .split('\n')
+        .map((line) => (indent && line.startsWith(indent) ? line.slice(indent.length) : line))
+        .map((line) => `${indent}${line}`)
+        .join('\n');
+      return `${lineBreak}${indent}$$\n${content}\n${indent}$$`;
     },
   );
 }

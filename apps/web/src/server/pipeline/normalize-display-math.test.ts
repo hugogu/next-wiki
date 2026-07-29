@@ -26,6 +26,12 @@ $$`;
     expect(normalizeDisplayMath(already)).toBe(already);
   });
 
+  it('preserves list-continuation indentation for display-math blocks', () => {
+    const nested = ['1. MMD', '', '   $$', '   \\text{MMD}(P_S, P_T)', '   $$'].join('\n');
+
+    expect(normalizeDisplayMath(nested)).toBe(nested);
+  });
+
   it('leaves single-line $$…$$ untouched', () => {
     const single = 'text $$a^2 + b^2$$ more text';
     expect(normalizeDisplayMath(single)).toBe(single);
@@ -65,6 +71,20 @@ describe('renderMarkdown display-math regression', () => {
     const { html } = renderMarkdown('$$\\sigma_p^2 = (0.6)^2 (0.20)^2$$');
     expect(html).not.toContain('katex-error');
     expect(texOf(html)).toContain('\\sigma_p^2');
+  });
+
+  it('renders the MMD display formula from a nested ordered-list item', () => {
+    const source = `1. **Maximum mean discrepancy (MMD)**: minimize the distance.
+
+   $$
+   \\text{MMD}(P_S, P_T) = \\left\\| \\frac{1}{n_S} \\sum_{i=1}^{n_S} \\phi(x_i^S) - \\frac{1}{n_T} \\sum_{j=1}^{n_T} \\phi(x_j^T) \\right\\|_{\\mathcal{H}}
+   $$`;
+
+    const { html } = renderMarkdown(source);
+
+    expect(html).not.toContain('katex-error');
+    expect(html).toContain('katex-display');
+    expect(texOf(html)).toContain('\\text{MMD}');
   });
 
   it('keeps math delimiters literal inside a code fence', () => {
