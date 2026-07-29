@@ -140,4 +140,18 @@ describe('effectiveToolResultChars', () => {
 
     expect(rendered.truncated).toBe(false);
   });
+
+  it('returns page Markdown verbatim instead of JSON-escaping its LaTex backslashes', () => {
+    const rendered = formatToolResultForModel('get_page', {
+      summary: 'Read page "Saturn".',
+      data: {
+        pageId: 'page',
+        contentSource: 'Orbital inclination: $2.49^\\circ$ and $1\\ \\text{km}$.',
+      },
+    });
+
+    expect(rendered.text).toContain('<page_source>\nOrbital inclination: $2.49^\\circ$ and $1\\ \\text{km}$.\n</page_source>');
+    expect(rendered.text).not.toContain('2.49^\\\\circ');
+    expect(rendered.text).toContain('contentSource":"verbatim page source follows"');
+  });
 });

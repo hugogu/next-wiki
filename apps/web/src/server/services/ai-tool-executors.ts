@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import { diffArrays } from 'diff';
 import {
   publicPageSearchQuerySchema,
   type AiToolReviewDecision,
@@ -401,6 +402,49 @@ function resolvePageContent(
   throw new DomainError('BAD_REQUEST', 'No previous assistant answer is available to save.');
 }
 
+/**
+ * Recover unchanged lines that a model copied from a JSON-encoded get_page
+ * result into a YAML literal block. JSON represents `\foo` as `\\foo`, while
+ * YAML literal scalars preserve both slashes. We only restore a submitted line
+ * when reducing each doubled slash makes the *entire* line equal its current
+ * page counterpart, so intentional edits and genuine LaTex `\\` line breaks
+ * remain untouched.
+ */
+export function restoreJsonEscapedBackslashes(currentSource: string, submittedSource: string): string {
+  const currentLines = currentSource.split('\n');
+  const submittedLines = submittedSource.split('\n');
+  const restored = [...submittedLines];
+  let currentIndex = 0;
+  let submittedIndex = 0;
+
+  const changes = diffArrays(currentLines, submittedLines, {
+    comparator: (current, submitted) => current === submitted || current === undoJsonBackslashEscaping(submitted),
+  });
+  for (const change of changes) {
+    const lines = change.value as string[];
+    if (!change.added && !change.removed) {
+      for (let index = 0; index < lines.length; index += 1) {
+        const current = currentLines[currentIndex + index]!;
+        const submitted = submittedLines[submittedIndex + index]!;
+        if (current !== submitted && current === undoJsonBackslashEscaping(submitted)) {
+          restored[submittedIndex + index] = current;
+        }
+      }
+      currentIndex += lines.length;
+      submittedIndex += lines.length;
+    } else if (change.added) {
+      submittedIndex += lines.length;
+    } else {
+      currentIndex += lines.length;
+    }
+  }
+  return restored.join('\n');
+}
+
+function undoJsonBackslashEscaping(value: string): string {
+  return value.replace(/\\\\/g, '\\');
+}
+
 async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = createPageArgs.parse(rawArgs);
   // AI-authored pages belong in the generated space, but only admins have write
@@ -433,11 +477,12 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
 
 async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = saveDraftArgs.parse(rawArgs);
-  const page = args.title ? null : await content.getPageById(ctx, args.pageId);
-  if (!args.title && !page) return fail('NOT_FOUND', 'No readable page matched.');
+  const page = await content.getPageById(ctx, args.pageId);
+  if (!page) return fail('NOT_FOUND', 'No readable page matched.');
+  const requestedSource = resolvePageContent(args, execCtx);
   const revision = await content.createDraft(ctx, args.pageId, {
-    title: args.title ?? page!.title,
-    contentSource: resolvePageContent(args, execCtx),
+    title: args.title ?? page.title,
+    contentSource: restoreJsonEscapedBackslashes(page.contentSource ?? '', requestedSource),
   });
   return { ok: true, summary: `Saved draft revision v${revision.version}.`, draftPageId: args.pageId, data: { pageId: args.pageId, version: revision.version } };
 }

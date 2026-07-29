@@ -27,7 +27,7 @@ vi.mock('@/server/services/tags', () => ({
 }));
 
 import { buildUserCtx } from '@/server/permissions';
-import { executeTool } from '@/server/services/ai-tool-executors';
+import { executeTool, restoreJsonEscapedBackslashes } from '@/server/services/ai-tool-executors';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 const searchTool = getToolDefinition('search_wiki')!;
@@ -227,5 +227,61 @@ describe('read tool permission projection (026)', () => {
       contentSource: '# 孙权\n\nExpanded content.',
     });
     expect(result).toMatchObject({ ok: true, summary: 'Saved draft revision v3.' });
+  });
+
+  it('restores only unchanged lines whose backslashes were copied from JSON into YAML', () => {
+    const current = [
+      '# Saturn',
+      '',
+      '| 轨道倾角 | $2.49^\\circ$ |',
+      '| 质量 | $5.683 \\times 10^{26}\\ \\text{kg}$ |',
+      '',
+      'Original prose.',
+    ].join('\n');
+    const submitted = [
+      '# Saturn',
+      '',
+      '| 轨道倾角 | $2.49^\\\\circ$ |',
+      '| 质量 | $5.683 \\\\times 10^{26}\\\\ \\\\text{kg}$ |',
+      '',
+      'Original prose.',
+      '',
+      '![Saturn](/api/assets/image)',
+    ].join('\n');
+
+    expect(restoreJsonEscapedBackslashes(current, submitted)).toBe([
+      '# Saturn',
+      '',
+      '| 轨道倾角 | $2.49^\\circ$ |',
+      '| 质量 | $5.683 \\times 10^{26}\\ \\text{kg}$ |',
+      '',
+      'Original prose.',
+      '',
+      '![Saturn](/api/assets/image)',
+    ].join('\n'));
+  });
+
+  it('does not reduce a deliberate LaTex double-backslash edit', () => {
+    expect(restoreJsonEscapedBackslashes('$a$', '$a\\\\b$')).toBe('$a\\\\b$');
+  });
+
+  it('applies the backslash recovery guard to save_draft itself', async () => {
+    const pageId = '44444444-4444-4444-8444-444444444444';
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Inclination: $2.49^\\circ$.',
+    });
+    content.createDraft.mockResolvedValue({ version: 4 });
+
+    await executeTool(adminCtx, saveDraftTool, {
+      pageId,
+      contentSource: 'Inclination: $2.49^\\\\circ$.\n\n![Saturn](/api/assets/image)',
+    }, { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' });
+
+    expect(content.createDraft).toHaveBeenCalledWith(adminCtx, pageId, {
+      title: 'Saturn',
+      contentSource: 'Inclination: $2.49^\\circ$.\n\n![Saturn](/api/assets/image)',
+    });
   });
 });

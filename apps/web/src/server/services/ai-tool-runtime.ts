@@ -424,7 +424,7 @@ export function formatToolResultForModel(
   result: { summary: string; data?: unknown },
   maxChars: number = MAX_TOOL_RESULT_CHARS,
 ): { text: string; truncated: boolean } {
-  const rendered = JSON.stringify({ summary: result.summary, data: result.data });
+  const rendered = formatToolResultPayload(toolName, result);
   if (rendered.length <= maxChars) {
     return { text: `TOOL ${toolName} -> ${rendered}`, truncated: false };
   }
@@ -433,6 +433,33 @@ export function formatToolResultForModel(
     text: `TOOL ${toolName} -> ${kept}\n[truncated: the result exceeded ${maxChars} characters. Read the omitted part with the tool's own paging argument (contentOffset) or narrow the query — do not rely on what is missing.]`,
     truncated: true,
   };
+}
+
+/**
+ * Page Markdown is sent back to the model as a verbatim block, not as a JSON
+ * string. JSON correctly represents a single backslash as `\\`, but models
+ * commonly copy that representation into a YAML literal block, where it is
+ * not unescaped before save_draft persists it. That turns `\circ` into
+ * `\\circ` and breaks KaTeX.
+ */
+function formatToolResultPayload(
+  toolName: string,
+  result: { summary: string; data?: unknown },
+): string {
+  const data = result.data;
+  if (
+    toolName === 'get_page' &&
+    data !== null &&
+    typeof data === 'object' &&
+    typeof (data as { contentSource?: unknown }).contentSource === 'string'
+  ) {
+    const { contentSource, ...metadata } = data as { contentSource: string } & Record<string, unknown>;
+    return `${JSON.stringify({
+      summary: result.summary,
+      data: { ...metadata, contentSource: 'verbatim page source follows' },
+    })}\n<page_source>\n${contentSource}\n</page_source>`;
+  }
+  return JSON.stringify({ summary: result.summary, data });
 }
 
 function hashResult(data: unknown): string {
