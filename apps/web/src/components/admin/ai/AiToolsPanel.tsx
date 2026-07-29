@@ -2,11 +2,12 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type {
-  AiToolCategory,
-  AiToolListResponse,
-  AiToolReviewPolicy,
-  AiToolView,
+import {
+  aiToolCategorySchema,
+  type AiToolCategory,
+  type AiToolListResponse,
+  type AiToolReviewPolicy,
+  type AiToolView,
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import {
@@ -22,7 +23,9 @@ import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/keys';
 
-const CATEGORIES: AiToolCategory[] = ['read', 'page_draft', 'metadata', 'tag', 'batch', 'raw_evidence', 'media'];
+// Derived from the shared enum rather than retyped, so a new category cannot
+// ship with rows the filter chips have no way to select.
+const CATEGORIES: AiToolCategory[] = [...aiToolCategorySchema.options];
 const REVIEW_POLICIES: AiToolReviewPolicy[] = [
   'always_review',
   'review_when_requested',

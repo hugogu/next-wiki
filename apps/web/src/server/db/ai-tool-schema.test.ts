@@ -48,6 +48,7 @@ describe('ai tool runtime schema (026)', () => {
       'batch',
       'raw_evidence',
       'media',
+      'skill',
     ]);
     expect(byName.get('ai_tool_review_decision')).toEqual(['none', 'admin_review']);
     expect(byName.get('ai_tool_workflow_status')).toEqual([

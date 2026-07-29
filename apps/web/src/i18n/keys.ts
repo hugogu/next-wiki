@@ -889,6 +889,7 @@ export const translationKeys = [
   "admin.ai.tools.category.batch",
   "admin.ai.tools.category.raw_evidence",
   "admin.ai.tools.category.media",
+  "admin.ai.tools.category.skill",
   "admin.ai.tools.risk.read",
   "admin.ai.tools.risk.draft_write",
   "admin.ai.tools.risk.reviewed_write",

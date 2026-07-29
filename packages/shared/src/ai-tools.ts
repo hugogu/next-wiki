@@ -42,6 +42,10 @@ export const aiToolCategorySchema = z.enum([
   'batch',
   'raw_evidence',
   'media',
+  // Loading a skill is not reading wiki content. Sharing the `read` category
+  // would put both behind one Admin switch, so turning off page reads would
+  // silently turn off skills too.
+  'skill',
 ]);
 export type AiToolCategory = z.infer<typeof aiToolCategorySchema>;
 

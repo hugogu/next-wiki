@@ -24,11 +24,32 @@ describe('built-in skills cannot exceed the governed path', () => {
     );
     expect(tools).toHaveLength(2);
     for (const tool of tools) {
+      // Read *risk* — this is what keeps them out of the review path.
       expect(tool.riskLevel).toBe('read');
-      expect(tool.category).toBe('read');
       // Skill instructions are configuration, not evidence: they must never be
       // captured as Raw evidence when a turn produces durable knowledge.
       expect(tool.resultRetention).toBe('never_full_result');
+    }
+  });
+
+  it('separates the skill category from reading wiki content', () => {
+    // Category is the Admin policy layer. Sharing `read` would put skill
+    // loading behind the same switch as get_page and search_wiki, so an admin
+    // stopping the assistant from reading pages would silently disable every
+    // skill — two unrelated decisions on one toggle.
+    const byName = new Map(listToolDefinitions().map((tool) => [tool.name, tool]));
+    expect(byName.get('load_skill')?.category).toBe('skill');
+    expect(byName.get('read_skill_file')?.category).toBe('skill');
+
+    const skillCategory = listToolDefinitions().filter((tool) => tool.category === 'skill');
+    expect(skillCategory.map((tool) => tool.name).sort()).toEqual([
+      'load_skill',
+      'read_skill_file',
+    ]);
+
+    // And nothing that reads wiki content leaked into it.
+    for (const tool of ['search_wiki', 'get_page', 'list_pages']) {
+      expect(byName.get(tool)?.category).toBe('read');
     }
   });
 

@@ -409,7 +409,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
   // answerable), and it works identically under both tool-call strategies.
   {
     name: 'load_skill',
-    category: 'read',
+    category: 'skill',
     riskLevel: 'read',
     requiredScope: 'use_ai_qa',
     // Skill instructions are configuration, not evidence: they must never be
@@ -426,7 +426,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'read_skill_file',
-    category: 'read',
+    category: 'skill',
     riskLevel: 'read',
     requiredScope: 'use_ai_qa',
     resultRetention: 'never_full_result',

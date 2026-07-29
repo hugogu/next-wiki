@@ -456,6 +456,7 @@ export const aiToolCategoryEnum = pgEnum('ai_tool_category', [
   'batch',
   'raw_evidence',
   'media',
+  'skill',
 ]);
 export const aiToolRiskLevelEnum = pgEnum('ai_tool_risk_level', [
   'read',

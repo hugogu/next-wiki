@@ -1261,7 +1261,8 @@
           "tag": "标签",
           "batch": "批量",
           "raw_evidence": "原始证据",
-          "media": "媒体"
+          "media": "媒体",
+          "skill": "技能"
         },
         "risk": {
           "read": "只读",

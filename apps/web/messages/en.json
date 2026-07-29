@@ -1261,7 +1261,8 @@
           "tag": "Tags",
           "batch": "Batch",
           "raw_evidence": "Raw evidence",
-          "media": "Media"
+          "media": "Media",
+          "skill": "Skills"
         },
         "risk": {
           "read": "Read-only",
