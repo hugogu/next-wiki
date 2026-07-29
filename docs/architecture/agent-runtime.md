@@ -81,9 +81,9 @@ sequenceDiagram
     UI->>Events: Connect with EventSource
 
     Boss->>Worker: Deliver ai-action job
-    Worker->>Actions: Check cancellation, AI enabled, user active; mark running
+    Worker->>Actions: Check cancellation, AI enabled, user active, then mark running
     Worker->>Runtime: Load question, retrieval sources, policies, skills
-    Runtime->>Runtime: Create or resume workflow; set running
+    Runtime->>Runtime: Create or resume workflow, then set running
 
     loop Until final answer, cancellation, or max calls
         Runtime->>Model: Prompt and enabled tool catalogue
@@ -101,7 +101,7 @@ sequenceDiagram
             Runtime->>Tools: Execute under initiating user's permission context
             Tools-->>Runtime: Safe bounded result, draft, proposal, or failure
             Runtime->>Actions: Persist call state, audit, and lifecycle event
-            Note over Runtime: Result is appended to the planner transcript;<br/>full arbitrary results are not persisted.
+            Note over Runtime: Result is appended to the planner transcript, while full arbitrary results are not persisted.
         end
     end
 
