@@ -1687,6 +1687,26 @@
         "error": {
           "generic": "Something went wrong."
         }
+      },
+      "retention": {
+        "title": "Retention",
+        "description": "How long an action keeps its event log. The event log is what the chat replays when you reopen a past conversation, so shortening it discards history that was never captured as a Raw page.",
+        "events": "Chat event log (hours)",
+        "artifacts": "Generated images (hours)",
+        "save": "Save retention",
+        "saving": "Saving…",
+        "error": "Retention could not be saved."
+      },
+      "capture": {
+        "title": "Conversation capture",
+        "not_applicable": "Not captured",
+        "pending": "Pending",
+        "captured": "Captured",
+        "failed": "Failed",
+        "disabled": "Disabled",
+        "error": "Capture error",
+        "page": "Raw conversation page",
+        "hint": "Captured conversations keep a durable transcript that outlives the event log. Toggle capture under Bots → Data Sources."
       }
     },
     "bots": {

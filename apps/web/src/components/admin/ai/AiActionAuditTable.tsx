@@ -3,11 +3,12 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import type {
+  AiActionAdminView,
   AiActionFeature,
   AiActionStatus,
-  AiActionView,
   AiModelView,
   AiProviderView,
+  RawConversationCaptureStatus,
 } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
@@ -73,6 +74,28 @@ const STATUS_ICONS: Record<AiActionStatus, { icon: typeof CheckIcon; className: 
   expired: { icon: CircleIcon, className: 'text-muted' },
 };
 
+/**
+ * Capture is what keeps a conversation readable after its event log is purged
+ * (023), so a silent capture failure is only visible here. `not_applicable`
+ * and `disabled` are the ordinary states of a non-conversation action or a
+ * deployment with the AI Conversations data source off, and stay unlabelled.
+ */
+const CAPTURE_LABELS: Record<RawConversationCaptureStatus, TranslationKey> = {
+  not_applicable: 'admin.ai.capture.not_applicable',
+  pending: 'admin.ai.capture.pending',
+  captured: 'admin.ai.capture.captured',
+  failed: 'admin.ai.capture.failed',
+  disabled: 'admin.ai.capture.disabled',
+};
+
+const CAPTURE_TONES: Record<RawConversationCaptureStatus, string> = {
+  not_applicable: 'text-muted',
+  pending: 'text-muted',
+  captured: 'text-success',
+  failed: 'text-danger',
+  disabled: 'text-muted',
+};
+
 const TOKEN_FIELDS: Array<{ key: string; label: TranslationKey }> = [
   { key: 'inputTokens', label: 'admin.ai.actions.inputTokens' },
   { key: 'outputTokens', label: 'admin.ai.actions.outputTokens' },
@@ -88,7 +111,7 @@ export function AiActionAuditTable({
   providers,
   models,
 }: {
-  actions: AiActionView[];
+  actions: AiActionAdminView[];
   total: number;
   providers: AiProviderView[];
   models: AiModelView[];
@@ -99,7 +122,7 @@ export function AiActionAuditTable({
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ feature: '', status: '', providerId: '', modelId: '' });
-  const [viewing, setViewing] = useState<AiActionView | null>(null);
+  const [viewing, setViewing] = useState<AiActionAdminView | null>(null);
 
   const load = useCallback(
     async (targetPage: number, next: typeof filters) => {
@@ -112,7 +135,7 @@ export function AiActionAuditTable({
         if (next.modelId) params.set('modelId', next.modelId);
         params.set('limit', String(PAGE_SIZE));
         params.set('offset', String(targetPage * PAGE_SIZE));
-        const result = await apiGet<{ items: AiActionView[]; total: number }>(`/api/ai/actions?${params.toString()}`);
+        const result = await apiGet<{ items: AiActionAdminView[]; total: number }>(`/api/ai/actions?${params.toString()}`);
         setItems(result.items);
         setCount(result.total);
         setPage(targetPage);
@@ -168,6 +191,7 @@ export function AiActionAuditTable({
           <DataTableHeader>{t('admin.ai.actions.table.queued')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.feature')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.status')}</DataTableHeader>
+          <DataTableHeader className="w-px">{t('admin.ai.capture.title')}</DataTableHeader>
           <DataTableHeader align="right">{t('admin.ai.actions.table.tokens')}</DataTableHeader>
           <DataTableHeader>{t('admin.ai.actions.table.providerModel')}</DataTableHeader>
           <DataTableHeader align="right">{t('admin.ai.actions.table.detail')}</DataTableHeader>
@@ -186,6 +210,17 @@ export function AiActionAuditTable({
                     })()}
                   </span>
                 </Tooltip>
+              </DataTableCell>
+              <DataTableCell className="whitespace-nowrap text-xs">
+                {action.rawConversationCaptureStatus === 'not_applicable' ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <Tooltip label={action.rawConversationCaptureError ?? t(CAPTURE_LABELS[action.rawConversationCaptureStatus])}>
+                    <span className={CAPTURE_TONES[action.rawConversationCaptureStatus]}>
+                      {t(CAPTURE_LABELS[action.rawConversationCaptureStatus])}
+                    </span>
+                  </Tooltip>
+                )}
               </DataTableCell>
               <DataTableCell align="right" className="text-xs tabular-nums">
                 {(() => {
@@ -217,7 +252,7 @@ export function AiActionAuditTable({
           ))}
           {items.length === 0 && (
             <DataTableRow>
-              <DataTableCell colSpan={6} className="py-xl text-center text-muted">
+              <DataTableCell colSpan={7} className="py-xl text-center text-muted">
                 {t('admin.ai.actions.empty')}
               </DataTableCell>
             </DataTableRow>
@@ -248,6 +283,20 @@ export function AiActionAuditTable({
         >
           <div className="space-y-sm">
             {viewing.errorMessage && <p className="text-sm text-danger">{viewing.errorMessage}</p>}
+            {viewing.rawConversationCaptureStatus !== 'not_applicable' && (
+              <section className="space-y-xs">
+                <h3 className="text-xs font-medium text-muted">{t('admin.ai.capture.title')}</h3>
+                <p className={`text-sm ${CAPTURE_TONES[viewing.rawConversationCaptureStatus]}`}>
+                  {t(CAPTURE_LABELS[viewing.rawConversationCaptureStatus])}
+                </p>
+                {viewing.rawConversationCaptureError && (
+                  <pre className="max-h-32 overflow-auto rounded-md border border-border bg-surface p-sm text-xs">
+                    {viewing.rawConversationCaptureError}
+                  </pre>
+                )}
+                <p className="text-xs text-muted">{t('admin.ai.capture.hint')}</p>
+              </section>
+            )}
             {viewing.pageId && (
               <section className="space-y-xs">
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.page')}</h3>

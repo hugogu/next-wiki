@@ -1687,6 +1687,26 @@
         "error": {
           "generic": "操作失败。"
         }
+      },
+      "retention": {
+        "title": "保留期",
+        "description": "一次操作的事件日志保留多久。重新打开历史会话时，聊天记录正是由事件日志回放而来；缩短它会丢掉未被捕获为 Raw 页的那部分历史。",
+        "events": "聊天事件日志（小时）",
+        "artifacts": "生成的图片（小时）",
+        "save": "保存保留期",
+        "saving": "保存中…",
+        "error": "保留期保存失败。"
+      },
+      "capture": {
+        "title": "会话捕获",
+        "not_applicable": "未捕获",
+        "pending": "待捕获",
+        "captured": "已捕获",
+        "failed": "失败",
+        "disabled": "已关闭",
+        "error": "捕获错误",
+        "page": "Raw 会话页",
+        "hint": "已捕获的会话会保留一份长期存档，不受事件日志保留期影响。捕获开关在 Bots → Data Sources。"
       }
     },
     "bots": {

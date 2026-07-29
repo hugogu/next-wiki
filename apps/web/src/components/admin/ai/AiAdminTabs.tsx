@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type {
-  AiActionView,
+  AiActionAdminView,
   AiIndexView,
   AiModelView,
   AiProviderView,
@@ -21,6 +21,7 @@ import { ProviderList } from './ProviderList';
 import { ModelCatalog } from './ModelCatalog';
 import { IndexList } from './IndexList';
 import { AiActionAuditTable } from './AiActionAuditTable';
+import { AiRetentionPanel } from './AiRetentionPanel';
 import { ModelDetectorPanel } from './ModelDetectorPanel';
 import { UsagePanel } from './UsagePanel';
 
@@ -44,6 +45,7 @@ export function AiAdminTabs({
   indexes,
   actions,
   actionsTotal,
+  retention,
   hasModelDetectorApiKey,
   detector,
 }: {
@@ -51,8 +53,9 @@ export function AiAdminTabs({
   models: AiModelView[];
   assignments: Array<{ purpose: AiPurpose; modelId: string }>;
   indexes: AiIndexView[];
-  actions: AiActionView[];
+  actions: AiActionAdminView[];
   actionsTotal: number;
+  retention: { eventRetentionHours: number; artifactRetentionHours: number };
   hasModelDetectorApiKey: boolean;
   detector: {
     hasOpenRouterKey: boolean;
@@ -166,7 +169,13 @@ export function AiAdminTabs({
         )}
         {selected === 'indexes' && <IndexList indexes={indexes} />}
         {selected === 'actions' && (
-          <AiActionAuditTable actions={actions} total={actionsTotal} providers={providers} models={models} />
+          <div className="space-y-lg">
+            <AiRetentionPanel
+              eventRetentionHours={retention.eventRetentionHours}
+              artifactRetentionHours={retention.artifactRetentionHours}
+            />
+            <AiActionAuditTable actions={actions} total={actionsTotal} providers={providers} models={models} />
+          </div>
         )}
         {selected === 'usage' && <UsagePanel />}
       </SettingsTabs>

@@ -44,6 +44,10 @@ export default async function AdminAiPage() {
           indexes={indexes}
           actions={actions.items}
           actionsTotal={actions.total}
+          retention={{
+            eventRetentionHours: settings.eventRetentionHours,
+            artifactRetentionHours: settings.artifactRetentionHours,
+          }}
           hasModelDetectorApiKey={settings.hasModelDetectorApiKey}
           detector={{
             hasOpenRouterKey: settings.hasModelDetectorApiKey,

@@ -1219,6 +1219,22 @@ export const translationKeys = [
   "admin.ai.skills.rejectReason.path_escape",
   "admin.ai.skills.rejectReason.unreadable",
   "admin.ai.skills.error.generic",
+  "admin.ai.retention.title",
+  "admin.ai.retention.description",
+  "admin.ai.retention.events",
+  "admin.ai.retention.artifacts",
+  "admin.ai.retention.save",
+  "admin.ai.retention.saving",
+  "admin.ai.retention.error",
+  "admin.ai.capture.title",
+  "admin.ai.capture.not_applicable",
+  "admin.ai.capture.pending",
+  "admin.ai.capture.captured",
+  "admin.ai.capture.failed",
+  "admin.ai.capture.disabled",
+  "admin.ai.capture.error",
+  "admin.ai.capture.page",
+  "admin.ai.capture.hint",
   "admin.bots.title",
   "admin.bots.description",
   "admin.bots.tabs.general",
@@ -1674,4 +1690,5 @@ export const translationKeys = [
   "errors.forbidden.message",
   "errors.forbidden.backHome",
 ] as const;
+
 export type TranslationKey = (typeof translationKeys)[number];
