@@ -294,16 +294,16 @@ export function Navigator({
       label: t('admin.nav.groups.content'),
       items: [
         {
+          href: '/admin/writing-mode',
+          label: t('admin.nav.writingMode'),
+          icon: <PenSparkIcon className="shrink-0" />,
+        },
+        {
           href: '/admin/pages',
           label: t('admin.nav.pages'),
           icon: <FileTextIcon className="shrink-0" />,
         },
         { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
-        {
-          href: '/admin/writing-mode',
-          label: t('admin.nav.writingMode'),
-          icon: <PenSparkIcon className="shrink-0" />,
-        },
         {
           href: '/admin/search',
           label: t('admin.nav.search'),
