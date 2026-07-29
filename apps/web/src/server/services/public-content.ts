@@ -723,13 +723,18 @@ export async function createPage(
 export async function createDraft(ctx: PermCtx, pageId: string, input: PublicDraftCreateInput): Promise<PublicRevisionResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await getSpaceById(page.spaceId);
+  // Drafting over a link path writes its generated target: the link publishes
+  // that target and holds no content of its own (FR-012), so this is the same
+  // redirection the editor performs when a link path is opened for editing.
+  const contentPage = await linkPages.resolveContentPage(page);
+  if (!contentPage) throw new DomainError('LINK_TARGET_INVALID', 'The link target is no longer available');
+  const space = await getSpaceById(contentPage.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   const draftInput = space.kind === 'generated' && input.contentSource
-    ? { ...input, contentSource: adaptGeneratedContent(input.contentSource, page.path, input.title) }
+    ? { ...input, contentSource: adaptGeneratedContent(input.contentSource, contentPage.path, input.title) }
     : input;
-  const created = await pageService.newDraft(ctx, page.path, draftInput, space.slug);
-  const revision = await getRevision(ctx, pageId, created.versionNumber);
+  const created = await pageService.newDraft(ctx, contentPage.path, draftInput, space.slug);
+  const revision = await getRevision(ctx, contentPage.id, created.versionNumber);
   if (!revision) throw new DomainError('NOT_FOUND', 'Created revision is not visible');
   return revision;
 }

@@ -178,6 +178,34 @@ describe('link pages', () => {
     });
   });
 
+  it('drafts over a link page onto its generated target', async () => {
+    const { userId } = await createAdminUser();
+    const ctx = buildUserCtx(userId, 'admin');
+    const target = await createPublishedGeneratedPage(ctx, 'concepts/draftable', 'Draftable', '# Draftable');
+    const link = await linkPages.createLinkPage(ctx, { path: 'docs/draftable', targetPageId: target.pageId });
+
+    const revision = await publicContent.createDraft(ctx, link.pageId, {
+      title: 'Draftable', contentSource: '# Draftable\n\nExpanded by an agent.',
+    });
+
+    // The draft belongs to the target; the link itself stays a pure pointer and
+    // keeps serving the still-published version until the draft is published.
+    expect(revision).toMatchObject({ pageId: target.pageId, status: 'draft' });
+    const linkRevisions = await db
+      .select()
+      .from(schema.pageRevisions)
+      .where(eq(schema.pageRevisions.pageId, link.pageId));
+    expect(linkRevisions).toHaveLength(1);
+    await expect(publicContent.getPageById(ctx, link.pageId)).resolves.toMatchObject({
+      contentSource: expect.stringContaining('# Draftable'),
+    });
+
+    await revisions.publish(ctx, { path: 'concepts/draftable', version: revision.version, space: 'generated' });
+    await expect(publicContent.getPageById(ctx, link.pageId)).resolves.toMatchObject({
+      contentSource: expect.stringContaining('Expanded by an agent.'),
+    });
+  });
+
   it('projects link targets only to Admin page and tree resources', async () => {
     const { userId } = await createAdminUser();
     const adminCtx = buildUserCtx(userId, 'admin');
