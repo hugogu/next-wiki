@@ -11,7 +11,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:generate": "pnpm --filter @next-wiki/web exec drizzle-kit generate",
-    "db:migrate": "pnpm --filter @next-wiki/web exec drizzle-kit migrate",
+    "db:migrate": "pnpm --filter @next-wiki/web db:migrate",
     "db:studio": "pnpm --filter @next-wiki/web exec drizzle-kit studio"
   },
   "devDependencies": {

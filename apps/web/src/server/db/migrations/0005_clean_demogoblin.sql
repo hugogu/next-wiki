@@ -1,1 +1,0 @@
-ALTER TABLE "search_behaviors" ADD CONSTRAINT "search_behaviors_action_page_shape" CHECK (("search_behaviors"."action" = 'result_open' AND "search_behaviors"."page_id" IS NOT NULL) OR ("search_behaviors"."action" = 'escape' AND "search_behaviors"."page_id" IS NULL));

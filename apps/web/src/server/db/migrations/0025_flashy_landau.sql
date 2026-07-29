@@ -1,1 +1,0 @@
-ALTER TABLE "writing_mode_settings" ADD COLUMN "switch_options" jsonb;

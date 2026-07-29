@@ -122,6 +122,27 @@ release, push a semver tag like `v0.1.0`: the workflow deploys
 Docker Hub image manually, set `WEB_IMAGE=hugogu/next-wiki-web:latest` (or a
 pinned tag) in `.env` and run `scripts/deploy-remote.sh`.
 
+### One-time upgrade: squashed Drizzle history
+
+The release containing the squashed `0000_init` migration requires a one-time
+history reset. It does not execute the init migration's application-schema DDL
+and does not change application tables or their data.
+
+1. Back up the database with `scripts/backup.sh`.
+2. Upgrade to the final pre-squash release and let its normal migration step
+   complete. Verify that all 44 legacy Drizzle migrations, through `0043`, are
+   recorded.
+3. Deploy the squashed release normally. Its migration command atomically
+   verifies that exact legacy history, replaces only
+   `drizzle.__drizzle_migrations` with the new `0000_init` record, then runs
+   Drizzle normally. The new init is already recorded, so none of its `CREATE`,
+   `ALTER`, or data statements are executed against the existing database.
+
+If the command reports an unrecognized migration history, do not force the
+upgrade. Restore or finish the pre-squash migration chain first, then rerun
+the deployment. Fresh installations need no special step: they run the new
+`0000_init` normally.
+
 ## Local development
 
 Local development still uses the original `docker-compose.yml`:

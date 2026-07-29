@@ -1,1 +1,0 @@
-ALTER TYPE "public"."ai_tool_category" ADD VALUE 'skill';

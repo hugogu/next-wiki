@@ -21,8 +21,8 @@
 #   7.  Validate .env has WEB_IMAGE set (prod overlay reads it for tag + DATA_DIR)
 #   8.  docker compose build web  (base + prod + caddy overlay → locally built
 #       image is tagged with $WEB_IMAGE from .env)
-#   9.  docker compose up -d --no-deps web
-#  10.  docker compose run --rm web node apps/web/scripts/migrate.mjs
+#   9.  docker compose run --rm web node apps/web/scripts/migrate.mjs
+#  10.  docker compose up -d --no-deps web
 #  11.  Wait for /healthz 200
 #  12.  Smoke /api/v1/pages and /api/v1/stats
 #
@@ -116,14 +116,14 @@ echo "  WEB_IMAGE=$(grep -E '^WEB_IMAGE=' "${REPO_ROOT}/.env" | head -1 | cut -d
 echo "==> [8/12] building web image (local; will be tagged with WEB_IMAGE from .env)"
 sudo -n docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.caddy.yml build web
 
-# ---- 9. Restart web ----
-echo "==> [9/12] restarting web container"
-sudo -n docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d --no-deps web
-
-# ---- 10. Run migrations ----
-echo "==> [10/12] running migrations"
+# ---- 9. Run migrations ----
+echo "==> [9/12] running migrations"
 sudo -n docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.caddy.yml run --rm web \
-  node apps/web/scripts/migrate.mjs || echo "  (migrations reported issues — review above; deployment continues)"
+  node apps/web/scripts/migrate.mjs
+
+# ---- 10. Restart web ----
+echo "==> [10/12] restarting web container"
+sudo -n docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d --no-deps web
 
 # ---- 11. Wait for /healthz ----
 echo "==> [11/12] waiting for /healthz"

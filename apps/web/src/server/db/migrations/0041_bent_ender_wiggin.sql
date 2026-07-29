@@ -1,1 +1,0 @@
-ALTER TABLE "ai_settings" ALTER COLUMN "event_retention_hours" SET DEFAULT 720;

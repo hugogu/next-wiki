@@ -1,1 +1,0 @@
-ALTER TABLE "ai_settings" ADD COLUMN "wiki_question_min_relevance_score" integer DEFAULT 500 NOT NULL;

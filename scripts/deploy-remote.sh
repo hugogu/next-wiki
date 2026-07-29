@@ -16,11 +16,11 @@ fi
 echo "== Pulling image ${WEB_IMAGE} =="
 docker pull "${WEB_IMAGE}"
 
-echo "== Updating containers =="
-WEB_IMAGE="${WEB_IMAGE}" docker compose -f "${COMPOSE_FILE}" up -d --no-deps --pull never web
-
 echo "== Running database migrations =="
 docker compose -f "${COMPOSE_FILE}" run --rm web node apps/web/scripts/migrate.mjs
+
+echo "== Updating containers =="
+WEB_IMAGE="${WEB_IMAGE}" docker compose -f "${COMPOSE_FILE}" up -d --no-deps --pull never web
 
 echo "== Waiting for /healthz =="
 deadline=$(($(date +%s) + HEALTHCHECK_TIMEOUT_SECONDS))
