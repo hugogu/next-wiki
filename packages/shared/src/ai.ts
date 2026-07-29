@@ -214,9 +214,18 @@ export type AiEventType = z.infer<typeof aiEventTypeSchema>;
 
 const jsonObjectSchema = z.record(z.string(), z.unknown()).default({});
 
+/**
+ * Upper bound for the action event log. Originally a week, on the assumption
+ * that events were a streaming buffer and nothing more. They are also the only
+ * record of an uncaptured conversation, so the ceiling is a year: an operator
+ * who wants readable chat history should be able to choose it rather than be
+ * capped into losing it.
+ */
+export const AI_EVENT_RETENTION_HOURS_MAX = 8_760;
+
 export const aiSettingsUpdateSchema = z.object({
   enabled: z.boolean().optional(),
-  eventRetentionHours: z.number().int().min(1).max(168).optional(),
+  eventRetentionHours: z.number().int().min(1).max(AI_EVENT_RETENTION_HOURS_MAX).optional(),
   artifactRetentionHours: z.number().int().min(1).max(168).optional(),
   modelDetectorApiKey: z.string().min(1).max(8_192).optional(),
   // When saving the detector key, optionally register OpenRouter providers for

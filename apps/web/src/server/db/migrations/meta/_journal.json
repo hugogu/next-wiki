@@ -288,6 +288,13 @@
       "when": 1785285514623,
       "tag": "0040_keen_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1785296208505,
+      "tag": "0041_bent_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }
