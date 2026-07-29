@@ -9,6 +9,9 @@ import {
 export type GeneratedImageInsertion = {
   artifactId: string;
   altText: string;
+  /** Explicit placement for page-wide or legacy artifacts. Must be a unique
+   * literal passage from the revision; insertion happens immediately after it. */
+  afterText?: string;
 };
 
 type Placement = {
@@ -74,7 +77,7 @@ export async function insertGeneratedImages(
     }
     const asset = await promoteGeneratedArtifact(ctx, image.artifactId, input.pageId);
     return {
-      after: placement?.source.kind === 'selection' ? placement.source.text : null,
+      after: image.afterText ?? (placement?.source.kind === 'selection' ? placement.source.text : null),
       markdown: `![${markdownAltText(image.altText)}](${asset.url})`,
       assetId: asset.id,
     };

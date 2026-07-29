@@ -54,6 +54,16 @@ describe('get_page across spaces', () => {
     expect(content.getPageByPath).toHaveBeenCalledWith(ctx, 'games/reversi', expect.anything(), 'generated');
   });
 
+  it('accepts the legacy default-space alias and presents it as wiki', async () => {
+    content.getPageByPath.mockResolvedValue({ ...page, spaceSlug: 'default' });
+
+    const result = await getPage({ path: 'games/reversi', space: 'default' });
+
+    expect(result.ok).toBe(true);
+    expect(content.getPageByPath).toHaveBeenCalledWith(ctx, 'games/reversi', expect.anything(), 'wiki');
+    expect((result.data as { spaceSlug: string }).spaceSlug).toBe('wiki');
+  });
+
   it('accepts a reader URL the model copied out of a create_page href', async () => {
     // Literal path first (wiki space) — miss — then the space parsed off the URL.
     content.getPageByPath.mockResolvedValueOnce(null).mockResolvedValueOnce(page);

@@ -384,7 +384,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'use_ai_image_generation',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Generate one private illustration from the current editable page or validated page selection. Returns safe artifact metadata; it never changes or publishes page content.',
+    description: 'Generate one private illustration from the current editable page or a unique literal selection copied from that revision. The server validates the selection against the revision and computes its hash; do not supply a revision hash. Returns safe artifact metadata; it never changes or publishes page content.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -392,7 +392,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         revisionId: { type: 'string', description: 'Current editable revision id for the page.' },
         source: {
           type: 'object',
-          description: 'Either { kind: "page" } or { kind: "selection", text, hash } for text from that revision.',
+          description: 'Either { kind: "page" } or { kind: "selection", text } for a unique literal passage copied from that revision. A legacy hash is optional and ignored.',
         },
         aspectRatio: { type: 'string', enum: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] },
       },
@@ -423,7 +423,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Promote one or more generated image artifacts and insert them into the exact page revision that produced them. Use this instead of save_draft when the only requested page change is adding generated images: it preserves every other Markdown byte verbatim, including LaTex. Each image is inserted after the selection used to generate it; page-wide images are appended.',
+    description: 'Promote one or more generated image artifacts and insert them into the exact page revision that produced them. Use this instead of save_draft when the only requested page change is adding generated images: it preserves every other Markdown byte verbatim, including LaTex. Each image is inserted after its unique selection; for a page-wide or legacy artifact, provide afterText as a unique literal passage from the revision to insert in the middle. Only omit afterText when appending is intentional.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -437,6 +437,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
             properties: {
               artifactId: { type: 'string', description: 'Artifact id returned by generate_image.' },
               altText: { type: 'string', description: 'Concise, descriptive alt text for the image.' },
+              afterText: { type: 'string', description: 'Optional unique literal passage from the current revision. Required to place a page-wide or legacy artifact in the middle; image Markdown is inserted immediately after it.' },
             },
             required: ['artifactId', 'altText'],
           },

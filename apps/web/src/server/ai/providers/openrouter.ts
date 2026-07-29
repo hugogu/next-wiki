@@ -46,7 +46,7 @@ export class OpenRouterAdapter extends OpenAiCompatibleAdapter {
         image_config: input.aspectRatio ? { aspect_ratio: input.aspectRatio } : undefined,
         stream: false,
       }),
-    });
+    }, input.timeoutMs);
     const payload = await readBoundedJson<{
       choices?: Array<{ message?: { images?: Array<{ image_url?: { url?: unknown } }> } }>;
     }>(response);

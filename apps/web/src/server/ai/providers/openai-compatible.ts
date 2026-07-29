@@ -265,7 +265,7 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
       method: 'POST',
       signal: input.abortSignal,
       body: JSON.stringify({ model: input.modelExternalId, prompt: input.prompt, response_format: 'b64_json' }),
-    });
+    }, input.timeoutMs);
     const payload = await readBoundedJson<{
       data?: Array<{ b64_json?: unknown; url?: unknown }>;
     }>(response);

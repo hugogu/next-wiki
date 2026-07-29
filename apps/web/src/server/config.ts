@@ -33,6 +33,10 @@ const envSchema = z.object({
   SKILLS_HOST_PATH: z.string().optional(),
   AI_PROVIDER_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   AI_PROVIDER_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  // Image backends commonly render asynchronously before returning their first
+  // byte. Keep the general request limit responsive while giving image work a
+  // separately configurable, longer allowance.
+  AI_IMAGE_GENERATION_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
   AI_EVENT_RETENTION_HOURS: z.coerce
     .number()
     .int()

@@ -52,7 +52,7 @@ describe('AI image generation', () => {
       latestVersionId: revisionId,
     });
     await db.insert(schema.pageRevisions).values({
-      id: revisionId, pageId, versionNumber: 1, contentSource: '# Page\n\nContent',
+      id: revisionId, pageId, versionNumber: 1, contentSource: '# Page\n\nSelected subject\n\nContent',
       contentHtml: '<h1>Page</h1>', contentHash: 'hash', authorId: editorId,
     });
     await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
@@ -84,7 +84,7 @@ describe('AI image generation', () => {
     const action = await createImageGeneration(buildUserCtx(editorId, 'editor'), {
       pageId,
       revisionId,
-      source: { kind: 'selection', text: 'Selected subject', hash: selectionHash('Selected subject') },
+      source: { kind: 'selection', text: 'Selected subject' },
       aspectRatio: '16:9',
     }, { enqueue: false });
     await executeImageGenerationAction(action.id);
@@ -99,11 +99,30 @@ describe('AI image generation', () => {
     });
   });
 
-  it('rejects a mismatched selection hash before provider execution', async () => {
-    await expect(createImageGeneration(buildUserCtx(editorId, 'editor'), {
+  it('derives a selection hash server-side instead of trusting a stale caller hash', async () => {
+    const action = await createImageGeneration(buildUserCtx(editorId, 'editor'), {
       pageId,
       revisionId,
       source: { kind: 'selection', text: 'Selected subject', hash: '0'.repeat(64) },
+    }, { enqueue: false });
+    await executeImageGenerationAction(action.id);
+    const artifact = await db.query.aiGeneratedArtifacts.findFirst({ where: eq(schema.aiGeneratedArtifacts.actionId, action.id) });
+    expect(decryptAiJson(artifact!.placementPayloadEncrypted!)).toMatchObject({
+      source: { kind: 'selection', text: 'Selected subject', hash: selectionHash('Selected subject') },
+    });
+  });
+
+  it('rejects a missing or ambiguous selection before provider execution', async () => {
+    await expect(createImageGeneration(buildUserCtx(editorId, 'editor'), {
+      pageId,
+      revisionId,
+      source: { kind: 'selection', text: 'Missing subject' },
+    })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await db.update(schema.pageRevisions).set({ contentSource: 'Selected subject\n\nSelected subject' }).where(eq(schema.pageRevisions.id, revisionId));
+    await expect(createImageGeneration(buildUserCtx(editorId, 'editor'), {
+      pageId,
+      revisionId,
+      source: { kind: 'selection', text: 'Selected subject' },
     })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     expect(generateImage).not.toHaveBeenCalled();
   });

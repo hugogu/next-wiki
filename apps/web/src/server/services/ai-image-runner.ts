@@ -77,7 +77,7 @@ async function outputBytes(output: ImageGenerationOutput): Promise<Buffer> {
     throw new DomainError('INVALID_RESPONSE', 'Provider returned an unsafe image URL');
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), env.AI_PROVIDER_REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), env.AI_IMAGE_GENERATION_TIMEOUT_MS);
   try {
     return await readBoundedResponse(await fetch(url, { signal: controller.signal, redirect: 'error' }));
   } finally {
@@ -110,6 +110,7 @@ export async function executeImageGenerationAction(actionId: string): Promise<vo
     modelExternalId: model.externalId,
     prompt,
     aspectRatio: input.aspectRatio,
+    timeoutMs: env.AI_IMAGE_GENERATION_TIMEOUT_MS,
     abortSignal: new AbortController().signal,
   });
   if (await isCancellationRequested(actionId)) throw new DomainError('CANCELLED', 'Image generation was cancelled');

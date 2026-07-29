@@ -117,9 +117,9 @@ one, and no tool here publishes anything.
 1. **`generate_image`** — needs `pageId`, `revisionId` (both returned by
    `get_page`), and a `source`:
    - `{ "kind": "page" }` illustrates the page as a whole;
-   - `{ "kind": "selection", "text": "…", "hash": "…" }` illustrates one
-     passage, where `text` is copied from that revision and `hash` is the
-     revision hash `get_page` returned.
+   - `{ "kind": "selection", "text": "…" }` illustrates one unique passage,
+     copied verbatim from that revision. Do not provide a hash: the server
+     validates the selection against the revision and computes one itself.
 
    Optionally `aspectRatio`: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`,
    `9:16`, `16:9`, `21:9`. Prefer `16:9` for a wide diagram-like illustration
@@ -133,7 +133,9 @@ one, and no tool here publishes anything.
    the same current revision, pass its `pageId`, `revisionId`, and each
    `artifactId` with descriptive `altText`. It promotes the artifacts and
    inserts them after their source selections in one draft without serializing
-   or rewriting the existing Markdown.
+   or rewriting the existing Markdown. If an image was generated from the
+   whole page (or is a legacy artifact), supply that image an `afterText` value:
+   a unique literal passage from the same revision after which it should go.
 
 **Use descriptive alt text.** Pass a real description of what the picture
 shows as `altText`; every other rule about alt text applies to generated images

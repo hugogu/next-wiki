@@ -107,9 +107,11 @@ Use `promote_generated_image` → `save_draft` only when you are already making
 an intentional full-document edit for another reason. A generated artifact is
 private and expires, so it must be promoted before it can be referenced.
 
-`generate_image` derives its prompt from the page or from a passage you select
-out of the current revision — there is no free-text prompt. Steer the picture by
-choosing the passage, not by describing it separately. `reference/formatting.md`
+`generate_image` derives its prompt from the page or from a unique literal
+passage you select out of the current revision — there is no free-text prompt.
+Steer the picture and its insertion position by choosing that passage, not by
+describing it separately. For a page-wide image, pass a unique `afterText` to
+`insert_generated_images` when it belongs in the middle. `reference/formatting.md`
 has the exact arguments and the aspect ratios.
 
 Pass real descriptive `altText` to `insert_generated_images`; never leave

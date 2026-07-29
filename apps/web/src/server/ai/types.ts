@@ -111,6 +111,8 @@ export type ImageGenerationInput = {
   modelExternalId: string;
   prompt: string;
   aspectRatio?: string;
+  /** Image rendering can take materially longer than a normal text request. */
+  timeoutMs?: number | null;
   abortSignal: AbortSignal;
 };
 export type ImageGenerationOutput =

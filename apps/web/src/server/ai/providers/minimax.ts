@@ -98,7 +98,7 @@ export class MiniMaxAdapter extends OpenAiCompatibleAdapter {
         response_format: 'base64',
         n: 1,
       }),
-    });
+    }, input.timeoutMs);
     // MiniMax answers with HTTP 200 even on failure; the real outcome is in
     // base_resp.status_code (0 = success), so surface its message instead of a
     // generic "no image" error.

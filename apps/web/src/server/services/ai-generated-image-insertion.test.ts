@@ -72,6 +72,32 @@ describe('generated image insertion', () => {
     ])).toBe('# Saturn\n\n![Saturn](/api/assets/a)');
   });
 
+  it('uses an explicit literal anchor to place a page-wide illustration in the middle', () => {
+    expect(insertGeneratedImagesIntoMarkdown('# Wine\n\nOrigins\n\nRegions\n', [
+      { after: 'Origins', markdown: '![vineyard](/api/assets/a)' },
+    ])).toBe('# Wine\n\nOrigins\n\n![vineyard](/api/assets/a)\n\nRegions\n');
+  });
+
+  it('uses an explicit anchor for a page-wide artifact without rewriting source', async () => {
+    const source = '# Wine\n\nOrigins\n\nRegions\n';
+    content.getPageById.mockResolvedValue({ title: 'Wine', contentSource: source, latestRevision: { id: revisionId } });
+    artifacts.getGeneratedArtifactPlacement.mockResolvedValue({ revisionId, source: { kind: 'page' } });
+    artifacts.promoteGeneratedArtifact.mockResolvedValue({ id: 'asset-page', url: '/api/assets/asset-page' });
+    content.createDraft.mockResolvedValue({ version: 10 });
+
+    await insertGeneratedImages(ctx, {
+      pageId,
+      revisionId,
+      images: [{ artifactId, altText: 'A vineyard', afterText: 'Origins' }],
+    });
+
+    expect(content.createDraft).toHaveBeenCalledWith(ctx, pageId, {
+      title: 'Wine',
+      contentSource: '# Wine\n\nOrigins\n\n![A vineyard](/api/assets/asset-page)\n\nRegions\n',
+      baseRevisionId: revisionId,
+    });
+  });
+
   it('appends legacy artifacts whose placement input has expired instead of failing', async () => {
     content.getPageById.mockResolvedValue({
       title: 'Saturn',

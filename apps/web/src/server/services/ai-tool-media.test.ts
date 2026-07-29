@@ -48,7 +48,7 @@ describe('Wiki AI media tools', () => {
     const result = await executeTool(ctx, getToolDefinition('generate_image')!, {
       pageId,
       revisionId,
-      source: { kind: 'selection', text: 'Architecture overview', hash: 'a'.repeat(64) },
+      source: { kind: 'selection', text: 'Architecture overview' },
       aspectRatio: '16:9',
     }, execCtx);
 
@@ -99,13 +99,13 @@ describe('Wiki AI media tools', () => {
     const result = await executeTool(ctx, getToolDefinition('insert_generated_images')!, {
       pageId,
       revisionId,
-      images: [{ artifactId, altText: 'Saturn and its rings' }],
+      images: [{ artifactId, altText: 'Saturn and its rings', afterText: 'Orbital properties' }],
     }, execCtx);
 
     expect(insertion.insertGeneratedImages).toHaveBeenCalledWith(ctx, {
       pageId,
       revisionId,
-      images: [{ artifactId, altText: 'Saturn and its rings' }],
+      images: [{ artifactId, altText: 'Saturn and its rings', afterText: 'Orbital properties' }],
     });
     expect(result).toMatchObject({
       ok: true,

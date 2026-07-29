@@ -137,7 +137,10 @@ const pageRefArgs = z
   .object({
     pageId: z.string().uuid().optional(),
     path: z.string().min(1).optional(),
-    space: z.enum(['wiki', 'raw', 'generated']).optional(),
+    // `default` is the persisted slug for the primary wiki space. Older tool
+    // results exposed that internal value, so accept it on input as a
+    // compatibility alias while consistently presenting `wiki` to the model.
+    space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
     contentOffset: z.number().int().min(0).optional(),
   })
   .refine((v) => v.pageId || v.path);
@@ -145,7 +148,7 @@ const listArgs = z
   .object({
     path: z.string().min(1).optional(),
     pathPrefix: z.string().min(1).optional(),
-    space: z.enum(['wiki', 'raw', 'generated']).optional(),
+    space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
     limit: z.number().int().min(1).max(MAX_LIST).optional(),
   })
   .strict();
@@ -187,7 +190,10 @@ const tagIdArgs = z.object({ tagId: z.string().uuid() });
 const mergeTagArgs = z.object({ tagId: z.string().uuid(), targetTagId: z.string().uuid() });
 const imageSourceArgs = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('page') }),
-  z.object({ kind: z.literal('selection'), text: z.string().min(1).max(100_000), hash: z.string().min(16).max(128) }),
+  // Hashes are generated server-side. A model can copy source text faithfully,
+  // but cannot be expected to calculate its SHA-256 digest; accepting a legacy
+  // hash keeps in-flight/older calls compatible without trusting it.
+  z.object({ kind: z.literal('selection'), text: z.string().min(1).max(100_000), hash: z.string().min(16).max(128).optional() }),
 ]);
 const generateImageArgs = z.object({
   pageId: z.string().uuid(),
@@ -202,6 +208,7 @@ const insertGeneratedImagesArgs = z.object({
   images: z.array(z.object({
     artifactId: z.string().uuid(),
     altText: z.string().trim().min(1).max(500),
+    afterText: z.string().min(1).max(100_000).optional(),
   })).min(1).max(10),
 });
 
@@ -214,7 +221,9 @@ function pageCitationData(page: PublicPageResource) {
     path: page.path,
     title: page.title,
     locale: page.locale,
-    spaceSlug: page.spaceSlug,
+    // The tool contract calls the primary reader space `wiki`; never leak its
+    // storage slug (`default`) back to a model that needs to call get_page.
+    spaceSlug: page.spaceSlug === 'default' ? 'wiki' : page.spaceSlug,
     revisionId: revision?.id ?? null,
     revisionHash: revision?.contentHash ?? null,
   };
@@ -469,7 +478,7 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
       // Reported alongside the href so a later path-addressed read has the
       // space to pass; without it the href is the only space-bearing handle
       // the model holds, and it ends up back here as a `path`.
-      spaceSlug: page.spaceSlug,
+      spaceSlug: page.spaceSlug === 'default' ? 'wiki' : page.spaceSlug,
       href: getSpaceHref(isAdmin ? 'generated' : 'wiki', page.path),
     },
   };
