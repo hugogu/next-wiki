@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { SkillDetail as SkillDetailView, SkillFileContent } from '@next-wiki/shared';
 import { apiDelete, apiGet, apiPost, apiPut, type ApiError } from '@/lib/api/client';
 import { Alert } from '@/components/ui/Alert';
-import { BackLink } from '@/components/ui/BackLink';
 import { Button } from '@/components/ui/Button';
 import { CodeEditor, languageForContentType } from '@/components/ui/CodeEditor';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -129,7 +129,9 @@ export function SkillDetail({ skill }: { skill: SkillDetailView }) {
 
   return (
     <div className="flex flex-col gap-lg">
-      <BackLink fallbackHref="/admin/ai/skills">{t('admin.ai.skills.backToList')}</BackLink>
+      <Link href="/admin/ai/skills" className="text-sm text-primary hover:underline">
+        {t('admin.ai.skills.backToList')}
+      </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-md">
         <div>
