@@ -459,7 +459,7 @@
         "pdfTitle": "PDF preview",
         "imageAlt": "Raw image",
         "noViewer": "No dedicated viewer for this content type; showing the extracted text.",
-        "invalidConversation": "This conversation's structured detail is unavailable right now."
+        "invalidConversation": "No structured metadata is attached to this Conversation-category entry; showing the raw markdown body."
       }
     }
   },
