@@ -215,6 +215,48 @@ export async function deleteLinkPage(ctx: PermCtx, pageId: string): Promise<void
   await enqueueGitExport('publish');
 }
 
+/**
+ * Resolve a page to the page that actually holds its content.
+ *
+ * A link page stores none of its own: it publishes a generated target at a
+ * wiki path (FR-012), which is why the reader resolves the target's published
+ * revision and the editor redirects to the target when a link path is opened.
+ * Every other content operation needs the same redirection, or it reads the
+ * link's empty placeholder revision and concludes the page has no source.
+ * Native pages resolve to themselves; a link whose target is gone resolves to
+ * nothing.
+ */
+export async function resolveContentPage(
+  page: typeof schema.pages.$inferSelect,
+): Promise<typeof schema.pages.$inferSelect | null> {
+  if (page.kind !== 'link') return page;
+  if (!page.linkTargetPageId) return null;
+  const target = await db.query.pages.findFirst({
+    where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt)),
+  });
+  return target ?? null;
+}
+
+/**
+ * Resolve a page and one of its revisions to the revision that actually holds
+ * content. For a link page that is the target's currently published revision —
+ * exactly what a reader sees at the wiki path. See {@link resolveContentPage}.
+ */
+export async function resolveContentRevision(
+  page: typeof schema.pages.$inferSelect,
+  revision: typeof schema.pageRevisions.$inferSelect,
+): Promise<typeof schema.pageRevisions.$inferSelect | null> {
+  const target = await resolveContentPage(page);
+  if (!target) return null;
+  if (target.id === page.id) return revision;
+  if (!target.currentPublishedVersionId) return null;
+  return (
+    (await db.query.pageRevisions.findFirst({
+      where: eq(schema.pageRevisions.id, target.currentPublishedVersionId),
+    })) ?? null
+  );
+}
+
 /** Return public wiki paths currently pointing at a generated page. */
 export async function listLiveLinksForTarget(targetPageId: string): Promise<string[]> {
   const rows = await db

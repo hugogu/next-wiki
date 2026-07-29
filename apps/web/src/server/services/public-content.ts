@@ -218,6 +218,17 @@ const DEFAULT_VISIBLE_PAGE_OPTIONS: VisiblePageOptions = {
   include: [],
 };
 
+/**
+ * Markdown a page serves at its own path. A link page holds no content row of
+ * its own — it publishes its generated target (FR-012), which is what a reader
+ * already sees at the wiki path, so this surface must return that source
+ * rather than an empty body.
+ */
+async function readPageSource(page: PageRow, current: RevisionRow): Promise<string> {
+  const contentRevision = await linkPages.resolveContentRevision(page, current);
+  return contentRevision ? readMarkdownFromDatabase(contentRevision) : '';
+}
+
 async function visiblePageResource(
   ctx: PermCtx,
   space: SpaceRow,
@@ -275,7 +286,7 @@ async function visiblePageResource(
   // derived on every response; `options.includeContent` only controls
   // whether the raw Markdown is included in the returned shape.
   const [contentRow, pageAuthor, latestRevision, publishedRevision] = await Promise.all([
-    page.kind === 'link' ? Promise.resolve('') : readMarkdownFromDatabase(current),
+    readPageSource(page, current),
     author(page.authorId),
     wantsLatest ? revisionSummary(ctx, space, page, visibleLatest) : Promise.resolve(undefined),
     wantsPublished ? revisionSummary(ctx, space, page, published) : Promise.resolve(undefined),

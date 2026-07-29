@@ -157,6 +157,27 @@ describe('link pages', () => {
     await expect(pageService.getLive(buildAnonymousCtx(), 'docs/runtime')).resolves.toBeNull();
   });
 
+  it('serves the generated target source as the link page source on the content API', async () => {
+    const { userId } = await createAdminUser();
+    const ctx = buildUserCtx(userId, 'admin');
+    const target = await createPublishedGeneratedPage(ctx, 'concepts/source', 'Source', '# Source\n\nOriginal body.');
+    const link = await linkPages.createLinkPage(ctx, { path: 'docs/source', targetPageId: target.pageId });
+
+    // The link has no content row of its own, so an unresolved read returns an
+    // empty body and every writer downstream concludes the page is a stub.
+    await expect(publicContent.getPageById(ctx, link.pageId)).resolves.toMatchObject({
+      contentSource: expect.stringContaining('Original body.'),
+    });
+
+    const draft = await pageService.newDraft(ctx, 'concepts/source', {
+      title: 'Source', contentSource: '# Source\n\nRewritten body.',
+    }, 'generated');
+    await revisions.publish(ctx, { path: 'concepts/source', version: draft.versionNumber, space: 'generated' });
+    await expect(publicContent.getPageById(ctx, link.pageId)).resolves.toMatchObject({
+      contentSource: expect.stringContaining('Rewritten body.'),
+    });
+  });
+
   it('projects link targets only to Admin page and tree resources', async () => {
     const { userId } = await createAdminUser();
     const adminCtx = buildUserCtx(userId, 'admin');
