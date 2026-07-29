@@ -10,7 +10,12 @@ import { buildDiffRows } from '@/lib/revision-diff';
 import { RevisionSourceDiff } from './RevisionSourceDiff';
 import { RevisionPreviewDiff } from './RevisionPreviewDiff';
 
-type Revision = { version: number; contentSource: string; contentHtml: string };
+type Revision = {
+  version: number;
+  contentSource: string;
+  contentHtml: string;
+  previewLineOffset: number;
+};
 export function RevisionDiffView({ earlier, later }: { earlier: Revision; later: Revision }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,6 +98,8 @@ export function RevisionDiffView({ earlier, later }: { earlier: Revision; later:
           after={later.contentSource}
           beforeHtml={earlier.contentHtml}
           afterHtml={later.contentHtml}
+          beforeLineOffset={earlier.previewLineOffset}
+          afterLineOffset={later.previewLineOffset}
           context={options.context}
           ignoreWhitespace={options.ignoreWhitespace}
           sync={options.sync}

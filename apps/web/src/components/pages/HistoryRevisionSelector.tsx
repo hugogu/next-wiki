@@ -18,6 +18,7 @@ type ComparedRevision = {
   version: number;
   contentSource: string;
   contentHtml: string;
+  previewLineOffset: number;
 };
 
 type SelectedRevision = {

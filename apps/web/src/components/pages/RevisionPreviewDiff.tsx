@@ -6,18 +6,32 @@ import { buildDiffRows, withContext, type DiffKind, type DiffRow } from '@/lib/r
 
 type ChangedKind = Exclude<DiffKind, 'unchanged'>;
 
-function lineNumbers(rows: DiffRow[]): { left: Set<number>; right: Set<number> } {
+export function previewLineNumber(line: number, offset: number): number | undefined {
+  const previewLine = line - offset;
+  return previewLine > 0 ? previewLine : undefined;
+}
+
+export function previewLineNumbers(
+  rows: DiffRow[],
+  offsets: { left: number; right: number },
+): { left: Set<number>; right: Set<number> } {
   const left = new Set<number>();
   const right = new Set<number>();
   rows.forEach((row) => {
     if (row.kind === 'collapsed') return;
-    if (row.left) left.add(row.left.number);
-    if (row.right) right.add(row.right.number);
+    if (row.left) {
+      const line = previewLineNumber(row.left.number, offsets.left);
+      if (line) left.add(line);
+    }
+    if (row.right) {
+      const line = previewLineNumber(row.right.number, offsets.right);
+      if (line) right.add(line);
+    }
   });
   return { left, right };
 }
 
-function changedLineKinds(rows: DiffRow[]): {
+export function previewChangedLineKinds(rows: DiffRow[], offsets: { left: number; right: number }): {
   left: Map<number, ChangedKind>;
   right: Map<number, ChangedKind>;
 } {
@@ -25,8 +39,14 @@ function changedLineKinds(rows: DiffRow[]): {
   const right = new Map<number, ChangedKind>();
   rows.forEach((row) => {
     if (row.kind === 'unchanged' || row.kind === 'collapsed') return;
-    if (row.left) left.set(row.left.number, row.kind);
-    if (row.right) right.set(row.right.number, row.kind);
+    if (row.left) {
+      const line = previewLineNumber(row.left.number, offsets.left);
+      if (line) left.set(line, row.kind);
+    }
+    if (row.right) {
+      const line = previewLineNumber(row.right.number, offsets.right);
+      if (line) right.set(line, row.kind);
+    }
   });
   return { left, right };
 }
@@ -87,6 +107,8 @@ export function RevisionPreviewDiff({
   after,
   beforeHtml,
   afterHtml,
+  beforeLineOffset,
+  afterLineOffset,
   context,
   ignoreWhitespace,
   sync,
@@ -95,6 +117,8 @@ export function RevisionPreviewDiff({
   after: string;
   beforeHtml: string;
   afterHtml: string;
+  beforeLineOffset: number;
+  afterLineOffset: number;
   context: number | 'full';
   ignoreWhitespace: boolean;
   sync: boolean;
@@ -103,8 +127,9 @@ export function RevisionPreviewDiff({
   const rightRef = useRef<HTMLDivElement>(null);
   const echo = useRef<'left' | 'right' | null>(null);
   const rows = withContext(buildDiffRows(before, after, ignoreWhitespace), context);
-  const changedLines = changedLineKinds(rows);
-  const visibleLines = lineNumbers(rows);
+  const offsets = { left: beforeLineOffset, right: afterLineOffset };
+  const changedLines = previewChangedLineKinds(rows, offsets);
+  const visibleLines = previewLineNumbers(rows, offsets);
 
   useEffect(() => {
     const left = leftRef.current;
