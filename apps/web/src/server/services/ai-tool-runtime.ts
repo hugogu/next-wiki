@@ -373,16 +373,34 @@ export function boundTranscript(transcript: string[], budget = DEFAULT_TRANSCRIP
   let total = 0;
   for (let index = transcript.length - 1; index >= 0; index -= 1) {
     const entry = transcript[index]!;
-    if (total + entry.length > budget && kept.length > 0) {
-      return [
-        `[${index + 1} earlier tool result(s) omitted: the transcript exceeded ${budget} characters. Call the tool again if you need one of them; do not assume what it said.]`,
-        ...kept,
-      ];
+    if (kept.length === 0) {
+      kept.unshift(entry);
+      total += entry.length;
+      // Keep the latest result even when it alone exceeds the budget. This is
+      // only possible for callers that bypass the effective per-result cap.
+      if (total > budget) return kept;
+      continue;
     }
-    kept.unshift(entry);
-    total += entry.length;
+    if (total + entry.length <= budget) {
+      kept.unshift(entry);
+      total += entry.length;
+      continue;
+    }
+
+    let omitted = index + 1;
+    let notice = omissionNotice(omitted, budget);
+    while (kept.length > 0 && total + notice.length > budget) {
+      total -= kept.shift()!.length;
+      omitted += 1;
+      notice = omissionNotice(omitted, budget);
+    }
+    return kept.length > 0 ? [notice, ...kept] : [notice.slice(0, budget)];
   }
   return kept;
+}
+
+function omissionNotice(omitted: number, budget: number): string {
+  return `[${omitted} earlier tool result(s) omitted: the transcript exceeded ${budget} characters. Call the tool again if you need one of them; do not assume what it said.]`;
 }
 
 /**

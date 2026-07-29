@@ -6,11 +6,12 @@ import {
   effectiveToolResultChars,
   formatToolResultForModel,
 } from './ai-tool-runtime';
+import { TOOL_RESULT_MAX_CHARS_MIN } from '@next-wiki/shared';
 import { pageContentWindowFor } from './ai-tool-executors';
 
 /**
  * The transcript is re-sent in full on every planner iteration, so an unbounded
- * one grows as `calls × MAX_TOOL_RESULT_CHARS` — 800k characters at the default
+ * one grows as `calls × MAX_TOOL_RESULT_CHARS` — 3.2M characters at the default
  * 100-call budget. One observed turn made 51 calls and was sending roughly 350k
  * characters by the end.
  */
@@ -31,7 +32,7 @@ describe('boundTranscript', () => {
     expect(bounded.at(-1)).toBe(entry(5));
     expect(bounded).not.toContain(entry(1));
     expect(bounded[0]).toContain('earlier tool result(s) omitted');
-    expect(bounded.join('').length).toBeLessThan(20_000 + bounded[0]!.length);
+    expect(bounded.join('').length).toBeLessThanOrEqual(20_000);
   });
 
   it('announces the drop in-band rather than silently shrinking', () => {
@@ -40,6 +41,13 @@ describe('boundTranscript', () => {
     // confidently act on the gap — the same failure the result truncator avoids.
     expect(bounded[0]).toMatch(/Call the tool again/);
     expect(bounded[0]).toContain('2 earlier tool result(s) omitted');
+  });
+
+  it('budgets the omission notice with the retained results', () => {
+    const bounded = boundTranscript([entry(1, 4_000), entry(2, 4_000), entry(3, 4_000)], 8_100);
+
+    expect(bounded[0]).toContain('2 earlier tool result(s) omitted');
+    expect(bounded.join('').length).toBeLessThanOrEqual(8_100);
   });
 
   it('still returns the newest entry when it alone exceeds the budget', () => {
@@ -103,6 +111,33 @@ describe('effectiveToolResultChars', () => {
       },
       cap,
     );
+    expect(rendered.truncated).toBe(false);
+  });
+
+  it('keeps paging metadata intact at the lowest configurable cap', () => {
+    const cap = TOOL_RESULT_MAX_CHARS_MIN;
+    const rendered = formatToolResultForModel(
+      'get_page',
+      {
+        summary: 'Read page "x" characters 0-1000 of 2000. Call get_page again with contentOffset=1000 for the rest before rewriting it.',
+        data: {
+          pageId: '0'.repeat(36),
+          path: 'a/'.repeat(40),
+          title: 'x'.repeat(200),
+          locale: 'en',
+          spaceSlug: 'wiki',
+          revisionId: '0'.repeat(36),
+          revisionHash: '0'.repeat(64),
+          contentSource: 'y'.repeat(pageContentWindowFor(cap)),
+          contentOffset: 0,
+          contentLength: 2_000,
+          hasMore: true,
+          nextContentOffset: 1_000,
+        },
+      },
+      cap,
+    );
+
     expect(rendered.truncated).toBe(false);
   });
 });

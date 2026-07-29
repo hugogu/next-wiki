@@ -262,7 +262,9 @@ export const AI_RUNTIME_PROMPT_MAX_LENGTH = 20_000;
  * effective value is additionally clamped to the transcript budget at runtime,
  * so a large setting cannot make a single result unsendable.
  */
-export const TOOL_RESULT_MAX_CHARS_MIN = 2_000;
+// Read tools reserve 2k characters for their result envelope and require a
+// 1k content window, so lower values would make paging metadata truncatable.
+export const TOOL_RESULT_MAX_CHARS_MIN = 3_000;
 export const TOOL_RESULT_MAX_CHARS_MAX = 200_000;
 export const TOOL_RESULT_MAX_CHARS_DEFAULT = 32 * 1024;
 
