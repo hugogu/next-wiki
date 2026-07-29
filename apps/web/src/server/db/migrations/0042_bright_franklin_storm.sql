@@ -1,1 +1,0 @@
-ALTER TABLE "ai_settings" ADD COLUMN "tool_result_max_chars" integer DEFAULT 32768 NOT NULL;

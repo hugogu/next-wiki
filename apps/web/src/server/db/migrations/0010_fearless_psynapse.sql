@@ -1,1 +1,0 @@
-ALTER TABLE "api_audit_entries" ADD COLUMN "ip" text;

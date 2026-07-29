@@ -1,1 +1,0 @@
-ALTER TYPE "public"."setup_step" ADD VALUE 'writing_mode' BEFORE 'sample_pages';

@@ -1,1 +1,0 @@
-ALTER TYPE "public"."feishu_connection_mode" ADD VALUE 'websocket';

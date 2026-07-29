@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio",
     "openapi:generate": "NODE_OPTIONS=--max-old-space-size=4096 openapi-gen generate && node scripts/finalize-openapi.mjs"
   },
