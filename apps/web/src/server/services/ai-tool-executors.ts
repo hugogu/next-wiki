@@ -128,7 +128,13 @@ function toSafeFailure(error: unknown, context: { toolName: string; actionId?: s
 // ---- Argument schemas -------------------------------------------------------
 
 const searchArgs = z.object({ query: z.string().min(1).max(200), limit: z.number().int().min(1).max(MAX_LIST).optional() });
-const pageRefArgs = z.object({ pageId: z.string().uuid().optional(), path: z.string().min(1).optional() }).refine((v) => v.pageId || v.path);
+const pageRefArgs = z
+  .object({
+    pageId: z.string().uuid().optional(),
+    path: z.string().min(1).optional(),
+    space: z.enum(['wiki', 'raw', 'generated']).optional(),
+  })
+  .refine((v) => v.pageId || v.path);
 const listArgs = z
   .object({
     path: z.string().min(1).optional(),
@@ -214,11 +220,41 @@ async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
   return { ok: true, summary: `${items.length} readable page(s) matched.`, data: { items } };
 }
 
+/**
+ * A page path the model may have copied out of a reader URL.
+ *
+ * Read results carry a bare `path`, but `create_page` also returns an `href`
+ * and the system prompt asks the model to reuse that href when it links to the
+ * page — so `/spaces/generated/games/reversi` comes back as a `path` argument
+ * sooner or later. Only a known reader space is stripped, and the literal path
+ * is still tried first, so a real page that happens to live under `spaces/`
+ * keeps winning.
+ */
+function readerUrlAsPageRef(path: string): { path: string; space: 'raw' | 'generated' | 'wiki' } | null {
+  const match = /^\/?spaces\/(raw|generated|wiki)\/(.+)$/.exec(path.trim());
+  return match ? { path: match[2]!, space: match[1] as 'raw' | 'generated' | 'wiki' } : null;
+}
+
+/**
+ * Read a page by path in a chosen space, defaulting to the wiki space.
+ *
+ * Every read result already reports the `spaceSlug` a page lives in and
+ * `create_page` writes into `generated`, so a path-addressed read that could
+ * only ever see the wiki space left the model unable to re-read what it had
+ * just found or created.
+ */
+async function readPageByPath(ctx: PermCtx, path: string, space?: string) {
+  const direct = await content.getPageByPath(ctx, path, READ_INCLUDE, space);
+  if (direct) return direct;
+  const fromUrl = readerUrlAsPageRef(path);
+  return fromUrl ? content.getPageByPath(ctx, fromUrl.path, READ_INCLUDE, fromUrl.space) : null;
+}
+
 async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
   const args = pageRefArgs.parse(rawArgs);
   const page = args.pageId
     ? await content.getPageById(ctx, args.pageId, READ_INCLUDE)
-    : await content.getPageByPath(ctx, args.path!, READ_INCLUDE);
+    : await readPageByPath(ctx, args.path!, args.space);
   if (!page) return fail('NOT_FOUND', 'No readable page matched. Use search_wiki or list_pages to discover an exact readable path.');
   return {
     ok: true,
@@ -252,11 +288,11 @@ async function execListPages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecut
  */
 async function resolvePageId(
   ctx: PermCtx,
-  args: { pageId?: string; path?: string },
+  args: { pageId?: string; path?: string; space?: string },
 ): Promise<string | null> {
   if (args.pageId) return args.pageId;
   if (!args.path) return null;
-  const page = await content.getPageByPath(ctx, args.path, []);
+  const page = await readPageByPath(ctx, args.path, args.space);
   return page?.id ?? null;
 }
 
@@ -318,6 +354,10 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
       pageId: page.id,
       path: page.path,
       title: page.title,
+      // Reported alongside the href so a later path-addressed read has the
+      // space to pass; without it the href is the only space-bearing handle
+      // the model holds, and it ends up back here as a `path`.
+      spaceSlug: page.spaceSlug,
       href: getSpaceHref(isAdmin ? 'generated' : 'wiki', page.path),
     },
   };

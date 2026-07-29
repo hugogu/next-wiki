@@ -97,7 +97,15 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'Page id returned by a previous tool call.' },
-        path: { type: 'string', description: 'Exact page path. Supply this or pageId.' },
+        path: {
+          type: 'string',
+          description: 'Exact page path as returned in a result\'s "path" field, e.g. "games/reversi". Not a reader URL. Supply this or pageId.',
+        },
+        space: {
+          type: 'string',
+          enum: ['wiki', 'raw', 'generated'],
+          description: 'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
+        },
       },
     },
   },
@@ -132,6 +140,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       properties: {
         pageId: { type: 'string' },
         path: { type: 'string', description: 'Supply this or pageId.' },
+        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
       },
     },
   },
@@ -148,6 +157,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       properties: {
         pageId: { type: 'string' },
         path: { type: 'string', description: 'Supply this or pageId.' },
+        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
       },
     },
   },
