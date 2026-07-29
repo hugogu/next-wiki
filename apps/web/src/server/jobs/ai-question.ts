@@ -54,7 +54,6 @@ import {
   failFeishuAnswerStream,
   startFeishuAnswerStream,
 } from '@/server/services/feishu-answer-streams';
-import { getCitationHref } from '@/lib/path';
 import { logger } from '@/server/logger';
 import { listEnabledSkills } from '@/server/services/skills/registry';
 import { buildWikiToolSystemPrompt } from './wiki-question-tool-planner';
@@ -111,20 +110,6 @@ function watchActionCancellation(actionId: string) {
     signal: controller.signal,
     dispose: () => clearInterval(interval),
   };
-}
-
-function appendSourceLinks(answer: string, citations: AiCitation[]): string {
-  if (citations.length === 0) return answer;
-  const existing = new Set<string>();
-  const lines: string[] = [];
-  for (const citation of citations) {
-    if (existing.has(citation.pageId)) continue;
-    existing.add(citation.pageId);
-    lines.push(`- [${citation.title}](${getCitationHref(citation)})`);
-  }
-  if (lines.length === 0) return answer;
-  const body = answer.trimEnd();
-  return `${body}${body ? '\n\n' : ''}Sources:\n${lines.join('\n')}`;
 }
 
 function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
@@ -436,8 +421,12 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       : '');
   const wikiCitations = normalizeQuestionCitations(answer, wikiSources);
   const citations = mergeCitations(wikiCitations, result.citations);
-  const finalAnswer = appendSourceLinks(answer, citations);
-  if (finalAnswer) await appendActionEvent(actionId, 'text_delta', { text: finalAnswer });
+  // The answer text carries no source list of its own: citations travel as
+  // structured data and every surface (chat pane, session view, Feishu card)
+  // renders them once from that. Baking a Markdown "Sources:" block into the
+  // text — which the streaming retrieval path never did — showed each cited
+  // page twice.
+  if (answer) await appendActionEvent(actionId, 'text_delta', { text: answer });
   await appendActionEvent(actionId, 'citations', { citations });
   await finishAction(actionId, 'completed', {
     resultMetadata: {

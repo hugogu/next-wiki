@@ -288,6 +288,31 @@ describe('Wiki question worker', () => {
     }));
   });
 
+  it('leaves source rendering to the citations event in tool-enabled answers', async () => {
+    const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'retrieval',
+      requestedReview: 'admin_review',
+    });
+    if (created.fallback) throw new Error('Expected a tool-enabled action');
+
+    await runWikiQuestionAction(created.action.id);
+
+    const events = await db.query.aiActionEvents.findMany({
+      where: eq(schema.aiActionEvents.actionId, created.action.id),
+    });
+    const citationsEvent = events.find((event) => event.type === 'citations');
+    expect(citationsEvent).toMatchObject({
+      payload: { citations: [expect.objectContaining({ pageId })] },
+    });
+    // Every surface renders the citations event itself, so a Markdown source
+    // list in the answer text would show each cited page a second time.
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'text_delta',
+      payload: expect.objectContaining({ text: 'Grounded answer [S1]' }),
+    }));
+  });
+
   it('retains provider reasoning and the shared Wiki AI role in tool-enabled answers', async () => {
     streamText.mockImplementationOnce(async function* () {
       yield { type: 'reasoning_delta', text: 'I should inspect the current Wiki context.' };
