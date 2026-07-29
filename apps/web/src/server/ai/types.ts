@@ -164,7 +164,12 @@ export function isNativeToolUnsupportedError(error: unknown): boolean {
     /not supported|unsupported|not permitted|does not support|no support for|invalid parameter/i.test(
       error.message,
     );
-  return mentionsTools && mentionsUnsupported;
+  if (mentionsTools && mentionsUnsupported) return true;
+  // A provider that returns syntactically invalid native-call arguments is
+  // equally unusable for this protocol. Treat it as a capability failure so
+  // this turn continues via the text protocol and future auto-mode turns do
+  // not repeat the same broken native call.
+  return error.code === 'INVALID_RESPONSE' && /Provider returned (?:unparseable|non-object) arguments for tool /i.test(error.message);
 }
 
 const SAFE_CODES = new Set<AiApiErrorCode>([

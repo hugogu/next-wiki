@@ -25,9 +25,9 @@ import {
  * property rather than a promise (FR-004, FR-007).
  */
 
-// How many times to re-ask when the model returns a malformed tool block. Only
-// the text protocol needs this: a native tool call is either well-formed or the
-// adapter rejects it.
+// How many times to re-ask when the model returns a malformed tool block. A
+// malformed native call is instead downgraded to this protocol by the question
+// job, so the user can still finish the current request.
 const MAX_TOOL_PROTOCOL_RETRIES = 3;
 
 const RETRY_INSTRUCTION =

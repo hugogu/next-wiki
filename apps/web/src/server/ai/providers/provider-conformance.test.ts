@@ -397,3 +397,19 @@ describe('adapters without native tool support', () => {
     ).rejects.toMatchObject({ code: 'CAPABILITY_UNSUPPORTED' });
   });
 });
+
+describe('native tool-call fallback classification', () => {
+  it('downgrades malformed native arguments to the text protocol', () => {
+    expect(isNativeToolUnsupportedError(new AiProviderError(
+      'INVALID_RESPONSE',
+      'Provider returned unparseable arguments for tool generate_image',
+    ))).toBe(true);
+  });
+
+  it('does not downgrade unrelated invalid provider responses', () => {
+    expect(isNativeToolUnsupportedError(new AiProviderError(
+      'INVALID_RESPONSE',
+      'Provider returned an invalid image response',
+    ))).toBe(false);
+  });
+});
