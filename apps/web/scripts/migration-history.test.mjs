@@ -22,6 +22,16 @@ test('leaves the squashed baseline unchanged', () => {
   assert.equal(classifyMigrationHistory([initMigration], initMigration), 'current');
 });
 
+test('leaves the squashed baseline and later migrations unchanged', () => {
+  assert.equal(
+    classifyMigrationHistory(
+      [initMigration, { createdAt: initMigration.createdAt + 1, hash: 'later-migration' }],
+      initMigration,
+    ),
+    'current',
+  );
+});
+
 test('recognizes the complete legacy history', () => {
   const rows = Array.from({ length: LEGACY_MIGRATION_HISTORY.count }, (_, index) => ({
     createdAt: index,

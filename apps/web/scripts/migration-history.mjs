@@ -17,8 +17,10 @@ function matchesMigration(row, migration) {
 export function classifyMigrationHistory(rows, initMigration) {
   if (rows.length === 0) return 'empty';
 
+  const [first] = rows;
+  if (matchesMigration(first, initMigration)) return 'current';
+
   const latest = rows.at(-1);
-  if (rows.length === 1 && matchesMigration(latest, initMigration)) return 'current';
 
   if (
     rows.length === LEGACY_MIGRATION_HISTORY.count &&

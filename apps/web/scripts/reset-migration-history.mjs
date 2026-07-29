@@ -9,10 +9,12 @@ const MIGRATION_HISTORY_LOCK = 1874931023;
 
 function getInitMigration() {
   const migrations = readMigrationFiles({ migrationsFolder: MIGRATIONS_FOLDER });
-  if (migrations.length !== 1) {
-    throw new Error(`Expected exactly one squashed migration, found ${migrations.length}`);
+  if (migrations.length === 0) {
+    throw new Error('Expected the squashed init migration, but the migration folder is empty');
   }
 
+  // Drizzle returns files in journal order. The first migration is the fixed
+  // squashed baseline; later files must remain available for normal upgrades.
   const [migration] = migrations;
   return {
     createdAt: migration.folderMillis,
