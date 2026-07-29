@@ -3,6 +3,7 @@ import { createApiContext } from '@/server/api/session';
 import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { deleteConversation, getConversationDetail } from '@/server/services/ai-actions';
+import { getLatestConversationSnapshot } from '@/server/services/raw-conversations';
 
 /**
  * Full conversation payload (summary + every turn's action + events) for
@@ -19,6 +20,18 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   try {
     const detail = await getConversationDetail(ctx, id);
     if (!detail) return apiError('NOT_FOUND', 'Not found', 404);
+    // Action events are purged at `ai_settings.event_retention_hours` (24h by
+    // default), so a conversation older than that reconstructs to nothing even
+    // though its turns still list. A captured conversation keeps a durable
+    // snapshot on its Raw page (023) — attach it so the client can render a
+    // session whose event log is already gone. Composed here rather than in
+    // getConversationDetail because ai-actions.ts cannot import
+    // raw-conversations.ts without a cycle (see cleanupExpiredAiData).
+    const pointer = detail.conversation.rawConversation;
+    if (pointer) {
+      const conversation = await getLatestConversationSnapshot(pointer.pageId);
+      if (conversation) detail.conversation.rawConversation = { ...pointer, conversation };
+    }
     return NextResponse.json(detail);
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);

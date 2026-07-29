@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import type { AiEntitlementView } from '@next-wiki/shared';
+import type {
+  AiConversationDetail,
+  AiEntitlementView,
+  ConversationSessionTurn,
+  ConversationSessionViewModel,
+} from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +25,11 @@ import {
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { fetchHistoryDetail } from './history-api';
-import { recoverSessionFromServer, reconstructSessionFromEvents } from './reconstruct-session';
+import {
+  recoverSessionFromServer,
+  reconstructSessionFromEvents,
+  type ReconstructedSession,
+} from './reconstruct-session';
 import { resolveSessionId } from './resolve-session-id';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
@@ -28,28 +37,63 @@ import { ChatRetrieval } from './ChatRetrieval';
 import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 
-export function buildMessagesFromDetail(detail: import('@next-wiki/shared').AiConversationDetail) {
-  const messages: ReturnType<typeof useChatStore.getState>['messages'] = [];
+type ChatMessages = ReturnType<typeof useChatStore.getState>['messages'];
+
+function pushTurn(messages: ChatMessages, turn: ReconstructedSession) {
+  messages.push({
+    id: crypto.randomUUID(),
+    role: 'user',
+    text: turn.question,
+  });
+  messages.push({
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    text: turn.insufficient ? '' : turn.answer,
+    thinking: turn.thinking,
+    citations: turn.citations,
+    toolCalls: turn.toolCalls,
+    searchResults: turn.searchResults,
+    insufficient: turn.insufficient,
+    error: turn.errorMessage ?? undefined,
+  });
+}
+
+/**
+ * Turns of a captured conversation as the chat renders them. The Raw snapshot
+ * records the transcript, not the governed tool-call timeline (no call ids or
+ * review decisions), so those stay empty rather than being invented; the Raw
+ * page linked from the pointer still shows them in full.
+ */
+function turnsFromSnapshot(snapshot: ConversationSessionViewModel): ReconstructedSession[] {
+  const turns: ConversationSessionTurn[] = snapshot.turns ?? [snapshot];
+  return turns.map((turn) => ({
+    question: turn.question,
+    answer: turn.answer,
+    thinking: turn.thinking,
+    citations: turn.citations,
+    toolCalls: [],
+    searchResults: [],
+    insufficient: turn.insufficient,
+    errorMessage: turn.errorMessage,
+  }));
+}
+
+export function buildMessagesFromDetail(detail: AiConversationDetail) {
+  const messages: ChatMessages = [];
   // Server returns turns newest-first; render them oldest-first like a live chat.
-  for (const turn of [...detail.turns].reverse()) {
-    const reconstructed = reconstructSessionFromEvents(turn.events);
-    messages.push({
-      id: crypto.randomUUID(),
-      role: 'user',
-      text: reconstructed.question,
-    });
-    messages.push({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      text: reconstructed.insufficient ? '' : reconstructed.answer,
-      thinking: reconstructed.thinking,
-      citations: reconstructed.citations,
-      toolCalls: reconstructed.toolCalls,
-      searchResults: reconstructed.searchResults,
-      insufficient: reconstructed.insufficient,
-      error: reconstructed.errorMessage ?? undefined,
-    });
+  const turns = [...detail.turns].reverse();
+  // Action events live only as long as `ai_settings.event_retention_hours`
+  // (24h by default). Past that the turns still list but reconstruct to
+  // nothing, and the captured Raw snapshot is the only surviving record of
+  // what was said — fall back to it wholesale rather than per turn, because
+  // capture groups a session by its own scope and the two turn lists need not
+  // line up one for one.
+  const snapshot = detail.conversation.rawConversation?.conversation;
+  if (snapshot && turns.every((turn) => turn.events.length === 0)) {
+    for (const turn of turnsFromSnapshot(snapshot)) pushTurn(messages, turn);
+    return messages;
   }
+  for (const turn of turns) pushTurn(messages, reconstructSessionFromEvents(turn.events));
   return messages;
 }
 

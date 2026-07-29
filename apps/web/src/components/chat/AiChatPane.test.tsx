@@ -158,4 +158,66 @@ describe('buildMessagesFromDetail', () => {
     expect(messages[3]!.role).toBe('assistant');
     expect(messages[3]!.text).toBe('A:Second');
   });
+
+  it('falls back to the captured snapshot once the event log has been purged', () => {
+    const detail = {
+      conversation: {
+        conversationKey: 'legacy:expired',
+        rawConversation: {
+          pageId: 'page-1',
+          path: 'conversations/wiki-ai/2026/07/26/abc',
+          url: '/spaces/raw/conversations/wiki-ai/2026/07/26/abc',
+          captureStatus: 'captured',
+          conversation: {
+            status: 'completed',
+            question: 'Second',
+            answer: 'A:Second',
+            thinking: '',
+            citations: [],
+            insufficient: false,
+            errorMessage: null,
+            turns: [
+              { status: 'completed', question: 'First', answer: 'A:First', thinking: '', citations: [], insufficient: false, errorMessage: null },
+              { status: 'completed', question: 'Second', answer: 'A:Second', thinking: '', citations: [], insufficient: false, errorMessage: null },
+            ],
+          },
+        },
+      },
+      // Retention purged the events; the turns themselves still list.
+      turns: [
+        { action: { questionMode: 'retrieval' }, events: [] },
+        { action: { questionMode: 'retrieval' }, events: [] },
+      ],
+    } as unknown as import('@next-wiki/shared').AiConversationDetail;
+
+    const messages = buildMessagesFromDetail(detail);
+
+    expect(messages.map((message) => message.text)).toEqual(['First', 'A:First', 'Second', 'A:Second']);
+  });
+
+  it('prefers the live event log over the snapshot while events survive', () => {
+    const detail = {
+      conversation: {
+        conversationKey: 'legacy:live',
+        rawConversation: {
+          pageId: 'page-1',
+          path: 'conversations/wiki-ai/2026/07/26/abc',
+          url: '/spaces/raw/conversations/wiki-ai/2026/07/26/abc',
+          captureStatus: 'captured',
+          conversation: {
+            status: 'completed',
+            question: 'Stale snapshot',
+            answer: 'A:Stale snapshot',
+            thinking: '',
+            citations: [],
+            insufficient: false,
+            errorMessage: null,
+          },
+        },
+      },
+      turns: [{ action: { questionMode: 'retrieval' }, events: [{ type: 'question', payload: { text: 'Live' } }] }],
+    } as unknown as import('@next-wiki/shared').AiConversationDetail;
+
+    expect(buildMessagesFromDetail(detail).map((message) => message.text)).toEqual(['Live', 'A:Live']);
+  });
 });
