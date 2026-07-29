@@ -14,7 +14,7 @@ import { appendActionEvent, finishAction, isCancellationRequested, readActionInp
 import { normalizeProviderError } from '@/server/ai/types';
 import { assertEditableRevision } from '@/server/services/ai-optimization';
 import { getAssignedModel } from '@/server/services/ai-question';
-import type { ImageGenerationInput } from './ai-image-generation';
+import { readIllustrationSource, type ImageGenerationInput } from './ai-image-generation';
 
 const IMAGE_PROMPT_MAX_CHARS = 1_400;
 const IMAGE_PROMPT_SUMMARIZE_THRESHOLD = 1_000;
@@ -99,7 +99,7 @@ export async function executeImageGenerationAction(actionId: string): Promise<vo
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'image');
   const { page, revision } = await assertEditableRevision(ctx, input.pageId, input.revisionId);
-  const source = input.source.kind === 'page' ? revision.contentSource ?? '' : input.source.text;
+  const source = input.source.kind === 'page' ? await readIllustrationSource(page, revision) : input.source.text;
   const baseInstruction = 'Create a single illustrative image that visually represents the topic below. Depict the concept itself — never a website, web page, browser, app, screenshot, user interface, document, or blocks of text, and no logos or watermarks. ';
   const summary = source.length > IMAGE_PROMPT_SUMMARIZE_THRESHOLD ? await summarizeForIllustration(actionId, page.title, source) : null;
   if (await isCancellationRequested(actionId)) throw new DomainError('CANCELLED', 'Image generation was cancelled');

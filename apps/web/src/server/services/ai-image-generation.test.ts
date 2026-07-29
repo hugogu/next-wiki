@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { vi } from 'vitest';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -68,8 +68,13 @@ describe('AI image generation', () => {
   });
   afterEach(async () => {
     await clearAiData();
-    await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, pageId));
-    await db.delete(schema.pages).where(eq(schema.pages.id, pageId));
+    await db.delete(schema.pageRevisions).where(
+      inArray(
+        schema.pageRevisions.pageId,
+        db.select({ id: schema.pages.id }).from(schema.pages).where(eq(schema.pages.spaceId, spaceId)),
+      ),
+    );
+    await db.delete(schema.pages).where(eq(schema.pages.spaceId, spaceId));
     await db.delete(schema.spaces).where(eq(schema.spaces.id, spaceId));
     await removeAiTestUser(editorId);
   });
@@ -107,6 +112,33 @@ describe('AI image generation', () => {
 
     await expect(executeImageGenerationAction(action.id)).rejects.toMatchObject({ code: 'CANCELLED' });
     expect(generateImage).not.toHaveBeenCalled();
+  });
+
+  it('illustrates a link page from its generated target, not from its empty placeholder revision', async () => {
+    const linkPageId = randomUUID();
+    const linkRevisionId = randomUUID();
+    await db.update(schema.pages).set({ currentPublishedVersionId: revisionId }).where(eq(schema.pages.id, pageId));
+    await db.insert(schema.pages).values({
+      id: linkPageId, spaceId, slug: 'link', path: 'link', title: 'Link page', authorId: editorId,
+      kind: 'link', linkTargetPageId: pageId, latestVersionId: linkRevisionId,
+      currentPublishedVersionId: linkRevisionId,
+    });
+    await db.insert(schema.pageRevisions).values({
+      id: linkRevisionId, pageId: linkPageId, versionNumber: 1, contentSource: null,
+      contentHtml: '', contentHash: 'link-hash', authorId: editorId, linkTargetPageId: pageId,
+      status: 'published',
+    });
+
+    const action = await createImageGeneration(buildUserCtx(editorId, 'editor'), {
+      pageId: linkPageId,
+      revisionId: linkRevisionId,
+      source: { kind: 'page' },
+    }, { enqueue: false });
+    await executeImageGenerationAction(action.id);
+
+    expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining('Content'),
+    }));
   });
 
   it('runs a child action inline without requiring a duplicate queue job', async () => {
