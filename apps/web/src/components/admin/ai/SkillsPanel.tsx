@@ -103,10 +103,12 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
           <DataTableHead>
             <DataTableRow>
               <DataTableHeader>{t('admin.ai.skills.name')}</DataTableHeader>
-              <DataTableHeader>{t('admin.ai.skills.source')}</DataTableHeader>
-              <DataTableHeader>{t('admin.ai.skills.files')}</DataTableHeader>
-              <DataTableHeader>{t('admin.ai.skills.lastUsed')}</DataTableHeader>
-              <DataTableHeader align="right">{t('admin.ai.skills.enabled')}</DataTableHeader>
+              <DataTableHeader className="w-px">{t('admin.ai.skills.source')}</DataTableHeader>
+              <DataTableHeader className="w-px">{t('admin.ai.skills.files')}</DataTableHeader>
+              <DataTableHeader className="w-px">{t('admin.ai.skills.lastUsed')}</DataTableHeader>
+              <DataTableHeader align="right" className="w-px">
+                {t('admin.ai.skills.enabled')}
+              </DataTableHeader>
             </DataTableRow>
           </DataTableHead>
           <DataTableBody>
@@ -118,8 +120,8 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
                   </Link>
                   <p className="text-xs text-muted">{skill.description}</p>
                 </DataTableCell>
-                <DataTableCell>
-                  <div className="flex flex-wrap items-center gap-xs">
+                <DataTableCell className="whitespace-nowrap">
+                  <div className="flex items-center gap-xs">
                     <StatusBadge tone={skill.source === 'directory' ? 'info' : 'neutral'}>
                       {t(`admin.ai.skills.sourceLabel.${skill.source}` as never)}
                     </StatusBadge>
@@ -131,8 +133,8 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
                     )}
                   </div>
                 </DataTableCell>
-                <DataTableCell>{skill.fileCount}</DataTableCell>
-                <DataTableCell>
+                <DataTableCell className="whitespace-nowrap">{skill.fileCount}</DataTableCell>
+                <DataTableCell className="whitespace-nowrap">
                   {skill.lastUsedAt
                     ? new Date(skill.lastUsedAt).toLocaleString()
                     : t('admin.ai.skills.neverUsed')}
