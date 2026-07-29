@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { markdownBody, mergeSupportedMetadata, normalizeTagName, supportedMetadataFromFrontmatter } from './frontmatter';
+import {
+  markdownBody,
+  markdownBodyLineOffset,
+  mergeSupportedMetadata,
+  normalizeTagName,
+  supportedMetadataFromFrontmatter,
+} from './frontmatter';
 
 describe('supported page metadata frontmatter', () => {
   it('normalizes tags and preserves unrelated frontmatter/body on update', () => {
@@ -16,7 +22,9 @@ describe('supported page metadata frontmatter', () => {
 
   it('returns only the body for valid frontmatter and raw source for malformed YAML', () => {
     expect(markdownBody('---\ntags: [a]\n---\n\n# Body')).toBe('# Body');
+    expect(markdownBodyLineOffset('---\ntags: [a]\n---\n\n# Body')).toBe(4);
     expect(markdownBody('---\ntags: [\n---\n\n# Body')).toContain('tags: [');
+    expect(markdownBodyLineOffset('---\ntags: [\n---\n\n# Body')).toBe(0);
     expect(normalizeTagName(' DevOps ')).toBe('devops');
   });
 });

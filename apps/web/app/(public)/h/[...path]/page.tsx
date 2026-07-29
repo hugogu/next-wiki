@@ -17,6 +17,7 @@ import {
 } from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
+import { markdownBodyLineOffset } from '@/server/metadata/frontmatter';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,8 +156,22 @@ export default async function HistoryPage({
             space={space ?? 'wiki'}
             selectedPair={shownPair ? { earlier: shownPair.earlier, later: shownPair.later } : undefined}
             selectedVersion={selectedVersion}
-            earlier={comparedRevisions[0] ?? undefined}
-            later={comparedRevisions[1] ?? undefined}
+            earlier={
+              comparedRevisions[0]
+                ? {
+                    ...comparedRevisions[0],
+                    previewLineOffset: markdownBodyLineOffset(comparedRevisions[0].contentSource),
+                  }
+                : undefined
+            }
+            later={
+              comparedRevisions[1]
+                ? {
+                    ...comparedRevisions[1],
+                    previewLineOffset: markdownBodyLineOffset(comparedRevisions[1].contentSource),
+                  }
+                : undefined
+            }
             selectedRevision={selectedRevision ?? undefined}
             revisions={revisions.map((revision) => ({
               version: revision.version,

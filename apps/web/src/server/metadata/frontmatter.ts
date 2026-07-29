@@ -97,3 +97,15 @@ export function markdownBody(source: string): string {
   const parsed = parseFrontmatter(source);
   return parsed.hasValidFrontmatter ? parsed.body : source;
 }
+
+/**
+ * Number of source lines removed before Markdown is rendered. Rendered block
+ * anchors use body-relative lines, while source-oriented UIs use the original
+ * revision line numbers.
+ */
+export function markdownBodyLineOffset(source: string): number {
+  const parsed = parseFrontmatter(source);
+  if (!parsed.hasValidFrontmatter) return 0;
+  const prefix = source.slice(0, source.length - parsed.body.length);
+  return prefix.split(/\r\n?|\n/).length - 1;
+}
