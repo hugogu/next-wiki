@@ -1410,6 +1410,11 @@ export const aiGeneratedArtifacts = pgTable(
     contentHash: text('content_hash').notNull(),
     sizeBytes: integer('size_bytes').notNull(),
     bytes: bytea('bytes').notNull(),
+    // The source revision/selection is encrypted because selected page text can
+    // be sensitive. It lives with the artifact so later promotion/insertion is
+    // not coupled to the much shorter AI action-input retention period.
+    placementPayloadEncrypted: text('placement_payload_encrypted'),
+    placementPayloadHash: text('placement_payload_hash'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     promotedAssetId: uuid('promoted_asset_id').references(() => contentAssets.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

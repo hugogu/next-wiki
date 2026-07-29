@@ -69,12 +69,12 @@ export async function insertGeneratedImages(
 
   const prepared = await Promise.all(input.images.map(async (image) => {
     const placement = await getGeneratedArtifactPlacement(ctx, image.artifactId, input.pageId);
-    if (placement.revisionId !== input.revisionId) {
+    if (placement && placement.revisionId !== input.revisionId) {
       throw new DomainError('STALE_REVISION', 'All images must have been generated from the current page revision.');
     }
     const asset = await promoteGeneratedArtifact(ctx, image.artifactId, input.pageId);
     return {
-      after: placement.source.kind === 'selection' ? placement.source.text : null,
+      after: placement?.source.kind === 'selection' ? placement.source.text : null,
       markdown: `![${markdownAltText(image.altText)}](${asset.url})`,
       assetId: asset.id,
     };

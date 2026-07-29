@@ -71,4 +71,27 @@ describe('generated image insertion', () => {
       { after: null, markdown: '![Saturn](/api/assets/a)' },
     ])).toBe('# Saturn\n\n![Saturn](/api/assets/a)');
   });
+
+  it('appends legacy artifacts whose placement input has expired instead of failing', async () => {
+    content.getPageById.mockResolvedValue({
+      title: 'Saturn',
+      contentSource: '# Saturn\n',
+      latestRevision: { id: revisionId },
+    });
+    artifacts.getGeneratedArtifactPlacement.mockResolvedValue(null);
+    artifacts.promoteGeneratedArtifact.mockResolvedValue({ id: 'asset-legacy', url: '/api/assets/asset-legacy' });
+    content.createDraft.mockResolvedValue({ version: 9 });
+
+    await expect(insertGeneratedImages(ctx, {
+      pageId,
+      revisionId,
+      images: [{ artifactId, altText: 'Saturn' }],
+    })).resolves.toEqual({ version: 9, assetIds: ['asset-legacy'] });
+
+    expect(content.createDraft).toHaveBeenCalledWith(ctx, pageId, {
+      title: 'Saturn',
+      contentSource: '# Saturn\n\n![Saturn](/api/assets/asset-legacy)',
+      baseRevisionId: revisionId,
+    });
+  });
 });

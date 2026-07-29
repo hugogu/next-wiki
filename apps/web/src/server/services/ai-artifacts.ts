@@ -6,6 +6,7 @@ import { DomainError } from '@/server/errors';
 import { assertAiFeature } from './ai-entitlements';
 import { assertEditableRevision } from './ai-optimization';
 import { uploadImage } from './content-assets';
+import { decryptAiJson } from '@/server/crypto/ai-encryption';
 import { readActionInput } from './ai-actions';
 import type { ImageGenerationInput } from './ai-image-generation';
 
@@ -71,14 +72,21 @@ export async function getGeneratedArtifactPlacement(
   ctx: PermCtx,
   artifactId: string,
   pageId: string,
-): Promise<Pick<ImageGenerationInput, 'revisionId' | 'source'>> {
-  const { action } = await requireArtifactAccess(ctx, artifactId);
+): Promise<Pick<ImageGenerationInput, 'revisionId' | 'source'> | null> {
+  const { artifact, action } = await requireArtifactAccess(ctx, artifactId);
   if (!action.pageId || action.pageId !== pageId || action.feature !== 'image_generation') {
     throw new DomainError('FORBIDDEN', 'Artifact does not belong to this page');
   }
+  const placement = artifact.placementPayloadEncrypted
+    ? decryptAiJson<Pick<ImageGenerationInput, 'revisionId' | 'source'>>(artifact.placementPayloadEncrypted)
+    : null;
+  if (placement) return placement;
+
+  // Artifacts created before placement metadata existed can still be promoted.
+  // They are appended rather than guessing at a historical selection.
   const input = await readActionInput<ImageGenerationInput>(action.id);
   if (!input || input.pageId !== pageId) {
-    throw new DomainError('NOT_FOUND', 'Generated artifact source is unavailable');
+    return null;
   }
   return { revisionId: input.revisionId, source: input.source };
 }

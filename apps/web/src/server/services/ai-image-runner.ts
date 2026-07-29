@@ -8,6 +8,7 @@ import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import type { ImageGenerationOutput } from '@/server/ai/types';
 import { validateImage } from '@/server/content-store/image-validation';
+import { encryptAiJson, hashAiPayload } from '@/server/crypto/ai-encryption';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
 import { appendActionEvent, finishAction, isCancellationRequested, readActionInput, startAction } from '@/server/services/ai-actions';
@@ -120,10 +121,27 @@ export async function executeImageGenerationAction(actionId: string): Promise<vo
   const contentHash = createHash('sha256').update(bytes).digest('hex');
   const [artifact] = await db
     .insert(schema.aiGeneratedArtifacts)
-    .values({ actionId, contentType: validated.contentType, contentHash, sizeBytes: bytes.byteLength, bytes, expiresAt })
+    .values({
+      actionId,
+      contentType: validated.contentType,
+      contentHash,
+      sizeBytes: bytes.byteLength,
+      bytes,
+      placementPayloadEncrypted: encryptAiJson({ revisionId: input.revisionId, source: input.source }),
+      placementPayloadHash: hashAiPayload({ revisionId: input.revisionId, source: input.source }),
+      expiresAt,
+    })
     .onConflictDoUpdate({
       target: schema.aiGeneratedArtifacts.actionId,
-      set: { contentType: validated.contentType, contentHash, sizeBytes: bytes.byteLength, bytes, expiresAt },
+      set: {
+        contentType: validated.contentType,
+        contentHash,
+        sizeBytes: bytes.byteLength,
+        bytes,
+        placementPayloadEncrypted: encryptAiJson({ revisionId: input.revisionId, source: input.source }),
+        placementPayloadHash: hashAiPayload({ revisionId: input.revisionId, source: input.source }),
+        expiresAt,
+      },
     })
     .returning({ id: schema.aiGeneratedArtifacts.id });
   await appendActionEvent(actionId, 'image_ready', {

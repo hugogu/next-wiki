@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
+import { decryptAiJson } from '@/server/crypto/ai-encryption';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { selectionHash } from './ai-optimization';
 
@@ -88,9 +89,14 @@ describe('AI image generation', () => {
     }, { enqueue: false });
     await executeImageGenerationAction(action.id);
     expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({ aspectRatio: '16:9' }));
-    expect(await db.query.aiGeneratedArtifacts.findFirst({
+    const artifact = await db.query.aiGeneratedArtifacts.findFirst({
       where: eq(schema.aiGeneratedArtifacts.actionId, action.id),
-    })).toMatchObject({ contentType: 'image/png' });
+    });
+    expect(artifact).toMatchObject({ contentType: 'image/png' });
+    expect(decryptAiJson(artifact!.placementPayloadEncrypted!)).toEqual({
+      revisionId,
+      source: { kind: 'selection', text: 'Selected subject', hash: selectionHash('Selected subject') },
+    });
   });
 
   it('rejects a mismatched selection hash before provider execution', async () => {

@@ -63,7 +63,16 @@ describe('AI generated artifacts', () => {
     });
     const [artifact] = await db.insert(schema.aiGeneratedArtifacts).values({
       actionId, contentType: 'image/png', contentHash: 'image-hash',
-      sizeBytes: PNG.byteLength, bytes: PNG, expiresAt: new Date(Date.now() + 3_600_000),
+      sizeBytes: PNG.byteLength, bytes: PNG,
+      placementPayloadEncrypted: encryptAiJson({
+        revisionId,
+        source: { kind: 'selection', text: 'Saturn has rings.', hash: 'a'.repeat(64) },
+      }),
+      placementPayloadHash: hashAiPayload({
+        revisionId,
+        source: { kind: 'selection', text: 'Saturn has rings.', hash: 'a'.repeat(64) },
+      }),
+      expiresAt: new Date(Date.now() + 3_600_000),
     }).returning();
     artifactId = artifact!.id;
   });
@@ -101,6 +110,15 @@ describe('AI generated artifacts', () => {
     });
     await expect(getGeneratedArtifactPlacement(ctx, artifactId, randomUUID())).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await expect(getGeneratedArtifactPlacement(buildUserCtx(otherId, 'editor'), artifactId, pageId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('allows legacy artifacts without placement metadata to be appended instead of failing', async () => {
+    await db.update(schema.aiGeneratedArtifacts)
+      .set({ placementPayloadEncrypted: null, placementPayloadHash: null })
+      .where(eq(schema.aiGeneratedArtifacts.id, artifactId));
+    await db.delete(schema.aiActionInputs).where(eq(schema.aiActionInputs.actionId, actionId));
+
+    await expect(getGeneratedArtifactPlacement(buildUserCtx(editorId, 'editor'), artifactId, pageId)).resolves.toBeNull();
   });
 
   it('treats expired previews as not found', async () => {

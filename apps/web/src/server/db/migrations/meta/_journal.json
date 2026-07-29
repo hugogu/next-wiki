@@ -302,6 +302,13 @@
       "when": 1785309700511,
       "tag": "0042_bright_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1785319580109,
+      "tag": "0043_perfect_thanos",
+      "breakpoints": true
     }
   ]
 }
