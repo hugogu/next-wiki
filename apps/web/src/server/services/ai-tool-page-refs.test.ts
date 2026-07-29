@@ -8,6 +8,7 @@ vi.mock('@/server/services/public-content', () => content);
 
 import { executeTool } from './ai-tool-executors';
 import { getToolDefinition } from './ai-tool-registry';
+import { MAX_TOOL_RESULT_CHARS, formatToolResultForModel } from './ai-tool-runtime';
 
 const ctx = { actor: { kind: 'user' as const, userId: 'u1', role: 'admin' as const } };
 const execCtx = {
@@ -90,5 +91,72 @@ describe('get_page across spaces', () => {
       const properties = getToolDefinition(name)!.inputSchema.properties;
       expect(Object.keys(properties)).toContain('space');
     }
+  });
+});
+
+/**
+ * A page longer than one result window used to be unreadable past its head:
+ * every call returned the same truncated slice, so a rewrite silently dropped
+ * whatever the model never saw.
+ */
+describe('get_page on a page longer than one result window', () => {
+  const long = 'A'.repeat(7_000) + 'TAIL-MARKER' + 'B'.repeat(7_000);
+
+  beforeEach(() => {
+    content.getPageByPath.mockReset();
+    content.getPageById.mockReset();
+    content.getPageByPath.mockResolvedValue({ ...page, contentSource: long });
+  });
+
+  it('reports the window it returned and where the rest starts', async () => {
+    const result = await getPage({ path: 'games/reversi' });
+    const data = result.data as { contentSource: string; contentOffset: number; contentLength: number; hasMore: boolean; nextContentOffset: number };
+
+    expect(data.contentOffset).toBe(0);
+    expect(data.contentLength).toBe(long.length);
+    expect(data.hasMore).toBe(true);
+    expect(data.nextContentOffset).toBe(data.contentSource.length);
+    expect(long.startsWith(data.contentSource)).toBe(true);
+    // Stated in the summary too: that is what survives into the durable record.
+    expect(result.summary).toContain(String(long.length));
+  });
+
+  it('returns the remainder from the offset it handed back', async () => {
+    const first = (await getPage({ path: 'games/reversi' })).data as { nextContentOffset: number; contentSource: string };
+    const second = await getPage({ path: 'games/reversi', contentOffset: first.nextContentOffset });
+    const data = second.data as { contentSource: string; hasMore: boolean };
+
+    expect(first.contentSource + data.contentSource).toBe(long.slice(0, first.contentSource.length + data.contentSource.length));
+    expect(`${first.contentSource}${data.contentSource}`).toContain('TAIL-MARKER');
+    expect(data.hasMore).toBe(true);
+  });
+
+  it('walks the whole page in a bounded number of windows and ends cleanly', async () => {
+    let offset = 0;
+    let assembled = '';
+    for (let call = 0; call < 10; call += 1) {
+      const data = (await getPage({ path: 'games/reversi', contentOffset: offset })).data as {
+        contentSource: string; hasMore: boolean; nextContentOffset?: number;
+      };
+      assembled += data.contentSource;
+      if (!data.hasMore) break;
+      offset = data.nextContentOffset!;
+    }
+    expect(assembled).toBe(long);
+  });
+
+  it('keeps every window under the runtime cap that would truncate it', async () => {
+    const result = await getPage({ path: 'games/reversi' });
+    const rendered = formatToolResultForModel('get_page', result);
+    expect(rendered.truncated).toBe(false);
+    expect(rendered.text.length).toBeLessThanOrEqual(MAX_TOOL_RESULT_CHARS + 'TOOL get_page -> '.length);
+  });
+
+  it('clamps an offset past the end instead of looping', async () => {
+    const data = (await getPage({ path: 'games/reversi', contentOffset: 999_999 })).data as {
+      contentSource: string; hasMore: boolean;
+    };
+    expect(data.contentSource).toBe('');
+    expect(data.hasMore).toBe(false);
   });
 });

@@ -80,6 +80,11 @@ For a new page, `create_page` with `path`, `title`, and `contentSource`. For an
 existing one, `save_draft` with `pageId` and the **complete** replacement
 Markdown — not a fragment, not a diff.
 
+Before rewriting an existing page, read it to the end. `get_page` returns long
+pages one window at a time: while the result says `hasMore`, call it again with
+`contentOffset` set to `nextContentOffset`. Whatever you did not read is not
+preserved — it is deleted, because the body you send replaces the whole page.
+
 Follow `reference/formatting.md` for the syntax this wiki actually renders.
 Three rules matter most because getting them wrong is silent:
 
@@ -126,6 +131,8 @@ figure you could not verify.
 
 - Calling `save_draft` for a page that does not exist yet. Use `create_page`.
 - Sending a partial body to `save_draft`. It replaces the whole page.
+- Rewriting a page from a partial read. If the last `get_page` said `hasMore`,
+  you have not seen the page yet.
 - Dropping the original's images or links while "improving" it.
 - Padding length with restatement. Another paragraph saying the same thing is
   not depth; a worked example is.

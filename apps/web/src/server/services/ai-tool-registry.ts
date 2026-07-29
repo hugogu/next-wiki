@@ -92,7 +92,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Read a page including its Markdown source and revision metadata.',
+    description: 'Read a page including its Markdown source and revision metadata. Long pages come back one window at a time: when the result says hasMore, call again with contentOffset set to nextContentOffset and concatenate the windows. Never rewrite a page you have not read to the end — save_draft replaces the whole body, so anything you did not read is deleted.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -105,6 +105,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
           type: 'string',
           enum: ['wiki', 'raw', 'generated'],
           description: 'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
+        },
+        contentOffset: {
+          type: 'integer',
+          minimum: 0,
+          description: 'Character offset to start reading the Markdown from. Use the nextContentOffset returned by the previous window; omit for the first.',
         },
       },
     },

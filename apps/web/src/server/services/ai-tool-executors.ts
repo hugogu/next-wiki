@@ -133,6 +133,7 @@ const pageRefArgs = z
     pageId: z.string().uuid().optional(),
     path: z.string().min(1).optional(),
     space: z.enum(['wiki', 'raw', 'generated']).optional(),
+    contentOffset: z.number().int().min(0).optional(),
   })
   .refine((v) => v.pageId || v.path);
 const listArgs = z
@@ -250,16 +251,54 @@ async function readPageByPath(ctx: PermCtx, path: string, space?: string) {
   return fromUrl ? content.getPageByPath(ctx, fromUrl.path, READ_INCLUDE, fromUrl.space) : null;
 }
 
+/**
+ * Markdown characters one `get_page` call returns.
+ *
+ * Kept under the runtime's `MAX_TOOL_RESULT_CHARS` with room for the
+ * surrounding citation fields, so a page read never reaches the generic
+ * truncator (a test pins the two together — importing the constant here would
+ * close an import cycle). That truncator tells the model to "narrow the query
+ * or read a
+ * specific item instead" — advice a single-page read cannot act on, because
+ * there is nothing narrower to ask for. A page longer than this window used to
+ * be simply unreadable past its first slice: one conversation called get_page
+ * 40 times on an 18k-character page, always receiving the same truncated head,
+ * then rewrote the page from the 43% it could see and dropped the rest.
+ */
+const MAX_PAGE_CONTENT_CHARS = 6_000;
+
 async function execGetPage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
   const args = pageRefArgs.parse(rawArgs);
   const page = args.pageId
     ? await content.getPageById(ctx, args.pageId, READ_INCLUDE)
     : await readPageByPath(ctx, args.path!, args.space);
   if (!page) return fail('NOT_FOUND', 'No readable page matched. Use search_wiki or list_pages to discover an exact readable path.');
+
+  const source = page.contentSource ?? null;
+  if (source === null) {
+    return { ok: true, summary: `Read page "${page.title}".`, data: { ...pageCitationData(page), contentSource: null } };
+  }
+  const contentLength = source.length;
+  const offset = Math.min(args.contentOffset ?? 0, contentLength);
+  const slice = source.slice(offset, offset + MAX_PAGE_CONTENT_CHARS);
+  const end = offset + slice.length;
+  const hasMore = end < contentLength;
   return {
     ok: true,
-    summary: `Read page "${page.title}".`,
-    data: { ...pageCitationData(page), contentSource: page.contentSource ?? null },
+    // The window is stated in the summary as well as the data because the
+    // summary is what survives into the durable record and into a compacted
+    // context — "I have the whole page" must never be the silent default.
+    summary: hasMore
+      ? `Read page "${page.title}" characters ${offset}-${end} of ${contentLength}. Call get_page again with contentOffset=${end} for the rest before rewriting it.`
+      : `Read page "${page.title}"${offset > 0 ? ` characters ${offset}-${end} of ${contentLength} (end of page)` : ''}.`,
+    data: {
+      ...pageCitationData(page),
+      contentSource: slice,
+      contentOffset: offset,
+      contentLength,
+      hasMore,
+      ...(hasMore ? { nextContentOffset: end } : {}),
+    },
   };
 }
 
