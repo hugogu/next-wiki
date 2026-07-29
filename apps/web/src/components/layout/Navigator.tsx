@@ -309,6 +309,11 @@ export function Navigator({
           label: t('admin.nav.search'),
           icon: <SearchIcon className="shrink-0" />,
         },
+        {
+          href: '/admin/storage',
+          label: t('admin.nav.storage'),
+          icon: <DatabaseIcon className="shrink-0" />,
+        },
       ],
     },
     {
@@ -376,11 +381,6 @@ export function Navigator({
           href: '/admin/analytics',
           label: t('admin.nav.analytics'),
           icon: <FunctionPlotIcon className="shrink-0" />,
-        },
-        {
-          href: '/admin/storage',
-          label: t('admin.nav.storage'),
-          icon: <DatabaseIcon className="shrink-0" />,
         },
         {
           href: '/admin/transfers',
