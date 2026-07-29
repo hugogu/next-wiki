@@ -1,4 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS btree_gin;--> statement-breakpoint
 CREATE TYPE "public"."actor_kind" AS ENUM('human', 'machine');--> statement-breakpoint
 CREATE TYPE "public"."ai_action_feature" AS ENUM('provider_test', 'model_sync', 'index_rebuild', 'semantic_search', 'wiki_question', 'text_optimization', 'image_generation', 'wiki_tool_chat');--> statement-breakpoint
 CREATE TYPE "public"."ai_action_status" AS ENUM('queued', 'running', 'completed', 'failed', 'cancelled', 'expired');--> statement-breakpoint
@@ -1561,4 +1563,17 @@ CREATE UNIQUE INDEX "skill_file_revisions_unique" ON "skill_file_revisions" USIN
 CREATE INDEX "skill_file_revisions_skill_created_idx" ON "skill_file_revisions" USING btree ("skill_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "skill_files_skill_path_unique" ON "skill_files" USING btree ("skill_id","path");--> statement-breakpoint
 CREATE UNIQUE INDEX "skills_name_unique" ON "skills" USING btree ("name") WHERE "skills"."deleted_at" is null;--> statement-breakpoint
-CREATE INDEX "skills_source_idx" ON "skills" USING btree ("source");
+CREATE INDEX "skills_source_idx" ON "skills" USING btree ("source");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pages_keyword_fts_idx"
+ON "pages" USING gin (to_tsvector('simple', coalesce("path", '') || ' ' || coalesce("title", '')));--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "page_revisions_content_fts_idx"
+ON "page_revisions" USING gin (to_tsvector('simple', coalesce("content_source", '')));--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pages_path_trgm_idx"
+ON "pages" USING gin ("path" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pages_title_trgm_idx"
+ON "pages" USING gin ("title" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "page_revisions_content_source_trgm_idx"
+ON "page_revisions" USING gin ("content_source" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pages_space_title_trgm_idx"
+ON "pages" USING gin ("space_id" uuid_ops, "title" gin_trgm_ops)
+WHERE "deleted_at" IS NULL AND "current_published_version_id" IS NOT NULL;
