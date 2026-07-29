@@ -22,6 +22,7 @@ import { INSTRUCTION_FILE as SKILL_INSTRUCTION_FILE, safeRelativePath } from '@/
 import { createImageGeneration } from '@/server/services/ai-image-generation';
 import { runInlineImageGenerationAction } from '@/server/services/ai-image-runner';
 import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
+import { insertGeneratedImages } from '@/server/services/ai-generated-image-insertion';
 
 /**
  * Built-in tool execution adapters (026, US2). Every adapter runs the operation
@@ -194,6 +195,14 @@ const generateImageArgs = z.object({
   aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
 });
 const promoteGeneratedImageArgs = z.object({ artifactId: z.string().uuid(), pageId: z.string().uuid() });
+const insertGeneratedImagesArgs = z.object({
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  images: z.array(z.object({
+    artifactId: z.string().uuid(),
+    altText: z.string().trim().min(1).max(500),
+  })).min(1).max(10),
+});
 
 // ---- Read executors ---------------------------------------------------------
 
@@ -486,6 +495,17 @@ async function execPromoteGeneratedImage(ctx: PermCtx, rawArgs: unknown): Promis
     if (error instanceof DomainError && ['FORBIDDEN', 'NOT_FOUND', 'CANCELLED'].includes(error.code)) throw error;
     return fail('ARTIFACT_NOT_PROMOTABLE', 'The generated image cannot be promoted.');
   }
+}
+
+async function execInsertGeneratedImages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+  const args = insertGeneratedImagesArgs.parse(rawArgs);
+  const result = await insertGeneratedImages(ctx, args);
+  return {
+    ok: true,
+    summary: `Inserted ${result.assetIds.length} generated image(s) into draft revision v${result.version} without rewriting the page body.`,
+    draftPageId: args.pageId,
+    data: { pageId: args.pageId, version: result.version, assetIds: result.assetIds },
+  };
 }
 
 // ---- Non-page write executors (proposal when review, else immediate) --------
@@ -804,6 +824,7 @@ const EXECUTORS: Record<string, Executor> = {
   merge_tag: execMergeTag,
   generate_image: (ctx, args) => execGenerateImage(ctx, args),
   promote_generated_image: (ctx, args) => execPromoteGeneratedImage(ctx, args),
+  insert_generated_images: (ctx, args) => execInsertGeneratedImages(ctx, args),
   load_skill: execLoadSkill,
   read_skill_file: execReadSkillFile,
 };

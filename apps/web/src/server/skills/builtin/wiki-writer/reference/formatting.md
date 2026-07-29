@@ -129,18 +129,15 @@ one, and no tool here publishes anything.
    argument. To steer the image, select the passage that describes what you
    want drawn rather than trying to describe it separately.
 
-2. **`promote_generated_image`** — needs the `artifactId` from step 1 and the
-   same `pageId`. A generated artifact is private and **expires**, so it is not
-   usable in a page until it has been promoted. Returns ready-made Markdown.
+2. **`insert_generated_images`** — after all images have been generated from
+   the same current revision, pass its `pageId`, `revisionId`, and each
+   `artifactId` with descriptive `altText`. It promotes the artifacts and
+   inserts them after their source selections in one draft without serializing
+   or rewriting the existing Markdown.
 
-3. **`save_draft`** — the returned Markdown is not written anywhere for you.
-   Insert it in the right place in the page body and save the whole document
-   as a draft, exactly as with any other edit.
-
-**Rewrite the alt text.** Step 2 returns `![image](…)` with placeholder alt
-text. Replace `image` with a real description of what the picture shows before
-it goes into the page — every other rule about alt text applies to generated
-images too.
+**Use descriptive alt text.** Pass a real description of what the picture
+shows as `altText`; every other rule about alt text applies to generated images
+too.
 
 ### When to generate one, and when not to
 

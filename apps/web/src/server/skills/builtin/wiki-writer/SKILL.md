@@ -98,18 +98,22 @@ Three rules matter most because getting them wrong is silent:
 
 ### Illustrating a page
 
-`generate_image` → `promote_generated_image` → `save_draft`, in that order.
-The first two never touch the page; the Markdown only lands when you save the
-draft yourself. A generated artifact is private and expires, so it must be
-promoted before it can be referenced.
+When adding generated images without another content edit, use
+`generate_image` → `insert_generated_images`. Generate every image from the
+same current revision, then insert all artifacts in one call. This keeps the
+existing Markdown byte-for-byte intact, including LaTex and whitespace.
+
+Use `promote_generated_image` → `save_draft` only when you are already making
+an intentional full-document edit for another reason. A generated artifact is
+private and expires, so it must be promoted before it can be referenced.
 
 `generate_image` derives its prompt from the page or from a passage you select
 out of the current revision — there is no free-text prompt. Steer the picture by
 choosing the passage, not by describing it separately. `reference/formatting.md`
 has the exact arguments and the aspect ratios.
 
-Replace the placeholder `image` alt text that promotion returns with a real
-description before putting it in the page.
+Pass real descriptive `altText` to `insert_generated_images`; never leave
+generated illustrations with a generic alt label.
 
 ### 6. Ground it
 
@@ -131,6 +135,8 @@ figure you could not verify.
 
 - Calling `save_draft` for a page that does not exist yet. Use `create_page`.
 - Sending a partial body to `save_draft`. It replaces the whole page.
+- Using `save_draft` merely to add generated images. Use
+  `insert_generated_images` so the server preserves the document verbatim.
 - Rewriting a page from a partial read. If the last `get_page` said `hasMore`,
   you have not seen the page yet.
 - Dropping the original's images or links while "improving" it.

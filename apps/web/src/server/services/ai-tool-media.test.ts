@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 const images = vi.hoisted(() => ({ createImageGeneration: vi.fn() }));
 const runner = vi.hoisted(() => ({ runInlineImageGenerationAction: vi.fn() }));
 const artifacts = vi.hoisted(() => ({ promoteGeneratedArtifact: vi.fn() }));
+const insertion = vi.hoisted(() => ({ insertGeneratedImages: vi.fn() }));
 const db = vi.hoisted(() => ({
   query: {
     aiGeneratedArtifacts: { findFirst: vi.fn() },
@@ -12,6 +13,7 @@ const db = vi.hoisted(() => ({
 vi.mock('@/server/services/ai-image-generation', () => images);
 vi.mock('@/server/services/ai-image-runner', () => runner);
 vi.mock('@/server/services/ai-artifacts', () => artifacts);
+vi.mock('@/server/services/ai-generated-image-insertion', () => insertion);
 vi.mock('@/server/db', () => ({ db }));
 
 import { buildUserCtx } from '@/server/permissions';
@@ -88,6 +90,27 @@ describe('Wiki AI media tools', () => {
     expect(result).toMatchObject({
       ok: true,
       data: { assetId: '88888888-8888-8888-8888-888888888888', markdown: '![image](/api/assets/88888888-8888-8888-8888-888888888888)' },
+    });
+  });
+
+  it('places generated images through the byte-preserving insertion path', async () => {
+    insertion.insertGeneratedImages.mockResolvedValueOnce({ version: 7, assetIds: ['asset-1'] });
+
+    const result = await executeTool(ctx, getToolDefinition('insert_generated_images')!, {
+      pageId,
+      revisionId,
+      images: [{ artifactId, altText: 'Saturn and its rings' }],
+    }, execCtx);
+
+    expect(insertion.insertGeneratedImages).toHaveBeenCalledWith(ctx, {
+      pageId,
+      revisionId,
+      images: [{ artifactId, altText: 'Saturn and its rings' }],
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      draftPageId: pageId,
+      data: { pageId, version: 7, assetIds: ['asset-1'] },
     });
   });
 });

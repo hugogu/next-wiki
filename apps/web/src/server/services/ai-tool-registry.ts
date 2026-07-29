@@ -416,6 +416,35 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       required: ['artifactId', 'pageId'],
     },
   },
+  {
+    name: 'insert_generated_images',
+    category: 'page_draft',
+    riskLevel: 'draft_write',
+    requiredScope: 'edit',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'always_review',
+    description: 'Promote one or more generated image artifacts and insert them into the exact page revision that produced them. Use this instead of save_draft when the only requested page change is adding generated images: it preserves every other Markdown byte verbatim, including LaTex. Each image is inserted after the selection used to generate it; page-wide images are appended.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'Existing page id from get_page.' },
+        revisionId: { type: 'string', description: 'The current revision id used for every generated image.' },
+        images: {
+          type: 'array',
+          description: 'Generated artifacts to insert, in their desired order when they share a location.',
+          items: {
+            type: 'object',
+            properties: {
+              artifactId: { type: 'string', description: 'Artifact id returned by generate_image.' },
+              altText: { type: 'string', description: 'Concise, descriptive alt text for the image.' },
+            },
+            required: ['artifactId', 'altText'],
+          },
+        },
+      },
+      required: ['pageId', 'revisionId', 'images'],
+    },
+  },
   // --- skills (028) ---
   // Skill loading is a tool call rather than a side channel, which buys five
   // things at once: it shows up in the chat timeline, it is permission-checked

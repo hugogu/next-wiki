@@ -3,10 +3,12 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
+import { encryptAiJson, hashAiPayload } from '@/server/crypto/ai-encryption';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import {
   discardGeneratedArtifact,
   getGeneratedArtifact,
+  getGeneratedArtifactPlacement,
   promoteGeneratedArtifact,
 } from './ai-artifacts';
 
@@ -48,6 +50,17 @@ describe('AI generated artifacts', () => {
       expiresAt: new Date(Date.now() + 3_600_000),
     }).returning();
     actionId = action!.id;
+    const input = {
+      pageId,
+      revisionId,
+      source: { kind: 'selection' as const, text: 'Saturn has rings.', hash: 'a'.repeat(64) },
+    };
+    await db.insert(schema.aiActionInputs).values({
+      actionId,
+      payloadEncrypted: encryptAiJson(input),
+      payloadHash: hashAiPayload(input),
+      expiresAt: new Date(Date.now() + 3_600_000),
+    });
     const [artifact] = await db.insert(schema.aiGeneratedArtifacts).values({
       actionId, contentType: 'image/png', contentHash: 'image-hash',
       sizeBytes: PNG.byteLength, bytes: PNG, expiresAt: new Date(Date.now() + 3_600_000),
@@ -78,6 +91,16 @@ describe('AI generated artifacts', () => {
     const second = await promoteGeneratedArtifact(ctx, artifactId, pageId);
     expect(second.id).toBe(first.id);
     expect(first.url).toBe(`/api/assets/${first.id}`);
+  });
+
+  it('returns the encrypted image source only for the artifact owner and bound page', async () => {
+    const ctx = buildUserCtx(editorId, 'editor');
+    await expect(getGeneratedArtifactPlacement(ctx, artifactId, pageId)).resolves.toEqual({
+      revisionId,
+      source: { kind: 'selection', text: 'Saturn has rings.', hash: 'a'.repeat(64) },
+    });
+    await expect(getGeneratedArtifactPlacement(ctx, artifactId, randomUUID())).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(getGeneratedArtifactPlacement(buildUserCtx(otherId, 'editor'), artifactId, pageId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('treats expired previews as not found', async () => {

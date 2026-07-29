@@ -79,16 +79,15 @@ describe('built-in skill packages', () => {
 
     it('documents the image workflow in the order the tools require', async () => {
       // generate_image produces a private, expiring artifact;
-      // promote_generated_image turns it into an asset and hands back Markdown;
-      // only save_draft puts it on the page. Getting the order wrong leaves the
-      // model referencing an artifact that expires out from under the page.
+      // insert_generated_images promotes it and inserts it without asking the
+      // model to reproduce the surrounding Markdown.
       const text = await writerText();
       const generate = text.indexOf('generate_image');
-      const promote = text.indexOf('promote_generated_image');
+      const insert = text.indexOf('insert_generated_images');
       expect(generate).toBeGreaterThan(-1);
-      expect(promote).toBeGreaterThan(generate);
+      expect(insert).toBeGreaterThan(generate);
       expect(text).toMatch(/expires/i);
-      expect(text).toMatch(/save_draft/);
+      expect(text).toMatch(/byte-for-byte|without.*(serializing|rewriting)/i);
     });
 
     it('never tells the model to invent an image URL', async () => {
@@ -96,10 +95,8 @@ describe('built-in skill packages', () => {
       expect(text).toMatch(/[Nn]ever invent a URL|Inventing an image URL/);
     });
 
-    it('tells the model to replace the placeholder alt text promotion returns', async () => {
-      // promote_generated_image returns `![image](…)`; shipping that verbatim
-      // leaves every generated illustration with useless alt text.
-      expect(await writerText()).toMatch(/placeholder .*alt text|alt text.*placeholder/i);
+    it('requires descriptive generated-image alt text', async () => {
+      expect(await writerText()).toMatch(/descriptive .*alt text|altText/i);
     });
 
     it('sends structure to a diagram rather than to a generated picture', async () => {

@@ -6,6 +6,8 @@ import { DomainError } from '@/server/errors';
 import { assertAiFeature } from './ai-entitlements';
 import { assertEditableRevision } from './ai-optimization';
 import { uploadImage } from './content-assets';
+import { readActionInput } from './ai-actions';
+import type { ImageGenerationInput } from './ai-image-generation';
 
 async function requireArtifactAccess(ctx: PermCtx, artifactId: string, allowExpired = false) {
   const rows = await db
@@ -58,4 +60,25 @@ export async function promoteGeneratedArtifact(ctx: PermCtx, artifactId: string,
     .set({ promotedAssetId: asset.id, promotedAt: new Date() })
     .where(eq(schema.aiGeneratedArtifacts.id, artifactId));
   return asset;
+}
+
+/**
+ * Return the immutable source that produced a generated image after applying
+ * the same access and page binding checks as promotion. The source remains
+ * server-side so an AI placing images never needs to retransmit page Markdown.
+ */
+export async function getGeneratedArtifactPlacement(
+  ctx: PermCtx,
+  artifactId: string,
+  pageId: string,
+): Promise<Pick<ImageGenerationInput, 'revisionId' | 'source'>> {
+  const { action } = await requireArtifactAccess(ctx, artifactId);
+  if (!action.pageId || action.pageId !== pageId || action.feature !== 'image_generation') {
+    throw new DomainError('FORBIDDEN', 'Artifact does not belong to this page');
+  }
+  const input = await readActionInput<ImageGenerationInput>(action.id);
+  if (!input || input.pageId !== pageId) {
+    throw new DomainError('NOT_FOUND', 'Generated artifact source is unavailable');
+  }
+  return { revisionId: input.revisionId, source: input.source };
 }
