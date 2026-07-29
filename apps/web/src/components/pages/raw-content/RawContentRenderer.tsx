@@ -58,17 +58,19 @@ export function RawContentRenderer({
   showConversationStatus?: boolean;
 }) {
   // 023: the built-in Conversation category dispatches to the shared chat
-  // view instead of generic type-based rendering, matching AI Chat History
-  // detail. An unauthorized reader never reaches this component at all (the
-  // page loader already enforces Raw read permission), so a missing/invalid
-  // snapshot here is a data-integrity fallback, not a permission leak.
-  if (rawCategorySystemKey === 'conversation') {
-    return conversation ? (
+  // view when the auto-captured structured snapshot is present. Without the
+  // snapshot — e.g. manually-authored chat transcripts written via MCP into
+  // the Conversation category, or legacy uncaptured entries — fall through
+  // to the generic content-type render path so the markdown body remains
+  // readable. A short banner notes the missing structured view so admins
+  // aren't surprised by the plain-markdown appearance.
+  if (rawCategorySystemKey === 'conversation' && conversation) {
+    return (
       <ConversationSessionView conversation={conversation} showStatus={showConversationStatus} />
-    ) : (
-      <p className="text-sm text-muted" data-testid="raw-content-conversation-invalid">{labels.invalidConversation}</p>
     );
   }
+
+  const isConversationFallback = rawCategorySystemKey === 'conversation' && !conversation;
 
   const type = normalizeType(contentType);
   const assetUrl = originalAssetId ? `/api/raw-assets/${originalAssetId}` : null;
@@ -97,6 +99,9 @@ export function RawContentRenderer({
 
   return (
     <div className="space-y-md" data-testid="raw-content" data-content-type={type}>
+      {isConversationFallback && (
+        <p className="text-sm text-muted" data-testid="raw-content-conversation-fallback">{labels.invalidConversation}</p>
+      )}
       {notice && <p className="text-sm text-muted">{notice}</p>}
       {body}
       {assetUrl && (

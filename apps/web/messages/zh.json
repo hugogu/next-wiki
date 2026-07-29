@@ -459,7 +459,7 @@
         "pdfTitle": "PDF 预览",
         "imageAlt": "原始图片",
         "noViewer": "该内容类型没有专用查看器,显示提取的文本。",
-        "invalidConversation": "该对话的结构化详情当前不可用。"
+        "invalidConversation": "该对话条目未附结构化元数据；当前展示原始 Markdown 内容。"
       }
     }
   },

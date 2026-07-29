@@ -49,7 +49,7 @@ describe('RawContentRenderer dispatch (023)', () => {
     expect(html).not.toContain('data-testid="raw-content"');
   });
 
-  it('shows a non-sensitive fallback notice when Conversation metadata is missing or invalid', () => {
+  it('falls through to markdown render with a banner when Conversation metadata is missing', () => {
     const html = render(
       <RawContentRenderer
         contentType="text/markdown"
@@ -61,8 +61,10 @@ describe('RawContentRenderer dispatch (023)', () => {
         conversation={null}
       />,
     );
-    expect(html).toContain('structured detail is unavailable right now.');
-    expect(html).toContain('data-testid="raw-content-conversation-invalid"');
+    expect(html).toContain('<h1>Question</h1>');
+    expect(html).toContain('data-testid="raw-content"');
+    expect(html).toContain('data-testid="raw-content-conversation-fallback"');
+    expect(html).not.toContain('data-testid="raw-content-conversation-invalid"');
   });
 
   it('falls back to generic type-based rendering for a non-system (user-managed) category', () => {
