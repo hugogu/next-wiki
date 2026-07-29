@@ -75,27 +75,27 @@ describe('recoverSessionFromServer', () => {
     vi.restoreAllMocks();
   });
 
-  it('prefers the captured Raw conversation over event reconstruction', async () => {
+  const rawConversation = {
+    pageId: 'page-1',
+    path: 'conversations/wiki-ai/x',
+    url: '/spaces/raw/conversations/wiki-ai/x',
+    channel: 'wiki-ai',
+    captureStatus: 'captured',
+    conversation: {
+      status: 'completed',
+      question: 'Q',
+      answer: 'A from raw',
+      thinking: 'T',
+      citations: [],
+      insufficient: false,
+      errorMessage: null,
+    },
+  };
+
+  it('falls back to the captured Raw conversation once the events are purged', async () => {
     const apiGet = vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
-      action: { status: 'completed' },
-      events: [
-        event({ id: 1, type: 'text_delta', payload: { text: 'partial stale' } }),
-      ],
-      rawConversation: {
-        pageId: 'page-1',
-        pagePath: 'conversations/wiki-ai/x',
-        url: '/spaces/raw/conversations/wiki-ai/x',
-        channel: 'wiki-ai',
-        captureStatus: 'captured',
-        conversation: {
-          question: 'Q',
-          answer: 'A from raw',
-          thinking: 'T',
-          citations: [],
-          insufficient: false,
-          errorMessage: null,
-        },
-      },
+      conversation: { conversationKey: 'legacy:turn:action-1', rawConversation },
+      turns: [{ action: { id: 'action-1', status: 'completed' }, events: [] }],
     });
     const result = await recoverSessionFromServer('action-1');
     expect(result).toMatchObject({
@@ -109,14 +109,16 @@ describe('recoverSessionFromServer', () => {
     expect(apiGet).toHaveBeenCalledWith('/api/ai/sessions/legacy:turn:action-1');
   });
 
-  it('falls back to event reconstruction when no captured conversation exists', async () => {
+  it('reconstructs from the turn events while they survive', async () => {
     vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
-      action: { status: 'completed' },
-      events: [
-        event({ id: 1, type: 'question', payload: { text: 'Q' } }),
-        event({ id: 2, type: 'text_delta', payload: { text: 'event-recovered' } }),
-      ],
-      rawConversation: null,
+      conversation: { conversationKey: 'legacy:turn:action-1', rawConversation },
+      turns: [{
+        action: { id: 'action-1', status: 'completed' },
+        events: [
+          event({ id: 1, type: 'question', payload: { text: 'Q' } }),
+          event({ id: 2, type: 'text_delta', payload: { text: 'event-recovered' } }),
+        ],
+      }],
     });
     const result = await recoverSessionFromServer('action-1');
     expect(result).toMatchObject({
@@ -124,6 +126,33 @@ describe('recoverSessionFromServer', () => {
       question: 'Q',
       answer: 'event-recovered',
     });
+  });
+
+  it('falls back to event reconstruction when no captured conversation exists', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      conversation: { conversationKey: 'legacy:turn:action-1', rawConversation: null },
+      turns: [{
+        action: { id: 'action-1', status: 'completed' },
+        events: [
+          event({ id: 1, type: 'question', payload: { text: 'Q' } }),
+          event({ id: 2, type: 'text_delta', payload: { text: 'event-recovered' } }),
+        ],
+      }],
+    });
+    const result = await recoverSessionFromServer('action-1');
+    expect(result).toMatchObject({
+      status: 'completed',
+      question: 'Q',
+      answer: 'event-recovered',
+    });
+  });
+
+  it('returns null when the conversation has no turn for this action', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      conversation: { conversationKey: 'legacy:turn:action-1', rawConversation: null },
+      turns: [],
+    });
+    await expect(recoverSessionFromServer('action-1')).resolves.toBeNull();
   });
 
   it('returns null when the server rejects the lookup', async () => {

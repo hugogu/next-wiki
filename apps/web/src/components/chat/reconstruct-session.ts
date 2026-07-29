@@ -1,4 +1,4 @@
-import { isLegacyInsufficientWikiAnswer, type AiActionEvent, type AiCitation, type AiToolCallEventPayload, type RawConversationPointer } from '@next-wiki/shared';
+import { isLegacyInsufficientWikiAnswer, type AiActionEvent, type AiCitation, type AiConversationDetail, type AiToolCallEventPayload } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
 import { processTextDelta, flushStreamState, type StreamState } from '@/hooks/use-ai-chat';
 
@@ -69,35 +69,34 @@ export function reconstructSessionFromEvents(events: AiActionEvent[]): Reconstru
 
 /**
  * Fetch the authoritative reconstructed state for one of the caller's own
- * wiki_question actions from `/api/ai/sessions/{actionId}`. Prefers the
- * captured Raw conversation (which outlives the event-log retention window)
- * over event reconstruction. Returns null if the server rejected the lookup
+ * wiki_question actions from `/api/ai/sessions/{key}`. Falls back to the
+ * captured Raw conversation when the turn's events have already been purged at
+ * the retention horizon. Returns null if the server rejected the lookup
  * (caller decides what to do with the persisted error in that case).
  */
 export async function recoverSessionFromServer(actionId: string): Promise<(ReconstructedSession & { status: string }) | null> {
   try {
     // The conversation-detail endpoint keys conversations, not individual
     // action ids. A single uncaptured turn is keyed as `legacy:turn:{actionId}`,
-    // and that is exactly the handle we persist for recovery.
-    const { action, events, rawConversation } = await apiGet<{
-      action: { status: string };
-      events: AiActionEvent[];
-      rawConversation: (RawConversationPointer & { conversation?: { question?: string; answer?: string; thinking?: string; citations?: AiCitation[]; insufficient?: boolean; errorMessage?: string | null } | null }) | null;
-    }>(`/api/ai/sessions/legacy:turn:${actionId}`);
-    const captured = rawConversation?.conversation;
-    const base = captured
+    // and that is exactly the handle we persist for recovery — so the response
+    // carries exactly this action's turn.
+    const detail = await apiGet<AiConversationDetail>(`/api/ai/sessions/legacy:turn:${actionId}`);
+    const turn = detail.turns[0];
+    if (!turn) return null;
+    const captured = detail.conversation.rawConversation?.conversation;
+    const base = turn.events.length === 0 && captured
       ? {
-          question: captured.question ?? '',
-          answer: captured.answer ?? '',
-          thinking: captured.thinking ?? '',
-          citations: captured.citations ?? [],
+          question: captured.question,
+          answer: captured.answer,
+          thinking: captured.thinking,
+          citations: captured.citations,
           toolCalls: [] as AiToolCallEventPayload[],
           searchResults: [] as Array<{ title: string; path: string; spaceSlug?: string }>,
-          insufficient: captured.insufficient ?? false,
-          errorMessage: captured.errorMessage ?? null,
+          insufficient: captured.insufficient,
+          errorMessage: captured.errorMessage,
         }
-      : reconstructSessionFromEvents(events);
-    return { ...base, status: action.status };
+      : reconstructSessionFromEvents(turn.events);
+    return { ...base, status: turn.action.status };
   } catch {
     // Permission revoked / session expired / not found / network blip. The
     // caller (pane auto-recovery) treats null as "leave the persisted error
