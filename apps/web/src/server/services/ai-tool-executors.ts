@@ -52,6 +52,8 @@ export type ToolExecutionContext = {
   contentWindowChars?: number;
   /** Set only for scheduled runs; it makes the executor fail closed outside the saved boundary. */
   scheduledScope?: ScheduledAiJobScope;
+  /** An empty array means this scheduled job deliberately selected no skills. */
+  scheduledSkillNames?: string[];
   scheduledAiJobRunId?: string;
 };
 
@@ -786,6 +788,9 @@ const readSkillFileArgs = z.object({
  */
 async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = loadSkillArgs.parse(rawArgs ?? {});
+  if (execCtx?.scheduledSkillNames && !execCtx.scheduledSkillNames.includes(args.name)) {
+    return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
+  }
   const skill = await findSkill(args.name);
   if (!skill) return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
   if (!skill.enabled) {
@@ -824,6 +829,9 @@ async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExec
 /** Read one reference file inside a skill. Text only — nothing here executes. */
 async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = readSkillFileArgs.parse(rawArgs ?? {});
+  if (execCtx?.scheduledSkillNames && !execCtx.scheduledSkillNames.includes(args.name)) {
+    return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
+  }
   const skill = await findSkill(args.name);
   if (!skill || !skill.enabled) {
     return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
@@ -952,7 +960,7 @@ export async function executeTool(
       const pageId = typeof value.pageId === 'string' ? value.pageId : typeof value.node === 'string' ? value.node : null;
       if (pageId) {
         const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
-        const allowed = Boolean(page && (execCtx.scheduledScope.spaceIds.includes(page.spaceId) || execCtx.scheduledScope.rootPageIds.includes(page.id)));
+        const allowed = Boolean(page && execCtx.scheduledScope.spaceIds.includes(page.spaceId));
         if (!allowed) return fail('SCHEDULED_SCOPE_VIOLATION', 'The requested page is outside this scheduled job scope.');
       } else if (tool.category !== 'skill') {
         return fail('SCHEDULED_SCOPE_VIOLATION', 'This operation needs an in-scope page identifier.');

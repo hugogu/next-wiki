@@ -1655,7 +1655,7 @@
         "expired": "Expired"
       },
       "jobs": {
-        "nav": "Scheduled AI jobs"
+        "nav": "Jobs"
       },
       "providerDetail": {
         "update": "Update provider",

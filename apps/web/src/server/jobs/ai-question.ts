@@ -59,6 +59,7 @@ import { logger } from '@/server/logger';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { listEnabledSkills } from '@/server/services/skills/registry';
 import { buildWikiToolSystemPrompt } from './wiki-question-tool-planner';
+import { expandScheduledJobContext } from './scheduled-ai-job-context';
 import {
   createNativeToolPlanner,
   createTextProtocolPlanner,
@@ -292,7 +293,6 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     ? await db.query.scheduledAiJobRuns.findFirst({ where: eq(schema.scheduledAiJobRuns.id, scheduledRunId) }) : null;
   const snapshot = scheduledRun?.definitionSnapshot as { targetScope?: unknown } | undefined;
   const scheduledScope = snapshot?.targetScope ? scheduledAiJobScopeSchema.parse(snapshot.targetScope) : undefined;
-  await appendActionEvent(actionId, 'question', { text: input.question });
   const questionMode = input.mode ?? 'retrieval';
   const retrieval = scheduledScope
     ? { sources: [], usage: {}, results: [] }
@@ -335,7 +335,13 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
   // Only names and descriptions: the model pulls full skill content on demand
   // through load_skill, so 20 installed skills cost 20 lines, not 20 documents.
-  const enabledSkills = await listEnabledSkills();
+  const enabledSkills = (await listEnabledSkills()).filter(
+    (skill) => !scheduledScope || scheduledScope.skillNames.includes(skill.name),
+  );
+  const question = scheduledScope
+    ? expandScheduledJobContext(input.question, { tools: enabledTools, skills: enabledSkills, spaceIds: scheduledScope.spaceIds })
+    : input.question;
+  await appendActionEvent(actionId, 'question', { text: question });
   const system = buildWikiToolSystemPrompt(
     enabledTools,
     {
@@ -417,7 +423,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       workflowId: workflow.id,
       ctx,
       actorUserId: user.id,
-      question: input.question,
+      question,
       conversation: input.conversation ?? [],
       wikiSources,
       currentPage: input.currentPage,
@@ -428,6 +434,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       transcriptCharBudget: transcriptCharBudgetFor(textModel.contextWindow),
       toolResultMaxChars: runtimeConfig.toolResultMaxChars,
       scheduledScope,
+      scheduledSkillNames: scheduledScope?.skillNames,
       scheduledAiJobRunId: scheduledRun?.id,
     });
   } catch (error) {

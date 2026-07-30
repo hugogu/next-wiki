@@ -1655,7 +1655,7 @@
         "expired": "已过期"
       },
       "jobs": {
-        "nav": "定时 AI 任务"
+        "nav": "任务"
       },
       "providerDetail": {
         "update": "更新能力配置",

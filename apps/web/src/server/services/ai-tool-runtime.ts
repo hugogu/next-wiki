@@ -316,6 +316,7 @@ export type ToolLoopParams = {
    * budget by {@link effectiveToolResultChars}. */
   toolResultMaxChars?: number;
   scheduledScope?: ScheduledAiJobScope;
+  scheduledSkillNames?: string[];
   scheduledAiJobRunId?: string;
 };
 
@@ -677,6 +678,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         conversation: state.conversation,
         contentWindowChars: pageContentWindowFor(resultMaxChars),
         scheduledScope: params.scheduledScope,
+        scheduledSkillNames: params.scheduledSkillNames,
         scheduledAiJobRunId: params.scheduledAiJobRunId,
       });
       const toolDurationMs = Date.now() - toolStartedAt;

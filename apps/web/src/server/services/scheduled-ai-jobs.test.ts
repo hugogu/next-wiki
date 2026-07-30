@@ -34,7 +34,7 @@ function scheduledJob(overrides: Record<string, unknown> = {}) {
     taskDescription: 'Propose links',
     scheduleCron: '0 9 * * *',
     timeZone: 'UTC',
-    targetScope: { spaceIds: [], rootPageIds: ['00000000-0000-0000-0000-000000000001'], tagIds: [] },
+    targetScope: { spaceIds: ['00000000-0000-0000-0000-000000000001'], skillNames: [] },
     runAsUserId: '00000000-0000-0000-0000-000000000002',
     status: 'enabled',
     definitionVersion: 2,
@@ -70,7 +70,7 @@ describe('scheduled AI job scheduling primitives', () => {
   it('creates an immutable execution snapshot', () => {
     const snapshot = buildScheduledAiJobSnapshot({
       id: 'job', name: 'Daily links', taskDescription: 'Propose links', scheduleCron: '0 9 * * *',
-      timeZone: 'UTC', targetScope: { spaceIds: ['00000000-0000-0000-0000-000000000001'], rootPageIds: [], tagIds: [] },
+      timeZone: 'UTC', targetScope: { spaceIds: ['00000000-0000-0000-0000-000000000001'], skillNames: [] },
       runAsUserId: '00000000-0000-0000-0000-000000000002', definitionVersion: 2,
     });
     expect(snapshot.version).toBe(2);
@@ -82,7 +82,7 @@ describe('scheduled AI job scheduling primitives', () => {
     db.query.scheduledAiJobs.findFirst.mockResolvedValue(current);
     db.query.users.findFirst.mockResolvedValue({ id: current.runAsUserId, status: 'active', deletedAt: null });
     db.select.mockReturnValue({
-      from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ id: current.targetScope.rootPageIds[0] }]) }),
+      from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ id: current.targetScope.spaceIds[0] }]) }),
     });
     const returning = vi.fn().mockResolvedValue([{ ...current, name: 'Renamed links', normalizedName: 'renamed links' }]);
     const where = vi.fn().mockReturnValue({ returning });

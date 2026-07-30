@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { skillNameSchema } from './skills';
 
 /** Shared, transport-safe contract for administrator-managed scheduled AI work. */
 export const scheduledAiJobStatusSchema = z.enum(['enabled', 'paused', 'retired']);
@@ -17,11 +18,10 @@ const uuidList = z.array(z.string().uuid()).max(100).default([]);
 /** Resource identifiers only; content is never persisted in a definition. */
 export const scheduledAiJobScopeSchema = z.object({
   spaceIds: uuidList,
-  rootPageIds: uuidList,
-  tagIds: uuidList,
+  skillNames: z.array(skillNameSchema).max(20).default([]),
 }).superRefine((scope, ctx) => {
-  if (scope.spaceIds.length + scope.rootPageIds.length === 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one space or root page is required' });
+  if (scope.spaceIds.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one space is required' });
   }
 });
 export type ScheduledAiJobScope = z.infer<typeof scheduledAiJobScopeSchema>;
@@ -38,7 +38,6 @@ export const scheduledAiJobCreateSchema = z.object({
   scheduleCron: cronExpressionSchema,
   timeZone: timeZoneSchema,
   targetScope: scheduledAiJobScopeSchema,
-  runAsUserId: z.string().uuid(),
   status: scheduledAiJobStatusSchema.default('paused'),
 });
 export type ScheduledAiJobCreate = z.infer<typeof scheduledAiJobCreateSchema>;
@@ -104,3 +103,5 @@ export const scheduledAiJobRunViewSchema = z.object({
   errorMessage: z.string().nullable(),
 });
 export type ScheduledAiJobRunView = z.infer<typeof scheduledAiJobRunViewSchema>;
+
+export const SCHEDULED_AI_JOB_CONTEXT_HELP = 'Optional runtime context: use {{tools}} for the enabled tool catalogue, {{skills}} for this job\'s selected skills, and {{scope}} for its saved space scope. References are expanded only when the job runs.';

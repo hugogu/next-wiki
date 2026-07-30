@@ -1,5 +1,5 @@
 import { CronExpressionParser } from 'cron-parser';
-import { and, desc, eq, ilike, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, lte } from 'drizzle-orm';
 import {
   scheduledAiJobCreateSchema,
   scheduledAiJobDefinitionSnapshotSchema,
@@ -13,6 +13,7 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
+import { findSkill } from '@/server/services/skills/registry';
 
 type DefinitionFields = Pick<typeof schema.scheduledAiJobs.$inferSelect,
   'id' | 'name' | 'taskDescription' | 'scheduleCron' | 'timeZone' | 'targetScope' | 'runAsUserId' | 'definitionVersion'>;
@@ -21,6 +22,12 @@ function assertManager(ctx: PermCtx) {
   if (!can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to manage scheduled AI jobs');
   }
+}
+
+function executionOwnerId(ctx: PermCtx): string {
+  const userId = getActorUserId(ctx);
+  if (!userId) throw new DomainError('FORBIDDEN', 'A signed-in user is required to configure a Job');
+  return userId;
 }
 
 function normalizeName(name: string) {
@@ -78,13 +85,13 @@ async function validateOwnerAndScope(runAsUserId: string, targetScope: unknown) 
   if (!owner || owner.status !== 'active' || owner.deletedAt) {
     throw new DomainError('BAD_REQUEST', 'SCHEDULED_JOB_OWNER_INELIGIBLE: execution owner must be active');
   }
-  if (scope.spaceIds.length) {
-    const spaces = await db.select({ id: schema.spaces.id }).from(schema.spaces).where(inArray(schema.spaces.id, scope.spaceIds));
-    if (spaces.length !== scope.spaceIds.length) throw new DomainError('BAD_REQUEST', 'SCHEDULED_JOB_SCOPE_INVALID: space does not exist');
-  }
-  if (scope.rootPageIds.length) {
-    const pages = await db.select({ id: schema.pages.id }).from(schema.pages).where(and(inArray(schema.pages.id, scope.rootPageIds), isNull(schema.pages.deletedAt)));
-    if (pages.length !== scope.rootPageIds.length) throw new DomainError('BAD_REQUEST', 'SCHEDULED_JOB_SCOPE_INVALID: root page does not exist');
+  const [spaces, skills] = await Promise.all([
+    db.select({ id: schema.spaces.id }).from(schema.spaces).where(inArray(schema.spaces.id, scope.spaceIds)),
+    Promise.all(scope.skillNames.map((name) => findSkill(name))),
+  ]);
+  if (spaces.length !== scope.spaceIds.length) throw new DomainError('BAD_REQUEST', 'SCHEDULED_JOB_SCOPE_INVALID: space does not exist');
+  if (skills.some((skill) => !skill || !skill.enabled)) {
+    throw new DomainError('BAD_REQUEST', 'SCHEDULED_JOB_SKILL_INVALID: selected skill is unavailable');
   }
   return scope;
 }
@@ -112,11 +119,12 @@ export async function createScheduledAiJob(ctx: PermCtx, input: unknown) {
   assertManager(ctx);
   const parsed = scheduledAiJobCreateSchema.parse(input);
   validateScheduledAiJobSchedule(parsed.scheduleCron, parsed.timeZone);
-  const scope = await validateOwnerAndScope(parsed.runAsUserId, parsed.targetScope);
+  const runAsUserId = executionOwnerId(ctx);
+  const scope = await validateOwnerAndScope(runAsUserId, parsed.targetScope);
   const now = new Date();
   try {
     const [row] = await db.insert(schema.scheduledAiJobs).values({
-      ...parsed, targetScope: scope, normalizedName: normalizeName(parsed.name),
+      ...parsed, targetScope: scope, runAsUserId, normalizedName: normalizeName(parsed.name),
       nextRunAt: parsed.status === 'enabled' ? nextScheduledAiJobOccurrence(parsed.scheduleCron, parsed.timeZone, now) : null,
       createdByUserId: getActorUserId(ctx), updatedByUserId: getActorUserId(ctx),
     }).returning();
@@ -153,8 +161,8 @@ export async function updateScheduledAiJob(ctx: PermCtx, id: string, input: unkn
   const update = scheduledAiJobCreateSchema.partial().parse(input);
   const candidate = scheduledAiJobCreateSchema.parse({ ...current, ...update, targetScope: update.targetScope ?? current.targetScope });
   validateScheduledAiJobSchedule(candidate.scheduleCron, candidate.timeZone);
-  const scope = await validateOwnerAndScope(candidate.runAsUserId, candidate.targetScope);
-  const executionChanged = ['taskDescription', 'scheduleCron', 'timeZone', 'runAsUserId', 'targetScope', 'status'].some((key) => key in update);
+  const scope = await validateOwnerAndScope(current.runAsUserId, candidate.targetScope);
+  const executionChanged = ['taskDescription', 'scheduleCron', 'timeZone', 'targetScope', 'status'].some((key) => key in update);
   const reschedule = candidate.status === 'enabled'
     && (current.status !== 'enabled' || 'scheduleCron' in update || 'timeZone' in update);
   const nextRunAt = candidate.status !== 'enabled'
@@ -163,7 +171,7 @@ export async function updateScheduledAiJob(ctx: PermCtx, id: string, input: unkn
       ? nextScheduledAiJobOccurrence(candidate.scheduleCron, candidate.timeZone)
       : current.nextRunAt;
   const [row] = await db.update(schema.scheduledAiJobs).set({
-    ...candidate, targetScope: scope, normalizedName: normalizeName(candidate.name), nextRunAt,
+    ...candidate, targetScope: scope, runAsUserId: current.runAsUserId, normalizedName: normalizeName(candidate.name), nextRunAt,
     definitionVersion: executionChanged ? current.definitionVersion + 1 : current.definitionVersion,
     updatedByUserId: getActorUserId(ctx), updatedAt: new Date(),
   }).where(eq(schema.scheduledAiJobs.id, id)).returning();
@@ -241,7 +249,7 @@ export async function duplicateScheduledAiJob(ctx: PermCtx, id: string) {
   const [copy] = await db.insert(schema.scheduledAiJobs).values({
     name, normalizedName: normalizeName(name), taskDescription: source.taskDescription,
     scheduleCron: source.scheduleCron, timeZone: source.timeZone, targetScope: source.targetScope,
-    runAsUserId: source.runAsUserId, status: 'paused', definitionVersion: 1,
+    runAsUserId: executionOwnerId(ctx), status: 'paused', definitionVersion: 1,
     createdByUserId: getActorUserId(ctx), updatedByUserId: getActorUserId(ctx),
   }).returning();
   return definitionView(copy!);
