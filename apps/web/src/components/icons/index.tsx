@@ -57,6 +57,19 @@ export function HistoryIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function CalendarClockIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <circle cx="15.5" cy="16" r="3.5" />
+      <path d="M15.5 14v2l1.25.75" />
+    </Icon>
+  );
+}
+
 export function PublishIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

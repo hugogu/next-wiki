@@ -11,6 +11,7 @@ import {
   XIcon,
   UsersIcon,
   ClipboardListIcon,
+  CalendarClockIcon,
   UserIcon,
   LockIcon,
   KeyIcon,
@@ -332,7 +333,7 @@ export function Navigator({
         {
           href: '/admin/ai/jobs',
           label: t('admin.ai.jobs.nav'),
-          icon: <ClipboardListIcon className="shrink-0" />,
+          icon: <CalendarClockIcon className="shrink-0" />,
         },
         {
           href: '/admin/ai/skills',
