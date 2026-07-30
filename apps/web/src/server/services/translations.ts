@@ -256,19 +256,20 @@ async function resolveEligibleSources(
  * Two runs must never race to publish the same translated page, so a new run
  * leaves those pages to the run that already owns them (enforced for real by
  * `translation_run_items_active_page_unique`).
+ *
+ * Deliberately not narrowed by the caller's page ids: a language-wide run would
+ * put every eligible page into one `IN (...)` list, which grows without bound
+ * and eventually hits the driver's parameter limit. The in-flight set is
+ * bounded by real work instead, and `(target_locale, status)` is exactly what
+ * the partial unique index above covers.
  */
-async function findPagesWithActiveWork(
-  targetLocale: string,
-  pageIds: string[],
-): Promise<Set<string>> {
-  if (pageIds.length === 0) return new Set();
+async function findPagesWithActiveWork(targetLocale: string): Promise<Set<string>> {
   const rows = await db
     .selectDistinct({ sourcePageId: schema.translationRunItems.sourcePageId })
     .from(schema.translationRunItems)
     .where(
       and(
         eq(schema.translationRunItems.targetLocale, targetLocale),
-        inArray(schema.translationRunItems.sourcePageId, pageIds),
         inArray(schema.translationRunItems.status, ['pending', 'running']),
       ),
     );
@@ -325,10 +326,7 @@ export async function createRun(
   // the whole request: a language-wide run skips them, and a page-scoped run
   // (the reader-side "translate this page" action) is only refused when every
   // page it asked for is already in flight.
-  const inFlight = await findPagesWithActiveWork(
-    input.targetLocale,
-    eligible.map((s) => s.pageId),
-  );
+  const inFlight = await findPagesWithActiveWork(input.targetLocale);
   const sources = eligible.filter((s) => !inFlight.has(s.pageId));
   if (sources.length === 0) {
     throw new DomainError(

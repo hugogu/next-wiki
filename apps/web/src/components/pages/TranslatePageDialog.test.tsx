@@ -190,6 +190,20 @@ describe('TranslatePageDialog outcome reporting', () => {
     expect(container.querySelector('a[href="/admin/translations/run-1"]')).not.toBeNull();
   });
 
+  it('says a paused run is paused, not that it is still running', async () => {
+    stubFetch(runView({ status: 'paused' }), null);
+    mount();
+    await flush();
+    act(() => {
+      container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true }));
+    });
+    await flush();
+
+    expect(container.textContent).toContain('page.translate.state.paused');
+    expect(container.textContent).not.toContain('page.translate.state.stillRunning');
+    expect(container.textContent).not.toContain('page.translate.state.running');
+  });
+
   it('links to the published translation when the page succeeds', async () => {
     stubFetch(runView(), itemView());
     mount();

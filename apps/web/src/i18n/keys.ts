@@ -259,6 +259,7 @@ export const translationKeys = [
   "page.translate.description",
   "page.translate.state.queued",
   "page.translate.state.running",
+  "page.translate.state.paused",
   "page.translate.state.stillRunning",
   "page.translate.result.completed",
   "page.translate.result.failed",

@@ -287,6 +287,18 @@ export function TranslatePageDialog({
 
   const finished = run !== null && TERMINAL_RUN_STATUSES.includes(run.status);
   const outcome = finished ? deriveTranslateOutcome(run, item) : null;
+  // A run this dialog stopped following is not necessarily still working: a
+  // paused run needs an administrator's decision, and saying "still running"
+  // would read as progress.
+  const pendingMessage = trackError
+    ? getTranslationApiErrorMessage(t, trackError, 'page.translate.trackError')
+    : run?.status === 'paused'
+      ? t('page.translate.state.paused')
+      : abandoned
+        ? t('page.translate.state.stillRunning')
+        : run?.status === 'running'
+          ? t('page.translate.state.running')
+          : t('page.translate.state.queued');
   const reason = outcome
     ? [
         getTranslationErrorMessage(t, outcome.code, outcome.message),
@@ -325,15 +337,7 @@ export function TranslatePageDialog({
               className="space-y-xs rounded-md border border-primary/20 bg-primary/10 p-sm text-sm text-foreground"
               role="status"
             >
-              <p>
-                {abandoned
-                  ? trackError
-                    ? getTranslationApiErrorMessage(t, trackError, 'page.translate.trackError')
-                    : t('page.translate.state.stillRunning')
-                  : run?.status === 'running'
-                    ? t('page.translate.state.running')
-                    : t('page.translate.state.queued')}
-              </p>
+              <p>{pendingMessage}</p>
               <RunDetailLink runId={runId} label={t('page.translate.action.detail')} />
             </div>
           )}

@@ -411,6 +411,7 @@
       "state": {
         "queued": "Translation queued. Waiting for a worker…",
         "running": "Translating this page…",
+        "paused": "Paused. Resume or cancel it in Translations admin.",
         "stillRunning": "Still running in the background. Follow it in Translations admin."
       },
       "result": {
