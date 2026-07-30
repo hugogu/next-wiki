@@ -8,8 +8,15 @@ import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/a
 
 const streamText = vi.hoisted(() => vi.fn());
 const embed = vi.hoisted(() => vi.fn());
+const cache = vi.hoisted(() => ({
+  runWithoutDataCache: vi.fn((operation: () => Promise<unknown>) => operation()),
+}));
 vi.mock('@/server/ai/registry', () => ({
   createAiProviderAdapter: () => ({ streamText, embed }),
+}));
+vi.mock('@/server/cache/public-cache', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/server/cache/public-cache')>(),
+  runWithoutDataCache: cache.runWithoutDataCache,
 }));
 vi.mock('@/server/services/ai-admin', async (original) => {
   const actual = await original<typeof import('@/server/services/ai-admin')>();
@@ -28,7 +35,7 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 
 import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
 import { AiProviderError } from '@/server/ai/types';
-import { runWikiQuestionAction } from './ai-question';
+import { runToolEnabledWikiQuestionAction, runWikiQuestionAction } from './ai-question';
 
 describe('Wiki question worker', () => {
   let userId: string;
@@ -39,6 +46,7 @@ describe('Wiki question worker', () => {
     await clearAiData();
     streamText.mockReset();
     embed.mockReset();
+    cache.runWithoutDataCache.mockClear();
     streamText.mockImplementation(async function* () {
       yield { type: 'delta', text: 'Grounded answer [S1]' };
       yield { type: 'usage', inputTokens: 10, outputTokens: 4 };
@@ -181,6 +189,24 @@ describe('Wiki question worker', () => {
       expect(citations[0]?.spaceSlug).toBe(`qa-${spaceId}`);
     },
   );
+
+  it('runs both queued question handlers without a Next request cache context', async () => {
+    const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      mode: 'full',
+    });
+    await runWikiQuestionAction(action.id);
+    expect(cache.runWithoutDataCache).toHaveBeenCalledTimes(1);
+
+    cache.runWithoutDataCache.mockClear();
+    const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Where is the answer?',
+      requestedReview: 'admin_review',
+    });
+    if (created.fallback) throw new Error('Expected a tool-enabled action');
+    await runToolEnabledWikiQuestionAction(created.action.id);
+    expect(cache.runWithoutDataCache).toHaveBeenCalledTimes(1);
+  });
 
   it('records raw conversation capture eligibility from the data source setting at create time (023)', async () => {
     const disabledAction = await createWikiQuestion(buildUserCtx(userId, 'reader'), {

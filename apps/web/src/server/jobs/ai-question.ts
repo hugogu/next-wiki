@@ -56,6 +56,7 @@ import {
   startFeishuAnswerStream,
 } from '@/server/services/feishu-answer-streams';
 import { logger } from '@/server/logger';
+import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { listEnabledSkills } from '@/server/services/skills/registry';
 import { buildWikiToolSystemPrompt } from './wiki-question-tool-planner';
 import {
@@ -136,10 +137,14 @@ function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
   return [...merged.values()];
 }
 
-export async function runWikiQuestionAction(actionId: string): Promise<void> {
+export function runWikiQuestionAction(actionId: string): Promise<void> {
+  return runWithoutDataCache(() => runWikiQuestionActionWithoutDataCache(actionId));
+}
+
+async function runWikiQuestionActionWithoutDataCache(actionId: string): Promise<void> {
   const input = await readActionInput<Partial<ToolEnabledQuestionInput>>(actionId);
   if (input && typeof input.requestedReview === 'string') {
-    await runToolEnabledWikiQuestionAction(actionId);
+    await runToolEnabledWikiQuestionActionWithoutDataCache(actionId);
     return;
   }
   await runPlainWikiQuestionAction(actionId);
@@ -262,7 +267,11 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   await nudgeAnswerDelivery(actionId);
 }
 
-export async function runToolEnabledWikiQuestionAction(actionId: string): Promise<void> {
+export function runToolEnabledWikiQuestionAction(actionId: string): Promise<void> {
+  return runWithoutDataCache(() => runToolEnabledWikiQuestionActionWithoutDataCache(actionId));
+}
+
+async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string): Promise<void> {
   const input = await readActionInput<ToolEnabledQuestionInput>(actionId);
   const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
   if (!input || !action?.actorUserId || !action.modelId || !action.providerId) {
