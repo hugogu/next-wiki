@@ -6,7 +6,7 @@ describe('scheduled Job prompt context', () => {
     expect(expandScheduledJobContext('Use {{TOOLS}}, {{skills}}, and {{scope}}. Keep {{unknown}}.', {
       tools: [{ name: 'get_page', description: 'Read a page' }],
       skills: [{ name: 'wiki-linker', description: 'Propose links' }],
-      spaceIds: ['space-1'],
-    })).toBe('Use - get_page: Read a page, - wiki-linker: Propose links, and Allowed spaces: space-1. Keep {{unknown}}.');
+      spaces: [{ name: 'Raw entries', slug: 'raw' }],
+    })).toBe('Use - get_page: Read a page, - wiki-linker: Propose links, and Allowed spaces:\n- Raw entries (raw)\nSearch and listing are automatically limited to this space. Keep {{unknown}}.');
   });
 });

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { scheduledAiJobScopeSchema, type AiCitation, type AiQuestionMode, type AiToolReviewDecision } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -338,9 +338,21 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const enabledSkills = (await listEnabledSkills()).filter(
     (skill) => !scheduledScope || scheduledScope.skillNames.includes(skill.name),
   );
-  const question = scheduledScope
-    ? expandScheduledJobContext(input.question, { tools: enabledTools, skills: enabledSkills, spaceIds: scheduledScope.spaceIds })
+  const scheduledSpaces = scheduledScope
+    ? await db.select({ name: schema.spaces.name, slug: schema.spaces.slug })
+      .from(schema.spaces)
+      .where(inArray(schema.spaces.id, scheduledScope.spaceIds))
+    : [];
+  const scheduledContext = { tools: enabledTools, skills: enabledSkills, spaces: scheduledSpaces };
+  const expandedQuestion = scheduledScope
+    ? expandScheduledJobContext(input.question, scheduledContext)
     : input.question;
+  // The task author may include {{scope}} wherever it reads best. When they
+  // do not, still give the planner its durable access boundary so a multi-space
+  // Job can select the correct space rather than discovering it via a denial.
+  const question = scheduledScope && !/\{\{\s*scope\s*\}\}/i.test(input.question)
+    ? `${expandedQuestion}\n\nRuntime access boundary:\n${expandScheduledJobContext('{{scope}}', scheduledContext)}`
+    : expandedQuestion;
   await appendActionEvent(actionId, 'question', { text: question });
   const system = buildWikiToolSystemPrompt(
     enabledTools,

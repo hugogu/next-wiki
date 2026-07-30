@@ -27,7 +27,7 @@ vi.mock('@/server/services/tags', () => ({
 }));
 
 import { buildUserCtx } from '@/server/permissions';
-import { executeTool, restoreJsonEscapedBackslashes } from '@/server/services/ai-tool-executors';
+import { applyScheduledSpaceScope, executeTool, restoreJsonEscapedBackslashes } from '@/server/services/ai-tool-executors';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 const searchTool = getToolDefinition('search_wiki')!;
@@ -314,5 +314,33 @@ describe('read tool permission projection (026)', () => {
       title: 'Saturn',
       contentSource: 'Inclination: $2.49^\\circ$.\n\n![Saturn](/api/assets/image)',
     });
+  });
+});
+
+describe('scheduled Job space boundary', () => {
+  const spaces = [
+    { id: 'raw-id', name: 'Raw entries', slug: 'raw' },
+    { id: 'generated-id', name: 'Generated pages', slug: 'generated' },
+  ];
+
+  it('allows discovery only in a selected space', () => {
+    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'raw' }, spaces))
+      .toEqual({ args: { query: 'payments', space: 'raw' } });
+  });
+
+  it('requires an explicit space when more than one is selected', () => {
+    expect(applyScheduledSpaceScope('list_pages', {}, spaces)).toMatchObject({
+      error: 'Specify the space parameter for this scheduled Job. Allowed spaces: raw, generated.',
+    });
+  });
+
+  it('automatically constrains discovery when exactly one space is selected', () => {
+    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments' }, [spaces[0]!]))
+      .toEqual({ args: { query: 'payments', space: 'raw' } });
+  });
+
+  it('rejects discovery in an unselected space', () => {
+    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'wiki' }, spaces))
+      .toMatchObject({ error: 'This scheduled Job cannot access the wiki space. Allowed spaces: raw, generated.' });
   });
 });

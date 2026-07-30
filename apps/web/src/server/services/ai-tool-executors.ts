@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { diffArrays } from 'diff';
 import {
   publicPageSearchQuerySchema,
@@ -74,9 +74,54 @@ export type ToolExecutionResult = {
 
 const MAX_LIST = 100;
 const READ_INCLUDE: PublicPageInclude[] = ['publishedRevision'];
+type ScheduledSpace = { id: string; name: string; slug: string };
 
 function fail(errorCode: string, errorMessage: string, errorDetail?: string): ToolExecutionResult {
   return { ok: false, summary: errorMessage, errorCode, errorMessage, errorDetail };
+}
+
+function publicSpaceSlug(slug: string) {
+  return slug === 'default' ? 'wiki' : slug;
+}
+
+/**
+ * A scheduled Job's page boundary is expressed as selected spaces. Discovery
+ * calls must name one of them, except when the Job has exactly one selection,
+ * where the server supplies it. This preserves the boundary without making a
+ * normal maintenance task depend on pre-known page UUIDs.
+ */
+export function applyScheduledSpaceScope(
+  toolName: string,
+  rawArgs: unknown,
+  spaces: ScheduledSpace[],
+): { args: unknown; error?: string } {
+  const args = rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
+    ? rawArgs as Record<string, unknown>
+    : {};
+  const needsNamedSpace = toolName === 'search_wiki' || toolName === 'list_pages'
+    || ((toolName === 'get_page' || toolName === 'get_backlinks' || toolName === 'get_neighborhood') && typeof args.path === 'string');
+  if (!needsNamedSpace) return { args: rawArgs };
+
+  const requested = typeof args.space === 'string' ? args.space : null;
+  const selected = requested
+    ? spaces.find((space) => publicSpaceSlug(space.slug) === (requested === 'default' ? 'wiki' : requested))
+    : spaces.length === 1 ? spaces[0] : undefined;
+  if (!selected) {
+    const names = spaces.map((space) => publicSpaceSlug(space.slug)).join(', ');
+    return {
+      args: rawArgs,
+      error: requested
+        ? `This scheduled Job cannot access the ${requested} space. Allowed spaces: ${names || '(none)'}.`
+        : `Specify the space parameter for this scheduled Job. Allowed spaces: ${names || '(none)'}.`,
+    };
+  }
+  return { args: { ...args, space: publicSpaceSlug(selected.slug) } };
+}
+
+async function scheduledSpaces(scope: ScheduledAiJobScope): Promise<ScheduledSpace[]> {
+  return db.select({ id: schema.spaces.id, name: schema.spaces.name, slug: schema.spaces.slug })
+    .from(schema.spaces)
+    .where(inArray(schema.spaces.id, scope.spaceIds));
 }
 
 function originalErrorDetail(error: unknown): string {
@@ -949,24 +994,31 @@ export async function executeTool(
     return fail('TOOL_NOT_ENABLED', `The tool "${tool.name}" is not available in this phase.`);
   }
   try {
+    let scopedArgs = args;
     if (execCtx.scheduledScope) {
-      const value = args !== null && typeof args === 'object' ? args as Record<string, unknown> : {};
-      // Search/listing are intentionally unavailable until result filtering can
-      // prove every returned node belongs to the saved tree. This is safer than
-      // letting a model infer out-of-scope names or content from a broad search.
-      if (tool.name === 'search_wiki' || tool.name === 'list_pages') {
-        return fail('SCHEDULED_SCOPE_VIOLATION', 'This scheduled scope does not permit unbounded search or listing.');
-      }
+      const spaces = await scheduledSpaces(execCtx.scheduledScope);
+      const scoped = applyScheduledSpaceScope(tool.name, args, spaces);
+      if (scoped.error) return fail('SCHEDULED_SCOPE_VIOLATION', scoped.error);
+      scopedArgs = scoped.args;
+      const value = scopedArgs !== null && typeof scopedArgs === 'object' ? scopedArgs as Record<string, unknown> : {};
       const pageId = typeof value.pageId === 'string' ? value.pageId : typeof value.node === 'string' ? value.node : null;
       if (pageId) {
         const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
         const allowed = Boolean(page && execCtx.scheduledScope.spaceIds.includes(page.spaceId));
         if (!allowed) return fail('SCHEDULED_SCOPE_VIOLATION', 'The requested page is outside this scheduled job scope.');
-      } else if (tool.category !== 'skill') {
+      } else if (tool.name === 'create_page') {
+        // Generated pages are the durable output for admin-run Jobs; other
+        // execution owners create in the default wiki space. Keep that target
+        // within the same selected-space boundary as all reads and edits.
+        const targetSlug = ctx.actor.kind === 'user' && ctx.actor.role === 'admin' ? 'generated' : 'default';
+        if (!spaces.some((space) => space.slug === targetSlug)) {
+          return fail('SCHEDULED_SCOPE_VIOLATION', `Creating a page requires the ${publicSpaceSlug(targetSlug)} space to be selected for this Job.`);
+        }
+      } else if (!['skill', 'tag'].includes(tool.category)) {
         return fail('SCHEDULED_SCOPE_VIOLATION', 'This operation needs an in-scope page identifier.');
       }
     }
-    return await executor(ctx, args, execCtx);
+    return await executor(ctx, scopedArgs, execCtx);
   } catch (error) {
     return toSafeFailure(error, {
       toolName: tool.name,
