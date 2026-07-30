@@ -22,25 +22,25 @@ export type BuiltinToolMetadata = {
 };
 
 export const BUILTIN_TOOL_METADATA: readonly BuiltinToolMetadata[] = [
-  { name: 'search_wiki', category: 'read', risk: 'read', description: 'Search wiki pages by keyword or meaning.' },
-  { name: 'get_page', category: 'read', risk: 'read', description: 'Read a page including its Markdown source.' },
-  { name: 'list_pages', category: 'read', risk: 'read', description: 'List visible pages under a path or space.' },
-  { name: 'get_backlinks', category: 'read', risk: 'read', description: 'Find pages linking to a target page.' },
-  { name: 'get_neighborhood', category: 'read', risk: 'read', description: 'Read a page with its parent, siblings, and children.' },
-  { name: 'list_tags', category: 'tag', risk: 'read', description: 'List reusable wiki tags.' },
-  { name: 'create_page', category: 'page_draft', risk: 'draft_write', description: 'Create a new page as a draft revision. Use this when the user wants to save content and no existing target page was found via search_wiki, list_pages, or get_page.' },
-  { name: 'save_draft', category: 'page_draft', risk: 'draft_write', description: 'Save a new draft revision of an existing page. Requires an existing page; create it first with create_page if it does not exist.' },
-  { name: 'update_page_properties', category: 'metadata', risk: 'reviewed_write', description: 'Propose title or path changes for a page.' },
-  { name: 'update_page_metadata', category: 'metadata', risk: 'reviewed_write', description: 'Propose date/summary/tag metadata changes for a page.' },
-  { name: 'create_tag', category: 'tag', risk: 'reviewed_write', description: 'Create a reusable tag.' },
-  { name: 'rename_tag', category: 'tag', risk: 'reviewed_write', description: 'Rename a reusable tag across every page.' },
-  { name: 'delete_tag', category: 'tag', risk: 'reviewed_write', description: 'Retire a reusable tag.' },
-  { name: 'merge_tag', category: 'tag', risk: 'reviewed_write', description: 'Merge one tag into another across every page.' },
-  { name: 'batch_update_pages', category: 'batch', risk: 'reviewed_write', description: 'Propose a coordinated update across several pages.' },
-  { name: 'batch_soft_delete_pages', category: 'batch', risk: 'reviewed_write', description: 'Propose soft-deletion of several pages.' },
-  { name: 'generate_image', category: 'media', risk: 'immediate_write', description: 'Queue a page-bound generated image and return a poll URL.' },
+  { name: 'search_wiki', category: 'read', risk: 'read', description: description('search_wiki') },
+  { name: 'get_page', category: 'read', risk: 'read', description: description('get_page') },
+  { name: 'list_pages', category: 'read', risk: 'read', description: description('list_pages') },
+  { name: 'get_backlinks', category: 'read', risk: 'read', description: description('get_backlinks') },
+  { name: 'get_neighborhood', category: 'read', risk: 'read', description: description('get_neighborhood') },
+  { name: 'list_tags', category: 'tag', risk: 'read', description: description('list_tags') },
+  { name: 'create_page', category: 'page_draft', risk: 'draft_write', description: description('create_page') },
+  { name: 'save_draft', category: 'page_draft', risk: 'draft_write', description: description('save_draft') },
+  { name: 'update_page_properties', category: 'metadata', risk: 'reviewed_write', description: description('update_page_properties') },
+  { name: 'update_page_metadata', category: 'metadata', risk: 'reviewed_write', description: description('update_page_metadata') },
+  { name: 'create_tag', category: 'tag', risk: 'reviewed_write', description: description('create_tag') },
+  { name: 'rename_tag', category: 'tag', risk: 'reviewed_write', description: description('rename_tag') },
+  { name: 'delete_tag', category: 'tag', risk: 'reviewed_write', description: description('delete_tag') },
+  { name: 'merge_tag', category: 'tag', risk: 'reviewed_write', description: description('merge_tag') },
+  { name: 'batch_update_pages', category: 'batch', risk: 'reviewed_write', description: description('batch_update_pages') },
+  { name: 'batch_soft_delete_pages', category: 'batch', risk: 'reviewed_write', description: description('batch_soft_delete_pages') },
+  { name: 'generate_image', category: 'media', risk: 'immediate_write', description: description('generate_image') },
   { name: 'get_image_generation', category: 'media', risk: 'read', description: 'Poll a private generated-image action for safe status and artifact metadata.' },
-  { name: 'promote_generated_image', category: 'media', risk: 'immediate_write', description: 'Promote a generated image to a reusable private Wiki asset without modifying a page.' },
+  { name: 'promote_generated_image', category: 'media', risk: 'immediate_write', description: description('promote_generated_image') },
 ];
 
 export function listBuiltinToolMetadata(): readonly BuiltinToolMetadata[] {
@@ -50,3 +50,4 @@ export function listBuiltinToolMetadata(): readonly BuiltinToolMetadata[] {
 export function getBuiltinToolMetadata(name: string): BuiltinToolMetadata | undefined {
   return BUILTIN_TOOL_METADATA.find((tool) => tool.name === name);
 }
+import { getWikiMcpToolDescription as description } from '@next-wiki/shared';

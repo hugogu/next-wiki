@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { getWikiMcpToolDescription as description } from '@next-wiki/shared';
 import type { WikiApiClient } from './api-client';
 import { createPage, createPageSchema } from './tools/create-page';
 import { deletePage, deletePageSchema } from './tools/delete-page';
@@ -46,7 +47,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'search_wiki',
-    'Search wiki pages by keyword. Results include frontmatter; use filterTag for structured page tags and filterStatus/filterOwner/filterHasFrontmatter for frontmatter fields. Captured Raw Conversation results carry a conversationChannel field ("wiki-ai" or "feishu") identifying the bot channel the turn came from; absent for non-conversation results.',
+    description('search_wiki'),
     searchWikiSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await searchWiki(client, args)) }],
@@ -73,17 +74,17 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     }),
   );
 
-  server.tool('list_pages', 'List pages visible to the configured API key, optionally within a writing-mode content space.', listPagesSchema, async (args) => ({
+  server.tool('list_pages', description('list_pages'), listPagesSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await listPages(client, args)) }],
   }));
 
-  server.tool('list_tags', 'List readable active wiki tags.', listTagsSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await listTags(client, args)) }] }));
-  server.tool('create_tag', 'Create a reusable wiki tag. Requires manage_tags.', createTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await createTag(client, args)) }] }));
-  server.tool('rename_tag', 'Rename a tag asynchronously. Requires manage_tags.', renameTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await renameTag(client, args)) }] }));
-  server.tool('delete_tag', 'Retire a tag asynchronously. Requires manage_tags.', deleteTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await deleteTag(client, args)) }] }));
-  server.tool('merge_tag', 'Merge a tag into an existing destination tag asynchronously. Requires manage_tags.', mergeTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await mergeTag(client, args)) }] }));
+  server.tool('list_tags', description('list_tags'), listTagsSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await listTags(client, args)) }] }));
+  server.tool('create_tag', description('create_tag'), createTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await createTag(client, args)) }] }));
+  server.tool('rename_tag', description('rename_tag'), renameTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await renameTag(client, args)) }] }));
+  server.tool('delete_tag', description('delete_tag'), deleteTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await deleteTag(client, args)) }] }));
+  server.tool('merge_tag', description('merge_tag'), mergeTagSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await mergeTag(client, args)) }] }));
   server.tool('get_tag_mutation', 'Get the state of a tag rename, deletion, or merge.', getTagMutationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await getTagMutation(client, args)) }] }));
-  server.tool('update_page_metadata', 'Update page title, date, tags, and summary as a new draft revision.', updatePageMetadataSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await updatePageMetadata(client, args)) }] }));
+  server.tool('update_page_metadata', description('update_page_metadata'), updatePageMetadataSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await updatePageMetadata(client, args)) }] }));
 
   server.tool(
     'get_page_tree',
@@ -94,11 +95,11 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     }),
   );
 
-  server.tool('get_page', 'Get a wiki page by ID, including Markdown source if readable.', getPageSchema, async (args) => ({
+  server.tool('get_page', description('get_page'), getPageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getPage(client, args)) }],
   }));
 
-  server.tool('create_page', 'Create a new page, raw evidence entry, or generated-content link with an initial revision. Use this when the target page does not already exist.', createPageSchema, async (args) => ({
+  server.tool('create_page', description('create_page'), createPageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await createPage(client, args)) }],
   }));
 
@@ -114,13 +115,13 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await createRawCategory(client, args)) }],
   }));
 
-  server.tool('save_draft', 'Save a new draft revision of an existing page. Requires an existing page; create it first with create_page if it does not exist.', saveDraftSchema, async (args) => ({
+  server.tool('save_draft', description('save_draft'), saveDraftSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await saveDraft(client, args)) }],
   }));
 
   server.tool(
     'update_page_properties',
-    'Update page title and/or path without changing Markdown content.',
+    description('update_page_properties'),
     updatePagePropertiesSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await updatePageProperties(client, args)) }],
@@ -150,7 +151,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'generate_image',
-    'Queue a page-bound AI image generation request. Requires an Editor/Admin API key with ai.image and edit scopes. The result is asynchronous; poll with get_image_generation.',
+    description('generate_image'),
     generateImageSchema,
     async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await generateImage(client, args)) }] }),
   );
@@ -164,7 +165,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'promote_generated_image',
-    'Promote a generated image into a reusable private Wiki asset. Requires ai.image and edit scopes. Returns Markdown but does not modify or publish a Wiki page.',
+    description('promote_generated_image'),
     promoteGeneratedImageSchema,
     async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await promoteGeneratedImage(client, args)) }] }),
   );
@@ -173,7 +174,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await deletePage(client, args)) }],
   }));
 
-  server.tool('get_backlinks', 'Find pages that link to a target page.', getBacklinksSchema, async (args) => ({
+  server.tool('get_backlinks', description('get_backlinks'), getBacklinksSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getBacklinks(client, args)) }],
   }));
 
@@ -188,7 +189,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'get_neighborhood',
-    'Get the bounded multi-hop link neighborhood of a page (depth 1-3), following outbound links, inbound links, or both.',
+    description('get_neighborhood'),
     getNeighborhoodSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await getNeighborhood(client, args)) }],
@@ -210,8 +211,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'batch_update_pages',
-    'Update up to 50 pages (title, path, and/or frontmatter patch) in one request. Each item is atomic on its own but the '
-      + 'batch is not transactional across items. Pass dryRun: true to preview without writing.',
+    description('batch_update_pages'),
     batchUpdatePagesSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await batchUpdatePages(client, args)) }],
@@ -220,8 +220,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'batch_soft_delete_pages',
-    'Soft-delete up to 50 pages in one request. Each item is atomic on its own but the batch is not transactional across '
-      + 'items. Pass dryRun: true to preview without deleting.',
+    description('batch_soft_delete_pages'),
     batchSoftDeletePagesSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await batchSoftDeletePages(client, args)) }],

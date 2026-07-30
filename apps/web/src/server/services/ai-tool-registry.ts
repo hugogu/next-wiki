@@ -1,5 +1,6 @@
 import {
   BUILTIN_TOOL_PROVIDER_KEY,
+  getWikiMcpToolDescription as mcpDescription,
   type AiToolCategory,
   type AiToolDefaultReviewPolicy,
   type AiToolProviderKind,
@@ -75,11 +76,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Search wiki pages by keyword or meaning.',
+    description: mcpDescription('search_wiki'),
     inputSchema: {
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Keywords or a natural-language description.' },
+        scope: { type: 'string', enum: ['path', 'title', 'content', 'all'], description: 'Fields to search; defaults to all.' },
+        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Content space to search; defaults to wiki.' },
         limit: { type: 'integer', minimum: 1, maximum: 100 },
       },
       required: ['query'],
@@ -92,25 +95,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Read a page including its Markdown source and revision metadata. A path defaults to the wiki space; provide its spaceSlug or scope="all" when its space is unknown. Long pages come back one window at a time: when the result says hasMore, call again with contentOffset set to nextContentOffset and concatenate the windows. Never rewrite a page you have not read to the end — save_draft replaces the whole body, so anything you did not read is deleted.',
+    description: mcpDescription('get_page'),
     inputSchema: {
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'Page id returned by a previous tool call.' },
-        path: {
-          type: 'string',
-          description: 'Exact page path as returned in a result\'s "path" field, e.g. "games/reversi". Not a reader URL. Supply this or pageId.',
-        },
-        space: {
-          type: 'string',
-          enum: ['wiki', 'raw', 'generated'],
-          description: 'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
-        },
-        scope: {
-          type: 'string',
-          enum: ['all'],
-          description: 'Use "all" only when the exact space is unknown; searches every space you can read. Omit when pageId or space is known.',
-        },
         contentOffset: {
           type: 'integer',
           minimum: 0,
@@ -126,7 +115,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'List visible pages. Args: path or pathPrefix for a subtree, optional space, optional limit.',
+    description: mcpDescription('list_pages'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -144,14 +133,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Find pages linking to a target page.',
+    description: mcpDescription('get_backlinks'),
     inputSchema: {
       type: 'object',
       properties: {
         pageId: { type: 'string' },
-        path: { type: 'string', description: 'Supply this or pageId.' },
-        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
-        scope: { type: 'string', enum: ['all'], description: 'Search every readable space when the path\'s space is unknown.' },
       },
     },
   },
@@ -162,14 +148,13 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Read a page together with its parent, siblings, and children.',
+    description: mcpDescription('get_neighborhood'),
     inputSchema: {
       type: 'object',
       properties: {
-        pageId: { type: 'string' },
-        path: { type: 'string', description: 'Supply this or pageId.' },
-        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
-        scope: { type: 'string', enum: ['all'], description: 'Search every readable space when the path\'s space is unknown.' },
+        node: { type: 'string', description: 'Root page id.' },
+        depth: { type: 'integer', minimum: 1, maximum: 3, description: 'Traversal depth; defaults to 1.' },
+        direction: { type: 'string', enum: ['out', 'in', 'both'], description: 'Which edges to follow; defaults to out.' },
       },
     },
   },
@@ -180,7 +165,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'List reusable wiki tags.',
+    description: mcpDescription('list_tags'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -197,7 +182,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'create',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Create a new page as a draft revision for review. Use this when the user wants to save content and search_wiki, list_pages, or get_page cannot locate an existing target page. Args: path, title, and either contentSource or contentFromConversation=true. The path must be lowercase letters, numbers, hyphens, and slashes. If contentSource includes YAML frontmatter it must contain a non-empty "type" field; when unsure, omit the frontmatter block entirely. Returns the canonical page href.',
+    description: mcpDescription('create_page'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -222,7 +207,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Save a new draft revision of an existing page for review. The page must already exist; call create_page first if search_wiki, list_pages, or get_page cannot locate it. Args: pageId and either complete replacement Markdown in contentSource or contentFromConversation=true. Title is optional and otherwise preserved from the page. If contentSource includes YAML frontmatter it must contain a non-empty "type" field. Use contentFromConversation only when the user asks to save the prior assistant answer unchanged.',
+    description: mcpDescription('save_draft'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -245,7 +230,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Propose date/summary/tag metadata changes for a page.',
+    description: mcpDescription('update_page_metadata'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -264,7 +249,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Propose title or path property changes for a page.',
+    description: mcpDescription('update_page_properties'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -283,7 +268,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'manage_tags',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Create a reusable tag.',
+    description: mcpDescription('create_tag'),
     inputSchema: {
       type: 'object',
       properties: { name: { type: 'string' } },
@@ -297,7 +282,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'manage_tags',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Rename a reusable tag across every page that uses it.',
+    description: mcpDescription('rename_tag'),
     inputSchema: {
       type: 'object',
       properties: { tagId: { type: 'string' }, name: { type: 'string' } },
@@ -311,7 +296,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'manage_tags',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Retire a reusable tag.',
+    description: mcpDescription('delete_tag'),
     inputSchema: {
       type: 'object',
       properties: { tagId: { type: 'string' } },
@@ -325,7 +310,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'manage_tags',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Merge one tag into another across every page.',
+    description: mcpDescription('merge_tag'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -360,7 +345,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Propose a coordinated update across several pages.',
+    description: mcpDescription('batch_update_pages'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -376,7 +361,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'delete',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Propose soft-deletion of several pages.',
+    description: mcpDescription('batch_soft_delete_pages'),
     inputSchema: {
       type: 'object',
       properties: { pageIds: { type: 'array', items: { type: 'string' } } },
@@ -391,7 +376,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'use_ai_image_generation',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Generate one private illustration from the current editable page or a unique literal selection copied from that revision. The server validates the selection against the revision and computes its hash; do not supply a revision hash. Returns safe artifact metadata; it never changes or publishes page content.',
+    description: mcpDescription('generate_image'),
     inputSchema: {
       type: 'object',
       properties: {
@@ -413,7 +398,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'use_ai_image_generation',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Promote a generated image artifact to a normal private Wiki asset. Returns Markdown for a separate save_draft call; it never writes or publishes a page.',
+    description: mcpDescription('promote_generated_image'),
     inputSchema: {
       type: 'object',
       properties: {

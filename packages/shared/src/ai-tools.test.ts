@@ -12,11 +12,17 @@ import {
   aiToolReviewPolicySchema,
   aiToolWorkflowStatusSchema,
 } from './ai-tools';
+import { getWikiMcpToolDescription, wikiMcpToolDescriptions } from './mcp-tool-catalog';
 
 describe('ai-tools shared contract', () => {
   it('pins stable provider and evidence keys', () => {
     expect(BUILTIN_TOOL_PROVIDER_KEY).toBe('next-wiki');
     expect(TOOL_EVIDENCE_RAW_SYSTEM_KEY).toBe('tool-evidence');
+  });
+
+  it('exposes canonical descriptions for the MCP-compatible tool vocabulary', () => {
+    expect(getWikiMcpToolDescription('get_page')).toBe(wikiMcpToolDescriptions.get_page);
+    expect(Object.keys(wikiMcpToolDescriptions)).toContain('search_wiki');
   });
 
   it('models external providers without allowing them alongside builtin', () => {

@@ -73,11 +73,29 @@ describe('read tool permission projection (026)', () => {
         path: 'docs/public',
         title: 'Public',
         locale: 'en',
-        spaceSlug: 'default',
+        spaceSlug: 'wiki',
         revisionId: publishedRevision.id,
         revisionHash: publishedRevision.contentHash,
       },
     ]);
+  });
+
+  it('forwards MCP-compatible search scope and content-space filters', async () => {
+    content.searchPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const result = await executeTool(
+      readerCtx,
+      searchTool,
+      { query: 'zhuge-liang', scope: 'content', space: 'generated' },
+      execCtx,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(content.searchPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
+      q: 'zhuge-liang',
+      scope: 'content',
+      space: 'generated',
+    }));
   });
 
   it('turns a not-visible page into a safe failure without leaking its content', async () => {
@@ -116,7 +134,7 @@ describe('read tool permission projection (026)', () => {
         path: 'history/china/chronology',
         title: 'Chronology',
         locale: 'en',
-        spaceSlug: 'default',
+        spaceSlug: 'wiki',
         publishedRevision,
       }],
       nextCursor: null,
@@ -134,7 +152,7 @@ describe('read tool permission projection (026)', () => {
         path: 'history/china/chronology',
         title: 'Chronology',
         locale: 'en',
-        spaceSlug: 'default',
+        spaceSlug: 'wiki',
         revisionId: publishedRevision.id,
         revisionHash: publishedRevision.contentHash,
       },

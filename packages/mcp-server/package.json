@@ -20,8 +20,8 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --out-dir dist --clean",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -b ../shared && tsup",
+    "typecheck": "tsc -b ../shared && tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run"
   },
@@ -30,6 +30,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@next-wiki/shared": "workspace:*",
     "@eslint/js": "^9.0.0",
     "@types/node": "^22.10.0",
     "eslint": "^9.0.0",

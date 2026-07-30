@@ -54,10 +54,10 @@ describe('get_page across spaces', () => {
     expect(content.getPageByPath).toHaveBeenCalledWith(ctx, 'games/reversi', expect.anything(), 'generated');
   });
 
-  it('finds a generated page when the model explicitly expands its scope', async () => {
-    content.getPageByPath.mockResolvedValueOnce(null).mockResolvedValueOnce(page);
+  it('reads a generated page when the model provides its explicit space', async () => {
+    content.getPageByPath.mockResolvedValue(page);
 
-    const result = await getPage({ path: 'zhuge-liang', scope: 'all' });
+    const result = await getPage({ path: 'zhuge-liang', space: 'generated' });
 
     expect(result.ok).toBe(true);
     expect(content.getPageByPath).toHaveBeenNthCalledWith(
@@ -65,25 +65,19 @@ describe('get_page across spaces', () => {
       ctx,
       'zhuge-liang',
       expect.anything(),
-      undefined,
-    );
-    expect(content.getPageByPath).toHaveBeenNthCalledWith(
-      2,
-      ctx,
-      'zhuge-liang',
-      expect.anything(),
       'generated',
     );
   });
 
-  it('reports the default search scope and how to expand it', async () => {
+  it('reports the searched content space and the MCP-compatible discovery flow', async () => {
     content.getPageByPath.mockResolvedValue(null);
 
     const result = await getPage({ path: 'zhuge-liang' });
 
     expect(result).toMatchObject({ ok: false, errorCode: 'NOT_FOUND' });
-    expect(result.summary).toContain('default wiki scope');
+    expect(result.summary).toContain('wiki space');
     expect(result.summary).toContain('scope: "all"');
+    expect(result.summary).toContain('space to generated or raw');
     expect(content.getPageByPath).toHaveBeenCalledTimes(1);
   });
 
@@ -138,11 +132,14 @@ describe('get_page across spaces', () => {
     expect(result).toMatchObject({ ok: false, errorCode: 'NOT_FOUND' });
   });
 
-  it('advertises the space argument on every path-addressed read tool', () => {
-    for (const name of ['get_page', 'get_backlinks', 'get_neighborhood']) {
-      const properties = getToolDefinition(name)!.inputSchema.properties;
-      expect(Object.keys(properties)).toContain('space');
-    }
+  it('advertises the MCP page-reference fields', () => {
+    expect(Object.keys(getToolDefinition('get_page')!.inputSchema.properties)).toContain('pageId');
+    expect(Object.keys(getToolDefinition('get_backlinks')!.inputSchema.properties)).toContain('pageId');
+    expect(getToolDefinition('get_neighborhood')!.inputSchema.properties).toMatchObject({
+      node: expect.any(Object),
+      depth: { minimum: 1, maximum: 3 },
+      direction: { enum: ['out', 'in', 'both'] },
+    });
   });
 });
 

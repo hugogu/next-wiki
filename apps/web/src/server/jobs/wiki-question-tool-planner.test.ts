@@ -183,7 +183,7 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).toContain('always include a Markdown link to the new page');
     expect(prompt).toContain('exact title and href returned by the tool result');
     expect(prompt).toContain('For save_draft, use the exact pageId returned by get_page');
-    expect(prompt).toContain('call get_page with scope: "all"');
+    expect(prompt).toContain('call search_wiki with scope: "all"');
     expect(prompt).toContain('YAML is preferred');
   });
 });

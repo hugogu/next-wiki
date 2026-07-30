@@ -65,8 +65,8 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'When the user asks only to add generated images, do not use save_draft or reproduce the page Markdown. Generate every image from the same current revision, then call insert_generated_images once with the artifact ids and descriptive alt text.',
   'If the target page for saving content does not exist after using search_wiki, list_pages, or get_page, create it with create_page. Do not repeatedly search for a page that does not exist.',
   'save_draft only works on existing pages; never call save_draft for a page that has not been created or successfully retrieved.',
-  'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
-  'When an exact path may be outside the wiki space and no pageId or spaceSlug is available, call get_page with scope: "all". The result will state the scope searched if it cannot find a readable page.',
+  'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass the returned pageId.',
+  'When an exact page id is unavailable, call search_wiki with scope: "all" to search paths, titles, and content. Set space to generated or raw when needed, then call get_page with the returned pageId.',
 ].join('\n');
 
 /** One line of the skill catalogue shown to the model. */

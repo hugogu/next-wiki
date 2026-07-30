@@ -5,6 +5,7 @@ import {
   getToolDefinition,
   listToolDefinitions,
 } from '@/server/services/ai-tool-registry';
+import { wikiMcpToolDescriptions } from '@next-wiki/shared';
 
 describe('ai tool registry metadata (026, US6)', () => {
   it('identifies the built-in provider', () => {
@@ -40,5 +41,17 @@ describe('ai tool registry metadata (026, US6)', () => {
     expect(getToolDefinition('insert_generated_images')).toMatchObject({ category: 'page_draft', riskLevel: 'draft_write' });
     expect(getToolDefinition('search_wiki')?.category).toBe('read');
     expect(getToolDefinition('not_a_real_tool')).toBeUndefined();
+  });
+
+  it('uses the canonical MCP descriptions for every shared tool name', () => {
+    for (const [name, description] of Object.entries(wikiMcpToolDescriptions)) {
+      expect(getToolDefinition(name)?.description).toBe(description);
+    }
+  });
+
+  it('exposes the MCP search scope and content-space arguments', () => {
+    const properties = getToolDefinition('search_wiki')!.inputSchema.properties;
+    expect(properties.scope).toMatchObject({ enum: ['path', 'title', 'content', 'all'] });
+    expect(properties.space).toMatchObject({ enum: ['wiki', 'raw', 'generated'] });
   });
 });

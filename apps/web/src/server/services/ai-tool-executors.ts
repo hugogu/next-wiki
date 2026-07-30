@@ -132,21 +132,28 @@ function toSafeFailure(error: unknown, context: { toolName: string; actionId?: s
 
 // ---- Argument schemas -------------------------------------------------------
 
-const searchArgs = z.object({ query: z.string().min(1).max(200), limit: z.number().int().min(1).max(MAX_LIST).optional() });
+const searchArgs = z.object({
+  query: z.string().min(1).max(200),
+  scope: z.enum(['path', 'title', 'content', 'all']).optional(),
+  space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
+  limit: z.number().int().min(1).max(MAX_LIST).optional(),
+});
 const pageRefArgs = z
   .object({
     pageId: z.string().uuid().optional(),
+    // MCP calls this `node` for graph traversal. Keep pageId/path as legacy
+    // execution aliases, but expose the MCP name in the tool catalogue.
+    node: z.string().uuid().optional(),
     path: z.string().min(1).optional(),
     // `default` is the persisted slug for the primary wiki space. Older tool
     // results exposed that internal value, so accept it on input as a
     // compatibility alias while consistently presenting `wiki` to the model.
     space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
-    // A bare path is deliberately wiki-scoped by default. A model may opt in
-    // to every readable space only when it lacks an exact space or page id.
-    scope: z.literal('all').optional(),
     contentOffset: z.number().int().min(0).optional(),
+    depth: z.number().int().min(1).max(3).optional(),
+    direction: z.enum(['out', 'in', 'both']).optional(),
   })
-  .refine((v) => v.pageId || v.path);
+  .refine((v) => v.pageId || v.node || v.path);
 const listArgs = z
   .object({
     path: z.string().min(1).optional(),
@@ -236,6 +243,8 @@ async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
   const args = searchArgs.parse(rawArgs);
   const query = publicPageSearchQuerySchema.parse({
     q: args.query,
+    scope: args.scope,
+    ...(args.space && args.space !== 'wiki' ? { space: args.space } : {}),
     limit: args.limit ?? 10,
     include: READ_INCLUDE.join(','),
   });
@@ -269,31 +278,19 @@ function readerUrlAsPageRef(path: string): { path: string; space: 'raw' | 'gener
  * only ever see the wiki space left the model unable to re-read what it had
  * just found or created.
  */
-async function readPageByPath(ctx: PermCtx, path: string, space?: string, scope?: 'all') {
+async function readPageByPath(ctx: PermCtx, path: string, space?: string) {
   const direct = await content.getPageByPath(ctx, path, READ_INCLUDE, space);
   if (direct) return direct;
   const fromUrl = readerUrlAsPageRef(path);
   if (fromUrl) return content.getPageByPath(ctx, fromUrl.path, READ_INCLUDE, fromUrl.space);
 
-  // An explicit space is authoritative. For a bare path, the default remains
-  // the public Wiki; widening to private spaces requires the model to opt in
-  // with scope=all, and every lookup is still permission-filtered by the
-  // public-content service.
-  if (space !== undefined || scope !== 'all') return null;
-  for (const fallbackSpace of ['generated', 'raw'] as const) {
-    const page = await content.getPageByPath(ctx, path, READ_INCLUDE, fallbackSpace);
-    if (page) return page;
-  }
   return null;
 }
 
-function pageRefNotFoundMessage(args: { pageId?: string; path?: string; space?: string; scope?: 'all' }): string {
-  if (args.pageId) return 'No readable page matched that pageId.';
-  if (args.space) return `No readable page matched in the ${args.space} space. Use search_wiki or list_pages to discover an exact readable path.`;
-  if (args.scope === 'all') {
-    return 'No readable page matched in any readable space (wiki plus generated/raw where permitted). Use search_wiki or list_pages to discover an exact readable path.';
-  }
-  return 'No readable page matched in the default wiki scope. Retry with scope: "all" to search every readable space, or use search_wiki or list_pages to discover an exact path and space.';
+function pageRefNotFoundMessage(args: { pageId?: string; node?: string; path?: string; space?: string }): string {
+  if (args.pageId || args.node) return 'No readable page matched that page id.';
+  const space = args.space ?? 'wiki';
+  return `No readable page matched in the ${space} space. Call search_wiki with scope: "all" to search paths, titles, and content; set space to generated or raw when needed. Then call get_page with the returned pageId.`;
 }
 
 /**
@@ -331,9 +328,9 @@ function contentWindow(execCtx?: ToolExecutionContext): number {
 
 async function execGetPage(ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
   const args = pageRefArgs.parse(rawArgs);
-  const page = args.pageId
-    ? await content.getPageById(ctx, args.pageId, READ_INCLUDE)
-    : await readPageByPath(ctx, args.path!, args.space, args.scope);
+  const page = args.pageId || args.node
+    ? await content.getPageById(ctx, args.pageId ?? args.node!, READ_INCLUDE)
+    : await readPageByPath(ctx, args.path!, args.space);
   if (!page) return fail('NOT_FOUND', pageRefNotFoundMessage(args));
 
   const source = page.contentSource ?? null;
@@ -389,11 +386,11 @@ async function execListPages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecut
  */
 async function resolvePageId(
   ctx: PermCtx,
-  args: { pageId?: string; path?: string; space?: string; scope?: 'all' },
+  args: { pageId?: string; node?: string; path?: string; space?: string },
 ): Promise<string | null> {
-  if (args.pageId) return args.pageId;
+  if (args.pageId || args.node) return args.pageId ?? args.node!;
   if (!args.path) return null;
-  const page = await readPageByPath(ctx, args.path, args.space, args.scope);
+  const page = await readPageByPath(ctx, args.path, args.space);
   return page?.id ?? null;
 }
 
@@ -409,7 +406,7 @@ async function execGetNeighborhood(ctx: PermCtx, rawArgs: unknown): Promise<Tool
   const args = pageRefArgs.parse(rawArgs);
   const pageId = await resolvePageId(ctx, args);
   if (!pageId) return fail('NOT_FOUND', pageRefNotFoundMessage(args));
-  const result = await content.getNeighborhood(ctx, pageId, 1, 'both');
+  const result = await content.getNeighborhood(ctx, pageId, args.depth ?? 1, args.direction ?? 'out');
   return { ok: true, summary: 'Read page neighborhood.', data: result };
 }
 

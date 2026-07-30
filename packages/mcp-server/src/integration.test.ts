@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createWikiMcpServer } from './server';
 import { WikiApiClient } from './api-client';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { wikiMcpToolDescriptions } from '@next-wiki/shared';
 
 describe('createWikiMcpServer integration', () => {
   it('registers tools and responds to search_wiki call', async () => {
@@ -27,6 +28,10 @@ describe('createWikiMcpServer integration', () => {
     expect(toolNames).toContain('get_neighborhood');
     expect(toolNames).toContain('batch_update_pages');
     expect(toolNames).toContain('batch_soft_delete_pages');
+    const descriptions = new Map(tools.tools.map((tool) => [tool.name, tool.description]));
+    for (const [name, description] of Object.entries(wikiMcpToolDescriptions)) {
+      expect(descriptions.get(name)).toBe(description);
+    }
 
     await mcpClient.close();
     await server.close();
