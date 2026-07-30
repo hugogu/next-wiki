@@ -1,5 +1,6 @@
 export * from './TranslationSettingsPanel';
 export * from './TranslationStatsPanel';
+export * from './TranslationRuntimePanel';
 export * from './TranslationLanguageManager';
 export * from './TranslationPromptManager';
 export * from './TranslationRunCreateForm';

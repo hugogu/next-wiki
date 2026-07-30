@@ -1,5 +1,5 @@
 {
-  "id": "54299bef-a587-474d-a88e-83a5f5874390",
+  "id": "49e682bd-40f5-46fc-9dfd-e3d9ab1b6594",
   "prevId": "0fee830d-bd9e-4a6e-9c79-0f7ea175315e",
   "version": "7",
   "dialect": "postgresql",
@@ -10833,6 +10833,69 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.translation_settings": {
+      "name": "translation_settings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "'default'"
+        },
+        "request_timeout_seconds": {
+          "name": "request_timeout_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 600
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "translation_settings_updated_by_users_id_fk": {
+          "name": "translation_settings_updated_by_users_id_fk",
+          "tableFrom": "translation_settings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "translation_settings_singleton_id": {
+          "name": "translation_settings_singleton_id",
+          "value": "\"translation_settings\".\"id\" = 'default'"
+        },
+        "translation_settings_request_timeout_range": {
+          "name": "translation_settings_request_timeout_range",
+          "value": "\"translation_settings\".\"request_timeout_seconds\" >= 30 and \"translation_settings\".\"request_timeout_seconds\" <= 3600"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.user_ai_entitlements": {

@@ -8699,6 +8699,24 @@
           "canRetry"
         ]
       },
+      "TranslationSettingsView": {
+        "type": "object",
+        "properties": {
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requestTimeoutSeconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "updatedAt",
+          "requestTimeoutSeconds"
+        ]
+      },
       "TranslationStats": {
         "type": "object",
         "properties": {
@@ -18066,6 +18084,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TranslationRunAccepted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/translations/settings": {
+      "get": {
+        "operationId": "get-translations-settings",
+        "summary": "Get translation runtime settings",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationSettingsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-translations-settings",
+        "summary": "Update translation runtime settings",
+        "description": "",
+        "tags": [
+          "Translations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationSettingsView"
                 }
               }
             }

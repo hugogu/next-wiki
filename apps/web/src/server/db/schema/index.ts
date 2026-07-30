@@ -1473,6 +1473,29 @@ export const translationPromptVersions = pgTable(
   }),
 );
 
+/** Feature-wide translation runtime settings (singleton). Kept out of
+ * `ai_settings` because the deadline only makes sense for a background,
+ * whole-document generation, not for interactive AI calls. */
+export const translationSettings = pgTable(
+  'translation_settings',
+  {
+    id: text('id').primaryKey().default('default'),
+    // Deadline for one page's model call, covering the entire stream. The
+    // default and the range below mirror DEFAULT/MIN/MAX_TRANSLATION_REQUEST_
+    // TIMEOUT_SECONDS in @next-wiki/shared — change both together.
+    requestTimeoutSeconds: integer('request_timeout_seconds').notNull().default(600),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    singletonId: check('translation_settings_singleton_id', sql`${t.id} = 'default'`),
+    timeoutRange: check(
+      'translation_settings_request_timeout_range',
+      sql`${t.requestTimeoutSeconds} >= 30 and ${t.requestTimeoutSeconds} <= 3600`,
+    ),
+  }),
+);
+
 /** Administrator-managed target-language configuration keyed by a normalized
  * lowercase ISO 639-1 code. A retired/disabled language cannot start new work
  * and its language-prefixed reader URLs resolve as unavailable. */

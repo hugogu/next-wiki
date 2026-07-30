@@ -25,7 +25,7 @@ async function reset() {
     sql.raw(`truncate table
       translation_revision_provenance, page_translation_states, translation_run_items,
       translation_runs, translation_prompt_versions, translation_prompt_templates,
-      translation_languages, translation_groups,
+      translation_languages, translation_groups, translation_settings,
       ai_purpose_assignments, ai_model_capabilities, ai_models, ai_providers, ai_settings,
       spaces, users
     restart identity cascade`),

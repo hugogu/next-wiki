@@ -2215,6 +2215,13 @@
       "documents": "已翻译文档",
       "usage": "用量与成本"
     },
+    "settings": {
+      "title": "运行限制",
+      "description": "单个页面允许的翻译时长。翻译会流式返回整篇文档，因此该时限覆盖整次模型调用——页面较大或模型较慢时请调高。",
+      "requestTimeout": "单页超时（秒）",
+      "requestTimeoutHint": "取值 {min} 至 {max} 秒。每次尝试各自计时，单页最多重试 3 次。",
+      "saved": "已保存。"
+    },
     "language": {
       "add": "添加语言",
       "code": "语言代码",

@@ -9,7 +9,10 @@ import type {
   TranslationPromptTemplateView,
   TranslationPromptUpdate,
   TranslationPromptVersionView,
+  TranslationSettingsUpdate,
+  TranslationSettingsView,
 } from '@next-wiki/shared';
+import { DEFAULT_TRANSLATION_REQUEST_TIMEOUT_SECONDS } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
@@ -30,6 +33,57 @@ export function assertCanManageTranslations(ctx: PermCtx): string {
 
 function hashBody(body: string): string {
   return createHash('sha256').update(body).digest('hex');
+}
+
+// ---- Feature settings ------------------------------------------------------
+
+const SETTINGS_ID = 'default';
+
+type SettingsRow = typeof schema.translationSettings.$inferSelect;
+
+function settingsView(row: SettingsRow | null): TranslationSettingsView {
+  if (!row) {
+    return {
+      requestTimeoutSeconds: DEFAULT_TRANSLATION_REQUEST_TIMEOUT_SECONDS,
+      updatedAt: null,
+    };
+  }
+  return {
+    requestTimeoutSeconds: row.requestTimeoutSeconds,
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** Unguarded read for background work (the translation worker has no actor). */
+export async function getTranslationSettings(): Promise<TranslationSettingsView> {
+  const row = await db.query.translationSettings.findFirst({
+    where: eq(schema.translationSettings.id, SETTINGS_ID),
+  });
+  return settingsView(row ?? null);
+}
+
+export async function readSettings(ctx: PermCtx): Promise<TranslationSettingsView> {
+  assertCanManageTranslations(ctx);
+  return getTranslationSettings();
+}
+
+export async function updateSettings(
+  ctx: PermCtx,
+  input: TranslationSettingsUpdate,
+): Promise<TranslationSettingsView> {
+  const actorId = assertCanManageTranslations(ctx);
+  const values = {
+    ...(input.requestTimeoutSeconds !== undefined
+      ? { requestTimeoutSeconds: input.requestTimeoutSeconds }
+      : {}),
+    updatedBy: actorId,
+    updatedAt: new Date(),
+  };
+  await db
+    .insert(schema.translationSettings)
+    .values({ id: SETTINGS_ID, ...values })
+    .onConflictDoUpdate({ target: schema.translationSettings.id, set: values });
+  return getTranslationSettings();
 }
 
 // ---- Target languages ------------------------------------------------------

@@ -37,6 +37,8 @@ export function buildTranslationInput(params: {
   styleBody: string | null;
   maxOutputTokens?: number;
   abortSignal: AbortSignal;
+  /** Deadline for the whole streamed document; `null` disables it. */
+  timeoutMs?: number | null;
 }): TextGenerationInput {
   const target = languageName(params.targetLocale);
   const system = [
@@ -60,6 +62,7 @@ export function buildTranslationInput(params: {
     maxOutputTokens: params.maxOutputTokens,
     temperature: 0.2,
     abortSignal: params.abortSignal,
+    timeoutMs: params.timeoutMs,
   };
 }
 

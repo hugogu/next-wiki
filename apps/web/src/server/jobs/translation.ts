@@ -22,6 +22,7 @@ import {
   markRunTerminal,
   readRunControlSignal,
 } from '@/server/services/translations';
+import { getTranslationSettings } from '@/server/services/translation-config';
 
 type RunRow = typeof schema.translationRuns.$inferSelect;
 type ItemRow = typeof schema.translationRunItems.$inferSelect;
@@ -156,6 +157,9 @@ async function processItem(run: RunRow, item: ItemRow): Promise<void> {
     }
     const sourceMarkdown = await readMarkdownFromDatabase(sourceRevision);
 
+    // Read per item so raising the deadline takes effect on the next page of a
+    // run that is already in flight.
+    const { requestTimeoutSeconds } = await getTranslationSettings();
     const styleBody = await loadStyleBody(run.promptVersionId);
     const model = run.modelId
       ? await db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, run.modelId) })
@@ -166,7 +170,14 @@ async function processItem(run: RunRow, item: ItemRow): Promise<void> {
       model?.maxOutputTokens ?? null,
     );
 
-    const generated = await generateWithRetry(run, item, sourceMarkdown, styleBody, maxOutputTokens);
+    const generated = await generateWithRetry(
+      run,
+      item,
+      sourceMarkdown,
+      styleBody,
+      maxOutputTokens,
+      requestTimeoutSeconds * 1000,
+    );
 
     const markdown = normalizeGeneratedMarkdown(generated.text);
     if (!markdown) {
@@ -214,6 +225,7 @@ async function generateWithRetry(
   sourceMarkdown: string,
   styleBody: string | null,
   maxOutputTokens: number | undefined,
+  timeoutMs: number,
 ): Promise<{
   text: string;
   usage: {
@@ -248,6 +260,9 @@ async function generateWithRetry(
           styleBody,
           maxOutputTokens,
           abortSignal: new AbortController().signal,
+          // The deadline covers the entire stream, so it is the limit for
+          // translating one whole page — not just for the first byte.
+          timeoutMs,
         }),
       )) {
         if (event.type === 'delta') text += event.text;

@@ -2215,6 +2215,13 @@
       "documents": "Translated documents",
       "usage": "Usage & cost"
     },
+    "settings": {
+      "title": "Runtime limits",
+      "description": "How long one page may take. A translation streams the whole document, so this deadline covers the entire model call — raise it for large pages or slow models.",
+      "requestTimeout": "Per-page timeout (seconds)",
+      "requestTimeoutHint": "Between {min} and {max} seconds. Each attempt gets this long; a page is retried up to 3 times.",
+      "saved": "Saved."
+    },
     "language": {
       "add": "Add language",
       "code": "Language code",

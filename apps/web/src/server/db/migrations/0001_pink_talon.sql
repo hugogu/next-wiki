@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "translation_run_items_active_page_unique" ON "translation_run_items" USING btree ("target_locale","source_page_id") WHERE "translation_run_items"."status" in ('pending', 'running');
