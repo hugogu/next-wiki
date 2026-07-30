@@ -353,19 +353,23 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const enabledSkills = (await listEnabledSkills()).filter(
     (skill) => !scheduledScope || scheduledScope.skillNames.includes(skill.name),
   );
-  const scheduledSpaces = scheduledScope
-    ? await db
-        .select({ name: schema.spaces.name, slug: schema.spaces.slug })
-        .from(schema.spaces)
-        .where(inArray(schema.spaces.id, scheduledScope.spaceIds))
-    : [];
-  const scheduledContext = { tools: enabledTools, skills: enabledSkills, spaces: scheduledSpaces };
+  const scheduledWritableSpaces =
+    scheduledScope && scheduledScope.spaceIds.length > 0
+      ? await db
+          .select({ name: schema.spaces.name, slug: schema.spaces.slug })
+          .from(schema.spaces)
+          .where(inArray(schema.spaces.id, scheduledScope.spaceIds))
+      : [];
+  const scheduledContext = {
+    tools: enabledTools,
+    skills: enabledSkills,
+    spaces: scheduledWritableSpaces,
+  };
   const expandedQuestion = scheduledScope
     ? expandScheduledJobContext(input.question, scheduledContext)
     : input.question;
   // The task author may include {{scope}} wherever it reads best. When they
-  // do not, still give the planner its durable access boundary so a multi-space
-  // Job can select the correct space rather than discovering it via a denial.
+  // do not, still give the planner its durable read/write boundary.
   const question =
     scheduledScope && !/\{\{\s*scope\s*\}\}/i.test(input.question)
       ? `${expandedQuestion}\n\nRuntime access boundary:\n${expandScheduledJobContext('{{scope}}', scheduledContext)}`

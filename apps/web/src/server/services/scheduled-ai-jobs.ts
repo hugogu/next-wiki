@@ -115,10 +115,12 @@ async function validateOwnerAndScope(runAsUserId: string, targetScope: unknown) 
     );
   }
   const [spaces, skills] = await Promise.all([
-    db
-      .select({ id: schema.spaces.id })
-      .from(schema.spaces)
-      .where(inArray(schema.spaces.id, scope.spaceIds)),
+    scope.spaceIds.length > 0
+      ? db
+          .select({ id: schema.spaces.id })
+          .from(schema.spaces)
+          .where(inArray(schema.spaces.id, scope.spaceIds))
+      : Promise.resolve([]),
     Promise.all(scope.skillNames.map((name) => findSkill(name))),
   ]);
   if (spaces.length !== scope.spaceIds.length)

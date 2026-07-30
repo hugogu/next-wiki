@@ -10,7 +10,7 @@ describe('scheduled Job prompt context', () => {
         spaces: [{ name: 'Raw entries', slug: 'raw' }],
       }),
     ).toBe(
-      'Use - get_page: Read a page, - wiki-linker: Propose links, and Allowed spaces:\n- Raw entries (raw)\nSearch and listing are automatically limited to this space. Keep {{unknown}}.',
+      'Use - get_page: Read a page, - wiki-linker: Propose links, and Read access: all spaces that the execution owner may read.\nWritable spaces:\n- Raw entries (raw)\nPage writes must stay within these spaces. Keep {{unknown}}.',
     );
   });
 });

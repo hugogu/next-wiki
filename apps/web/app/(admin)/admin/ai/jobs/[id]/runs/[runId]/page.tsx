@@ -66,9 +66,9 @@ export default async function ScheduledAiJobRunPage({
             </div>
             <div>
               <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                Allowed spaces
+                Writable spaces
               </dt>
-              <dd className="mt-xs">{scopedSpaceNames.join(', ')}</dd>
+              <dd className="mt-xs">{scopedSpaceNames.join(', ') || 'None (read-only)'}</dd>
             </div>
             <div>
               <dt className="text-xs font-medium uppercase tracking-wide text-muted">

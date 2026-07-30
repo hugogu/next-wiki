@@ -21,17 +21,11 @@ export type ScheduledAiJobTrigger = z.infer<typeof scheduledAiJobTriggerSchema>;
 
 const uuidList = z.array(z.string().uuid()).max(100).default([]);
 
-/** Resource identifiers only; content is never persisted in a definition. */
-export const scheduledAiJobScopeSchema = z
-  .object({
-    spaceIds: uuidList,
-    skillNames: z.array(skillNameSchema).max(20).default([]),
-  })
-  .superRefine((scope, ctx) => {
-    if (scope.spaceIds.length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one space is required' });
-    }
-  });
+/** Resource identifiers only; selected spaces limit writes, never reads. */
+export const scheduledAiJobScopeSchema = z.object({
+  spaceIds: uuidList,
+  skillNames: z.array(skillNameSchema).max(20).default([]),
+});
 export type ScheduledAiJobScope = z.infer<typeof scheduledAiJobScopeSchema>;
 
 const cronExpressionSchema = z
@@ -123,4 +117,4 @@ export const scheduledAiJobRunViewSchema = z.object({
 export type ScheduledAiJobRunView = z.infer<typeof scheduledAiJobRunViewSchema>;
 
 export const SCHEDULED_AI_JOB_CONTEXT_HELP =
-  "Optional runtime context: use {{tools}} for the enabled tool catalogue, {{skills}} for this job's selected skills, and {{scope}} for its saved space scope. References are expanded only when the job runs.";
+  "Optional runtime context: use {{tools}} for the enabled tool catalogue, {{skills}} for this job's selected skills, and {{scope}} for its write scope. References are expanded only when the job runs.";

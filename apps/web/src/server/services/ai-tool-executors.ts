@@ -28,6 +28,7 @@ import { createImageGeneration } from '@/server/services/ai-image-generation';
 import { runInlineImageGenerationAction } from '@/server/services/ai-image-runner';
 import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
 import { insertGeneratedImages } from '@/server/services/ai-generated-image-insertion';
+import { listSpaces } from '@/server/services/spaces';
 
 /**
  * Built-in tool execution adapters (026, US2). Every adapter runs the operation
@@ -53,7 +54,7 @@ export type ToolExecutionContext = {
    * admin-configured per-result cap, less the room the surrounding fields
    * need, so a read never reaches the runtime's generic truncator. */
   contentWindowChars?: number;
-  /** Set only for scheduled runs; it makes the executor fail closed outside the saved boundary. */
+  /** Set only for scheduled runs; its selected spaces limit page writes. */
   scheduledScope?: ScheduledAiJobScope;
   /** An empty array means this scheduled job deliberately selected no skills. */
   scheduledSkillNames?: string[];
@@ -87,56 +88,8 @@ function publicSpaceSlug(slug: string) {
   return slug === 'default' ? 'wiki' : slug;
 }
 
-/**
- * A scheduled Job's page boundary is expressed as selected spaces. Discovery
- * calls must name one of them, except when the Job has exactly one selection,
- * where the server supplies it. This preserves the boundary without making a
- * normal maintenance task depend on pre-known page UUIDs.
- */
-export function applyScheduledSpaceScope(
-  toolName: string,
-  rawArgs: unknown,
-  spaces: ScheduledSpace[],
-): { args: unknown; error?: string; searchAllSelectedSpaces?: boolean } {
-  const args =
-    rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
-      ? (rawArgs as Record<string, unknown>)
-      : {};
-  const needsNamedSpace =
-    toolName === 'search_wiki' ||
-    toolName === 'list_pages' ||
-    ((toolName === 'get_page' || toolName === 'get_backlinks' || toolName === 'get_neighborhood') &&
-      typeof args.path === 'string');
-  if (!needsNamedSpace) return { args: rawArgs };
-
-  const requested = typeof args.space === 'string' ? args.space : null;
-  if (
-    !requested &&
-    spaces.length > 1 &&
-    (toolName === 'search_wiki' || toolName === 'list_pages')
-  ) {
-    return { args: rawArgs, searchAllSelectedSpaces: true };
-  }
-  const selected = requested
-    ? spaces.find(
-        (space) => publicSpaceSlug(space.slug) === (requested === 'default' ? 'wiki' : requested),
-      )
-    : spaces.length === 1
-      ? spaces[0]
-      : undefined;
-  if (!selected) {
-    const names = spaces.map((space) => publicSpaceSlug(space.slug)).join(', ');
-    return {
-      args: rawArgs,
-      error: requested
-        ? `This scheduled Job cannot access the ${requested} space. Allowed spaces: ${names || '(none)'}.`
-        : `This scheduled Job has no accessible space. Allowed spaces: ${names || '(none)'}.`,
-    };
-  }
-  return { args: { ...args, space: publicSpaceSlug(selected.slug) } };
-}
-
-async function scheduledSpaces(scope: ScheduledAiJobScope): Promise<ScheduledSpace[]> {
+async function writableScheduledSpaces(scope: ScheduledAiJobScope): Promise<ScheduledSpace[]> {
+  if (scope.spaceIds.length === 0) return [];
   return db
     .select({ id: schema.spaces.id, name: schema.spaces.name, slug: schema.spaces.slug })
     .from(schema.spaces)
@@ -1159,7 +1112,7 @@ type Executor = (
   execCtx: ToolExecutionContext,
 ) => Promise<ToolExecutionResult>;
 
-async function executeAcrossScheduledSpaces(
+async function executeAcrossReadableSpaces(
   executor: Executor,
   tool: ToolDefinition,
   ctx: PermCtx,
@@ -1177,7 +1130,8 @@ async function executeAcrossScheduledSpaces(
   const successful = results.filter((result) => result.ok);
   if (successful.length === 0) {
     return (
-      results[0] ?? fail('SCHEDULED_SCOPE_VIOLATION', 'This scheduled Job has no accessible space.')
+      results[0] ??
+      fail('FORBIDDEN', 'The execution owner cannot read any configured content space.')
     );
   }
 
@@ -1196,7 +1150,7 @@ async function executeAcrossScheduledSpaces(
   const verb = tool.name === 'search_wiki' ? 'matched' : 'listed';
   return {
     ok: true,
-    summary: `${items.length} readable page(s) ${verb} across ${successful.length} scoped space(s).`,
+    summary: `${items.length} readable page(s) ${verb} across ${successful.length} readable space(s).`,
     data: { items },
   };
 }
@@ -1244,19 +1198,26 @@ export async function executeTool(
     return fail('TOOL_NOT_ENABLED', `The tool "${tool.name}" is not available in this phase.`);
   }
   try {
-    let scopedArgs = args;
     if (execCtx.scheduledScope) {
-      const spaces = await scheduledSpaces(execCtx.scheduledScope);
-      const scoped = applyScheduledSpaceScope(tool.name, args, spaces);
-      if (scoped.error) return fail('SCHEDULED_SCOPE_VIOLATION', scoped.error);
-      if (scoped.searchAllSelectedSpaces) {
-        return executeAcrossScheduledSpaces(executor, tool, ctx, args, execCtx, spaces);
-      }
-      scopedArgs = scoped.args;
       const value =
-        scopedArgs !== null && typeof scopedArgs === 'object'
-          ? (scopedArgs as Record<string, unknown>)
+        args !== null && typeof args === 'object' && !Array.isArray(args)
+          ? (args as Record<string, unknown>)
           : {};
+      // Reads retain the execution owner's ordinary permissions. An unqualified
+      // search/list fans out over every content space, while explicit space
+      // arguments retain the normal single-space tool behaviour.
+      if (
+        (tool.name === 'search_wiki' || tool.name === 'list_pages') &&
+        typeof value.space !== 'string'
+      ) {
+        const readableSpaces = await listSpaces();
+        return executeAcrossReadableSpaces(executor, tool, ctx, args, execCtx, readableSpaces);
+      }
+      if (tool.category === 'read' || tool.category === 'skill' || tool.category === 'tag') {
+        return await executor(ctx, args, execCtx);
+      }
+
+      const spaces = await writableScheduledSpaces(execCtx.scheduledScope);
       const pageId =
         typeof value.pageId === 'string'
           ? value.pageId
@@ -1271,16 +1232,6 @@ export async function executeTool(
             'SCHEDULED_SCOPE_VIOLATION',
             'The requested page is outside this scheduled job scope.',
           );
-      } else if (
-        tool.name === 'search_wiki' ||
-        tool.name === 'list_pages' ||
-        ((tool.name === 'get_page' ||
-          tool.name === 'get_backlinks' ||
-          tool.name === 'get_neighborhood') &&
-          typeof value.path === 'string')
-      ) {
-        // applyScheduledSpaceScope already constrained these discovery and
-        // path-based read calls to one of the Job's selected spaces.
       } else if (tool.name === 'create_page') {
         // Generated pages are the durable output for admin-run Jobs; other
         // execution owners create in the default wiki space. Keep that target
@@ -1293,14 +1244,14 @@ export async function executeTool(
             `Creating a page requires the ${publicSpaceSlug(targetSlug)} space to be selected for this Job.`,
           );
         }
-      } else if (!['skill', 'tag'].includes(tool.category)) {
+      } else {
         return fail(
           'SCHEDULED_SCOPE_VIOLATION',
-          'This operation needs an in-scope page identifier.',
+          'This operation needs an in-scope page identifier or writable target space.',
         );
       }
     }
-    return await executor(ctx, scopedArgs, execCtx);
+    return await executor(ctx, args, execCtx);
   } catch (error) {
     return toSafeFailure(error, {
       toolName: tool.name,

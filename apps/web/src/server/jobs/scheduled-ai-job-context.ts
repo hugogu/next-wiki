@@ -13,13 +13,14 @@ export function expandScheduledJobContext(
       context.skills.map((skill) => `- ${skill.name}: ${skill.description}`).join('\n') ||
       '(no skills selected)',
     scope: [
-      'Allowed spaces:',
+      'Read access: all spaces that the execution owner may read.',
+      'Writable spaces:',
       ...context.spaces.map(
         (space) => `- ${space.name} (${space.slug === 'default' ? 'wiki' : space.slug})`,
       ),
-      context.spaces.length > 1
-        ? 'When calling search_wiki or list_pages, set the space parameter to one of these space names'
-        : 'Search and listing are automatically limited to this space',
+      context.spaces.length === 0
+        ? 'No page writes are permitted for this Job'
+        : 'Page writes must stay within these spaces',
     ].join('\n'),
   };
   return taskDescription.replace(

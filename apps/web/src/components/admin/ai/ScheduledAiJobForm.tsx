@@ -102,12 +102,11 @@ export function ScheduledAiJobForm({
         </label>
       </div>
       <fieldset className="space-y-sm">
-        <legend className="text-sm font-medium">Allowed spaces</legend>
+        <legend className="text-sm font-medium">Writable spaces</legend>
         <p className="text-xs text-muted">
-          Select the page spaces this Job may search, list, read, and change. With multiple spaces,
-          the AI must choose one for each search or listing. Select both Raw and Generated when a
-          task turns raw entries into generated Wiki pages. The person saving the Job is its
-          execution owner.
+          The Job can read every space available to its execution owner. Select only the spaces it
+          may create or change pages in; leave this empty for a read-only analysis Job. Select
+          Generated when a task turns raw entries into generated Wiki pages.
         </p>
         <div className="max-h-40 space-y-xs overflow-auto rounded-md border border-border p-sm">
           {options.spaces.map((space) => (
@@ -157,7 +156,7 @@ export function ScheduledAiJobForm({
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={saving || spaceIds.length === 0}>
+        <Button type="submit" disabled={saving}>
           {saving ? 'Saving…' : initial ? 'Save changes' : 'Create job'}
         </Button>
       </div>

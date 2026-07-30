@@ -43,7 +43,7 @@ export default async function ScheduledAiJobPage({ params }: { params: Promise<{
           <h2 className="font-semibold">Task description</h2>
           <p className="mt-sm whitespace-pre-wrap text-sm">{job.taskDescription}</p>
           <p className="mt-sm text-sm text-muted">
-            Allowed spaces:{' '}
+            Writable spaces:{' '}
             {allowedSpaces
               .map((space) => `${space.name} (${space.slug === 'default' ? 'wiki' : space.slug})`)
               .join(', ') || 'none'}{' '}

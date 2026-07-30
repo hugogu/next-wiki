@@ -9,7 +9,7 @@ import {
 const id = '00000000-0000-0000-0000-000000000001';
 
 describe('scheduled AI jobs shared contract', () => {
-  it('accepts a bounded recurring definition with a non-empty scope', () => {
+  it('accepts a bounded recurring definition with a write scope', () => {
     const parsed = scheduledAiJobCreateSchema.parse({
       name: 'Find related payment pages',
       taskDescription: 'Inspect selected pages and prepare link proposals.',
@@ -21,8 +21,11 @@ describe('scheduled AI jobs shared contract', () => {
     expect(parsed.status).toBe('enabled');
   });
 
-  it('rejects empty scopes and unsafe cron field counts', () => {
-    expect(() => scheduledAiJobScopeSchema.parse({ spaceIds: [], skillNames: [] })).toThrow();
+  it('allows a read-only Job and rejects unsafe cron field counts', () => {
+    expect(scheduledAiJobScopeSchema.parse({ spaceIds: [], skillNames: [] })).toEqual({
+      spaceIds: [],
+      skillNames: [],
+    });
     expect(() =>
       scheduledAiJobCreateSchema.parse({
         name: 'Daily',

@@ -22,8 +22,10 @@ const database = vi.hoisted(() => ({
   query: { pages: { findFirst: vi.fn() } },
   select: vi.fn(),
 }));
+const spaceService = vi.hoisted(() => ({ listSpaces: vi.fn() }));
 vi.mock('@/server/services/public-content', () => content);
 vi.mock('@/server/db', () => ({ db: database }));
+vi.mock('@/server/services/spaces', () => spaceService);
 vi.mock('@/server/services/tags', () => ({
   listTags: vi.fn(),
   createTag: vi.fn(),
@@ -32,11 +34,7 @@ vi.mock('@/server/services/tags', () => ({
 }));
 
 import { buildUserCtx } from '@/server/permissions';
-import {
-  applyScheduledSpaceScope,
-  executeTool,
-  restoreJsonEscapedBackslashes,
-} from '@/server/services/ai-tool-executors';
+import { executeTool, restoreJsonEscapedBackslashes } from '@/server/services/ai-tool-executors';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 const searchTool = getToolDefinition('search_wiki')!;
@@ -389,51 +387,19 @@ describe('read tool permission projection (026)', () => {
   });
 });
 
-describe('scheduled Job space boundary', () => {
+describe('scheduled Job read/write boundary', () => {
   const spaces = [
     { id: 'raw-id', name: 'Raw entries', slug: 'raw' },
     { id: 'generated-id', name: 'Generated pages', slug: 'generated' },
   ];
 
-  it('allows discovery only in a selected space', () => {
-    expect(
-      applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'raw' }, spaces),
-    ).toEqual({ args: { query: 'payments', space: 'raw' } });
-  });
-
-  it('searches every selected space when the model omits a space', () => {
-    expect(applyScheduledSpaceScope('list_pages', {}, spaces)).toEqual({
-      args: {},
-      searchAllSelectedSpaces: true,
-    });
-  });
-
-  it('automatically constrains discovery when exactly one space is selected', () => {
-    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments' }, [spaces[0]!])).toEqual({
-      args: { query: 'payments', space: 'raw' },
-    });
-  });
-
-  it('rejects discovery in an unselected space', () => {
-    expect(
-      applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'wiki' }, spaces),
-    ).toMatchObject({
-      error: 'This scheduled Job cannot access the wiki space. Allowed spaces: raw, generated.',
-    });
-  });
-
-  it('executes a space-scoped list without requiring a page ID', async () => {
-    database.select.mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([spaces[0]]),
-      }),
-    });
+  it('allows an explicit read outside the write scope', async () => {
     content.listPages.mockResolvedValue({ items: [], nextCursor: null });
 
     const result = await executeTool(
       readerCtx,
       listPagesTool,
-      { space: 'raw', limit: 100 },
+      { space: 'generated', limit: 100 },
       {
         ...execCtx,
         scheduledScope: { spaceIds: [spaces[0]!.id], skillNames: [] },
@@ -443,16 +409,12 @@ describe('scheduled Job space boundary', () => {
     expect(result).toMatchObject({ ok: true, summary: '0 readable page(s) listed.' });
     expect(content.listPages).toHaveBeenCalledWith(
       readerCtx,
-      expect.objectContaining({ space: 'raw', limit: 100 }),
+      expect.objectContaining({ space: 'generated', limit: 100 }),
     );
   });
 
-  it('searches all selected spaces when no space is specified', async () => {
-    database.select.mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue(spaces),
-      }),
-    });
+  it('searches all execution-owner-readable spaces when no space is specified', async () => {
+    spaceService.listSpaces.mockResolvedValue(spaces);
     content.searchPages.mockResolvedValue({ items: [], nextCursor: null });
 
     const result = await executeTool(
@@ -461,17 +423,42 @@ describe('scheduled Job space boundary', () => {
       { query: '诸葛亮', scope: 'all' },
       {
         ...execCtx,
-        scheduledScope: { spaceIds: spaces.map((space) => space.id), skillNames: [] },
+        scheduledScope: { spaceIds: [], skillNames: [] },
       },
     );
 
     expect(result).toMatchObject({
       ok: true,
-      summary: '0 readable page(s) matched across 2 scoped space(s).',
+      summary: '0 readable page(s) matched across 2 readable space(s).',
     });
     expect(content.searchPages.mock.calls.slice(-2).map(([, query]) => query.space)).toEqual([
       'raw',
       'generated',
     ]);
+  });
+
+  it('requires the generated write space before an admin Job creates a page', async () => {
+    database.select.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([spaces[0]]),
+      }),
+    });
+
+    const result = await executeTool(
+      adminCtx,
+      createPageTool,
+      { path: 'notes/zhuge-liang', title: '诸葛亮', contentSource: '# 诸葛亮' },
+      {
+        ...execCtx,
+        actorUserId: 'admin-1',
+        scheduledScope: { spaceIds: [spaces[0]!.id], skillNames: [] },
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      errorCode: 'SCHEDULED_SCOPE_VIOLATION',
+      errorMessage: 'Creating a page requires the generated space to be selected for this Job.',
+    });
   });
 });
