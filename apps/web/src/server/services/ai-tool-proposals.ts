@@ -71,6 +71,7 @@ export async function createProposal(input: {
   workflowId?: string | null;
   toolCallId?: string | null;
   createdByActionId?: string | null;
+  scheduledAiJobRunId?: string | null;
   createdByUserId?: string | null;
   requestedReview?: AiToolReviewDecision;
   effectiveReview?: AiToolReviewDecision;
@@ -86,6 +87,7 @@ export async function createProposal(input: {
         workflowId: input.workflowId ?? null,
         toolCallId: input.toolCallId ?? null,
         createdByActionId: input.createdByActionId ?? null,
+        scheduledAiJobRunId: input.scheduledAiJobRunId ?? null,
         createdByUserId: input.createdByUserId ?? null,
         requestedReview: input.requestedReview ?? 'admin_review',
         effectiveReview: input.effectiveReview ?? 'admin_review',

@@ -13,6 +13,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import type { PermCtx } from '@/server/permissions';
+import type { ScheduledAiJobScope } from '@next-wiki/shared';
 import { appendToolCallEvent, appendToolProposalEvent } from '@/server/services/ai-actions';
 import { auditToolCall } from '@/server/services/audit';
 import { executeTool, pageContentWindowFor, resolveExecutableTool } from '@/server/services/ai-tool-executors';
@@ -314,6 +315,8 @@ export type ToolLoopParams = {
   /** Admin-configured characters of one tool result, clamped to the transcript
    * budget by {@link effectiveToolResultChars}. */
   toolResultMaxChars?: number;
+  scheduledScope?: ScheduledAiJobScope;
+  scheduledAiJobRunId?: string;
 };
 
 export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number; citations: AiCitation[] };
@@ -673,6 +676,8 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         actionId: params.actionId,
         conversation: state.conversation,
         contentWindowChars: pageContentWindowFor(resultMaxChars),
+        scheduledScope: params.scheduledScope,
+        scheduledAiJobRunId: params.scheduledAiJobRunId,
       });
       const toolDurationMs = Date.now() - toolStartedAt;
 

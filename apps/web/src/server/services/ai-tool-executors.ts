@@ -12,6 +12,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { getSpaceHref } from '@/lib/path';
 import type { PermCtx } from '@/server/permissions';
+import type { ScheduledAiJobScope } from '@next-wiki/shared';
 import * as content from '@/server/services/public-content';
 import * as tags from '@/server/services/tags';
 import { auditImmediateToolMutation } from '@/server/services/audit';
@@ -49,6 +50,9 @@ export type ToolExecutionContext = {
    * admin-configured per-result cap, less the room the surrounding fields
    * need, so a read never reaches the runtime's generic truncator. */
   contentWindowChars?: number;
+  /** Set only for scheduled runs; it makes the executor fail closed outside the saved boundary. */
+  scheduledScope?: ScheduledAiJobScope;
+  scheduledAiJobRunId?: string;
 };
 
 export type ToolExecutionResult = {
@@ -617,6 +621,7 @@ async function proposeOrApply(
       workflowId: execCtx.workflowId,
       toolCallId: execCtx.toolCallId,
       createdByActionId: execCtx.actionId,
+      scheduledAiJobRunId: execCtx.scheduledAiJobRunId ?? null,
       createdByUserId: execCtx.actorUserId,
       requestedReview: 'admin_review',
       effectiveReview: 'admin_review',
@@ -936,6 +941,23 @@ export async function executeTool(
     return fail('TOOL_NOT_ENABLED', `The tool "${tool.name}" is not available in this phase.`);
   }
   try {
+    if (execCtx.scheduledScope) {
+      const value = args !== null && typeof args === 'object' ? args as Record<string, unknown> : {};
+      // Search/listing are intentionally unavailable until result filtering can
+      // prove every returned node belongs to the saved tree. This is safer than
+      // letting a model infer out-of-scope names or content from a broad search.
+      if (tool.name === 'search_wiki' || tool.name === 'list_pages') {
+        return fail('SCHEDULED_SCOPE_VIOLATION', 'This scheduled scope does not permit unbounded search or listing.');
+      }
+      const pageId = typeof value.pageId === 'string' ? value.pageId : typeof value.node === 'string' ? value.node : null;
+      if (pageId) {
+        const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
+        const allowed = Boolean(page && (execCtx.scheduledScope.spaceIds.includes(page.spaceId) || execCtx.scheduledScope.rootPageIds.includes(page.id)));
+        if (!allowed) return fail('SCHEDULED_SCOPE_VIOLATION', 'The requested page is outside this scheduled job scope.');
+      } else if (tool.category !== 'skill') {
+        return fail('SCHEDULED_SCOPE_VIOLATION', 'This operation needs an in-scope page identifier.');
+      }
+    }
     return await executor(ctx, args, execCtx);
   } catch (error) {
     return toSafeFailure(error, {

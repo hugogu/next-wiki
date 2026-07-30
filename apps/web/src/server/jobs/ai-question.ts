@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { AiCitation, AiQuestionMode, AiToolReviewDecision } from '@next-wiki/shared';
+import { scheduledAiJobScopeSchema, type AiCitation, type AiQuestionMode, type AiToolReviewDecision } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
@@ -286,15 +286,17 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   }
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
+  const metadata = action.requestMetadata as Record<string, unknown>;
+  const scheduledRunId = typeof metadata.scheduledAiJobRunId === 'string' ? metadata.scheduledAiJobRunId : null;
+  const scheduledRun = scheduledRunId
+    ? await db.query.scheduledAiJobRuns.findFirst({ where: eq(schema.scheduledAiJobRuns.id, scheduledRunId) }) : null;
+  const snapshot = scheduledRun?.definitionSnapshot as { targetScope?: unknown } | undefined;
+  const scheduledScope = snapshot?.targetScope ? scheduledAiJobScopeSchema.parse(snapshot.targetScope) : undefined;
   await appendActionEvent(actionId, 'question', { text: input.question });
   const questionMode = input.mode ?? 'retrieval';
-  const retrieval = await loadWikiQuestionSources({
-    ctx,
-    actionId,
-    question: input.question,
-    mode: questionMode,
-    textContextWindow: textModel.contextWindow,
-  });
+  const retrieval = scheduledScope
+    ? { sources: [], usage: {}, results: [] }
+    : await loadWikiQuestionSources({ ctx, actionId, question: input.question, mode: questionMode, textContextWindow: textModel.contextWindow });
   const { sources: wikiSources, usage: retrievalUsage, results: retrievalResults } = retrieval;
   if (questionMode !== 'full') {
     await appendActionEvent(actionId, 'search_results', { results: retrievalResults });
@@ -425,6 +427,8 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       isCancelled: () => isCancellationRequested(actionId),
       transcriptCharBudget: transcriptCharBudgetFor(textModel.contextWindow),
       toolResultMaxChars: runtimeConfig.toolResultMaxChars,
+      scheduledScope,
+      scheduledAiJobRunId: scheduledRun?.id,
     });
   } catch (error) {
     const current = await getWorkflowByAction(actionId);
