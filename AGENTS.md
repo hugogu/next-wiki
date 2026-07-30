@@ -28,7 +28,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/029-ai-image-tools/plan.md
+at specs/030-scheduled-ai-jobs/plan.md
 <!-- SPECKIT END -->
 
 ## Database Migrations (Drizzle) — never hand-author
