@@ -126,6 +126,23 @@ export function deriveTranslateOutcome(
   return failure;
 }
 
+/**
+ * The task's own admin page. It opens in a new tab so a reader following the
+ * progress hint does not lose the page they were reading.
+ */
+function RunDetailLink({ runId, label }: { runId: string; label: string }) {
+  return (
+    <Link
+      className="text-sm text-primary hover:underline"
+      href={`/admin/translations/${runId}`}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {label}
+    </Link>
+  );
+}
+
 const TONE_CLASS: Record<TranslateRunOutcome['tone'], string> = {
   success: 'border-success/40 bg-success/10 text-foreground',
   warning: 'border-warning/40 bg-warning-subtle text-foreground',
@@ -304,26 +321,28 @@ export function TranslatePageDialog({
               )}
             </div>
           ) : (
-            <p
-              className="rounded-md border border-primary/20 bg-primary/10 p-sm text-sm text-foreground"
+            <div
+              className="space-y-xs rounded-md border border-primary/20 bg-primary/10 p-sm text-sm text-foreground"
               role="status"
             >
-              {abandoned
-                ? trackError
-                  ? getTranslationApiErrorMessage(t, trackError, 'page.translate.trackError')
-                  : t('page.translate.state.stillRunning')
-                : run?.status === 'running'
-                  ? t('page.translate.state.running')
-                  : t('page.translate.state.queued')}
-            </p>
+              <p>
+                {abandoned
+                  ? trackError
+                    ? getTranslationApiErrorMessage(t, trackError, 'page.translate.trackError')
+                    : t('page.translate.state.stillRunning')
+                  : run?.status === 'running'
+                    ? t('page.translate.state.running')
+                    : t('page.translate.state.queued')}
+              </p>
+              <RunDetailLink runId={runId} label={t('page.translate.action.detail')} />
+            </div>
           )}
           <div className="flex items-center justify-between gap-sm">
-            <Link
-              className="text-sm text-muted hover:underline"
-              href={`/admin/translations/${runId}`}
-            >
-              {t('page.translate.action.detail')}
-            </Link>
+            {outcome ? (
+              <RunDetailLink runId={runId} label={t('page.translate.action.detail')} />
+            ) : (
+              <span />
+            )}
             <Button type="button" onClick={onClose}>
               {t('page.translate.close')}
             </Button>
