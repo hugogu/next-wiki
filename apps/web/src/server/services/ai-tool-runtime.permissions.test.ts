@@ -32,7 +32,11 @@ vi.mock('@/server/services/tags', () => ({
 }));
 
 import { buildUserCtx } from '@/server/permissions';
-import { applyScheduledSpaceScope, executeTool, restoreJsonEscapedBackslashes } from '@/server/services/ai-tool-executors';
+import {
+  applyScheduledSpaceScope,
+  executeTool,
+  restoreJsonEscapedBackslashes,
+} from '@/server/services/ai-tool-executors';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 const searchTool = getToolDefinition('search_wiki')!;
@@ -54,16 +58,18 @@ const publishedRevision = { id: '11111111-1111-4111-8111-111111111111', contentH
 describe('read tool permission projection (026)', () => {
   it('forwards the caller ctx and returns only the pages the service allowed', async () => {
     content.searchPages.mockResolvedValue({
-      items: [{
-        page: {
-          id: 'p1',
-          path: 'docs/public',
-          title: 'Public',
-          locale: 'en',
-          spaceSlug: 'default',
-          publishedRevision,
+      items: [
+        {
+          page: {
+            id: 'p1',
+            path: 'docs/public',
+            title: 'Public',
+            locale: 'en',
+            spaceSlug: 'default',
+            publishedRevision,
+          },
         },
-      }],
+      ],
       nextCursor: null,
     });
     const result = await executeTool(readerCtx, searchTool, { query: 'payment' }, execCtx);
@@ -96,11 +102,14 @@ describe('read tool permission projection (026)', () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(content.searchPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
-      q: 'zhuge-liang',
-      scope: 'content',
-      space: 'generated',
-    }));
+    expect(content.searchPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({
+        q: 'zhuge-liang',
+        scope: 'content',
+        space: 'generated',
+      }),
+    );
   });
 
   it('retains the original unexpected error for the expandable tool result', async () => {
@@ -119,7 +128,12 @@ describe('read tool permission projection (026)', () => {
   it('turns a not-visible page into a safe failure without leaking its content', async () => {
     // The service returns null for a reader who may not read the restricted page.
     content.getPageById.mockResolvedValue(null);
-    const result = await executeTool(readerCtx, getPageTool, { pageId: '11111111-1111-1111-1111-111111111111' }, execCtx);
+    const result = await executeTool(
+      readerCtx,
+      getPageTool,
+      { pageId: '11111111-1111-1111-1111-111111111111' },
+      execCtx,
+    );
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe('NOT_FOUND');
     expect(JSON.stringify(result)).not.toContain('Secret');
@@ -135,8 +149,17 @@ describe('read tool permission projection (026)', () => {
       publishedRevision,
       contentSource: 'body',
     });
-    const result = await executeTool(adminCtx, getPageTool, { pageId: '22222222-2222-2222-2222-222222222222' }, execCtx);
-    expect(content.getPageById).toHaveBeenCalledWith(adminCtx, '22222222-2222-2222-2222-222222222222', ['publishedRevision']);
+    const result = await executeTool(
+      adminCtx,
+      getPageTool,
+      { pageId: '22222222-2222-2222-2222-222222222222' },
+      execCtx,
+    );
+    expect(content.getPageById).toHaveBeenCalledWith(
+      adminCtx,
+      '22222222-2222-2222-2222-222222222222',
+      ['publishedRevision'],
+    );
     expect(result.ok).toBe(true);
     expect(result.data).toMatchObject({
       title: 'Secret',
@@ -147,22 +170,32 @@ describe('read tool permission projection (026)', () => {
 
   it('accepts path as the list_pages subtree alias', async () => {
     content.listPages.mockResolvedValue({
-      items: [{
-        id: 'p3',
-        path: 'history/china/chronology',
-        title: 'Chronology',
-        locale: 'en',
-        spaceSlug: 'wiki',
-        publishedRevision,
-      }],
+      items: [
+        {
+          id: 'p3',
+          path: 'history/china/chronology',
+          title: 'Chronology',
+          locale: 'en',
+          spaceSlug: 'wiki',
+          publishedRevision,
+        },
+      ],
       nextCursor: null,
     });
-    const result = await executeTool(readerCtx, listPagesTool, { path: 'history/china/chronology' }, execCtx);
-    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
-      pathPrefix: 'history/china/chronology',
-      status: 'published',
-      include: ['publishedRevision'],
-    }));
+    const result = await executeTool(
+      readerCtx,
+      listPagesTool,
+      { path: 'history/china/chronology' },
+      execCtx,
+    );
+    expect(content.listPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({
+        pathPrefix: 'history/china/chronology',
+        status: 'published',
+        include: ['publishedRevision'],
+      }),
+    );
     expect(result.ok).toBe(true);
     expect((result.data as { items: unknown[] }).items).toEqual([
       {
@@ -189,7 +222,12 @@ describe('read tool permission projection (026)', () => {
 
   it('accepts a model-requested page limit above the old 20-item cap', async () => {
     content.listPages.mockResolvedValue({ items: [], nextCursor: null });
-    const result = await executeTool(readerCtx, listPagesTool, { pathPrefix: 'history/china', limit: 30 }, execCtx);
+    const result = await executeTool(
+      readerCtx,
+      listPagesTool,
+      { pathPrefix: 'history/china', limit: 30 },
+      execCtx,
+    );
     expect(content.listPages).toHaveBeenCalledWith(
       readerCtx,
       expect.objectContaining({ pathPrefix: 'history/china', limit: 30 }),
@@ -203,11 +241,16 @@ describe('read tool permission projection (026)', () => {
       path: 'history/china/figures/zhang-fei',
       title: '张飞',
     });
-    const result = await executeTool(adminCtx, createPageTool, {
-      path: 'history/china/figures/zhang-fei',
-      title: '张飞',
-      content: '# 张飞\n\n蜀汉名将。',
-    }, { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'admin_review' });
+    const result = await executeTool(
+      adminCtx,
+      createPageTool,
+      {
+        path: 'history/china/figures/zhang-fei',
+        title: '张飞',
+        content: '# 张飞\n\n蜀汉名将。',
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'admin_review' },
+    );
     expect(content.createPage).toHaveBeenCalledWith(adminCtx, {
       path: 'history/china/figures/zhang-fei',
       title: '张飞',
@@ -231,15 +274,23 @@ describe('read tool permission projection (026)', () => {
       path: 'drafts/test',
       title: 'Test',
     });
-    const result = await executeTool(editorCtx, createPageTool, {
-      path: 'drafts/test',
-      title: 'Test',
-      contentSource: '# Test',
-    }, { ...execCtx, actorUserId: 'editor-1', effectiveReview: 'none' });
-    expect(content.createPage).toHaveBeenCalledWith(editorCtx, expect.objectContaining({
-      space: 'default',
-      nature: 'generated',
-    }));
+    const result = await executeTool(
+      editorCtx,
+      createPageTool,
+      {
+        path: 'drafts/test',
+        title: 'Test',
+        contentSource: '# Test',
+      },
+      { ...execCtx, actorUserId: 'editor-1', effectiveReview: 'none' },
+    );
+    expect(content.createPage).toHaveBeenCalledWith(
+      editorCtx,
+      expect.objectContaining({
+        space: 'default',
+        nature: 'generated',
+      }),
+    );
     expect(result.ok).toBe(true);
     expect(result.data).toEqual({
       pageId: 'page-editor',
@@ -253,15 +304,24 @@ describe('read tool permission projection (026)', () => {
     content.getPageById.mockResolvedValue({ id: 'page-sun-quan', title: '孙权' });
     content.createDraft.mockResolvedValue({ version: 3 });
 
-    const result = await executeTool(adminCtx, saveDraftTool, {
-      pageId: '33333333-3333-4333-8333-333333333333',
-      contentSource: '# 孙权\n\nExpanded content.',
-    }, { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' });
+    const result = await executeTool(
+      adminCtx,
+      saveDraftTool,
+      {
+        pageId: '33333333-3333-4333-8333-333333333333',
+        contentSource: '# 孙权\n\nExpanded content.',
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
 
-    expect(content.createDraft).toHaveBeenCalledWith(adminCtx, '33333333-3333-4333-8333-333333333333', {
-      title: '孙权',
-      contentSource: '# 孙权\n\nExpanded content.',
-    });
+    expect(content.createDraft).toHaveBeenCalledWith(
+      adminCtx,
+      '33333333-3333-4333-8333-333333333333',
+      {
+        title: '孙权',
+        contentSource: '# 孙权\n\nExpanded content.',
+      },
+    );
     expect(result).toMatchObject({ ok: true, summary: 'Saved draft revision v3.' });
   });
 
@@ -285,16 +345,18 @@ describe('read tool permission projection (026)', () => {
       '![Saturn](/api/assets/image)',
     ].join('\n');
 
-    expect(restoreJsonEscapedBackslashes(current, submitted)).toBe([
-      '# Saturn',
-      '',
-      '| 轨道倾角 | $2.49^\\circ$ |',
-      '| 质量 | $5.683 \\times 10^{26}\\ \\text{kg}$ |',
-      '',
-      'Original prose.',
-      '',
-      '![Saturn](/api/assets/image)',
-    ].join('\n'));
+    expect(restoreJsonEscapedBackslashes(current, submitted)).toBe(
+      [
+        '# Saturn',
+        '',
+        '| 轨道倾角 | $2.49^\\circ$ |',
+        '| 质量 | $5.683 \\times 10^{26}\\ \\text{kg}$ |',
+        '',
+        'Original prose.',
+        '',
+        '![Saturn](/api/assets/image)',
+      ].join('\n'),
+    );
   });
 
   it('does not reduce a deliberate LaTex double-backslash edit', () => {
@@ -310,10 +372,15 @@ describe('read tool permission projection (026)', () => {
     });
     content.createDraft.mockResolvedValue({ version: 4 });
 
-    await executeTool(adminCtx, saveDraftTool, {
-      pageId,
-      contentSource: 'Inclination: $2.49^\\\\circ$.\n\n![Saturn](/api/assets/image)',
-    }, { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' });
+    await executeTool(
+      adminCtx,
+      saveDraftTool,
+      {
+        pageId,
+        contentSource: 'Inclination: $2.49^\\\\circ$.\n\n![Saturn](/api/assets/image)',
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
 
     expect(content.createDraft).toHaveBeenCalledWith(adminCtx, pageId, {
       title: 'Saturn',
@@ -329,8 +396,9 @@ describe('scheduled Job space boundary', () => {
   ];
 
   it('allows discovery only in a selected space', () => {
-    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'raw' }, spaces))
-      .toEqual({ args: { query: 'payments', space: 'raw' } });
+    expect(
+      applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'raw' }, spaces),
+    ).toEqual({ args: { query: 'payments', space: 'raw' } });
   });
 
   it('requires an explicit space when more than one is selected', () => {
@@ -340,13 +408,17 @@ describe('scheduled Job space boundary', () => {
   });
 
   it('automatically constrains discovery when exactly one space is selected', () => {
-    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments' }, [spaces[0]!]))
-      .toEqual({ args: { query: 'payments', space: 'raw' } });
+    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments' }, [spaces[0]!])).toEqual({
+      args: { query: 'payments', space: 'raw' },
+    });
   });
 
   it('rejects discovery in an unselected space', () => {
-    expect(applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'wiki' }, spaces))
-      .toMatchObject({ error: 'This scheduled Job cannot access the wiki space. Allowed spaces: raw, generated.' });
+    expect(
+      applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'wiki' }, spaces),
+    ).toMatchObject({
+      error: 'This scheduled Job cannot access the wiki space. Allowed spaces: raw, generated.',
+    });
   });
 
   it('executes a space-scoped list without requiring a page ID', async () => {
@@ -357,12 +429,20 @@ describe('scheduled Job space boundary', () => {
     });
     content.listPages.mockResolvedValue({ items: [], nextCursor: null });
 
-    const result = await executeTool(readerCtx, listPagesTool, { space: 'raw', limit: 100 }, {
-      ...execCtx,
-      scheduledScope: { spaceIds: [spaces[0]!.id], skillNames: [] },
-    });
+    const result = await executeTool(
+      readerCtx,
+      listPagesTool,
+      { space: 'raw', limit: 100 },
+      {
+        ...execCtx,
+        scheduledScope: { spaceIds: [spaces[0]!.id], skillNames: [] },
+      },
+    );
 
     expect(result).toMatchObject({ ok: true, summary: '0 readable page(s) listed.' });
-    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({ space: 'raw', limit: 100 }));
+    expect(content.listPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({ space: 'raw', limit: 100 }),
+    );
   });
 });

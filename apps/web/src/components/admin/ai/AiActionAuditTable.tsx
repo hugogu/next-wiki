@@ -125,27 +125,26 @@ export function AiActionAuditTable({
   const [filters, setFilters] = useState({ feature: '', status: '', providerId: '', modelId: '' });
   const [viewing, setViewing] = useState<AiActionAdminView | null>(null);
 
-  const load = useCallback(
-    async (targetPage: number, next: typeof filters) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (next.feature) params.set('feature', next.feature);
-        if (next.status) params.set('status', next.status);
-        if (next.providerId) params.set('providerId', next.providerId);
-        if (next.modelId) params.set('modelId', next.modelId);
-        params.set('limit', String(PAGE_SIZE));
-        params.set('offset', String(targetPage * PAGE_SIZE));
-        const result = await apiGet<{ items: AiActionAdminView[]; total: number }>(`/api/ai/actions?${params.toString()}`);
-        setItems(result.items);
-        setCount(result.total);
-        setPage(targetPage);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const load = useCallback(async (targetPage: number, next: typeof filters) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (next.feature) params.set('feature', next.feature);
+      if (next.status) params.set('status', next.status);
+      if (next.providerId) params.set('providerId', next.providerId);
+      if (next.modelId) params.set('modelId', next.modelId);
+      params.set('limit', String(PAGE_SIZE));
+      params.set('offset', String(targetPage * PAGE_SIZE));
+      const result = await apiGet<{ items: AiActionAdminView[]; total: number }>(
+        `/api/ai/actions?${params.toString()}`,
+      );
+      setItems(result.items);
+      setCount(result.total);
+      setPage(targetPage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const applyFilter = (key: keyof typeof filters, value: string) => {
     const next = { ...filters, [key]: value };
@@ -162,41 +161,63 @@ export function AiActionAuditTable({
         <p className="mt-xs text-sm text-muted">{t('admin.ai.actions.description')}</p>
       </div>
       <div className="grid gap-sm sm:grid-cols-2 lg:grid-cols-4">
-        <Select value={filters.feature} onChange={(event) => applyFilter('feature', event.target.value)}>
+        <Select
+          value={filters.feature}
+          onChange={(event) => applyFilter('feature', event.target.value)}
+        >
           <option value="">{t('admin.ai.actions.filters.allFeatures')}</option>
           {FEATURES.map((value) => (
-            <option key={value} value={value}>{t(FEATURE_LABELS[value])}</option>
+            <option key={value} value={value}>
+              {t(FEATURE_LABELS[value])}
+            </option>
           ))}
         </Select>
-        <Select value={filters.status} onChange={(event) => applyFilter('status', event.target.value)}>
+        <Select
+          value={filters.status}
+          onChange={(event) => applyFilter('status', event.target.value)}
+        >
           <option value="">{t('admin.ai.actions.filters.allStatuses')}</option>
           {STATUSES.map((value) => (
-            <option key={value} value={value}>{t(STATUS_LABELS[value])}</option>
+            <option key={value} value={value}>
+              {t(STATUS_LABELS[value])}
+            </option>
           ))}
         </Select>
-        <Select value={filters.providerId} onChange={(event) => applyFilter('providerId', event.target.value)}>
+        <Select
+          value={filters.providerId}
+          onChange={(event) => applyFilter('providerId', event.target.value)}
+        >
           <option value="">{t('admin.ai.actions.filters.allProviders')}</option>
           {providers.map((provider) => (
-            <option key={provider.id} value={provider.id}>{provider.name}</option>
+            <option key={provider.id} value={provider.id}>
+              {provider.name}
+            </option>
           ))}
         </Select>
-        <Select value={filters.modelId} onChange={(event) => applyFilter('modelId', event.target.value)}>
+        <Select
+          value={filters.modelId}
+          onChange={(event) => applyFilter('modelId', event.target.value)}
+        >
           <option value="">{t('admin.ai.actions.filters.allModels')}</option>
           {models.map((model) => (
-            <option key={model.id} value={model.id}>{model.providerName} / {model.displayName}</option>
+            <option key={model.id} value={model.id}>
+              {model.providerName} / {model.displayName}
+            </option>
           ))}
         </Select>
       </div>
       <DataTable>
-        <DataTableHead><DataTableRow>
-          <DataTableHeader>{t('admin.ai.actions.table.queued')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.actions.table.feature')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.actions.table.status')}</DataTableHeader>
-          <DataTableHeader className="w-px">{t('admin.ai.capture.title')}</DataTableHeader>
-          <DataTableHeader align="right">{t('admin.ai.actions.table.tokens')}</DataTableHeader>
-          <DataTableHeader>{t('admin.ai.actions.table.providerModel')}</DataTableHeader>
-          <DataTableHeader align="right">{t('admin.ai.actions.table.detail')}</DataTableHeader>
-        </DataTableRow></DataTableHead>
+        <DataTableHead>
+          <DataTableRow>
+            <DataTableHeader>{t('admin.ai.actions.table.queued')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.actions.table.feature')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.actions.table.status')}</DataTableHeader>
+            <DataTableHeader className="w-px">{t('admin.ai.capture.title')}</DataTableHeader>
+            <DataTableHeader align="right">{t('admin.ai.actions.table.tokens')}</DataTableHeader>
+            <DataTableHeader>{t('admin.ai.actions.table.providerModel')}</DataTableHeader>
+            <DataTableHeader align="right">{t('admin.ai.actions.table.detail')}</DataTableHeader>
+          </DataTableRow>
+        </DataTableHead>
         <DataTableBody>
           {items.map((action) => (
             <DataTableRow key={action.id}>
@@ -204,7 +225,10 @@ export function AiActionAuditTable({
               <DataTableCell>{t(FEATURE_LABELS[action.feature])}</DataTableCell>
               <DataTableCell>
                 <Tooltip label={t(STATUS_LABELS[action.status])}>
-                  <span className={`inline-flex ${STATUS_ICONS[action.status].className}`} aria-label={t(STATUS_LABELS[action.status])}>
+                  <span
+                    className={`inline-flex ${STATUS_ICONS[action.status].className}`}
+                    aria-label={t(STATUS_LABELS[action.status])}
+                  >
                     {(() => {
                       const StatusIcon = STATUS_ICONS[action.status].icon;
                       return <StatusIcon className="h-4 w-4" />;
@@ -216,7 +240,12 @@ export function AiActionAuditTable({
                 {action.rawConversationCaptureStatus === 'not_applicable' ? (
                   <span className="text-muted">—</span>
                 ) : (
-                  <Tooltip label={action.rawConversationCaptureError ?? t(CAPTURE_LABELS[action.rawConversationCaptureStatus])}>
+                  <Tooltip
+                    label={
+                      action.rawConversationCaptureError ??
+                      t(CAPTURE_LABELS[action.rawConversationCaptureStatus])
+                    }
+                  >
                     <span className={CAPTURE_TONES[action.rawConversationCaptureStatus]}>
                       {t(CAPTURE_LABELS[action.rawConversationCaptureStatus])}
                     </span>
@@ -230,7 +259,10 @@ export function AiActionAuditTable({
                   const breakdown = TOKEN_FIELDS.filter(
                     (field) => typeof action.usageMetadata[field.key] === 'number',
                   )
-                    .map((field) => `${t(field.label)}: ${(action.usageMetadata[field.key] as number).toLocaleString()}`)
+                    .map(
+                      (field) =>
+                        `${t(field.label)}: ${(action.usageMetadata[field.key] as number).toLocaleString()}`,
+                    )
                     .join(' · ');
                   return (
                     <Tooltip label={breakdown}>
@@ -239,11 +271,17 @@ export function AiActionAuditTable({
                   );
                 })()}
               </DataTableCell>
-              <DataTableCell>{[action.providerName, action.modelName].filter(Boolean).join(' / ') || '—'}</DataTableCell>
+              <DataTableCell>
+                {[action.providerName, action.modelName].filter(Boolean).join(' / ') || '—'}
+              </DataTableCell>
               <DataTableCell align="right">
                 <button
                   type="button"
-                  className={action.errorCode ? 'text-danger hover:underline' : 'text-primary hover:underline'}
+                  className={
+                    action.errorCode
+                      ? 'text-danger hover:underline'
+                      : 'text-primary hover:underline'
+                  }
                   onClick={() => setViewing(action)}
                 >
                   {action.errorCode ?? t('admin.ai.actions.view')}
@@ -261,14 +299,24 @@ export function AiActionAuditTable({
         </DataTableBody>
       </DataTable>
       <div className="flex items-center justify-between">
-        <Button type="button" variant="ghost" disabled={page <= 0 || loading} onClick={() => void load(page - 1, filters)}>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={page <= 0 || loading}
+          onClick={() => void load(page - 1, filters)}
+        >
           <ChevronLeftIcon />
           <span className="ml-2">{t('userCenter.audit.prev')}</span>
         </Button>
         <span className="text-sm text-muted">
           {t('userCenter.audit.page')} {page + 1} {t('userCenter.audit.of')} {totalPages}
         </span>
-        <Button type="button" variant="ghost" disabled={page + 1 >= totalPages || loading} onClick={() => void load(page + 1, filters)}>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={page + 1 >= totalPages || loading}
+          onClick={() => void load(page + 1, filters)}
+        >
           <span className="mr-2">{t('userCenter.audit.next')}</span>
           <ChevronRightIcon />
         </Button>
@@ -277,7 +325,11 @@ export function AiActionAuditTable({
       {viewing && (
         <ModalDialog
           title={t('admin.ai.actions.detailTitle')}
-          description={[t(FEATURE_LABELS[viewing.feature]), t(STATUS_LABELS[viewing.status]), viewing.errorCode]
+          description={[
+            t(FEATURE_LABELS[viewing.feature]),
+            t(STATUS_LABELS[viewing.status]),
+            viewing.errorCode,
+          ]
             .filter(Boolean)
             .join(' · ')}
           onClose={() => setViewing(null)}
@@ -303,7 +355,10 @@ export function AiActionAuditTable({
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.page')}</h3>
                 {viewing.pagePath ? (
                   <Link
-                    href={getSpaceHref(readerSpaceFromSlug(viewing.pageSpaceSlug ?? 'wiki'), viewing.pagePath)}
+                    href={getSpaceHref(
+                      readerSpaceFromSlug(viewing.pageSpaceSlug ?? 'wiki'),
+                      viewing.pagePath,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-primary hover:underline break-all"
@@ -319,10 +374,14 @@ export function AiActionAuditTable({
               <section className="space-y-xs">
                 <h3 className="text-xs font-medium text-muted">{t('admin.ai.actions.usage')}</h3>
                 <dl className="grid grid-cols-3 gap-sm rounded-md border border-border bg-surface p-sm text-sm">
-                  {TOKEN_FIELDS.filter((field) => typeof viewing.usageMetadata[field.key] === 'number').map((field) => (
+                  {TOKEN_FIELDS.filter(
+                    (field) => typeof viewing.usageMetadata[field.key] === 'number',
+                  ).map((field) => (
                     <div key={field.key}>
                       <dt className="text-xs text-muted">{t(field.label)}</dt>
-                      <dd className="font-medium">{(viewing.usageMetadata[field.key] as number).toLocaleString()}</dd>
+                      <dd className="font-medium">
+                        {(viewing.usageMetadata[field.key] as number).toLocaleString()}
+                      </dd>
                     </div>
                   ))}
                 </dl>

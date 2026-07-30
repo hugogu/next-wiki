@@ -177,8 +177,12 @@ export const aiToolChangeProposals = pgTable(
     scheduledAiJobRunId: uuid('scheduled_ai_job_run_id').references(() => scheduledAiJobRuns.id, {
       onDelete: 'set null',
     }),
-    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
-    reviewedByUserId: uuid('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    reviewedByUserId: uuid('reviewed_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     appliedAt: timestamp('applied_at', { withTimezone: true }),
     conflictState: jsonb('conflict_state').notNull().default({}),
@@ -279,12 +283,15 @@ export const aiToolChangeProposalsRelations = relations(aiToolChangeProposals, (
   items: many(aiToolChangeProposalItems),
 }));
 
-export const aiToolChangeProposalItemsRelations = relations(aiToolChangeProposalItems, ({ one }) => ({
-  proposal: one(aiToolChangeProposals, {
-    fields: [aiToolChangeProposalItems.proposalId],
-    references: [aiToolChangeProposals.id],
+export const aiToolChangeProposalItemsRelations = relations(
+  aiToolChangeProposalItems,
+  ({ one }) => ({
+    proposal: one(aiToolChangeProposals, {
+      fields: [aiToolChangeProposalItems.proposalId],
+      references: [aiToolChangeProposals.id],
+    }),
   }),
-}));
+);
 
 export const aiToolEvidenceLinksRelations = relations(aiToolEvidenceLinks, ({ one }) => ({
   toolCall: one(aiToolCalls, {

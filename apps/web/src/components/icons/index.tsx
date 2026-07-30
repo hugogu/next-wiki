@@ -375,7 +375,10 @@ export function MoreHorizontalIcon(props: SVGProps<SVGSVGElement>) {
  * logos are single filled shapes that inherit `currentColor`, so they sit
  * naturally next to the app's line icons at the same box size.
  */
-function BrandIcon({ children, ...props }: SVGProps<SVGSVGElement> & { children: React.ReactNode }) {
+function BrandIcon({
+  children,
+  ...props
+}: SVGProps<SVGSVGElement> & { children: React.ReactNode }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

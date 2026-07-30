@@ -165,7 +165,11 @@ export const aiActionStatusEnum = pgEnum('ai_action_status', [
   'cancelled',
   'expired',
 ]);
-export const scheduledAiJobStatusEnum = pgEnum('scheduled_ai_job_status', ['enabled', 'paused', 'retired']);
+export const scheduledAiJobStatusEnum = pgEnum('scheduled_ai_job_status', [
+  'enabled',
+  'paused',
+  'retired',
+]);
 export const scheduledAiJobRunStatusEnum = pgEnum('scheduled_ai_job_run_status', [
   'queued',
   'running',
@@ -175,7 +179,11 @@ export const scheduledAiJobRunStatusEnum = pgEnum('scheduled_ai_job_run_status',
   'cancelled',
   'skipped',
 ]);
-export const scheduledAiJobTriggerEnum = pgEnum('scheduled_ai_job_trigger', ['schedule', 'manual', 'recovery']);
+export const scheduledAiJobTriggerEnum = pgEnum('scheduled_ai_job_trigger', [
+  'schedule',
+  'manual',
+  'recovery',
+]);
 export const aiQuestionModeEnum = pgEnum('ai_question_mode', ['full', 'retrieval']);
 export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'status',
@@ -486,10 +494,7 @@ export const aiToolReviewPolicyEnum = pgEnum('ai_tool_review_policy', [
   'review_when_requested',
   'allow_immediate_for_owner',
 ]);
-export const aiToolReviewDecisionEnum = pgEnum('ai_tool_review_decision', [
-  'none',
-  'admin_review',
-]);
+export const aiToolReviewDecisionEnum = pgEnum('ai_tool_review_decision', ['none', 'admin_review']);
 export const aiToolWorkflowStatusEnum = pgEnum('ai_tool_workflow_status', [
   'queued',
   'running',

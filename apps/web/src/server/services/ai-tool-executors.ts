@@ -20,7 +20,10 @@ import { createProposal } from '@/server/services/ai-tool-proposals';
 import { getToolDefinition, type ToolDefinition } from '@/server/services/ai-tool-registry';
 import { logger } from '@/server/logger';
 import { findSkill, recordSkillUsage } from '@/server/services/skills/registry';
-import { INSTRUCTION_FILE as SKILL_INSTRUCTION_FILE, safeRelativePath } from '@/server/services/skills/package';
+import {
+  INSTRUCTION_FILE as SKILL_INSTRUCTION_FILE,
+  safeRelativePath,
+} from '@/server/services/skills/package';
 import { createImageGeneration } from '@/server/services/ai-image-generation';
 import { runInlineImageGenerationAction } from '@/server/services/ai-image-runner';
 import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
@@ -95,17 +98,25 @@ export function applyScheduledSpaceScope(
   rawArgs: unknown,
   spaces: ScheduledSpace[],
 ): { args: unknown; error?: string } {
-  const args = rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
-    ? rawArgs as Record<string, unknown>
-    : {};
-  const needsNamedSpace = toolName === 'search_wiki' || toolName === 'list_pages'
-    || ((toolName === 'get_page' || toolName === 'get_backlinks' || toolName === 'get_neighborhood') && typeof args.path === 'string');
+  const args =
+    rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
+      ? (rawArgs as Record<string, unknown>)
+      : {};
+  const needsNamedSpace =
+    toolName === 'search_wiki' ||
+    toolName === 'list_pages' ||
+    ((toolName === 'get_page' || toolName === 'get_backlinks' || toolName === 'get_neighborhood') &&
+      typeof args.path === 'string');
   if (!needsNamedSpace) return { args: rawArgs };
 
   const requested = typeof args.space === 'string' ? args.space : null;
   const selected = requested
-    ? spaces.find((space) => publicSpaceSlug(space.slug) === (requested === 'default' ? 'wiki' : requested))
-    : spaces.length === 1 ? spaces[0] : undefined;
+    ? spaces.find(
+        (space) => publicSpaceSlug(space.slug) === (requested === 'default' ? 'wiki' : requested),
+      )
+    : spaces.length === 1
+      ? spaces[0]
+      : undefined;
   if (!selected) {
     const names = spaces.map((space) => publicSpaceSlug(space.slug)).join(', ');
     return {
@@ -119,16 +130,15 @@ export function applyScheduledSpaceScope(
 }
 
 async function scheduledSpaces(scope: ScheduledAiJobScope): Promise<ScheduledSpace[]> {
-  return db.select({ id: schema.spaces.id, name: schema.spaces.name, slug: schema.spaces.slug })
+  return db
+    .select({ id: schema.spaces.id, name: schema.spaces.name, slug: schema.spaces.slug })
     .from(schema.spaces)
     .where(inArray(schema.spaces.id, scope.spaceIds));
 }
 
 function originalErrorDetail(error: unknown): string {
   try {
-    const detail = error instanceof Error
-      ? `${error.name}: ${error.message}`
-      : String(error);
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
     return detail.slice(0, 4_000);
   } catch {
     return 'Unknown non-Error value was thrown.';
@@ -141,7 +151,16 @@ function originalErrorDetail(error: unknown): string {
  * issue list and the caller's tool name so log-only debugging can attribute
  * "The tool arguments were invalid" responses back to the exact schema
  * mismatch that caused them. */
-function toSafeFailure(error: unknown, context: { toolName: string; actionId?: string; workflowId?: string; toolCallId?: string; argumentKeys?: string[] }): ToolExecutionResult {
+function toSafeFailure(
+  error: unknown,
+  context: {
+    toolName: string;
+    actionId?: string;
+    workflowId?: string;
+    toolCallId?: string;
+    argumentKeys?: string[];
+  },
+): ToolExecutionResult {
   if (error instanceof DomainError) {
     if (error.code === 'FORBIDDEN') {
       return fail('FORBIDDEN', 'You do not have permission to perform that operation.');
@@ -199,7 +218,10 @@ function toSafeFailure(error: unknown, context: { toolName: string; actionId?: s
 const searchArgs = z.object({
   query: z.string().min(1).max(200),
   scope: z.enum(['path', 'title', 'content', 'all']).optional(),
-  space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
+  space: z
+    .enum(['wiki', 'raw', 'generated', 'default'])
+    .optional()
+    .transform((space) => (space === 'default' ? 'wiki' : space)),
   limit: z.number().int().min(1).max(MAX_LIST).optional(),
 });
 const pageRefArgs = z
@@ -212,7 +234,10 @@ const pageRefArgs = z
     // `default` is the persisted slug for the primary wiki space. Older tool
     // results exposed that internal value, so accept it on input as a
     // compatibility alias while consistently presenting `wiki` to the model.
-    space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
+    space: z
+      .enum(['wiki', 'raw', 'generated', 'default'])
+      .optional()
+      .transform((space) => (space === 'default' ? 'wiki' : space)),
     contentOffset: z.number().int().min(0).optional(),
     depth: z.number().int().min(1).max(3).optional(),
     direction: z.enum(['out', 'in', 'both']).optional(),
@@ -222,7 +247,10 @@ const listArgs = z
   .object({
     path: z.string().min(1).optional(),
     pathPrefix: z.string().min(1).optional(),
-    space: z.enum(['wiki', 'raw', 'generated', 'default']).optional().transform((space) => space === 'default' ? 'wiki' : space),
+    space: z
+      .enum(['wiki', 'raw', 'generated', 'default'])
+      .optional()
+      .transform((space) => (space === 'default' ? 'wiki' : space)),
     limit: z.number().int().min(1).max(MAX_LIST).optional(),
   })
   .strict();
@@ -240,24 +268,37 @@ const createPageArgs = z
     ...args,
     contentSource: args.contentSource ?? content ?? '',
   }));
-const saveDraftArgs = z.object({
+const saveDraftArgs = z
+  .object({
+    pageId: z.string().uuid(),
+    // A draft normally keeps the page's existing title. Requiring the model to
+    // repeat it made an otherwise valid content revision fail for no benefit.
+    title: z.string().min(1).max(200).optional(),
+    contentSource: z.string().min(1).max(500_000).optional(),
+    contentFromConversation: z.boolean().optional(),
+  })
+  .refine((args) => args.contentFromConversation || args.contentSource, {
+    message: 'Either contentSource or contentFromConversation is required.',
+  });
+const propertiesArgs = z.object({
   pageId: z.string().uuid(),
-  // A draft normally keeps the page's existing title. Requiring the model to
-  // repeat it made an otherwise valid content revision fail for no benefit.
   title: z.string().min(1).max(200).optional(),
-  contentSource: z.string().min(1).max(500_000).optional(),
-  contentFromConversation: z.boolean().optional(),
-}).refine((args) => args.contentFromConversation || args.contentSource, {
-  message: 'Either contentSource or contentFromConversation is required.',
+  path: z.string().min(1).max(200).optional(),
 });
-const propertiesArgs = z.object({ pageId: z.string().uuid(), title: z.string().min(1).max(200).optional(), path: z.string().min(1).max(200).optional() });
 const metadataArgs = z.object({
   pageId: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   summary: z.string().max(2000).nullable().optional(),
   tags: z.array(z.string().min(1).max(100)).max(50).nullable().optional(),
 });
-const replaceTagsArgs = z.object({ pageId: z.string().uuid(), tags: z.array(z.string().min(1).max(100)).max(50) });
+const replaceTagsArgs = z.object({
+  pageId: z.string().uuid(),
+  tags: z.array(z.string().min(1).max(100)).max(50),
+});
 const createTagArgs = z.object({ name: z.string().min(1).max(100) });
 const renameTagArgs = z.object({ tagId: z.string().uuid(), name: z.string().min(1).max(100) });
 const tagIdArgs = z.object({ tagId: z.string().uuid() });
@@ -267,23 +308,37 @@ const imageSourceArgs = z.discriminatedUnion('kind', [
   // Hashes are generated server-side. A model can copy source text faithfully,
   // but cannot be expected to calculate its SHA-256 digest; accepting a legacy
   // hash keeps in-flight/older calls compatible without trusting it.
-  z.object({ kind: z.literal('selection'), text: z.string().min(1).max(100_000), hash: z.string().min(16).max(128).optional() }),
+  z.object({
+    kind: z.literal('selection'),
+    text: z.string().min(1).max(100_000),
+    hash: z.string().min(16).max(128).optional(),
+  }),
 ]);
 const generateImageArgs = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   source: imageSourceArgs,
-  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
+  aspectRatio: z
+    .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'])
+    .optional(),
 });
-const promoteGeneratedImageArgs = z.object({ artifactId: z.string().uuid(), pageId: z.string().uuid() });
+const promoteGeneratedImageArgs = z.object({
+  artifactId: z.string().uuid(),
+  pageId: z.string().uuid(),
+});
 const insertGeneratedImagesArgs = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
-  images: z.array(z.object({
-    artifactId: z.string().uuid(),
-    altText: z.string().trim().min(1).max(500),
-    afterText: z.string().min(1).max(100_000).optional(),
-  })).min(1).max(10),
+  images: z
+    .array(
+      z.object({
+        artifactId: z.string().uuid(),
+        altText: z.string().trim().min(1).max(500),
+        afterText: z.string().min(1).max(100_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(10),
 });
 
 // ---- Read executors ---------------------------------------------------------
@@ -313,9 +368,7 @@ async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
     include: READ_INCLUDE.join(','),
   });
   const result = await content.searchPages(ctx, query);
-  const items = result.items
-    .slice(0, MAX_LIST)
-    .map((item) => pageCitationData(item.page));
+  const items = result.items.slice(0, MAX_LIST).map((item) => pageCitationData(item.page));
   return { ok: true, summary: `${items.length} readable page(s) matched.`, data: { items } };
 }
 
@@ -329,7 +382,9 @@ async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
  * is still tried first, so a real page that happens to live under `spaces/`
  * keeps winning.
  */
-function readerUrlAsPageRef(path: string): { path: string; space: 'raw' | 'generated' | 'wiki' } | null {
+function readerUrlAsPageRef(
+  path: string,
+): { path: string; space: 'raw' | 'generated' | 'wiki' } | null {
   const match = /^\/?spaces\/(raw|generated|wiki)\/(.+)$/.exec(path.trim());
   return match ? { path: match[2]!, space: match[1] as 'raw' | 'generated' | 'wiki' } : null;
 }
@@ -351,7 +406,12 @@ async function readPageByPath(ctx: PermCtx, path: string, space?: string) {
   return null;
 }
 
-function pageRefNotFoundMessage(args: { pageId?: string; node?: string; path?: string; space?: string }): string {
+function pageRefNotFoundMessage(args: {
+  pageId?: string;
+  node?: string;
+  path?: string;
+  space?: string;
+}): string {
   if (args.pageId || args.node) return 'No readable page matched that page id.';
   const space = args.space ?? 'wiki';
   return `No readable page matched in the ${space} space. Call search_wiki with scope: "all" to search paths, titles, and content; set space to generated or raw when needed. Then call get_page with the returned pageId.`;
@@ -390,16 +450,25 @@ function contentWindow(execCtx?: ToolExecutionContext): number {
   return budget && budget > 0 ? Math.max(1_000, budget) : DEFAULT_PAGE_CONTENT_CHARS;
 }
 
-async function execGetPage(ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execGetPage(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx?: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = pageRefArgs.parse(rawArgs);
-  const page = args.pageId || args.node
-    ? await content.getPageById(ctx, args.pageId ?? args.node!, READ_INCLUDE)
-    : await readPageByPath(ctx, args.path!, args.space);
+  const page =
+    args.pageId || args.node
+      ? await content.getPageById(ctx, args.pageId ?? args.node!, READ_INCLUDE)
+      : await readPageByPath(ctx, args.path!, args.space);
   if (!page) return fail('NOT_FOUND', pageRefNotFoundMessage(args));
 
   const source = page.contentSource ?? null;
   if (source === null) {
-    return { ok: true, summary: `Read page "${page.title}".`, data: { ...pageCitationData(page), contentSource: null } };
+    return {
+      ok: true,
+      summary: `Read page "${page.title}".`,
+      data: { ...pageCitationData(page), contentSource: null },
+    };
   }
   const contentLength = source.length;
   const offset = Math.min(args.contentOffset ?? 0, contentLength);
@@ -470,12 +539,19 @@ async function execGetNeighborhood(ctx: PermCtx, rawArgs: unknown): Promise<Tool
   const args = pageRefArgs.parse(rawArgs);
   const pageId = await resolvePageId(ctx, args);
   if (!pageId) return fail('NOT_FOUND', pageRefNotFoundMessage(args));
-  const result = await content.getNeighborhood(ctx, pageId, args.depth ?? 1, args.direction ?? 'out');
+  const result = await content.getNeighborhood(
+    ctx,
+    pageId,
+    args.depth ?? 1,
+    args.direction ?? 'out',
+  );
   return { ok: true, summary: 'Read page neighborhood.', data: result };
 }
 
 async function execListTags(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
-  const args = z.object({ q: z.string().optional(), limit: z.number().int().min(1).max(100).optional() }).parse(rawArgs ?? {});
+  const args = z
+    .object({ q: z.string().optional(), limit: z.number().int().min(1).max(100).optional() })
+    .parse(rawArgs ?? {});
   const result = await tags.listTags(ctx, args);
   return { ok: true, summary: `${result.items?.length ?? 0} tag(s) listed.`, data: result };
 }
@@ -503,7 +579,10 @@ function resolvePageContent(
  * page counterpart, so intentional edits and genuine LaTex `\\` line breaks
  * remain untouched.
  */
-export function restoreJsonEscapedBackslashes(currentSource: string, submittedSource: string): string {
+export function restoreJsonEscapedBackslashes(
+  currentSource: string,
+  submittedSource: string,
+): string {
   const currentLines = currentSource.split('\n');
   const submittedLines = submittedSource.split('\n');
   const restored = [...submittedLines];
@@ -511,7 +590,8 @@ export function restoreJsonEscapedBackslashes(currentSource: string, submittedSo
   let submittedIndex = 0;
 
   const changes = diffArrays(currentLines, submittedLines, {
-    comparator: (current, submitted) => current === submitted || current === undoJsonBackslashEscaping(submitted),
+    comparator: (current, submitted) =>
+      current === submitted || current === undoJsonBackslashEscaping(submitted),
   });
   for (const change of changes) {
     const lines = change.value as string[];
@@ -538,7 +618,11 @@ function undoJsonBackslashEscaping(value: string): string {
   return value.replace(/\\\\/g, '\\');
 }
 
-async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execCreatePage(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = createPageArgs.parse(rawArgs);
   // AI-authored pages belong in the generated space, but only admins have write
   // access there (the generated space is admin-curated). Non-admin actors fall
@@ -568,7 +652,11 @@ async function execCreatePage(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecu
   };
 }
 
-async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execSaveDraft(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = saveDraftArgs.parse(rawArgs);
   const page = await content.getPageById(ctx, args.pageId);
   if (!page) return fail('NOT_FOUND', 'No readable page matched.');
@@ -577,7 +665,12 @@ async function execSaveDraft(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecut
     title: args.title ?? page.title,
     contentSource: restoreJsonEscapedBackslashes(page.contentSource ?? '', requestedSource),
   });
-  return { ok: true, summary: `Saved draft revision v${revision.version}.`, draftPageId: args.pageId, data: { pageId: args.pageId, version: revision.version } };
+  return {
+    ok: true,
+    summary: `Saved draft revision v${revision.version}.`,
+    draftPageId: args.pageId,
+    data: { pageId: args.pageId, version: revision.version },
+  };
 }
 
 // ---- Media executors --------------------------------------------------------
@@ -593,10 +686,12 @@ async function execGenerateImage(ctx: PermCtx, rawArgs: unknown): Promise<ToolEx
     const artifact = await db.query.aiGeneratedArtifacts.findFirst({
       where: eq(schema.aiGeneratedArtifacts.actionId, action.id),
     });
-    if (!artifact) return fail('IMAGE_GENERATION_FAILED', 'Image generation did not produce an artifact.');
+    if (!artifact)
+      return fail('IMAGE_GENERATION_FAILED', 'Image generation did not produce an artifact.');
     return {
       ok: true,
-      summary: 'Generated a private image artifact. Promote it before adding its Markdown to a draft.',
+      summary:
+        'Generated a private image artifact. Promote it before adding its Markdown to a draft.',
       data: {
         actionId: action.id,
         artifactId: artifact.id,
@@ -607,7 +702,11 @@ async function execGenerateImage(ctx: PermCtx, rawArgs: unknown): Promise<ToolEx
       },
     };
   } catch (error) {
-    if (error instanceof DomainError && ['FORBIDDEN', 'BAD_REQUEST', 'NOT_FOUND', 'CANCELLED'].includes(error.code)) throw error;
+    if (
+      error instanceof DomainError &&
+      ['FORBIDDEN', 'BAD_REQUEST', 'NOT_FOUND', 'CANCELLED'].includes(error.code)
+    )
+      throw error;
     // Provider/error details may contain vendor diagnostics. The child action
     // retains governed diagnostics for administrators; the model sees only a
     // stable safe result.
@@ -615,13 +714,17 @@ async function execGenerateImage(ctx: PermCtx, rawArgs: unknown): Promise<ToolEx
   }
 }
 
-async function execPromoteGeneratedImage(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+async function execPromoteGeneratedImage(
+  ctx: PermCtx,
+  rawArgs: unknown,
+): Promise<ToolExecutionResult> {
   const args = promoteGeneratedImageArgs.parse(rawArgs);
   try {
     const asset = await promoteGeneratedArtifact(ctx, args.artifactId, args.pageId);
     return {
       ok: true,
-      summary: 'Promoted the generated image to a private Wiki asset. Use the returned Markdown in a separate draft save.',
+      summary:
+        'Promoted the generated image to a private Wiki asset. Use the returned Markdown in a separate draft save.',
       data: {
         assetId: asset.id,
         contentType: asset.contentType,
@@ -630,12 +733,19 @@ async function execPromoteGeneratedImage(ctx: PermCtx, rawArgs: unknown): Promis
       },
     };
   } catch (error) {
-    if (error instanceof DomainError && ['FORBIDDEN', 'NOT_FOUND', 'CANCELLED'].includes(error.code)) throw error;
+    if (
+      error instanceof DomainError &&
+      ['FORBIDDEN', 'NOT_FOUND', 'CANCELLED'].includes(error.code)
+    )
+      throw error;
     return fail('ARTIFACT_NOT_PROMOTABLE', 'The generated image cannot be promoted.');
   }
 }
 
-async function execInsertGeneratedImages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+async function execInsertGeneratedImages(
+  ctx: PermCtx,
+  rawArgs: unknown,
+): Promise<ToolExecutionResult> {
   const args = insertGeneratedImagesArgs.parse(rawArgs);
   const result = await insertGeneratedImages(ctx, args);
   return {
@@ -674,19 +784,37 @@ async function proposeOrApply(
       effectiveReview: 'admin_review',
       items: options.items,
     });
-    return { ok: true, summary: `${options.title} — created as a proposal for review.`, proposalId: proposal.id };
+    return {
+      ok: true,
+      summary: `${options.title} — created as a proposal for review.`,
+      proposalId: proposal.id,
+    };
   }
   const summary = await options.applyImmediately();
-  await auditImmediateToolMutation(execCtx.actorUserId, { toolName: options.toolName, target: options.immediateTarget });
+  await auditImmediateToolMutation(execCtx.actorUserId, {
+    toolName: options.toolName,
+    target: options.immediateTarget,
+  });
   return { ok: true, summary };
 }
 
-async function execUpdatePageProperties(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execUpdatePageProperties(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = propertiesArgs.parse(rawArgs);
   return proposeOrApply(execCtx, {
     kind: 'metadata_update',
     title: `Update properties for page ${args.pageId}`,
-    items: [{ resourceKind: 'page', resourceId: args.pageId, beforeState: {}, afterState: { title: args.title, path: args.path } }],
+    items: [
+      {
+        resourceKind: 'page',
+        resourceId: args.pageId,
+        beforeState: {},
+        afterState: { title: args.title, path: args.path },
+      },
+    ],
     immediateTarget: args.pageId,
     toolName: 'update_page_properties',
     applyImmediately: async () => {
@@ -696,7 +824,11 @@ async function execUpdatePageProperties(ctx: PermCtx, rawArgs: unknown, execCtx:
   });
 }
 
-async function execUpdatePageMetadata(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execUpdatePageMetadata(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = metadataArgs.parse(rawArgs);
   const before = await content.getPageById(ctx, args.pageId, ['latestRevision']);
   if (!before) return fail('NOT_FOUND', 'No readable page matched.');
@@ -727,7 +859,11 @@ async function execUpdatePageMetadata(ctx: PermCtx, rawArgs: unknown, execCtx: T
   });
 }
 
-async function execReplacePageTags(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execReplacePageTags(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = replaceTagsArgs.parse(rawArgs);
   const before = await content.getPageById(ctx, args.pageId);
   return proposeOrApply(execCtx, {
@@ -737,7 +873,10 @@ async function execReplacePageTags(ctx: PermCtx, rawArgs: unknown, execCtx: Tool
       {
         resourceKind: 'page',
         resourceId: args.pageId,
-        beforeState: { label: before?.title ?? null, tags: before?.metadata?.tags?.map((t) => t.name) ?? [] },
+        beforeState: {
+          label: before?.title ?? null,
+          tags: before?.metadata?.tags?.map((t) => t.name) ?? [],
+        },
         afterState: { tags: args.tags },
       },
     ],
@@ -750,12 +889,18 @@ async function execReplacePageTags(ctx: PermCtx, rawArgs: unknown, execCtx: Tool
   });
 }
 
-async function execCreateTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execCreateTag(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = createTagArgs.parse(rawArgs);
   return proposeOrApply(execCtx, {
     kind: 'tag_update',
     title: `Create tag "${args.name}"`,
-    items: [{ resourceKind: 'tag', beforeState: {}, afterState: { label: args.name, name: args.name } }],
+    items: [
+      { resourceKind: 'tag', beforeState: {}, afterState: { label: args.name, name: args.name } },
+    ],
     immediateTarget: args.name,
     toolName: 'create_tag',
     applyImmediately: async () => {
@@ -765,12 +910,23 @@ async function execCreateTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecut
   });
 }
 
-async function execRenameTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execRenameTag(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = renameTagArgs.parse(rawArgs);
   return proposeOrApply(execCtx, {
     kind: 'tag_update',
     title: `Rename tag to "${args.name}"`,
-    items: [{ resourceKind: 'tag', resourceId: args.tagId, beforeState: {}, afterState: { label: args.name, name: args.name } }],
+    items: [
+      {
+        resourceKind: 'tag',
+        resourceId: args.tagId,
+        beforeState: {},
+        afterState: { label: args.name, name: args.name },
+      },
+    ],
     immediateTarget: args.tagId,
     toolName: 'rename_tag',
     applyImmediately: async () => {
@@ -780,12 +936,23 @@ async function execRenameTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecut
   });
 }
 
-async function execDeleteTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execDeleteTag(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = tagIdArgs.parse(rawArgs);
   return proposeOrApply(execCtx, {
     kind: 'tag_update',
     title: `Retire tag ${args.tagId}`,
-    items: [{ resourceKind: 'tag', resourceId: args.tagId, beforeState: { label: args.tagId }, afterState: { retired: true } }],
+    items: [
+      {
+        resourceKind: 'tag',
+        resourceId: args.tagId,
+        beforeState: { label: args.tagId },
+        afterState: { retired: true },
+      },
+    ],
     immediateTarget: args.tagId,
     toolName: 'delete_tag',
     applyImmediately: async () => {
@@ -795,12 +962,23 @@ async function execDeleteTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecut
   });
 }
 
-async function execMergeTag(ctx: PermCtx, rawArgs: unknown, execCtx: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execMergeTag(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = mergeTagArgs.parse(rawArgs);
   return proposeOrApply(execCtx, {
     kind: 'tag_update',
     title: `Merge tag ${args.tagId} into ${args.targetTagId}`,
-    items: [{ resourceKind: 'tag', resourceId: args.tagId, beforeState: {}, afterState: { mergedInto: args.targetTagId } }],
+    items: [
+      {
+        resourceKind: 'tag',
+        resourceId: args.tagId,
+        beforeState: {},
+        afterState: { mergedInto: args.targetTagId },
+      },
+    ],
     immediateTarget: args.tagId,
     toolName: 'merge_tag',
     applyImmediately: async () => {
@@ -831,7 +1009,11 @@ const readSkillFileArgs = z.object({
  * policy, so the safety boundary sits where it already was rather than being
  * duplicated here (FR-022a, FR-023).
  */
-async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execLoadSkill(
+  _ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx?: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = loadSkillArgs.parse(rawArgs ?? {});
   if (execCtx?.scheduledSkillNames && !execCtx.scheduledSkillNames.includes(args.name)) {
     return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
@@ -861,7 +1043,9 @@ async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExec
       truncated: bounded.truncated,
       contentOffset: bounded.contentOffset,
       contentLength: bounded.contentLength,
-      ...(bounded.nextContentOffset === undefined ? {} : { nextContentOffset: bounded.nextContentOffset }),
+      ...(bounded.nextContentOffset === undefined
+        ? {}
+        : { nextContentOffset: bounded.nextContentOffset }),
       // The file list travels with the instructions so the model knows what it
       // may read next without guessing at paths.
       files: skill.entry.files
@@ -872,7 +1056,11 @@ async function execLoadSkill(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExec
 }
 
 /** Read one reference file inside a skill. Text only — nothing here executes. */
-async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown, execCtx?: ToolExecutionContext): Promise<ToolExecutionResult> {
+async function execReadSkillFile(
+  _ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx?: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = readSkillFileArgs.parse(rawArgs ?? {});
   if (execCtx?.scheduledSkillNames && !execCtx.scheduledSkillNames.includes(args.name)) {
     return fail('SKILL_NOT_FOUND', `No skill named "${args.name}" is available.`);
@@ -892,7 +1080,8 @@ async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown, execCtx?: Tool
     );
   }
   const content = await skill.entry.readFile(relativePath);
-  if (content === null) return fail('SKILL_FILE_NOT_FOUND', `The skill has no file at "${relativePath}".`);
+  if (content === null)
+    return fail('SKILL_FILE_NOT_FOUND', `The skill has no file at "${relativePath}".`);
   await recordSkillUsage(skill.name);
   const bounded = boundSkillContent(content, args.contentOffset, contentWindow(execCtx));
   return {
@@ -908,7 +1097,9 @@ async function execReadSkillFile(_ctx: PermCtx, rawArgs: unknown, execCtx?: Tool
       truncated: bounded.truncated,
       contentOffset: bounded.contentOffset,
       contentLength: bounded.contentLength,
-      ...(bounded.nextContentOffset === undefined ? {} : { nextContentOffset: bounded.nextContentOffset }),
+      ...(bounded.nextContentOffset === undefined
+        ? {}
+        : { nextContentOffset: bounded.nextContentOffset }),
       ...(file.kind === 'script'
         ? { note: 'This is reference material. The server does not execute skill scripts.' }
         : {}),
@@ -930,7 +1121,13 @@ function boundSkillContent(
   content: string,
   offset = 0,
   windowChars = DEFAULT_PAGE_CONTENT_CHARS,
-): { text: string; truncated: boolean; contentOffset: number; contentLength: number; nextContentOffset?: number } {
+): {
+  text: string;
+  truncated: boolean;
+  contentOffset: number;
+  contentLength: number;
+  nextContentOffset?: number;
+} {
   const start = Math.min(offset, content.length);
   const slice = content.slice(start, start + windowChars);
   const end = start + slice.length;
@@ -949,7 +1146,11 @@ function boundSkillContent(
 
 // ---- Dispatch ---------------------------------------------------------------
 
-type Executor = (ctx: PermCtx, args: unknown, execCtx: ToolExecutionContext) => Promise<ToolExecutionResult>;
+type Executor = (
+  ctx: PermCtx,
+  args: unknown,
+  execCtx: ToolExecutionContext,
+) => Promise<ToolExecutionResult>;
 
 const EXECUTORS: Record<string, Executor> = {
   search_wiki: (ctx, args) => execSearchWiki(ctx, args),
@@ -1000,16 +1201,31 @@ export async function executeTool(
       const scoped = applyScheduledSpaceScope(tool.name, args, spaces);
       if (scoped.error) return fail('SCHEDULED_SCOPE_VIOLATION', scoped.error);
       scopedArgs = scoped.args;
-      const value = scopedArgs !== null && typeof scopedArgs === 'object' ? scopedArgs as Record<string, unknown> : {};
-      const pageId = typeof value.pageId === 'string' ? value.pageId : typeof value.node === 'string' ? value.node : null;
+      const value =
+        scopedArgs !== null && typeof scopedArgs === 'object'
+          ? (scopedArgs as Record<string, unknown>)
+          : {};
+      const pageId =
+        typeof value.pageId === 'string'
+          ? value.pageId
+          : typeof value.node === 'string'
+            ? value.node
+            : null;
       if (pageId) {
         const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
         const allowed = Boolean(page && execCtx.scheduledScope.spaceIds.includes(page.spaceId));
-        if (!allowed) return fail('SCHEDULED_SCOPE_VIOLATION', 'The requested page is outside this scheduled job scope.');
+        if (!allowed)
+          return fail(
+            'SCHEDULED_SCOPE_VIOLATION',
+            'The requested page is outside this scheduled job scope.',
+          );
       } else if (
-        tool.name === 'search_wiki'
-        || tool.name === 'list_pages'
-        || ((tool.name === 'get_page' || tool.name === 'get_backlinks' || tool.name === 'get_neighborhood') && typeof value.path === 'string')
+        tool.name === 'search_wiki' ||
+        tool.name === 'list_pages' ||
+        ((tool.name === 'get_page' ||
+          tool.name === 'get_backlinks' ||
+          tool.name === 'get_neighborhood') &&
+          typeof value.path === 'string')
       ) {
         // applyScheduledSpaceScope already constrained these discovery and
         // path-based read calls to one of the Job's selected spaces.
@@ -1017,12 +1233,19 @@ export async function executeTool(
         // Generated pages are the durable output for admin-run Jobs; other
         // execution owners create in the default wiki space. Keep that target
         // within the same selected-space boundary as all reads and edits.
-        const targetSlug = ctx.actor.kind === 'user' && ctx.actor.role === 'admin' ? 'generated' : 'default';
+        const targetSlug =
+          ctx.actor.kind === 'user' && ctx.actor.role === 'admin' ? 'generated' : 'default';
         if (!spaces.some((space) => space.slug === targetSlug)) {
-          return fail('SCHEDULED_SCOPE_VIOLATION', `Creating a page requires the ${publicSpaceSlug(targetSlug)} space to be selected for this Job.`);
+          return fail(
+            'SCHEDULED_SCOPE_VIOLATION',
+            `Creating a page requires the ${publicSpaceSlug(targetSlug)} space to be selected for this Job.`,
+          );
         }
       } else if (!['skill', 'tag'].includes(tool.category)) {
-        return fail('SCHEDULED_SCOPE_VIOLATION', 'This operation needs an in-scope page identifier.');
+        return fail(
+          'SCHEDULED_SCOPE_VIOLATION',
+          'This operation needs an in-scope page identifier.',
+        );
       }
     }
     return await executor(ctx, scopedArgs, execCtx);

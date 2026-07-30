@@ -8,7 +8,9 @@ describe('scheduled AI job schema (030)', () => {
       select table_name from information_schema.tables
       where table_schema = 'public' and table_name in ('scheduled_ai_jobs', 'scheduled_ai_job_runs')
     `);
-    expect(rows.map((row) => row.table_name)).toEqual(expect.arrayContaining(['scheduled_ai_jobs', 'scheduled_ai_job_runs']));
+    expect(rows.map((row) => row.table_name)).toEqual(
+      expect.arrayContaining(['scheduled_ai_jobs', 'scheduled_ai_job_runs']),
+    );
   });
 
   it('registers scheduled lifecycle enums and action identity', async () => {
@@ -16,7 +18,8 @@ describe('scheduled AI job schema (030)', () => {
       select t.typname, e.enumlabel as label from pg_type t join pg_enum e on e.enumtypid = t.oid
       where t.typname in ('scheduled_ai_job_status', 'scheduled_ai_job_run_status', 'scheduled_ai_job_trigger', 'ai_action_feature')
     `);
-    const has = (type: string, label: string) => rows.some((row) => row.typname === type && row.label === label);
+    const has = (type: string, label: string) =>
+      rows.some((row) => row.typname === type && row.label === label);
     expect(has('scheduled_ai_job_status', 'enabled')).toBe(true);
     expect(has('scheduled_ai_job_run_status', 'blocked')).toBe(true);
     expect(has('scheduled_ai_job_trigger', 'manual')).toBe(true);
@@ -30,10 +33,12 @@ describe('scheduled AI job schema (030)', () => {
         'ai_tool_change_proposals_scheduled_run_idx'
       )
     `);
-    expect(indexes.map((row) => row.indexname)).toEqual(expect.arrayContaining([
-      'scheduled_ai_job_runs_occurrence_unique',
-      'scheduled_ai_job_runs_active_job_unique',
-      'ai_tool_change_proposals_scheduled_run_idx',
-    ]));
+    expect(indexes.map((row) => row.indexname)).toEqual(
+      expect.arrayContaining([
+        'scheduled_ai_job_runs_occurrence_unique',
+        'scheduled_ai_job_runs_active_job_unique',
+        'ai_tool_change_proposals_scheduled_run_idx',
+      ]),
+    );
   });
 });

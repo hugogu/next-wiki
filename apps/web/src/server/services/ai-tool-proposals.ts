@@ -43,11 +43,17 @@ const PROPOSAL_TRANSITIONS: Record<AiToolProposalStatus, AiToolProposalStatus[]>
   superseded: [],
 };
 
-export function canTransitionProposal(from: AiToolProposalStatus, to: AiToolProposalStatus): boolean {
+export function canTransitionProposal(
+  from: AiToolProposalStatus,
+  to: AiToolProposalStatus,
+): boolean {
   return PROPOSAL_TRANSITIONS[from].includes(to);
 }
 
-export function assertProposalTransition(from: AiToolProposalStatus, to: AiToolProposalStatus): void {
+export function assertProposalTransition(
+  from: AiToolProposalStatus,
+  to: AiToolProposalStatus,
+): void {
   if (!canTransitionProposal(from, to)) {
     throw new Error(`Illegal tool proposal transition: ${from} -> ${to}`);
   }
@@ -155,7 +161,9 @@ export async function listProposalRows(
   const filters = [
     query.status ? eq(schema.aiToolChangeProposals.status, query.status) : undefined,
     query.kind ? eq(schema.aiToolChangeProposals.kind, query.kind) : undefined,
-    query.actorUserId ? eq(schema.aiToolChangeProposals.createdByUserId, query.actorUserId) : undefined,
+    query.actorUserId
+      ? eq(schema.aiToolChangeProposals.createdByUserId, query.actorUserId)
+      : undefined,
   ].filter((clause): clause is NonNullable<typeof clause> => clause != null);
   const where = filters.length > 0 ? and(...filters) : undefined;
   const [rows, [totalRow]] = await Promise.all([
@@ -261,7 +269,9 @@ export async function listProposals(
 
 async function sourceToolNameOf(toolCallId: string | null): Promise<string | null> {
   if (!toolCallId) return null;
-  const call = await db.query.aiToolCalls.findFirst({ where: eq(schema.aiToolCalls.id, toolCallId) });
+  const call = await db.query.aiToolCalls.findFirst({
+    where: eq(schema.aiToolCalls.id, toolCallId),
+  });
   return call?.toolName ?? null;
 }
 
@@ -329,7 +339,11 @@ async function applyItem(
   ctx: PermCtx,
   proposal: ProposalRow,
   item: ProposalItemRow,
-): Promise<{ status: AiToolProposalItemApplyStatus; errorCode: string | null; errorMessage: string | null }> {
+): Promise<{
+  status: AiToolProposalItemApplyStatus;
+  errorCode: string | null;
+  errorMessage: string | null;
+}> {
   const after = (item.afterState ?? {}) as Record<string, unknown>;
   try {
     if (item.resourceKind === 'tag') {
@@ -343,12 +357,20 @@ async function applyItem(
         await tags.createTag(ctx, str(after.name) ?? '');
       }
     } else if (item.resourceKind === 'page' && proposal.kind === 'tag_update' && item.resourceId) {
-      await content.setPageTags(ctx, item.resourceId, Array.isArray(after.tags) ? (after.tags as string[]) : []);
+      await content.setPageTags(
+        ctx,
+        item.resourceId,
+        Array.isArray(after.tags) ? (after.tags as string[]) : [],
+      );
     } else if (item.resourceKind === 'page' && item.resourceId) {
-      await content.updateProperties(ctx, item.resourceId, { title: str(after.title), path: str(after.path) });
+      await content.updateProperties(ctx, item.resourceId, {
+        title: str(after.title),
+        path: str(after.path),
+      });
     } else if (item.resourceKind === 'page_metadata' && item.resourceId) {
       const page = await content.getPageById(ctx, item.resourceId, ['latestRevision']);
-      if (!page?.latestRevision) throw new DomainError('NOT_FOUND', 'Page has no revision to update');
+      if (!page?.latestRevision)
+        throw new DomainError('NOT_FOUND', 'Page has no revision to update');
       await content.updatePageMetadata(ctx, item.resourceId, {
         baseRevisionId: page.latestRevision.id,
         date: str(after.date) ?? null,
@@ -361,13 +383,26 @@ async function applyItem(
     return { status: 'applied', errorCode: null, errorMessage: null };
   } catch (error) {
     if (error instanceof DomainError) {
-      const conflict = ['STALE_REVISION', 'CONFLICT', 'PAGE_PATH_CONFLICT', 'REVISION_ALREADY_PUBLISHED'];
+      const conflict = [
+        'STALE_REVISION',
+        'CONFLICT',
+        'PAGE_PATH_CONFLICT',
+        'REVISION_ALREADY_PUBLISHED',
+      ];
       if (conflict.includes(error.code)) {
-        return { status: 'failed', errorCode: 'PROPOSAL_CONFLICT', errorMessage: 'Current state changed since this proposal was prepared.' };
+        return {
+          status: 'failed',
+          errorCode: 'PROPOSAL_CONFLICT',
+          errorMessage: 'Current state changed since this proposal was prepared.',
+        };
       }
       return { status: 'failed', errorCode: error.code, errorMessage: error.message };
     }
-    return { status: 'failed', errorCode: 'TOOL_FAILED', errorMessage: 'Could not apply this item.' };
+    return {
+      status: 'failed',
+      errorCode: 'TOOL_FAILED',
+      errorMessage: 'Could not apply this item.',
+    };
   }
 }
 
@@ -392,11 +427,20 @@ export async function applyProposal(ctx: PermCtx, id: string): Promise<AiToolPro
     const result = await applyItem(ctx, proposal, item);
     await db
       .update(schema.aiToolChangeProposalItems)
-      .set({ applyStatus: result.status, errorCode: result.errorCode, errorMessage: result.errorMessage })
+      .set({
+        applyStatus: result.status,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+      })
       .where(eq(schema.aiToolChangeProposalItems.id, item.id));
     if (result.status === 'applied') applied += 1;
     if (result.status === 'failed') failed += 1;
-    results.push({ id: item.id, applyStatus: result.status, errorCode: result.errorCode, errorMessage: result.errorMessage });
+    results.push({
+      id: item.id,
+      applyStatus: result.status,
+      errorCode: result.errorCode,
+      errorMessage: result.errorMessage,
+    });
   }
   const status: AiToolProposalStatus = failed > 0 ? 'failed' : 'applied';
   await transitionProposal(id, status, {

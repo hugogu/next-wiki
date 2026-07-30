@@ -1,5 +1,10 @@
 import { eq, inArray } from 'drizzle-orm';
-import { scheduledAiJobScopeSchema, type AiCitation, type AiQuestionMode, type AiToolReviewDecision } from '@next-wiki/shared';
+import {
+  scheduledAiJobScopeSchema,
+  type AiCitation,
+  type AiQuestionMode,
+  type AiToolReviewDecision,
+} from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
@@ -46,10 +51,7 @@ import {
 } from '@/server/services/ai-tool-runtime';
 import { listToolDefinitions, type ToolDefinition } from '@/server/services/ai-tool-registry';
 import { resolveAiRuntimeConfig } from '@/server/services/ai-runtime-settings';
-import {
-  nudgeAnswerDelivery,
-  toFeishuCitations,
-} from '@/server/services/feishu-notifications';
+import { nudgeAnswerDelivery, toFeishuCitations } from '@/server/services/feishu-notifications';
 import {
   completeFeishuAnswerStream,
   failFeishuAnswerStream,
@@ -288,15 +290,27 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
   const metadata = action.requestMetadata as Record<string, unknown>;
-  const scheduledRunId = typeof metadata.scheduledAiJobRunId === 'string' ? metadata.scheduledAiJobRunId : null;
+  const scheduledRunId =
+    typeof metadata.scheduledAiJobRunId === 'string' ? metadata.scheduledAiJobRunId : null;
   const scheduledRun = scheduledRunId
-    ? await db.query.scheduledAiJobRuns.findFirst({ where: eq(schema.scheduledAiJobRuns.id, scheduledRunId) }) : null;
+    ? await db.query.scheduledAiJobRuns.findFirst({
+        where: eq(schema.scheduledAiJobRuns.id, scheduledRunId),
+      })
+    : null;
   const snapshot = scheduledRun?.definitionSnapshot as { targetScope?: unknown } | undefined;
-  const scheduledScope = snapshot?.targetScope ? scheduledAiJobScopeSchema.parse(snapshot.targetScope) : undefined;
+  const scheduledScope = snapshot?.targetScope
+    ? scheduledAiJobScopeSchema.parse(snapshot.targetScope)
+    : undefined;
   const questionMode = input.mode ?? 'retrieval';
   const retrieval = scheduledScope
     ? { sources: [], usage: {}, results: [] }
-    : await loadWikiQuestionSources({ ctx, actionId, question: input.question, mode: questionMode, textContextWindow: textModel.contextWindow });
+    : await loadWikiQuestionSources({
+        ctx,
+        actionId,
+        question: input.question,
+        mode: questionMode,
+        textContextWindow: textModel.contextWindow,
+      });
   const { sources: wikiSources, usage: retrievalUsage, results: retrievalResults } = retrieval;
   if (questionMode !== 'full') {
     await appendActionEvent(actionId, 'search_results', { results: retrievalResults });
@@ -307,16 +321,17 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const policyRows = await getPolicyRowsByProvider(provider.id);
   const isOwnerOrAdmin = user.role === 'admin';
   const isEnabled = (tool: ToolDefinition) =>
-    resolveToolEnabled(tool, policyLayersFor(tool, policyRows), provider.enabled) && hasExecutor(tool.name);
+    resolveToolEnabled(tool, policyLayersFor(tool, policyRows), provider.enabled) &&
+    hasExecutor(tool.name);
   const resolveReview = (tool: ToolDefinition, requested: AiToolReviewDecision) =>
     action.feature === 'scheduled_ai_job'
       ? 'admin_review'
       : resolveReviewDecision(
-      tool,
-      resolveEffectiveReviewPolicy(tool, policyLayersFor(tool, policyRows)),
-      requested,
-      isOwnerOrAdmin,
-    );
+          tool,
+          resolveEffectiveReviewPolicy(tool, policyLayersFor(tool, policyRows)),
+          requested,
+          isOwnerOrAdmin,
+        );
   const enabledTools = listToolDefinitions().filter(isEnabled);
   const providerDefault = policyRows.find((row) => row.toolName == null && row.category == null);
   // Admin-tunable runtime config (Bots > General params, AI > Prompts prompts).
@@ -339,9 +354,10 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     (skill) => !scheduledScope || scheduledScope.skillNames.includes(skill.name),
   );
   const scheduledSpaces = scheduledScope
-    ? await db.select({ name: schema.spaces.name, slug: schema.spaces.slug })
-      .from(schema.spaces)
-      .where(inArray(schema.spaces.id, scheduledScope.spaceIds))
+    ? await db
+        .select({ name: schema.spaces.name, slug: schema.spaces.slug })
+        .from(schema.spaces)
+        .where(inArray(schema.spaces.id, scheduledScope.spaceIds))
     : [];
   const scheduledContext = { tools: enabledTools, skills: enabledSkills, spaces: scheduledSpaces };
   const expandedQuestion = scheduledScope
@@ -350,9 +366,10 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   // The task author may include {{scope}} wherever it reads best. When they
   // do not, still give the planner its durable access boundary so a multi-space
   // Job can select the correct space rather than discovering it via a denial.
-  const question = scheduledScope && !/\{\{\s*scope\s*\}\}/i.test(input.question)
-    ? `${expandedQuestion}\n\nRuntime access boundary:\n${expandScheduledJobContext('{{scope}}', scheduledContext)}`
-    : expandedQuestion;
+  const question =
+    scheduledScope && !/\{\{\s*scope\s*\}\}/i.test(input.question)
+      ? `${expandedQuestion}\n\nRuntime access boundary:\n${expandScheduledJobContext('{{scope}}', scheduledContext)}`
+      : expandedQuestion;
   await appendActionEvent(actionId, 'question', { text: question });
   const system = buildWikiToolSystemPrompt(
     enabledTools,
@@ -368,13 +385,18 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   // the admin usage panel an accurate per-action total instead of just the
   // last call's usage (or nothing at all if the field was never wired).
   const plannerUsage: Record<string, number> = {};
-  const accumulatePlannerUsage = (event: { inputTokens?: number; outputTokens?: number; cachedInputTokens?: number }) => {
+  const accumulatePlannerUsage = (event: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cachedInputTokens?: number;
+  }) => {
     if (typeof event.inputTokens === 'number') plannerUsage.inputTokens = event.inputTokens;
     if (typeof event.outputTokens === 'number') {
       plannerUsage.outputTokens = (plannerUsage.outputTokens ?? 0) + event.outputTokens;
     }
     if (typeof event.cachedInputTokens === 'number') {
-      plannerUsage.cachedInputTokens = (plannerUsage.cachedInputTokens ?? 0) + event.cachedInputTokens;
+      plannerUsage.cachedInputTokens =
+        (plannerUsage.cachedInputTokens ?? 0) + event.cachedInputTokens;
     }
   };
   const plannerDeps = {
@@ -455,7 +477,8 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       (error instanceof AiProviderError && error.code === 'CANCELLED') ||
       (error instanceof DomainError && error.code === 'CANCELLED') ||
       (await isCancellationRequested(actionId));
-    if (current?.status === 'running') await transitionWorkflow(current.id, cancelled ? 'cancelled' : 'failed');
+    if (current?.status === 'running')
+      await transitionWorkflow(current.id, cancelled ? 'cancelled' : 'failed');
     throw error;
   } finally {
     cancellation.dispose();

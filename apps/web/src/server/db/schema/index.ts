@@ -236,7 +236,9 @@ export const pages = pgTable(
     // 022 (Phase 11): every raw entry is filed under exactly one immutable
     // admin-managed category. Nullable at the DB layer (non-raw pages are
     // legitimately NULL); the NOT NULL rule for raw is service-enforced.
-    rawCategoryId: uuid('raw_category_id').references(() => rawCategories.id, { onDelete: 'restrict' }),
+    rawCategoryId: uuid('raw_category_id').references(() => rawCategories.id, {
+      onDelete: 'restrict',
+    }),
     // Per-page authoring preference: when true, supported metadata (date,
     // summary, tags) is also embedded as a `---` frontmatter block in the
     // Markdown body; when false it is kept only in the structured projection.
@@ -300,7 +302,9 @@ export const pageRevisions = pgTable(
     // content_source (default surface for search/AI); the original bytes are
     // stored through content_assets and referenced here immutably. Null for
     // non-raw revisions and raw revisions whose body is already plain text.
-    originalAssetId: uuid('original_asset_id').references(() => contentAssets.id, { onDelete: 'restrict' }),
+    originalAssetId: uuid('original_asset_id').references(() => contentAssets.id, {
+      onDelete: 'restrict',
+    }),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1099,7 +1103,9 @@ export const aiSettings = pgTable('ai_settings', {
   artifactRetentionHours: integer('artifact_retention_hours').notNull().default(24),
   // Deprecated compatibility column from early 026 builds. Retrieval now uses
   // search_settings.min_relevance_score across Search, Wiki AI, and bots.
-  wikiQuestionMinRelevanceScore: integer('wiki_question_min_relevance_score').notNull().default(500),
+  wikiQuestionMinRelevanceScore: integer('wiki_question_min_relevance_score')
+    .notNull()
+    .default(500),
   // Each Model Capability Detector is configured independently so switching
   // between them never discards stored credentials. OpenRouter is a global
   // enrichment key (active when present). Cloudflare is a catalog-listing
@@ -1115,7 +1121,9 @@ export const aiSettings = pgTable('ai_settings', {
   toolMaxCalls: integer('tool_max_calls').notNull().default(100),
   // Characters of one tool result carried into the planner prompt. A read that
   // does not fit returns a pageable window rather than being cut off.
-  toolResultMaxChars: integer('tool_result_max_chars').notNull().default(32 * 1024),
+  toolResultMaxChars: integer('tool_result_max_chars')
+    .notNull()
+    .default(32 * 1024),
   // Planner sampling temperature stored as hundredths (10 = 0.10, range 0-200).
   toolPlannerTemperature: integer('tool_planner_temperature').notNull().default(10),
   // Planner max output tokens; the tool loop always reads a concrete value.
@@ -1351,13 +1359,17 @@ export const aiActions = pgTable(
     // 023: pointer to the canonical Raw Conversation page for a captured
     // `wiki_question` action. Conceptually a FK to pages.id; app-enforced like
     // other cross-module page pointers in this schema (see pages note above).
-    rawConversationPageId: uuid('raw_conversation_page_id').references(() => pages.id, { onDelete: 'set null' }),
+    rawConversationPageId: uuid('raw_conversation_page_id').references(() => pages.id, {
+      onDelete: 'set null',
+    }),
     // Highest ai_action_events.id already folded into the latest Raw
     // Conversation revision; drives idempotent/incremental capture.
     rawConversationLastEventId: bigint('raw_conversation_last_event_id', { mode: 'number' })
       .notNull()
       .default(0),
-    rawConversationCaptureStatus: rawConversationCaptureStatusEnum('raw_conversation_capture_status')
+    rawConversationCaptureStatus: rawConversationCaptureStatusEnum(
+      'raw_conversation_capture_status',
+    )
       .notNull()
       .default('not_applicable'),
     // Bounded diagnostic for operators only; never shown to unauthorized users.
@@ -1371,7 +1383,9 @@ export const aiActions = pgTable(
     actorQueuedIdx: index('ai_actions_actor_queued_idx').on(t.actorUserId, t.queuedAt),
     statusQueuedIdx: index('ai_actions_status_queued_idx').on(t.status, t.queuedAt),
     providerQueuedIdx: index('ai_actions_provider_queued_idx').on(t.providerId, t.queuedAt),
-    rawConversationPageIdx: index('ai_actions_raw_conversation_page_idx').on(t.rawConversationPageId),
+    rawConversationPageIdx: index('ai_actions_raw_conversation_page_idx').on(
+      t.rawConversationPageId,
+    ),
   }),
 );
 
@@ -1386,7 +1400,9 @@ export const scheduledAiJobs = pgTable(
     scheduleCron: text('schedule_cron').notNull(),
     timeZone: text('time_zone').notNull(),
     targetScope: jsonb('target_scope').notNull().default({}),
-    runAsUserId: uuid('run_as_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    runAsUserId: uuid('run_as_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
     status: scheduledAiJobStatusEnum('status').notNull().default('paused'),
     definitionVersion: integer('definition_version').notNull().default(1),
     nextRunAt: timestamp('next_run_at', { withTimezone: true }),
@@ -1394,17 +1410,28 @@ export const scheduledAiJobs = pgTable(
     lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
     lastErrorCode: text('last_error_code'),
     lastErrorMessage: text('last_error_message'),
-    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
-    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     retiredAt: timestamp('retired_at', { withTimezone: true }),
   },
   (t) => ({
-    normalizedNameUnique: uniqueIndex('scheduled_ai_jobs_normalized_name_unique').on(t.normalizedName),
-    dueIdx: index('scheduled_ai_jobs_due_idx').on(t.nextRunAt).where(sql`${t.status} = 'enabled'`),
+    normalizedNameUnique: uniqueIndex('scheduled_ai_jobs_normalized_name_unique').on(
+      t.normalizedName,
+    ),
+    dueIdx: index('scheduled_ai_jobs_due_idx')
+      .on(t.nextRunAt)
+      .where(sql`${t.status} = 'enabled'`),
     ownerIdx: index('scheduled_ai_jobs_owner_idx').on(t.runAsUserId),
-    versionCheck: check('scheduled_ai_jobs_definition_version_positive', sql`${t.definitionVersion} > 0`),
+    versionCheck: check(
+      'scheduled_ai_jobs_definition_version_positive',
+      sql`${t.definitionVersion} > 0`,
+    ),
   }),
 );
 
@@ -1413,7 +1440,9 @@ export const scheduledAiJobRuns = pgTable(
   'scheduled_ai_job_runs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    jobId: uuid('job_id').notNull().references(() => scheduledAiJobs.id, { onDelete: 'restrict' }),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => scheduledAiJobs.id, { onDelete: 'restrict' }),
     trigger: scheduledAiJobTriggerEnum('trigger').notNull(),
     scheduledFor: timestamp('scheduled_for', { withTimezone: true }),
     definitionVersion: integer('definition_version').notNull(),
@@ -1436,12 +1465,17 @@ export const scheduledAiJobRuns = pgTable(
   },
   (t) => ({
     occurrenceUnique: uniqueIndex('scheduled_ai_job_runs_occurrence_unique')
-      .on(t.jobId, t.scheduledFor).where(sql`${t.scheduledFor} is not null`),
+      .on(t.jobId, t.scheduledFor)
+      .where(sql`${t.scheduledFor} is not null`),
     jobQueuedIdx: index('scheduled_ai_job_runs_job_queued_idx').on(t.jobId, t.queuedAt),
     recoveryIdx: index('scheduled_ai_job_runs_recovery_idx').on(t.status, t.queuedAt),
     activeJobUnique: uniqueIndex('scheduled_ai_job_runs_active_job_unique')
-      .on(t.jobId).where(sql`${t.status} in ('queued', 'running')`),
-    versionCheck: check('scheduled_ai_job_runs_definition_version_positive', sql`${t.definitionVersion} > 0`),
+      .on(t.jobId)
+      .where(sql`${t.status} in ('queued', 'running')`),
+    versionCheck: check(
+      'scheduled_ai_job_runs_definition_version_positive',
+      sql`${t.definitionVersion} > 0`,
+    ),
   }),
 );
 

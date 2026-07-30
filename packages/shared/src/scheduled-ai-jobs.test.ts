@@ -23,10 +23,15 @@ describe('scheduled AI jobs shared contract', () => {
 
   it('rejects empty scopes and unsafe cron field counts', () => {
     expect(() => scheduledAiJobScopeSchema.parse({ spaceIds: [], skillNames: [] })).toThrow();
-    expect(() => scheduledAiJobCreateSchema.parse({
-      name: 'Daily', taskDescription: 'x', scheduleCron: '* * * * * *', timeZone: 'UTC',
-      targetScope: { spaceIds: [id] },
-    })).toThrow();
+    expect(() =>
+      scheduledAiJobCreateSchema.parse({
+        name: 'Daily',
+        taskDescription: 'x',
+        scheduleCron: '* * * * * *',
+        timeZone: 'UTC',
+        targetScope: { spaceIds: [id] },
+      }),
+    ).toThrow();
   });
 
   it('pins durable status values', () => {

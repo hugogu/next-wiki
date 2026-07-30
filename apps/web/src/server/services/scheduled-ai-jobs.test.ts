@@ -15,7 +15,10 @@ const permissions = vi.hoisted(() => ({
 }));
 
 vi.mock('@/server/db', () => ({ db }));
-vi.mock('@/server/jobs/runtime', () => ({ enqueue: vi.fn(), QUEUES: { scheduledAiRun: 'scheduled-ai-run' } }));
+vi.mock('@/server/jobs/runtime', () => ({
+  enqueue: vi.fn(),
+  QUEUES: { scheduledAiRun: 'scheduled-ai-run' },
+}));
 vi.mock('@/server/permissions', () => permissions);
 
 import {
@@ -58,8 +61,13 @@ beforeEach(() => {
 
 describe('scheduled AI job scheduling primitives', () => {
   it('calculates the next UTC occurrence using the declared IANA zone', () => {
-    expect(nextScheduledAiJobOccurrence('0 9 * * *', 'Asia/Shanghai', new Date('2026-01-01T00:30:00Z')).toISOString())
-      .toBe('2026-01-01T01:00:00.000Z');
+    expect(
+      nextScheduledAiJobOccurrence(
+        '0 9 * * *',
+        'Asia/Shanghai',
+        new Date('2026-01-01T00:30:00Z'),
+      ).toISOString(),
+    ).toBe('2026-01-01T01:00:00.000Z');
   });
 
   it('rejects unsupported cron forms and invalid zones', () => {
@@ -69,9 +77,14 @@ describe('scheduled AI job scheduling primitives', () => {
 
   it('creates an immutable execution snapshot', () => {
     const snapshot = buildScheduledAiJobSnapshot({
-      id: 'job', name: 'Daily links', taskDescription: 'Propose links', scheduleCron: '0 9 * * *',
-      timeZone: 'UTC', targetScope: { spaceIds: ['00000000-0000-0000-0000-000000000001'], skillNames: [] },
-      runAsUserId: '00000000-0000-0000-0000-000000000002', definitionVersion: 2,
+      id: 'job',
+      name: 'Daily links',
+      taskDescription: 'Propose links',
+      scheduleCron: '0 9 * * *',
+      timeZone: 'UTC',
+      targetScope: { spaceIds: ['00000000-0000-0000-0000-000000000001'], skillNames: [] },
+      runAsUserId: '00000000-0000-0000-0000-000000000002',
+      definitionVersion: 2,
     });
     expect(snapshot.version).toBe(2);
     expect(Object.isFrozen(snapshot)).toBe(true);
@@ -80,18 +93,30 @@ describe('scheduled AI job scheduling primitives', () => {
   it('preserves the next occurrence when changing non-scheduling fields', async () => {
     const current = scheduledJob();
     db.query.scheduledAiJobs.findFirst.mockResolvedValue(current);
-    db.query.users.findFirst.mockResolvedValue({ id: current.runAsUserId, status: 'active', deletedAt: null });
-    db.select.mockReturnValue({
-      from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ id: current.targetScope.spaceIds[0] }]) }),
+    db.query.users.findFirst.mockResolvedValue({
+      id: current.runAsUserId,
+      status: 'active',
+      deletedAt: null,
     });
-    const returning = vi.fn().mockResolvedValue([{ ...current, name: 'Renamed links', normalizedName: 'renamed links' }]);
+    db.select.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([{ id: current.targetScope.spaceIds[0] }]),
+      }),
+    });
+    const returning = vi
+      .fn()
+      .mockResolvedValue([{ ...current, name: 'Renamed links', normalizedName: 'renamed links' }]);
     const where = vi.fn().mockReturnValue({ returning });
     const set = vi.fn().mockReturnValue({ where });
     db.update.mockReturnValue({ set });
 
-    await updateScheduledAiJob({ actor: { kind: 'user', userId: '00000000-0000-0000-0000-000000000003', role: 'admin' } }, current.id, {
-      name: 'Renamed links',
-    });
+    await updateScheduledAiJob(
+      { actor: { kind: 'user', userId: '00000000-0000-0000-0000-000000000003', role: 'admin' } },
+      current.id,
+      {
+        name: 'Renamed links',
+      },
+    );
 
     expect(set).toHaveBeenCalledWith(expect.objectContaining({ nextRunAt: current.nextRunAt }));
   });
@@ -112,7 +137,10 @@ describe('scheduled AI job scheduling primitives', () => {
     db.insert
       .mockReturnValueOnce({
         values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockRejectedValue({ code: '23505', constraint_name: 'scheduled_ai_job_runs_active_job_unique' }),
+          returning: vi.fn().mockRejectedValue({
+            code: '23505',
+            constraint_name: 'scheduled_ai_job_runs_active_job_unique',
+          }),
         }),
       })
       .mockReturnValueOnce({
@@ -122,10 +150,12 @@ describe('scheduled AI job scheduling primitives', () => {
     await tickScheduledAiJobs(new Date('2026-01-02T10:00:00.000Z'));
 
     const skippedValues = db.insert.mock.results[1]?.value.values as ReturnType<typeof vi.fn>;
-    expect(skippedValues).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'skipped',
-      scheduledFor: occurrence,
-      errorCode: 'SCHEDULED_JOB_ACTIVE_RUN',
-    }));
+    expect(skippedValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'skipped',
+        scheduledFor: occurrence,
+        errorCode: 'SCHEDULED_JOB_ACTIVE_RUN',
+      }),
+    );
   });
 });

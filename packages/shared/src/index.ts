@@ -61,7 +61,9 @@ export const livePageSchema = z.object({
   metadata: z.object({
     date: z.string().nullable(),
     summary: z.string().nullable(),
-    tags: z.array(z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() })),
+    tags: z.array(
+      z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() }),
+    ),
   }),
 });
 export type LivePage = z.infer<typeof livePageSchema>;
@@ -82,7 +84,9 @@ export const editableViewSchema = z.object({
   metadata: z.object({
     date: z.string().nullable(),
     summary: z.string().nullable(),
-    tags: z.array(z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() })),
+    tags: z.array(
+      z.object({ id: z.string().uuid(), name: z.string(), normalizedName: z.string() }),
+    ),
   }),
 });
 export type EditableView = z.infer<typeof editableViewSchema>;

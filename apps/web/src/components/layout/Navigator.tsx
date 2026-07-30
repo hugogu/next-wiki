@@ -95,7 +95,10 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
  * the same shape as the server-rendered payload so callers can splice the
  * result into the existing tree without conversion.
  */
-async function fetchBranchChildren(pathPrefix: string, space: ReaderSpace): Promise<LazyPublicPageTreeNode[]> {
+async function fetchBranchChildren(
+  pathPrefix: string,
+  space: ReaderSpace,
+): Promise<LazyPublicPageTreeNode[]> {
   const params = new URLSearchParams({ pathPrefix });
   if (space !== 'wiki') params.set('space', space);
   const response = await fetch(`/api/v1/tree?${params.toString()}`, {
@@ -284,10 +287,15 @@ export function Navigator({
   const { t } = useTranslation();
   // Editors and admins may create pages, so they get the per-row "new child"
   // button that pre-fills the path prefix from the hovered node.
-  const canCreatePages = user.kind === 'user' && (
-    space === 'wiki' ? user.role === 'admin' || user.role === 'editor' : user.role === 'admin'
-  );
-  const canSwitchSpaces = writingMode === 'llm-wiki' && user.kind === 'user' && user.role === 'admin' && !admin && !userCenter;
+  const canCreatePages =
+    user.kind === 'user' &&
+    (space === 'wiki' ? user.role === 'admin' || user.role === 'editor' : user.role === 'admin');
+  const canSwitchSpaces =
+    writingMode === 'llm-wiki' &&
+    user.kind === 'user' &&
+    user.role === 'admin' &&
+    !admin &&
+    !userCenter;
   const addChildLabel = t('layout.nav.addChild');
   const pathname = usePathname();
   const ADMIN_GROUPS: AdminNavGroup[] = [
@@ -371,7 +379,13 @@ export function Navigator({
           icon: <SlidersIcon className="shrink-0" />,
         },
         ...(writingMode === 'llm-wiki'
-          ? [{ href: '/admin/raw-categories', label: t('admin.nav.rawCategories'), icon: <LayersIcon className="shrink-0" /> }]
+          ? [
+              {
+                href: '/admin/raw-categories',
+                label: t('admin.nav.rawCategories'),
+                icon: <LayersIcon className="shrink-0" />,
+              },
+            ]
           : []),
         {
           href: '/admin/users',
@@ -657,7 +671,10 @@ export function Navigator({
           ) : (
             <>
               {canSwitchSpaces && (
-                <div className="mb-md grid grid-cols-3 gap-1" aria-label={t('layout.nav.spaces.label')}>
+                <div
+                  className="mb-md grid grid-cols-3 gap-1"
+                  aria-label={t('layout.nav.spaces.label')}
+                >
                   {(['wiki', 'generated', 'raw'] as const).map((candidate) => {
                     const active = space === candidate;
                     return (
@@ -679,26 +696,26 @@ export function Navigator({
                 </div>
               )}
               {tree.length === 0 ? (
-            <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
+                <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
               ) : (
-            <ul className="space-y-0.5">
-              {tree.map((node) => (
-                <TreeItem
-                  key={node.path}
-                  node={node}
-                  currentPath={currentPath}
-                  depth={0}
-                  onNavigate={onClose}
-                  expanded={expanded}
-                  onToggle={toggle}
-                  getLoadState={getLoadState}
-                  onLoad={loadBranch}
-                  canCreate={canCreatePages}
-                  addChildLabel={addChildLabel}
-                  space={space}
-                />
-              ))}
-            </ul>
+                <ul className="space-y-0.5">
+                  {tree.map((node) => (
+                    <TreeItem
+                      key={node.path}
+                      node={node}
+                      currentPath={currentPath}
+                      depth={0}
+                      onNavigate={onClose}
+                      expanded={expanded}
+                      onToggle={toggle}
+                      getLoadState={getLoadState}
+                      onLoad={loadBranch}
+                      canCreate={canCreatePages}
+                      addChildLabel={addChildLabel}
+                      space={space}
+                    />
+                  ))}
+                </ul>
               )}
             </>
           )}

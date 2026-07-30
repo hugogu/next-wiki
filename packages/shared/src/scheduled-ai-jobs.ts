@@ -6,7 +6,13 @@ export const scheduledAiJobStatusSchema = z.enum(['enabled', 'paused', 'retired'
 export type ScheduledAiJobStatus = z.infer<typeof scheduledAiJobStatusSchema>;
 
 export const scheduledAiJobRunStatusSchema = z.enum([
-  'queued', 'running', 'completed', 'failed', 'blocked', 'cancelled', 'skipped',
+  'queued',
+  'running',
+  'completed',
+  'failed',
+  'blocked',
+  'cancelled',
+  'skipped',
 ]);
 export type ScheduledAiJobRunStatus = z.infer<typeof scheduledAiJobRunStatusSchema>;
 
@@ -16,20 +22,27 @@ export type ScheduledAiJobTrigger = z.infer<typeof scheduledAiJobTriggerSchema>;
 const uuidList = z.array(z.string().uuid()).max(100).default([]);
 
 /** Resource identifiers only; content is never persisted in a definition. */
-export const scheduledAiJobScopeSchema = z.object({
-  spaceIds: uuidList,
-  skillNames: z.array(skillNameSchema).max(20).default([]),
-}).superRefine((scope, ctx) => {
-  if (scope.spaceIds.length === 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one space is required' });
-  }
-});
+export const scheduledAiJobScopeSchema = z
+  .object({
+    spaceIds: uuidList,
+    skillNames: z.array(skillNameSchema).max(20).default([]),
+  })
+  .superRefine((scope, ctx) => {
+    if (scope.spaceIds.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one space is required' });
+    }
+  });
 export type ScheduledAiJobScope = z.infer<typeof scheduledAiJobScopeSchema>;
 
-const cronExpressionSchema = z.string().trim().min(9).max(100).refine(
-  (value) => value.split(/\s+/).length === 5,
-  'A schedule must use exactly five cron fields',
-);
+const cronExpressionSchema = z
+  .string()
+  .trim()
+  .min(9)
+  .max(100)
+  .refine(
+    (value) => value.split(/\s+/).length === 5,
+    'A schedule must use exactly five cron fields',
+  );
 const timeZoneSchema = z.string().trim().min(1).max(100);
 
 export const scheduledAiJobCreateSchema = z.object({
@@ -42,9 +55,12 @@ export const scheduledAiJobCreateSchema = z.object({
 });
 export type ScheduledAiJobCreate = z.infer<typeof scheduledAiJobCreateSchema>;
 
-export const scheduledAiJobUpdateSchema = scheduledAiJobCreateSchema.partial().extend({
-  status: scheduledAiJobStatusSchema.optional(),
-}).refine((value) => Object.keys(value).length > 0, 'At least one field is required');
+export const scheduledAiJobUpdateSchema = scheduledAiJobCreateSchema
+  .partial()
+  .extend({
+    status: scheduledAiJobStatusSchema.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, 'At least one field is required');
 export type ScheduledAiJobUpdate = z.infer<typeof scheduledAiJobUpdateSchema>;
 
 export const scheduledAiJobListFilterSchema = z.object({
@@ -72,7 +88,9 @@ export const scheduledAiJobDefinitionSnapshotSchema = z.object({
   targetScope: scheduledAiJobScopeSchema,
   runAsUserId: z.string().uuid(),
 });
-export type ScheduledAiJobDefinitionSnapshot = z.infer<typeof scheduledAiJobDefinitionSnapshotSchema>;
+export type ScheduledAiJobDefinitionSnapshot = z.infer<
+  typeof scheduledAiJobDefinitionSnapshotSchema
+>;
 
 export const scheduledAiJobViewSchema = z.object({
   id: z.string().uuid(),
@@ -104,4 +122,5 @@ export const scheduledAiJobRunViewSchema = z.object({
 });
 export type ScheduledAiJobRunView = z.infer<typeof scheduledAiJobRunViewSchema>;
 
-export const SCHEDULED_AI_JOB_CONTEXT_HELP = 'Optional runtime context: use {{tools}} for the enabled tool catalogue, {{skills}} for this job\'s selected skills, and {{scope}} for its saved space scope. References are expanded only when the job runs.';
+export const SCHEDULED_AI_JOB_CONTEXT_HELP =
+  "Optional runtime context: use {{tools}} for the enabled tool catalogue, {{skills}} for this job's selected skills, and {{scope}} for its saved space scope. References are expanded only when the job runs.";

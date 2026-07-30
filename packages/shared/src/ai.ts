@@ -22,7 +22,12 @@ export const aiProviderVendorSchema = z.enum([
   'custom',
 ]);
 export type AiProviderVendor = z.infer<typeof aiProviderVendorSchema>;
-export type AiModelDiscoveryProtocol = 'openai' | 'openrouter' | 'anthropic' | 'cloudflare' | 'none';
+export type AiModelDiscoveryProtocol =
+  | 'openai'
+  | 'openrouter'
+  | 'anthropic'
+  | 'cloudflare'
+  | 'none';
 
 /**
  * Registered Model Capability Detector sources. A detector source is a stable
@@ -150,9 +155,7 @@ export const AI_PROVIDER_VENDORS: AiProviderVendorDefinition[] = [
   },
 ];
 
-export function getAiProviderVendor(
-  vendor: AiProviderVendor,
-): AiProviderVendorDefinition {
+export function getAiProviderVendor(vendor: AiProviderVendor): AiProviderVendorDefinition {
   return AI_PROVIDER_VENDORS.find((item) => item.vendor === vendor)!;
 }
 export const aiProviderStatusSchema = z.enum(['unverified', 'healthy', 'unavailable', 'disabled']);
@@ -173,7 +176,13 @@ export const aiCapabilitySourceSchema = z.enum(['provider', 'catalog', 'manual']
 export const aiPurposeSchema = z.enum(['wiki_text', 'wiki_embedding', 'wiki_image']);
 export type AiPurpose = z.infer<typeof aiPurposeSchema>;
 export const aiIndexStatusSchema = z.enum(['building', 'ready', 'failed', 'superseded']);
-export const aiPageIndexStatusSchema = z.enum(['pending', 'running', 'completed', 'failed', 'removed']);
+export const aiPageIndexStatusSchema = z.enum([
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'removed',
+]);
 export const aiActionFeatureSchema = z.enum([
   'provider_test',
   'model_sync',
@@ -189,7 +198,14 @@ export const aiActionFeatureSchema = z.enum([
   'wiki_tool_chat',
 ]);
 export type AiActionFeature = z.infer<typeof aiActionFeatureSchema>;
-export const aiActionStatusSchema = z.enum(['queued', 'running', 'completed', 'failed', 'cancelled', 'expired']);
+export const aiActionStatusSchema = z.enum([
+  'queued',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+  'expired',
+]);
 export type AiActionStatus = z.infer<typeof aiActionStatusSchema>;
 export const aiQuestionModeSchema = z.enum(['full', 'retrieval']);
 export type AiQuestionMode = z.infer<typeof aiQuestionModeSchema>;
@@ -298,7 +314,9 @@ export const aiRuntimePromptsUpdateSchema = z.object({
 });
 export type AiRuntimePromptsUpdate = z.infer<typeof aiRuntimePromptsUpdateSchema>;
 
-export const aiRuntimeSettingsUpdateSchema = aiRuntimeParamsUpdateSchema.merge(aiRuntimePromptsUpdateSchema);
+export const aiRuntimeSettingsUpdateSchema = aiRuntimeParamsUpdateSchema.merge(
+  aiRuntimePromptsUpdateSchema,
+);
 export type AiRuntimeSettingsUpdate = z.infer<typeof aiRuntimeSettingsUpdateSchema>;
 
 export const aiRuntimeSettingsViewSchema = z.object({
@@ -327,35 +345,38 @@ export const aiProviderCredentialsSchema = z
   })
   .refine((value) => value.apiKey || Object.keys(value.headers ?? {}).length > 0);
 
-export const aiProviderCreateSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  type: aiProviderTypeSchema.default('chat'),
-  vendor: aiProviderVendorSchema,
-  kind: aiProviderKindSchema.optional(),
-  baseUrl: z.string().url().max(2_048),
-  config: jsonObjectSchema,
-  credentials: aiProviderCredentialsSchema,
-  enabled: z.boolean().default(true),
-}).superRefine((value, context) => {
-  const definition = getAiProviderVendor(value.vendor);
-  if (!definition.capabilities.includes(value.type)) {
-    context.addIssue({
-      code: 'custom',
-      path: ['vendor'],
-      message: `${value.vendor} does not support ${value.type}`,
-    });
-  }
-});
+export const aiProviderCreateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    type: aiProviderTypeSchema.default('chat'),
+    vendor: aiProviderVendorSchema,
+    kind: aiProviderKindSchema.optional(),
+    baseUrl: z.string().url().max(2_048),
+    config: jsonObjectSchema,
+    credentials: aiProviderCredentialsSchema,
+    enabled: z.boolean().default(true),
+  })
+  .superRefine((value, context) => {
+    const definition = getAiProviderVendor(value.vendor);
+    if (!definition.capabilities.includes(value.type)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['vendor'],
+        message: `${value.vendor} does not support ${value.type}`,
+      });
+    }
+  });
 export type AiProviderCreate = z.infer<typeof aiProviderCreateSchema>;
-export const aiProviderUpdateSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  type: aiProviderTypeSchema,
-  vendor: aiProviderVendorSchema,
-  kind: aiProviderKindSchema,
-  baseUrl: z.string().url().max(2_048),
-  config: jsonObjectSchema,
-  enabled: z.boolean(),
-})
+export const aiProviderUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    type: aiProviderTypeSchema,
+    vendor: aiProviderVendorSchema,
+    kind: aiProviderKindSchema,
+    baseUrl: z.string().url().max(2_048),
+    config: jsonObjectSchema,
+    enabled: z.boolean(),
+  })
   .partial()
   .extend({ credentials: aiProviderCredentialsSchema.optional() });
 export type AiProviderUpdate = z.infer<typeof aiProviderUpdateSchema>;
@@ -414,17 +435,17 @@ export const aiModelCreateSchema = z.object({
   embeddingDimensions: z.number().int().positive().nullable().optional(),
 });
 export type AiModelCreate = z.infer<typeof aiModelCreateSchema>;
-export const aiModelUpdateSchema = aiModelCreateSchema
-  .omit({ externalId: true })
-  .partial()
-  .extend({
-    // 028: how tool calls reach this model. Setting it clears any runtime
-    // downgrade, so a provider that has fixed its tool support is one action
-    // away from being usable natively again.
-    toolCallStrategy: toolCallStrategySchema.optional(),
-  });
+export const aiModelUpdateSchema = aiModelCreateSchema.omit({ externalId: true }).partial().extend({
+  // 028: how tool calls reach this model. Setting it clears any runtime
+  // downgrade, so a provider that has fixed its tool support is one action
+  // away from being usable natively again.
+  toolCallStrategy: toolCallStrategySchema.optional(),
+});
 export type AiModelUpdate = z.infer<typeof aiModelUpdateSchema>;
-export const aiCapabilityOverrideSchema = z.object({ supported: z.boolean(), details: jsonObjectSchema });
+export const aiCapabilityOverrideSchema = z.object({
+  supported: z.boolean(),
+  details: jsonObjectSchema,
+});
 export const aiAssignmentUpdateSchema = z.object({
   modelId: z.string().uuid(),
   confirmCapability: z.boolean().default(false),
@@ -537,7 +558,13 @@ export type RawConversationCaptureStatus = z.infer<typeof rawConversationCapture
 /** Conversation lifecycle as shown to a reader — a strict subset of
  * `aiActionStatusSchema` (never `queued`; a Raw page is only ever created once
  * the first event has arrived). */
-export const conversationStatusSchema = z.enum(['running', 'completed', 'failed', 'cancelled', 'expired']);
+export const conversationStatusSchema = z.enum([
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+  'expired',
+]);
 export type ConversationStatus = z.infer<typeof conversationStatusSchema>;
 
 /** Shared input for `ConversationSessionView`, reused by AI Chat History
@@ -728,10 +755,12 @@ export type AiActionEvent = z.infer<typeof aiActionEventSchema>;
  */
 export const aiConversationDetailSchema = z.object({
   conversation: aiConversationSummarySchema,
-  turns: z.array(z.object({
-    action: aiActionViewSchema,
-    events: z.array(aiActionEventSchema),
-  })),
+  turns: z.array(
+    z.object({
+      action: aiActionViewSchema,
+      events: z.array(aiActionEventSchema),
+    }),
+  ),
 });
 export type AiConversationDetail = z.infer<typeof aiConversationDetailSchema>;
 
@@ -779,7 +808,13 @@ export const publicSemanticSearchResultItemSchema = z.object({
 });
 export type PublicSemanticSearchResultItem = z.infer<typeof publicSemanticSearchResultItemSchema>;
 
-export const publicSemanticSearchStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'expired']);
+export const publicSemanticSearchStatusSchema = z.enum([
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'expired',
+]);
 export type PublicSemanticSearchStatus = z.infer<typeof publicSemanticSearchStatusSchema>;
 
 export const publicSemanticSearchActionSchema = z.object({
@@ -839,20 +874,30 @@ export const aiOptimizationInputSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   selection: aiSelectionSchema.refine((value) => value.to > value.from),
-  instruction: z.enum(['improve_clarity', 'fix_grammar', 'shorten', 'expand']).default('improve_clarity'),
+  instruction: z
+    .enum(['improve_clarity', 'fix_grammar', 'shorten', 'expand'])
+    .default('improve_clarity'),
 });
 export const aiImageInputSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   source: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('page') }),
-    z.object({ kind: z.literal('selection'), text: z.string().min(1).max(100_000), hash: z.string().min(16).max(128) }),
+    z.object({
+      kind: z.literal('selection'),
+      text: z.string().min(1).max(100_000),
+      hash: z.string().min(16).max(128),
+    }),
   ]),
-  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
+  aspectRatio: z
+    .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'])
+    .optional(),
 });
 export const aiArtifactPromotionSchema = z.object({ pageId: z.string().uuid() });
 export const aiIndexCreateSchema = z.object({ reason: z.string().max(200).default('manual') });
-export const aiIndexRetrySchema = z.object({ pageIds: z.array(z.string().uuid()).max(1_000).default([]) });
+export const aiIndexRetrySchema = z.object({
+  pageIds: z.array(z.string().uuid()).max(1_000).default([]),
+});
 export const aiIndexViewSchema = z.object({
   id: z.string().uuid(),
   modelId: z.string().uuid(),

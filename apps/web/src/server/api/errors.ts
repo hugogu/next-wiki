@@ -167,5 +167,8 @@ export function mapDomainError(error: DomainError): NextResponse {
 }
 
 export function internalError(message = 'Internal server error') {
-  return NextResponse.json({ code: 'INTERNAL_ERROR', message }, { status: 500, headers: { 'cache-control': 'no-store' } });
+  return NextResponse.json(
+    { code: 'INTERNAL_ERROR', message },
+    { status: 500, headers: { 'cache-control': 'no-store' } },
+  );
 }

@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
   const parsed = scheduledAiJobListFilterSchema.safeParse(query(request));
   if (!parsed.success) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
   try {
-    return NextResponse.json(await listScheduledAiJobs(await createApiContext(), parsed.data), { headers: noStore });
+    return NextResponse.json(await listScheduledAiJobs(await createApiContext(), parsed.data), {
+      headers: noStore,
+    });
   } catch (error) {
     return error instanceof DomainError ? mapDomainError(error) : internalError();
   }
@@ -27,7 +29,10 @@ export async function POST(request: NextRequest) {
   const parsed = parseJson(scheduledAiJobCreateSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
   try {
-    return NextResponse.json(await createScheduledAiJob(await createApiContext(), parsed.data), { status: 201, headers: noStore });
+    return NextResponse.json(await createScheduledAiJob(await createApiContext(), parsed.data), {
+      status: 201,
+      headers: noStore,
+    });
   } catch (error) {
     return error instanceof DomainError ? mapDomainError(error) : internalError();
   }

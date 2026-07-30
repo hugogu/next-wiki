@@ -16,7 +16,11 @@ import type { PermCtx } from '@/server/permissions';
 import type { ScheduledAiJobScope } from '@next-wiki/shared';
 import { appendToolCallEvent, appendToolProposalEvent } from '@/server/services/ai-actions';
 import { auditToolCall } from '@/server/services/audit';
-import { executeTool, pageContentWindowFor, resolveExecutableTool } from '@/server/services/ai-tool-executors';
+import {
+  executeTool,
+  pageContentWindowFor,
+  resolveExecutableTool,
+} from '@/server/services/ai-tool-executors';
 import { getProposalRow } from '@/server/services/ai-tool-proposals';
 import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool-registry';
 import { logger } from '@/server/logger';
@@ -54,7 +58,10 @@ const CALL_TRANSITIONS: Record<AiToolCallStatus, AiToolCallStatus[]> = {
   cancelled: [],
 };
 
-export function canTransitionWorkflow(from: AiToolWorkflowStatus, to: AiToolWorkflowStatus): boolean {
+export function canTransitionWorkflow(
+  from: AiToolWorkflowStatus,
+  to: AiToolWorkflowStatus,
+): boolean {
   return WORKFLOW_TRANSITIONS[from].includes(to);
 }
 
@@ -62,7 +69,10 @@ export function canTransitionCall(from: AiToolCallStatus, to: AiToolCallStatus):
   return CALL_TRANSITIONS[from].includes(to);
 }
 
-export function assertWorkflowTransition(from: AiToolWorkflowStatus, to: AiToolWorkflowStatus): void {
+export function assertWorkflowTransition(
+  from: AiToolWorkflowStatus,
+  to: AiToolWorkflowStatus,
+): void {
   if (!canTransitionWorkflow(from, to)) {
     throw new Error(`Illegal tool workflow transition: ${from} -> ${to}`);
   }
@@ -102,11 +112,16 @@ export async function getWorkflow(id: string): Promise<WorkflowRow | undefined> 
 }
 
 export async function getWorkflowByAction(actionId: string): Promise<WorkflowRow | undefined> {
-  return db.query.aiToolWorkflows.findFirst({ where: eq(schema.aiToolWorkflows.aiActionId, actionId) });
+  return db.query.aiToolWorkflows.findFirst({
+    where: eq(schema.aiToolWorkflows.aiActionId, actionId),
+  });
 }
 
 /** Move a workflow to a new state, enforcing the legal transition set. */
-export async function transitionWorkflow(id: string, to: AiToolWorkflowStatus): Promise<WorkflowRow> {
+export async function transitionWorkflow(
+  id: string,
+  to: AiToolWorkflowStatus,
+): Promise<WorkflowRow> {
   return db.transaction(async (tx) => {
     const current = await tx.query.aiToolWorkflows.findFirst({
       where: eq(schema.aiToolWorkflows.id, id),
@@ -260,7 +275,9 @@ export async function countRunningCalls(workflowId: string): Promise<number> {
   const [row] = await db
     .select({ value: count() })
     .from(schema.aiToolCalls)
-    .where(and(eq(schema.aiToolCalls.workflowId, workflowId), eq(schema.aiToolCalls.status, 'running')));
+    .where(
+      and(eq(schema.aiToolCalls.workflowId, workflowId), eq(schema.aiToolCalls.status, 'running')),
+    );
   return row?.value ?? 0;
 }
 
@@ -320,7 +337,12 @@ export type ToolLoopParams = {
   scheduledAiJobRunId?: string;
 };
 
-export type ToolLoopResult = { status: AiToolWorkflowStatus; answer: string; calls: number; citations: AiCitation[] };
+export type ToolLoopResult = {
+  status: AiToolWorkflowStatus;
+  answer: string;
+  calls: number;
+  citations: AiCitation[];
+};
 
 /** Bounded command record retained in Conversation history (tool-contract). */
 export function buildCommandMarkdown(
@@ -335,7 +357,15 @@ export function buildCommandMarkdown(
       return `  ${key}: ${bounded}`;
     })
     .join('\n');
-  return ['```tool-call', `provider: ${BUILTIN_PROVIDER.key}`, `tool: ${toolName}`, `review: ${review}`, 'args:', argLines, '```']
+  return [
+    '```tool-call',
+    `provider: ${BUILTIN_PROVIDER.key}`,
+    `tool: ${toolName}`,
+    `review: ${review}`,
+    'args:',
+    argLines,
+    '```',
+  ]
     .filter((line) => line !== '')
     .join('\n');
 }
@@ -461,7 +491,10 @@ function formatToolResultPayload(
     typeof data === 'object' &&
     typeof (data as { contentSource?: unknown }).contentSource === 'string'
   ) {
-    const { contentSource, ...metadata } = data as { contentSource: string } & Record<string, unknown>;
+    const { contentSource, ...metadata } = data as { contentSource: string } & Record<
+      string,
+      unknown
+    >;
     return `${JSON.stringify({
       summary: result.summary,
       data: { ...metadata, contentSource: 'verbatim page source follows' },
@@ -471,7 +504,9 @@ function formatToolResultPayload(
 }
 
 function hashResult(data: unknown): string {
-  return createHash('sha256').update(JSON.stringify(data ?? null)).digest('hex');
+  return createHash('sha256')
+    .update(JSON.stringify(data ?? null))
+    .digest('hex');
 }
 
 function citationFromCandidate(value: unknown): AiCitation | null {
@@ -770,7 +805,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           errorMessage: result.errorMessage ?? result.summary,
           durationMs: toolDurationMs,
         });
-        state.transcript.push(`TOOL ${tool.name} -> failed: ${result.errorMessage ?? result.summary}`);
+        state.transcript.push(
+          `TOOL ${tool.name} -> failed: ${result.errorMessage ?? result.summary}`,
+        );
       }
     }
   }
@@ -779,7 +816,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
 async function emitCall(
   actionId: string,
   toolCallId: string,
-  fields: Omit<AiToolCallEventPayload, 'toolCallId' | 'providerKey' | 'commandMarkdown'> & { command: string },
+  fields: Omit<AiToolCallEventPayload, 'toolCallId' | 'providerKey' | 'commandMarkdown'> & {
+    command: string;
+  },
 ): Promise<void> {
   const { command, ...rest } = fields;
   await appendToolCallEvent(actionId, {
