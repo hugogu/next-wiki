@@ -18,7 +18,12 @@ const content = vi.hoisted(() => ({
   updatePageMetadata: vi.fn(),
   setPageTags: vi.fn(),
 }));
+const database = vi.hoisted(() => ({
+  query: { pages: { findFirst: vi.fn() } },
+  select: vi.fn(),
+}));
 vi.mock('@/server/services/public-content', () => content);
+vi.mock('@/server/db', () => ({ db: database }));
 vi.mock('@/server/services/tags', () => ({
   listTags: vi.fn(),
   createTag: vi.fn(),
@@ -342,5 +347,22 @@ describe('scheduled Job space boundary', () => {
   it('rejects discovery in an unselected space', () => {
     expect(applyScheduledSpaceScope('search_wiki', { query: 'payments', space: 'wiki' }, spaces))
       .toMatchObject({ error: 'This scheduled Job cannot access the wiki space. Allowed spaces: raw, generated.' });
+  });
+
+  it('executes a space-scoped list without requiring a page ID', async () => {
+    database.select.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([spaces[0]]),
+      }),
+    });
+    content.listPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const result = await executeTool(readerCtx, listPagesTool, { space: 'raw', limit: 100 }, {
+      ...execCtx,
+      scheduledScope: { spaceIds: [spaces[0]!.id], skillNames: [] },
+    });
+
+    expect(result).toMatchObject({ ok: true, summary: '0 readable page(s) listed.' });
+    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({ space: 'raw', limit: 100 }));
   });
 });

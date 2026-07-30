@@ -1006,6 +1006,13 @@ export async function executeTool(
         const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
         const allowed = Boolean(page && execCtx.scheduledScope.spaceIds.includes(page.spaceId));
         if (!allowed) return fail('SCHEDULED_SCOPE_VIOLATION', 'The requested page is outside this scheduled job scope.');
+      } else if (
+        tool.name === 'search_wiki'
+        || tool.name === 'list_pages'
+        || ((tool.name === 'get_page' || tool.name === 'get_backlinks' || tool.name === 'get_neighborhood') && typeof value.path === 'string')
+      ) {
+        // applyScheduledSpaceScope already constrained these discovery and
+        // path-based read calls to one of the Job's selected spaces.
       } else if (tool.name === 'create_page') {
         // Generated pages are the durable output for admin-run Jobs; other
         // execution owners create in the default wiki space. Keep that target
