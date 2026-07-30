@@ -27,7 +27,9 @@ vi.mock('@/server/services/ai-admin', async (original) => {
   };
 });
 
+import { DEFAULT_TRANSLATION_REQUEST_TIMEOUT_SECONDS } from '@next-wiki/shared';
 import { runTranslationRun } from './translation';
+import { updateSettings } from '@/server/services/translation-config';
 import { getLive, getLiveTranslation } from '@/server/services/pages';
 import { getStats } from '@/server/services/translations';
 
@@ -39,7 +41,7 @@ async function reset() {
     sql.raw(`truncate table
       translation_revision_provenance, page_translation_states, translation_run_items,
       translation_runs, translation_prompt_versions, translation_prompt_templates,
-      translation_languages, translation_groups,
+      translation_languages, translation_groups, translation_settings,
       ai_model_capabilities, ai_models, ai_providers,
       spaces, users
     restart identity cascade`),
@@ -234,6 +236,23 @@ describe('translation worker', () => {
       where: and(eq(schema.pages.locale, 'zh'), isNotNull(schema.pages.translationGroupId)),
     });
     expect(translated).toBeUndefined();
+  });
+
+  it('gives each page the configured deadline, which covers the whole stream', async () => {
+    const s = await seed();
+    // The generic per-request AI timeout is far too short for a streamed
+    // document, so translation carries its own configurable deadline.
+    const { runId } = await insertRun(s);
+    await runTranslationRun(runId);
+    expect(streamText.mock.calls[0]?.[0]).toMatchObject({
+      timeoutMs: DEFAULT_TRANSLATION_REQUEST_TIMEOUT_SECONDS * 1000,
+    });
+
+    streamText.mockClear();
+    await updateSettings(buildUserCtx(s.adminId, 'admin'), { requestTimeoutSeconds: 900 });
+    const next = await insertRun(s);
+    await runTranslationRun(next.runId);
+    expect(streamText.mock.calls[0]?.[0]).toMatchObject({ timeoutMs: 900_000 });
   });
 
   it('fails an item without aborting the run when the model returns empty output', async () => {

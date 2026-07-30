@@ -251,6 +251,48 @@ async function resolveEligibleSources(
   return rows.filter((r) => !fresh.has(r.pageId));
 }
 
+/**
+ * Source pages that already have unfinished work for this locale in any run.
+ * Two runs must never race to publish the same translated page, so a new run
+ * leaves those pages to the run that already owns them (enforced for real by
+ * `translation_run_items_active_page_unique`).
+ *
+ * Deliberately not narrowed by the caller's page ids: a language-wide run would
+ * put every eligible page into one `IN (...)` list, which grows without bound
+ * and eventually hits the driver's parameter limit. The in-flight set is
+ * bounded by real work instead, and `(target_locale, status)` is exactly what
+ * the partial unique index above covers.
+ */
+async function findPagesWithActiveWork(targetLocale: string): Promise<Set<string>> {
+  const rows = await db
+    .selectDistinct({ sourcePageId: schema.translationRunItems.sourcePageId })
+    .from(schema.translationRunItems)
+    .where(
+      and(
+        eq(schema.translationRunItems.targetLocale, targetLocale),
+        inArray(schema.translationRunItems.status, ['pending', 'running']),
+      ),
+    );
+  return new Set(rows.map((r) => r.sourcePageId));
+}
+
+/**
+ * Read the unique-violation constraint name out of a driver error, if that is
+ * what it is. Mapping every unique violation to one domain error would report
+ * an unrelated conflict as "this language is busy", so each guard is named.
+ */
+function uniqueViolationConstraint(error: unknown): string | null {
+  for (const candidate of [error, (error as { cause?: unknown })?.cause]) {
+    // postgres.js reports the field as `constraint_name`; node-postgres and any
+    // wrapper that normalizes it use `constraint`.
+    const pgError = candidate as
+      | { code?: string; constraint_name?: string; constraint?: string }
+      | undefined;
+    if (pgError?.code === '23505') return pgError.constraint_name ?? pgError.constraint ?? '';
+  }
+  return null;
+}
+
 // ---- Run creation ----------------------------------------------------------
 
 export async function createRun(
@@ -275,10 +317,30 @@ export async function createRun(
   const promptVersion = await resolvePromptVersion(input.promptVersionId, input.targetLocale);
 
   const spaceId = await getDefaultSpaceId();
-  const sources = await resolveEligibleSources(spaceId, input);
-  if (sources.length === 0) {
+  const eligible = await resolveEligibleSources(spaceId, input);
+  if (eligible.length === 0) {
     throw new DomainError('SOURCE_NOT_TRANSLATABLE', 'No eligible published pages to translate');
   }
+
+  // Leave pages another run is still working on to that run instead of failing
+  // the whole request: a language-wide run skips them, and a page-scoped run
+  // (the reader-side "translate this page" action) is only refused when every
+  // page it asked for is already in flight.
+  const inFlight = await findPagesWithActiveWork(input.targetLocale);
+  const sources = eligible.filter((s) => !inFlight.has(s.pageId));
+  if (sources.length === 0) {
+    throw new DomainError(
+      'TRANSLATION_ALREADY_RUNNING',
+      eligible.length === 1
+        ? 'This page is already being translated into this language'
+        : 'Every requested page is already being translated into this language',
+    );
+  }
+
+  // Only a language-wide run claims the language's active slot; page-scoped runs
+  // are guarded per page by `translation_run_items_active_page_unique`, so one
+  // page can be translated while unrelated work for that language is in flight.
+  const claimsLanguage = input.scope.kind === 'all_published';
 
   try {
     const run = await db.transaction(async (tx) => {
@@ -296,9 +358,9 @@ export async function createRun(
           promptVersionId: promptVersion?.id ?? null,
           promptContentHash: promptVersion?.contentHash ?? null,
           scopeSnapshot: { scope: input.scope, mode: input.mode },
-          // Claim the language's active slot; the partial-unique index rejects a
-          // second concurrent active run for the same locale.
-          activeLanguageSlot: input.targetLocale,
+          // Claim the language's active slot; the unique index rejects a second
+          // concurrent language-wide run for the same locale.
+          activeLanguageSlot: claimsLanguage ? input.targetLocale : null,
           totalItems: sources.length,
           actorUserId: actorId,
         })
@@ -320,7 +382,18 @@ export async function createRun(
       return created!;
     });
 
-    await enqueue(QUEUES.translation, { runId: run.id });
+    try {
+      await enqueue(QUEUES.translation, { runId: run.id });
+    } catch {
+      // The run is already durable at this point. Leaving it queued would hold
+      // its pages (and, for a language-wide run, the language) until a process
+      // restart re-enqueued it, so fail it now and let the caller retry.
+      await markRunTerminal(run.id, 'failed', {
+        errorCode: 'JOB_QUEUE_UNAVAILABLE',
+        errorMessage: 'The run could not be queued for background work',
+      });
+      throw new DomainError('JOB_QUEUE_UNAVAILABLE', 'Background work is unavailable');
+    }
     return {
       id: run.id,
       targetLocale: run.targetLocale,
@@ -328,10 +401,21 @@ export async function createRun(
       detailUrl: `/api/translations/runs/${run.id}`,
     };
   } catch (error) {
-    if ((error as { code?: string }).code === '23505') {
-      throw new DomainError('TRANSLATION_ALREADY_RUNNING', 'This language already has active work');
+    switch (uniqueViolationConstraint(error)) {
+      case 'translation_runs_active_language_unique':
+        throw new DomainError(
+          'TRANSLATION_ALREADY_RUNNING',
+          'This language already has a full-language run in progress',
+        );
+      case 'translation_run_items_active_page_unique':
+        // Lost a race with a run created between the check above and this insert.
+        throw new DomainError(
+          'TRANSLATION_ALREADY_RUNNING',
+          'A requested page is already being translated into this language',
+        );
+      default:
+        throw error;
     }
-    throw error;
   }
 }
 
@@ -591,16 +675,36 @@ export async function markRunTerminal(
   status: Extract<RunRow['status'], 'completed' | 'completed_with_warnings' | 'failed' | 'cancelled'>,
   values: Partial<RunRow> = {},
 ): Promise<void> {
-  await db
-    .update(schema.translationRuns)
-    .set({
-      ...values,
-      status,
-      activeLanguageSlot: null,
-      finishedAt: new Date(),
-      currentItem: null,
-    })
-    .where(eq(schema.translationRuns.id, id));
+  await db.transaction(async (tx) => {
+    // A finished run owns no unfinished work. An aborted loop (infrastructure
+    // failure) can leave items behind, and those would hold their page's
+    // in-flight guard for the language forever; retry picks them up as
+    // `cancelled`.
+    await tx
+      .update(schema.translationRunItems)
+      .set({
+        status: 'cancelled',
+        retryAvailable: true,
+        finishedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.translationRunItems.runId, id),
+          inArray(schema.translationRunItems.status, ['pending', 'running']),
+        ),
+      );
+    await tx
+      .update(schema.translationRuns)
+      .set({
+        ...values,
+        status,
+        activeLanguageSlot: null,
+        finishedAt: new Date(),
+        currentItem: null,
+      })
+      .where(eq(schema.translationRuns.id, id));
+  });
 }
 
 // ---- Documents & versions --------------------------------------------------

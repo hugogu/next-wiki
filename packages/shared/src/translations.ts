@@ -83,6 +83,38 @@ export function translationLanguageName(code: string): string {
   return SUPPORTED_TRANSLATION_LANGUAGES.find((l) => l.code === code)?.name ?? code;
 }
 
+// ---- Feature settings ------------------------------------------------------
+
+/**
+ * How long one page's model call may take. A translation streams a whole
+ * document, so the abort deadline covers the full stream, not just the response
+ * headers — a large page on a slow model needs far more than the generic
+ * per-request AI timeout allows.
+ */
+export const DEFAULT_TRANSLATION_REQUEST_TIMEOUT_SECONDS = 600;
+export const MIN_TRANSLATION_REQUEST_TIMEOUT_SECONDS = 30;
+export const MAX_TRANSLATION_REQUEST_TIMEOUT_SECONDS = 3_600;
+
+export const translationSettingsViewSchema = z.object({
+  requestTimeoutSeconds: z
+    .number()
+    .int()
+    .min(MIN_TRANSLATION_REQUEST_TIMEOUT_SECONDS)
+    .max(MAX_TRANSLATION_REQUEST_TIMEOUT_SECONDS),
+  updatedAt: isoDateSchema.nullable(),
+});
+export type TranslationSettingsView = z.infer<typeof translationSettingsViewSchema>;
+
+export const translationSettingsUpdateSchema = z.object({
+  requestTimeoutSeconds: z.coerce
+    .number()
+    .int()
+    .min(MIN_TRANSLATION_REQUEST_TIMEOUT_SECONDS)
+    .max(MAX_TRANSLATION_REQUEST_TIMEOUT_SECONDS)
+    .optional(),
+});
+export type TranslationSettingsUpdate = z.infer<typeof translationSettingsUpdateSchema>;
+
 // ---- Target languages ------------------------------------------------------
 
 export const translationLanguageCreateSchema = z.object({

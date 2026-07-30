@@ -6,6 +6,7 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { resolveSpace } from '@/server/services/spaces';
+import { assertSpaceKindAllowed } from '@/server/services/writing-mode';
 
 function assertTagManager(ctx: PermCtx) {
   if (!can(ctx, 'manage_tags', { kind: 'tags' })) {
@@ -23,9 +24,17 @@ function view(tag: typeof schema.tags.$inferSelect) {
   };
 }
 
-export async function listTags(ctx: PermCtx, input: { q?: string; limit?: number } = {}) {
-  const space = await resolveSpace();
-  if (!space || !can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
+/**
+ * Tags belong to a space, because frontmatter on a page in any space resolves
+ * its tags against that page's space (see persistRevisionMetadata). Listing
+ * therefore takes the same optional `space` as the page list; omitting it keeps
+ * the default wiki space.
+ */
+export async function listTags(ctx: PermCtx, input: { q?: string; limit?: number; space?: string } = {}) {
+  const space = await resolveSpace(input.space);
+  if (!space) return { items: [], nextCursor: null };
+  await assertSpaceKindAllowed(space.kind);
+  if (!can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: space.anonymousRead })) {
     return { items: [], nextCursor: null };
   }
   const items = await db

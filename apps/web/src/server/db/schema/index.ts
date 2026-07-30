@@ -1473,6 +1473,29 @@ export const translationPromptVersions = pgTable(
   }),
 );
 
+/** Feature-wide translation runtime settings (singleton). Kept out of
+ * `ai_settings` because the deadline only makes sense for a background,
+ * whole-document generation, not for interactive AI calls. */
+export const translationSettings = pgTable(
+  'translation_settings',
+  {
+    id: text('id').primaryKey().default('default'),
+    // Deadline for one page's model call, covering the entire stream. The
+    // default and the range below mirror DEFAULT/MIN/MAX_TRANSLATION_REQUEST_
+    // TIMEOUT_SECONDS in @next-wiki/shared — change both together.
+    requestTimeoutSeconds: integer('request_timeout_seconds').notNull().default(600),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    singletonId: check('translation_settings_singleton_id', sql`${t.id} = 'default'`),
+    timeoutRange: check(
+      'translation_settings_request_timeout_range',
+      sql`${t.requestTimeoutSeconds} >= 30 and ${t.requestTimeoutSeconds} <= 3600`,
+    ),
+  }),
+);
+
 /** Administrator-managed target-language configuration keyed by a normalized
  * lowercase ISO 639-1 code. A retired/disabled language cannot start new work
  * and its language-prefixed reader URLs resolve as unavailable. */
@@ -1609,6 +1632,14 @@ export const translationRunItems = pgTable(
   },
   (t) => ({
     sourceUnique: uniqueIndex('translation_run_items_source_unique').on(t.runId, t.sourcePageId),
+    // At most one unfinished item may target the same (page, language) across
+    // every run, so two runs can never race to publish the same translated
+    // page. This is the precise guard a page-scoped run relies on instead of
+    // the language-wide slot, which is what lets an administrator translate one
+    // page while unrelated work for the same language is still in flight.
+    activePageUnique: uniqueIndex('translation_run_items_active_page_unique')
+      .on(t.targetLocale, t.sourcePageId)
+      .where(sql`${t.status} in ('pending', 'running')`),
     pendingIdx: index('translation_run_items_pending_idx').on(t.runId, t.status, t.availableAt),
     sourcePageIdx: index('translation_run_items_source_page_idx').on(t.sourcePageId),
   }),

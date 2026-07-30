@@ -6,12 +6,14 @@ import type {
   TranslationLanguageView,
   TranslationPromptTemplateView,
   TranslationRunView,
+  TranslationSettingsView,
   TranslationStats,
   TranslationUsageRow,
 } from '@next-wiki/shared';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { useTranslation } from '@/i18n/client';
 import { TranslationStatsPanel } from './TranslationStatsPanel';
+import { TranslationRuntimePanel } from './TranslationRuntimePanel';
 import { TranslationLanguageManager } from './TranslationLanguageManager';
 import { TranslationPromptManager } from './TranslationPromptManager';
 import { TranslationRunCreateForm } from './TranslationRunCreateForm';
@@ -34,6 +36,7 @@ export function TranslationSettingsPanel({
   documents,
   usage,
   stats,
+  settings,
 }: {
   selected: TranslationTab;
   languages: TranslationLanguageView[];
@@ -43,6 +46,7 @@ export function TranslationSettingsPanel({
   documents: TranslationDocumentView[];
   usage: TranslationUsageRow[];
   stats: TranslationStats;
+  settings: TranslationSettingsView;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -68,7 +72,12 @@ export function TranslationSettingsPanel({
         router.push(`${pathname}?${next.toString()}`);
       }}
     >
-      {selected === 'overview' && <TranslationStatsPanel stats={stats} />}
+      {selected === 'overview' && (
+        <div className="space-y-md">
+          <TranslationStatsPanel stats={stats} />
+          <TranslationRuntimePanel settings={settings} />
+        </div>
+      )}
       {selected === 'languages' && (
         <TranslationLanguageManager languages={languages} models={models} styles={styles} />
       )}

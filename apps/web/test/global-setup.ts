@@ -36,6 +36,13 @@ export default async function setup() {
   );
   const migrationClient = postgres(TEST_DATABASE_URL, { max: 1 });
   try {
+    // A test database created before the history squash still records the old
+    // per-migration history; rebase it onto the squashed init baseline exactly
+    // as `db:migrate` does, or the migrator replays init over a live schema.
+    const { resetLegacyMigrationHistory } = await import(
+      '../scripts/reset-migration-history.mjs'
+    );
+    await resetLegacyMigrationHistory(migrationClient);
     await migrate(drizzle(migrationClient), { migrationsFolder });
   } finally {
     await migrationClient.end({ timeout: 5 });

@@ -4,6 +4,7 @@ import { TagManager } from '@/components/admin/tags/TagManager';
 import { Layout } from '@/components/ui/Layout';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { getCurrentActor } from '@/server/services/auth';
+import { isLlmWikiMode } from '@/server/services/writing-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,9 @@ export default async function AdminTagsPage() {
 
   const locale = await getLocale();
   const t = getDictionary(locale);
+  // Raw/Generated spaces only exist in LLM Wiki mode, matching the space filter
+  // on the admin page list.
+  const spaceFilterEnabled = await isLlmWikiMode();
 
   return (
     <Layout admin>
@@ -27,7 +31,7 @@ export default async function AdminTagsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.tags.title')}</h1>
           <p className="mt-xs max-w-3xl text-sm text-muted">{t('admin.tags.description')}</p>
         </div>
-        <TagManager />
+        <TagManager spaceFilterEnabled={spaceFilterEnabled} />
       </div>
     </Layout>
   );

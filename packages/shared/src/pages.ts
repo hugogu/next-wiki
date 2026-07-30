@@ -235,6 +235,9 @@ export const publicTagListQuerySchema = z.object({
   q: z.string().max(100).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+  // Tags are per space, like pages. Omitted means the default wiki space, so an
+  // existing caller keeps its results.
+  space: z.string().optional(),
 });
 export const publicTagCreateInputSchema = z.object({ name: z.string().min(1).max(100) });
 export const publicTagRenameInputSchema = z.object({ name: z.string().min(1).max(100) });

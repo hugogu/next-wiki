@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import * as publicContent from '@/server/services/public-content';
-import { buildAnonymousCtx } from '@/server/permissions';
+import { getCurrentActor } from '@/server/services/auth';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
-import { getPageHref } from '@/lib/path';
+import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { PageListDescription } from '@/components/pages/PageListDescription';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -26,15 +27,15 @@ export default async function TagPage({ params }: { params: TagPageParams }) {
   const formatter = createAppFormatter(locale);
   const { name } = await params;
   const tagName = decodeURIComponent(name);
-  const ctx = buildAnonymousCtx();
-  const result = await publicContent.listPages(ctx, {
-    status: 'published',
-    include: [],
-    'filter[tag]': [tagName],
+  // The same tag name can exist in several spaces (frontmatter on a Generated
+  // or Raw page registers it there), so this reads with the visitor's own
+  // context: anonymous readers still see only the wiki space, while an
+  // administrator also sees the spaces they may browse.
+  const actor = await getCurrentActor();
+  const pages = await publicContent.listPagesByTag({ actor }, {
+    tag: tagName,
     limit: PAGE_LIMIT,
-    order: 'path',
   });
-  const pages = result.items;
 
   return (
     <Layout>
@@ -51,13 +52,26 @@ export default async function TagPage({ params }: { params: TagPageParams }) {
           <ul className="space-y-sm">
             {pages.map((page) => {
               const publishedAt = page.publishedRevision?.publishedAt ?? null;
+              // Link into the page's own space; a Generated page is not readable
+              // at the bare wiki address.
+              const space = readerSpaceFromSlug(page.spaceSlug);
+              const href = getSpaceHref(space, page.path);
               return (
-                <li key={page.path}>
+                <li key={`${page.spaceSlug}:${page.path}`}>
                   <Link
-                    href={getPageHref(page.path)}
+                    href={href}
                     className="block rounded-lg border border-border bg-surface p-md transition-colors hover:border-primary"
                   >
-                    <span className="font-display text-xl font-medium text-foreground">{page.title}</span>
+                    {/* The space rides along on the title line, so a
+                        mixed-space result reads clearly without an extra row. */}
+                    <div className="flex items-center justify-between gap-sm">
+                      <span className="min-w-0 truncate font-display text-xl font-medium text-foreground">
+                        {page.title}
+                      </span>
+                      <span className="shrink-0">
+                        <StatusBadge tone="neutral">{t(`layout.nav.spaces.${space}`)}</StatusBadge>
+                      </span>
+                    </div>
                     <PageListDescription value={page.metadata?.summary} />
                     <p className="mt-xs text-sm text-muted">
                       {publishedAt

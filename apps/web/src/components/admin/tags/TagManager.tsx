@@ -52,8 +52,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const delay = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 const EMPTY_PAGES: PublicPageResource[] = [];
 
-export function TagManager() {
+/** Reader-facing space slugs, in the order the admin page list shows them. */
+const SPACES = ['wiki', 'generated', 'raw'] as const;
+type TagSpace = (typeof SPACES)[number];
+
+/** `wiki` is the alias the API accepts for the default space; omit it so an
+ * unchanged request keeps hitting the default. */
+function spaceParam(space: TagSpace): string | null {
+  return space === 'wiki' ? null : space;
+}
+
+export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?: boolean }) {
   const { t } = useTranslation();
+  const [space, setSpace] = useState<TagSpace>('wiki');
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState('');
@@ -64,7 +75,7 @@ export function TagManager() {
   const [renameName, setRenameName] = useState('');
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [loadingTags, setLoadingTags] = useState(true);
+  const [loadedSpace, setLoadedSpace] = useState<TagSpace | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,10 +85,15 @@ export function TagManager() {
   const selectedTagNormalizedName = selectedTag?.normalizedName;
   const pages = pageResult.tagId === selectedTagId ? pageResult.items : EMPTY_PAGES;
   const loadingPages = Boolean(selectedTagId && pageResult.tagId !== selectedTagId);
+  // Derived rather than stored, so switching spaces shows the loading state
+  // without an effect writing state on every render.
+  const loadingTags = loadedSpace !== space;
 
   const loadTags = useCallback(async () => {
     try {
       const params = new URLSearchParams({ limit: '100' });
+      const slug = spaceParam(space);
+      if (slug) params.set('space', slug);
       const result = await request<{ items: Tag[] }>(`/api/v1/tags?${params.toString()}`);
       setTags(result.items);
       setSelectedId((current) => current && result.items.some((tag) => tag.id === current)
@@ -86,13 +102,15 @@ export function TagManager() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t('admin.tags.loadFailed'));
     } finally {
-      setLoadingTags(false);
+      setLoadedSpace(space);
     }
-  }, [t]);
+  }, [space, t]);
 
   useEffect(() => {
     let cancelled = false;
     const params = new URLSearchParams({ limit: '100' });
+    const slug = spaceParam(space);
+    if (slug) params.set('space', slug);
     void request<{ items: Tag[] }>(`/api/v1/tags?${params.toString()}`)
       .then((result) => {
         if (cancelled) return;
@@ -103,16 +121,19 @@ export function TagManager() {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : t('admin.tags.loadFailed'));
       })
       .finally(() => {
-        if (!cancelled) setLoadingTags(false);
+        if (!cancelled) setLoadedSpace(space);
       });
     return () => { cancelled = true; };
-  }, [t]);
+  }, [space, t]);
 
   useEffect(() => {
     if (!selectedTagId || !selectedTagNormalizedName) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ status: 'all', limit: '100' });
     params.set('filter[tag]', selectedTagNormalizedName);
+    // A tag only ever matches pages of its own space.
+    const slug = spaceParam(space);
+    if (slug) params.set('space', slug);
     void request<{ items: PublicPageResource[] }>(`/api/v1/pages?${params.toString()}`, { signal: controller.signal })
       .then((result) => setPageResult({ tagId: selectedTagId, items: result.items }))
       .catch((loadError) => {
@@ -122,7 +143,7 @@ export function TagManager() {
         }
       });
     return () => controller.abort();
-  }, [selectedTagId, selectedTagNormalizedName, pagesReloadKey, t]);
+  }, [selectedTagId, selectedTagNormalizedName, pagesReloadKey, space, t]);
 
   const filteredPages = useMemo(() => {
     const query = pageQuery.trim().toLocaleLowerCase();
@@ -216,6 +237,29 @@ export function TagManager() {
 
   return (
     <div className="space-y-md" aria-label={t('admin.tags.ariaLabel')}>
+      {spaceFilterEnabled && (
+        <div className="flex flex-wrap items-center gap-sm">
+          <span className="text-xs font-medium text-muted">{t('admin.tags.spaceFilter')}</span>
+          {SPACES.map((slug) => (
+            <button
+              key={slug}
+              type="button"
+              aria-pressed={space === slug}
+              onClick={() => {
+                if (slug === space) return;
+                setSpace(slug);
+                setSelectedId(null);
+                setTagQuery('');
+                setMessage(null);
+                setError(null);
+              }}
+              className={`rounded-md border px-sm py-xs text-sm ${space === slug ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted hover:text-foreground'}`}
+            >
+              {t(`admin.tags.spaces.${slug}`)}
+            </button>
+          ))}
+        </div>
+      )}
       {(message || error) && (
         <div role="status" className={`rounded-md border px-md py-sm text-sm ${error ? 'border-danger/30 bg-danger/10 text-danger' : 'border-primary/20 bg-primary/10 text-foreground'}`}>
           {error ?? message}

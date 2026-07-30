@@ -1,24 +1,161 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type {
   TranslationLanguageView,
   TranslationPromptTemplateView,
   TranslationRunAccepted,
   TranslationRunCreate,
+  TranslationRunItemList,
+  TranslationRunItemView,
+  TranslationRunView,
 } from '@next-wiki/shared';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import { apiPost, type ApiError } from '@/lib/api/client';
+import { apiGet, apiPost, type ApiError } from '@/lib/api/client';
+import { getTranslatedPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
+import {
+  getTranslationApiErrorMessage,
+  getTranslationErrorMessage,
+} from '@/i18n/error-messages';
+import type { TranslationKey } from '@/i18n/types';
 
 type Model = { id: string; displayName: string };
 
+const POLL_INTERVAL_MS = 2_000;
+/** Stop following a run after this long. Long tasks belong to the admin view,
+ * and an open dialog must not poll a browser tab forever. */
+const MAX_TRACKING_MS = 5 * 60_000;
+
+const TERMINAL_RUN_STATUSES: ReadonlyArray<TranslationRunView['status']> = [
+  'completed',
+  'completed_with_warnings',
+  'failed',
+  'cancelled',
+];
+
+export type TranslateRunOutcome = {
+  tone: 'success' | 'warning' | 'danger';
+  messageKey: TranslationKey;
+  /** The published translation, when there is one to open. */
+  href: string | null;
+  /** Machine code behind the outcome, shown verbatim for diagnosis. */
+  code: string | null;
+  /** English server text, used only when no code maps to a catalog message. */
+  message: string | null;
+};
+
 /**
- * Reader-side dialog that queues a background translation run for a single page.
- * Config (languages, models, styles) is fetched on open from the admin-scoped
- * endpoints; the trigger that renders this is already gated to admins.
+ * Turn a finished run plus its single page item into what the reader is told.
+ * A one-page run records the real reason on the item (the run itself only fails
+ * on infrastructure errors), so the item is the primary source and the run is
+ * the fallback.
+ */
+export function deriveTranslateOutcome(
+  run: TranslationRunView,
+  item: TranslationRunItemView | null,
+): TranslateRunOutcome {
+  const failure = {
+    tone: 'danger' as const,
+    messageKey: 'page.translate.result.failed' as TranslationKey,
+    href: null,
+    code: item?.errorCode ?? run.errorCode,
+    message: item?.errorMessage ?? run.errorMessage,
+  };
+  switch (item?.status) {
+    case 'completed':
+      return {
+        tone: 'success',
+        messageKey: 'page.translate.result.completed',
+        href: item.targetPath ? getTranslatedPageHref(run.targetLocale, item.targetPath) : null,
+        code: null,
+        message: null,
+      };
+    case 'skipped':
+      return {
+        tone: 'warning',
+        messageKey: 'page.translate.result.skipped',
+        href: null,
+        code: item.warningCode,
+        message: null,
+      };
+    case 'superseded':
+      return {
+        tone: 'warning',
+        messageKey: 'page.translate.result.superseded',
+        href: null,
+        code: null,
+        message: null,
+      };
+    case 'cancelled':
+      return {
+        tone: 'warning',
+        messageKey: 'page.translate.result.cancelled',
+        href: null,
+        code: null,
+        message: null,
+      };
+    case 'failed':
+      return failure;
+    default:
+      break;
+  }
+  // No item outcome to read (its list could not be fetched, or the run died
+  // before claiming the page): fall back to the run's own status.
+  if (run.status === 'completed' || run.status === 'completed_with_warnings') {
+    return {
+      tone: 'success',
+      messageKey: 'page.translate.result.completed',
+      href: null,
+      code: null,
+      message: null,
+    };
+  }
+  if (run.status === 'cancelled') {
+    return {
+      tone: 'warning',
+      messageKey: 'page.translate.result.cancelled',
+      href: null,
+      code: null,
+      message: null,
+    };
+  }
+  return failure;
+}
+
+/**
+ * The task's own admin page. It opens in a new tab so a reader following the
+ * progress hint does not lose the page they were reading.
+ */
+function RunDetailLink({ runId, label }: { runId: string; label: string }) {
+  return (
+    <Link
+      className="text-sm text-primary hover:underline"
+      href={`/admin/translations/${runId}`}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {label}
+    </Link>
+  );
+}
+
+const TONE_CLASS: Record<TranslateRunOutcome['tone'], string> = {
+  success: 'border-success/40 bg-success/10 text-foreground',
+  warning: 'border-warning/40 bg-warning-subtle text-foreground',
+  danger: 'border-danger/40 bg-danger-subtle text-foreground',
+};
+
+/**
+ * Reader-side dialog that queues a background translation run for a single page
+ * and then follows it to its real outcome — a run can fail seconds after it is
+ * accepted, so reporting "queued" and closing would leave the reader believing a
+ * translation exists. Config (languages, models, styles) is fetched on open from
+ * the admin-scoped endpoints; the trigger that renders this is already gated to
+ * admins, which is also what allows it to read the run's progress.
  */
 export function TranslatePageDialog({
   pageId,
@@ -40,7 +177,12 @@ export function TranslatePageDialog({
   const [modelId, setModelId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<'success' | 'error' | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [run, setRun] = useState<TranslationRunView | null>(null);
+  const [item, setItem] = useState<TranslationRunItemView | null>(null);
+  const [abandoned, setAbandoned] = useState(false);
+  const [trackError, setTrackError] = useState<ApiError | null>(null);
+  const [configFailed, setConfigFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,7 +206,8 @@ export function TranslatePageDialog({
         setTargetLocale(initialTargetLocale ?? enabled[0]?.code ?? '');
       })
       .catch(() => {
-        if (!cancelled) setErrorMessage(t('page.translate.error'));
+        // Localized at render time, so a change of `t` cannot re-run the load.
+        if (!cancelled) setConfigFailed(true);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -72,12 +215,53 @@ export function TranslatePageDialog({
     return () => {
       cancelled = true;
     };
-  }, [t, initialTargetLocale]);
+  }, [initialTargetLocale]);
+
+  // Follow the accepted run until it finishes, then read its page outcome once.
+  useEffect(() => {
+    if (!runId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = Date.now() + MAX_TRACKING_MS;
+
+    async function poll() {
+      try {
+        const current = await apiGet<TranslationRunView>(`/api/translations/runs/${runId}`);
+        if (cancelled) return;
+        setRun(current);
+        if (TERMINAL_RUN_STATUSES.includes(current.status)) {
+          const list = await apiGet<TranslationRunItemList>(
+            `/api/translations/runs/${runId}/items`,
+          );
+          if (!cancelled) setItem(list.items[0] ?? null);
+          return;
+        }
+        // A paused run needs an administrator's decision; stop following it.
+        if (current.status === 'paused' || Date.now() >= deadline) {
+          setAbandoned(true);
+          return;
+        }
+        timer = setTimeout(() => void poll(), POLL_INTERVAL_MS);
+      } catch (error) {
+        if (!cancelled) {
+          // Localized at render time so this effect never depends on `t`, whose
+          // identity changing would restart polling.
+          setTrackError(error as ApiError);
+          setAbandoned(true);
+        }
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [runId]);
 
   async function submit() {
     if (!targetLocale) return;
     setSubmitting(true);
-    setResult(null);
     setErrorMessage(null);
     try {
       const body: TranslationRunCreate = {
@@ -87,15 +271,42 @@ export function TranslatePageDialog({
         scope: { kind: 'page_ids', pageIds: [pageId] },
         mode: 'all',
       };
-      await apiPost<TranslationRunCreate, TranslationRunAccepted>('/api/translations/runs', body);
-      setResult('success');
+      const accepted = await apiPost<TranslationRunCreate, TranslationRunAccepted>(
+        '/api/translations/runs',
+        body,
+      );
+      setRunId(accepted.id);
     } catch (error) {
-      setResult('error');
-      setErrorMessage((error as ApiError).message || t('page.translate.error'));
+      setErrorMessage(
+        getTranslationApiErrorMessage(t, error as ApiError, 'page.translate.error'),
+      );
     } finally {
       setSubmitting(false);
     }
   }
+
+  const finished = run !== null && TERMINAL_RUN_STATUSES.includes(run.status);
+  const outcome = finished ? deriveTranslateOutcome(run, item) : null;
+  // A run this dialog stopped following is not necessarily still working: a
+  // paused run needs an administrator's decision, and saying "still running"
+  // would read as progress.
+  const pendingMessage = trackError
+    ? getTranslationApiErrorMessage(t, trackError, 'page.translate.trackError')
+    : run?.status === 'paused'
+      ? t('page.translate.state.paused')
+      : abandoned
+        ? t('page.translate.state.stillRunning')
+        : run?.status === 'running'
+          ? t('page.translate.state.running')
+          : t('page.translate.state.queued');
+  const reason = outcome
+    ? [
+        getTranslationErrorMessage(t, outcome.code, outcome.message),
+        outcome.code ? `(${outcome.code})` : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
 
   return (
     <ModalDialog
@@ -106,13 +317,39 @@ export function TranslatePageDialog({
     >
       {loading ? (
         <p className="text-sm text-muted">{t('common.status.loading')}</p>
-      ) : result === 'success' ? (
+      ) : runId ? (
         <div className="space-y-md">
-          <p className="rounded-md border border-primary/20 bg-primary/10 p-sm text-sm text-foreground" role="status">
-            {t('page.translate.success')}
-          </p>
-          <div className="flex justify-end">
-            <Button type="button" onClick={onClose}>{t('page.translate.close')}</Button>
+          {outcome ? (
+            <div
+              className={`space-y-xs rounded-md border p-sm text-sm ${TONE_CLASS[outcome.tone]}`}
+              role={outcome.tone === 'danger' ? 'alert' : 'status'}
+            >
+              <p>{t(outcome.messageKey)}</p>
+              {reason && <p className="text-xs text-muted">{reason}</p>}
+              {outcome.href && (
+                <Link className="text-primary hover:underline" href={outcome.href}>
+                  {t('page.translate.action.view')}
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div
+              className="space-y-xs rounded-md border border-primary/20 bg-primary/10 p-sm text-sm text-foreground"
+              role="status"
+            >
+              <p>{pendingMessage}</p>
+              <RunDetailLink runId={runId} label={t('page.translate.action.detail')} />
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-sm">
+            {outcome ? (
+              <RunDetailLink runId={runId} label={t('page.translate.action.detail')} />
+            ) : (
+              <span />
+            )}
+            <Button type="button" onClick={onClose}>
+              {t('page.translate.close')}
+            </Button>
           </div>
         </div>
       ) : (
@@ -163,8 +400,10 @@ export function TranslatePageDialog({
                 ))}
             </Select>
           </label>
-          {result === 'error' && errorMessage && (
-            <p className="text-sm text-danger" role="alert">{errorMessage}</p>
+          {(errorMessage || configFailed) && (
+            <p className="text-sm text-danger" role="alert">
+              {errorMessage ?? t('page.translate.error')}
+            </p>
           )}
           <div className="flex justify-end gap-sm">
             <Button type="button" variant="ghost" onClick={onClose}>{t('page.translate.close')}</Button>
