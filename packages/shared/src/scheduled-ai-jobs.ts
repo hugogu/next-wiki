@@ -78,6 +78,7 @@ export type ScheduledAiJobDefinitionSnapshot = z.infer<typeof scheduledAiJobDefi
 export const scheduledAiJobViewSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
+  taskDescription: z.string(),
   status: scheduledAiJobStatusSchema,
   scheduleCron: z.string(),
   timeZone: z.string(),

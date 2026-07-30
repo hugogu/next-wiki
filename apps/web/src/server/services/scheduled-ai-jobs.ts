@@ -83,7 +83,7 @@ async function validateOwnerAndScope(runAsUserId: string, targetScope: unknown) 
 
 function definitionView(row: typeof schema.scheduledAiJobs.$inferSelect) {
   return {
-    id: row.id, name: row.name, status: row.status, scheduleCron: row.scheduleCron, timeZone: row.timeZone,
+    id: row.id, name: row.name, taskDescription: row.taskDescription, status: row.status, scheduleCron: row.scheduleCron, timeZone: row.timeZone,
     targetScope: scheduledAiJobScopeSchema.parse(row.targetScope), runAsUserId: row.runAsUserId,
     definitionVersion: row.definitionVersion, nextRunAt: row.nextRunAt?.toISOString() ?? null,
     lastRunAt: row.lastRunAt?.toISOString() ?? null, lastSuccessAt: row.lastSuccessAt?.toISOString() ?? null,
