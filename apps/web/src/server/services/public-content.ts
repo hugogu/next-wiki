@@ -1021,6 +1021,83 @@ async function searchPagesWithLegacyFilters(
 }
 
 /**
+ * Every space this actor may currently list, in catalog order: the writing mode
+ * decides which kinds exist at all, and the space's own visibility decides who
+ * may read it. Anonymous readers of a default deployment get just the wiki
+ * space; an administrator in LLM Wiki mode also gets Generated and Raw.
+ */
+async function readableSpaces(ctx: PermCtx): Promise<SpaceRow[]> {
+  const readable: SpaceRow[] = [];
+  for (const space of await listSpaces()) {
+    try {
+      await assertSpaceKindAllowed(space.kind);
+    } catch {
+      continue;
+    }
+    if (can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) readable.push(space);
+  }
+  return readable;
+}
+
+/**
+ * Reader-facing "pages carrying this tag". A tag row belongs to one space, but
+ * the same name can exist in several, and a reader may be allowed to see more
+ * than the wiki space — so this matches by normalized name across every space
+ * the actor can read, in one query, and resolves each row against its OWN
+ * space's visibility rules. Without that, a tag added to a Generated page led
+ * to an empty tag page with no explanation.
+ */
+export async function listPagesByTag(
+  ctx: PermCtx,
+  input: { tag: string; limit: number },
+): Promise<PublicPageResource[]> {
+  const normalized = normalizeTagName(input.tag);
+  if (!normalized) return [];
+  const spaces = await readableSpaces(ctx);
+  if (spaces.length === 0) return [];
+
+  const rows = await db
+    .select({ page: schema.pages })
+    .from(schema.pages)
+    .where(
+      and(
+        inArray(
+          schema.pages.spaceId,
+          spaces.map((space) => space.id),
+        ),
+        isNull(schema.pages.deletedAt),
+        isNotNull(schema.pages.currentPublishedVersionId),
+        exists(
+          db
+            .select({ revisionId: schema.pageRevisionTags.revisionId })
+            .from(schema.pageRevisionTags)
+            .where(
+              and(
+                eq(schema.pageRevisionTags.normalizedName, normalized),
+                eq(schema.pageRevisionTags.revisionId, schema.pages.currentPublishedVersionId),
+              ),
+            ),
+        ),
+      ),
+    )
+    .orderBy(schema.pages.path)
+    .limit(input.limit);
+
+  const spaceById = new Map(spaces.map((space) => [space.id, space]));
+  const resolved = await Promise.all(
+    rows.map(({ page }) =>
+      visiblePageResource(ctx, spaceById.get(page.spaceId)!, page, {
+        includeContent: false,
+        include: [],
+      }),
+    ),
+  );
+  return resolved.filter(
+    (item): item is PublicPageResource => item !== null && item.status === 'published',
+  );
+}
+
+/**
  * Resolves the space scope for one hybrid search request: an explicit
  * `space` stays a single, hard-scoped space (unavailable/forbidden still
  * fail the request, as before). Without one — the header search box never
@@ -1046,18 +1123,7 @@ async function resolveSearchScope(
     return { spaceIds: [space.id], spaceSlugs: [space.slug], primarySpaceId: space.id };
   }
 
-  const allSpaces = await listSpaces();
-  if (allSpaces.length === 0) throw new DomainError('NOT_FOUND', 'Default space not found');
-
-  const readable: typeof allSpaces = [];
-  for (const space of allSpaces) {
-    try {
-      await assertSpaceKindAllowed(space.kind);
-    } catch {
-      continue;
-    }
-    if (can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) readable.push(space);
-  }
+  const readable = await readableSpaces(ctx);
   if (readable.length === 0) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to search this space');
   }

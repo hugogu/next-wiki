@@ -3,9 +3,11 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/i18n/client', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+// One stable object, because TagManager's load effects list `t` in their
+// dependency array: a fresh `t` per render would re-run them forever. The real
+// `t` is memoized (see i18n/client.tsx), so this matches production.
+const i18n = vi.hoisted(() => ({ t: (key: string) => key }));
+vi.mock('@/i18n/client', () => ({ useTranslation: () => i18n }));
 
 import { TagManager } from './TagManager';
 
@@ -26,16 +28,13 @@ function stubFetch(): string[] {
   vi.stubGlobal(
     'fetch',
     vi.fn((input: RequestInfo | URL) => {
-      calls.push(String(input));
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            items: [
-              { id: 'tag-1', name: 'conversation', normalizedName: 'conversation', createdAt: '', updatedAt: '' },
-            ],
-          }),
-      } as Response);
+      const url = String(input);
+      calls.push(url);
+      // The related-pages lookup has its own shape; only the tag list returns tags.
+      const items = url.includes('/api/v1/tags')
+        ? [{ id: 'tag-1', name: 'conversation', normalizedName: 'conversation', createdAt: '', updatedAt: '' }]
+        : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ items }) } as Response);
     }),
   );
   return calls;
