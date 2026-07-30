@@ -1609,6 +1609,14 @@ export const translationRunItems = pgTable(
   },
   (t) => ({
     sourceUnique: uniqueIndex('translation_run_items_source_unique').on(t.runId, t.sourcePageId),
+    // At most one unfinished item may target the same (page, language) across
+    // every run, so two runs can never race to publish the same translated
+    // page. This is the precise guard a page-scoped run relies on instead of
+    // the language-wide slot, which is what lets an administrator translate one
+    // page while unrelated work for the same language is still in flight.
+    activePageUnique: uniqueIndex('translation_run_items_active_page_unique')
+      .on(t.targetLocale, t.sourcePageId)
+      .where(sql`${t.status} in ('pending', 'running')`),
     pendingIdx: index('translation_run_items_pending_idx').on(t.runId, t.status, t.availableAt),
     sourcePageIdx: index('translation_run_items_source_page_idx').on(t.sourcePageId),
   }),

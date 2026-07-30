@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, isNotNull, max, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, max, or, sql } from 'drizzle-orm';
 import type {
   TranslationLanguageCreate,
   TranslationLanguageUpdate,
@@ -130,11 +130,14 @@ export async function retireLanguage(ctx: PermCtx, code: string): Promise<void> 
     where: eq(schema.translationLanguages.code, code),
   });
   if (!existing) throw new DomainError('TRANSLATION_NOT_FOUND', 'Language not found');
-  // A language cannot be retired while it has active work (a run holding the
-  // language's active slot); frozen historical runs and translated pages remain
-  // auditable.
+  // A language cannot be retired while it has active work; frozen historical
+  // runs and translated pages remain auditable. Page-scoped runs do not claim
+  // the language's active slot, so this looks at run lifecycle instead.
   const active = await db.query.translationRuns.findFirst({
-    where: eq(schema.translationRuns.activeLanguageSlot, code),
+    where: and(
+      eq(schema.translationRuns.targetLocale, code),
+      inArray(schema.translationRuns.status, ['queued', 'running', 'paused']),
+    ),
   });
   if (active) {
     throw new DomainError('TRANSLATION_ALREADY_RUNNING', 'Finish active work before retiring');
