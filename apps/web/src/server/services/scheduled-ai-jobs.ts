@@ -188,7 +188,39 @@ export async function getScheduledAiJobRun(ctx: PermCtx, jobId: string, runId: s
   assertManager(ctx);
   const run = await db.query.scheduledAiJobRuns.findFirst({ where: and(eq(schema.scheduledAiJobRuns.id, runId), eq(schema.scheduledAiJobRuns.jobId, jobId)) });
   if (!run) throw new DomainError('NOT_FOUND', 'Scheduled AI job run not found');
-  return runView(run);
+  const proposals = await db.select({ id: schema.aiToolChangeProposals.id, title: schema.aiToolChangeProposals.title, status: schema.aiToolChangeProposals.status })
+    .from(schema.aiToolChangeProposals).where(eq(schema.aiToolChangeProposals.scheduledAiJobRunId, run.id));
+  return { ...runView(run), actionId: run.aiActionId, proposalLinks: proposals.map((proposal) => ({
+    ...proposal, href: `/admin/ai/tools/proposals/${proposal.id}`,
+  })) };
+}
+
+export async function listAllScheduledAiJobRuns(ctx: PermCtx, input: Partial<ScheduledAiJobRunListFilter> & { jobId?: string } = {}) {
+  assertManager(ctx);
+  const rows = await db.select().from(schema.scheduledAiJobRuns).where(and(
+    input.jobId ? eq(schema.scheduledAiJobRuns.jobId, input.jobId) : undefined,
+    input.status ? eq(schema.scheduledAiJobRuns.status, input.status) : undefined,
+    input.trigger ? eq(schema.scheduledAiJobRuns.trigger, input.trigger) : undefined,
+  )).orderBy(desc(schema.scheduledAiJobRuns.queuedAt)).limit(input.limit ?? 25).offset(input.offset ?? 0);
+  return rows.map(runView);
+}
+
+export async function duplicateScheduledAiJob(ctx: PermCtx, id: string) {
+  assertManager(ctx);
+  const source = await db.query.scheduledAiJobs.findFirst({ where: eq(schema.scheduledAiJobs.id, id) });
+  if (!source) throw new DomainError('NOT_FOUND', 'Scheduled AI job not found');
+  let suffix = 1;
+  let name = `${source.name} copy`;
+  while (await db.query.scheduledAiJobs.findFirst({ where: eq(schema.scheduledAiJobs.normalizedName, normalizeName(name)) })) {
+    suffix += 1; name = `${source.name} copy ${suffix}`;
+  }
+  const [copy] = await db.insert(schema.scheduledAiJobs).values({
+    name, normalizedName: normalizeName(name), taskDescription: source.taskDescription,
+    scheduleCron: source.scheduleCron, timeZone: source.timeZone, targetScope: source.targetScope,
+    runAsUserId: source.runAsUserId, status: 'paused', definitionVersion: 1,
+    createdByUserId: getActorUserId(ctx), updatedByUserId: getActorUserId(ctx),
+  }).returning();
+  return definitionView(copy!);
 }
 
 export async function cancelScheduledAiJobRun(ctx: PermCtx, jobId: string, runId: string) {

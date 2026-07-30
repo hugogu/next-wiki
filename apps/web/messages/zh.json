@@ -1654,6 +1654,9 @@
         "cancelled": "已取消",
         "expired": "已过期"
       },
+      "jobs": {
+        "nav": "定时 AI 任务"
+      },
       "providerDetail": {
         "update": "更新能力配置",
         "newApiKey": "新 API 密钥（留空则保持原密钥）",

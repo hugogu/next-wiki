@@ -330,6 +330,11 @@ export function Navigator({
           icon: <SlidersIcon className="shrink-0" />,
         },
         {
+          href: '/admin/ai/jobs',
+          label: t('admin.ai.jobs.nav'),
+          icon: <ClipboardListIcon className="shrink-0" />,
+        },
+        {
           href: '/admin/ai/skills',
           label: t('admin.ai.skills.title'),
           icon: <PenSparkIcon className="shrink-0" />,

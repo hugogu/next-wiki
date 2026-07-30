@@ -1189,6 +1189,7 @@ export const translationKeys = [
   "admin.ai.actionStatus.failed",
   "admin.ai.actionStatus.cancelled",
   "admin.ai.actionStatus.expired",
+  "admin.ai.jobs.nav",
   "admin.ai.providerDetail.update",
   "admin.ai.providerDetail.newApiKey",
   "admin.ai.providerDetail.save",

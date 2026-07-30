@@ -1654,6 +1654,9 @@
         "cancelled": "Cancelled",
         "expired": "Expired"
       },
+      "jobs": {
+        "nav": "Scheduled AI jobs"
+      },
       "providerDetail": {
         "update": "Update provider",
         "newApiKey": "New API key (leave blank to preserve)",
