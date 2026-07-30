@@ -27,6 +27,14 @@ function normalizeName(name: string) {
   return name.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
+function uniqueViolationConstraint(error: unknown): string | null {
+  for (const candidate of [error, (error as { cause?: unknown })?.cause]) {
+    const pgError = candidate as { code?: string; constraint_name?: string; constraint?: string } | undefined;
+    if (pgError?.code === '23505') return pgError.constraint_name ?? pgError.constraint ?? '';
+  }
+  return null;
+}
+
 export function validateScheduledAiJobSchedule(scheduleCron: string, timeZone: string): void {
   if (scheduleCron.trim().split(/\s+/).length !== 5) {
     throw new DomainError('BAD_REQUEST', 'SCHEDULE_INVALID: schedules require exactly five cron fields');
@@ -116,7 +124,10 @@ export async function createScheduledAiJob(ctx: PermCtx, input: unknown) {
     return definitionView(row);
   } catch (error) {
     if (error instanceof DomainError) throw error;
-    throw new DomainError('CONFLICT', 'SCHEDULED_JOB_NAME_CONFLICT: job name already exists');
+    if (uniqueViolationConstraint(error) === 'scheduled_ai_jobs_normalized_name_unique') {
+      throw new DomainError('CONFLICT', 'SCHEDULED_JOB_NAME_CONFLICT: job name already exists');
+    }
+    throw error;
   }
 }
 
@@ -144,7 +155,13 @@ export async function updateScheduledAiJob(ctx: PermCtx, id: string, input: unkn
   validateScheduledAiJobSchedule(candidate.scheduleCron, candidate.timeZone);
   const scope = await validateOwnerAndScope(candidate.runAsUserId, candidate.targetScope);
   const executionChanged = ['taskDescription', 'scheduleCron', 'timeZone', 'runAsUserId', 'targetScope', 'status'].some((key) => key in update);
-  const nextRunAt = candidate.status === 'enabled' ? nextScheduledAiJobOccurrence(candidate.scheduleCron, candidate.timeZone) : null;
+  const reschedule = candidate.status === 'enabled'
+    && (current.status !== 'enabled' || 'scheduleCron' in update || 'timeZone' in update);
+  const nextRunAt = candidate.status !== 'enabled'
+    ? null
+    : reschedule
+      ? nextScheduledAiJobOccurrence(candidate.scheduleCron, candidate.timeZone)
+      : current.nextRunAt;
   const [row] = await db.update(schema.scheduledAiJobs).set({
     ...candidate, targetScope: scope, normalizedName: normalizeName(candidate.name), nextRunAt,
     definitionVersion: executionChanged ? current.definitionVersion + 1 : current.definitionVersion,
@@ -175,7 +192,14 @@ export async function runScheduledAiJobNow(ctx: PermCtx, id: string) {
   assertManager(ctx);
   const job = await db.query.scheduledAiJobs.findFirst({ where: eq(schema.scheduledAiJobs.id, id) });
   if (!job || job.status === 'retired') throw new DomainError('NOT_FOUND', 'Scheduled AI job not found');
-  try { return await createRun(job, 'manual', null); } catch { throw new DomainError('CONFLICT', 'SCHEDULED_JOB_ACTIVE_RUN: an active run already exists'); }
+  try {
+    return await createRun(job, 'manual', null);
+  } catch (error) {
+    if (uniqueViolationConstraint(error) === 'scheduled_ai_job_runs_active_job_unique') {
+      throw new DomainError('CONFLICT', 'SCHEDULED_JOB_ACTIVE_RUN: an active run already exists');
+    }
+    throw error;
+  }
 }
 
 export async function listScheduledAiJobRuns(ctx: PermCtx, jobId: string, input: Partial<ScheduledAiJobRunListFilter> = {}) {
@@ -230,13 +254,43 @@ export async function cancelScheduledAiJobRun(ctx: PermCtx, jobId: string, runId
   return runView(run);
 }
 
+async function recordSkippedOccurrence(job: typeof schema.scheduledAiJobs.$inferSelect, occurrence: Date, now: Date) {
+  try {
+    await db.insert(schema.scheduledAiJobRuns).values({
+      jobId: job.id,
+      trigger: 'schedule',
+      scheduledFor: occurrence,
+      definitionVersion: job.definitionVersion,
+      definitionSnapshot: buildScheduledAiJobSnapshot(job),
+      runAsUserId: job.runAsUserId,
+      status: 'skipped',
+      errorCode: 'SCHEDULED_JOB_ACTIVE_RUN',
+      errorMessage: 'Skipped because another run is still active',
+      finishedAt: now,
+    }).returning();
+  } catch (error) {
+    if (uniqueViolationConstraint(error) !== 'scheduled_ai_job_runs_occurrence_unique') throw error;
+  }
+}
+
 /** Claims all currently due definitions. The active-slot index is the concurrency authority. */
 export async function tickScheduledAiJobs(now = new Date()) {
   const due = await db.select().from(schema.scheduledAiJobs).where(and(eq(schema.scheduledAiJobs.status, 'enabled'), lte(schema.scheduledAiJobs.nextRunAt, now))).limit(100);
   for (const job of due) {
     const occurrence = job.nextRunAt!;
     const nextRunAt = nextScheduledAiJobOccurrence(job.scheduleCron, job.timeZone, now);
-    await db.update(schema.scheduledAiJobs).set({ nextRunAt, updatedAt: now }).where(and(eq(schema.scheduledAiJobs.id, job.id), eq(schema.scheduledAiJobs.nextRunAt, occurrence)));
-    try { await createRun(job, 'schedule', occurrence); } catch { /* occurrence/active uniqueness makes repeated ticks safe */ }
+    const [claimed] = await db.update(schema.scheduledAiJobs).set({ nextRunAt, updatedAt: now })
+      .where(and(eq(schema.scheduledAiJobs.id, job.id), eq(schema.scheduledAiJobs.nextRunAt, occurrence))).returning();
+    if (!claimed) continue;
+    try {
+      await createRun(claimed, 'schedule', occurrence);
+    } catch (error) {
+      const constraint = uniqueViolationConstraint(error);
+      if (constraint === 'scheduled_ai_job_runs_active_job_unique') {
+        await recordSkippedOccurrence(claimed, occurrence, now);
+      } else if (constraint !== 'scheduled_ai_job_runs_occurrence_unique') {
+        throw error;
+      }
+    }
   }
 }

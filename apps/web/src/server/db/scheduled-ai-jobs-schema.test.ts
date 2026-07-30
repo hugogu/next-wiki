@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { describe, expect, it } from 'vitest';
 import { db } from '@/server/db';
 
 describe('scheduled AI job schema (030)', () => {

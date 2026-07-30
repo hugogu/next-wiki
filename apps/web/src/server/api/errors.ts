@@ -9,7 +9,7 @@ export type ApiErrorBody = {
 };
 
 export function apiError(code: ApiErrorCode, message: string, status: number) {
-  return NextResponse.json({ code, message }, { status });
+  return NextResponse.json({ code, message }, { status, headers: { 'cache-control': 'no-store' } });
 }
 
 export function mapDomainError(error: DomainError): NextResponse {
@@ -167,5 +167,5 @@ export function mapDomainError(error: DomainError): NextResponse {
 }
 
 export function internalError(message = 'Internal server error') {
-  return NextResponse.json({ code: 'INTERNAL_ERROR', message }, { status: 500 });
+  return NextResponse.json({ code: 'INTERNAL_ERROR', message }, { status: 500, headers: { 'cache-control': 'no-store' } });
 }
