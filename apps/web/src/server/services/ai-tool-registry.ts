@@ -92,7 +92,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: READ_RETENTION,
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Read a page including its Markdown source and revision metadata. Long pages come back one window at a time: when the result says hasMore, call again with contentOffset set to nextContentOffset and concatenate the windows. Never rewrite a page you have not read to the end — save_draft replaces the whole body, so anything you did not read is deleted.',
+    description: 'Read a page including its Markdown source and revision metadata. A path defaults to the wiki space; provide its spaceSlug or scope="all" when its space is unknown. Long pages come back one window at a time: when the result says hasMore, call again with contentOffset set to nextContentOffset and concatenate the windows. Never rewrite a page you have not read to the end — save_draft replaces the whole body, so anything you did not read is deleted.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -105,6 +105,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
           type: 'string',
           enum: ['wiki', 'raw', 'generated'],
           description: 'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
+        },
+        scope: {
+          type: 'string',
+          enum: ['all'],
+          description: 'Use "all" only when the exact space is unknown; searches every space you can read. Omit when pageId or space is known.',
         },
         contentOffset: {
           type: 'integer',
@@ -146,6 +151,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         pageId: { type: 'string' },
         path: { type: 'string', description: 'Supply this or pageId.' },
         space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
+        scope: { type: 'string', enum: ['all'], description: 'Search every readable space when the path\'s space is unknown.' },
       },
     },
   },
@@ -163,6 +169,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         pageId: { type: 'string' },
         path: { type: 'string', description: 'Supply this or pageId.' },
         space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
+        scope: { type: 'string', enum: ['all'], description: 'Search every readable space when the path\'s space is unknown.' },
       },
     },
   },

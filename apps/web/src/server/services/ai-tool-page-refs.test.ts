@@ -54,10 +54,10 @@ describe('get_page across spaces', () => {
     expect(content.getPageByPath).toHaveBeenCalledWith(ctx, 'games/reversi', expect.anything(), 'generated');
   });
 
-  it('finds a generated current-page path when the model omitted its space', async () => {
+  it('finds a generated page when the model explicitly expands its scope', async () => {
     content.getPageByPath.mockResolvedValueOnce(null).mockResolvedValueOnce(page);
 
-    const result = await getPage({ path: 'zhuge-liang' });
+    const result = await getPage({ path: 'zhuge-liang', scope: 'all' });
 
     expect(result.ok).toBe(true);
     expect(content.getPageByPath).toHaveBeenNthCalledWith(
@@ -74,6 +74,17 @@ describe('get_page across spaces', () => {
       expect.anything(),
       'generated',
     );
+  });
+
+  it('reports the default search scope and how to expand it', async () => {
+    content.getPageByPath.mockResolvedValue(null);
+
+    const result = await getPage({ path: 'zhuge-liang' });
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'NOT_FOUND' });
+    expect(result.summary).toContain('default wiki scope');
+    expect(result.summary).toContain('scope: "all"');
+    expect(content.getPageByPath).toHaveBeenCalledTimes(1);
   });
 
   it('does not override an explicitly selected wiki space', async () => {

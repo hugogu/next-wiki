@@ -66,6 +66,7 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'If the target page for saving content does not exist after using search_wiki, list_pages, or get_page, create it with create_page. Do not repeatedly search for a page that does not exist.',
   'save_draft only works on existing pages; never call save_draft for a page that has not been created or successfully retrieved.',
   'Never guess a page path for get_page. Use baseline sources, search_wiki, or list_pages first, then pass an exact returned path or pageId.',
+  'When an exact path may be outside the wiki space and no pageId or spaceSlug is available, call get_page with scope: "all". The result will state the scope searched if it cannot find a readable page.',
 ].join('\n');
 
 /** One line of the skill catalogue shown to the model. */
