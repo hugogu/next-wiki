@@ -408,7 +408,23 @@
     "translate": {
       "title": "Translate this page",
       "description": "Pick a target language, model, and style to queue a background translation task for this page.",
-      "success": "Translation task created and running in the background. Check progress later in Translations admin.",
+      "state": {
+        "queued": "Translation queued. Waiting for a worker…",
+        "running": "Translating this page…",
+        "stillRunning": "Still running in the background. Follow it in Translations admin."
+      },
+      "result": {
+        "completed": "The translation was published.",
+        "failed": "The translation failed.",
+        "skipped": "This page was skipped, so no translation was published.",
+        "superseded": "The source page changed while translating, so no translation was published.",
+        "cancelled": "The translation task was cancelled."
+      },
+      "action": {
+        "view": "Open the translation",
+        "detail": "Open task details"
+      },
+      "trackError": "Could not read the task status. Check Translations admin.",
       "error": "Failed to create the translation task.",
       "close": "Close"
     },
@@ -2306,14 +2322,24 @@
     "error": {
       "INVALID_TRANSLATION_INPUT": "The translation request is invalid.",
       "TRANSLATION_NOT_FOUND": "The translation could not be found.",
-      "TRANSLATION_ALREADY_RUNNING": "This language already has an active run.",
+      "TRANSLATION_ALREADY_RUNNING": "Translation work for this page or language is already in progress.",
       "RUN_NOT_ACTIVE": "The run is not active.",
       "RUN_NOT_PAUSED": "The run is not paused.",
       "MODEL_UNAVAILABLE": "The selected model is unavailable.",
+      "MODEL_NOT_FOUND": "The provider does not know the selected model.",
       "CAPABILITY_MISMATCH": "The selected model cannot generate text.",
+      "CAPABILITY_UNSUPPORTED": "The selected model does not support this request.",
       "SOURCE_NOT_TRANSLATABLE": "The selected page has no eligible published source.",
+      "SOURCE_UNAVAILABLE": "The source page is no longer published.",
       "AI_DISABLED": "AI features are disabled.",
-      "JOB_QUEUE_UNAVAILABLE": "Background work is unavailable right now."
+      "JOB_QUEUE_UNAVAILABLE": "Background work is unavailable right now.",
+      "TIMEOUT": "The AI provider did not respond in time.",
+      "RATE_LIMITED": "The AI provider rate-limited the request.",
+      "INPUT_TOO_LARGE": "The page is too large for the selected model.",
+      "CONTENT_REJECTED": "The AI provider rejected this content.",
+      "PROVIDER_UNAVAILABLE": "The AI provider is unavailable.",
+      "INVALID_RESPONSE": "The model returned unusable output.",
+      "CANCELLED": "The request was cancelled."
     }
   },
   "pagination": {

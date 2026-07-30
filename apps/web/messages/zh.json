@@ -408,7 +408,23 @@
     "translate": {
       "title": "翻译此页",
       "description": "选择目标语言、模型与风格，为当前页面创建一个后台翻译任务。",
-      "success": "翻译任务已创建，正在后台运行。可稍后在翻译管理中查看进度。",
+      "state": {
+        "queued": "翻译任务已排队，等待后台执行…",
+        "running": "正在翻译此页…",
+        "stillRunning": "任务仍在后台运行，可在翻译管理中继续跟踪。"
+      },
+      "result": {
+        "completed": "译文已发布。",
+        "failed": "翻译失败。",
+        "skipped": "该页被跳过，未发布译文。",
+        "superseded": "翻译期间原文已更新，未发布译文。",
+        "cancelled": "翻译任务已取消。"
+      },
+      "action": {
+        "view": "打开译文",
+        "detail": "查看任务详情"
+      },
+      "trackError": "无法读取任务状态，请到翻译管理中查看。",
       "error": "创建翻译任务失败。",
       "close": "关闭"
     },
@@ -2306,14 +2322,24 @@
     "error": {
       "INVALID_TRANSLATION_INPUT": "翻译请求无效。",
       "TRANSLATION_NOT_FOUND": "找不到该翻译。",
-      "TRANSLATION_ALREADY_RUNNING": "该语言已有正在进行的任务。",
+      "TRANSLATION_ALREADY_RUNNING": "该页面或该语言已有正在进行的翻译任务。",
       "RUN_NOT_ACTIVE": "任务未处于活动状态。",
       "RUN_NOT_PAUSED": "任务未暂停。",
       "MODEL_UNAVAILABLE": "所选模型不可用。",
+      "MODEL_NOT_FOUND": "服务商不识别所选模型。",
       "CAPABILITY_MISMATCH": "所选模型无法生成文本。",
+      "CAPABILITY_UNSUPPORTED": "所选模型不支持该请求。",
       "SOURCE_NOT_TRANSLATABLE": "所选页面没有可翻译的已发布源。",
+      "SOURCE_UNAVAILABLE": "原文页面已不是发布状态。",
       "AI_DISABLED": "AI 功能已禁用。",
-      "JOB_QUEUE_UNAVAILABLE": "后台任务当前不可用。"
+      "JOB_QUEUE_UNAVAILABLE": "后台任务当前不可用。",
+      "TIMEOUT": "AI 服务商响应超时。",
+      "RATE_LIMITED": "AI 服务商限流了该请求。",
+      "INPUT_TOO_LARGE": "页面内容超出所选模型的处理上限。",
+      "CONTENT_REJECTED": "AI 服务商拒绝了该内容。",
+      "PROVIDER_UNAVAILABLE": "AI 服务商不可用。",
+      "INVALID_RESPONSE": "模型返回的内容不可用。",
+      "CANCELLED": "请求已被取消。"
     }
   },
   "pagination": {
