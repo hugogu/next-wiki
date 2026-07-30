@@ -37,7 +37,7 @@ export function validateScheduledAiJobSchedule(scheduleCron: string, timeZone: s
     throw new DomainError('BAD_REQUEST', 'TIME_ZONE_INVALID: time zone must be an IANA identifier');
   }
   try {
-    CronExpressionParser.parse(scheduleCron, { tz: timeZone, strict: true });
+    CronExpressionParser.parse(scheduleCron, { tz: timeZone });
   } catch {
     throw new DomainError('BAD_REQUEST', 'SCHEDULE_INVALID: invalid cron expression');
   }
@@ -46,7 +46,7 @@ export function validateScheduledAiJobSchedule(scheduleCron: string, timeZone: s
 export function nextScheduledAiJobOccurrence(scheduleCron: string, timeZone: string, after = new Date()): Date {
   validateScheduledAiJobSchedule(scheduleCron, timeZone);
   try {
-    return CronExpressionParser.parse(scheduleCron, { tz: timeZone, currentDate: after, strict: true }).next().toDate();
+    return CronExpressionParser.parse(scheduleCron, { tz: timeZone, currentDate: after }).next().toDate();
   } catch {
     throw new DomainError('BAD_REQUEST', 'SCHEDULE_INVALID: schedule has no future occurrence');
   }

@@ -59,6 +59,7 @@
               "index_rebuild",
               "semantic_search",
               "wiki_question",
+              "scheduled_ai_job",
               "text_optimization",
               "image_generation",
               "wiki_tool_chat"
@@ -8281,6 +8282,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "retired": {
+            "type": "boolean"
+          },
           "defaultPromptVersionId": {
             "type": [
               "string",
@@ -8289,9 +8293,6 @@
           },
           "defaultModelId": {
             "type": "object"
-          },
-          "retired": {
-            "type": "boolean"
           },
           "defaultModelName": {
             "type": "object"
@@ -8302,9 +8303,9 @@
           "createdAt",
           "updatedAt",
           "enabled",
+          "retired",
           "defaultPromptVersionId",
           "defaultModelId",
-          "retired",
           "defaultModelName"
         ]
       },
@@ -9522,6 +9523,12 @@
                         {
                           "type": "string",
                           "enum": [
+                            "scheduled_ai_job"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
                             "text_optimization"
                           ]
                         },
@@ -9617,6 +9624,12 @@
                           "type": "string",
                           "enum": [
                             "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "scheduled_ai_job"
                           ]
                         },
                         {
@@ -9722,6 +9735,12 @@
                         {
                           "type": "string",
                           "enum": [
+                            "scheduled_ai_job"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
                             "text_optimization"
                           ]
                         },
@@ -9817,6 +9836,12 @@
                           "type": "string",
                           "enum": [
                             "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "scheduled_ai_job"
                           ]
                         },
                         {
@@ -10281,6 +10306,12 @@
                               "type": "string",
                               "enum": [
                                 "wiki_question"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "scheduled_ai_job"
                               ]
                             },
                             {
@@ -10766,6 +10797,373 @@
         }
       }
     },
+    "/ai/scheduled-job-runs": {
+      "get": {
+        "operationId": "get-ai-scheduled-job-runs",
+        "summary": "List all scheduled AI job runs @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "jobId": {
+                        "type": "string"
+                      },
+                      "trigger": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "manual"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "schedule"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "recovery"
+                            ]
+                          }
+                        ]
+                      },
+                      "status": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "queued"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "running"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "completed"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "failed"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "cancelled"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "skipped"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "blocked"
+                            ]
+                          }
+                        ]
+                      },
+                      "scheduledFor": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "definitionSnapshot": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "taskDescription": {
+                            "type": "string"
+                          },
+                          "scheduleCron": {
+                            "type": "string"
+                          },
+                          "timeZone": {
+                            "type": "string"
+                          },
+                          "targetScope": {
+                            "type": "object",
+                            "properties": {
+                              "spaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "rootPageIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "tagIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "spaceIds",
+                              "rootPageIds",
+                              "tagIds"
+                            ]
+                          },
+                          "runAsUserId": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "taskDescription",
+                          "scheduleCron",
+                          "timeZone",
+                          "targetScope",
+                          "runAsUserId",
+                          "version"
+                        ]
+                      },
+                      "startedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "finishedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "errorCode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "errorMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "jobId",
+                      "trigger",
+                      "status",
+                      "scheduledFor",
+                      "definitionSnapshot",
+                      "startedAt",
+                      "finishedAt",
+                      "errorCode",
+                      "errorMessage"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/scheduled-jobs": {
+      "get": {
+        "operationId": "get-ai-scheduled-jobs",
+        "summary": "List scheduled AI jobs @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-ai-scheduled-jobs",
+        "summary": "Create a scheduled AI job @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "enabled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "paused"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "retired"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduleCron": {
+                      "type": "string"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "targetScope": {
+                      "type": "object",
+                      "properties": {
+                        "spaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rootPageIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "tagIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "spaceIds",
+                        "rootPageIds",
+                        "tagIds"
+                      ]
+                    },
+                    "runAsUserId": {
+                      "type": "string"
+                    },
+                    "definitionVersion": {
+                      "type": "number"
+                    },
+                    "nextRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastSuccessAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "status",
+                    "scheduleCron",
+                    "timeZone",
+                    "targetScope",
+                    "runAsUserId",
+                    "definitionVersion",
+                    "nextRunAt",
+                    "lastRunAt",
+                    "lastSuccessAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/settings": {
       "get": {
         "operationId": "get-ai-settings",
@@ -11235,6 +11633,422 @@
         }
       }
     },
+    "/ai/scheduled-jobs/{id}": {
+      "get": {
+        "operationId": "get-ai-scheduled-jobs-{id}",
+        "summary": "Get a scheduled AI job @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "enabled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "paused"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "retired"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduleCron": {
+                      "type": "string"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "targetScope": {
+                      "type": "object",
+                      "properties": {
+                        "spaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rootPageIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "tagIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "spaceIds",
+                        "rootPageIds",
+                        "tagIds"
+                      ]
+                    },
+                    "runAsUserId": {
+                      "type": "string"
+                    },
+                    "definitionVersion": {
+                      "type": "number"
+                    },
+                    "nextRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastSuccessAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "status",
+                    "scheduleCron",
+                    "timeZone",
+                    "targetScope",
+                    "runAsUserId",
+                    "definitionVersion",
+                    "nextRunAt",
+                    "lastRunAt",
+                    "lastSuccessAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-ai-scheduled-jobs-{id}",
+        "summary": "Update a scheduled AI job @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "enabled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "paused"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "retired"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduleCron": {
+                      "type": "string"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "targetScope": {
+                      "type": "object",
+                      "properties": {
+                        "spaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rootPageIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "tagIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "spaceIds",
+                        "rootPageIds",
+                        "tagIds"
+                      ]
+                    },
+                    "runAsUserId": {
+                      "type": "string"
+                    },
+                    "definitionVersion": {
+                      "type": "number"
+                    },
+                    "nextRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastSuccessAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "status",
+                    "scheduleCron",
+                    "timeZone",
+                    "targetScope",
+                    "runAsUserId",
+                    "definitionVersion",
+                    "nextRunAt",
+                    "lastRunAt",
+                    "lastSuccessAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-ai-scheduled-jobs-{id}",
+        "summary": "Retire a scheduled AI job @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "enabled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "paused"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "retired"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduleCron": {
+                      "type": "string"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "targetScope": {
+                      "type": "object",
+                      "properties": {
+                        "spaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rootPageIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "tagIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "spaceIds",
+                        "rootPageIds",
+                        "tagIds"
+                      ]
+                    },
+                    "runAsUserId": {
+                      "type": "string"
+                    },
+                    "definitionVersion": {
+                      "type": "number"
+                    },
+                    "nextRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastSuccessAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "status",
+                    "scheduleCron",
+                    "timeZone",
+                    "targetScope",
+                    "runAsUserId",
+                    "definitionVersion",
+                    "nextRunAt",
+                    "lastRunAt",
+                    "lastSuccessAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/indexes/{id}/cancel": {
       "post": {
         "operationId": "post-ai-indexes-{id}-cancel",
@@ -11339,6 +12153,12 @@
                           "type": "string",
                           "enum": [
                             "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "scheduled_ai_job"
                           ]
                         },
                         {
@@ -11853,6 +12673,12 @@
                         {
                           "type": "string",
                           "enum": [
+                            "scheduled_ai_job"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
                             "text_optimization"
                           ]
                         },
@@ -11879,6 +12705,581 @@
                     "id",
                     "feature",
                     "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/scheduled-jobs/{id}/duplicate": {
+      "post": {
+        "operationId": "post-ai-scheduled-jobs-{id}-duplicate",
+        "summary": "Duplicate a scheduled AI job as paused @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "enabled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "paused"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "retired"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduleCron": {
+                      "type": "string"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "targetScope": {
+                      "type": "object",
+                      "properties": {
+                        "spaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rootPageIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "tagIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "spaceIds",
+                        "rootPageIds",
+                        "tagIds"
+                      ]
+                    },
+                    "runAsUserId": {
+                      "type": "string"
+                    },
+                    "definitionVersion": {
+                      "type": "number"
+                    },
+                    "nextRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastRunAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lastSuccessAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "status",
+                    "scheduleCron",
+                    "timeZone",
+                    "targetScope",
+                    "runAsUserId",
+                    "definitionVersion",
+                    "nextRunAt",
+                    "lastRunAt",
+                    "lastSuccessAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/scheduled-jobs/{id}/runs": {
+      "get": {
+        "operationId": "get-ai-scheduled-jobs-{id}-runs",
+        "summary": "List scheduled AI job runs @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "jobId": {
+                        "type": "string"
+                      },
+                      "trigger": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "manual"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "schedule"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "recovery"
+                            ]
+                          }
+                        ]
+                      },
+                      "status": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "queued"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "running"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "completed"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "failed"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "cancelled"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "skipped"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "blocked"
+                            ]
+                          }
+                        ]
+                      },
+                      "scheduledFor": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "definitionSnapshot": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "taskDescription": {
+                            "type": "string"
+                          },
+                          "scheduleCron": {
+                            "type": "string"
+                          },
+                          "timeZone": {
+                            "type": "string"
+                          },
+                          "targetScope": {
+                            "type": "object",
+                            "properties": {
+                              "spaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "rootPageIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "tagIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "spaceIds",
+                              "rootPageIds",
+                              "tagIds"
+                            ]
+                          },
+                          "runAsUserId": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "taskDescription",
+                          "scheduleCron",
+                          "timeZone",
+                          "targetScope",
+                          "runAsUserId",
+                          "version"
+                        ]
+                      },
+                      "startedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "finishedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "errorCode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "errorMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "jobId",
+                      "trigger",
+                      "status",
+                      "scheduledFor",
+                      "definitionSnapshot",
+                      "startedAt",
+                      "finishedAt",
+                      "errorCode",
+                      "errorMessage"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-ai-scheduled-jobs-{id}-runs",
+        "summary": "Run a scheduled AI job now @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "trigger": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "manual"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "schedule"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "recovery"
+                          ]
+                        }
+                      ]
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "queued"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "running"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "cancelled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "skipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "blocked"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduledFor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "definitionSnapshot": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "taskDescription": {
+                          "type": "string"
+                        },
+                        "scheduleCron": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "targetScope": {
+                          "type": "object",
+                          "properties": {
+                            "spaceIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rootPageIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "tagIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "spaceIds",
+                            "rootPageIds",
+                            "tagIds"
+                          ]
+                        },
+                        "runAsUserId": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "taskDescription",
+                        "scheduleCron",
+                        "timeZone",
+                        "targetScope",
+                        "runAsUserId",
+                        "version"
+                      ]
+                    },
+                    "startedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "finishedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errorCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errorMessage": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "jobId",
+                    "trigger",
+                    "status",
+                    "scheduledFor",
+                    "definitionSnapshot",
+                    "startedAt",
+                    "finishedAt",
+                    "errorCode",
+                    "errorMessage"
                   ]
                 }
               }
@@ -11972,6 +13373,531 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/ai/scheduled-jobs/{id}/runs/{runId}": {
+      "get": {
+        "operationId": "get-ai-scheduled-jobs-{id}-runs-{runId}",
+        "summary": "Get scheduled AI job run detail @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: runId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "actionId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proposalLinks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "href": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "failed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "pending"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "superseded"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "rejected"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "approved"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "applied"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "href",
+                          "id",
+                          "title",
+                          "status"
+                        ]
+                      }
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "trigger": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "manual"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "schedule"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "recovery"
+                          ]
+                        }
+                      ]
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "queued"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "running"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "cancelled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "skipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "blocked"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduledFor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "definitionSnapshot": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "taskDescription": {
+                          "type": "string"
+                        },
+                        "scheduleCron": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "targetScope": {
+                          "type": "object",
+                          "properties": {
+                            "spaceIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rootPageIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "tagIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "spaceIds",
+                            "rootPageIds",
+                            "tagIds"
+                          ]
+                        },
+                        "runAsUserId": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "taskDescription",
+                        "scheduleCron",
+                        "timeZone",
+                        "targetScope",
+                        "runAsUserId",
+                        "version"
+                      ]
+                    },
+                    "startedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "finishedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errorCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errorMessage": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "actionId",
+                    "proposalLinks",
+                    "id",
+                    "jobId",
+                    "trigger",
+                    "status",
+                    "scheduledFor",
+                    "definitionSnapshot",
+                    "startedAt",
+                    "finishedAt",
+                    "errorCode",
+                    "errorMessage"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/scheduled-jobs/{id}/runs/{runId}/cancel": {
+      "post": {
+        "operationId": "post-ai-scheduled-jobs-{id}-runs-{runId}-cancel",
+        "summary": "Cancel scheduled AI job run @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: runId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "trigger": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "manual"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "schedule"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "recovery"
+                          ]
+                        }
+                      ]
+                    },
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "queued"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "running"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "cancelled"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "skipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "blocked"
+                          ]
+                        }
+                      ]
+                    },
+                    "scheduledFor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "definitionSnapshot": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "taskDescription": {
+                          "type": "string"
+                        },
+                        "scheduleCron": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "targetScope": {
+                          "type": "object",
+                          "properties": {
+                            "spaceIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rootPageIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "tagIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "spaceIds",
+                            "rootPageIds",
+                            "tagIds"
+                          ]
+                        },
+                        "runAsUserId": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "taskDescription",
+                        "scheduleCron",
+                        "timeZone",
+                        "targetScope",
+                        "runAsUserId",
+                        "version"
+                      ]
+                    },
+                    "startedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "finishedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errorCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errorMessage": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "jobId",
+                    "trigger",
+                    "status",
+                    "scheduledFor",
+                    "definitionSnapshot",
+                    "startedAt",
+                    "finishedAt",
+                    "errorCode",
+                    "errorMessage"
+                  ]
+                }
+              }
+            }
           }
         }
       }
