@@ -14,6 +14,7 @@ import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { findSkill } from '@/server/services/skills/registry';
+import { requestActionCancellation } from '@/server/services/ai-actions';
 
 type DefinitionFields = Pick<typeof schema.scheduledAiJobs.$inferSelect,
   'id' | 'name' | 'taskDescription' | 'scheduleCron' | 'timeZone' | 'targetScope' | 'runAsUserId' | 'definitionVersion'>;
@@ -259,6 +260,11 @@ export async function cancelScheduledAiJobRun(ctx: PermCtx, jobId: string, runId
   assertManager(ctx);
   const [run] = await db.update(schema.scheduledAiJobRuns).set({ cancelRequested: true }).where(and(eq(schema.scheduledAiJobRuns.id, runId), eq(schema.scheduledAiJobRuns.jobId, jobId), inArray(schema.scheduledAiJobRuns.status, ['queued', 'running']))).returning();
   if (!run) throw new DomainError('NOT_FOUND', 'Scheduled AI job run is not cancellable');
+  if (run.aiActionId) {
+    await requestActionCancellation(ctx, run.aiActionId).catch((error) => {
+      if (!(error instanceof DomainError) || error.code !== 'CONFLICT') throw error;
+    });
+  }
   return runView(run);
 }
 
