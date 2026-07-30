@@ -539,6 +539,12 @@
     "tags": {
       "heading": "标签",
       "ariaLabel": "标签管理",
+      "spaceFilter": "空间",
+      "spaces": {
+        "wiki": "Wiki",
+        "generated": "Generated",
+        "raw": "原始内容"
+      },
       "rename": "重命名",
       "renamed": "标签已重命名，已同步 {count} 个页面。",
       "renameTitle": "重命名标签",

@@ -12,4 +12,18 @@ describe('TagManager', () => {
     expect(html).not.toContain('Create a tag');
     expect(html).not.toContain('window.prompt');
   });
+
+  it('offers no space filter when only the wiki space exists', () => {
+    expect(renderWithI18n(<TagManager />)).not.toContain('Generated');
+  });
+
+  it('offers one chip per space in LLM Wiki mode, so Raw and Generated tags are reachable', () => {
+    const html = renderWithI18n(<TagManager spaceFilterEnabled />);
+
+    expect(html).toContain('Wiki');
+    expect(html).toContain('Generated');
+    expect(html).toContain('Raw');
+    // The wiki space is the initial selection.
+    expect(html).toContain('aria-pressed="true"');
+  });
 });

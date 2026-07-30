@@ -539,6 +539,12 @@
     "tags": {
       "heading": "Tags",
       "ariaLabel": "Tag management",
+      "spaceFilter": "Space",
+      "spaces": {
+        "wiki": "Wiki",
+        "generated": "Generated",
+        "raw": "Raw"
+      },
       "rename": "Rename",
       "renamed": "Tag renamed and synchronized across {count} pages.",
       "renameTitle": "Rename tag",
