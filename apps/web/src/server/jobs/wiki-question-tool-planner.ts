@@ -10,6 +10,7 @@ export type ToolPlannerState = {
   question: string;
   conversation: { question: string; answer: string }[];
   wikiSources: QuestionSource[];
+  currentPage?: { pageId: string; revisionId: string };
   transcript: string[];
 };
 
@@ -137,11 +138,22 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
         '',
       ]
     : [];
+  const currentPage = state.currentPage
+    ? [
+        '<current_page>',
+        `This is the page open in the reader. To read it, call get_page with pageId: "${state.currentPage.pageId}". Do not guess its path or space.`,
+        `pageId: ${state.currentPage.pageId}`,
+        `revisionId: ${state.currentPage.revisionId}`,
+        '</current_page>',
+        '',
+      ]
+    : [];
   if (state.transcript.length === 0) {
-    return [...sources, ...conversation, '<question>', state.question, '</question>'].join('\n');
+    return [...sources, ...currentPage, ...conversation, '<question>', state.question, '</question>'].join('\n');
   }
   return [
     ...sources,
+    ...currentPage,
     ...conversation,
     '<question>',
     state.question,

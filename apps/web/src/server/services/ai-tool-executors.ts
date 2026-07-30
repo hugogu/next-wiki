@@ -270,7 +270,18 @@ async function readPageByPath(ctx: PermCtx, path: string, space?: string) {
   const direct = await content.getPageByPath(ctx, path, READ_INCLUDE, space);
   if (direct) return direct;
   const fromUrl = readerUrlAsPageRef(path);
-  return fromUrl ? content.getPageByPath(ctx, fromUrl.path, READ_INCLUDE, fromUrl.space) : null;
+  if (fromUrl) return content.getPageByPath(ctx, fromUrl.path, READ_INCLUDE, fromUrl.space);
+
+  // A current reader page gives the model a path but not necessarily its
+  // space. Preserve the wiki-first behavior for compatibility, then discover
+  // a private-space match through the same permission-filtered service. An
+  // explicit space remains authoritative and never falls back elsewhere.
+  if (space !== undefined) return null;
+  for (const fallbackSpace of ['generated', 'raw'] as const) {
+    const page = await content.getPageByPath(ctx, path, READ_INCLUDE, fallbackSpace);
+    if (page) return page;
+  }
+  return null;
 }
 
 /**

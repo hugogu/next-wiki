@@ -148,6 +148,23 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('<source id="S1" title="张飞" path="history/china/zhang-fei">');
     expect(prompt).toContain('张飞，字益德');
   });
+
+  it('provides the exact current-page id for a reader-scoped question', () => {
+    const prompt = buildPlannerUserPrompt({
+      question: '总结当前页面。',
+      conversation: [],
+      wikiSources: [],
+      currentPage: {
+        pageId: '00000000-0000-4000-8000-000000000001',
+        revisionId: '00000000-0000-4000-9000-000000000001',
+      },
+      transcript: [],
+    });
+
+    expect(prompt).toContain('<current_page>');
+    expect(prompt).toContain('call get_page with pageId: "00000000-0000-4000-8000-000000000001"');
+    expect(prompt).toContain('Do not guess its path or space.');
+  });
 });
 
 describe('buildWikiToolSystemPrompt', () => {

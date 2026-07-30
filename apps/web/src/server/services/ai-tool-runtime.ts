@@ -284,6 +284,9 @@ export type ToolTurnState = {
   question: string;
   conversation: { question: string; answer: string }[];
   wikiSources: QuestionSource[];
+  /** The page open when this chat turn was started. This is an exact,
+   * permission-validated reference, not a retrieval result. */
+  currentPage?: { pageId: string; revisionId: string };
   transcript: string[];
 };
 
@@ -297,6 +300,7 @@ export type ToolLoopParams = {
   question: string;
   conversation?: { question: string; answer: string }[];
   wikiSources?: QuestionSource[];
+  currentPage?: { pageId: string; revisionId: string };
   planner: ToolPlanner;
   /** Server-enforced review resolution for one call (strictest wins). */
   resolveReview: (tool: ToolDefinition, requested: AiToolReviewDecision) => AiToolReviewDecision;
@@ -515,6 +519,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     question: params.question,
     conversation: params.conversation ?? [],
     wikiSources: params.wikiSources ?? [],
+    currentPage: params.currentPage,
     transcript: [],
   };
   const transcriptBudget = params.transcriptCharBudget ?? DEFAULT_TRANSCRIPT_CHARS;

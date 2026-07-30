@@ -407,6 +407,7 @@ export async function runToolEnabledWikiQuestionAction(actionId: string): Promis
       question: input.question,
       conversation: input.conversation ?? [],
       wikiSources,
+      currentPage: input.currentPage,
       planner,
       resolveReview,
       isEnabled,

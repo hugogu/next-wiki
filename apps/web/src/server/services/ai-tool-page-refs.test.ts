@@ -54,6 +54,37 @@ describe('get_page across spaces', () => {
     expect(content.getPageByPath).toHaveBeenCalledWith(ctx, 'games/reversi', expect.anything(), 'generated');
   });
 
+  it('finds a generated current-page path when the model omitted its space', async () => {
+    content.getPageByPath.mockResolvedValueOnce(null).mockResolvedValueOnce(page);
+
+    const result = await getPage({ path: 'zhuge-liang' });
+
+    expect(result.ok).toBe(true);
+    expect(content.getPageByPath).toHaveBeenNthCalledWith(
+      1,
+      ctx,
+      'zhuge-liang',
+      expect.anything(),
+      undefined,
+    );
+    expect(content.getPageByPath).toHaveBeenNthCalledWith(
+      2,
+      ctx,
+      'zhuge-liang',
+      expect.anything(),
+      'generated',
+    );
+  });
+
+  it('does not override an explicitly selected wiki space', async () => {
+    content.getPageByPath.mockResolvedValue(null);
+
+    const result = await getPage({ path: 'zhuge-liang', space: 'wiki' });
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'NOT_FOUND' });
+    expect(content.getPageByPath).toHaveBeenCalledTimes(1);
+  });
+
   it('accepts the legacy default-space alias and presents it as wiki', async () => {
     content.getPageByPath.mockResolvedValue({ ...page, spaceSlug: 'default' });
 
