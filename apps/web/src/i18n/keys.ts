@@ -1563,6 +1563,7 @@ export const translationKeys = [
   "ai.chat.tools.disabled",
   "ai.chat.tools.skillsUsed",
   "ai.chat.tools.skillLabel",
+  "ai.chat.tools.rawError",
   "ai.optimize.toolbar",
   "ai.optimize.title",
   "ai.optimize.instruction.clarity",

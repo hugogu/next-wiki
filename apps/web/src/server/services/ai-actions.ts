@@ -262,8 +262,9 @@ export async function appendActionEvent(
 
 /**
  * 026: typed emit helpers for the governed tool loop's action events. Payloads
- * are already permission-safe and bounded (command markdown + safe status, no
- * full arbitrary results) before reaching `appendActionEvent`'s size guard.
+ * are permission-scoped and bounded (command markdown, status, and a bounded
+ * diagnostic for failed calls; never a full arbitrary result) before reaching
+ * `appendActionEvent`'s size guard.
  */
 export function appendToolCallEvent(actionId: string, payload: AiToolCallEventPayload): Promise<number> {
   return appendActionEvent(actionId, 'tool_call', payload as unknown as Record<string, unknown>);

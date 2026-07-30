@@ -62,13 +62,26 @@ export type ToolExecutionResult = {
   evidencePageId?: string | null;
   errorCode?: string;
   errorMessage?: string;
+  /** Original error text retained for the expanded tool-call result only. */
+  errorDetail?: string;
 };
 
 const MAX_LIST = 100;
 const READ_INCLUDE: PublicPageInclude[] = ['publishedRevision'];
 
-function fail(errorCode: string, errorMessage: string): ToolExecutionResult {
-  return { ok: false, summary: errorMessage, errorCode, errorMessage };
+function fail(errorCode: string, errorMessage: string, errorDetail?: string): ToolExecutionResult {
+  return { ok: false, summary: errorMessage, errorCode, errorMessage, errorDetail };
+}
+
+function originalErrorDetail(error: unknown): string {
+  try {
+    const detail = error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : String(error);
+    return detail.slice(0, 4_000);
+  } catch {
+    return 'Unknown non-Error value was thrown.';
+  }
 }
 
 /** Convert a thrown service error into a safe assistant-facing failure so a
@@ -127,7 +140,7 @@ function toSafeFailure(error: unknown, context: { toolName: string; actionId?: s
     errorName: error instanceof Error ? error.name : undefined,
     errorMessage: error instanceof Error ? error.message : String(error),
   });
-  return fail('TOOL_FAILED', 'The tool could not complete.');
+  return fail('TOOL_FAILED', 'The tool could not complete.', originalErrorDetail(error));
 }
 
 // ---- Argument schemas -------------------------------------------------------

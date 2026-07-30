@@ -749,6 +749,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           effectiveReview,
           errorCode: result.errorCode ?? 'TOOL_FAILED',
           errorMessage: result.errorMessage ?? result.summary,
+          errorDetail: result.errorDetail ?? null,
         });
         logger.warn('tool call failed', {
           actionId: params.actionId,

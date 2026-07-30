@@ -91,6 +91,27 @@ describe('ConversationSessionView', () => {
     expect(html).toContain('tool: list_pages');
   });
 
+  it('keeps a failed tool diagnostic in its expanded call result', () => {
+    const html = render(conversation({
+      turns: [{
+        status: 'completed',
+        question: 'Retag the page',
+        answer: 'The tag update failed.',
+        thinking: '',
+        citations: [],
+        toolCalls: [{
+          toolName: 'replace_page_tags',
+          status: 'failed',
+          commandMarkdown: '```tool-call\\ntool: replace_page_tags\\n```',
+          errorDetail: 'Error: Invariant: static generation store missing',
+        }],
+        insufficient: false,
+        errorMessage: null,
+      }],
+    }));
+    expect(html).toContain('Error: Invariant: static generation store missing');
+  });
+
   it('renders open thinking for a still-running session and citations regardless of status', () => {
     const html = render(conversation({
       status: 'running',

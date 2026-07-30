@@ -2152,7 +2152,8 @@
         "unavailable": "Tool use is unavailable for the selected model.",
         "disabled": "That tool is disabled by policy.",
         "skillsUsed": "Skills used",
-        "skillLabel": "Skill"
+        "skillLabel": "Skill",
+        "rawError": "Error details"
       }
     },
     "optimize": {

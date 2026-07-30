@@ -131,6 +131,7 @@ function ConversationTurn({
                       ({call.status})
                     </summary>
                     {call.commandMarkdown && <pre className="mt-xs overflow-x-auto whitespace-pre-wrap font-mono">{call.commandMarkdown}</pre>}
+                    {call.errorDetail && <pre className="mt-xs overflow-x-auto whitespace-pre-wrap font-mono text-danger">{call.errorDetail}</pre>}
                   </details>
                 ))
               : null}

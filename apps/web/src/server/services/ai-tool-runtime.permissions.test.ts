@@ -98,6 +98,19 @@ describe('read tool permission projection (026)', () => {
     }));
   });
 
+  it('retains the original unexpected error for the expandable tool result', async () => {
+    content.searchPages.mockRejectedValue(new Error('Invariant: static generation store missing'));
+
+    const result = await executeTool(readerCtx, searchTool, { query: 'zhuge-liang' }, execCtx);
+
+    expect(result).toMatchObject({
+      ok: false,
+      errorCode: 'TOOL_FAILED',
+      errorMessage: 'The tool could not complete.',
+      errorDetail: 'Error: Invariant: static generation store missing',
+    });
+  });
+
   it('turns a not-visible page into a safe failure without leaking its content', async () => {
     // The service returns null for a reader who may not read the restricted page.
     content.getPageById.mockResolvedValue(null);

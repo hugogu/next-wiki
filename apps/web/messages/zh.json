@@ -2152,7 +2152,8 @@
         "unavailable": "所选模型不支持工具调用。",
         "disabled": "该工具已被策略停用。",
         "skillsUsed": "使用的技能",
-        "skillLabel": "技能"
+        "skillLabel": "技能",
+        "rawError": "错误详情"
       }
     },
     "optimize": {

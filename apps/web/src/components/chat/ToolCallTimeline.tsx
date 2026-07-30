@@ -76,6 +76,14 @@ export function ToolCallTimeline({
                 )}
                 {call.resultSummary && <p className="break-words text-muted">{call.resultSummary}</p>}
                 {call.errorMessage && <p className="break-words text-danger">{call.errorMessage}</p>}
+                {call.errorDetail && (
+                  <div className="space-y-xxs">
+                    <p className="font-medium text-danger">{t('ai.chat.tools.rawError')}</p>
+                    <pre className="max-h-40 max-w-full overflow-auto rounded bg-surface-elevated p-xs text-[11px] leading-snug text-danger">
+                      <code>{call.errorDetail}</code>
+                    </pre>
+                  </div>
+                )}
               </div>
             </details>
           </li>

@@ -88,8 +88,10 @@ describe('ai-tools shared contract', () => {
       status: 'running',
       requestedReview: 'none',
       effectiveReview: 'none',
+      errorDetail: 'Error: diagnostic',
     });
     expect(payload.status).toBe('running');
+    expect(payload.errorDetail).toBe('Error: diagnostic');
   });
 
   it('validates a full proposal detail shape', () => {

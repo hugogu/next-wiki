@@ -207,6 +207,7 @@ describe('raw conversations service', () => {
         toolName: 'create_page',
         status: 'succeeded',
         commandMarkdown: '```tool-call\ntool: create_page\n```',
+        errorDetail: 'Error: retryable tool diagnostic',
       });
       await appendConversationEvent(actionId, 'text_delta', { text: 'Created a reviewed draft.' });
       await appendConversationEvent(actionId, 'completed', { status: 'completed' });
@@ -220,7 +221,11 @@ describe('raw conversations service', () => {
       expect(revision?.contentSource).toContain('tool: create_page');
       const snapshot = await getLatestConversationSnapshot(outcome.pageId);
       expect(snapshot?.toolCalls).toEqual([
-        expect.objectContaining({ toolName: 'create_page', status: 'succeeded' }),
+        expect.objectContaining({
+          toolName: 'create_page',
+          status: 'succeeded',
+          errorDetail: 'Error: retryable tool diagnostic',
+        }),
       ]);
     });
 

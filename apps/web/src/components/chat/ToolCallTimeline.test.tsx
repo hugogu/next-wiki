@@ -64,6 +64,18 @@ describe('ToolCallTimeline', () => {
     // body in the event payload, so none can leak into the timeline.
     expect(html).not.toContain('RAW_RESULT_BODY');
   });
+
+  it('shows the original tool error only after the call is expanded', () => {
+    const html = render([
+      call({
+        status: 'failed',
+        errorMessage: 'The tool could not complete.',
+        errorDetail: 'Error: Invariant: static generation store missing',
+      }),
+    ]);
+    expect(html).toContain('Error details');
+    expect(html).toContain('Error: Invariant: static generation store missing');
+  });
 });
 
 /**

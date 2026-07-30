@@ -281,6 +281,9 @@ export const aiToolCallEventPayloadSchema = z.object({
   resultSummary: z.string().nullable().optional(),
   errorCode: z.string().nullable().optional(),
   errorMessage: z.string().nullable().optional(),
+  /** Original diagnostic text for the initiating user, shown only in the
+   * expanded tool result. It never contains an arbitrary tool result. */
+  errorDetail: z.string().nullable().optional(),
   proposalId: z.string().uuid().nullable().optional(),
   evidencePageId: z.string().uuid().nullable().optional(),
   /** Set when the call loaded a skill or one of its files (028). Carried

@@ -549,6 +549,8 @@ export const conversationToolCallSchema = z.object({
    * conversation names the procedure the assistant followed rather than showing
    * a bare `load_skill`. */
   skillName: z.string().nullable().optional(),
+  /** The original diagnostic text retained from a failed tool call. */
+  errorDetail: z.string().nullable().optional(),
 });
 export type ConversationToolCall = z.infer<typeof conversationToolCallSchema>;
 
