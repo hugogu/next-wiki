@@ -421,6 +421,23 @@ describe('public content read facade', () => {
       createdStart: boundary,
     });
     expect(onlyNew.items.map((item) => item.page.path)).toEqual(['docs/new-daterange']);
+
+    const newestFirst = await publicContent.listPages(readerCtx, {
+      status: 'published', pathPrefix: 'docs', limit: 20, order: 'createdAtDesc', include: [],
+    });
+    expect(newestFirst.items.map((item) => item.path)).toEqual([
+      'docs/new-daterange',
+      'docs/old-daterange',
+    ]);
+
+    const oldestFirstSearch = await publicContent.searchPages(readerCtx, {
+      q: 'DateRangeMatch', scope: 'title', status: 'published', limit: 20,
+      include: [], excerptLength: 100, order: 'createdAtAsc',
+    });
+    expect(oldestFirstSearch.items.map((item) => item.page.path)).toEqual([
+      'docs/old-daterange',
+      'docs/new-daterange',
+    ]);
   });
 
   it('scores and sorts results: path > title > content, higher for exact/repeated matches', async () => {

@@ -159,7 +159,7 @@ export const publicPageListQuerySchema = z.object({
   createdEnd: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
-  order: z.enum(['path', 'recent']).default('path'),
+  order: z.enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).default('path'),
   include: z.array(publicPageIncludeSchema).default([]),
 });
 export type PublicPageListQuery = z.infer<typeof publicPageListQuerySchema>;
@@ -261,6 +261,7 @@ export const publicPageSearchQuerySchema = z.object({
   filterStatus: z.string().optional(),
   filterOwner: z.string().optional(),
   filterHasFrontmatter: z.boolean().optional(),
+  order: z.enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).default('relevance'),
 });
 export type PublicPageSearchQuery = z.infer<typeof publicPageSearchQuerySchema>;
 
@@ -616,6 +617,7 @@ export class WikiApiClient {
     if (query.filterStatus) params.set('filter[status]', query.filterStatus);
     if (query.filterOwner) params.set('filter[owner]', query.filterOwner);
     if (query.filterHasFrontmatter !== undefined) params.set('filter[has_frontmatter]', String(query.filterHasFrontmatter));
+    if (query.order) params.set('order', query.order);
     return this.request<PublicPageSearchResponse>(`/search/pages?${params.toString()}`);
   }
 

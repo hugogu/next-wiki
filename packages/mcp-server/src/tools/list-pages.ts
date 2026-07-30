@@ -13,6 +13,7 @@ export const listPagesSchema = {
   filterTag: z.string().min(1).max(100).optional().describe('Structured page tag filter (normalized exact match)'),
   createdStart: z.string().datetime().optional().describe('Only include pages created at or after this ISO 8601 timestamp'),
   createdEnd: z.string().datetime().optional().describe('Only include pages created at or before this ISO 8601 timestamp'),
+  order: z.enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional().describe('Result order; use createdAtDesc for newest pages first'),
   limit: z.number().int().min(1).max(100).optional().describe('Maximum results; defaults to 20'),
   cursor: z.string().optional().describe('Pagination cursor from previous call'),
 };
@@ -30,6 +31,7 @@ export async function listPages(client: WikiApiClient, args: ListPagesInput) {
     filterTag: args.filterTag,
     createdStart: args.createdStart ? new Date(args.createdStart) : undefined,
     createdEnd: args.createdEnd ? new Date(args.createdEnd) : undefined,
+    order: args.order,
     limit: args.limit,
     cursor: args.cursor,
   });

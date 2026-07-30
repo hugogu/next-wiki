@@ -272,7 +272,7 @@ export const publicPageListQuerySchema = z.object({
   filterCategoryId: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
-  order: z.enum(['path', 'recent']).default('path'),
+  order: z.enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).default('path'),
   include: publicIncludeQuerySchema,
   createdStart: z.coerce.date().optional(),
   createdEnd: z.coerce.date().optional(),
@@ -511,6 +511,7 @@ export const publicPageSearchQuerySchema = z
     'filter[status]': frontmatterFilterListSchema,
     'filter[owner]': frontmatterFilterListSchema,
     'filter[has_frontmatter]': frontmatterHasFlagSchema,
+    order: z.enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).default('relevance'),
   })
   .refine((value) => !value.createdStart || !value.createdEnd || value.createdStart <= value.createdEnd, {
     message: 'createdStart must be before or equal to createdEnd',

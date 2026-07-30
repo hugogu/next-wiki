@@ -3676,10 +3676,14 @@
             "type": "string",
             "enum": [
               "path",
-              "recent"
+              "recent",
+              "createdAtAsc",
+              "createdAtDesc",
+              "updatedAtAsc",
+              "updatedAtDesc"
             ],
             "default": "path",
-            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+            "description": "Sort order. Use createdAtDesc for newest pages first. Defaults to path."
           },
           "include": {
             "type": "string",
@@ -4250,6 +4254,18 @@
             "type": "string",
             "format": "date-time",
             "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "relevance",
+              "createdAtAsc",
+              "createdAtDesc",
+              "updatedAtAsc",
+              "updatedAtDesc"
+            ],
+            "default": "relevance",
+            "description": "Sort order. Use createdAtDesc for newest pages first; relevance is the default."
           },
           "filter[tag]": {
             "oneOf": [
@@ -10925,13 +10941,7 @@
                                   "type": "string"
                                 }
                               },
-                              "rootPageIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "tagIds": {
+                              "skillNames": {
                                 "type": "array",
                                 "items": {
                                   "type": "string"
@@ -10940,8 +10950,7 @@
                             },
                             "required": [
                               "spaceIds",
-                              "rootPageIds",
-                              "tagIds"
+                              "skillNames"
                             ]
                           },
                           "runAsUserId": {
@@ -11028,7 +11037,105 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "taskDescription": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "enabled"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "paused"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "retired"
+                            ]
+                          }
+                        ]
+                      },
+                      "scheduleCron": {
+                        "type": "string"
+                      },
+                      "timeZone": {
+                        "type": "string"
+                      },
+                      "targetScope": {
+                        "type": "object",
+                        "properties": {
+                          "spaceIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "skillNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "spaceIds",
+                          "skillNames"
+                        ]
+                      },
+                      "runAsUserId": {
+                        "type": "string"
+                      },
+                      "definitionVersion": {
+                        "type": "number"
+                      },
+                      "nextRunAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "lastRunAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "lastSuccessAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "taskDescription",
+                      "status",
+                      "scheduleCron",
+                      "timeZone",
+                      "targetScope",
+                      "runAsUserId",
+                      "definitionVersion",
+                      "nextRunAt",
+                      "lastRunAt",
+                      "lastSuccessAt"
+                    ]
                   }
                 }
               }
@@ -11061,6 +11168,9 @@
                       "type": "string"
                     },
                     "name": {
+                      "type": "string"
+                    },
+                    "taskDescription": {
                       "type": "string"
                     },
                     "status": {
@@ -11100,13 +11210,7 @@
                             "type": "string"
                           }
                         },
-                        "rootPageIds": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "tagIds": {
+                        "skillNames": {
                           "type": "array",
                           "items": {
                             "type": "string"
@@ -11115,8 +11219,7 @@
                       },
                       "required": [
                         "spaceIds",
-                        "rootPageIds",
-                        "tagIds"
+                        "skillNames"
                       ]
                     },
                     "runAsUserId": {
@@ -11147,6 +11250,7 @@
                   "required": [
                     "id",
                     "name",
+                    "taskDescription",
                     "status",
                     "scheduleCron",
                     "timeZone",
@@ -11672,6 +11776,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "taskDescription": {
+                      "type": "string"
+                    },
                     "status": {
                       "oneOf": [
                         {
@@ -11709,13 +11816,7 @@
                             "type": "string"
                           }
                         },
-                        "rootPageIds": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "tagIds": {
+                        "skillNames": {
                           "type": "array",
                           "items": {
                             "type": "string"
@@ -11724,8 +11825,7 @@
                       },
                       "required": [
                         "spaceIds",
-                        "rootPageIds",
-                        "tagIds"
+                        "skillNames"
                       ]
                     },
                     "runAsUserId": {
@@ -11756,6 +11856,7 @@
                   "required": [
                     "id",
                     "name",
+                    "taskDescription",
                     "status",
                     "scheduleCron",
                     "timeZone",
@@ -11810,6 +11911,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "taskDescription": {
+                      "type": "string"
+                    },
                     "status": {
                       "oneOf": [
                         {
@@ -11847,13 +11951,7 @@
                             "type": "string"
                           }
                         },
-                        "rootPageIds": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "tagIds": {
+                        "skillNames": {
                           "type": "array",
                           "items": {
                             "type": "string"
@@ -11862,8 +11960,7 @@
                       },
                       "required": [
                         "spaceIds",
-                        "rootPageIds",
-                        "tagIds"
+                        "skillNames"
                       ]
                     },
                     "runAsUserId": {
@@ -11894,6 +11991,7 @@
                   "required": [
                     "id",
                     "name",
+                    "taskDescription",
                     "status",
                     "scheduleCron",
                     "timeZone",
@@ -11948,6 +12046,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "taskDescription": {
+                      "type": "string"
+                    },
                     "status": {
                       "oneOf": [
                         {
@@ -11985,13 +12086,7 @@
                             "type": "string"
                           }
                         },
-                        "rootPageIds": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "tagIds": {
+                        "skillNames": {
                           "type": "array",
                           "items": {
                             "type": "string"
@@ -12000,8 +12095,7 @@
                       },
                       "required": [
                         "spaceIds",
-                        "rootPageIds",
-                        "tagIds"
+                        "skillNames"
                       ]
                     },
                     "runAsUserId": {
@@ -12032,6 +12126,7 @@
                   "required": [
                     "id",
                     "name",
+                    "taskDescription",
                     "status",
                     "scheduleCron",
                     "timeZone",
@@ -12752,6 +12847,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "taskDescription": {
+                      "type": "string"
+                    },
                     "status": {
                       "oneOf": [
                         {
@@ -12789,13 +12887,7 @@
                             "type": "string"
                           }
                         },
-                        "rootPageIds": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "tagIds": {
+                        "skillNames": {
                           "type": "array",
                           "items": {
                             "type": "string"
@@ -12804,8 +12896,7 @@
                       },
                       "required": [
                         "spaceIds",
-                        "rootPageIds",
-                        "tagIds"
+                        "skillNames"
                       ]
                     },
                     "runAsUserId": {
@@ -12836,6 +12927,7 @@
                   "required": [
                     "id",
                     "name",
+                    "taskDescription",
                     "status",
                     "scheduleCron",
                     "timeZone",
@@ -12992,13 +13084,7 @@
                                   "type": "string"
                                 }
                               },
-                              "rootPageIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "tagIds": {
+                              "skillNames": {
                                 "type": "array",
                                 "items": {
                                   "type": "string"
@@ -13007,8 +13093,7 @@
                             },
                             "required": [
                               "spaceIds",
-                              "rootPageIds",
-                              "tagIds"
+                              "skillNames"
                             ]
                           },
                           "runAsUserId": {
@@ -13208,13 +13293,7 @@
                                 "type": "string"
                               }
                             },
-                            "rootPageIds": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "tagIds": {
+                            "skillNames": {
                               "type": "array",
                               "items": {
                                 "type": "string"
@@ -13223,8 +13302,7 @@
                           },
                           "required": [
                             "spaceIds",
-                            "rootPageIds",
-                            "tagIds"
+                            "skillNames"
                           ]
                         },
                         "runAsUserId": {
@@ -13593,13 +13671,7 @@
                                 "type": "string"
                               }
                             },
-                            "rootPageIds": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "tagIds": {
+                            "skillNames": {
                               "type": "array",
                               "items": {
                                 "type": "string"
@@ -13608,8 +13680,7 @@
                           },
                           "required": [
                             "spaceIds",
-                            "rootPageIds",
-                            "tagIds"
+                            "skillNames"
                           ]
                         },
                         "runAsUserId": {
@@ -13822,13 +13893,7 @@
                                 "type": "string"
                               }
                             },
-                            "rootPageIds": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "tagIds": {
+                            "skillNames": {
                               "type": "array",
                               "items": {
                                 "type": "string"
@@ -13837,8 +13902,7 @@
                           },
                           "required": [
                             "spaceIds",
-                            "rootPageIds",
-                            "tagIds"
+                            "skillNames"
                           ]
                         },
                         "runAsUserId": {
@@ -16014,12 +16078,16 @@
               "type": "string",
               "enum": [
                 "path",
-                "recent"
+                "recent",
+                "createdAtAsc",
+                "createdAtDesc",
+                "updatedAtAsc",
+                "updatedAtDesc"
               ],
               "default": "path",
-              "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+              "description": "Sort order. Use createdAtDesc for newest pages first. Defaults to path."
             },
-            "description": "Sort order: alphabetical by path, or most recently updated first. Defaults to path."
+            "description": "Sort order. Use createdAtDesc for newest pages first. Defaults to path."
           },
           {
             "in": "query",
@@ -17471,6 +17539,24 @@
               "description": "Only include pages last updated at or before this ISO 8601 timestamp."
             },
             "description": "Only include pages last updated at or before this ISO 8601 timestamp."
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "createdAtAsc",
+                "createdAtDesc",
+                "updatedAtAsc",
+                "updatedAtDesc"
+              ],
+              "default": "relevance",
+              "description": "Sort order. Use createdAtDesc for newest pages first; relevance is the default."
+            },
+            "description": "Sort order. Use createdAtDesc for newest pages first; relevance is the default."
           },
           {
             "in": "query",

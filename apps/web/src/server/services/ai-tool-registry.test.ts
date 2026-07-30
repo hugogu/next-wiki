@@ -53,5 +53,11 @@ describe('ai tool registry metadata (026, US6)', () => {
     const properties = getToolDefinition('search_wiki')!.inputSchema.properties;
     expect(properties.scope).toMatchObject({ enum: ['path', 'title', 'content', 'all'] });
     expect(properties.space).toMatchObject({ enum: ['wiki', 'raw', 'generated'] });
+    expect(properties.createdStart).toMatchObject({ format: 'date-time' });
+    expect(properties.order).toMatchObject({ enum: ['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'] });
+
+    const listProperties = getToolDefinition('list_pages')!.inputSchema.properties;
+    expect(listProperties.createdEnd).toMatchObject({ format: 'date-time' });
+    expect(listProperties.order).toMatchObject({ enum: ['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'] });
   });
 });

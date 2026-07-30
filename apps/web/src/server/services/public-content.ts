@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -451,7 +451,7 @@ type ListPagesQuery = {
   pathPrefix?: string;
   limit: number;
   cursor?: string;
-  order: 'path' | 'recent';
+  order: 'path' | 'recent' | 'createdAtAsc' | 'createdAtDesc' | 'updatedAtAsc' | 'updatedAtDesc';
   include: readonly PublicPageInclude[];
   createdStart?: Date;
   createdEnd?: Date;
@@ -463,6 +463,7 @@ type ListPagesQuery = {
   tagFilters?: string[];
   frontmatterFilters?: FrontmatterFilters;
 };
+type SearchPagesQuery = Omit<PublicPageSearchQuery, 'order'> & { order?: PublicPageSearchQuery['order'] };
 
 /**
  * Shared row-fetch/permission-filter logic for both the list endpoint and search
@@ -585,12 +586,24 @@ async function listPagesInternal(
     }
   }
 
+  const orderBy = query.order === 'path'
+    ? [asc(schema.pages.path)]
+    : query.order === 'recent'
+      ? [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path)]
+      : query.order === 'createdAtAsc'
+        ? [asc(schema.pages.createdAt), asc(schema.pages.path)]
+        : query.order === 'createdAtDesc'
+          ? [desc(schema.pages.createdAt), asc(schema.pages.path)]
+          : query.order === 'updatedAtAsc'
+            ? [asc(schema.pages.updatedAt), asc(schema.pages.path)]
+            : [desc(schema.pages.updatedAt), asc(schema.pages.path)];
+
   const rows = await db
     .select({ page: schema.pages })
     .from(schema.pages)
     .leftJoin(schema.pageRevisions, eq(schema.pages.currentPublishedVersionId, schema.pageRevisions.id))
     .where(and(...conditions))
-    .orderBy(query.order === 'recent' ? desc(schema.pageRevisions.publishedAt) : schema.pages.path)
+    .orderBy(...orderBy)
     .limit(query.limit + 1)
     .offset(cursor.offset);
 
@@ -899,7 +912,7 @@ export async function getAssetContent(ctx: PermCtx, id: string) {
   return contentAssets.getServableImage(ctx, id);
 }
 
-export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): Promise<PublicPageSearchResponse> {
+export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promise<PublicPageSearchResponse> {
   const space = await resolveSpace(query.space);
   if (!space) return { items: [], nextCursor: null };
   await assertSpaceKindAllowed(space.kind);
@@ -907,11 +920,12 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
     return { items: [], nextCursor: null };
   }
   const settings = await getSearchSettings();
+  const order = query.order ?? 'relevance';
 
   // The capability adapters index current published revisions. Preserve the
   // legacy read path for draft/all, cursor, and expanded-revision requests
   // while moving the common published search to the immediate engines.
-  if (query.status !== 'published' || query.cursor || query.include.length > 0) {
+  if (query.status !== 'published' || query.cursor || query.include.length > 0 || order !== 'relevance') {
     return searchPagesWithLegacyFilters(ctx, query, settings.minRelevanceScore);
   }
 
@@ -967,9 +981,10 @@ export async function searchPages(ctx: PermCtx, query: PublicPageSearchQuery): P
 
 async function searchPagesWithLegacyFilters(
   ctx: PermCtx,
-  query: PublicPageSearchQuery,
+  query: SearchPagesQuery,
   minRelevanceScore: number,
 ): Promise<PublicPageSearchResponse> {
+  const order = query.order ?? 'relevance';
   // Fetch through the internal (content-included) path rather than the public
   // listPages, since matchType/excerpt need contentSource before the public
   // page shape strips it.
@@ -982,7 +997,7 @@ async function searchPagesWithLegacyFilters(
       pathPrefix: query.pathPrefix,
       limit: query.limit,
       cursor: query.cursor,
-      order: 'recent',
+      order: order === 'relevance' ? 'recent' : order,
       include: query.include,
       createdStart: query.createdStart,
       createdEnd: query.createdEnd,
@@ -1012,12 +1027,30 @@ async function searchPagesWithLegacyFilters(
         item.score >= minRelevanceScore &&
         (query.scope === 'all' || item.matchType === query.scope),
     )
-    // Real relevance ranking within this page of results; pagination itself still
-    // walks the underlying table by recency (see listPagesInternal), since a
-    // globally-ranked cursor would need a real search index rather than ILIKE.
-    .sort((a, b) => b.score - a.score);
+    // Relevance remains the default. Chronological orders are intentionally
+    // delegated to listPagesInternal so the time window is selected before the
+    // page limit is applied, instead of sorting a relevance-limited subset.
+    .sort((a, b) => compareSearchResults(a, b, order));
 
   return { items, nextCursor: pages.nextCursor };
+}
+
+function compareSearchResults(
+  a: { page: PublicPageResource; score: number },
+  b: { page: PublicPageResource; score: number },
+  order: NonNullable<PublicPageSearchQuery['order']>,
+) {
+  if (order === 'createdAtAsc' || order === 'createdAtDesc') {
+    const direction = order === 'createdAtAsc' ? 1 : -1;
+    return direction * (new Date(a.page.createdAt).getTime() - new Date(b.page.createdAt).getTime())
+      || a.page.path.localeCompare(b.page.path);
+  }
+  if (order === 'updatedAtAsc' || order === 'updatedAtDesc') {
+    const direction = order === 'updatedAtAsc' ? 1 : -1;
+    return direction * (new Date(a.page.updatedAt).getTime() - new Date(b.page.updatedAt).getTime())
+      || a.page.path.localeCompare(b.page.path);
+  }
+  return b.score - a.score || a.page.path.localeCompare(b.page.path);
 }
 
 /**

@@ -988,10 +988,10 @@ export const PublicPageListQueryParams = z
       .describe('Maximum number of pages to return per request (1-100). Defaults to 20.'),
     cursor: z.string().optional().describe('Opaque pagination cursor returned by a previous response.'),
     order: z
-      .enum(['path', 'recent'])
+      .enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'])
       .optional()
       .default('path')
-      .describe('Sort order: alphabetical by path, or most recently updated first. Defaults to path.'),
+      .describe('Sort order. Use createdAtDesc for newest pages first. Defaults to path.'),
     include: z
       .string()
       .optional()
@@ -1275,6 +1275,11 @@ export const PublicPageSearchQueryParams = z
     createdEnd: z.coerce.date().optional().describe('Only include pages created at or before this ISO 8601 timestamp.'),
     updatedStart: z.coerce.date().optional().describe('Only include pages last updated at or after this ISO 8601 timestamp.'),
     updatedEnd: z.coerce.date().optional().describe('Only include pages last updated at or before this ISO 8601 timestamp.'),
+    order: z
+      .enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'])
+      .optional()
+      .default('relevance')
+      .describe('Sort order. Use createdAtDesc for newest pages first; relevance is the default.'),
     'filter[tag]': z
       .union([z.string(), z.array(z.string())])
       .optional()

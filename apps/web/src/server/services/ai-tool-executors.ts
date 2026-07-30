@@ -182,6 +182,9 @@ const searchArgs = z.object({
     .enum(['wiki', 'raw', 'generated', 'default'])
     .optional()
     .transform((space) => (space === 'default' ? 'wiki' : space)),
+  createdStart: z.coerce.date().optional(),
+  createdEnd: z.coerce.date().optional(),
+  order: z.enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional(),
   limit: z.number().int().min(1).max(MAX_LIST).optional(),
 });
 const pageRefArgs = z
@@ -211,6 +214,9 @@ const listArgs = z
       .enum(['wiki', 'raw', 'generated', 'default'])
       .optional()
       .transform((space) => (space === 'default' ? 'wiki' : space)),
+    createdStart: z.coerce.date().optional(),
+    createdEnd: z.coerce.date().optional(),
+    order: z.enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional(),
     limit: z.number().int().min(1).max(MAX_LIST).optional(),
   })
   .strict();
@@ -324,6 +330,9 @@ async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
     q: args.query,
     scope: args.scope,
     ...(args.space && args.space !== 'wiki' ? { space: args.space } : {}),
+    createdStart: args.createdStart,
+    createdEnd: args.createdEnd,
+    order: args.order,
     limit: args.limit ?? 10,
     include: READ_INCLUDE.join(','),
   });
@@ -460,8 +469,10 @@ async function execListPages(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecut
   const result = await content.listPages(ctx, {
     status: 'published',
     limit: args.limit ?? MAX_LIST,
-    order: 'path',
+    order: args.order ?? 'path',
     include: READ_INCLUDE,
+    createdStart: args.createdStart,
+    createdEnd: args.createdEnd,
     ...(pathPrefix ? { pathPrefix } : {}),
     ...(args.space && args.space !== 'wiki' ? { space: args.space } : {}),
   } as Parameters<typeof content.listPages>[1]);

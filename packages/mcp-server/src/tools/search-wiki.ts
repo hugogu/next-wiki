@@ -26,6 +26,7 @@ export const searchWikiSchema = {
   filterStatus: z.string().optional().describe('Frontmatter status filter (exact match)'),
   filterOwner: z.string().optional().describe('Frontmatter owner filter (exact match)'),
   filterHasFrontmatter: z.boolean().optional().describe('Filter for pages with / without any frontmatter'),
+  order: z.enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional().describe('Result order; use createdAtDesc for newest pages first instead of relevance'),
 };
 export type SearchWikiInput = z.infer<z.ZodObject<typeof searchWikiSchema>>;
 
@@ -48,6 +49,7 @@ export async function searchWiki(client: WikiApiClient, args: SearchWikiInput) {
     filterStatus: args.filterStatus,
     filterOwner: args.filterOwner,
     filterHasFrontmatter: args.filterHasFrontmatter,
+    order: args.order,
   });
   return searchWikiResponse(response);
 }

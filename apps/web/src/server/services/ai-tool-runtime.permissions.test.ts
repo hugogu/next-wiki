@@ -95,7 +95,11 @@ describe('read tool permission projection (026)', () => {
     const result = await executeTool(
       readerCtx,
       searchTool,
-      { query: 'zhuge-liang', scope: 'content', space: 'generated' },
+      {
+        query: 'zhuge-liang', scope: 'content', space: 'generated',
+        createdStart: '2026-07-01T00:00:00.000Z', createdEnd: '2026-07-02T00:00:00.000Z',
+        order: 'createdAtDesc',
+      },
       execCtx,
     );
 
@@ -106,6 +110,9 @@ describe('read tool permission projection (026)', () => {
         q: 'zhuge-liang',
         scope: 'content',
         space: 'generated',
+        createdStart: new Date('2026-07-01T00:00:00.000Z'),
+        createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+        order: 'createdAtDesc',
       }),
     );
   });
@@ -206,6 +213,22 @@ describe('read tool permission projection (026)', () => {
         revisionHash: publishedRevision.contentHash,
       },
     ]);
+  });
+
+  it('forwards list_pages creation-time filters and chronological order', async () => {
+    content.listPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    await executeTool(readerCtx, listPagesTool, {
+      space: 'raw', createdStart: '2026-07-01T00:00:00.000Z',
+      createdEnd: '2026-07-02T00:00:00.000Z', order: 'createdAtDesc',
+    }, execCtx);
+
+    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
+      space: 'raw',
+      createdStart: new Date('2026-07-01T00:00:00.000Z'),
+      createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+      order: 'createdAtDesc',
+    }));
   });
 
   it('lists pages when list_pages is called without arguments', async () => {

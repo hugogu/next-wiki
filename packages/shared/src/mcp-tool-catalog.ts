@@ -8,8 +8,8 @@
  * must use this text for the common tool name.
  */
 export const wikiMcpToolDescriptions = {
-  search_wiki: 'Search readable wiki pages by keyword. Use scope to restrict matching to paths, titles, or content; use space to select a content space.',
-  list_pages: 'List readable wiki pages, optionally within a content space.',
+  search_wiki: 'Search readable wiki pages by keyword. Use scope to restrict matching to paths, titles, or content; use space to select a content space. Filter by createdStart/createdEnd and order chronologically when time matters.',
+  list_pages: 'List readable wiki pages, optionally within a content space. Filter by createdStart/createdEnd and order chronologically when time matters.',
   list_tags: 'List readable active wiki tags.',
   create_tag: 'Create a reusable wiki tag.',
   rename_tag: 'Rename a reusable wiki tag.',

@@ -145,6 +145,7 @@ describe('tools', () => {
       filterTag: 'payments',
       createdStart: '2026-07-01T00:00:00.000Z',
       createdEnd: '2026-07-02T00:00:00.000Z',
+      order: 'createdAtDesc',
     });
 
     expect(listPagesClient).toHaveBeenCalledWith(expect.objectContaining({
@@ -153,6 +154,7 @@ describe('tools', () => {
       filterTag: 'payments',
       createdStart: new Date('2026-07-01T00:00:00.000Z'),
       createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+      order: 'createdAtDesc',
     }));
   });
 
@@ -169,11 +171,19 @@ describe('tools', () => {
     const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
     const client = createClient({ searchPages });
 
-    await searchWiki(client, { query: 'payment', space: 'generated', filterType: 'concept' });
+    await searchWiki(client, {
+      query: 'payment', space: 'generated', filterType: 'concept',
+      createdStart: '2026-07-01T00:00:00.000Z',
+      createdEnd: '2026-07-02T00:00:00.000Z',
+      order: 'createdAtDesc',
+    });
 
     expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({
       space: 'generated',
       filterType: 'concept',
+      createdStart: new Date('2026-07-01T00:00:00.000Z'),
+      createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+      order: 'createdAtDesc',
     }));
   });
 
