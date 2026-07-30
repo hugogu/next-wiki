@@ -15,6 +15,13 @@
       "when": 1785377764167,
       "tag": "0001_modern_mojo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785409796831,
+      "tag": "0002_lying_scorpion",
+      "breakpoints": true
     }
   ]
 }

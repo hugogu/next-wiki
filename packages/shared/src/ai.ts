@@ -180,6 +180,7 @@ export const aiActionFeatureSchema = z.enum([
   'index_rebuild',
   'semantic_search',
   'wiki_question',
+  'scheduled_ai_job',
   'text_optimization',
   'image_generation',
   // Legacy compatibility for 026 pre-unification rows. New tool-enabled Wiki AI

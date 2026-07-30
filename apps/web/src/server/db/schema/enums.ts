@@ -151,6 +151,7 @@ export const aiActionFeatureEnum = pgEnum('ai_action_feature', [
   'index_rebuild',
   'semantic_search',
   'wiki_question',
+  'scheduled_ai_job',
   'text_optimization',
   'image_generation',
   // 026: legacy feature value for tool-enabled Wiki questions.
@@ -164,6 +165,17 @@ export const aiActionStatusEnum = pgEnum('ai_action_status', [
   'cancelled',
   'expired',
 ]);
+export const scheduledAiJobStatusEnum = pgEnum('scheduled_ai_job_status', ['enabled', 'paused', 'retired']);
+export const scheduledAiJobRunStatusEnum = pgEnum('scheduled_ai_job_run_status', [
+  'queued',
+  'running',
+  'completed',
+  'failed',
+  'blocked',
+  'cancelled',
+  'skipped',
+]);
+export const scheduledAiJobTriggerEnum = pgEnum('scheduled_ai_job_trigger', ['schedule', 'manual', 'recovery']);
 export const aiQuestionModeEnum = pgEnum('ai_question_mode', ['full', 'retrieval']);
 export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'status',

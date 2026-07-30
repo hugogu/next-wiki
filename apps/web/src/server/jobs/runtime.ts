@@ -35,6 +35,9 @@ export const QUEUES = {
   // idempotent Raw Conversation capture pass. Kept off the interactive
   // ai-action queue so capture work never delays chat streaming.
   rawConversationCapture: 'raw-conversation-capture',
+  /** Discovers due definitions only; model work is isolated in scheduledAiRun. */
+  scheduledAiTick: 'scheduled-ai-tick',
+  scheduledAiRun: 'scheduled-ai-run',
 } as const;
 
 /**
@@ -55,6 +58,7 @@ export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
   [QUEUES.gitExport]: 60 * 60,
   [QUEUES.translation]: 4 * 60 * 60,
   [QUEUES.writingModeSwitch]: 4 * 60 * 60,
+  [QUEUES.scheduledAiRun]: 4 * 60 * 60,
 };
 
 /**

@@ -1179,6 +1179,7 @@ export const translationKeys = [
   "admin.ai.actionFeature.index_rebuild",
   "admin.ai.actionFeature.semantic_search",
   "admin.ai.actionFeature.wiki_question",
+  "admin.ai.actionFeature.scheduled_ai_job",
   "admin.ai.actionFeature.wiki_tool_chat",
   "admin.ai.actionFeature.text_optimization",
   "admin.ai.actionFeature.image_generation",

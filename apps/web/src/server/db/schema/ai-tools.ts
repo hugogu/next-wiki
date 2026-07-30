@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { aiActions, pageRevisions, pages, users } from './index';
+import { aiActions, pageRevisions, pages, scheduledAiJobRuns, users } from './index';
 import {
   aiToolActivationStatusEnum,
   aiToolCallStatusEnum,
@@ -174,6 +174,9 @@ export const aiToolChangeProposals = pgTable(
     createdByActionId: uuid('created_by_action_id').references(() => aiActions.id, {
       onDelete: 'set null',
     }),
+    scheduledAiJobRunId: uuid('scheduled_ai_job_run_id').references(() => scheduledAiJobRuns.id, {
+      onDelete: 'set null',
+    }),
     createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     reviewedByUserId: uuid('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
@@ -185,6 +188,7 @@ export const aiToolChangeProposals = pgTable(
     statusIdx: index('ai_tool_change_proposals_status_idx').on(t.status, t.createdAt),
     kindIdx: index('ai_tool_change_proposals_kind_idx').on(t.kind),
     actorIdx: index('ai_tool_change_proposals_actor_idx').on(t.createdByUserId),
+    scheduledRunIdx: index('ai_tool_change_proposals_scheduled_run_idx').on(t.scheduledAiJobRunId),
   }),
 );
 

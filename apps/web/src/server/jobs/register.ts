@@ -45,6 +45,7 @@ import {
 } from './writing-mode-switch';
 import { runRawConversationCapture } from './raw-conversation-capture';
 import { runRequestLogPersist } from './request-log-persist';
+import { runScheduledAiJobRun, runScheduledAiTick } from './scheduled-ai-jobs';
 
 type JobBatch = { data: unknown }[];
 
@@ -65,6 +66,8 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   registerAiActionHandler('wiki_tool_chat', runToolEnabledWikiQuestionAction);
   registerAiActionHandler('text_optimization', runTextOptimizationAction);
   registerAiActionHandler('image_generation', runImageGenerationAction);
+  // Scheduled actions are invoked only by the durable scheduled-run worker.
+  registerAiActionHandler('scheduled_ai_job', runToolEnabledWikiQuestionAction);
   for (const queue of Object.values(QUEUES)) {
     await boss.createQueue(queue);
     const expireSeconds = QUEUE_EXPIRE_SECONDS[queue];
@@ -118,6 +121,12 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   });
   await boss.work(QUEUES.aiCleanup, async () => {
     await runAiCleanup();
+  });
+  await boss.work(QUEUES.scheduledAiTick, async () => {
+    await runScheduledAiTick();
+  });
+  await boss.work(QUEUES.scheduledAiRun, async (jobs: JobBatch) => {
+    for (const job of jobs) await runScheduledAiJobRun((job.data as { runId: string }).runId);
   });
   await boss.work(QUEUES.requestLogPersist, { batchSize: 25 }, async (jobs: JobBatch) => {
     for (const job of jobs) await runRequestLogPersist(job.data as Record<string, unknown>);
@@ -185,6 +194,7 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.schedule(QUEUES.transferCleanup, '15 * * * *', {});
   await boss.schedule(QUEUES.feishuDelivery, '* * * * *', {});
   await boss.schedule(QUEUES.feishuCleanup, '30 * * * *', {});
+  await boss.schedule(QUEUES.scheduledAiTick, '* * * * *', {});
 
   const pendingReplication = await db
     .select({ id: schema.storageReplicationTasks.id })

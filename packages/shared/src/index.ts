@@ -22,6 +22,7 @@ export * from './feishu';
 export * from './setup';
 export * from './content-data-sources';
 export * from './mcp-tool-catalog';
+export * from './scheduled-ai-jobs';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

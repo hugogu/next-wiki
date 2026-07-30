@@ -42,6 +42,9 @@ import {
   aiPageIndexStatusEnum,
   aiActionFeatureEnum,
   aiActionStatusEnum,
+  scheduledAiJobStatusEnum,
+  scheduledAiJobRunStatusEnum,
+  scheduledAiJobTriggerEnum,
   aiQuestionModeEnum,
   aiEventTypeEnum,
   searchBehaviorActionEnum,
@@ -1369,6 +1372,76 @@ export const aiActions = pgTable(
     statusQueuedIdx: index('ai_actions_status_queued_idx').on(t.status, t.queuedAt),
     providerQueuedIdx: index('ai_actions_provider_queued_idx').on(t.providerId, t.queuedAt),
     rawConversationPageIdx: index('ai_actions_raw_conversation_page_idx').on(t.rawConversationPageId),
+  }),
+);
+
+/** Durable administrator-managed definition; child actions may expire, this never does. */
+export const scheduledAiJobs = pgTable(
+  'scheduled_ai_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    normalizedName: text('normalized_name').notNull(),
+    taskDescription: text('task_description').notNull(),
+    scheduleCron: text('schedule_cron').notNull(),
+    timeZone: text('time_zone').notNull(),
+    targetScope: jsonb('target_scope').notNull().default({}),
+    runAsUserId: uuid('run_as_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    status: scheduledAiJobStatusEnum('status').notNull().default('paused'),
+    definitionVersion: integer('definition_version').notNull().default(1),
+    nextRunAt: timestamp('next_run_at', { withTimezone: true }),
+    lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    lastErrorCode: text('last_error_code'),
+    lastErrorMessage: text('last_error_message'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+  },
+  (t) => ({
+    normalizedNameUnique: uniqueIndex('scheduled_ai_jobs_normalized_name_unique').on(t.normalizedName),
+    dueIdx: index('scheduled_ai_jobs_due_idx').on(t.nextRunAt).where(sql`${t.status} = 'enabled'`),
+    ownerIdx: index('scheduled_ai_jobs_owner_idx').on(t.runAsUserId),
+    versionCheck: check('scheduled_ai_jobs_definition_version_positive', sql`${t.definitionVersion} > 0`),
+  }),
+);
+
+/** Permanent occurrence history; actions and workflows are operational links only. */
+export const scheduledAiJobRuns = pgTable(
+  'scheduled_ai_job_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id').notNull().references(() => scheduledAiJobs.id, { onDelete: 'restrict' }),
+    trigger: scheduledAiJobTriggerEnum('trigger').notNull(),
+    scheduledFor: timestamp('scheduled_for', { withTimezone: true }),
+    definitionVersion: integer('definition_version').notNull(),
+    definitionSnapshot: jsonb('definition_snapshot').notNull().default({}),
+    runAsUserId: uuid('run_as_user_id').references(() => users.id, { onDelete: 'set null' }),
+    status: scheduledAiJobRunStatusEnum('status').notNull().default('queued'),
+    aiActionId: uuid('ai_action_id').references(() => aiActions.id, { onDelete: 'set null' }),
+    toolWorkflowId: uuid('tool_workflow_id'),
+    resultSummary: jsonb('result_summary').notNull().default({}),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    errorDetail: text('error_detail'),
+    cancelRequested: boolean('cancel_requested').notNull().default(false),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+    heartbeatAt: timestamp('heartbeat_at', { withTimezone: true }),
+    queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => ({
+    occurrenceUnique: uniqueIndex('scheduled_ai_job_runs_occurrence_unique')
+      .on(t.jobId, t.scheduledFor).where(sql`${t.scheduledFor} is not null`),
+    jobQueuedIdx: index('scheduled_ai_job_runs_job_queued_idx').on(t.jobId, t.queuedAt),
+    recoveryIdx: index('scheduled_ai_job_runs_recovery_idx').on(t.status, t.queuedAt),
+    activeJobUnique: uniqueIndex('scheduled_ai_job_runs_active_job_unique')
+      .on(t.jobId).where(sql`${t.status} in ('queued', 'running')`),
+    versionCheck: check('scheduled_ai_job_runs_definition_version_positive', sql`${t.definitionVersion} > 0`),
   }),
 );
 

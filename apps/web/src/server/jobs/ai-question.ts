@@ -307,7 +307,9 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const isEnabled = (tool: ToolDefinition) =>
     resolveToolEnabled(tool, policyLayersFor(tool, policyRows), provider.enabled) && hasExecutor(tool.name);
   const resolveReview = (tool: ToolDefinition, requested: AiToolReviewDecision) =>
-    resolveReviewDecision(
+    action.feature === 'scheduled_ai_job'
+      ? 'admin_review'
+      : resolveReviewDecision(
       tool,
       resolveEffectiveReviewPolicy(tool, policyLayersFor(tool, policyRows)),
       requested,

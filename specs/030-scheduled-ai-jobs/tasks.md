@@ -18,9 +18,9 @@
 
 **Purpose**: Add direct dependencies and shared contract types without creating a runtime path.
 
-- [ ] T001 Add direct `cron-parser` dependency and its lockfile entry in `apps/web/package.json` and `pnpm-lock.yaml`.
-- [ ] T002 [P] Add schedule, target-scope, definition, run, list-filter, and API-view schema tests in `packages/shared/src/scheduled-ai-jobs.test.ts`.
-- [ ] T003 Create and export validated scheduled-job Zod schemas/types in `packages/shared/src/scheduled-ai-jobs.ts` and `packages/shared/src/index.ts`.
+- [X] T001 Add direct `cron-parser` dependency and its lockfile entry in `apps/web/package.json` and `pnpm-lock.yaml`.
+- [X] T002 [P] Add schedule, target-scope, definition, run, list-filter, and API-view schema tests in `packages/shared/src/scheduled-ai-jobs.test.ts`.
+- [X] T003 Create and export validated scheduled-job Zod schemas/types in `packages/shared/src/scheduled-ai-jobs.ts` and `packages/shared/src/index.ts`.
 
 ---
 
@@ -30,13 +30,13 @@
 
 **⚠️ CRITICAL**: Do not begin any user-story phase until this phase is complete.
 
-- [ ] T004 Add schema-regression expectations for scheduled enums, tables, foreign keys, uniqueness, and check/index invariants in `apps/web/src/server/db/scheduled-ai-jobs-schema.test.ts`.
-- [ ] T005 Add `scheduled_ai_job` action feature; scheduled definition/run enums and tables; active/due/occurrence indexes; and scheduled-run proposal provenance link in `apps/web/src/server/db/schema/enums.ts`, `apps/web/src/server/db/schema/index.ts`, and `apps/web/src/server/db/schema/ai-tools.ts`.
-- [ ] T006 Generate the Drizzle migration and snapshot from the schema changes with `pnpm db:generate` in `apps/web/src/server/db/migrations/`; do not hand-author SQL, journal, or snapshots.
-- [ ] T007 [P] Add recurrence, IANA time-zone, DST, definition-snapshot, and conditional state-transition tests in `apps/web/src/server/services/scheduled-ai-jobs.test.ts`.
-- [ ] T008 Implement schedule parsing/validation, next-occurrence calculation, immutable snapshot creation, and conditional definition/run transition helpers in `apps/web/src/server/services/scheduled-ai-jobs.ts`.
+- [X] T004 Add schema-regression expectations for scheduled enums, tables, foreign keys, uniqueness, and check/index invariants in `apps/web/src/server/db/scheduled-ai-jobs-schema.test.ts`.
+- [X] T005 Add `scheduled_ai_job` action feature; scheduled definition/run enums and tables; active/due/occurrence indexes; and scheduled-run proposal provenance link in `apps/web/src/server/db/schema/enums.ts`, `apps/web/src/server/db/schema/index.ts`, and `apps/web/src/server/db/schema/ai-tools.ts`.
+- [X] T006 Generate the Drizzle migration and snapshot from the schema changes with `pnpm db:generate` in `apps/web/src/server/db/migrations/`; do not hand-author SQL, journal, or snapshots.
+- [X] T007 [P] Add recurrence, IANA time-zone, DST, definition-snapshot, and conditional state-transition tests in `apps/web/src/server/services/scheduled-ai-jobs.test.ts`.
+- [X] T008 Implement schedule parsing/validation, next-occurrence calculation, immutable snapshot creation, and conditional definition/run transition helpers in `apps/web/src/server/services/scheduled-ai-jobs.ts`.
 - [ ] T009 [P] Extend AI-action feature labels, queue selection, and handler-registration tests for `scheduled_ai_job` in `packages/shared/src/ai.test.ts`, `apps/web/src/server/services/ai-actions.test.ts`, and `apps/web/src/server/jobs/ai-actions.test.ts`.
-- [ ] T010 Register the new action feature and explicit queue constants/expiry configuration in `apps/web/src/server/services/ai-actions.ts`, `apps/web/src/server/jobs/runtime.ts`, and `apps/web/src/server/jobs/register.ts` without yet scheduling model work.
+- [X] T010 Register the new action feature and explicit queue constants/expiry configuration in `apps/web/src/server/services/ai-actions.ts`, `apps/web/src/server/jobs/runtime.ts`, and `apps/web/src/server/jobs/register.ts` without yet scheduling model work.
 
 **Checkpoint**: Schema, shared contracts, and durable scheduling primitives are ready. All user-story work may now begin in dependency order.
 
