@@ -97,7 +97,7 @@ export function applyScheduledSpaceScope(
   toolName: string,
   rawArgs: unknown,
   spaces: ScheduledSpace[],
-): { args: unknown; error?: string } {
+): { args: unknown; error?: string; searchAllSelectedSpaces?: boolean } {
   const args =
     rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
       ? (rawArgs as Record<string, unknown>)
@@ -110,6 +110,13 @@ export function applyScheduledSpaceScope(
   if (!needsNamedSpace) return { args: rawArgs };
 
   const requested = typeof args.space === 'string' ? args.space : null;
+  if (
+    !requested &&
+    spaces.length > 1 &&
+    (toolName === 'search_wiki' || toolName === 'list_pages')
+  ) {
+    return { args: rawArgs, searchAllSelectedSpaces: true };
+  }
   const selected = requested
     ? spaces.find(
         (space) => publicSpaceSlug(space.slug) === (requested === 'default' ? 'wiki' : requested),
@@ -123,7 +130,7 @@ export function applyScheduledSpaceScope(
       args: rawArgs,
       error: requested
         ? `This scheduled Job cannot access the ${requested} space. Allowed spaces: ${names || '(none)'}.`
-        : `Specify the space parameter for this scheduled Job. Allowed spaces: ${names || '(none)'}.`,
+        : `This scheduled Job has no accessible space. Allowed spaces: ${names || '(none)'}.`,
     };
   }
   return { args: { ...args, space: publicSpaceSlug(selected.slug) } };
@@ -1152,6 +1159,48 @@ type Executor = (
   execCtx: ToolExecutionContext,
 ) => Promise<ToolExecutionResult>;
 
+async function executeAcrossScheduledSpaces(
+  executor: Executor,
+  tool: ToolDefinition,
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+  spaces: ScheduledSpace[],
+): Promise<ToolExecutionResult> {
+  const args =
+    rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
+      ? (rawArgs as Record<string, unknown>)
+      : {};
+  const results = await Promise.all(
+    spaces.map((space) => executor(ctx, { ...args, space: publicSpaceSlug(space.slug) }, execCtx)),
+  );
+  const successful = results.filter((result) => result.ok);
+  if (successful.length === 0) {
+    return (
+      results[0] ?? fail('SCHEDULED_SCOPE_VIOLATION', 'This scheduled Job has no accessible space.')
+    );
+  }
+
+  const requestedLimit =
+    typeof args.limit === 'number' && Number.isInteger(args.limit)
+      ? Math.min(Math.max(args.limit, 1), MAX_LIST)
+      : tool.name === 'search_wiki'
+        ? 10
+        : MAX_LIST;
+  const items = successful
+    .flatMap((result) => {
+      const data = result.data as { items?: unknown[] } | undefined;
+      return Array.isArray(data?.items) ? data.items : [];
+    })
+    .slice(0, requestedLimit);
+  const verb = tool.name === 'search_wiki' ? 'matched' : 'listed';
+  return {
+    ok: true,
+    summary: `${items.length} readable page(s) ${verb} across ${successful.length} scoped space(s).`,
+    data: { items },
+  };
+}
+
 const EXECUTORS: Record<string, Executor> = {
   search_wiki: (ctx, args) => execSearchWiki(ctx, args),
   get_page: execGetPage,
@@ -1200,6 +1249,9 @@ export async function executeTool(
       const spaces = await scheduledSpaces(execCtx.scheduledScope);
       const scoped = applyScheduledSpaceScope(tool.name, args, spaces);
       if (scoped.error) return fail('SCHEDULED_SCOPE_VIOLATION', scoped.error);
+      if (scoped.searchAllSelectedSpaces) {
+        return executeAcrossScheduledSpaces(executor, tool, ctx, args, execCtx, spaces);
+      }
       scopedArgs = scoped.args;
       const value =
         scopedArgs !== null && typeof scopedArgs === 'object'

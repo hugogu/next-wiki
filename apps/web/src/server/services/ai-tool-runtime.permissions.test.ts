@@ -401,9 +401,10 @@ describe('scheduled Job space boundary', () => {
     ).toEqual({ args: { query: 'payments', space: 'raw' } });
   });
 
-  it('requires an explicit space when more than one is selected', () => {
-    expect(applyScheduledSpaceScope('list_pages', {}, spaces)).toMatchObject({
-      error: 'Specify the space parameter for this scheduled Job. Allowed spaces: raw, generated.',
+  it('searches every selected space when the model omits a space', () => {
+    expect(applyScheduledSpaceScope('list_pages', {}, spaces)).toEqual({
+      args: {},
+      searchAllSelectedSpaces: true,
     });
   });
 
@@ -444,5 +445,33 @@ describe('scheduled Job space boundary', () => {
       readerCtx,
       expect.objectContaining({ space: 'raw', limit: 100 }),
     );
+  });
+
+  it('searches all selected spaces when no space is specified', async () => {
+    database.select.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(spaces),
+      }),
+    });
+    content.searchPages.mockResolvedValue({ items: [], nextCursor: null });
+
+    const result = await executeTool(
+      readerCtx,
+      searchTool,
+      { query: '诸葛亮', scope: 'all' },
+      {
+        ...execCtx,
+        scheduledScope: { spaceIds: spaces.map((space) => space.id), skillNames: [] },
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      summary: '0 readable page(s) matched across 2 scoped space(s).',
+    });
+    expect(content.searchPages.mock.calls.slice(-2).map(([, query]) => query.space)).toEqual([
+      'raw',
+      'generated',
+    ]);
   });
 });
