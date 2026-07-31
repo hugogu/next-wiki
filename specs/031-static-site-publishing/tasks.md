@@ -61,10 +61,10 @@ not share a commit).
 ### Schemas and persistence
 
 - [X] T009 [P] Define Zod schemas and inferred types in `packages/shared/src/static-site.ts`: `staticSiteTargetUpsertSchema`, `StaticSiteTargetView`, `StaticSitePublicationView`, `staticSiteExclusionReason`, reusing the existing Git remote-URL and branch-name validation rules
-- [ ] T010 [P] Add `staticSitePublicationStatusEnum`, `staticSitePublicationTriggerEnum`, and `staticSiteAuthModeEnum` to `apps/web/src/server/db/schema/enums.ts`
-- [ ] T011 Add the `static_site_targets` and `static_site_publications` tables to `apps/web/src/server/db/schema/index.ts` per [data-model.md](./data-model.md), with the `(target_id, created_at DESC)` index and `ON DELETE CASCADE`
-- [ ] T012 Generate the migration by running `pnpm db:generate` — never hand-author the SQL or edit `meta/_journal.json`; then run `pnpm db:generate` a second time with no further edits and confirm it reports no schema changes
-- [ ] T013 [P] Add `staticSitePublish` and `staticSiteTick` queue ids plus their expiry floors to `apps/web/src/server/jobs/runtime.ts`
+- [X] T010 [P] Add `staticSitePublicationStatusEnum`, `staticSitePublicationTriggerEnum`, and `staticSiteAuthModeEnum` to `apps/web/src/server/db/schema/enums.ts`
+- [X] T011 Add the `static_site_targets` and `static_site_publications` tables to `apps/web/src/server/db/schema/index.ts` per [data-model.md](./data-model.md), with the `(target_id, created_at DESC)` index and `ON DELETE CASCADE`
+- [X] T012 Generate the migration by running `pnpm db:generate` — never hand-author the SQL or edit `meta/_journal.json`; then run `pnpm db:generate` a second time with no further edits and confirm it reports no schema changes
+- [X] T013 [P] Add `staticSitePublish` and `staticSiteTick` queue ids plus their expiry floors to `apps/web/src/server/jobs/runtime.ts`
 
 ### Service layer and REST surface
 

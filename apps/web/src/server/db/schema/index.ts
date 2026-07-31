@@ -38,6 +38,9 @@ import {
   aiCapabilityEnum,
   aiCapabilitySourceEnum,
   toolCallStrategyEnum,
+  staticSiteAuthModeEnum,
+  staticSitePublicationStatusEnum,
+  staticSitePublicationTriggerEnum,
   aiPurposeEnum,
   aiIndexStatusEnum,
   aiPageIndexStatusEnum,
@@ -2159,6 +2162,74 @@ export const analyticsProviderSettings = pgTable('analytics_provider_settings', 
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---- Static site publishing (031) -------------------------------------------
+// Deliberately NOT a `storage_backends` purpose. That table models where content
+// bytes live; a publishing target is never read from. Sharing it would couple
+// two independent features through one unique index and force meaningless
+// columns (replica_state, is_read_preferred) onto a write-only destination.
+
+/** Where and how the reader-facing static site is published. One row per
+ * target; this release supports a single target per deployment. */
+export const staticSiteTargets = pgTable('static_site_targets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  isEnabled: boolean('is_enabled').notNull().default(false),
+  remoteUrl: text('remote_url').notNull(),
+  /** Fully owned by this feature: every publish replaces the branch's tree. */
+  branch: text('branch').notNull(),
+  /** Public address the host serves. Its path component becomes the artifact's
+   * base path, which is what makes project-site sub-path hosting work. */
+  baseUrl: text('base_url').notNull(),
+  authMode: staticSiteAuthModeEnum('auth_mode').notNull(),
+  username: text('username'),
+  /** Encrypted at rest; never returned by any view and never logged. */
+  secretEncrypted: text('secret_encrypted'),
+  publicKey: text('public_key'),
+  fingerprint: text('fingerprint'),
+  autoPublishOnChange: boolean('auto_publish_on_change').notNull().default(false),
+  scheduledPublishEnabled: boolean('scheduled_publish_enabled').notNull().default(false),
+  scheduledIntervalMinutes: integer('scheduled_interval_minutes').notNull().default(60),
+  /** Set by public-content mutations, cleared on a successful publish. */
+  isStale: boolean('is_stale').notNull().default(false),
+  /** Most recent run, for cheap status reads. App-enforced reference rather
+   * than a FK, matching the `current_published_version_id` convention above —
+   * a FK here would be circular with the run's own target_id. */
+  lastPublicationId: uuid('last_publication_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One publish attempt. Operational history, not content versioning — this
+ * feature creates no revisions. */
+export const staticSitePublications = pgTable(
+  'static_site_publications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    targetId: uuid('target_id')
+      .notNull()
+      .references(() => staticSiteTargets.id, { onDelete: 'cascade' }),
+    status: staticSitePublicationStatusEnum('status').notNull().default('queued'),
+    trigger: staticSitePublicationTriggerEnum('trigger').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    pagesPublished: integer('pages_published').notNull().default(0),
+    assetsPublished: integer('assets_published').notNull().default(0),
+    pagesExcluded: integer('pages_excluded').notNull().default(0),
+    /** Counts keyed by exclusion reason. Counts only — a reason with a page
+     * attached would turn run history into a disclosure channel for exactly
+     * the content the feature exists to keep out of the artifact. */
+    exclusionSummary: jsonb('exclusion_summary').notNull().default({}),
+    bytesTotal: bigint('bytes_total', { mode: 'number' }).notNull().default(0),
+    commitSha: text('commit_sha'),
+    forcedPush: boolean('forced_push').notNull().default(false),
+    /** Redacted of credential material before storage. */
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byTarget: index('static_site_publications_target_created').on(t.targetId, t.createdAt.desc()),
+  }),
+);
 
 // ---- Wiki AI Tool Runtime (026) --------------------------------------------
 // Tool provider/policy/workflow/call/proposal/evidence tables live in their own

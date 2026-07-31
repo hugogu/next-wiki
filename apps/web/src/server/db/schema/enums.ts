@@ -575,3 +575,27 @@ export const skillFileOperationEnum = pgEnum('skill_file_operation', [
  * function-calling and falls back to the text protocol; the explicit values are
  * the Administrator override. */
 export const toolCallStrategyEnum = pgEnum('tool_call_strategy', ['auto', 'native', 'text']);
+
+// ---- Static site publishing (031) -------------------------------------------
+
+/** How the publish job authenticates to the destination repository. Same two
+ * modes Git export supports, but a real column here rather than a value inside
+ * a JSON config, because this target has no other config shape to carry. */
+export const staticSiteAuthModeEnum = pgEnum('static_site_auth_mode', ['https_token', 'ssh']);
+/** Lifecycle of one publish attempt. `cancelled` covers a run whose target was
+ * disabled or removed before it started. */
+export const staticSitePublicationStatusEnum = pgEnum('static_site_publication_status', [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'cancelled',
+]);
+/** What started a run. `takedown` removes the published site rather than
+ * publishing content, and is recorded in the same history. */
+export const staticSitePublicationTriggerEnum = pgEnum('static_site_publication_trigger', [
+  'manual',
+  'content_change',
+  'scheduled',
+  'takedown',
+]);

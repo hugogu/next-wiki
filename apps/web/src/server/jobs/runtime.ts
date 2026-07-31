@@ -38,6 +38,12 @@ export const QUEUES = {
   /** Discovers due definitions only; model work is isolated in scheduledAiRun. */
   scheduledAiTick: 'scheduled-ai-tick',
   scheduledAiRun: 'scheduled-ai-run',
+  // 031: renders the public HTML site and delivers it. Kept off the git-export
+  // queue — the two features are independent, and a stalled backup export must
+  // not hold up a content publish (or the reverse).
+  staticSitePublish: 'static-site-publish',
+  /** Discovers a due scheduled publish only; the work happens on the queue above. */
+  staticSiteTick: 'static-site-tick',
 } as const;
 
 /**
@@ -59,6 +65,10 @@ export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
   [QUEUES.translation]: 4 * 60 * 60,
   [QUEUES.writingModeSwitch]: 4 * 60 * 60,
   [QUEUES.scheduledAiRun]: 4 * 60 * 60,
+  // Renders every published page, builds a search index, and pushes a full
+  // tree. Larger ceiling than gitExport because rendering and indexing dominate
+  // on a big wiki, and a false expiry here stalls the worker permanently.
+  [QUEUES.staticSitePublish]: 4 * 60 * 60,
 };
 
 /**
