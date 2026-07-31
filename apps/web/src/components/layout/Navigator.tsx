@@ -28,6 +28,7 @@ import {
   TagIcon,
   PlusIcon,
   PenSparkIcon,
+  PublishIcon,
   LayersIcon,
   FunctionPlotIcon,
 } from '@/components/icons';
@@ -406,6 +407,11 @@ export function Navigator({
           href: '/admin/transfers',
           label: t('admin.nav.transfers'),
           icon: <ArrowUpDownIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/static-site',
+          label: t('admin.nav.staticSite'),
+          icon: <PublishIcon className="shrink-0" />,
         },
         {
           href: '/admin/api-audit',

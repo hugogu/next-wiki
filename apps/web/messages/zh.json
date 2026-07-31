@@ -607,7 +607,8 @@
       "bots": "机器人",
       "writingMode": "写作模式",
       "rawCategories": "原始分类",
-      "contentDataSources": "数据源"
+      "contentDataSources": "数据源",
+      "staticSite": "静态站点"
     },
     "searchSettings": {
       "title": "搜索设置",
@@ -1885,6 +1886,47 @@
           "label": "AI 对话",
           "description": "将每一次 AI 对话——无论来自 Wiki AI 还是飞书机器人——采集为内置「对话」分类下的原始页面。"
         }
+      }
+    },
+    "staticSite": {
+      "metadataTitle": "静态站点",
+      "title": "静态站点发布",
+      "description": "把可公开阅读的页面发布为可浏览的 HTML 网站，托管在 GitHub Pages 等静态服务上。",
+      "notGitExport": "这不是 Git 导出。Git 导出写出的是用于备份和迁移的原始 Markdown；本功能发布的是面向读者的渲染网站。两者使用各自独立的分支，可分别启用。",
+      "remoteUrl": "仓库",
+      "remoteUrlHint": "HTTPS 或 SSH 地址，URL 中不得包含凭据。",
+      "branch": "分支",
+      "branchHint": "该分支由发布功能独占：每次发布都会整体替换其全部内容。",
+      "baseUrl": "公开地址",
+      "baseUrlHint": "托管方对外提供服务的地址。项目站点必须包含仓库路径，否则站内所有链接都会失效。",
+      "authMode": "认证方式",
+      "authHttps": "HTTPS 令牌",
+      "authSsh": "SSH 部署密钥",
+      "username": "用户名",
+      "token": "访问令牌",
+      "tokenStored": "已保存令牌。留空表示保持不变。",
+      "generateKey": "生成部署密钥",
+      "deployKeyHint": "将其安装为具有写权限的部署密钥，然后启用发布。",
+      "fingerprint": "指纹",
+      "autoPublish": "内容变更时发布",
+      "autoPublishHint": "已发布内容、路径或可见性发生变化时自动重新发布。",
+      "scheduled": "定时发布",
+      "scheduledHint": "按固定间隔重新发布，单位为分钟。",
+      "enable": "启用发布",
+      "disable": "停用发布",
+      "publishNow": "立即发布",
+      "publishQueued": "发布任务已排队，将在后台执行。",
+      "saved": "配置已保存。",
+      "keyGenerated": "部署密钥已生成。请先安装到仓库，再启用发布。",
+      "viewSite": "查看公开站点",
+      "lastRun": "上次发布",
+      "counts": "已发布 {pages} 个页面、{assets} 个资源，排除 {excluded} 个。",
+      "status": {
+        "queued": "排队中",
+        "running": "发布中…",
+        "succeeded": "已发布",
+        "failed": "失败",
+        "cancelled": "已取消"
       }
     }
   },

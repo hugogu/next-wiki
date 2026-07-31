@@ -77,9 +77,9 @@ not share a commit).
 
 ### Admin entry point
 
-- [ ] T020 Create the single admin route `apps/web/app/(admin)/admin/static-site/page.tsx` and add exactly one navigation entry for it; do not add an entry under Admin → Storage
-- [ ] T021 [P] Build the target configuration form in `apps/web/src/components/admin/static-site/TargetForm.tsx` using `@/components/ui` primitives only, including copy that states plainly this is a different feature from Git export
-- [ ] T022 [P] Add new admin and shell message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`, keeping the existing catalog-parity test green
+- [X] T020 Create the single admin route `apps/web/app/(admin)/admin/static-site/page.tsx` and add exactly one navigation entry for it; do not add an entry under Admin → Storage
+- [X] T021 [P] Build the target configuration form in `apps/web/src/components/admin/static-site/TargetForm.tsx` using `@/components/ui` primitives only, including copy that states plainly this is a different feature from Git export
+- [X] T022 [P] Add new admin and shell message keys to `apps/web/messages/en.json` and `apps/web/messages/zh.json`, keeping the existing catalog-parity test green
 
 **Checkpoint**: an operator can configure and validate a target. Nothing is published yet.
 

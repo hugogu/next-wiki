@@ -607,7 +607,8 @@
       "bots": "Bots",
       "writingMode": "Writing Mode",
       "rawCategories": "Raw categories",
-      "contentDataSources": "Data Sources"
+      "contentDataSources": "Data Sources",
+      "staticSite": "Static site"
     },
     "searchSettings": {
       "title": "Search Settings",
@@ -1885,6 +1886,47 @@
           "label": "AI Conversations",
           "description": "Capture every AI conversation — Wiki AI and Feishu bot — as Raw Conversation pages in the built-in Conversation category."
         }
+      }
+    },
+    "staticSite": {
+      "metadataTitle": "Static site",
+      "title": "Static site publishing",
+      "description": "Publish your publicly readable pages as a browsable HTML website on a static host such as GitHub Pages.",
+      "notGitExport": "This is not Git export. Git export writes raw Markdown for backup and portability; this publishes a rendered, reader-facing website. They use separate branches and can be enabled independently.",
+      "remoteUrl": "Repository",
+      "remoteUrlHint": "HTTPS or SSH remote, without credentials in the URL.",
+      "branch": "Branch",
+      "branchHint": "This branch is owned by publishing: every publish replaces its entire contents.",
+      "baseUrl": "Public address",
+      "baseUrlHint": "Where the host serves the site. For a project site this must include the repository path, or every link on the site will break.",
+      "authMode": "Authentication",
+      "authHttps": "HTTPS token",
+      "authSsh": "SSH deploy key",
+      "username": "Username",
+      "token": "Access token",
+      "tokenStored": "A token is stored. Leave empty to keep it.",
+      "generateKey": "Generate deploy key",
+      "deployKeyHint": "Install this as a deploy key with write access, then enable publishing.",
+      "fingerprint": "Fingerprint",
+      "autoPublish": "Publish on change",
+      "autoPublishHint": "Republish whenever published content, paths, or visibility change.",
+      "scheduled": "Scheduled publishing",
+      "scheduledHint": "Republish on a fixed interval, in minutes.",
+      "enable": "Enable publishing",
+      "disable": "Disable publishing",
+      "publishNow": "Publish now",
+      "publishQueued": "Publish queued. It runs in the background.",
+      "saved": "Configuration saved.",
+      "keyGenerated": "Deploy key generated. Install it on the repository, then enable publishing.",
+      "viewSite": "View public site",
+      "lastRun": "Last publish",
+      "counts": "{pages} pages, {assets} assets published, {excluded} excluded.",
+      "status": {
+        "queued": "Queued",
+        "running": "Publishing…",
+        "succeeded": "Published",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
       }
     }
   },
