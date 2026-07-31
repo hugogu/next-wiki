@@ -54,9 +54,9 @@ not share a commit).
 
 ### Shared Git transport extraction (refactor only, no behavior change)
 
-- [ ] T006 Extract `buildGitEnvironment()` and the `git()` invocation wrapper from `apps/web/src/server/jobs/git-export.ts` into a new `apps/web/src/server/git/transport.ts`, preserving the timeout, `GIT_ASKPASS`, and SSH option behavior verbatim
-- [ ] T007 Update `apps/web/src/server/jobs/git-export.ts` to import from `apps/web/src/server/git/transport.ts`, deleting the moved code
-- [ ] T008 Add `apps/web/src/server/git/transport.test.ts` covering credential-environment construction for both auth modes and confirming no secret reaches argv; run `apps/web/src/server/jobs/git-export.test.ts` unchanged and green
+- [X] T006 Extract `buildGitEnvironment()` and the `git()` invocation wrapper from `apps/web/src/server/jobs/git-export.ts` into a new `apps/web/src/server/git/transport.ts`, preserving the timeout, `GIT_ASKPASS`, and SSH option behavior verbatim
+- [X] T007 Update `apps/web/src/server/jobs/git-export.ts` to import from `apps/web/src/server/git/transport.ts`, deleting the moved code
+- [X] T008 Add `apps/web/src/server/git/transport.test.ts` covering credential-environment construction for both auth modes and confirming no secret reaches argv; run `apps/web/src/server/jobs/git-export.test.ts` unchanged and green
 
 ### Schemas and persistence
 
