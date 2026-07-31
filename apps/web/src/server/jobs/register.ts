@@ -46,6 +46,7 @@ import {
 import { runRawConversationCapture } from './raw-conversation-capture';
 import { runRequestLogPersist } from './request-log-persist';
 import { runScheduledAiJobRun, runScheduledAiTick } from './scheduled-ai-jobs';
+import { runStaticSitePublish } from './static-site-publish';
 
 type JobBatch = { data: unknown }[];
 
@@ -106,6 +107,13 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     } else if (items.some((item) => item?.scheduled)) {
       await tickScheduledGitExport();
     }
+  });
+  await boss.work(QUEUES.staticSitePublish, async (jobs: JobBatch) => {
+    // A full snapshot reconciles everything, so only the newest trigger in a
+    // batch needs to run; earlier ones would rebuild the same site.
+    const items = jobs.map((job) => job.data as { targetId?: string; publicationId?: string });
+    const latest = items.filter((item) => item?.targetId && item?.publicationId).at(-1);
+    if (latest) await runStaticSitePublish(latest.targetId!, latest.publicationId!);
   });
   await boss.work(QUEUES.aiAction, async (jobs: JobBatch) => {
     for (const job of jobs) {
