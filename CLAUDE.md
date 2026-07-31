@@ -37,6 +37,15 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
+- 031-static-site-publishing: Publishes a reader-facing static HTML site of
+  publicly readable pages to a Git-served host (GitHub Pages). Independent of
+  Git export — that ships raw Markdown for backup, this ships rendered HTML for
+  readers; the shared piece is only the git transport helper extracted to
+  `apps/web/src/server/git/transport.ts`. Generation lives in
+  `apps/web/src/server/static-site/`, with one eligibility query as the sole
+  content filter. New build-time deps: `esbuild` (client runtime bundle) and the
+  Tailwind CLI (stylesheet); new runtime binary: pinned `pagefind_extended` in
+  the runner image for chunked, CJK-capable search indexing.
 - 003-content-storage-backends: Added TypeScript 5.x on Node.js 20.9+ (Next.js 16 runtime floor).
 - 028-skill-system: Skill system + provider-agnostic tool calling. No new
   dependency. Adds a neutral tool-call envelope in `packages/shared`, native
