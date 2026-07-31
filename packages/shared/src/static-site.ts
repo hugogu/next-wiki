@@ -136,6 +136,15 @@ export const staticSiteTakedownSchema = z.object({
 });
 export type StaticSiteTakedown = z.infer<typeof staticSiteTakedownSchema>;
 
+export type StaticSitePublicationListResponse = {
+  items: StaticSitePublicationView[];
+};
+
+export type StaticSiteSshKeyResult = {
+  publicKey: string;
+  fingerprint: string;
+};
+
 export type StaticSiteValidationResult = {
   ok: boolean;
   /** Safe to display: never contains credential material. */

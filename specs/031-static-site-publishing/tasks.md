@@ -70,9 +70,9 @@ not share a commit).
 
 - [X] T014 Implement target CRUD, secret encryption via `@/server/crypto/key-encryption`, and admin permission enforcement in `apps/web/src/server/services/static-site.ts`, following the `assertCanManage*` chokepoint pattern used by `services/git-export.ts`
 - [X] T015 [P] Add `apps/web/src/server/services/static-site.test.ts` asserting the secret is never returned in any view, that enabling without a stored secret is rejected, and that non-admin actors are denied without disclosing configuration
-- [ ] T016 [P] Implement `GET`/`PUT`/`DELETE` in `apps/web/app/api/static-site/target/route.ts` per the contract, with `@openapi` JSDoc blocks placed directly above each export (multi-line only — a collapsed block corrupts `@summary`)
-- [ ] T017 [P] Implement `POST apps/web/app/api/static-site/target/ssh-key/route.ts` mirroring the existing Git export SSH-key route
-- [ ] T018 [P] Add `apps/web/app/api/static-site/target/route.test.ts` covering validation failures, admin-only access, and the 200/202 split on save-disabled versus save-enabled
+- [X] T016 [P] Implement `GET`/`PUT`/`DELETE` in `apps/web/app/api/static-site/target/route.ts` per the contract, with `@openapi` JSDoc blocks placed directly above each export (multi-line only — a collapsed block corrupts `@summary`)
+- [X] T017 [P] Implement `POST apps/web/app/api/static-site/target/ssh-key/route.ts` mirroring the existing Git export SSH-key route
+- [X] T018 [P] Add `apps/web/app/api/static-site/target/route.test.ts` covering validation failures, admin-only access, and the 200/202 split on save-disabled versus save-enabled
 - [ ] T019 Register the publish queue and handler explicitly in `apps/web/src/server/jobs/register.ts` (no dynamic discovery, per P10), with a stub handler that fails loudly until T031 lands
 
 ### Admin entry point

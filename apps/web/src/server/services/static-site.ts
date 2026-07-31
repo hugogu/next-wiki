@@ -9,7 +9,7 @@ import {
   type StaticSiteExclusionCounts,
   type StaticSitePublicationTrigger,
   type StaticSitePublicationView,
-  type StaticSiteTargetUpsert,
+  type StaticSiteTargetUpsertInput,
   type StaticSiteTargetView,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -105,7 +105,9 @@ export async function getTarget(ctx: PermCtx): Promise<StaticSiteTargetView | nu
 
 export async function configureTarget(
   ctx: PermCtx,
-  input: StaticSiteTargetUpsert,
+  // Input shape: the schema's defaulted fields are optional on the wire and
+  // filled in by the parse below.
+  input: StaticSiteTargetUpsertInput,
 ): Promise<{ view: StaticSiteTargetView; queuedPublicationId: string | null }> {
   assertCanManageStaticSite(ctx);
   const parsed = staticSiteTargetUpsertSchema.parse(input);
