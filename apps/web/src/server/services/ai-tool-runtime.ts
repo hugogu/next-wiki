@@ -503,6 +503,43 @@ function formatToolResultPayload(
   return JSON.stringify({ summary: result.summary, data });
 }
 
+/**
+ * Identity of a tool call within one turn, insensitive to argument key order
+ * (models do not emit a stable order across iterations).
+ */
+export function toolCallSignature(toolName: string, args: Record<string, unknown>): string {
+  return `${toolName}:${stableStringify(args)}`;
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`).join(',')}}`;
+}
+
+/**
+ * Consecutive planner steps that may consist purely of repeated calls before
+ * the turn is ended without an answer.
+ *
+ * The prompt already asks the model not to repeat equivalent searches, and a
+ * prompt is the only thing that ever asked. One observed turn called
+ * `search_wiki` 79 times over six and a half minutes — 30 of them byte-identical
+ * — because the tool kept returning one page that was not the page it was
+ * looking for. Two directives are a fair warning; a third identical step is a
+ * loop, not a plan.
+ */
+export const DUPLICATE_ONLY_STEP_LIMIT = 3;
+
+const REPEATED_CALL_NOTICE =
+  '[repeated call: this tool already ran with identical arguments in this turn, so the server did not run it again. Its earlier result follows unchanged. If it does not answer the question, change the arguments or answer from what you already have.]';
+
+function repeatedStepDirective(remainingSteps: number): string {
+  return `[every tool call in your last step repeated an earlier one with identical arguments, so nothing new was read. Change your approach or write the final answer now — after ${remainingSteps} more such step(s) this turn ends without one.]`;
+}
+
 function hashResult(data: unknown): string {
   return createHash('sha256')
     .update(JSON.stringify(data ?? null))
@@ -568,6 +605,12 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   const citations = new Map<string, AiCitation>();
   const loopStartedAt = Date.now();
   let iterations = 0;
+  // Read tools are idempotent within a turn, so an identical repeat can only
+  // return what the cache already holds. Replaying it costs the model a step
+  // instead of a database round trip, an audit row, and a slot in the call
+  // budget — and makes the repetition visible to it in-band.
+  const readResults = new Map<string, string>();
+  let duplicateOnlySteps = 0;
 
   logger.info('tool loop started', {
     actionId: params.actionId,
@@ -618,6 +661,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       return { status: 'completed', answer, calls, citations: [...citations.values()] };
     }
 
+    let repeatedCalls = 0;
     for (const planned of step.calls) {
       const tool = resolveExecutableTool(planned.toolName);
       if (!tool || !params.isEnabled(tool)) {
@@ -662,6 +706,21 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           });
         }
         state.transcript.push(`TOOL ${planned.toolName} -> blocked: disabled by policy`);
+        continue;
+      }
+
+      const signature = toolCallSignature(tool.name, planned.arguments);
+      const cached = tool.category === 'read' ? readResults.get(signature) : undefined;
+      if (cached !== undefined) {
+        repeatedCalls += 1;
+        logger.warn('tool call repeated with identical arguments', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          iteration: iterations,
+          toolName: tool.name,
+          argumentKeys: Object.keys(planned.arguments),
+        });
+        state.transcript.push(`${REPEATED_CALL_NOTICE}\n${cached}`);
         continue;
       }
 
@@ -770,6 +829,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           durationMs: toolDurationMs,
         });
         state.transcript.push(rendered.text);
+        // Only successes: a read that failed may well succeed on a retry, so
+        // replaying its error would strand the model on a transient fault.
+        if (tool.category === 'read') readResults.set(signature, rendered.text);
       } else {
         await failToolCall(call.id, {
           errorCode: result.errorCode ?? 'TOOL_FAILED',
@@ -809,6 +871,27 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           `TOOL ${tool.name} -> failed: ${result.errorMessage ?? result.summary}`,
         );
       }
+    }
+
+    // A step that read nothing new cannot have moved the turn forward. Warn
+    // in-band first — a model given the repetition explicitly usually changes
+    // course — and end the turn rather than let it spin against the call budget.
+    if (step.calls.length > 0 && repeatedCalls === step.calls.length) {
+      duplicateOnlySteps += 1;
+      if (duplicateOnlySteps >= DUPLICATE_ONLY_STEP_LIMIT) {
+        logger.warn('tool loop stopped on repeated tool calls', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          iterations,
+          calls,
+          duplicateOnlySteps,
+        });
+        await transitionWorkflow(params.workflowId, 'limit_reached');
+        return { status: 'limit_reached', answer, calls, citations: [...citations.values()] };
+      }
+      state.transcript.push(repeatedStepDirective(DUPLICATE_ONLY_STEP_LIMIT - duplicateOnlySteps));
+    } else {
+      duplicateOnlySteps = 0;
     }
   }
 }

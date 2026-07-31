@@ -11,6 +11,7 @@ import {
   createWorkflow,
   isTerminalWorkflowStatus,
   recordToolCall,
+  DUPLICATE_ONLY_STEP_LIMIT,
   runToolLoop,
   startToolCall,
   succeedToolCall,
@@ -308,6 +309,72 @@ describe('ai tool runtime — bounded loop', () => {
     const calls = await db.query.aiToolCalls.findMany({ where: (c, { eq }) => eq(c.workflowId, workflow.id) });
     expect(calls[0]?.status).toBe('blocked');
     expect(calls[0]?.errorCode).toBe('TOOL_NOT_ENABLED');
+  });
+
+  it('replays an identical read call from the turn instead of running it again', async () => {
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
+    await transitionWorkflow(workflow.id, 'running');
+    const seen: string[][] = [];
+    const steps: ToolPlanStep[] = [
+      { kind: 'tool_calls', calls: [{ toolName: 'search_wiki', arguments: { query: 'x', scope: 'all' }, requestedReview: 'none' }] },
+      // Same call, different argument order — models do not emit a stable one.
+      { kind: 'tool_calls', calls: [{ toolName: 'search_wiki', arguments: { scope: 'all', query: 'x' }, requestedReview: 'none' }] },
+      { kind: 'final', text: 'done' },
+    ];
+    let index = 0;
+    const result = await runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: null,
+      question: 'q',
+      planner: async (state) => {
+        seen.push([...state.transcript]);
+        return steps[index++]!;
+      },
+      resolveReview: noReview,
+      isEnabled: allowAll,
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.calls).toBe(1);
+    const calls = await db.query.aiToolCalls.findMany({ where: (c, { eq }) => eq(c.workflowId, workflow.id) });
+    expect(calls).toHaveLength(1);
+    // The replay carries the original result plus an explicit repetition notice.
+    const final = seen.at(-1)!;
+    expect(final.some((entry) => entry.includes('repeated call'))).toBe(true);
+    expect(final.filter((entry) => entry.includes('TOOL search_wiki ->'))).toHaveLength(2);
+  });
+
+  it('ends the turn once consecutive steps read nothing new', async () => {
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 50 });
+    await transitionWorkflow(workflow.id, 'running');
+    const repeat: ToolPlanStep = {
+      kind: 'tool_calls',
+      calls: [{ toolName: 'search_wiki', arguments: { query: 'x' }, requestedReview: 'none' }],
+    };
+    let planned = 0;
+    const result = await runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: null,
+      question: 'q',
+      planner: async () => {
+        planned += 1;
+        return repeat;
+      },
+      resolveReview: noReview,
+      isEnabled: allowAll,
+    });
+
+    expect(result.status).toBe('limit_reached');
+    // One real call, then DUPLICATE_ONLY_STEP_LIMIT repeats — not the 50 the
+    // call budget alone would have allowed.
+    expect(result.calls).toBe(1);
+    expect(planned).toBe(1 + DUPLICATE_ONLY_STEP_LIMIT);
+    const calls = await db.query.aiToolCalls.findMany({ where: (c, { eq }) => eq(c.workflowId, workflow.id) });
+    expect(calls).toHaveLength(1);
   });
 
   it('stops at limit_reached when the per-turn call limit is exceeded', async () => {
