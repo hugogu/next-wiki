@@ -1017,7 +1017,11 @@ export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promis
 /** Candidate rows fetched per requested result for a relevance search. */
 const RELEVANCE_OVERFETCH = 5;
 
-/** Hard ceiling on that window: every candidate is read with its contentSource. */
+/**
+ * Ceiling on that window, because every candidate is read with its
+ * contentSource. `listPagesInternal` selects one row beyond the limit it is
+ * given to detect a next page, so the widest fetch is this plus one.
+ */
 const MAX_RELEVANCE_CANDIDATES = 200;
 
 async function searchPagesWithLegacyFilters(

@@ -58,18 +58,32 @@ type Section = { headings: string[]; text: string };
 /**
  * Fold sections too small to stand alone into the next one that is not.
  *
- * A small section's own heading travels with its text so the merged chunk still
- * reads as the document did — `Question` stays attached to the question it
- * labels. A trailing remainder joins the previous chunk rather than becoming
- * the stub this exists to prevent; a document that is entirely below the floor
- * is emitted as-is, because a short page is legitimately a short chunk.
+ * A small section's own heading path travels inline with its text, so no
+ * heading is lost when the section stops being a chunk of its own: `Question`
+ * stays attached to the question it labels.
+ *
+ * The merged chunk keeps the *absorbing* section's heading path, because that
+ * is where the bulk of its text comes from and `headingPath` is what labels the
+ * chunk elsewhere. One consequence is worth stating plainly rather than
+ * implying otherwise: `chunkMarkdown` renders that path as a prefix, so a
+ * merged chunk reads `Answer / Overview` before the folded-in `Question`
+ * content, which is not the order the document had. That costs nothing for an
+ * embedding and keeps every heading present exactly once; reordering it would
+ * mean either mislabelling the chunk with the small section's path or
+ * duplicating the absorbing heading in the body.
+ *
+ * A trailing remainder joins the previous chunk rather than becoming the stub
+ * this exists to prevent; a document that is entirely below the floor is
+ * emitted as-is, because a short page is legitimately a short chunk.
  */
 function coalesceSmallSections(sections: Section[], minimumBytes: number): Section[] {
   const coalesced: Section[] = [];
   let pending = '';
   for (const section of sections) {
+    // The full path, matching how `chunkMarkdown` renders a heading prefix —
+    // taking only the deepest heading would drop the levels above it.
     const own = section.headings.length
-      ? `${section.headings.at(-1)}\n${section.text}`
+      ? `${section.headings.join(' / ')}\n${section.text}`
       : section.text;
     const body = pending ? `${pending}\n${own}` : own;
     if (Buffer.byteLength(body) < minimumBytes) {

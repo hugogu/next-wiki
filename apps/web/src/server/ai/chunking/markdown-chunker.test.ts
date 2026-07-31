@@ -37,6 +37,21 @@ describe('Markdown AI chunking', () => {
     expect(chunks.some((chunk) => chunk.contentText.trim() === 'Question\nIntroduce LLM')).toBe(false);
   });
 
+  it('keeps every heading of a folded-in section, not just its deepest one', () => {
+    const body = 'Substantial section content that comfortably clears the floor. '.repeat(6);
+    const chunks = chunkMarkdown(
+      `# Outer\n\n## Inner\n\nTiny.\n\n# Later\n\n${body}`,
+      'revision-hash',
+    );
+
+    const merged = chunks[0]!.contentText;
+    expect(merged).toContain('Outer / Inner');
+    expect(merged).toContain('Tiny.');
+    // The absorbing section's own heading survives exactly once, as the prefix.
+    expect(merged.match(/Later/g)).toHaveLength(1);
+    expect(chunks[0]!.headingPath).toEqual(['Later']);
+  });
+
   it('keeps a trailing short section with the chunk before it', () => {
     const body = 'Substantial section content that comfortably clears the floor. '.repeat(6);
     const chunks = chunkMarkdown(`# Main\n\n${body}\n\n## Note\n\nShort tail.`, 'revision-hash');
