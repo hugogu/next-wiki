@@ -256,4 +256,103 @@ describe('feishu answer delivery worker', () => {
     expect(row!.status).toBe('failed');
     expect(row!.attempts).toBe(5);
   });
+
+  it('does not create a delivery for an expired action', async () => {
+    // Expired actions must not enter the delivery pipeline at all: their event
+    // data is GC'd, so reconstructAnswer is permanently unavailable and the
+    // only outcome would be a stale "I don't have an answer" hours later.
+    const user = await makeUser('deliv-expired@example.com');
+    const binding = await makeBinding(user.id, 'ou_expired');
+    const [action] = await db
+      .insert(schema.aiActions)
+      .values({
+        feature: 'wiki_question',
+        status: 'expired',
+        actorUserId: user.id,
+        resultMetadata: {},
+        requestMetadata: {},
+        expiresAt: new Date(Date.now() - 60_000),
+      })
+      .returning();
+    await makeSession(binding.id, 'oc_expired', action!.id);
+
+    expect(await createPendingAnswerDeliveries()).toBe(0);
+    const rows = await db.select().from(schema.feishuNotificationDeliveries);
+    expect(rows).toHaveLength(0);
+  });
+
+  it('silently marks delivered for a stale unavailable action without sending fallback text', async () => {
+    // 25h-old action with no events: reconstructAnswer returns 'completed'
+    // with empty text → renderAnswer hits the unavailable branch → staleness
+    // check (queuedAt > 24h ago) trips → kind: 'skip'. The transport must see
+    // zero messages and the row must land in 'delivered' (not 'blocked' or
+    // 'failed') so it doesn't churn through the retry loop.
+    const user = await makeUser('deliv-stale@example.com');
+    const binding = await makeBinding(user.id, 'ou_stale');
+    const [action] = await db
+      .insert(schema.aiActions)
+      .values({
+        feature: 'wiki_question',
+        status: 'completed',
+        actorUserId: user.id,
+        resultMetadata: {},
+        requestMetadata: {},
+        queuedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() - 60_000),
+      })
+      .returning();
+    await makeSession(binding.id, 'oc_stale', action!.id);
+
+    const transport = new FakeFeishuTransport();
+    await runFeishuDeliveries(new Date(), transport);
+
+    expect(transport.sent).toHaveLength(0);
+    const [row] = await db.select().from(schema.feishuNotificationDeliveries);
+    expect(row!.status).toBe('delivered');
+  });
+
+  it('still sends a stale action that has a reconstructable answer', async () => {
+    // Negative control for the staleness check: when queuedAt is old but the
+    // action has events, reconstructAnswer returns real text → renderAnswer
+    // hits the message branch → the card is sent. Staleness only suppresses
+    // the fallback, never a real answer.
+    const user = await makeUser('deliv-stale-fresh@example.com');
+    const binding = await makeBinding(user.id, 'ou_stale_fresh');
+    const action = await makeCompletedQuestion(user.id, { answer: 'Old but valid.' });
+    await db
+      .update(schema.aiActions)
+      .set({ queuedAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+      .where(eq(schema.aiActions.id, action.id));
+    await makeSession(binding.id, 'oc_stale_fresh', action.id);
+
+    const transport = new FakeFeishuTransport();
+    await runFeishuDeliveries(new Date(), transport);
+
+    expect(transport.sent).toHaveLength(1);
+    expect(JSON.stringify(transport.sent[0]?.card)).toContain('Old but valid.');
+  });
+
+  it('blocks delivery when the feishu session is reset before send', async () => {
+    // createPendingAnswerDeliveries filters on state='active' at creation;
+    // this test forces a state flip to 'reset' between create and send to
+    // confirm the send-time recheck catches it and marks the row blocked
+    // (rather than letting transport push into a defunct chat).
+    const user = await makeUser('deliv-reset@example.com');
+    const binding = await makeBinding(user.id, 'ou_reset');
+    const action = await makeCompletedQuestion(user.id);
+    await makeSession(binding.id, 'oc_reset', action.id);
+    await createPendingAnswerDeliveries();
+    await db
+      .update(schema.feishuBotSessions)
+      .set({ state: 'reset' })
+      .where(eq(schema.feishuBotSessions.aiActionId, action.id));
+
+    const transport = new FakeFeishuTransport();
+    await runFeishuDeliveries(new Date(), transport);
+
+    expect(transport.sent).toHaveLength(0);
+    const [row] = await db.select().from(schema.feishuNotificationDeliveries);
+    expect(row!.status).toBe('blocked');
+    expect(row!.lastError).toBe('session_inactive');
+  });
 });

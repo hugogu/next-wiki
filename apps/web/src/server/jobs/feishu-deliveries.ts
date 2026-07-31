@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -18,6 +18,18 @@ const BACKOFF_MS = [15_000, 30_000, 60_000, 120_000, 300_000];
 const MAX_ATTEMPTS = 5;
 const LEASE_MS = 2 * 60 * 1000;
 const WORKER_ID = `web-${process.pid}-${randomUUID().slice(0, 8)}`;
+
+/**
+ * Maximum age (hours) for which we still send the "I don't have an answer"
+ * fallback when `reconstructAnswer` cannot recover the answer. Past this
+ * threshold we silently `markDelivered` instead — sending fallback text hours
+ * late is worse than sending nothing at all (the user has moved on, the
+ * reaction emoji has already been cleaned up by Feishu, etc.). 24h covers
+ * the full default delivery retention window with a comfortable margin and
+ * matches the worst-case retry budget (~35min across 5 attempts) by orders
+ * of magnitude.
+ */
+const STALE_FALLBACK_HOURS = 24;
 
 type DeliveryRow = typeof schema.feishuNotificationDeliveries.$inferSelect;
 
@@ -138,12 +150,74 @@ async function scheduleRetryOrFail(row: DeliveryRow, error: string, now: Date): 
     .where(eq(schema.feishuNotificationDeliveries.id, row.id));
 }
 
-/** Render an answer card for a delivery from its terminal action state. */
-async function renderAnswer(actionId: string): Promise<Pick<OutboundMessage, 'card' | 'text'>> {
+/**
+ * Render an answer card for a delivery from its terminal action state. Returns
+ * `{ kind: 'skip' }` when the action is too old AND `reconstructAnswer` cannot
+ * recover the answer — in that case `processDelivery` silently `markDelivered`s
+ * the row instead of sending a stale "I don't have an answer" message. Real
+ * answers (`completed` with text) and `insufficient_evidence` always go through.
+ */
+type RenderResult =
+  | { kind: 'message'; payload: Pick<OutboundMessage, 'card' | 'text'> }
+  | { kind: 'skip' };
+
+async function renderAnswer(actionId: string, now: Date): Promise<RenderResult> {
   const answer = await reconstructAnswer(actionId);
-  if (answer.status === 'insufficient_evidence') return { text: feishuCopy.insufficientEvidence() };
-  if (answer.status === 'unavailable' || !answer.text) return { text: feishuCopy.unavailable() };
-  return { card: buildFeishuAnswerCard(answer.text, answer.citations) };
+  if (answer.status === 'insufficient_evidence') {
+    return { kind: 'message', payload: { text: feishuCopy.insufficientEvidence() } };
+  }
+  if (answer.status === 'unavailable' || !answer.text) {
+    if (await isActionTooStale(actionId, now)) return { kind: 'skip' };
+    return { kind: 'message', payload: { text: feishuCopy.unavailable() } };
+  }
+  return { kind: 'message', payload: { card: buildFeishuAnswerCard(answer.text, answer.citations) } };
+}
+
+/**
+ * True when the action's `queuedAt` is older than `STALE_FALLBACK_HOURS`, OR
+ * the action no longer exists (defensive: orphaned deliveries can't render,
+ * and treating them as stale lets the worker clean them up without sending).
+ */
+async function isActionTooStale(actionId: string, now: Date): Promise<boolean> {
+  const action = await db.query.aiActions.findFirst({
+    where: eq(schema.aiActions.id, actionId),
+    columns: { queuedAt: true },
+  });
+  if (!action) return true;
+  const ageMs = now.getTime() - action.queuedAt.getTime();
+  return ageMs > STALE_FALLBACK_HOURS * 60 * 60 * 1000;
+}
+
+/**
+ * Re-verify the Feishu bot session backing the delivery's action is still
+ * `active` at send time. `createPendingAnswerDeliveries` already filters on
+ * `state = 'active'` at creation, but a session can be `reset` (user-driven)
+ * or `expired` (TTL) between then and `claimDueDeliveries`. Catching it here
+ * turns those rows into `blocked` with a clear reason instead of letting the
+ * transport push a message into a defunct chat.
+ *
+ * The join mirrors `createPendingAnswerDeliveries`: a session is linked via
+ * either the direct FK `feishuBotSessions.aiActionId` (current turn) or the
+ * action's `requestMetadata.feishuSessionId` (follow-up turn in an existing
+ * session — see the "earlier completed turn" delivery test).
+ */
+async function assertActiveFeishuSession(actionId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: schema.feishuBotSessions.id })
+    .from(schema.feishuBotSessions)
+    .innerJoin(
+      schema.aiActions,
+      and(
+        eq(schema.aiActions.id, actionId),
+        or(
+          eq(schema.aiActions.id, schema.feishuBotSessions.aiActionId),
+          sql`${schema.aiActions.requestMetadata} ->> 'feishuSessionId' = ${schema.feishuBotSessions.id}::text`,
+        ),
+      ),
+    )
+    .where(eq(schema.feishuBotSessions.state, 'active'))
+    .limit(1);
+  return rows.length > 0;
 }
 
 async function processDelivery(
@@ -174,11 +248,29 @@ async function processDelivery(
     return;
   }
 
+  // Secondary session-state recheck: covers `reset`/`expired` between
+  // createPendingAnswerDeliveries and claimDueDeliveries. Skips here are
+  // surfaced as `blocked` so the operator dashboard can distinguish them
+  // from transport failures.
+  if (!(await assertActiveFeishuSession(row.aiActionId))) {
+    await markBlocked(row.id, 'session_inactive');
+    return;
+  }
+
+  const rendered = await renderAnswer(row.aiActionId, now);
+  if (rendered.kind === 'skip') {
+    // Stale + unrecoverable: drop silently. Still clean up the reaction
+    // (so Feishu stops showing the processing emoji) and mark delivered so
+    // the row doesn't churn through the retry loop.
+    await clearProcessingReaction(transport, row.aiActionId);
+    await markDelivered(row.id, now);
+    return;
+  }
+
   try {
-    const message = await renderAnswer(row.aiActionId);
     await transport.sendMessage({
       target: { type: 'direct', openId },
-      ...message,
+      ...rendered.payload,
       requestUuid: row.id, // deterministic idempotency key
     });
     await clearProcessingReaction(transport, row.aiActionId);
