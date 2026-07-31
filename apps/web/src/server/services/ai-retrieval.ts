@@ -74,12 +74,16 @@ export async function readPermissionFilteredVectorCandidates(
   queryVector: number[],
   limit: number,
   space?: string,
+  options?: { excludeCapturedConversations?: boolean },
 ): Promise<VectorMatch[]> {
   const targetSlug = space ? (await resolveSpace(space))?.slug : undefined;
   if (space && !targetSlug) return [];
   const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
   return matches.filter((match) => {
     if (targetSlug && match.spaceSlug !== targetSlug) return false;
+    if (options?.excludeCapturedConversations && match.rawCategorySystemKey === 'conversation') {
+      return false;
+    }
     return canReadCandidate(ctx, match);
   });
 }
@@ -89,9 +93,21 @@ export async function retrieve(
   generationId: string,
   queryVector: number[],
   limit: number,
-  filters?: { pathPrefix?: string; frontmatter?: FrontmatterFilters; space?: string },
+  filters?: {
+    pathPrefix?: string;
+    frontmatter?: FrontmatterFilters;
+    space?: string;
+    excludeCapturedConversations?: boolean;
+  },
 ): Promise<AiSearchResult[]> {
-  const readable = await readPermissionFilteredVectorCandidates(ctx, generationId, queryVector, limit, filters?.space);
+  const readable = await readPermissionFilteredVectorCandidates(
+    ctx,
+    generationId,
+    queryVector,
+    limit,
+    filters?.space,
+    { excludeCapturedConversations: filters?.excludeCapturedConversations },
+  );
   const chunksByPage = new Map<string, VectorMatch[]>();
   for (const match of readable) {
     if (!matchesPathPrefix(match.path, filters?.pathPrefix)) continue;

@@ -20,17 +20,19 @@ import { loadReadableFullContext } from './full-context';
  * 0.95 for a path match, 0.8 for a title match, 0.3–0.7 for content), while
  * vector hits are raw cosine similarity — the two are not the same
  * measurement, and an embedding model's absolute cosine range is a property of
- * the model, not of the corpus or of the operator's intent.
+ * the model, not of the corpus or of the operator's intent. Setting the dial
+ * to 0.5 for keyword search silently discarded 7 of 8 candidates on a question
+ * whose genuinely relevant pages topped out near 0.51.
  *
- * Setting the dial to 0.5 for keyword search silently made semantic retrieval
- * useless: with `perplexity/pplx-embed-v1-0.6b` the genuinely relevant pages
- * for one question topped out at ~0.51, so 7 of 8 candidates were discarded
- * and the single survivor was an unrelated-but-verbatim captured conversation
- * at 0.65. A ratio against the top hit expresses the intent that survived that
- * incident — "keep what is nearly as good as the best match" — without
- * encoding any one model's scale.
+ * The ratio is loose on purpose. It exists to drop a long tail, not to pick
+ * winners: `retrieve()` already bounds the candidate list, and a cross-lingual
+ * question scores every real page low without making any of them less
+ * relevant to each other. A strict ratio is actively dangerous when the top
+ * hit is an outlier — at 0.7, one captured conversation scoring 0.795 for the
+ * question it was captured from would have set the bar at 0.557 and excluded
+ * every real page in the corpus.
  */
-export const RELATIVE_SCORE_FLOOR = 0.7;
+export const RELATIVE_SCORE_FLOOR = 0.5;
 
 /**
  * Absolute floor below which nothing is a source at any ratio.
@@ -44,6 +46,11 @@ export const ABSOLUTE_SCORE_FLOOR = 0.2;
 /**
  * Keep the hits that are competitive with the best one. `results` arrive sorted
  * by descending score from `retrieve()`; rank order is preserved.
+ *
+ * Note what is *not* filtered here: captured conversations never reach this
+ * point, because they are excluded from the candidate list itself. Filtering
+ * them at the end would be too late — they outrank real pages, so they would
+ * already have consumed the bounded candidate window.
  */
 export function filterWikiQuestionResults(results: AiSearchResult[]): AiSearchResult[] {
   const best = results[0]?.score ?? 0;
@@ -168,7 +175,11 @@ export async function loadWikiQuestionSources(input: {
     };
   }
 
-  const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8);
+  // Captured conversations are excluded from the baseline: see
+  // `filterWikiQuestionResults` for why they cannot be sources of an answer.
+  const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8, {
+    excludeCapturedConversations: true,
+  });
   const filtered = filterWikiQuestionResults(results);
   return {
     sources: searchResultsToSources(filtered),

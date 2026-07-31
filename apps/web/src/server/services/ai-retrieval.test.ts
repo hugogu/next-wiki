@@ -179,6 +179,80 @@ describe('AI vector retrieval', () => {
     }
     await removeAiTestUser(userId);
   });
+
+  it('drops captured conversations from the candidate window before it is bounded', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('admin');
+    const adminCtx = buildUserCtx(userId, 'admin');
+    const [provider] = await db.insert(schema.aiProviders).values({
+      name: 'Conversation fixture', kind: 'openai_compatible', baseUrl: 'https://example.com',
+      credentialsEncrypted: 'encrypted', createdBy: userId, updatedBy: userId,
+    }).returning();
+    const [model] = await db.insert(schema.aiModels).values({
+      providerId: provider!.id, externalId: 'embed', displayName: 'Embed', availability: 'available', embeddingDimensions: 3,
+    }).returning();
+    const [generation] = await db.insert(schema.aiIndexGenerations).values({
+      modelId: model!.id, embeddingDimensions: 3, chunkerVersion: 'test', status: 'ready', isActive: true,
+    }).returning();
+    const [conversationCategory] = await db.insert(schema.rawCategories).values({
+      name: `Conversations ${randomUUID().slice(0, 8)}`, slug: `conversations-${randomUUID().slice(0, 8)}`, systemKey: 'conversation',
+    }).returning();
+
+    const wikiSpaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: wikiSpaceId, slug: `conv-wiki-${wikiSpaceId.slice(0, 8)}`, name: 'Wiki', kind: 'wiki', anonymousRead: true });
+    const rawSpaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: rawSpaceId, slug: `conv-raw-${rawSpaceId.slice(0, 8)}`, name: 'Raw', kind: 'raw', anonymousRead: false });
+
+    const seed = async (label: string, spaceId: string, embedding: number[], categoryId?: string) => {
+      const pageId = randomUUID();
+      const revisionId = randomUUID();
+      await db.insert(schema.pages).values({
+        id: pageId, spaceId, slug: label, path: label, title: label, authorId: userId,
+        visibility: categoryId ? 'restricted' : 'public',
+        ...(categoryId ? { rawCategoryId: categoryId, nature: 'original' as const } : {}),
+        currentPublishedVersionId: revisionId, latestVersionId: revisionId,
+      });
+      await db.insert(schema.pageRevisions).values({
+        id: revisionId, pageId, versionNumber: 1, contentSource: `${label} content`,
+        contentHtml: `<p>${label}</p>`, contentHash: `hash-${label}`, authorId: userId, status: 'published', publishedAt: new Date(),
+      });
+      await db.insert(schema.aiKnowledgeChunks).values({
+        generationId: generation!.id, pageId, revisionId, chunkIndex: 0,
+        contentText: `${label} content`, contentHash: `chunk-${label}`, byteCount: 12, embedding,
+      });
+      return pageId;
+    };
+
+    // The captured conversation is the closer match — it restates the question
+    // verbatim — and the real page trails it, exactly as in production.
+    const conversationPage = await seed('captured-turn', rawSpaceId, [1, 0, 0], conversationCategory!.id);
+    const wikiPage = await seed('real-page', wikiSpaceId, [0.9, 0.44, 0], undefined);
+
+    const unfiltered = await retrieve(adminCtx, generation!.id, [1, 0, 0], 10);
+    expect(unfiltered.map((r) => r.pageId)).toEqual([conversationPage, wikiPage]);
+
+    const excluded = await retrieve(adminCtx, generation!.id, [1, 0, 0], 10, {
+      excludeCapturedConversations: true,
+    });
+    expect(excluded.map((r) => r.pageId)).toEqual([wikiPage]);
+
+    // The exclusion must happen before the candidate window is bounded, or the
+    // conversation still consumes the one slot the real page needed.
+    const boundedToOne = await retrieve(adminCtx, generation!.id, [1, 0, 0], 1, {
+      excludeCapturedConversations: true,
+    });
+    expect(boundedToOne.map((r) => r.pageId)).toEqual([wikiPage]);
+
+    await clearAiData();
+    for (const pid of [conversationPage, wikiPage]) {
+      await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, pid));
+      await db.delete(schema.pages).where(eq(schema.pages.id, pid));
+    }
+    await db.delete(schema.rawCategories).where(eq(schema.rawCategories.id, conversationCategory!.id));
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, rawSpaceId));
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, wikiSpaceId));
+    await removeAiTestUser(userId);
+  });
 });
 
 describe('public-ai semantic search facade (US3)', () => {

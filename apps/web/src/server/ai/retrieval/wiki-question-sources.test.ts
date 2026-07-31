@@ -20,9 +20,10 @@ function result(score: number): AiSearchResult {
 }
 
 describe('Wiki question source relevance filtering', () => {
-  it('keeps the hits competitive with the best one and preserves rank order', () => {
-    const results = [result(0.82), result(0.6), result(0.57), result(0.12)];
-    expect(filterWikiQuestionResults(results)).toEqual(results.slice(0, 2));
+  it('drops the long tail below half the best hit and preserves rank order', () => {
+    // Cutoff is 0.41: the 0.41 hit is kept, the 0.39 one is not.
+    const results = [result(0.82), result(0.6), result(0.41), result(0.39), result(0.12)];
+    expect(filterWikiQuestionResults(results)).toEqual(results.slice(0, 3));
   });
 
   it('drops nothing when every candidate scores close to the top hit', () => {
@@ -35,6 +36,15 @@ describe('Wiki question source relevance filtering', () => {
     // model whose relevant scores top out near 0.51, leaving only a captured
     // conversation at 0.65 as the answer's evidence.
     const results = [result(0.6505), result(0.5112), result(0.5109), result(0.4988)];
+    expect(filterWikiQuestionResults(results)).toEqual(results);
+  });
+
+  it('does not let one outlier hit raise the bar above the rest of the corpus', () => {
+    // Regression: a captured conversation scoring 0.795 for the question it was
+    // captured from set a 0.7-ratio bar at 0.557 and excluded every real page.
+    // Conversations no longer reach this filter, but no single hit should be
+    // able to strangle a whole result set either.
+    const results = [result(0.795), result(0.4549), result(0.4318), result(0.4095)];
     expect(filterWikiQuestionResults(results)).toEqual(results);
   });
 
