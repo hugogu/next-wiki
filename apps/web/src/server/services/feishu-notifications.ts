@@ -145,13 +145,18 @@ export async function createAnswerDelivery(
 
 /**
  * Reconcile Feishu-owned questions that have reached a terminal state but have
- * no answer delivery yet, creating one for each. This covers every terminal
- * outcome (completed, insufficient, failed, cancelled, expired) and is
- * idempotent via the answer-unique index — so a missed prompt hook or a crash
- * never drops a user's answer.
+ * no answer delivery yet, creating one for each. This covers every recoverable
+ * terminal outcome (completed, failed, cancelled). `expired` actions are
+ * intentionally excluded: their event data may already have been GC'd, which
+ * leaves `reconstructAnswer` permanently unavailable — creating a delivery
+ * would only produce a stale "I don't have an answer" message hours later. The
+ * send-time staleness check in `feishu-deliveries.renderAnswer` is the
+ * secondary safety net for rows that slipped through. Idempotent via the
+ * answer-unique index — so a missed prompt hook or a crash never drops a
+ * user's answer.
  */
 export async function createPendingAnswerDeliveries(now: Date = new Date()): Promise<number> {
-  const TERMINAL = ['completed', 'failed', 'cancelled', 'expired'] as const;
+  const TERMINAL = ['completed', 'failed', 'cancelled'] as const;
   const candidates = await db
     .select({ actionId: schema.aiActions.id, requestMetadata: schema.aiActions.requestMetadata })
     .from(schema.feishuBotSessions)
