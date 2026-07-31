@@ -362,6 +362,48 @@ describe('public content read facade', () => {
     expect(result.items[0]?.score).toBeGreaterThanOrEqual(0.75);
   });
 
+  it('finds a title match that newer content-only matches would push out of the fetch window', async () => {
+    // Regression: match type and `scope` are applied after the fetch, so a
+    // recency-ordered 1:1 window let pages that merely mention the term hide
+    // the page named after it. `search_wiki` then returned one unrelated page
+    // no matter how the assistant rephrased the query.
+    const editor = await createPublicApiUser('public-window-editor@example.com', 'editor');
+    const reader = await createPublicApiUser('public-window-reader@example.com', 'reader');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key');
+
+    await pageService.create(editorCtx, {
+      path: 'docs/window-target',
+      title: 'WindowToken',
+      contentSource: 'The page actually named after the term.',
+    });
+    await revisions.publish(editorCtx, { path: 'docs/window-target', version: 1 });
+
+    // Every one of these is published later, so recency alone fills the window.
+    for (let index = 0; index < 12; index += 1) {
+      const path = `docs/window-noise-${index}`;
+      await pageService.create(editorCtx, {
+        path,
+        title: `Unrelated ${index}`,
+        contentSource: 'Mentions WindowToken once, in passing.',
+      });
+      await revisions.publish(editorCtx, { path, version: 1 });
+    }
+
+    // `include` is what routes search_wiki down this path rather than the
+    // capability coordinator.
+    const result = await publicContent.searchPages(readerCtx, {
+      q: 'WindowToken',
+      scope: 'title',
+      status: 'published',
+      limit: 10,
+      include: ['publishedRevision'],
+      excerptLength: 100,
+    });
+
+    expect(result.items.map((item) => item.page.path)).toEqual(['docs/window-target']);
+  });
+
   it('revision list omits contentSource; a single revision fetch includes it', async () => {
     const editor = await createPublicApiUser('public-revlist-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-revlist-reader@example.com', 'reader');

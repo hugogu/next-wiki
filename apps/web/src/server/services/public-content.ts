@@ -96,6 +96,39 @@ function likePattern(term: string): string {
   return `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 }
 
+/**
+ * Candidate ordering for a relevance-ordered search.
+ *
+ * The `q` predicate matches path OR title OR content, so ordering the LIMIT
+ * window by recency alone let pages that merely mention a term crowd out the
+ * page actually named after it — and match-type scoring only runs on whatever
+ * survived that window. `search_wiki(q: "大语言模型", scope: "title")` returned
+ * one unrelated paper for exactly this reason: of the ten most recently
+ * published pages mentioning the term, only that one had it in its title, and
+ * the page titled 大语言模型 never entered the window at all. No rephrasing of
+ * the query could reach it, so the assistant searched 79 times and answered
+ * from a captured conversation instead.
+ *
+ * The tiers mirror `scoreSearchMatch`, so the window is ranked by the same
+ * notion of relevance that later scores it.
+ */
+function relevanceOrderBy(q: string | undefined): SQL[] {
+  const recency = [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path)];
+  if (!q) return recency;
+  const term = q.toLowerCase();
+  const pattern = likePattern(q);
+  return [
+    sql`case
+      when lower(${schema.pages.path}) = ${term} then 0
+      when lower(${schema.pages.title}) = ${term} then 1
+      when ${schema.pages.path} ilike ${pattern} then 2
+      when ${schema.pages.title} ilike ${pattern} then 3
+      else 4
+    end`,
+    ...recency,
+  ];
+}
+
 /** Returns a copy of a page resource with contentSource omitted (list/search shape). */
 function stripPageContent(page: PublicPageResource): PublicPageResource {
   const copy = { ...page };
@@ -451,7 +484,7 @@ type ListPagesQuery = {
   pathPrefix?: string;
   limit: number;
   cursor?: string;
-  order: 'path' | 'recent' | 'createdAtAsc' | 'createdAtDesc' | 'updatedAtAsc' | 'updatedAtDesc';
+  order: 'path' | 'recent' | 'relevance' | 'createdAtAsc' | 'createdAtDesc' | 'updatedAtAsc' | 'updatedAtDesc';
   include: readonly PublicPageInclude[];
   createdStart?: Date;
   createdEnd?: Date;
@@ -588,15 +621,17 @@ async function listPagesInternal(
 
   const orderBy = query.order === 'path'
     ? [asc(schema.pages.path)]
-    : query.order === 'recent'
-      ? [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path)]
-      : query.order === 'createdAtAsc'
-        ? [asc(schema.pages.createdAt), asc(schema.pages.path)]
-        : query.order === 'createdAtDesc'
-          ? [desc(schema.pages.createdAt), asc(schema.pages.path)]
-          : query.order === 'updatedAtAsc'
-            ? [asc(schema.pages.updatedAt), asc(schema.pages.path)]
-            : [desc(schema.pages.updatedAt), asc(schema.pages.path)];
+    : query.order === 'relevance'
+      ? relevanceOrderBy(query.q)
+      : query.order === 'recent'
+        ? [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path)]
+        : query.order === 'createdAtAsc'
+          ? [asc(schema.pages.createdAt), asc(schema.pages.path)]
+          : query.order === 'createdAtDesc'
+            ? [desc(schema.pages.createdAt), asc(schema.pages.path)]
+            : query.order === 'updatedAtAsc'
+              ? [asc(schema.pages.updatedAt), asc(schema.pages.path)]
+              : [desc(schema.pages.updatedAt), asc(schema.pages.path)];
 
   const rows = await db
     .select({ page: schema.pages })
@@ -979,12 +1014,27 @@ export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promis
   return { items, nextCursor: null };
 }
 
+/** Candidate rows fetched per requested result for a relevance search. */
+const RELEVANCE_OVERFETCH = 5;
+
+/** Hard ceiling on that window: every candidate is read with its contentSource. */
+const MAX_RELEVANCE_CANDIDATES = 200;
+
 async function searchPagesWithLegacyFilters(
   ctx: PermCtx,
   query: SearchPagesQuery,
   minRelevanceScore: number,
 ): Promise<PublicPageSearchResponse> {
   const order = query.order ?? 'relevance';
+  // Match type, relevance score, and `scope` are all decided after the fetch,
+  // so a relevance search must bring back more rows than it returns — with a
+  // 1:1 window a `scope: "title"` search is answered from whichever content
+  // matches happened to fill it. Chronological orders keep the 1:1 window on
+  // purpose: there the fetch order is already the answer's order.
+  const overFetching = order === 'relevance' && !query.cursor;
+  const fetchLimit = overFetching
+    ? Math.min(query.limit * RELEVANCE_OVERFETCH, MAX_RELEVANCE_CANDIDATES)
+    : query.limit;
   // Fetch through the internal (content-included) path rather than the public
   // listPages, since matchType/excerpt need contentSource before the public
   // page shape strips it.
@@ -995,9 +1045,9 @@ async function searchPagesWithLegacyFilters(
       space: query.space,
       q: query.q,
       pathPrefix: query.pathPrefix,
-      limit: query.limit,
+      limit: fetchLimit,
       cursor: query.cursor,
-      order: order === 'relevance' ? 'recent' : order,
+      order,
       include: query.include,
       createdStart: query.createdStart,
       createdEnd: query.createdEnd,
@@ -1012,7 +1062,7 @@ async function searchPagesWithLegacyFilters(
     { includeContent: true },
   );
   const q = query.q.toLowerCase();
-  const items = pages.items
+  const ranked = pages.items
     .map((page) => {
       const pathMatch = page.path.toLowerCase().includes(q);
       const titleMatch = page.title.toLowerCase().includes(q);
@@ -1032,7 +1082,11 @@ async function searchPagesWithLegacyFilters(
     // page limit is applied, instead of sorting a relevance-limited subset.
     .sort((a, b) => compareSearchResults(a, b, order));
 
-  return { items, nextCursor: pages.nextCursor };
+  // An over-fetched window is one bounded ranked snapshot, not a page of a
+  // stable sequence — the same reasoning that keeps the coordinator path's
+  // cursor null rather than pointing into a partial rank.
+  if (!overFetching) return { items: ranked, nextCursor: pages.nextCursor };
+  return { items: ranked.slice(0, query.limit), nextCursor: null };
 }
 
 function compareSearchResults(
