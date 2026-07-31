@@ -10,14 +10,45 @@ import { logger } from '@/server/logger';
 import type { PermCtx } from '@/server/permissions';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { retrieve } from '@/server/services/ai-retrieval';
-import { getSearchSettings } from '@/server/services/search-settings';
 import { loadReadableFullContext } from './full-context';
 
-export function filterWikiQuestionResults(
-  results: AiSearchResult[],
-  minimumScore: number,
-): AiSearchResult[] {
-  return results.filter((result) => result.score >= minimumScore);
+/**
+ * Retrieval cutoff, relative to the best hit of the same query.
+ *
+ * This deliberately does NOT reuse the admin `minRelevanceScore` dial. That
+ * number grades keyword matches on a hand-assigned scale (`scoreSearchMatch`:
+ * 0.95 for a path match, 0.8 for a title match, 0.3–0.7 for content), while
+ * vector hits are raw cosine similarity — the two are not the same
+ * measurement, and an embedding model's absolute cosine range is a property of
+ * the model, not of the corpus or of the operator's intent.
+ *
+ * Setting the dial to 0.5 for keyword search silently made semantic retrieval
+ * useless: with `perplexity/pplx-embed-v1-0.6b` the genuinely relevant pages
+ * for one question topped out at ~0.51, so 7 of 8 candidates were discarded
+ * and the single survivor was an unrelated-but-verbatim captured conversation
+ * at 0.65. A ratio against the top hit expresses the intent that survived that
+ * incident — "keep what is nearly as good as the best match" — without
+ * encoding any one model's scale.
+ */
+export const RELATIVE_SCORE_FLOOR = 0.7;
+
+/**
+ * Absolute floor below which nothing is a source at any ratio.
+ *
+ * Only guards the case where the whole corpus is unrelated to the question: a
+ * top hit of 0.2 must not drag in a tail at 0.14 as "evidence". Kept far below
+ * any plausible relevant score so it never becomes the effective cutoff.
+ */
+export const ABSOLUTE_SCORE_FLOOR = 0.2;
+
+/**
+ * Keep the hits that are competitive with the best one. `results` arrive sorted
+ * by descending score from `retrieve()`; rank order is preserved.
+ */
+export function filterWikiQuestionResults(results: AiSearchResult[]): AiSearchResult[] {
+  const best = results[0]?.score ?? 0;
+  const cutoff = Math.max(best * RELATIVE_SCORE_FLOOR, ABSOLUTE_SCORE_FLOOR);
+  return results.filter((result) => result.score >= cutoff);
 }
 
 const QUERY_EMBEDDING_MAX_ATTEMPTS = 3;
@@ -81,12 +112,9 @@ export async function loadWikiQuestionSources(input: {
     };
   }
 
-  const [generation, searchSettings] = await Promise.all([
-    db.query.aiIndexGenerations.findFirst({
-      where: eq(schema.aiIndexGenerations.isActive, true),
-    }),
-    getSearchSettings(),
-  ]);
+  const generation = await db.query.aiIndexGenerations.findFirst({
+    where: eq(schema.aiIndexGenerations.isActive, true),
+  });
   if (!generation || generation.status !== 'ready') {
     throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
   }
@@ -141,7 +169,7 @@ export async function loadWikiQuestionSources(input: {
   }
 
   const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8);
-  const filtered = filterWikiQuestionResults(results, searchSettings.minRelevanceScore);
+  const filtered = filterWikiQuestionResults(results);
   return {
     sources: searchResultsToSources(filtered),
     usage: embedded.usage ?? {},
