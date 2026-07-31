@@ -23,6 +23,7 @@ export * from './setup';
 export * from './content-data-sources';
 export * from './mcp-tool-catalog';
 export * from './scheduled-ai-jobs';
+export * from './static-site';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

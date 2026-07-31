@@ -563,6 +563,9 @@ longer serve content.
   capability is introduced by this feature.
 - **One-way only**: the published site is never read back as a content source,
   and edits made in the destination repository are never imported.
+- **One target per deployment** in this iteration. Publishing different subsets
+  of the wiki to several sites is a plausible later need but is not in scope
+  here, and the design should not foreclose it.
 
 ## Dependencies
 
@@ -576,6 +579,14 @@ longer serve content.
 - A destination repository the wiki can write to, and a static host configured
   by the owner to serve the destination branch. DNS and custom-domain setup on
   the host remain the owner's responsibility and are out of scope.
+- **New dependency, explicitly justified**: satisfying browser-side search over
+  a large multilingual corpus (FR-021 through FR-023) requires a publish-time
+  index builder capable of segmenting non-whitespace-delimited languages and
+  emitting a chunked index. It ships inside the application image, runs only
+  when a publish runs, and introduces no new service, no new stateful component,
+  and no additional setup step for a deployment that never publishes. Producing
+  the site's stylesheet and interactive runtime likewise adds build-time-only
+  tooling. No other new dependency is introduced.
 
 ## Out of Scope
 

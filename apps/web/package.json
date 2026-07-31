@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "DATABASE_URL=postgresql://localhost:5432/next_wiki API_KEY_ENCRYPTION_KEY=${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000} next build",
+    "build:static-site-assets": "node scripts/build-static-site-assets.mjs",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -90,6 +91,7 @@
     "autoprefixer": "^10.4.20",
     "built-in-math-eval": "^0.3.2",
     "drizzle-kit": "^0.30.0",
+    "esbuild": "0.27.4",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.2.9",
     "next-openapi-gen": "^1.4.3",

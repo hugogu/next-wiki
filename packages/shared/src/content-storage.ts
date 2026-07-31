@@ -102,7 +102,9 @@ export const s3BackendConfigSchema = z.object({
 });
 export type S3BackendConfig = z.infer<typeof s3BackendConfigSchema>;
 
-const gitRemoteUrlSchema = z
+/** Shared with static site publishing (031) so both features validate a Git
+ *  remote identically — the rule is the same, the features are not. */
+export const gitRemoteUrlSchema = z
   .string()
   .min(1)
   .refine(
@@ -113,15 +115,18 @@ const gitRemoteUrlSchema = z
     'Use an HTTPS or SSH Git remote without embedded credentials',
   );
 
+/** Shared with static site publishing (031); see `gitRemoteUrlSchema`. */
+export const gitBranchNameSchema = z
+  .string()
+  .min(1)
+  .regex(/^(?!-)(?!.*\.\.)(?!.*[~^:?*[\]\\\s]).+$/, 'Invalid Git branch name');
+
 export const gitAuthModeSchema = z.enum(['https_token', 'ssh']);
 export type GitAuthMode = z.infer<typeof gitAuthModeSchema>;
 
 export const gitBackendConfigSchema = z.object({
   remoteUrl: gitRemoteUrlSchema,
-  branch: z
-    .string()
-    .min(1)
-    .regex(/^(?!-)(?!.*\.\.)(?!.*[~^:?*[\]\\\s]).+$/, 'Invalid Git branch name'),
+  branch: gitBranchNameSchema,
   assetsDir: z
     .string()
     .min(1)

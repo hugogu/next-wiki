@@ -34,11 +34,11 @@ Tests live beside their subject as `*.test.ts` (Vitest) and in `apps/web/e2e/`
 
 **Purpose**: Dependencies and build plumbing that later phases assume exist.
 
-- [ ] T001 [P] Add `esbuild` as a devDependency of `apps/web` in `apps/web/package.json`, pinned to an exact version
-- [ ] T002 [P] Add a pinned `pagefind_extended` binary to the runner stage in `docker/Dockerfile`, choosing a release after the musl jemalloc fix per research R4, alongside the existing `apk add git openssh-client`
-- [ ] T003 [P] Add a `build:static-site-assets` script to `apps/web/package.json` and wire it into the build pipeline in `turbo.json`
-- [ ] T004 [P] Create `packages/shared/src/static-site.ts` with the module skeleton and export it from `packages/shared/src/index.ts`, keeping the package zero-dependency
-- [ ] T005 Document the new binary and build-time dependency in `docs/deployment.md`, stating that a deployment which never publishes pays no runtime cost
+- [X] T001 [P] Add `esbuild` as a devDependency of `apps/web` in `apps/web/package.json`, pinned to an exact version
+- [X] T002 [P] Add a pinned `pagefind_extended` binary to the runner stage in `docker/Dockerfile`, choosing a release after the musl jemalloc fix per research R4, alongside the existing `apk add git openssh-client`
+- [X] T003 [P] Add a `build:static-site-assets` script to `apps/web/package.json` and wire it into the build pipeline in `turbo.json`
+- [X] T004 [P] Create `packages/shared/src/static-site.ts` with the module skeleton and export it from `packages/shared/src/index.ts`, keeping the package zero-dependency
+- [X] T005 Document the new binary and build-time dependency in `docs/deployment.md`, stating that a deployment which never publishes pays no runtime cost
 
 ---
 
@@ -60,7 +60,7 @@ not share a commit).
 
 ### Schemas and persistence
 
-- [ ] T009 [P] Define Zod schemas and inferred types in `packages/shared/src/static-site.ts`: `staticSiteTargetUpsertSchema`, `StaticSiteTargetView`, `StaticSitePublicationView`, `staticSiteExclusionReason`, reusing the existing Git remote-URL and branch-name validation rules
+- [X] T009 [P] Define Zod schemas and inferred types in `packages/shared/src/static-site.ts`: `staticSiteTargetUpsertSchema`, `StaticSiteTargetView`, `StaticSitePublicationView`, `staticSiteExclusionReason`, reusing the existing Git remote-URL and branch-name validation rules
 - [ ] T010 [P] Add `staticSitePublicationStatusEnum`, `staticSitePublicationTriggerEnum`, and `staticSiteAuthModeEnum` to `apps/web/src/server/db/schema/enums.ts`
 - [ ] T011 Add the `static_site_targets` and `static_site_publications` tables to `apps/web/src/server/db/schema/index.ts` per [data-model.md](./data-model.md), with the `(target_id, created_at DESC)` index and `ON DELETE CASCADE`
 - [ ] T012 Generate the migration by running `pnpm db:generate` — never hand-author the SQL or edit `meta/_journal.json`; then run `pnpm db:generate` a second time with no further edits and confirm it reports no schema changes
@@ -119,6 +119,12 @@ guarantees (link downgrade, asset scoping, exclusion reporting) and the proof.
 - [ ] T035 [US1] Add run status and counts to the admin panel in `apps/web/src/components/admin/static-site/PublishStatus.tsx`, polling the run endpoint and linking to the live site
 - [ ] T036 [US1] Add `apps/web/e2e/static-site-publish.spec.ts` covering configure → publish → status reaches succeeded with counts shown
 
+### Gaps found by `/speckit.analyze` (must land within this phase)
+
+- [ ] T090 [US1] **Empty-set guard**: abort the run in `apps/web/src/server/static-site/snapshot.ts` when the publishable set is empty, failing with an explicit reason instead of delivering an empty tree. Without this, FR-004's full-replacement semantics turn one bad eligibility result into a silently wiped public site. Must land before T031 delivers anything
+- [ ] T091 [P] [US1] Add the empty-set and credential-failure cases to `apps/web/src/server/jobs/static-site-publish.test.ts`, asserting the previous delivery survives both
+- [ ] T092 [US1] **Target validation**: add `POST apps/web/app/api/static-site/target/validation/route.ts` performing a dry-run connectivity and write-permission check, and surface it in `TargetForm.tsx`. Spec US1 scenario 2 begins "Given a validated target" and is untestable without it
+
 **Checkpoint**: a published site exists and is browsable. MVP.
 
 ---
@@ -134,7 +140,7 @@ scan every byte for excluded titles, paths, and asset ids.
 
 ### Tests for User Story 2
 
-- [ ] T037 [US2] Write the release-blocking leak test in `apps/web/src/server/static-site/disclosure.test.ts`: seed the mixed fixture, generate a snapshot, and scan every file in the artifact for each excluded page's title, path, excerpt, and asset id. **A failure here is a release blocker, never a test to adjust.**
+- [ ] T037 [US2] Write the release-blocking leak test in `apps/web/src/server/static-site/disclosure.test.ts`: seed the mixed fixture, generate a snapshot, and scan every file in the artifact for each excluded page's title, path, excerpt, and asset id — **and for credential material**, closing FR-034's artifact clause. **A failure here is a release blocker, never a test to adjust.**
 - [ ] T038 [P] [US2] Write `apps/web/src/server/static-site/links.test.ts` asserting that links to ineligible pages become plain text carrying no address, and that links to eligible pages resolve correctly under both root and sub-path base paths
 
 ### Implementation for User Story 2
@@ -161,11 +167,11 @@ then browse with the wiki stopped and confirm nothing fails to load.
 ### Tests for User Story 3
 
 - [ ] T045 [P] [US3] Write `apps/web/src/server/static-site/document.test.ts` asserting the shell contains no edit, AI, admin, account, or sign-in affordance, and that every `href`/`src` it generates resolves inside the artifact
-- [ ] T046 [P] [US3] Write `scripts/build-static-site-assets.test.mjs` asserting the built CSS and JS exist, are content-hashed, and that the CSS references no absolute external URL
+- [ ] T046 [P] [US3] Write `apps/web/scripts/build-static-site-assets.test.mjs` asserting the built CSS and JS exist, are content-hashed, and that the CSS references no absolute external URL
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Implement `scripts/build-static-site-assets.mjs`: compile `apps/web/app/globals.css` with the Tailwind CLI scanning the static-site shell, bundle the client runtime with esbuild, copy `katex.min.css` and its fonts from `node_modules`, and emit content-hashed filenames
+- [ ] T047 [US3] Implement `apps/web/scripts/build-static-site-assets.mjs`: compile `apps/web/app/globals.css` with the Tailwind CLI scanning the static-site shell, bundle the client runtime with esbuild, copy `katex.min.css` and its fonts from `node_modules`, and emit content-hashed filenames
 - [ ] T048 [US3] Implement the client runtime entry in `apps/web/src/static-site/client/index.tsx`, mounting the existing `ContentRenderer` over the pipeline's `[data-code-block]` / `[data-mermaid-block]` markers and loading `mermaid` via dynamic import
 - [ ] T049 [P] [US3] Implement theme selection in the client runtime using the same `localStorage` key and `html.dark` class as `@/components/theme/ThemeProvider`, applied by an inline pre-paint script emitted in `document.tsx`
 - [ ] T050 [US3] Inline the deployment's appearance tokens into every document via the existing `buildUserAppearanceCss()` from `@/server/appearance/style.ts`
@@ -173,6 +179,8 @@ then browse with the wiki stopped and confirm nothing fails to load.
 - [ ] T052 [US3] Copy the built assets into every snapshot under the reserved `_static/` prefix in `apps/web/src/server/static-site/snapshot.ts`
 - [ ] T053 [US3] Style `404.html` consistently with the site and give it links to the home page and search
 - [ ] T054 [US3] Add `apps/web/e2e/static-site-artifact.spec.ts` serving a generated snapshot from a plain static file server **with the wiki stopped**, asserting navigation, anchor jumps, dark-mode persistence, and that code, math, diagrams, and images all render
+- [ ] T093 [US3] **Rendering parity check** (gap from `/speckit.analyze`): add `apps/web/src/server/static-site/parity.test.ts` comparing the static document's body against the reader's output for the same revision, so SC-003's 100% claim is asserted rather than eyeballed
+- [ ] T094 [P] [US3] **Dead-link scan** (gap from `/speckit.analyze`): assert every internal `href` in a generated snapshot resolves to a file in the artifact, covering SC-004's zero-dead-link claim
 
 **Checkpoint**: the artifact is self-contained and visually consistent with the wiki.
 
@@ -248,6 +256,7 @@ occurs on time.
 - [ ] T073 [P] [US6] Add trigger controls (auto on change, scheduled with interval) to `apps/web/src/components/admin/static-site/TargetForm.tsx`
 - [ ] T074 [US6] Add run history with pagination to `apps/web/src/components/admin/static-site/PublishHistory.tsx`
 - [ ] T075 [P] [US6] Add `apps/web/src/server/services/static-site.history.test.ts` asserting error messages are stored redacted of credential material
+- [ ] T095 [P] [US6] **Independence check** (gap from `/speckit.analyze`): assert that Git export and static site publishing run without blocking, overwriting, or altering each other's target, state, or artifact — the verification FR-002 and US6 scenario 5 require
 
 **Checkpoint**: the site follows the wiki without manual action.
 

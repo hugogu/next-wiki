@@ -152,6 +152,26 @@ cp .env.example .env   # keep defaults or adjust ports as needed
 docker compose up -d --build
 ```
 
+## Static site publishing dependencies
+
+The optional static site publishing feature adds one binary to the runtime
+image: `pagefind_extended`, which builds the published site's search index. It
+is pinned by version, verified against its published checksum at build time, and
+executed only while a publish is running — a deployment that never publishes a
+static site never runs it, and it adds no service, no port, and no setup step.
+
+Two build arguments control it:
+
+| Argument | Default | Purpose |
+|---|---|---|
+| `PAGEFIND_VERSION` | `1.5.2` | Pinned release. Do not downgrade below 1.5.1 — earlier musl builds have a known indexing throughput regression. |
+| `PAGEFIND_BASE_URL` | GitHub releases | Point at an internal mirror where GitHub is unreachable. |
+
+The site's stylesheet and client runtime are produced at image build time by
+`pnpm --filter @next-wiki/web build:static-site-assets` (Tailwind CLI plus
+esbuild). Both are build-time only and add nothing to the running container
+beyond the static files themselves.
+
 ## Mainland China / registry mirrors
 
 If your build host has poor connectivity to npmjs.org, pass a registry mirror:
@@ -161,4 +181,11 @@ docker build -f docker/Dockerfile --build-arg NPM_REGISTRY=https://registry.npmm
 ```
 
 For GitHub Actions runners outside mainland China the default registry is
-usually fine.
+usually fine. The Pagefind download has the same consideration — use
+`PAGEFIND_BASE_URL` to point at a reachable mirror:
+
+```bash
+docker build -f docker/Dockerfile \
+  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
+  --build-arg PAGEFIND_BASE_URL=https://your-mirror.example/pagefind .
+```

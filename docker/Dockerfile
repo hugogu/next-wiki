@@ -29,6 +29,32 @@ RUN --mount=type=cache,target=/app/apps/web/.next/cache,id=next-cache-${TARGETAR
 
 FROM ${NODE_IMAGE} AS runner
 RUN apk add --no-cache git openssh-client
+
+# Static site publishing (031) builds its reader-facing search index with
+# Pagefind. It runs only during a publish: a deployment that never publishes
+# never executes it, and it adds no service and no setup step. Pinned and
+# checksum-verified; the musl build matches this Alpine base, and 1.5.2 is
+# after the release that restored musl indexing throughput.
+# PAGEFIND_BASE_URL allows an internal mirror where GitHub is unreachable.
+ARG TARGETARCH
+ARG PAGEFIND_VERSION=1.5.2
+ARG PAGEFIND_BASE_URL=https://github.com/Pagefind/pagefind/releases/download
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      amd64) pagefind_arch='x86_64' ;; \
+      arm64) pagefind_arch='aarch64' ;; \
+      *) echo "unsupported TARGETARCH for pagefind: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    archive="pagefind_extended-v${PAGEFIND_VERSION}-${pagefind_arch}-unknown-linux-musl.tar.gz"; \
+    cd /tmp; \
+    wget -q "${PAGEFIND_BASE_URL}/v${PAGEFIND_VERSION}/${archive}"; \
+    wget -q "${PAGEFIND_BASE_URL}/v${PAGEFIND_VERSION}/${archive}.sha256"; \
+    sha256sum -c "${archive}.sha256"; \
+    tar -xzf "${archive}" -C /usr/local/bin pagefind_extended; \
+    chmod +x /usr/local/bin/pagefind_extended; \
+    rm -f "${archive}" "${archive}.sha256"; \
+    pagefind_extended --version
+
 RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
