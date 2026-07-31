@@ -21,12 +21,25 @@ export type VectorMatch = {
   rawCategorySystemKey: string | null;
 };
 
+/**
+ * Nearest chunks in one index generation.
+ *
+ * `excludeCapturedConversations` is applied in SQL rather than by the caller
+ * because `limit` bounds the *chunk* window: one production index held 886
+ * conversation chunks, 59 of which occupied the 100-chunk window for a single
+ * question, leaving only 41 chunks of real content behind them. Filtering after
+ * the fact spends the window on rows that were never going to be used.
+ */
 export async function exactCosineSearch(
   generationId: string,
   query: number[],
   limit: number,
+  options?: { excludeCapturedConversations?: boolean },
 ): Promise<VectorMatch[]> {
   const vector = `[${query.join(',')}]`;
+  const conversationFilter = options?.excludeCapturedConversations
+    ? sql`and (rc.system_key is null or rc.system_key <> 'conversation')`
+    : sql``;
   const rows = await db.execute<{
     chunk_id: string;
     page_id: string;
@@ -67,6 +80,7 @@ export async function exactCosineSearch(
       and p.deleted_at is null
       and p.current_published_version_id = c.revision_id
       and r.status = 'published'
+      ${conversationFilter}
     order by c.embedding <=> ${vector}::vector
     limit ${limit}
   `);

@@ -78,12 +78,11 @@ export async function readPermissionFilteredVectorCandidates(
 ): Promise<VectorMatch[]> {
   const targetSlug = space ? (await resolveSpace(space))?.slug : undefined;
   if (space && !targetSlug) return [];
-  const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100));
+  const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100), {
+    excludeCapturedConversations: options?.excludeCapturedConversations,
+  });
   return matches.filter((match) => {
     if (targetSlug && match.spaceSlug !== targetSlug) return false;
-    if (options?.excludeCapturedConversations && match.rawCategorySystemKey === 'conversation') {
-      return false;
-    }
     return canReadCandidate(ctx, match);
   });
 }

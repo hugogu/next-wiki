@@ -243,6 +243,13 @@ describe('AI vector retrieval', () => {
     });
     expect(boundedToOne.map((r) => r.pageId)).toEqual([wikiPage]);
 
+    // ...including the chunk window, which the database applies: a conversation
+    // that never leaves SQL cannot crowd out a page that has to fit in it.
+    const chunkWindow = await exactCosineSearch(generation!.id, [1, 0, 0], 1, {
+      excludeCapturedConversations: true,
+    });
+    expect(chunkWindow.map((c) => c.pageId)).toEqual([wikiPage]);
+
     await clearAiData();
     for (const pid of [conversationPage, wikiPage]) {
       await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, pid));
