@@ -75,6 +75,7 @@ export type Action =
   | 'manage_appearance'
   | 'manage_tags'
   | 'manage_request_logs'
+  | 'manage_static_site'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -95,7 +96,8 @@ export type Resource =
   | { kind: 'translations' }
   | { kind: 'appearance' }
   | { kind: 'tags' }
-  | { kind: 'request_logs' };
+  | { kind: 'request_logs' }
+  | { kind: 'static_site' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -177,6 +179,12 @@ function roleAllows(
     case 'manage_appearance':
     case 'manage_request_logs':
       return role === 'admin';
+    case 'manage_static_site':
+      // 031: publishing makes wiki content available at a public address under
+      // the deployment's own name. No API key scope maps to it — this is
+      // deliberately session-admin only, so a key issued for storage or
+      // transfers can never publish the wiki to the internet.
+      return role === 'admin';
     case 'manage_tags':
       // Tags are shared editorial vocabulary. Editors may curate it when a
       // session/API key carries the explicit manage_tags capability; readers
@@ -219,6 +227,7 @@ export function can(
       action === 'manage_translations' ||
       action === 'manage_appearance' ||
       action === 'manage_request_logs' ||
+      action === 'manage_static_site' ||
       action === 'use_ai_text_optimization'
     ) {
       return false;
