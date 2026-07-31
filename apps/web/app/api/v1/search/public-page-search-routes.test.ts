@@ -36,6 +36,7 @@ describe('Public Wiki page search route', () => {
       limit: 5,
       include: [],
       excerptLength: 100,
+      order: 'relevance',
     });
   });
 
