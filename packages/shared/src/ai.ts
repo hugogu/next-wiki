@@ -285,7 +285,20 @@ export const TOOL_RESULT_MAX_CHARS_MIN = 3_000;
 export const TOOL_RESULT_MAX_CHARS_MAX = 200_000;
 export const TOOL_RESULT_MAX_CHARS_DEFAULT = 32 * 1024;
 
+/**
+ * Whether the assistant is told what language to answer in.
+ *
+ * `model_default` adds no language instruction at all and leaves the choice to
+ * the model; `follow_question` asks it to answer in the language the user asked
+ * in. Deliberately not a list of locales: an operator either constrains the
+ * answer to the asker's language or does not constrain it.
+ */
+export const aiAnswerLanguageSchema = z.enum(['model_default', 'follow_question']);
+export type AiAnswerLanguage = z.infer<typeof aiAnswerLanguageSchema>;
+export const AI_ANSWER_LANGUAGE_DEFAULT: AiAnswerLanguage = 'model_default';
+
 export const aiRuntimeParamsUpdateSchema = z.object({
+  answerLanguage: aiAnswerLanguageSchema.optional(),
   toolMaxCalls: z.number().int().min(TOOL_MAX_CALLS_MIN).max(TOOL_MAX_CALLS_MAX).optional(),
   toolResultMaxChars: z
     .number()
@@ -321,6 +334,7 @@ export type AiRuntimeSettingsUpdate = z.infer<typeof aiRuntimeSettingsUpdateSche
 
 export const aiRuntimeSettingsViewSchema = z.object({
   params: z.object({
+    answerLanguage: aiAnswerLanguageSchema,
     toolMaxCalls: z.number().int(),
     toolResultMaxChars: z.number().int(),
     plannerTemperature: z.number(),

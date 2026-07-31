@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { AiRuntimeSettingsUpdate, AiRuntimeSettingsView } from '@next-wiki/shared';
+import type { AiAnswerLanguage, AiRuntimeSettingsUpdate, AiRuntimeSettingsView } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
@@ -8,6 +8,7 @@ import { DEFAULT_ASSISTANT_SYSTEM_PROMPT } from '@/server/ai/prompts/wiki-questi
 import { DEFAULT_TOOL_SYSTEM_PROMPT } from '@/server/jobs/wiki-question-tool-planner';
 
 import {
+  AI_ANSWER_LANGUAGE_DEFAULT,
   TOOL_PLANNER_MAX_OUTPUT_TOKENS_DEFAULT,
   TOOL_RESULT_MAX_CHARS_DEFAULT,
 } from '@next-wiki/shared';
@@ -22,6 +23,7 @@ import {
  */
 
 const RUNTIME_DEFAULTS = {
+  answerLanguage: AI_ANSWER_LANGUAGE_DEFAULT,
   maxToolCalls: 100,
   toolResultMaxChars: TOOL_RESULT_MAX_CHARS_DEFAULT,
   plannerTemperature: 0.1,
@@ -29,6 +31,8 @@ const RUNTIME_DEFAULTS = {
 };
 
 export type AiRuntimeConfig = {
+  /** Whether answers are told to follow the asker's language. */
+  answerLanguage: AiAnswerLanguage;
   maxToolCalls: number;
   /** Characters of one tool result the planner prompt may carry. */
   toolResultMaxChars: number;
@@ -44,6 +48,7 @@ export type AiRuntimeConfig = {
 export async function resolveAiRuntimeConfig(): Promise<AiRuntimeConfig> {
   const row = await db.query.aiSettings.findFirst({ where: eq(schema.aiSettings.id, 'default') });
   return {
+    answerLanguage: row?.answerLanguage ?? RUNTIME_DEFAULTS.answerLanguage,
     maxToolCalls: row?.toolMaxCalls ?? RUNTIME_DEFAULTS.maxToolCalls,
     toolResultMaxChars: row?.toolResultMaxChars ?? RUNTIME_DEFAULTS.toolResultMaxChars,
     plannerTemperature: (row?.toolPlannerTemperature ?? 10) / 100,
@@ -64,6 +69,7 @@ export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSetti
   const config = await resolveAiRuntimeConfig();
   return {
     params: {
+      answerLanguage: config.answerLanguage,
       toolMaxCalls: config.maxToolCalls,
       toolResultMaxChars: config.toolResultMaxChars,
       plannerTemperature: config.plannerTemperature,
@@ -96,6 +102,7 @@ export async function updateAiRuntimeSettings(
     updatedBy: getActorUserId(ctx),
     updatedAt: new Date(),
   };
+  if (input.answerLanguage !== undefined) patch.answerLanguage = input.answerLanguage;
   if (input.toolMaxCalls !== undefined) patch.toolMaxCalls = input.toolMaxCalls;
   if (input.toolResultMaxChars !== undefined) patch.toolResultMaxChars = input.toolResultMaxChars;
   if (input.plannerTemperature !== undefined) {

@@ -4,10 +4,12 @@ import { useState } from 'react';
 import {
   TOOL_RESULT_MAX_CHARS_MAX,
   TOOL_RESULT_MAX_CHARS_MIN,
+  type AiAnswerLanguage,
   type AiRuntimeSettingsView,
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
 
 /**
@@ -16,6 +18,7 @@ import { useTranslation } from '@/i18n/client';
  */
 export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
   const { t } = useTranslation();
+  const [answerLanguage, setAnswerLanguage] = useState<AiAnswerLanguage>(initial.params.answerLanguage);
   const [maxCalls, setMaxCalls] = useState(String(initial.params.toolMaxCalls));
   const [resultChars, setResultChars] = useState(String(initial.params.toolResultMaxChars));
   const [temperature, setTemperature] = useState(String(initial.params.plannerTemperature));
@@ -31,6 +34,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          answerLanguage,
           toolMaxCalls: Number(maxCalls),
           toolResultMaxChars: Number(resultChars),
           plannerTemperature: Number(temperature),
@@ -55,6 +59,22 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         <p className="mt-xs text-sm text-muted">{t('admin.bots.general.runtime.description')}</p>
       </div>
       <div className="grid gap-md sm:grid-cols-2">
+        <Field
+          label={t('admin.bots.general.runtime.answerLanguage')}
+          hint={t('admin.bots.general.runtime.answerLanguageHint')}
+        >
+          <Select
+            value={answerLanguage}
+            onChange={(e) => setAnswerLanguage(e.target.value as AiAnswerLanguage)}
+          >
+            <option value="model_default">
+              {t('admin.bots.general.runtime.answerLanguageModelDefault')}
+            </option>
+            <option value="follow_question">
+              {t('admin.bots.general.runtime.answerLanguageFollowQuestion')}
+            </option>
+          </Select>
+        </Field>
         <Field label={t('admin.bots.general.runtime.maxCalls')}>
           <Input type="number" min={1} max={100} value={maxCalls} onChange={(e) => setMaxCalls(e.target.value)} />
         </Field>

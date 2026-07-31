@@ -187,6 +187,7 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   }
 
   const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
+  const runtimeConfig = await resolveAiRuntimeConfig();
   const feishuStream = await startFeishuAnswerStream(actionId);
   let answer = '';
   let usage: Record<string, unknown> = { ...retrievalUsage };
@@ -196,7 +197,12 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   let promptSources = sources;
   try {
     for (let attempt = 0; ; attempt += 1) {
-      const prompt = buildWikiQuestionPrompt(input.question, promptSources, input.conversation);
+      const prompt = buildWikiQuestionPrompt(
+        input.question,
+        promptSources,
+        input.conversation,
+        runtimeConfig.answerLanguage,
+      );
       const maxOutputTokens = computeAnswerMaxOutputTokens(
         estimatePromptTokens(prompt.system, prompt.user),
         textModel.contextWindow,
@@ -380,6 +386,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     {
       assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
       toolSystemPrompt: runtimeConfig.toolSystemPrompt,
+      answerLanguage: runtimeConfig.answerLanguage,
     },
     enabledSkills.map((skill) => ({ name: skill.name, description: skill.description })),
   );

@@ -1746,6 +1746,10 @@
         "runtime": {
           "title": "AI 运行参数",
           "description": "调整 Wiki AI 工具循环。此处设置的最大工具调用次数会被单个提供方的工具策略上限覆盖。",
+          "answerLanguage": "回答语言",
+          "answerLanguageHint": "对所有生成的回答生效，包括机器人。",
+          "answerLanguageModelDefault": "默认（不控制）",
+          "answerLanguageFollowQuestion": "跟随用户提问的语言",
           "maxCalls": "每轮最大工具调用次数",
           "resultChars": "单次工具结果上限（字符）",
           "temperature": "规划器温度",

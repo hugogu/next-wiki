@@ -8,6 +8,7 @@ import {
   updateAiRuntimeSettings,
 } from '@/server/services/ai-runtime-settings';
 import { buildWikiToolSystemPrompt } from '@/server/jobs/wiki-question-tool-planner';
+import { FOLLOW_QUESTION_LANGUAGE_RULE } from '@/server/ai/prompts/wiki-question';
 import { getToolDefinition } from '@/server/services/ai-tool-registry';
 
 const readerCtx = buildUserCtx('reader-1', 'reader');
@@ -34,6 +35,22 @@ describe('ai runtime settings (026)', () => {
     expect(config.plannerMaxOutputTokens).toBe(32_768);
     expect(config.assistantSystemPrompt).toBeNull();
     expect(config.toolSystemPrompt).toBeNull();
+    expect(config.answerLanguage).toBe('model_default');
+  });
+
+  it('persists the answer language and reflects it in the admin view', async () => {
+    await updateAiRuntimeSettings(adminCtx, { answerLanguage: 'follow_question' });
+    expect((await resolveAiRuntimeConfig()).answerLanguage).toBe('follow_question');
+    expect((await getAiRuntimeSettings(adminCtx)).params.answerLanguage).toBe('follow_question');
+
+    await updateAiRuntimeSettings(adminCtx, { answerLanguage: 'model_default' });
+    expect((await resolveAiRuntimeConfig()).answerLanguage).toBe('model_default');
+  });
+
+  it('leaves the answer language untouched when another param is saved', async () => {
+    await updateAiRuntimeSettings(adminCtx, { answerLanguage: 'follow_question' });
+    await updateAiRuntimeSettings(adminCtx, { toolMaxCalls: 7 });
+    expect((await resolveAiRuntimeConfig()).answerLanguage).toBe('follow_question');
   });
 
   it('denies runtime settings to a non-admin', async () => {
@@ -86,5 +103,26 @@ describe('buildWikiToolSystemPrompt overrides', () => {
   it('appends the tool catalog when the admin removed the marker', () => {
     const prompt = buildWikiToolSystemPrompt(tools, { toolSystemPrompt: 'No marker here.' });
     expect(prompt).toContain('- search_wiki (read)');
+  });
+
+  it('adds a language rule only when the answer language follows the question', () => {
+    expect(buildWikiToolSystemPrompt(tools, {})).not.toContain(FOLLOW_QUESTION_LANGUAGE_RULE);
+    expect(buildWikiToolSystemPrompt(tools, { answerLanguage: 'model_default' })).not.toContain(
+      FOLLOW_QUESTION_LANGUAGE_RULE,
+    );
+    expect(buildWikiToolSystemPrompt(tools, { answerLanguage: 'follow_question' })).toContain(
+      FOLLOW_QUESTION_LANGUAGE_RULE,
+    );
+  });
+
+  it('keeps the language rule when the admin replaced the core assistant prompt', () => {
+    // The rule lives outside the editable core prompt precisely so rewriting
+    // that prompt cannot silently disable the setting.
+    const prompt = buildWikiToolSystemPrompt(tools, {
+      assistantSystemPrompt: 'PERSONA-OVERRIDE',
+      answerLanguage: 'follow_question',
+    });
+    expect(prompt).toContain('PERSONA-OVERRIDE');
+    expect(prompt).toContain(FOLLOW_QUESTION_LANGUAGE_RULE);
   });
 });

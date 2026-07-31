@@ -1,8 +1,8 @@
-import type { AiToolReviewDecision } from '@next-wiki/shared';
+import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiToolReviewDecision } from '@next-wiki/shared';
 import { parse as parseYaml } from 'yaml';
 
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
-import { buildWikiAssistantSystemPrompt } from '@/server/ai/prompts/wiki-question';
+import { answerLanguageRules, buildWikiAssistantSystemPrompt } from '@/server/ai/prompts/wiki-question';
 import type { ToolPlanStep } from '@/server/services/ai-tool-runtime';
 import type { ToolDefinition } from '@/server/services/ai-tool-registry';
 
@@ -75,6 +75,7 @@ export type SkillCatalogEntry = { name: string; description: string };
 export type WikiToolPromptOverrides = {
   assistantSystemPrompt?: string | null;
   toolSystemPrompt?: string | null;
+  answerLanguage?: AiAnswerLanguage;
 };
 
 /**
@@ -102,7 +103,10 @@ export function buildWikiToolSystemPrompt(
   const withSkills = toolSection.includes(SKILL_CATALOG_PLACEHOLDER)
     ? toolSection.replaceAll(SKILL_CATALOG_PLACEHOLDER, skillList)
     : `${toolSection}\n\nAvailable skills:\n${skillList}`;
-  return buildWikiAssistantSystemPrompt([withSkills], overrides.assistantSystemPrompt);
+  return buildWikiAssistantSystemPrompt(
+    [...answerLanguageRules(overrides.answerLanguage ?? AI_ANSWER_LANGUAGE_DEFAULT), withSkills],
+    overrides.assistantSystemPrompt,
+  );
 }
 
 export function extractTaggedThinking(output: string): string {

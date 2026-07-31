@@ -1,4 +1,4 @@
-import type { AiCitation, AiSearchResult } from '@next-wiki/shared';
+import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiCitation, type AiSearchResult } from '@next-wiki/shared';
 
 export type QuestionSource = AiCitation & { id: string; content: string };
 
@@ -17,12 +17,26 @@ const WIKI_ASSISTANT_CORE_RULES = [
   'Cite claims supported by supplied Wiki sources with source ids in plain ASCII brackets exactly like [S1], never full-width brackets such as 【S1】, even when answering in Chinese.',
   'When Wiki evidence is absent or insufficient, answer helpfully from general model knowledge without inventing source ids or implying that the answer came from the Wiki.',
   'If the user asks which page contains or mentions something, answer with the page title and cite the relevant source; do not spell out the raw page path as plain text because the citation link already carries it.',
-  'Reply in the user\'s language unless they ask for another language.',
   'Format every mathematical expression using Markdown math syntax: wrap inline math in single dollar signs like $x^2$ and block or display math in double dollar signs on their own lines like $$\\int_0^1 x\\,dx$$. Never emit bare LaTeX without dollar-sign delimiters.',
 ];
 
 /** Built-in default for the admin-editable assistant system prompt (AI > Prompts). */
 export const DEFAULT_ASSISTANT_SYSTEM_PROMPT = WIKI_ASSISTANT_CORE_RULES.join('\n');
+
+export const FOLLOW_QUESTION_LANGUAGE_RULE =
+  "Reply in the user's language unless they ask for another language.";
+
+/**
+ * The language rule for one answer, if any (Bots > General).
+ *
+ * Kept out of {@link WIKI_ASSISTANT_CORE_RULES} so it composes with an
+ * admin-overridden core prompt too: an operator who rewrites the assistant
+ * prompt should not have to remember to re-add the language line for the
+ * setting to keep working.
+ */
+export function answerLanguageRules(mode: AiAnswerLanguage): string[] {
+  return mode === 'follow_question' ? [FOLLOW_QUESTION_LANGUAGE_RULE] : [];
+}
 
 /**
  * Compose the assistant system prompt. `coreOverride` (an admin-configured
@@ -41,6 +55,7 @@ export function buildWikiQuestionPrompt(
   question: string,
   sources: QuestionSource[],
   conversation: { question: string; answer: string }[] = [],
+  answerLanguage: AiAnswerLanguage = AI_ANSWER_LANGUAGE_DEFAULT,
 ) {
   const sourceText = sources
     .map(
@@ -49,7 +64,7 @@ export function buildWikiQuestionPrompt(
     )
     .join('\n\n');
   return {
-    system: buildWikiAssistantSystemPrompt(),
+    system: buildWikiAssistantSystemPrompt(answerLanguageRules(answerLanguage)),
     user: `${sourceText}${conversation.length > 0 ? `\n\n<conversation>\n${conversation.map((turn) => `<turn><question>${turn.question}</question><answer>${turn.answer}</answer></turn>`).join('\n')}\n</conversation>` : ''}\n\n<question>\n${question}\n</question>`,
   };
 }

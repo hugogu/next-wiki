@@ -29,6 +29,7 @@ import {
   storageBackendTypeEnum,
   userRoleEnum,
   userStatusEnum,
+  aiAnswerLanguageEnum,
   aiProviderKindEnum,
   aiProviderTypeEnum,
   aiProviderVendorEnum,
@@ -1129,6 +1130,9 @@ export const aiSettings = pgTable('ai_settings', {
   // Planner max output tokens; the tool loop always reads a concrete value.
   toolPlannerMaxOutputTokens: integer('tool_planner_max_output_tokens').notNull().default(32_768),
   toolPlannerTimeoutMs: integer('tool_planner_timeout_ms').notNull().default(120_000),
+  // Language control for generated answers. The default adds no instruction, so
+  // the model answers in whatever language it judges appropriate.
+  answerLanguage: aiAnswerLanguageEnum('answer_language').notNull().default('model_default'),
   // 026: Wiki AI runtime prompt overrides, admin-editable from AI > Prompts.
   // Null uses the built-in default prompt; the machine-generated tool list and
   // tool-call protocol are always appended by the runtime, never stored here.

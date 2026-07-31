@@ -1746,6 +1746,10 @@
         "runtime": {
           "title": "AI runtime parameters",
           "description": "Tune the Wiki AI tool loop. A per-provider tool policy limit still takes precedence over the max tool calls set here.",
+          "answerLanguage": "Answer language",
+          "answerLanguageHint": "Applies to every generated answer, including bots.",
+          "answerLanguageModelDefault": "Default (no constraint)",
+          "answerLanguageFollowQuestion": "Follow the language of the question",
           "maxCalls": "Max tool calls per turn",
           "resultChars": "Tool result size (characters)",
           "temperature": "Planner temperature",

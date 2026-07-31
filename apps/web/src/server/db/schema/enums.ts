@@ -95,6 +95,11 @@ export const aiProviderKindEnum = pgEnum('ai_provider_kind', [
   'minimax',
 ]);
 export const aiProviderTypeEnum = pgEnum('ai_provider_type', ['chat', 'embedding', 'image']);
+/** Whether the assistant is told what language to answer in (Bots > General). */
+export const aiAnswerLanguageEnum = pgEnum('ai_answer_language', [
+  'model_default',
+  'follow_question',
+]);
 export const aiProviderVendorEnum = pgEnum('ai_provider_vendor', [
   'openai',
   'openrouter',

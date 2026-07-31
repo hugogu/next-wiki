@@ -1,0 +1,2 @@
+CREATE TYPE "public"."ai_answer_language" AS ENUM('model_default', 'follow_question');--> statement-breakpoint
+ALTER TABLE "ai_settings" ADD COLUMN "answer_language" "ai_answer_language" DEFAULT 'model_default' NOT NULL;

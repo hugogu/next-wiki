@@ -55,6 +55,19 @@ describe('AI runtime settings route', () => {
     expect(services.updateAiRuntimeSettings).not.toHaveBeenCalled();
   });
 
+  it('accepts a known answer language and rejects an unknown one', async () => {
+    services.updateAiRuntimeSettings.mockResolvedValue({ params: {}, prompts: {}, defaults: {} });
+    expect((await patch({ answerLanguage: 'follow_question' })).status).toBe(200);
+    expect(services.updateAiRuntimeSettings).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ answerLanguage: 'follow_question' }),
+    );
+
+    services.updateAiRuntimeSettings.mockClear();
+    expect((await patch({ answerLanguage: 'zh-CN' })).status).toBe(400);
+    expect(services.updateAiRuntimeSettings).not.toHaveBeenCalled();
+  });
+
   it('accepts a prompt override update', async () => {
     services.updateAiRuntimeSettings.mockResolvedValue({ params: {}, prompts: {}, defaults: {} });
     const response = await patch({ toolSystemPrompt: 'Custom.\n{{TOOLS}}' });

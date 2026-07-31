@@ -1,4 +1,5 @@
 import {
+  FOLLOW_QUESTION_LANGUAGE_RULE,
   buildWikiQuestionPrompt,
   compressQuestionSources,
   computeAnswerMaxOutputTokens,
@@ -40,6 +41,18 @@ describe('Wiki question prompts', () => {
     expect(prompt.system).toContain('answer helpfully from general model knowledge');
     expect(prompt.system).not.toContain('INSUFFICIENT_WIKI_EVIDENCE');
     expect(normalizeQuestionCitations('Guan Yu was a Han dynasty general.', [])).toEqual([]);
+  });
+
+  it('constrains the answer language only when configured to follow the question', () => {
+    expect(buildWikiQuestionPrompt('What?', sources).system).not.toContain(
+      FOLLOW_QUESTION_LANGUAGE_RULE,
+    );
+    expect(
+      buildWikiQuestionPrompt('What?', sources, [], 'model_default').system,
+    ).not.toContain(FOLLOW_QUESTION_LANGUAGE_RULE);
+    expect(buildWikiQuestionPrompt('What?', sources, [], 'follow_question').system).toContain(
+      FOLLOW_QUESTION_LANGUAGE_RULE,
+    );
   });
 });
 
