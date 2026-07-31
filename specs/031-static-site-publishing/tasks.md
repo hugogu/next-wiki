@@ -101,13 +101,13 @@ guarantees (link downgrade, asset scoping, exclusion reporting) and the proof.
 
 ### Tests for User Story 1
 
-- [ ] T023 [P] [US1] Write `apps/web/src/server/static-site/eligibility.test.ts` asserting all five FR-007 conditions, including raw and generated space exclusion; must fail before T026
-- [ ] T024 [P] [US1] Write `apps/web/src/server/static-site/paths.test.ts` covering directory-form addresses, base-path resolution for root and sub-path hosting, NFC normalization of non-ASCII paths, case-collision detection, and reserved-prefix collision
+- [X] T023 [P] [US1] Write `apps/web/src/server/static-site/eligibility.test.ts` asserting all five FR-007 conditions, including raw and generated space exclusion; must fail before T026
+- [X] T024 [P] [US1] Write `apps/web/src/server/static-site/paths.test.ts` covering directory-form addresses, base-path resolution for root and sub-path hosting, NFC normalization of non-ASCII paths, case-collision detection, and reserved-prefix collision
 
 ### Implementation for User Story 1
 
-- [ ] T025 [P] [US1] Implement address form, base-path normalization, percent-encoding, case-collision and reserved-prefix detection in `apps/web/src/server/static-site/paths.ts`
-- [ ] T026 [US1] Implement the single publishable-set query in `apps/web/src/server/static-site/eligibility.ts`, returning pages, path index, translation groups, asset ids, and exclusion counts per [data-model.md](./data-model.md)
+- [X] T025 [P] [US1] Implement address form, base-path normalization, percent-encoding, case-collision and reserved-prefix detection in `apps/web/src/server/static-site/paths.ts`
+- [X] T026 [US1] Implement the single publishable-set query in `apps/web/src/server/static-site/eligibility.ts`, returning pages, path index, translation groups, asset ids, and exclusion counts per [data-model.md](./data-model.md)
 - [ ] T027 [US1] Implement the static document shell in `apps/web/src/server/static-site/document.tsx` using `renderToStaticMarkup` over `@/components/ui` primitives, embedding body HTML from `renderMarkdown()` and heading ids from `injectHeadingIds()`
 - [ ] T028 [P] [US1] Implement page-tree, breadcrumb, and home-page navigation data in `apps/web/src/server/static-site/navigation.ts`, derived only from the publishable set
 - [ ] T029 [P] [US1] Implement asset selection and export in `apps/web/src/server/static-site/assets.ts`, reading through `readImageFromDatabase` and scoping to eligible published revisions only
