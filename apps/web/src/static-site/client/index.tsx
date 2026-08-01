@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from '@/components/theme/ThemeProvider';
 import { CodeBlock } from '@/components/renderer/CodeBlock';
 import { MermaidBlock } from '@/components/renderer/MermaidBlock';
 import { MathPlotLayer } from '@/components/renderer/MathPlotLayer';
+import { SearchPanel } from '@/components/static-site/SearchPanel';
 
 /**
  * Client runtime for the published static site.
@@ -147,6 +148,18 @@ function hydrateThemeToggle(): void {
   });
 }
 
+function hydrateSearch(): void {
+  document.querySelectorAll<HTMLElement>('[data-static-site-search]').forEach((element) => {
+    const basePath = element.dataset.base ?? '/';
+    const strings = {
+      label: element.dataset.label ?? 'Search',
+      placeholder: element.dataset.placeholder ?? '',
+      noResults: element.dataset.empty ?? '',
+    };
+    addIsland(element, () => <SearchPanel basePath={basePath} strings={strings} />);
+  });
+}
+
 function hydrateMathPlots(): void {
   const content = document.querySelector<HTMLElement>('.prose');
   if (!content) return;
@@ -159,6 +172,7 @@ function start(): void {
   hydrateCodeBlocks();
   hydrateMermaidBlocks();
   hydrateThemeToggle();
+  hydrateSearch();
   hydrateMathPlots();
 
   window.addEventListener(THEME_EVENT, () => {

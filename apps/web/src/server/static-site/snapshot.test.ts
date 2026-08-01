@@ -99,6 +99,9 @@ async function snapshot(rootDir: string) {
     baseUrl: BASE_URL,
     siteName: 'Test Wiki',
     themeCss: '.prose.prose{line-height:1.75}',
+    // Indexing is covered separately in search-index.test.ts; building a real
+    // index in every layout assertion would cost minutes for no extra coverage.
+    skipSearchIndex: true,
   });
 }
 
@@ -215,6 +218,28 @@ describe('artifact layout', () => {
     await snapshot(root);
     const html = await readFile(join(root, 'a', 'index.html'), 'utf8');
     expect(html).toMatch(/<script type="module" src="[^"]*site[^"]*\.js"><\/script>/);
+  });
+
+  it('marks the article body for indexing but not the chrome around it', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await snapshot(root);
+    const html = await readFile(join(root, 'a', 'index.html'), 'utf8');
+    expect(html).toContain('data-pagefind-body');
+    // The nav tree repeats on every page; indexing it would make every page
+    // match every other page's titles.
+    expect(html).toContain('data-pagefind-ignore');
+  });
+
+  it('keeps the not-found page out of the search index', async () => {
+    // A fallback page is never something a reader searched for.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await snapshot(root);
+    const notFound = await readFile(join(root, '404.html'), 'utf8');
+    expect(notFound).not.toContain('data-pagefind-body');
   });
 
   it('does not add a title heading of its own', async () => {

@@ -10,6 +10,8 @@ import { buildPublishableSet, type PublishableSet } from './eligibility';
 import { describeConflict, findPathConflicts, pageAddress } from './paths';
 import { rewriteAssetUrls, rewriteLinks } from './links';
 import { exportAssets } from './assets';
+import { buildSearchIndex } from './search-index';
+import { markNonIndexableContent } from './indexing';
 import {
   renderDocument,
   renderHomeDocument,
@@ -80,6 +82,8 @@ export type SnapshotManifest = {
 };
 
 export type SnapshotOptions = {
+  /** Skipped in unit tests that do not need a real index built. */
+  skipSearchIndex?: boolean;
   rootDir: string;
   baseUrl: string;
   siteName: string;
@@ -161,11 +165,14 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
       page.locale,
     );
     linksDowngraded += downgraded;
-    const { html: bodyHtml, unresolved } = rewriteAssetUrls(
+    const { html: withAssets, unresolved } = rewriteAssetUrls(
       withLinks,
       baseUrl,
       assets.extensions,
     );
+    // Keep rendering instructions (LaTeX source, mermaid definitions) out of
+    // the index so result excerpts read as prose.
+    const bodyHtml = markNonIndexableContent(withAssets);
     for (const id of unresolved) unresolvedAssets.add(id);
 
     const address = pageAddress(baseUrl, page.path, page.locale, set.defaultLocale);
@@ -241,6 +248,10 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   // what makes "no build step performed by the host" literally true — and stops
   // paths beginning with an underscore from being dropped.
   documents.push({ filePath: '.nojekyll', bytes: await write(rootDir, '.nojekyll', '') });
+
+  // Runs last, over the finished HTML: the index is derived from the artifact
+  // itself, which is what makes it inherit the content filter.
+  if (!options.skipSearchIndex) await buildSearchIndex(rootDir);
 
   const totalBytes = documents.reduce((sum, doc) => sum + doc.bytes, 0) + assets.bytes;
   const largestFileBytes = documents.reduce((max, doc) => Math.max(max, doc.bytes), 0);

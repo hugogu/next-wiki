@@ -58,6 +58,8 @@ export type RenderDocumentInput = {
   description: string;
   /** Optional reader-side analytics snippet already configured for the wiki. */
   analyticsSnippet?: string | null;
+  /** False for synthetic pages that should never be a search result. */
+  indexable?: boolean;
 };
 
 export function escapeHtml(value: string): string {
@@ -157,6 +159,7 @@ export function renderDocument(input: RenderDocumentInput): string {
     canonicalUrl,
     description,
     analyticsSnippet,
+    indexable = true,
   } = input;
 
   const asset = (path: string) => escapeHtml(`${basePath}${path}`);
@@ -177,12 +180,12 @@ ${analyticsSnippet ?? ''}
 </head>
 <body class="bg-background text-foreground">
 <div class="mx-auto flex min-h-screen max-w-screen-2xl flex-col">
-  <header class="sticky top-0 z-10 flex items-center justify-between gap-md border-b border-border bg-background px-lg py-sm">
+  <header data-pagefind-ignore class="sticky top-0 z-10 flex items-center justify-between gap-md border-b border-border bg-background px-lg py-sm">
     <a href="${escapeHtml(basePath)}" class="font-display text-lg font-semibold">${escapeHtml(
       strings.siteName,
     )}</a>
     <div class="flex items-center gap-sm">
-      <div data-static-site-search data-placeholder="${escapeHtml(
+      <div data-static-site-search data-base="${escapeHtml(basePath)}" data-placeholder="${escapeHtml(
         strings.searchPlaceholder,
       )}" data-label="${escapeHtml(strings.search)}" data-empty="${escapeHtml(
         strings.noResults,
@@ -193,18 +196,21 @@ ${analyticsSnippet ?? ''}
   </header>
 
   <div class="flex flex-1 gap-lg px-lg py-md">
-    <aside class="hidden w-nav shrink-0 md:block" aria-label="${escapeHtml(strings.home)}">
+    <aside class="hidden w-nav shrink-0 md:block" data-pagefind-ignore aria-label="${escapeHtml(
+      strings.home,
+    )}">
       ${renderNavNodes(nav)}
     </aside>
 
     <main class="min-w-0 flex-1">
+      <span data-pagefind-meta="title" hidden>${escapeHtml(title)}</span>
       ${renderBreadcrumbs(breadcrumbs, basePath, strings.home)}
       <!-- No title element here: the reader takes the heading from the Markdown
            body, and duplicating it would diverge from the wiki's own output. -->
-      <div class="prose max-w-none">${bodyHtml}</div>
+      <div class="prose max-w-none"${indexable ? ' data-pagefind-body' : ''}>${bodyHtml}</div>
     </main>
 
-    <aside class="w-nav shrink-0">${renderToc(headings, strings.onThisPage)}</aside>
+    <aside class="w-nav shrink-0" data-pagefind-ignore>${renderToc(headings, strings.onThisPage)}</aside>
   </div>
 </div>
 <!-- The runtime is an ES module (code splitting keeps mermaid out of the
@@ -237,6 +243,8 @@ export function renderNotFoundDocument(
 ): string {
   return renderDocument({
     ...input,
+    // A fallback page is never something a reader searched for.
+    indexable: false,
     bodyHtml: `<h1>${escapeHtml(input.title)}</h1><p>${escapeHtml(
       message,
     )}</p><p><a href="${escapeHtml(input.basePath)}" class="underline">${escapeHtml(

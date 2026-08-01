@@ -196,16 +196,17 @@ right pages.
 
 ### Tests for User Story 4
 
-- [ ] T055 [P] [US4] Write `apps/web/src/server/static-site/search-index.test.ts` asserting the index step runs over the generated HTML directory, that a missing or failing binary fails the run rather than shipping dead search, and that no ineligible page appears in the index
+- [X] T055 [P] [US4] Write `apps/web/src/server/static-site/search-index.test.ts` asserting the index step runs over the generated HTML directory, that a missing or failing binary fails the run rather than shipping dead search, and that no ineligible page appears in the index
 
 ### Implementation for User Story 4
 
-- [ ] T056 [US4] Implement the Pagefind invocation in `apps/web/src/server/static-site/search-index.ts`, running over the generated HTML and emitting into the reserved `pagefind/` prefix
-- [ ] T057 [US4] Mark indexable body content in `document.tsx` so navigation and chrome are excluded from the index
-- [ ] T058 [P] [US4] Build the search UI in `apps/web/src/components/static-site/SearchPanel.tsx` on `@/components/ui` primitives, not the Pagefind default web component
-- [ ] T059 [US4] Wire the search UI to the Pagefind JS API in `apps/web/src/static-site/client/search.tsx`, reflecting query state in the URL so results are shareable and back/forward work
-- [ ] T060 [P] [US4] Add localized search placeholder, result-count, and empty-state strings to `apps/web/messages/en.json` and `zh.json`
+- [X] T056 [US4] Implement the Pagefind invocation in `apps/web/src/server/static-site/search-index.ts`, running over the generated HTML and emitting into the reserved `pagefind/` prefix
+- [X] T057 [US4] Mark indexable body content in `document.tsx` so navigation and chrome are excluded from the index
+- [X] T058 [P] [US4] Build the search UI in `apps/web/src/components/static-site/SearchPanel.tsx` on `@/components/ui` primitives, not the Pagefind default web component
+- [X] T059 [US4] Wire the search UI to the Pagefind JS API in `apps/web/src/static-site/client/search.tsx`, reflecting query state in the URL so results are shareable and back/forward work
+- [X] T060 [P] [US4] Add localized search placeholder, result-count, and empty-state strings to `apps/web/messages/en.json` and `zh.json`
 - [ ] T061 [US4] Extend `apps/web/e2e/static-site-artifact.spec.ts` with search coverage including an unsegmented Chinese query, still with the wiki unreachable
+- [ ] T096 [US4] **Cross-language search** (found during browser verification): Pagefind partitions its index by document `lang`, so a search currently covers only the language of the page the reader is on. Evaluate `mergeIndex` (a first attempt had no effect) or a per-language index entry point, so FR-021's "every published page" holds on multilingual sites
 
 **Checkpoint**: readers can search without a server.
 
