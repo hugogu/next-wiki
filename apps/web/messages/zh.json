@@ -1927,6 +1927,16 @@
         "succeeded": "已发布",
         "failed": "失败",
         "cancelled": "已取消"
+      },
+      "site": {
+        "search": "搜索",
+        "searchPlaceholder": "搜索本站…",
+        "home": "首页",
+        "onThisPage": "本页目录",
+        "toggleTheme": "切换浅色/深色外观",
+        "languages": "语言",
+        "noResults": "未找到结果。",
+        "notFound": "已发布的站点上不存在该页面。它可能已被重命名，或已不再公开。"
       }
     }
   },

@@ -1927,6 +1927,16 @@
         "succeeded": "Published",
         "failed": "Failed",
         "cancelled": "Cancelled"
+      },
+      "site": {
+        "search": "Search",
+        "searchPlaceholder": "Search this site…",
+        "home": "Home",
+        "onThisPage": "On this page",
+        "toggleTheme": "Toggle light and dark appearance",
+        "languages": "Languages",
+        "noResults": "No results found.",
+        "notFound": "This page does not exist on the published site. It may have been renamed, or it may no longer be public."
       }
     }
   },

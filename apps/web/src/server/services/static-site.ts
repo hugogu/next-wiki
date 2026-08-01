@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import {
   staticSiteTargetUpsertSchema,
   type StaticSiteExclusionCounts,
@@ -245,6 +245,28 @@ export async function enqueuePublication(
   target: TargetRow,
   trigger: StaticSitePublicationTrigger,
 ): Promise<string | null> {
+  // Reuse a run that has not finished yet rather than stacking a second one.
+  // Without this a burst of content changes leaves a trail of rows that can
+  // never run, because the queue's singleton slot merges the jobs behind them.
+  // A takedown is exempt: it must not be swallowed by a pending publish.
+  if (trigger !== 'takedown') {
+    const active = await db.query.staticSitePublications.findFirst({
+      where: and(
+        eq(schema.staticSitePublications.targetId, target.id),
+        inArray(schema.staticSitePublications.status, ['queued', 'running']),
+      ),
+      orderBy: desc(schema.staticSitePublications.createdAt),
+    });
+    if (active) {
+      // Mark the site out of date so the follow-up pass is still warranted.
+      await db
+        .update(schema.staticSiteTargets)
+        .set({ isStale: true, updatedAt: new Date() })
+        .where(eq(schema.staticSiteTargets.id, target.id));
+      return active.id;
+    }
+  }
+
   const [publication] = await db
     .insert(schema.staticSitePublications)
     .values({ targetId: target.id, trigger, status: 'queued' })

@@ -108,20 +108,20 @@ guarantees (link downgrade, asset scoping, exclusion reporting) and the proof.
 
 - [X] T025 [P] [US1] Implement address form, base-path normalization, percent-encoding, case-collision and reserved-prefix detection in `apps/web/src/server/static-site/paths.ts`
 - [X] T026 [US1] Implement the single publishable-set query in `apps/web/src/server/static-site/eligibility.ts`, returning pages, path index, translation groups, asset ids, and exclusion counts per [data-model.md](./data-model.md)
-- [ ] T027 [US1] Implement the static document shell in `apps/web/src/server/static-site/document.tsx` using `renderToStaticMarkup` over `@/components/ui` primitives, embedding body HTML from `renderMarkdown()` and heading ids from `injectHeadingIds()`
-- [ ] T028 [P] [US1] Implement page-tree, breadcrumb, and home-page navigation data in `apps/web/src/server/static-site/navigation.ts`, derived only from the publishable set
-- [ ] T029 [P] [US1] Implement asset selection and export in `apps/web/src/server/static-site/assets.ts`, reading through `readImageFromDatabase` and scoping to eligible published revisions only
-- [ ] T030 [US1] Implement snapshot assembly in `apps/web/src/server/static-site/snapshot.ts`: documents, home page, `404.html`, `sitemap.xml`, `.nojekyll`, and the manifest, written into a temp directory
-- [ ] T031 [US1] Implement the publish job in `apps/web/src/server/jobs/static-site-publish.ts`: generate into temp, then replace the checkout tree, commit, and push via `git/transport.ts`, with `--force-with-lease` divergence recovery and run-record state transitions
-- [ ] T032 [US1] Implement size preflight in `apps/web/src/server/static-site/preflight.ts` and call it before delivery, failing the run with an explanatory message rather than pushing an over-limit artifact
+- [X] T027 [US1] Implement the static document shell in `apps/web/src/server/static-site/document.tsx` using `renderToStaticMarkup` over `@/components/ui` primitives, embedding body HTML from `renderMarkdown()` and heading ids from `injectHeadingIds()`
+- [X] T028 [P] [US1] Implement page-tree, breadcrumb, and home-page navigation data in `apps/web/src/server/static-site/navigation.ts`, derived only from the publishable set
+- [X] T029 [P] [US1] Implement asset selection and export in `apps/web/src/server/static-site/assets.ts`, reading through `readImageFromDatabase` and scoping to eligible published revisions only
+- [X] T030 [US1] Implement snapshot assembly in `apps/web/src/server/static-site/snapshot.ts`: documents, home page, `404.html`, `sitemap.xml`, `.nojekyll`, and the manifest, written into a temp directory
+- [X] T031 [US1] Implement the publish job in `apps/web/src/server/jobs/static-site-publish.ts`: generate into temp, then replace the checkout tree, commit, and push via `git/transport.ts`, with `--force-with-lease` divergence recovery and run-record state transitions
+- [X] T032 [US1] Implement size preflight in `apps/web/src/server/static-site/preflight.ts` and call it before delivery, failing the run with an explanatory message rather than pushing an over-limit artifact
 - [ ] T033 [US1] Implement `POST`/`GET apps/web/app/api/static-site/publications/route.ts` and `GET apps/web/app/api/static-site/publications/[id]/route.ts`, returning 202 with the queued run and collapsing triggers during an active run
-- [ ] T034 [US1] Add `apps/web/src/server/static-site/snapshot.test.ts` generating a full snapshot from a seeded fixture into a temp directory and asserting the artifact layout contract
+- [X] T034 [US1] Add `apps/web/src/server/static-site/snapshot.test.ts` generating a full snapshot from a seeded fixture into a temp directory and asserting the artifact layout contract
 - [ ] T035 [US1] Add run status and counts to the admin panel in `apps/web/src/components/admin/static-site/PublishStatus.tsx`, polling the run endpoint and linking to the live site
 - [ ] T036 [US1] Add `apps/web/e2e/static-site-publish.spec.ts` covering configure → publish → status reaches succeeded with counts shown
 
 ### Gaps found by `/speckit.analyze` (must land within this phase)
 
-- [ ] T090 [US1] **Empty-set guard**: abort the run in `apps/web/src/server/static-site/snapshot.ts` when the publishable set is empty, failing with an explicit reason instead of delivering an empty tree. Without this, FR-004's full-replacement semantics turn one bad eligibility result into a silently wiped public site. Must land before T031 delivers anything
+- [X] T090 [US1] **Empty-set guard**: abort the run in `apps/web/src/server/static-site/snapshot.ts` when the publishable set is empty, failing with an explicit reason instead of delivering an empty tree. Without this, FR-004's full-replacement semantics turn one bad eligibility result into a silently wiped public site. Must land before T031 delivers anything
 - [ ] T091 [P] [US1] Add the empty-set and credential-failure cases to `apps/web/src/server/jobs/static-site-publish.test.ts`, asserting the previous delivery survives both
 - [ ] T092 [US1] **Target validation**: add `POST apps/web/app/api/static-site/target/validation/route.ts` performing a dry-run connectivity and write-permission check, and surface it in `TargetForm.tsx`. Spec US1 scenario 2 begins "Given a validated target" and is untestable without it
 
@@ -145,8 +145,8 @@ scan every byte for excluded titles, paths, and asset ids.
 
 ### Implementation for User Story 2
 
-- [ ] T039 [US2] Implement internal link resolution and non-eligible downgrade in `apps/web/src/server/static-site/links.ts`, operating on rendered HTML after `renderMarkdown()`
-- [ ] T040 [US2] Wire link rewriting into `apps/web/src/server/static-site/snapshot.ts` so every document passes through it
+- [X] T039 [US2] Implement internal link resolution and non-eligible downgrade in `apps/web/src/server/static-site/links.ts`, operating on rendered HTML after `renderMarkdown()`
+- [X] T040 [US2] Wire link rewriting into `apps/web/src/server/static-site/snapshot.ts` so every document passes through it
 - [ ] T041 [P] [US2] Implement `GET apps/web/app/api/static-site/eligibility/route.ts` returning counts and exclusion reasons only — never titles or paths
 - [ ] T042 [P] [US2] Persist `exclusion_summary` counts on each run record in `apps/web/src/server/jobs/static-site-publish.ts`
 - [ ] T043 [US2] Show the pre-publish summary and per-run exclusions grouped by reason in `apps/web/src/components/admin/static-site/EligibilitySummary.tsx`, including the space-kind withholding notice required by FR-014 with a link back into the wiki
