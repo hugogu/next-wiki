@@ -114,15 +114,15 @@ guarantees (link downgrade, asset scoping, exclusion reporting) and the proof.
 - [X] T030 [US1] Implement snapshot assembly in `apps/web/src/server/static-site/snapshot.ts`: documents, home page, `404.html`, `sitemap.xml`, `.nojekyll`, and the manifest, written into a temp directory
 - [X] T031 [US1] Implement the publish job in `apps/web/src/server/jobs/static-site-publish.ts`: generate into temp, then replace the checkout tree, commit, and push via `git/transport.ts`, with `--force-with-lease` divergence recovery and run-record state transitions
 - [X] T032 [US1] Implement size preflight in `apps/web/src/server/static-site/preflight.ts` and call it before delivery, failing the run with an explanatory message rather than pushing an over-limit artifact
-- [ ] T033 [US1] Implement `POST`/`GET apps/web/app/api/static-site/publications/route.ts` and `GET apps/web/app/api/static-site/publications/[id]/route.ts`, returning 202 with the queued run and collapsing triggers during an active run
+- [X] T033 [US1] Implement `POST`/`GET apps/web/app/api/static-site/publications/route.ts` and `GET apps/web/app/api/static-site/publications/[id]/route.ts`, returning 202 with the queued run and collapsing triggers during an active run
 - [X] T034 [US1] Add `apps/web/src/server/static-site/snapshot.test.ts` generating a full snapshot from a seeded fixture into a temp directory and asserting the artifact layout contract
-- [ ] T035 [US1] Add run status and counts to the admin panel in `apps/web/src/components/admin/static-site/PublishStatus.tsx`, polling the run endpoint and linking to the live site
+- [X] T035 [US1] Add run status and counts to the admin panel in `apps/web/src/components/admin/static-site/PublishStatus.tsx`, polling the run endpoint and linking to the live site
 - [ ] T036 [US1] Add `apps/web/e2e/static-site-publish.spec.ts` covering configure → publish → status reaches succeeded with counts shown
 
 ### Gaps found by `/speckit.analyze` (must land within this phase)
 
 - [X] T090 [US1] **Empty-set guard**: abort the run in `apps/web/src/server/static-site/snapshot.ts` when the publishable set is empty, failing with an explicit reason instead of delivering an empty tree. Without this, FR-004's full-replacement semantics turn one bad eligibility result into a silently wiped public site. Must land before T031 delivers anything
-- [ ] T091 [P] [US1] Add the empty-set and credential-failure cases to `apps/web/src/server/jobs/static-site-publish.test.ts`, asserting the previous delivery survives both
+- [X] T091 [P] [US1] Add the empty-set and credential-failure cases to `apps/web/src/server/jobs/static-site-publish.test.ts`, asserting the previous delivery survives both
 - [ ] T092 [US1] **Target validation**: add `POST apps/web/app/api/static-site/target/validation/route.ts` performing a dry-run connectivity and write-permission check, and surface it in `TargetForm.tsx`. Spec US1 scenario 2 begins "Given a validated target" and is untestable without it
 
 **Checkpoint**: a published site exists and is browsable. MVP.
@@ -147,8 +147,8 @@ scan every byte for excluded titles, paths, and asset ids.
 
 - [X] T039 [US2] Implement internal link resolution and non-eligible downgrade in `apps/web/src/server/static-site/links.ts`, operating on rendered HTML after `renderMarkdown()`
 - [X] T040 [US2] Wire link rewriting into `apps/web/src/server/static-site/snapshot.ts` so every document passes through it
-- [ ] T041 [P] [US2] Implement `GET apps/web/app/api/static-site/eligibility/route.ts` returning counts and exclusion reasons only — never titles or paths
-- [ ] T042 [P] [US2] Persist `exclusion_summary` counts on each run record in `apps/web/src/server/jobs/static-site-publish.ts`
+- [X] T041 [P] [US2] Implement `GET apps/web/app/api/static-site/eligibility/route.ts` returning counts and exclusion reasons only — never titles or paths
+- [X] T042 [P] [US2] Persist `exclusion_summary` counts on each run record in `apps/web/src/server/jobs/static-site-publish.ts`
 - [ ] T043 [US2] Show the pre-publish summary and per-run exclusions grouped by reason in `apps/web/src/components/admin/static-site/EligibilitySummary.tsx`, including the space-kind withholding notice required by FR-014 with a link back into the wiki
 - [ ] T044 [P] [US2] Add `apps/web/app/api/static-site/eligibility/route.test.ts` asserting the response carries counts only and is admin-only
 
