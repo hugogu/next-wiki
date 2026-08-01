@@ -206,6 +206,28 @@ describe('artifact layout', () => {
     expect(html).toContain('katex');
   });
 
+  it('loads the runtime as a module, since code splitting emits ES modules', async () => {
+    // Without type="module" the browser parses the bundle as a classic script,
+    // it fails on the first import, and every island silently stays inert.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await snapshot(root);
+    const html = await readFile(join(root, 'a', 'index.html'), 'utf8');
+    expect(html).toMatch(/<script type="module" src="[^"]*site[^"]*\.js"><\/script>/);
+  });
+
+  it('does not add a title heading of its own', async () => {
+    // The reader takes the heading from the Markdown body; emitting another one
+    // here would show the title twice and diverge from the wiki's output.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'Duplicated', body: '# Duplicated\n\ntext\n' });
+    const root = await stage();
+    await snapshot(root);
+    const html = await readFile(join(root, 'a', 'index.html'), 'utf8');
+    expect(html.match(/<h1/g) ?? []).toHaveLength(1);
+  });
+
   it('gives headings ids and builds a table of contents from them', async () => {
     const space = await makeSpace('wiki');
     await makePage({

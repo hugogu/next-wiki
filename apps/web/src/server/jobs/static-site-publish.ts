@@ -12,7 +12,7 @@ import { getActiveThemeCss } from '@/server/services/system-theme';
 import { getSiteName } from '@/server/services/site-settings';
 import { buildSnapshot } from '@/server/static-site/snapshot';
 import { preflightSnapshot } from '@/server/static-site/preflight';
-import { staticSiteAssetsDir } from '@/server/static-site/build-assets';
+import { readStaticSiteAssets, staticSiteAssetsDir } from '@/server/static-site/build-assets';
 import { logger } from '@/server/logger';
 
 const execFileAsync = promisify(execFile);
@@ -189,12 +189,19 @@ async function executePublish(targetId: string, publicationId: string): Promise<
 
     if (!isTakedown) {
       staging = await mkdtemp(join(tmpdir(), 'next-wiki-static-site-build-'));
-      const [themeCss, siteName] = await Promise.all([getActiveThemeCss(), getSiteName()]);
+      const [themeCss, siteName, documentAssets] = await Promise.all([
+        getActiveThemeCss(),
+        getSiteName(),
+        // Read before rendering: a missing build step should fail the run
+        // before it writes a site whose stylesheet and script 404.
+        readStaticSiteAssets(),
+      ]);
       const manifest = await buildSnapshot({
         rootDir: staging,
         baseUrl: target.baseUrl,
         siteName,
         themeCss,
+        documentAssets,
       });
       // Build-time assets (stylesheet, client runtime, KaTeX) are fixed per
       // image, so they are copied in rather than regenerated per publish.

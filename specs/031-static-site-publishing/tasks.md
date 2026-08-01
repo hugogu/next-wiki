@@ -171,13 +171,13 @@ then browse with the wiki stopped and confirm nothing fails to load.
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Implement `apps/web/scripts/build-static-site-assets.mjs`: compile `apps/web/app/globals.css` with the Tailwind CLI scanning the static-site shell, bundle the client runtime with esbuild, copy `katex.min.css` and its fonts from `node_modules`, and emit content-hashed filenames
-- [ ] T048 [US3] Implement the client runtime entry in `apps/web/src/static-site/client/index.tsx`, mounting the existing `ContentRenderer` over the pipeline's `[data-code-block]` / `[data-mermaid-block]` markers and loading `mermaid` via dynamic import
-- [ ] T049 [P] [US3] Implement theme selection in the client runtime using the same `localStorage` key and `html.dark` class as `@/components/theme/ThemeProvider`, applied by an inline pre-paint script emitted in `document.tsx`
-- [ ] T050 [US3] Inline the deployment's appearance tokens into every document via the existing `buildUserAppearanceCss()` from `@/server/appearance/style.ts`
-- [ ] T051 [P] [US3] Render the in-page table of contents from `extractHeadings()` and the breadcrumb trail in `document.tsx`, reusing the reader's own components
-- [ ] T052 [US3] Copy the built assets into every snapshot under the reserved `_static/` prefix in `apps/web/src/server/static-site/snapshot.ts`
-- [ ] T053 [US3] Style `404.html` consistently with the site and give it links to the home page and search
+- [X] T047 [US3] Implement `apps/web/scripts/build-static-site-assets.mjs`: compile `apps/web/app/globals.css` with the Tailwind CLI scanning the static-site shell, bundle the client runtime with esbuild, copy `katex.min.css` and its fonts from `node_modules`, and emit content-hashed filenames
+- [X] T048 [US3] Implement the client runtime entry in `apps/web/src/static-site/client/index.tsx`, mounting the existing `ContentRenderer` over the pipeline's `[data-code-block]` / `[data-mermaid-block]` markers and loading `mermaid` via dynamic import
+- [X] T049 [P] [US3] Implement theme selection in the client runtime using the same `localStorage` key and `html.dark` class as `@/components/theme/ThemeProvider`, applied by an inline pre-paint script emitted in `document.tsx`
+- [X] T050 [US3] Inline the deployment's appearance tokens into every document via the existing `buildUserAppearanceCss()` from `@/server/appearance/style.ts`
+- [X] T051 [P] [US3] Render the in-page table of contents from `extractHeadings()` and the breadcrumb trail in `document.tsx`, reusing the reader's own components
+- [X] T052 [US3] Copy the built assets into every snapshot under the reserved `_static/` prefix in `apps/web/src/server/static-site/snapshot.ts`
+- [X] T053 [US3] Style `404.html` consistently with the site and give it links to the home page and search
 - [ ] T054 [US3] Add `apps/web/e2e/static-site-artifact.spec.ts` serving a generated snapshot from a plain static file server **with the wiki stopped**, asserting navigation, anchor jumps, dark-mode persistence, and that code, math, diagrams, and images all render
 - [ ] T093 [US3] **Rendering parity check** (gap from `/speckit.analyze`): add `apps/web/src/server/static-site/parity.test.ts` comparing the static document's body against the reader's output for the same revision, so SC-003's 100% claim is asserted rather than eyeballed
 - [ ] T094 [P] [US3] **Dead-link scan** (gap from `/speckit.analyze`): assert every internal `href` in a generated snapshot resolves to a file in the artifact, covering SC-004's zero-dead-link claim

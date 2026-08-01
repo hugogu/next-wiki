@@ -77,7 +77,7 @@ export function escapeHtml(value: string): string {
  * storage key and `html.dark` class as the app's ThemeProvider so a reader's
  * choice carries across both.
  */
-const THEME_BOOTSTRAP = `(function(){try{var t=localStorage.getItem('next-wiki-theme');if(t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`;
+const THEME_BOOTSTRAP = `(function(){try{var m=localStorage.getItem('next-wiki-theme');var d=m==='dark'||((m===null||m==='auto')&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.add(d?'dark':'light')}catch(e){}})()`;
 
 function renderNavNodes(nodes: NavNode[]): string {
   if (nodes.length === 0) return '';
@@ -188,9 +188,7 @@ ${analyticsSnippet ?? ''}
         strings.noResults,
       )}"></div>
       ${renderLanguages(languages, strings.languages)}
-      <button type="button" data-theme-toggle aria-label="${escapeHtml(
-        strings.toggleTheme,
-      )}" class="rounded-sm px-sm py-xs text-sm text-muted hover:text-foreground">◐</button>
+      <div data-static-site-theme data-label="${escapeHtml(strings.toggleTheme)}"></div>
     </div>
   </header>
 
@@ -201,14 +199,17 @@ ${analyticsSnippet ?? ''}
 
     <main class="min-w-0 flex-1">
       ${renderBreadcrumbs(breadcrumbs, basePath, strings.home)}
-      <h1 class="font-display mb-md text-3xl font-semibold">${escapeHtml(title)}</h1>
+      <!-- No title element here: the reader takes the heading from the Markdown
+           body, and duplicating it would diverge from the wiki's own output. -->
       <div class="prose max-w-none">${bodyHtml}</div>
     </main>
 
     <aside class="w-nav shrink-0">${renderToc(headings, strings.onThisPage)}</aside>
   </div>
 </div>
-<script src="${asset(assets.script)}" defer></script>
+<!-- The runtime is an ES module (code splitting keeps mermaid out of the
+     initial payload), so it needs type="module" — which also defers it. -->
+<script type="module" src="${asset(assets.script)}"></script>
 </body>
 </html>
 `;
@@ -220,7 +221,9 @@ export function renderHomeDocument(
 ): string {
   return renderDocument({
     ...input,
-    bodyHtml: `<nav aria-label="${escapeHtml(input.strings.home)}">${renderNavNodes(input.nav)}</nav>`,
+    bodyHtml: `<h1>${escapeHtml(input.title)}</h1><nav aria-label="${escapeHtml(
+      input.strings.home,
+    )}">${renderNavNodes(input.nav)}</nav>`,
     headings: [],
     breadcrumbs: [],
     languages: [],
@@ -234,9 +237,11 @@ export function renderNotFoundDocument(
 ): string {
   return renderDocument({
     ...input,
-    bodyHtml: `<p>${escapeHtml(message)}</p><p><a href="${escapeHtml(
-      input.basePath,
-    )}" class="underline">${escapeHtml(input.strings.home)}</a></p>`,
+    bodyHtml: `<h1>${escapeHtml(input.title)}</h1><p>${escapeHtml(
+      message,
+    )}</p><p><a href="${escapeHtml(input.basePath)}" class="underline">${escapeHtml(
+      input.strings.home,
+    )}</a></p>`,
     headings: [],
     breadcrumbs: [],
     languages: [],
