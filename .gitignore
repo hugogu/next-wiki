@@ -6,6 +6,7 @@
 .windsurf/workflows
 .opencode/skills
 .opencode/command
+.opencode/commands
 .github/agents
 .github/prompts
 .github/skills
@@ -29,9 +30,11 @@
 .cursor/settings.local.json
 .windsurf/settings.local.json
 .codex/config.toml
-commands
-extensions
-integrations
+# 仅忽略仓库根目录下的本地配置目录；不带斜杠的裸名称会匹配任意深度的同名
+# 目录，曾把 apps/web 下的 integrations 页面源码静默排除在提交之外。
+/commands
+/extensions
+/integrations
 !.specify/extensions
 !.specify/extensions/**
 !.specify/integrations
@@ -85,6 +88,6 @@ worktrees/
 docker/caddy/certs/*.pem
 docker/caddy/certs/*.crt
 docker/caddy/certs/*.key
-workflows
+/workflows
 !.specify/workflows
 !.specify/workflows/**
