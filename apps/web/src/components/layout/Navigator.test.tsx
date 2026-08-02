@@ -7,7 +7,28 @@ vi.mock('@/i18n/client', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('./NavFooterMenu', () => ({ NavFooterMenu: () => null }));
 
 import { Navigator } from './Navigator';
+import { navItemActive } from './Navigator';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
+
+describe('navItemActive', () => {
+  const hrefs = ['/admin/ai', '/admin/ai/tools', '/admin/static-site', '/admin/integrations'];
+
+  it('keeps the section highlighted on its sub-pages', () => {
+    expect(navItemActive('/admin/static-site/settings', '/admin/static-site', hrefs)).toBe(true);
+    expect(navItemActive('/admin/static-site/history', '/admin/static-site', hrefs)).toBe(true);
+    expect(navItemActive('/admin/integrations/github', '/admin/integrations', hrefs)).toBe(true);
+  });
+
+  it('lets the longest matching nav item win over its parent', () => {
+    expect(navItemActive('/admin/ai/tools', '/admin/ai', hrefs)).toBe(false);
+    expect(navItemActive('/admin/ai/tools', '/admin/ai/tools', hrefs)).toBe(true);
+    expect(navItemActive('/admin/ai/tools/x', '/admin/ai/tools', hrefs)).toBe(true);
+  });
+
+  it('does not treat a shared segment prefix as a sub-page', () => {
+    expect(navItemActive('/admin/site2', '/admin/site', hrefs)).toBe(false);
+  });
+});
 
 describe('Navigator hybrid node (page that also has children)', () => {
   it('renders both the page link and an expand control, and shows its children', () => {

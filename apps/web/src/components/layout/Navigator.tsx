@@ -60,6 +60,19 @@ type AdminNavItem = {
   icon: React.ReactNode;
 };
 
+/**
+ * The active nav item is the longest href that prefixes the current path, so
+ * a sub-page (settings, history, a detail route) keeps its section
+ * highlighted unless a sibling nav item matches better — e.g. /admin/ai must
+ * not light up on /admin/ai/tools, which is its own nav item.
+ */
+export function navItemActive(pathname: string, href: string, allHrefs: readonly string[]): boolean {
+  const matches = (candidate: string) =>
+    pathname === candidate || pathname.startsWith(`${candidate}/`);
+  if (!matches(href)) return false;
+  return !allHrefs.some((other) => other.length > href.length && matches(other));
+}
+
 type AdminNavGroup = {
   label: string;
   items: AdminNavItem[];
@@ -465,6 +478,8 @@ export function Navigator({
     },
   ];
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(ancestorPaths(currentPath)));
+  const adminNavHrefs = ADMIN_GROUPS.flatMap((group) => group.items.map((item) => item.href));
+  const userCenterNavHrefs = USER_CENTER_ITEMS.map((item) => item.href);
   const [branchCache, setBranchCache] = useState<Record<string, LazyPublicPageTreeNode[]>>({});
   const [branchLoad, setBranchLoad] = useState<Record<string, 'loading' | 'error'>>({});
   // Tracks paths we've already kicked off a fetch for in this lifetime so we
@@ -622,15 +637,7 @@ export function Navigator({
           ) : userCenter ? (
             <ul className="space-y-xs">
               {USER_CENTER_ITEMS.map((item) => {
-                const active =
-                  pathname === item.href ||
-                  (item.href === '/admin/ai' &&
-                    pathname.startsWith('/admin/ai/') &&
-                    !pathname.startsWith('/admin/ai/tools') &&
-                    !pathname.startsWith('/admin/ai/skills') &&
-                    !pathname.startsWith('/admin/ai/prompts')) ||
-                  (item.href === '/admin/ai/tools' && pathname.startsWith('/admin/ai/tools/')) ||
-                  (item.href === '/admin/ai/skills' && pathname.startsWith('/admin/ai/skills/'));
+                const active = navItemActive(pathname, item.href, userCenterNavHrefs);
                 return (
                   <li key={item.href}>
                     <Link
@@ -658,7 +665,7 @@ export function Navigator({
                   </p>
                   <ul className="space-y-xs">
                     {group.items.map((item) => {
-                      const active = pathname === item.href;
+                      const active = navItemActive(pathname, item.href, adminNavHrefs);
                       return (
                         <li key={item.href}>
                           <Link
