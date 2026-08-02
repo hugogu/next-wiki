@@ -1442,6 +1442,7 @@ export const translationKeys = [
   "admin.integrations.token",
   "admin.integrations.secretStored",
   "admin.integrations.generateKey",
+  "admin.integrations.regenerateKey",
   "admin.integrations.deployKeyHint",
   "admin.integrations.fingerprint",
   "admin.integrations.saved",

@@ -108,15 +108,8 @@ export function StaticSiteSettingsForm({ initial }: { initial: StaticSiteTargetV
   return (
     <div className="space-y-md">
       {/* The two features write different artifacts to different branches for
-          different audiences. Saying so here is cheaper than an operator
-          discovering it by publishing raw Markdown to a public site. */}
-      <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
-        {t('admin.staticSite.notGitExport')}
-      </p>
-
-      <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
-        {t('admin.staticSite.spaceKindNotice')}
-      </p>
+          different audiences. Said once, quietly — the form is the focus. */}
+      <p className="text-xs text-muted">{t('admin.staticSite.notGitExport')}</p>
 
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       {message ? <p className="text-sm text-success">{message}</p> : null}
@@ -192,6 +185,8 @@ export function StaticSiteSettingsForm({ initial }: { initial: StaticSiteTargetV
           {t('common.actions.save')}
         </Button>
       </div>
+
+      <p className="text-xs text-muted">{t('admin.staticSite.spaceKindNotice')}</p>
     </div>
   );
 }

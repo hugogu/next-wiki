@@ -37,7 +37,6 @@ export function IntegrationConfigPanel({
   const router = useRouter();
 
   const [authMode, setAuthMode] = useState<IntegrationAuthMode>(initial?.authMode ?? 'ssh');
-  const [label, setLabel] = useState(initial?.label ?? '');
   const [username, setUsername] = useState(initial?.username ?? '');
   const [secret, setSecret] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +70,6 @@ export function IntegrationConfigPanel({
       {
         kind,
         authMode,
-        label: label || undefined,
         username: username || undefined,
         secret: secret || undefined,
       },
@@ -112,15 +110,13 @@ export function IntegrationConfigPanel({
         onSelect={setAuthMode}
       >
         <div className="space-y-sm rounded-md border border-border p-md">
-          <Field label={t('admin.integrations.label')}>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} />
-          </Field>
-
           {authMode === 'ssh' ? (
             <>
               <div className="flex items-center gap-sm">
                 <Button variant="secondary" onClick={onGenerateKey} disabled={pending}>
-                  {t('admin.integrations.generateKey')}
+                  {live?.publicKey
+                    ? t('admin.integrations.regenerateKey')
+                    : t('admin.integrations.generateKey')}
                 </Button>
               </div>
               {live?.publicKey ? (

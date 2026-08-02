@@ -1991,6 +1991,7 @@
       "token": "Access token",
       "secretStored": "A credential is stored. Leave empty to keep it.",
       "generateKey": "Generate deploy key",
+      "regenerateKey": "Regenerate deploy key",
       "deployKeyHint": "Install this as a deploy key with write access. One key covers every feature that uses this repository — hosts reject the same key on a second repository, so it is installed once.",
       "fingerprint": "Fingerprint",
       "saved": "Integration saved.",
