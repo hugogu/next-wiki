@@ -12,12 +12,10 @@ import {
   configureTarget,
   deleteTarget,
   findTarget,
-  getKeyReuseOffer,
   getTarget,
   listPublications,
   markStaleAndMaybePublish,
   publishNow,
-  reuseGitExportKey,
   takeDownSite,
   tickScheduledPublish,
 } from './static-site';
@@ -34,7 +32,6 @@ function upsert(overrides: Record<string, unknown> = {}) {
     remoteUrl: 'https://github.com/owner/site.git',
     branch: 'gh-pages',
     baseUrl: 'https://owner.github.io/site/',
-    authMode: 'https_token' as const,
     autoPublishOnChange: false,
     scheduledPublishEnabled: false,
     scheduledIntervalMinutes: 60,
@@ -42,12 +39,24 @@ function upsert(overrides: Record<string, unknown> = {}) {
   };
 }
 
-beforeEach(() => {
+/** The credential lives in the shared integration, not on the target. */
+async function connectGitHub() {
+  await db.insert(schema.integrations).values({
+    kind: 'github',
+    authMode: 'ssh',
+    secretEncrypted: encryptKey(TOKEN),
+    publicKey: 'ssh-ed25519 AAAAC3Nz key',
+  });
+}
+
+beforeEach(async () => {
   setBoss({ send: async () => randomUUID() } as unknown as PgBoss);
+  await connectGitHub();
 });
 
 beforeAll(async () => {
   await db.delete(schema.staticSiteTargets);
+  await db.delete(schema.integrations);
   await db.delete(schema.users);
   const [admin] = await db
     .insert(schema.users)
@@ -65,8 +74,9 @@ beforeAll(async () => {
 
 afterEach(async () => {
   setBoss(null);
-  // Publications cascade from the target.
+  // Publications cascade from the target; the integration outlives it.
   await db.delete(schema.staticSiteTargets);
+  await db.delete(schema.integrations);
 });
 
 afterAll(async () => {
@@ -101,50 +111,22 @@ describe('permissions', () => {
   });
 });
 
-describe('credential handling', () => {
-  it('never returns the secret in any view', async () => {
-    const { view } = await configureTarget(adminCtx, upsert({ secret: TOKEN }));
-    expect(JSON.stringify(view)).not.toContain(TOKEN);
-    expect(view.hasSecret).toBe(true);
-
-    const fetched = await getTarget(adminCtx);
-    expect(JSON.stringify(fetched)).not.toContain(TOKEN);
-    expect(fetched?.hasSecret).toBe(true);
-  });
-
-  it('stores the secret encrypted rather than in plaintext', async () => {
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
-    const row = await findTarget();
-    expect(row?.secretEncrypted).toBeTruthy();
-    expect(row?.secretEncrypted).not.toContain(TOKEN);
-  });
-
-  it('keeps the stored secret when an update omits it', async () => {
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
-    const before = (await findTarget())?.secretEncrypted;
-    await configureTarget(adminCtx, upsert({ branch: 'pages' }));
-    expect((await findTarget())?.secretEncrypted).toBe(before);
-  });
-
-  it('drops a stored credential that no longer matches the auth mode', async () => {
-    // An HTTPS token cannot authenticate an SSH remote. Keeping it would fail
-    // confusingly at push time instead of at configuration time.
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
-    await configureTarget(adminCtx, upsert({ authMode: 'ssh' }));
-    const row = await findTarget();
-    expect(row?.secretEncrypted).toBeNull();
-    expect(row?.isEnabled).toBe(false);
-  });
-
-  it('destroys the credential when the target is removed', async () => {
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+describe('deleteTarget', () => {
+  it('removes the configuration but leaves the shared credential alone', async () => {
+    // The credential belongs to the integration; other features may still be
+    // using it.
+    await configureTarget(adminCtx, upsert());
     await deleteTarget(adminCtx);
     expect(await findTarget()).toBeUndefined();
+    expect(await db.query.integrations.findFirst()).toBeDefined();
   });
 });
 
 describe('enabling', () => {
-  it('refuses to enable without a credential', async () => {
+  it('refuses to enable when GitHub is not connected', async () => {
+    // The credential is shared, so enabling depends on the integration rather
+    // than on anything stored against this target.
+    await db.delete(schema.integrations);
     await expect(configureTarget(adminCtx, upsert({ isEnabled: true }))).rejects.toThrow(
       DomainError,
     );
@@ -154,7 +136,7 @@ describe('enabling', () => {
   it('enables when a credential is supplied, and queues an initial publish', async () => {
     const { view, queuedPublicationId } = await configureTarget(
       adminCtx,
-      upsert({ isEnabled: true, secret: TOKEN }),
+      upsert({ isEnabled: true }),
     );
     expect(view.isEnabled).toBe(true);
     expect(queuedPublicationId).toBeTruthy();
@@ -166,13 +148,13 @@ describe('enabling', () => {
   });
 
   it('enables using a previously stored credential', async () => {
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ }));
     const { view } = await configureTarget(adminCtx, upsert({ isEnabled: true }));
     expect(view.isEnabled).toBe(true);
   });
 
   it('does not queue anything when saved disabled', async () => {
-    const { queuedPublicationId } = await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+    const { queuedPublicationId } = await configureTarget(adminCtx, upsert({ }));
     expect(queuedPublicationId).toBeNull();
     expect(await listPublications(adminCtx)).toHaveLength(0);
   });
@@ -184,12 +166,12 @@ describe('publishNow', () => {
   });
 
   it('refuses when configured but disabled', async () => {
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ }));
     await expect(publishNow(adminCtx)).rejects.toThrow(DomainError);
   });
 
   it('records a queued run for an enabled target', async () => {
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     const run = await publishNow(adminCtx);
     expect(run.status).toBe('queued');
     expect(run.pagesPublished).toBe(0);
@@ -198,7 +180,7 @@ describe('publishNow', () => {
   it('allows a takedown even when publishing is disabled', async () => {
     // Otherwise an operator who disables publishing first would be unable to
     // remove the site that is still live.
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ }));
     const run = await publishNow(adminCtx, 'takedown');
     expect(run.trigger).toBe('takedown');
   });
@@ -234,7 +216,7 @@ describe('trigger collapsing', () => {
   it('reuses an in-flight run instead of stacking rows the queue would strand', async () => {
     // Every trigger creating its own row would leave a trail that can never
     // run: the queue's singleton slot merges the jobs behind them.
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     const first = await listPublications(adminCtx);
     expect(first).toHaveLength(1);
 
@@ -246,13 +228,13 @@ describe('trigger collapsing', () => {
   });
 
   it('marks the site stale when a change lands during an active run', async () => {
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     await markStaleAndMaybePublish();
     expect((await findTarget())?.isStale).toBe(true);
   });
 
   it('does nothing at all when publishing is disabled', async () => {
-    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ }));
     await markStaleAndMaybePublish();
     expect((await findTarget())?.isStale).toBe(false);
     expect(await listPublications(adminCtx)).toHaveLength(0);
@@ -261,7 +243,7 @@ describe('trigger collapsing', () => {
 
 describe('scheduled publishing', () => {
   it('does nothing when scheduling is off', async () => {
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     expect(await tickScheduledPublish()).toBe(false);
   });
 
@@ -269,7 +251,7 @@ describe('scheduled publishing', () => {
     // Otherwise a slow publish would stack interval-triggered runs behind it.
     await configureTarget(
       adminCtx,
-      upsert({ isEnabled: true, secret: TOKEN, scheduledPublishEnabled: true }),
+      upsert({ isEnabled: true, scheduledPublishEnabled: true }),
     );
     expect(await tickScheduledPublish()).toBe(false);
   });
@@ -277,7 +259,7 @@ describe('scheduled publishing', () => {
   it('queues once the interval has elapsed since the last success', async () => {
     await configureTarget(
       adminCtx,
-      upsert({ isEnabled: true, secret: TOKEN, scheduledPublishEnabled: true, scheduledIntervalMinutes: 60 }),
+      upsert({ isEnabled: true, scheduledPublishEnabled: true, scheduledIntervalMinutes: 60 }),
     );
     const target = await findTarget();
     await db
@@ -292,13 +274,13 @@ describe('scheduled publishing', () => {
 
 describe('takedown', () => {
   it('requires the branch name as confirmation', async () => {
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     await expect(takeDownSite(adminCtx, 'wrong')).rejects.toThrow(DomainError);
   });
 
   it('queues a takedown and switches publishing off', async () => {
     // Otherwise a scheduled or change trigger would put the site straight back.
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     const run = await takeDownSite(adminCtx, 'gh-pages');
 
     expect(run.trigger).toBe('takedown');
@@ -306,7 +288,7 @@ describe('takedown', () => {
   });
 
   it('cancels a pending publish so the site is not republished on the way out', async () => {
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     const before = await listPublications(adminCtx);
     expect(before[0]!.status).toBe('queued');
 
@@ -317,88 +299,8 @@ describe('takedown', () => {
   });
 
   it('denies a non-admin', async () => {
-    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await configureTarget(adminCtx, upsert({ isEnabled: true }));
     await expect(takeDownSite(editorCtx, 'gh-pages')).rejects.toThrow(DomainError);
   });
 });
 
-describe('deploy key reuse', () => {
-  async function seedGitExportKey(remoteUrl: string) {
-    await db.insert(schema.storageBackends).values({
-      type: 'git',
-      purpose: 'git_export',
-      isActive: true,
-      replicaState: 'enabled',
-      config: {
-        remoteUrl,
-        branch: 'main',
-        assetsDir: 'assets',
-        authMode: 'ssh',
-        publicKey: 'ssh-ed25519 AAAAC3Nz shared-key',
-        fingerprint: 'SHA256:abc',
-        autoSyncOnPublish: true,
-        scheduledSyncEnabled: false,
-        scheduledSyncIntervalMinutes: 60,
-      },
-      secretEncrypted: encryptKey('PRIVATE_KEY_MATERIAL'),
-    });
-  }
-
-  afterEach(async () => {
-    await db.delete(schema.storageBackends);
-  });
-
-  it('offers reuse when both features target the same repository', async () => {
-    // A deploy key can only be registered on one repository, so reuse is
-    // exactly as useful as the two targets being the same repository.
-    await seedGitExportKey('git@github.com:owner/wiki.git');
-    const offer = await getKeyReuseOffer(adminCtx, 'https://github.com/owner/wiki.git');
-    expect(offer.available).toBe(true);
-  });
-
-  it('declines when the repositories differ, because the host would reject the key', async () => {
-    await seedGitExportKey('git@github.com:owner/backup.git');
-    const offer = await getKeyReuseOffer(adminCtx, 'git@github.com:owner/site.git');
-    expect(offer).toEqual({ available: false, reason: 'different_repository' });
-  });
-
-  it('declines when Git export uses a token rather than a key', async () => {
-    const offer = await getKeyReuseOffer(adminCtx, 'git@github.com:owner/wiki.git');
-    expect(offer).toEqual({ available: false, reason: 'no_git_export_key' });
-  });
-
-  it('copies the key rather than referencing it, so the features stay independent', async () => {
-    await seedGitExportKey('git@github.com:owner/wiki.git');
-    await configureTarget(
-      adminCtx,
-      upsert({ remoteUrl: 'https://github.com/owner/wiki.git', authMode: 'ssh' }),
-    );
-
-    const result = await reuseGitExportKey(adminCtx);
-    expect(result.publicKey).toContain('shared-key');
-
-    const target = await findTarget();
-    expect(target?.authMode).toBe('ssh');
-    expect(target?.secretEncrypted).toBeTruthy();
-
-    // Removing Git export afterwards must not affect publishing.
-    await db.delete(schema.storageBackends);
-    expect((await findTarget())?.secretEncrypted).toBeTruthy();
-  });
-
-  it('refuses to copy a key from a different repository', async () => {
-    await seedGitExportKey('git@github.com:owner/backup.git');
-    await configureTarget(
-      adminCtx,
-      upsert({ remoteUrl: 'git@github.com:owner/site.git', authMode: 'ssh' }),
-    );
-    await expect(reuseGitExportKey(adminCtx)).rejects.toThrow(DomainError);
-  });
-
-  it('denies a non-admin', async () => {
-    await seedGitExportKey('git@github.com:owner/wiki.git');
-    await expect(getKeyReuseOffer(editorCtx, 'git@github.com:owner/wiki.git')).rejects.toThrow(
-      DomainError,
-    );
-  });
-});

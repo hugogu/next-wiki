@@ -576,12 +576,27 @@ export const skillFileOperationEnum = pgEnum('skill_file_operation', [
  * the Administrator override. */
 export const toolCallStrategyEnum = pgEnum('tool_call_strategy', ['auto', 'native', 'text']);
 
+// ---- Integrations (031) -----------------------------------------------------
+
+/** External service an integration authenticates against. One row per kind:
+ * the credential identifies an account, and every feature reaching that service
+ * uses the same account. */
+export const integrationKindEnum = pgEnum('integration_kind', ['github']);
+/** How an integration authenticates. */
+export const integrationAuthModeEnum = pgEnum('integration_auth_mode', [
+  'https_token',
+  'ssh',
+]);
+
 // ---- Static site publishing (031) -------------------------------------------
 
-/** How the publish job authenticates to the destination repository. Same two
- * modes Git export supports, but a real column here rather than a value inside
- * a JSON config, because this target has no other config shape to carry. */
+/** Superseded by `integration_auth_mode`; retained until the legacy credential
+ * columns on `static_site_targets` are dropped. */
 export const staticSiteAuthModeEnum = pgEnum('static_site_auth_mode', ['https_token', 'ssh']);
+
+/** Where a published site is hosted. The artifact is host-neutral by design, so
+ * this is expected to grow; GitHub Pages is simply the first. */
+export const staticSiteProviderEnum = pgEnum('static_site_provider', ['github_pages']);
 /** Lifecycle of one publish attempt. `cancelled` covers a run whose target was
  * disabled or removed before it started. */
 export const staticSitePublicationStatusEnum = pgEnum('static_site_publication_status', [

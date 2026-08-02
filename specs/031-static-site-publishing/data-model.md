@@ -16,6 +16,33 @@ contract. Column names are `snake_case`; the Drizzle schema in
 
 ## Persisted entities
 
+### `integrations`
+
+Credentials for an external service, owned by no single feature.
+
+Git export and static site publishing both authenticate against the same GitHub
+account, so the credential belongs to neither of them. A per-feature credential
+would mean two deploy keys to install — which hosts reject anyway, since
+deploy-key uniqueness is enforced globally — and two places to rotate.
+Independence between those features is about change coupling, not about
+duplicating shared infrastructure.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `kind` | enum(`github`) NOT NULL, unique | One row per service: a credential identifies an account, and a deployment has one account per service. |
+| `label` | text NULL | Operator-facing name, e.g. the account or organization. |
+| `auth_mode` | enum(`https_token`, `ssh`) NOT NULL | |
+| `username` | text NULL | For `https_token`. |
+| `secret_encrypted` | text NULL | Encrypted via `crypto/key-encryption`. Never returned to any client. |
+| `public_key` / `fingerprint` | text NULL | The installable half of an SSH deploy key, and its fingerprint. |
+| `created_at` / `updated_at` | timestamptz NOT NULL | |
+
+**Deletion** is refused while a feature still references the row; the FK from
+`static_site_targets` is `ON DELETE restrict` and the service turns that into a
+readable error. Silently breaking publishing would be worse than requiring the
+operator to disconnect deliberately.
+
 ### `static_site_targets`
 
 Where and how the site is published. One row per configured target; this
@@ -28,11 +55,8 @@ iteration supports a single active target per deployment.
 | `remote_url` | text NOT NULL | HTTPS or SSH remote, no embedded credentials. |
 | `branch` | text NOT NULL | Destination branch, fully owned by this feature. |
 | `base_url` | text NOT NULL | Public address the host serves, e.g. `https://user.github.io/wiki/`. Its path component yields the artifact base path (FR-006). |
-| `auth_mode` | enum(`https_token`, `ssh`) NOT NULL | Mirrors the Git export auth modes. |
-| `username` | text NULL | For `https_token`; defaults to `x-access-token`. |
-| `secret_encrypted` | text NULL | Encrypted via `crypto/key-encryption`. Never returned to any client (FR-034). |
-| `public_key` | text NULL | Derived public half for `ssh`, shown so the operator can install a deploy key. |
-| `fingerprint` | text NULL | Displayed for key verification. |
+| `provider` | enum(`github_pages`) NOT NULL | Which host serves the site. The artifact is host-neutral, so this is expected to grow. |
+| `integration_id` | uuid NULL FK → `integrations.id` ON DELETE restrict | Where the credential comes from. Not stored here: the account reached is the same one Git export reaches. |
 | `auto_publish_on_change` | boolean NOT NULL default false | FR-029. |
 | `scheduled_publish_enabled` | boolean NOT NULL default false | FR-029. |
 | `scheduled_interval_minutes` | integer NOT NULL default 60 | Bounded 5..1440, matching the Git export bounds. |
@@ -51,8 +75,9 @@ iteration supports a single active target per deployment.
   sub-path).
 - Enabling a target requires a stored secret.
 
-**Deletion**: removing a target destroys `secret_encrypted` (FR-037) and cascades
-to its publication history.
+**Deletion**: removing a target cascades to its publication history. It does not
+destroy the credential — that belongs to the integration and other features may
+still be using it.
 
 ---
 

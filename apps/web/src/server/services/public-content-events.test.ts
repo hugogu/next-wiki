@@ -37,13 +37,16 @@ async function seedGitExport(isActive = true) {
 }
 
 async function seedStaticSite(isEnabled = true, autoPublishOnChange = true) {
+  await db.insert(schema.integrations).values({
+    kind: 'github',
+    authMode: 'ssh',
+    secretEncrypted: encryptKey('PRIVATE_KEY'),
+  }).onConflictDoNothing();
   await db.insert(schema.staticSiteTargets).values({
     isEnabled,
     remoteUrl: 'https://github.com/owner/site.git',
     branch: 'gh-pages',
     baseUrl: 'https://owner.github.io/site/',
-    authMode: 'https_token',
-    secretEncrypted: encryptKey('ghp_token_value_here'),
     autoPublishOnChange,
   });
 }
@@ -62,12 +65,14 @@ beforeEach(() => {
 
 beforeAll(async () => {
   await db.delete(schema.staticSiteTargets);
+  await db.delete(schema.integrations);
   await db.delete(schema.storageBackends);
 });
 
 afterEach(async () => {
   setBoss(null);
   await db.delete(schema.staticSiteTargets);
+  await db.delete(schema.integrations);
   await db.delete(schema.storageBackends);
 });
 

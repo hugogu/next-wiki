@@ -286,6 +286,21 @@ and previously published addresses stop serving.
 
 ---
 
+## Phase 11: Shared integrations (from operator feedback)
+
+Credentials were initially held per feature, which meant installing two deploy
+keys on one repository — something hosts reject outright. They are now a shared
+integration: configured once, used by every feature that reaches that service.
+
+- [X] T097 Add the `integrations` table and its migration, lifting existing Git export and static site credentials into it
+- [X] T098 Implement `apps/web/src/server/services/integrations.ts` with one credential per service, refusing deletion while a feature depends on it
+- [X] T099 Add `/api/integrations/[kind]` and its deploy-key route
+- [X] T100 Add the `/admin/integrations` surface under the System navigation group
+- [X] T101 Point static site publishing at the shared credential and give its configuration provider tabs
+- [ ] T102 Migrate Git export to the shared credential as well, and drop the now-legacy columns on `static_site_targets` in a follow-up migration
+
+---
+
 ## Phase 10: Polish & Cross-Cutting Concerns
 
 - [ ] T082 [P] Run `pnpm lint` and `pnpm typecheck` across the workspace and fix all warnings introduced by this feature

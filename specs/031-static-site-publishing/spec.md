@@ -331,12 +331,27 @@ longer serve content.
 - **FR-001**: The system MUST let an Admin configure a static site publishing
   target independently of any other export or sync feature, including the
   destination repository, branch, the public base address the site will be
-  served from, and an authentication credential.
-- **FR-002**: The system MUST NOT couple static site publishing to Git export:
-  each has its own enablement, target, trigger settings, run state, and history,
-  and either may be used with the other absent, disabled, or failing.
+  served from, and which host serves the site.
+- **FR-002**: The system MUST NOT couple static site publishing to Git export.
+  Independence here means the absence of change coupling: each has its own
+  enablement, target, trigger settings, run state, and history, and either may
+  be used with the other absent, disabled, or failing. It does not mean
+  duplicating shared infrastructure — an access credential identifies an
+  account, not a feature, and where both features reach the same account they
+  MUST authenticate as that account rather than each holding a separate copy.
+- **FR-002a**: Credentials for an external service MUST be configured once, in
+  a surface of their own, and reused by every feature that reaches that service.
+  A per-feature credential would mean multiple keys to install and multiple
+  places to rotate, and hosts that enforce deploy-key uniqueness reject the
+  second registration outright.
+- **FR-002b**: Removing a credential MUST be refused while a feature still
+  depends on it, so disconnecting a service cannot silently break publishing.
 - **FR-003**: The published artifact MUST be directly servable by a static host
   with no build, template, or transformation step performed by the host.
+- **FR-003a**: The configuration MUST name which host serves the site, and MUST
+  be structured so that additional hosts can be offered without changing how
+  the artifact is generated. GitHub Pages is the first; the artifact is
+  deliberately host-neutral.
 - **FR-004**: Each publish MUST produce a complete snapshot that fully replaces
   the previously published site, so that content no longer eligible for
   publication disappears without a separate cleanup step.
@@ -563,6 +578,10 @@ longer serve content.
   capability is introduced by this feature.
 - **One-way only**: the published site is never read back as a content source,
   and edits made in the destination repository are never imported.
+- **One account per external service.** A credential identifies an account, and
+  a deployment reaches a given service as one account, so the integration
+  surface holds one credential per service. Multiple accounts for one service is
+  a plausible later need and is not in scope.
 - **One target per deployment** in this iteration. Publishing different subsets
   of the wiki to several sites is a plausible later need but is not in scope
   here, and the design should not foreclose it.

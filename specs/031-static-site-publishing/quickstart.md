@@ -9,38 +9,46 @@ verifying the feature locally.
 
 ## Operator path
 
-### 1. Prepare the destination
+### 1. Connect GitHub
+
+Open **Admin → Integrations** and connect GitHub. This is done once for the
+whole deployment: Git export and static site publishing reach the same account,
+so they share the credential rather than each holding its own.
+
+- **SSH deploy key** (recommended): generate the key here, then install the
+  shown public key on the repository with write access. A key can only be
+  registered on one repository, so this single installation covers every feature
+  that uses it.
+- **HTTPS token**: paste a fine-grained token with contents write access.
+
+### 2. Prepare the destination
 
 Create (or pick) a repository the wiki may write to, and decide a branch that
-belongs entirely to this feature — the wiki replaces that branch's whole tree on
-every publish, so do not point it at a branch holding anything else.
+belongs entirely to publishing — the wiki replaces that branch's whole tree on
+every publish, so do not point it at a branch holding anything else. Using the
+same repository as Git export is fine and common: raw Markdown on one branch,
+the published site on another.
 
-Give the wiki write access one of two ways:
-
-- **HTTPS token**: create a fine-grained token with contents write access to
-  that repository.
-- **SSH deploy key**: skip ahead to step 2 and let the wiki generate the
-  keypair, then install the public half as a deploy key with write access.
-
-### 2. Configure the target
+### 3. Configure the target
 
 Open **Admin → Static site**. This is a different feature from Admin → Storage →
 Git export: Git export writes raw Markdown for backup, this publishes a readable
 website. Enabling one has no effect on the other.
 
-Enter:
+Pick the host — GitHub Pages today — and enter:
 
 | Field | Example | Notes |
 |---|---|---|
 | Repository | `https://github.com/owner/wiki-site.git` | HTTPS or SSH, no credentials in the URL. |
 | Branch | `gh-pages` | Owned by this feature. |
 | Public address | `https://owner.github.io/wiki-site/` | Must match what GitHub Pages will serve. Its path is what makes sub-path hosting work — get this right or every link breaks. |
-| Auth | token or SSH | For SSH, generate the key here and install the shown public key as a deploy key. |
+
+Authentication is not configured here; it comes from the integration in step 1.
 
 Save without enabling first if you want to review the eligibility summary before
 anything is published.
 
-### 3. Review what will be published
+### 4. Review what will be published
 
 The panel shows how many pages are publishable and how many are excluded,
 grouped by reason. Read this before the first publish.
@@ -57,13 +65,13 @@ Raw-capture and generated-knowledge spaces are never published, even if their
 visibility settings would allow it. To publish that material, promote it into an
 ordinary wiki page first.
 
-### 4. Publish
+### 5. Publish
 
 Enable the target, or press **Publish now**. The run is queued immediately and
 proceeds in the background; the panel shows its status, then the page and asset
 counts and a link to the live site.
 
-### 5. Point GitHub Pages at the branch
+### 6. Point GitHub Pages at the branch
 
 In the repository's **Settings → Pages**, choose "Deploy from a branch" and
 select the branch you configured, folder `/ (root)`. Nothing else is needed —
@@ -72,7 +80,7 @@ Jekyll.
 
 Wait for the first deployment, then open the public address.
 
-### 6. Keep it current
+### 7. Keep it current
 
 - **Publish on change**: republishes whenever content is published, unpublished,
   deleted, renamed, moved, or has its visibility changed.
@@ -91,7 +99,8 @@ credential but leaves whatever is already published in place.
 | Symptom | Cause | Fix |
 |---|---|---|
 | Every link and image 404s | Public address path does not match how the host serves the site | Correct the public address (for a project site it must include the repository path) and republish. |
-| Publish fails naming a credential | Token expired or deploy key removed | Re-enter the credential. The previously published site is untouched. |
+| Publish fails naming a credential | Token expired or deploy key removed | Update it under Admin → Integrations. The previously published site is untouched. |
+| Publish fails saying GitHub is not connected | The integration was never configured, or was disconnected | Connect GitHub under Admin → Integrations. |
 | Publish fails naming two paths | Two page paths differ only in letter case | Rename one — the host's filesystem cannot distinguish them. |
 | Publish fails on size | Artifact exceeds host limits | Reduce large assets. The site is not partially updated; the previous one is still served. |
 | A page is missing from the site | It fails one of the five eligibility conditions | Check the exclusion summary, which groups by reason. |

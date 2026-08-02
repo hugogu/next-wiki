@@ -38,7 +38,10 @@ import {
   aiCapabilityEnum,
   aiCapabilitySourceEnum,
   toolCallStrategyEnum,
+  integrationAuthModeEnum,
+  integrationKindEnum,
   staticSiteAuthModeEnum,
+  staticSiteProviderEnum,
   staticSitePublicationStatusEnum,
   staticSitePublicationTriggerEnum,
   aiPurposeEnum,
@@ -2163,6 +2166,38 @@ export const analyticsProviderSettings = pgTable('analytics_provider_settings', 
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ---- Integrations (031) -----------------------------------------------------
+// Credentials for an external service, owned by neither of the features that
+// use them. Git export and static site publishing both reach the same GitHub
+// account, so they authenticate as that account rather than each holding a
+// private copy — a copy would mean two deploy keys to install and two places to
+// rotate. Independence between those features is about change coupling, not
+// about duplicating shared infrastructure.
+//
+// One row per kind: the credential identifies an account, and a deployment has
+// one account per service.
+
+export const integrations = pgTable(
+  'integrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: integrationKindEnum('kind').notNull(),
+    /** Operator-facing label, e.g. the account or organization name. */
+    label: text('label'),
+    authMode: integrationAuthModeEnum('auth_mode').notNull(),
+    username: text('username'),
+    /** Encrypted at rest; never returned by any view and never logged. */
+    secretEncrypted: text('secret_encrypted'),
+    publicKey: text('public_key'),
+    fingerprint: text('fingerprint'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    kindUnique: uniqueIndex('integrations_kind').on(t.kind),
+  }),
+);
+
 // ---- Static site publishing (031) -------------------------------------------
 // Deliberately NOT a `storage_backends` purpose. That table models where content
 // bytes live; a publishing target is never read from. Sharing it would couple
@@ -2180,9 +2215,18 @@ export const staticSiteTargets = pgTable('static_site_targets', {
   /** Public address the host serves. Its path component becomes the artifact's
    * base path, which is what makes project-site sub-path hosting work. */
   baseUrl: text('base_url').notNull(),
-  authMode: staticSiteAuthModeEnum('auth_mode').notNull(),
+  /** Which host serves the site. Provider-specific settings live alongside. */
+  provider: staticSiteProviderEnum('provider').notNull().default('github_pages'),
+  /** Credentials come from the shared integration, not from this row: the
+   * account reached is the same one Git export reaches. */
+  integrationId: uuid('integration_id').references(() => integrations.id, {
+    onDelete: 'restrict',
+  }),
+  // Superseded by `integration_id`. Retained for one release so the migration
+  // can lift existing credentials into the shared integration; dropped in a
+  // follow-up once no deployment still reads them.
+  authMode: staticSiteAuthModeEnum('auth_mode'),
   username: text('username'),
-  /** Encrypted at rest; never returned by any view and never logged. */
   secretEncrypted: text('secret_encrypted'),
   publicKey: text('public_key'),
   fingerprint: text('fingerprint'),

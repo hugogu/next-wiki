@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { decryptKey } from '@/server/crypto/key-encryption';
+import { resolveCredential } from '@/server/services/integrations';
 import { buildGitEnvironment, git, GIT_TIMEOUT_MS } from '@/server/git/transport';
 import { getActiveThemeCss } from '@/server/services/system-theme';
 import { getSiteName } from '@/server/services/site-settings';
@@ -133,14 +133,19 @@ async function clearWorkingTree(directory: string): Promise<void> {
  */
 async function deliver(
   target: TargetRow,
-  secret: string,
+  credential: { authMode: 'https_token' | 'ssh'; username: string | null; secret: string },
   contentsDir: string | null,
   commitMessage: string,
 ): Promise<{ commitSha: string | null; forcedPush: boolean }> {
   const temp = await mkdtemp(join(tmpdir(), 'next-wiki-static-site-'));
   const checkout = join(temp, 'repository');
   try {
-    const env = await buildGitEnvironment(temp, target.authMode, target.username ?? undefined, secret);
+    const env = await buildGitEnvironment(
+      temp,
+      credential.authMode,
+      credential.username ?? undefined,
+      credential.secret,
+    );
     await execFileAsync('git', ['init', checkout], {
       env,
       timeout: GIT_TIMEOUT_MS,
@@ -205,13 +210,19 @@ async function executePublish(targetId: string, publicationId: string): Promise<
     await markCancelled(publicationId, 'Publishing was disabled before the run started');
     return;
   }
-  if (!target.secretEncrypted) {
-    await markFailed(publicationId, 'No credential is configured for the publishing target');
+  // Credentials come from the shared integration: the account reached is the
+  // same one Git export reaches, so it is configured once.
+  const credential = await resolveCredential('github');
+  if (!credential) {
+    await markFailed(
+      publicationId,
+      'The GitHub integration is not configured, so there is no credential to publish with',
+    );
     return;
   }
 
   await markRunning(publicationId, target.id);
-  const secret = decryptKey(target.secretEncrypted);
+  const secret = credential.secret;
   let staging: string | null = null;
 
   try {
@@ -248,7 +259,7 @@ async function executePublish(targetId: string, publicationId: string): Promise<
 
     const { commitSha, forcedPush } = await deliver(
       target,
-      secret,
+      credential,
       staging,
       isTakedown
         ? 'Remove published site'

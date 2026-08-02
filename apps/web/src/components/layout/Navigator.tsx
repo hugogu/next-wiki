@@ -29,6 +29,7 @@ import {
   PlusIcon,
   PenSparkIcon,
   PublishIcon,
+  LinkIcon,
   LayersIcon,
   FunctionPlotIcon,
 } from '@/components/icons';
@@ -378,6 +379,11 @@ export function Navigator({
           href: '/admin/appearance',
           label: t('admin.nav.appearance'),
           icon: <SlidersIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/integrations',
+          label: t('admin.nav.integrations'),
+          icon: <LinkIcon className="shrink-0" />,
         },
         ...(writingMode === 'llm-wiki'
           ? [

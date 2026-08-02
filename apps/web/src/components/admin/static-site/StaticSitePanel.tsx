@@ -3,17 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import type {
-  StaticSiteKeyReuseOffer,
-  StaticSiteKeyReuseResult,
   StaticSitePublicationView,
-  StaticSiteSshKeyResult,
+  StaticSiteProvider,
   StaticSiteTargetUpsertInput,
   StaticSiteTargetView,
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { Switch } from '@/components/ui/Switch';
 import { apiGet, useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
@@ -59,13 +58,9 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
   const [remoteUrl, setRemoteUrl] = useState(initial?.remoteUrl ?? '');
   const [branch, setBranch] = useState(initial?.branch ?? 'gh-pages');
   const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? '');
-  const [authMode, setAuthMode] = useState<'https_token' | 'ssh'>(
-    initial?.authMode ?? 'https_token',
+  const [provider, setProvider] = useState<StaticSiteProvider>(
+    initial?.provider ?? 'github_pages',
   );
-  const [username, setUsername] = useState(initial?.username ?? '');
-  const [secret, setSecret] = useState('');
-  const [publicKey, setPublicKey] = useState(initial?.publicKey ?? '');
-  const [fingerprint, setFingerprint] = useState(initial?.fingerprint ?? '');
   const [autoPublishOnChange, setAutoPublish] = useState(initial?.autoPublishOnChange ?? false);
   const [scheduledPublishEnabled, setScheduled] = useState(
     initial?.scheduledPublishEnabled ?? false,
@@ -93,44 +88,22 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
     { method: 'PUT' },
   );
   const publish = useApiMutation<void, StaticSitePublicationView>('/api/static-site/publications');
-  const generateKey = useApiMutation<void, StaticSiteSshKeyResult>(
-    '/api/static-site/target/ssh-key',
-  );
-  // Offered only when Git export's key targets the same repository; hosts
-  // reject a deploy key that is already registered elsewhere.
-  const reuseOffer = useQuery({
-    queryKey: ['static-site-key-reuse', remoteUrl],
-    queryFn: () =>
-      apiGet<StaticSiteKeyReuseOffer>(
-        `/api/static-site/target/ssh-key/reuse?remoteUrl=${encodeURIComponent(remoteUrl)}`,
-      ),
-    enabled: authMode === 'ssh' && remoteUrl.trim() !== '',
-  });
-  const reuseKey = useApiMutation<void, StaticSiteKeyReuseResult>(
-    '/api/static-site/target/ssh-key/reuse',
-  );
   const takedown = useApiMutation<{ confirm: string }, StaticSitePublicationView>(
     '/api/static-site/site',
     { method: 'DELETE' },
   );
 
   const pending =
-    save.isPending ||
-    publish.isPending ||
-    generateKey.isPending ||
-    reuseKey.isPending ||
-    takedown.isPending;
+    save.isPending || publish.isPending || takedown.isPending;
   const enabled = live?.isEnabled ?? false;
   const running = RUNNING_STATES.includes(lastRun?.status ?? '');
 
   const body = (nextEnabled: boolean): StaticSiteTargetUpsertInput => ({
     isEnabled: nextEnabled,
+    provider,
     remoteUrl,
     branch,
     baseUrl,
-    authMode,
-    username: authMode === 'https_token' ? username || undefined : undefined,
-    secret: secret || undefined,
     autoPublishOnChange,
     scheduledPublishEnabled,
     scheduledIntervalMinutes,
@@ -146,7 +119,6 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
     setMessage(null);
     save.mutate(body(nextEnabled), {
       onSuccess: () => {
-        setSecret('');
         setMessage(
           nextEnabled ? t('admin.staticSite.publishQueued') : t('admin.staticSite.saved'),
         );
@@ -183,34 +155,6 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
     );
   };
 
-  const onReuseKey = () => {
-    setError(null);
-    setMessage(null);
-    reuseKey.mutate(undefined, {
-      onSuccess: (result) => {
-        setPublicKey(result.publicKey);
-        setFingerprint(result.fingerprint ?? '');
-        setMessage(t('admin.staticSite.reuseKeyDone'));
-        afterChange();
-      },
-      onError: (e: ApiError) => setError(e.message),
-    });
-  };
-
-  const onGenerateKey = () => {
-    setError(null);
-    setMessage(null);
-    generateKey.mutate(undefined, {
-      onSuccess: (result) => {
-        setAuthMode('ssh');
-        setPublicKey(result.publicKey);
-        setFingerprint(result.fingerprint);
-        setMessage(t('admin.staticSite.keyGenerated'));
-        afterChange();
-      },
-      onError: (e: ApiError) => setError(e.message),
-    });
-  };
 
   return (
     <div className="space-y-md">
@@ -221,6 +165,8 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
         {t('admin.staticSite.notGitExport')}
       </p>
 
+
+
       <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
         {t('admin.staticSite.spaceKindNotice')}
       </p>
@@ -228,90 +174,44 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       {message ? <p className="text-sm text-success">{message}</p> : null}
 
-      <div className="space-y-sm rounded-md border border-border p-md">
-        <Field label={t('admin.staticSite.remoteUrl')} hint={t('admin.staticSite.remoteUrlHint')}>
-          <Input
-            value={remoteUrl}
-            onChange={(e) => setRemoteUrl(e.target.value)}
-            placeholder="https://github.com/owner/repository.git"
-          />
-        </Field>
-        <Field label={t('admin.staticSite.branch')} hint={t('admin.staticSite.branchHint')}>
-          <Input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="gh-pages" />
-        </Field>
-        <Field label={t('admin.staticSite.baseUrl')} hint={t('admin.staticSite.baseUrlHint')}>
-          <Input
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="https://owner.github.io/repository/"
-          />
-        </Field>
+      {/* One provider today. The artifact is plain files with no
+          host-proprietary constructs, so another host can be added beside this
+          without touching generation. */}
+      <SettingsTabs
+        tabs={[{ id: 'github_pages' as const, label: t('admin.staticSite.provider.github_pages') }]}
+        selected={provider}
+        onSelect={setProvider}
+      >
+        <div className="space-y-sm rounded-md border border-border p-md">
+          <Field label={t('admin.staticSite.remoteUrl')} hint={t('admin.staticSite.remoteUrlHint')}>
+            <Input
+              value={remoteUrl}
+              onChange={(e) => setRemoteUrl(e.target.value)}
+              placeholder="https://github.com/owner/repository.git"
+            />
+          </Field>
+          <Field label={t('admin.staticSite.branch')} hint={t('admin.staticSite.branchHint')}>
+            <Input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="gh-pages" />
+          </Field>
+          <Field label={t('admin.staticSite.baseUrl')} hint={t('admin.staticSite.baseUrlHint')}>
+            <Input
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://owner.github.io/repository/"
+            />
+          </Field>
 
-        <Field label={t('admin.staticSite.authMode')}>
-          <Select
-            value={authMode}
-            onChange={(e) => setAuthMode(e.target.value as 'https_token' | 'ssh')}
-          >
-            <option value="https_token">{t('admin.staticSite.authHttps')}</option>
-            <option value="ssh">{t('admin.staticSite.authSsh')}</option>
-          </Select>
-        </Field>
-
-        {authMode === 'https_token' ? (
-          <>
-            <Field label={t('admin.staticSite.username')}>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
-            </Field>
-            <Field
-              label={t('admin.staticSite.token')}
-              hint={live?.hasSecret ? t('admin.staticSite.tokenStored') : undefined}
-            >
-              <Input
-                type="password"
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder={live?.hasSecret ? '••••••••' : ''}
-              />
-            </Field>
-          </>
-        ) : (
-          <div className="space-y-sm">
-            {reuseOffer.data?.available ? (
-              <div className="space-y-xs rounded-md border border-border p-sm">
-                <p className="text-xs text-muted">{t('admin.staticSite.reuseKeyHint')}</p>
-                <Button variant="secondary" onClick={onReuseKey} disabled={pending || !live?.id}>
-                  {t('admin.staticSite.reuseKey')}
-                </Button>
-              </div>
-            ) : null}
-            {reuseOffer.data?.available === false &&
-            reuseOffer.data.reason === 'different_repository' ? (
-              <p className="text-xs text-muted">
-                {t('admin.staticSite.reuseKeyDifferentRepo')}
-              </p>
-            ) : null}
-            <Button variant="secondary" onClick={onGenerateKey} disabled={pending}>
-              {t('admin.staticSite.generateKey')}
-            </Button>
-            {publicKey ? (
-              <div className="space-y-xs">
-                <p className="text-xs text-muted">{t('admin.staticSite.deployKeyHint')}</p>
-                <textarea
-                  readOnly
-                  value={publicKey}
-                  className="w-full rounded-md border border-border bg-surface p-sm font-mono text-xs"
-                  rows={3}
-                />
-                {fingerprint ? (
-                  <p className="text-xs text-muted">
-                    {t('admin.staticSite.fingerprint')}: {fingerprint}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
+          {/* Credentials are not configured here: Git export and publishing reach
+              the same GitHub account, so the credential is set once under
+              Integrations and shared. */}
+          <p className="text-xs text-muted">
+            {t('admin.staticSite.credentialFromIntegration')}{' '}
+            <Link href="/admin/integrations" className="text-primary underline">
+              {t('admin.nav.integrations')}
+            </Link>
+          </p>
+        </div>
+      </SettingsTabs>
 
       <div className="rounded-md border border-border px-md">
         <ControlRow

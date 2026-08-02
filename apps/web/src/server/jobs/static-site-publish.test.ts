@@ -25,12 +25,20 @@ async function makeTarget(overrides: Record<string, unknown> = {}) {
       remoteUrl: 'https://127.0.0.1:1/owner/site.git',
       branch: 'gh-pages',
       baseUrl: 'https://owner.github.io/site/',
-      authMode: 'https_token',
-      secretEncrypted: encryptKey(TOKEN),
       ...overrides,
     })
     .returning();
   return target!;
+}
+
+/** The credential is shared infrastructure, configured once. */
+async function connectGitHub() {
+  await db.insert(schema.integrations).values({
+    kind: 'github',
+    authMode: 'https_token',
+    username: 'x-access-token',
+    secretEncrypted: encryptKey(TOKEN),
+  });
 }
 
 async function makeRun(targetId: string, trigger: 'manual' | 'takedown' = 'manual') {
@@ -89,6 +97,7 @@ async function clearAll() {
   await db.delete(schema.pages);
   await db.delete(schema.spaces);
   await db.delete(schema.staticSiteTargets);
+  await db.delete(schema.integrations);
 }
 
 beforeAll(async () => {
@@ -135,6 +144,7 @@ describe('run guards', () => {
   it('fails rather than publishing an empty site over a live one', async () => {
     // No publishable page exists. Delivering would replace the branch with
     // nothing, which is a takedown — a different, explicitly confirmed action.
+    await connectGitHub();
     const target = await makeTarget();
     const run = await makeRun(target.id);
 
@@ -147,6 +157,7 @@ describe('run guards', () => {
   });
 
   it('cancels a run whose target was disabled before it started', async () => {
+    await connectGitHub();
     await makePublishablePage();
     const target = await makeTarget({ isEnabled: false });
     const run = await makeRun(target.id);
@@ -169,19 +180,22 @@ describe('run guards', () => {
     await expect(runStaticSitePublish(target.id, run.id)).resolves.toBeUndefined();
   });
 
-  it('fails with a clear reason when no credential is configured', async () => {
+  it('fails with a clear reason when GitHub is not connected', async () => {
+    // Nothing to authenticate with; the run must say so rather than attempt a
+    // push that cannot succeed.
     await makePublishablePage();
-    const target = await makeTarget({ secretEncrypted: null });
+    const target = await makeTarget();
     const run = await makeRun(target.id);
 
     await runStaticSitePublish(target.id, run.id);
 
     const stored = await readRun(run.id);
     expect(stored?.status).toBe('failed');
-    expect(stored?.errorMessage).toContain('credential');
+    expect(stored?.errorMessage).toContain('integration');
   });
 
   it('never stores the credential in a failure message', async () => {
+    await connectGitHub();
     const target = await makeTarget();
     const run = await makeRun(target.id);
     await runStaticSitePublish(target.id, run.id).catch(() => undefined);
@@ -193,6 +207,7 @@ describe('run guards', () => {
   it('allows a takedown run even when publishing is disabled', async () => {
     // Otherwise an operator who disables publishing first could never remove
     // the site that is still live.
+    await connectGitHub();
     const target = await makeTarget({ isEnabled: false });
     const run = await makeRun(target.id, 'takedown');
 

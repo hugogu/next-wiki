@@ -1,18 +1,9 @@
-import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { promisify } from 'node:util';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import {
-  gitBackendConfigSchema,
-  isSameGitRepository,
   staticSiteTargetUpsertSchema,
   type StaticSiteExclusionCounts,
   type StaticSitePublicationTrigger,
   type StaticSitePublicationView,
-  type StaticSiteKeyReuseOffer,
-  type StaticSiteKeyReuseResult,
   type StaticSiteTargetUpsertInput,
   type StaticSiteTargetView,
 } from '@next-wiki/shared';
@@ -20,10 +11,8 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { decryptKey, encryptKey } from '@/server/crypto/key-encryption';
+import { findIntegration } from './integrations';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
-
-const execFileAsync = promisify(execFile);
 
 type TargetRow = typeof schema.staticSiteTargets.$inferSelect;
 type PublicationRow = typeof schema.staticSitePublications.$inferSelect;
@@ -74,11 +63,8 @@ function toTargetView(
     remoteUrl: row.remoteUrl,
     branch: row.branch,
     baseUrl: row.baseUrl,
-    authMode: row.authMode,
-    username: row.username,
-    hasSecret: row.secretEncrypted !== null,
-    publicKey: row.publicKey,
-    fingerprint: row.fingerprint,
+    provider: row.provider,
+    integrationId: row.integrationId,
     autoPublishOnChange: row.autoPublishOnChange,
     scheduledPublishEnabled: row.scheduledPublishEnabled,
     scheduledIntervalMinutes: row.scheduledIntervalMinutes,
@@ -117,38 +103,26 @@ export async function configureTarget(
   const parsed = staticSiteTargetUpsertSchema.parse(input);
   const existing = await findTarget();
 
-  // Changing auth mode invalidates a stored credential of the other kind, so it
-  // is dropped rather than left behind to fail confusingly at push time.
-  const authModeChanged = existing != null && existing.authMode !== parsed.authMode;
-  const hasUsableStoredSecret = Boolean(existing?.secretEncrypted) && !authModeChanged;
-
-  if (parsed.isEnabled && !parsed.secret && !hasUsableStoredSecret) {
+  // The credential lives in the shared integration, so enabling depends on that
+  // being configured rather than on anything stored here.
+  const integration = await findIntegration('github');
+  if (parsed.isEnabled && !integration?.secretEncrypted) {
     throw new DomainError(
       'BAD_REQUEST',
-      parsed.authMode === 'ssh'
-        ? 'Generate or provide an SSH key before enabling publishing'
-        : 'An access token is required before enabling publishing',
+      'Configure the GitHub integration before enabling publishing',
     );
   }
-
-  const secretUpdate = parsed.secret
-    ? { secretEncrypted: encryptKey(parsed.secret) }
-    : authModeChanged
-      ? { secretEncrypted: null }
-      : {};
 
   const values = {
     isEnabled: parsed.isEnabled,
     remoteUrl: parsed.remoteUrl,
     branch: parsed.branch,
     baseUrl: parsed.baseUrl,
-    authMode: parsed.authMode,
-    username: parsed.username ?? null,
+    provider: parsed.provider,
+    integrationId: integration?.id ?? null,
     autoPublishOnChange: parsed.autoPublishOnChange,
     scheduledPublishEnabled: parsed.scheduledPublishEnabled,
     scheduledIntervalMinutes: parsed.scheduledIntervalMinutes,
-    ...secretUpdate,
-    ...(authModeChanged ? { publicKey: null, fingerprint: null } : {}),
     updatedAt: new Date(),
   };
 
@@ -180,146 +154,11 @@ export async function deleteTarget(ctx: PermCtx): Promise<void> {
   assertCanManageStaticSite(ctx);
   const target = await findTarget();
   if (!target) return;
-  // Destroys the stored credential (FR-037). Deliberately does not touch the
-  // published site: taking a site down is a separate, explicitly confirmed act,
-  // so removing configuration can never silently unpublish.
+  // Deliberately does not touch the published site: taking a site down is a
+  // separate, explicitly confirmed act, so removing configuration can never
+  // silently unpublish. The credential is not destroyed here either — it belongs
+  // to the integration and other features may still be using it.
   await db.delete(schema.staticSiteTargets).where(eq(schema.staticSiteTargets.id, target.id));
-}
-
-/**
- * Whether the Git export deploy key can also serve this target.
- *
- * GitHub enforces deploy-key uniqueness globally: a public key registered on
- * one repository is rejected everywhere else. So reuse is possible exactly when
- * both features push to the same repository — the common setup being one
- * repository with raw Markdown on one branch and the published site on another.
- * For different repositories the operator genuinely needs two keys, and
- * offering reuse there would produce a key GitHub refuses to accept.
- */
-export async function getKeyReuseOffer(
-  ctx: PermCtx,
-  remoteUrl: string,
-): Promise<StaticSiteKeyReuseOffer> {
-  assertCanManageStaticSite(ctx);
-
-  const backend = await db.query.storageBackends.findFirst({
-    where: eq(schema.storageBackends.purpose, 'git_export'),
-  });
-  if (!backend?.secretEncrypted) return { available: false, reason: 'no_git_export_key' };
-
-  const config = gitBackendConfigSchema.safeParse(backend.config);
-  if (!config.success || config.data.authMode !== 'ssh' || !config.data.publicKey) {
-    return { available: false, reason: 'no_git_export_key' };
-  }
-  if (!isSameGitRepository(config.data.remoteUrl, remoteUrl)) {
-    return { available: false, reason: 'different_repository' };
-  }
-
-  return {
-    available: true,
-    reason: null,
-    publicKey: config.data.publicKey,
-    fingerprint: config.data.fingerprint ?? null,
-  };
-}
-
-/**
- * Copy the Git export deploy key onto this target.
- *
- * A copy rather than a reference: the two features must stay independent
- * (FR-002), so removing or reconfiguring Git export cannot be allowed to break
- * publishing. What the operator saves is the step of registering a second
- * deploy key on GitHub — which they could not do anyway, since the key is
- * already in use on that repository.
- */
-export async function reuseGitExportKey(ctx: PermCtx): Promise<StaticSiteKeyReuseResult> {
-  assertCanManageStaticSite(ctx);
-  const target = await findTarget();
-  if (!target) throw new DomainError('BAD_REQUEST', 'Save the publishing target first');
-
-  const offer = await getKeyReuseOffer(ctx, target.remoteUrl);
-  if (!offer.available) {
-    throw new DomainError(
-      'BAD_REQUEST',
-      offer.reason === 'different_repository'
-        ? 'The Git export key belongs to a different repository. A deploy key can only be registered on one repository, so this target needs its own key.'
-        : 'Git export does not have an SSH deploy key to reuse',
-    );
-  }
-
-  const backend = await db.query.storageBackends.findFirst({
-    where: eq(schema.storageBackends.purpose, 'git_export'),
-  });
-  if (!backend?.secretEncrypted) {
-    throw new DomainError('BAD_REQUEST', 'Git export does not have an SSH deploy key to reuse');
-  }
-
-  // Re-encrypted into this feature's own row; the two never read each other's
-  // storage after this point.
-  const privateKey = decryptKey(backend.secretEncrypted);
-  await db
-    .update(schema.staticSiteTargets)
-    .set({
-      authMode: 'ssh',
-      publicKey: offer.publicKey ?? null,
-      fingerprint: offer.fingerprint,
-      secretEncrypted: encryptKey(privateKey),
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.staticSiteTargets.id, target.id));
-
-  return { publicKey: offer.publicKey!, fingerprint: offer.fingerprint };
-}
-
-export async function generateSshKey(
-  ctx: PermCtx,
-): Promise<{ publicKey: string; fingerprint: string }> {
-  assertCanManageStaticSite(ctx);
-  const directory = await mkdtemp(join(tmpdir(), 'next-wiki-static-site-key-'));
-  const privateKeyPath = join(directory, 'id_ed25519');
-
-  try {
-    await execFileAsync('ssh-keygen', [
-      '-q',
-      '-t',
-      'ed25519',
-      '-N',
-      '',
-      '-C',
-      'next-wiki-static-site',
-      '-f',
-      privateKeyPath,
-    ]);
-    const privateKey = await readFile(privateKeyPath, 'utf8');
-    const publicKey = (await readFile(`${privateKeyPath}.pub`, 'utf8')).trim();
-    const { stdout } = await execFileAsync('ssh-keygen', ['-lf', `${privateKeyPath}.pub`]);
-    const fingerprint = stdout.trim().split(/\s+/)[1] ?? stdout.trim();
-
-    const existing = await findTarget();
-    if (existing) {
-      await db
-        .update(schema.staticSiteTargets)
-        .set({
-          authMode: 'ssh',
-          publicKey,
-          fingerprint,
-          secretEncrypted: encryptKey(privateKey),
-          // The new key is not installed on the remote yet, so publishing would
-          // fail; require an explicit re-enable after the operator adds it.
-          isEnabled: false,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.staticSiteTargets.id, existing.id));
-    }
-    return { publicKey, fingerprint };
-  } catch (error) {
-    throw new DomainError(
-      'STORAGE_UNAVAILABLE',
-      `Failed to generate SSH key: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
 }
 
 /**

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { gitAuthModeSchema, gitBranchNameSchema, gitRemoteUrlSchema } from './content-storage';
+import { gitBranchNameSchema, gitRemoteUrlSchema } from './content-storage';
 
 // Static site publishing (031): a reader-facing HTML site of publicly readable
 // pages, delivered to a static host.
@@ -68,15 +68,21 @@ export function staticSiteBasePath(baseUrl: string): string {
   return trimmed === '' ? '/' : `/${trimmed}/`;
 }
 
+/**
+ * Where a published site is hosted.
+ *
+ * The artifact is deliberately host-neutral — plain files, no host-proprietary
+ * constructs — so this is expected to grow. GitHub Pages is simply the first.
+ */
+export const staticSiteProviderSchema = z.enum(['github_pages']);
+export type StaticSiteProvider = z.infer<typeof staticSiteProviderSchema>;
+
 export const staticSiteTargetUpsertSchema = z.object({
   isEnabled: z.boolean(),
+  provider: staticSiteProviderSchema.default('github_pages'),
   remoteUrl: gitRemoteUrlSchema,
   branch: gitBranchNameSchema,
   baseUrl: staticSiteBaseUrlSchema,
-  authMode: gitAuthModeSchema,
-  username: z.string().optional(),
-  /** Write-only. Omitted on update means "keep the stored credential". */
-  secret: z.string().min(1).optional(),
   autoPublishOnChange: z.boolean().default(false),
   scheduledPublishEnabled: z.boolean().default(false),
   scheduledIntervalMinutes: z.number().int().min(5).max(1440).default(60),
@@ -110,11 +116,9 @@ export type StaticSiteTargetView = {
   remoteUrl: string;
   branch: string;
   baseUrl: string;
-  authMode: z.infer<typeof gitAuthModeSchema>;
-  username: string | null;
-  hasSecret: boolean;
-  publicKey: string | null;
-  fingerprint: string | null;
+  provider: StaticSiteProvider;
+  /** Credentials come from the shared integration, never from this record. */
+  integrationId: string | null;
   autoPublishOnChange: boolean;
   scheduledPublishEnabled: boolean;
   scheduledIntervalMinutes: number;
@@ -140,29 +144,9 @@ export type StaticSitePublicationListResponse = {
   items: StaticSitePublicationView[];
 };
 
-export type StaticSiteSshKeyResult = {
-  publicKey: string;
-  fingerprint: string;
-};
-
 export type StaticSiteValidationResult = {
   ok: boolean;
   /** Safe to display: never contains credential material. */
   message: string | null;
 };
 
-/**
- * Whether the Git export deploy key can be reused for this target.
- *
- * Only possible when both features push to the same repository: hosts enforce
- * deploy-key uniqueness globally, so a key already registered on one repository
- * cannot be registered on another.
- */
-export type StaticSiteKeyReuseOffer =
-  | { available: true; reason: null; publicKey: string; fingerprint: string | null }
-  | { available: false; reason: 'no_git_export_key' | 'different_repository' };
-
-export type StaticSiteKeyReuseResult = {
-  publicKey: string;
-  fingerprint: string | null;
-};

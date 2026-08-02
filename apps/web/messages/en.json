@@ -608,7 +608,8 @@
       "writingMode": "Writing Mode",
       "rawCategories": "Raw categories",
       "contentDataSources": "Data Sources",
-      "staticSite": "Static site"
+      "staticSite": "Static site",
+      "integrations": "Integrations"
     },
     "searchSettings": {
       "title": "Search Settings",
@@ -1959,7 +1960,32 @@
       "reuseKey": "Reuse the Git export deploy key",
       "reuseKeyHint": "Git export already has a deploy key on this repository. A key can only be registered on one repository, so reusing it here saves installing a second one.",
       "reuseKeyDifferentRepo": "Git export uses a different repository, so its deploy key cannot be reused — a key can only be registered on one repository. Generate a key for this one.",
-      "reuseKeyDone": "Deploy key reused. No further setup is needed on the repository."
+      "reuseKeyDone": "Deploy key reused. No further setup is needed on the repository.",
+      "provider": {
+        "github_pages": "GitHub Pages"
+      },
+      "credentialFromIntegration": "Authentication comes from the shared GitHub integration, so it is configured once for every feature that reaches GitHub:"
+    },
+    "integrations": {
+      "metadataTitle": "Integrations",
+      "title": "Integrations",
+      "description": "Credentials for external services. Each is configured once and shared by every feature that reaches that service.",
+      "label": "Label",
+      "authMode": "Authentication",
+      "authSsh": "SSH deploy key",
+      "authHttps": "HTTPS token",
+      "username": "Username",
+      "token": "Access token",
+      "secretStored": "A credential is stored. Leave empty to keep it.",
+      "generateKey": "Generate deploy key",
+      "deployKeyHint": "Install this as a deploy key with write access. One key covers every feature that uses this repository — hosts reject the same key on a second repository, so it is installed once.",
+      "fingerprint": "Fingerprint",
+      "saved": "Integration saved.",
+      "keyGenerated": "Deploy key generated. Install it on the repository.",
+      "github": {
+        "name": "GitHub",
+        "description": "Used by Git export and by static site publishing. Both reach the same account, so the credential lives here rather than in either feature."
+      }
     }
   },
   "renderer": {

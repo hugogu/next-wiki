@@ -608,7 +608,8 @@
       "writingMode": "写作模式",
       "rawCategories": "原始分类",
       "contentDataSources": "数据源",
-      "staticSite": "静态站点"
+      "staticSite": "静态站点",
+      "integrations": "集成"
     },
     "searchSettings": {
       "title": "搜索设置",
@@ -1959,7 +1960,32 @@
       "reuseKey": "复用 Git 导出的部署密钥",
       "reuseKeyHint": "Git 导出已在该仓库上配置了部署密钥。一个密钥只能注册到一个仓库，因此在此复用可省去再安装一把。",
       "reuseKeyDifferentRepo": "Git 导出使用的是另一个仓库，其部署密钥无法复用——一个密钥只能注册到一个仓库。请为当前仓库单独生成密钥。",
-      "reuseKeyDone": "已复用部署密钥，无需在仓库上做额外配置。"
+      "reuseKeyDone": "已复用部署密钥，无需在仓库上做额外配置。",
+      "provider": {
+        "github_pages": "GitHub Pages"
+      },
+      "credentialFromIntegration": "认证信息来自共享的 GitHub 集成，只需为所有访问 GitHub 的功能统一配置一次："
+    },
+    "integrations": {
+      "metadataTitle": "集成",
+      "title": "集成",
+      "description": "外部服务的访问凭据。每个凭据只配置一次，由所有访问该服务的功能共用。",
+      "label": "名称",
+      "authMode": "认证方式",
+      "authSsh": "SSH 部署密钥",
+      "authHttps": "HTTPS 令牌",
+      "username": "用户名",
+      "token": "访问令牌",
+      "secretStored": "已保存凭据。留空表示保持不变。",
+      "generateKey": "生成部署密钥",
+      "deployKeyHint": "请将其安装为具有写权限的部署密钥。一把密钥即可覆盖使用该仓库的所有功能——同一把密钥无法注册到第二个仓库，因此只需安装一次。",
+      "fingerprint": "指纹",
+      "saved": "集成配置已保存。",
+      "keyGenerated": "部署密钥已生成，请安装到仓库。",
+      "github": {
+        "name": "GitHub",
+        "description": "由 Git 导出与静态站点发布共同使用。两者访问同一个账号，因此凭据放在这里，而不是各自功能内部。"
+      }
     }
   },
   "renderer": {
