@@ -103,6 +103,15 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'Page id returned by a previous tool call.' },
+        path: {
+          type: 'string',
+          description: 'Exact page path as returned in a result\'s "path" field, e.g. "games/reversi". Not a reader URL. Supply this or pageId.',
+        },
+        space: {
+          type: 'string',
+          enum: ['wiki', 'raw', 'generated'],
+          description: 'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
+        },
         contentOffset: {
           type: 'integer',
           minimum: 0,
@@ -144,6 +153,8 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string' },
+        path: { type: 'string', description: 'Exact page path. Supply this or pageId.' },
+        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
       },
     },
   },
@@ -159,6 +170,12 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         node: { type: 'string', description: 'Root page id.' },
+        // `node` is the MCP-vocabulary name, but the executor resolves the same
+        // reference from pageId or path. A model that read a page by path must
+        // not have to re-resolve it to a UUID for this one tool.
+        pageId: { type: 'string', description: 'Root page id; equivalent to node.' },
+        path: { type: 'string', description: 'Exact root page path. Supply this, node, or pageId.' },
+        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
         depth: { type: 'integer', minimum: 1, maximum: 3, description: 'Traversal depth; defaults to 1.' },
         direction: { type: 'string', enum: ['out', 'in', 'both'], description: 'Which edges to follow; defaults to out.' },
       },
