@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { StaticSitePageShell } from '@/components/admin/static-site/StaticSitePageShell';
-import { StaticSiteOverview } from '@/components/admin/static-site/StaticSiteOverview';
+import { PublishHistory } from '@/components/admin/static-site/PublishHistory';
 import { getCurrentActor } from '@/server/services/auth';
-import { getTarget } from '@/server/services/static-site';
-import { DomainError } from '@/server/errors';
+import { can } from '@/server/permissions';
 import { getLocale, getDictionary } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -15,22 +14,18 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('admin.staticSite.metadataTitle') };
 }
 
-export default async function AdminStaticSitePage() {
+export default async function AdminStaticSiteHistoryPage() {
   const actor = await getCurrentActor();
 
   // Hidden denial: a non-admin sees a 404 rather than a forbidden page, so the
   // surface does not advertise its own existence.
-  let target;
-  try {
-    target = await getTarget({ actor });
-  } catch (error) {
-    if (error instanceof DomainError) notFound();
-    throw error;
+  if (actor.kind !== 'user' || !can({ actor }, 'manage_static_site', { kind: 'static_site' })) {
+    notFound();
   }
 
   return (
     <StaticSitePageShell>
-      <StaticSiteOverview initial={target} />
+      <PublishHistory />
     </StaticSitePageShell>
   );
 }

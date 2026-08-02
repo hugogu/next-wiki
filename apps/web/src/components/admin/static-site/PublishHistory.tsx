@@ -43,15 +43,16 @@ function statusClass(status: StaticSitePublicationView['status']): string {
   return 'text-muted';
 }
 
-export function PublishHistory({ live }: { live: boolean }) {
+export function PublishHistory() {
   const { t } = useTranslation();
   const history = useQuery({
     queryKey: ['static-site-publications'],
     queryFn: () =>
       apiGet<StaticSitePublicationListResponse>('/api/static-site/publications?limit=20'),
-    // Follows the same rule as the status panel: poll only while something is
+    // Follows the same rule as the overview: poll only while something is
     // actually running.
-    refetchInterval: live ? 2000 : false,
+    refetchInterval: (query) =>
+      RUNNING_STATES.includes(query.state.data?.items[0]?.status ?? '') ? 2000 : false,
   });
 
   const items = history.data?.items ?? [];

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import type {
-  StaticSitePublicationView,
   StaticSiteProvider,
   StaticSiteTargetUpsertInput,
   StaticSiteTargetView,
@@ -16,8 +15,6 @@ import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { Switch } from '@/components/ui/Switch';
 import { apiGet, useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
-import { PublishHistory } from './PublishHistory';
-import { TakedownDialog } from './TakedownDialog';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -49,9 +46,7 @@ function ControlRow({
   );
 }
 
-const RUNNING_STATES = ['queued', 'running'];
-
-export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | null }) {
+export function StaticSiteSettingsForm({ initial }: { initial: StaticSiteTargetView | null }) {
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -75,86 +70,40 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
     queryKey: ['static-site-target'],
     queryFn: () => apiGet<StaticSiteTargetView | null>('/api/static-site/target'),
     initialData: initial,
-    // Poll only while a run is in flight, so an idle admin page is not a
-    // background load generator.
-    refetchInterval: (query) =>
-      RUNNING_STATES.includes(query.state.data?.lastPublication?.status ?? '') ? 2000 : false,
   });
   const live = status.data ?? initial;
-  const lastRun: StaticSitePublicationView | null = live?.lastPublication ?? null;
 
   const save = useApiMutation<StaticSiteTargetUpsertInput, StaticSiteTargetView>(
     '/api/static-site/target',
     { method: 'PUT' },
   );
-  const publish = useApiMutation<void, StaticSitePublicationView>('/api/static-site/publications');
-  const takedown = useApiMutation<{ confirm: string }, StaticSitePublicationView>(
-    '/api/static-site/site',
-    { method: 'DELETE' },
-  );
 
-  const pending =
-    save.isPending || publish.isPending || takedown.isPending;
-  const enabled = live?.isEnabled ?? false;
-  const running = RUNNING_STATES.includes(lastRun?.status ?? '');
-
-  const body = (nextEnabled: boolean): StaticSiteTargetUpsertInput => ({
-    isEnabled: nextEnabled,
-    provider,
-    remoteUrl,
-    branch,
-    baseUrl,
-    autoPublishOnChange,
-    scheduledPublishEnabled,
-    scheduledIntervalMinutes,
-  });
-
-  const afterChange = () => {
-    void status.refetch();
-    router.refresh();
-  };
-
-  const persist = (nextEnabled: boolean) => {
+  const onSave = () => {
     setError(null);
     setMessage(null);
-    save.mutate(body(nextEnabled), {
-      onSuccess: () => {
-        setMessage(
-          nextEnabled ? t('admin.staticSite.publishQueued') : t('admin.staticSite.saved'),
-        );
-        afterChange();
+    // Saving keeps the current enable state; enabling and publishing happen on
+    // the overview, so this form never triggers a publish as a side effect.
+    save.mutate(
+      {
+        isEnabled: live?.isEnabled ?? false,
+        provider,
+        remoteUrl,
+        branch,
+        baseUrl,
+        autoPublishOnChange,
+        scheduledPublishEnabled,
+        scheduledIntervalMinutes,
       },
-      onError: (e: ApiError) => setError(e.message),
-    });
-  };
-
-  const onPublish = () => {
-    setError(null);
-    setMessage(null);
-    publish.mutate(undefined, {
-      onSuccess: () => {
-        setMessage(t('admin.staticSite.publishQueued'));
-        afterChange();
-      },
-      onError: (e: ApiError) => setError(e.message),
-    });
-  };
-
-  const onTakedown = (confirm: string) => {
-    setError(null);
-    setMessage(null);
-    takedown.mutate(
-      { confirm },
       {
         onSuccess: () => {
-          setMessage(t('admin.staticSite.takedownQueued'));
-          afterChange();
+          setMessage(t('admin.staticSite.saved'));
+          void status.refetch();
+          router.refresh();
         },
         onError: (e: ApiError) => setError(e.message),
       },
     );
   };
-
 
   return (
     <div className="space-y-md">
@@ -164,8 +113,6 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
       <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
         {t('admin.staticSite.notGitExport')}
       </p>
-
-
 
       <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
         {t('admin.staticSite.spaceKindNotice')}
@@ -240,41 +187,11 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
         </ControlRow>
       </div>
 
-      <div className="flex flex-wrap items-center gap-sm">
-        <Button onClick={() => persist(enabled)} disabled={pending}>
+      <div className="flex items-center gap-sm">
+        <Button onClick={onSave} disabled={save.isPending}>
           {t('common.actions.save')}
         </Button>
-        {enabled ? (
-          <>
-            <Button variant="secondary" onClick={onPublish} disabled={pending || running}>
-              {t('admin.staticSite.publishNow')}
-            </Button>
-            <Button variant="secondary" onClick={() => persist(false)} disabled={pending}>
-              {t('admin.staticSite.disable')}
-            </Button>
-          </>
-        ) : (
-          <Button variant="secondary" onClick={() => persist(true)} disabled={pending}>
-            {t('admin.staticSite.enable')}
-          </Button>
-        )}
-        {live?.id ? (
-          <TakedownDialog branch={branch} pending={pending} onConfirm={onTakedown} />
-        ) : null}
-        {live?.baseUrl && lastRun?.status === 'succeeded' ? (
-          <a
-            href={live.baseUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-primary underline"
-          >
-            {t('admin.staticSite.viewSite')}
-          </a>
-        ) : null}
       </div>
-
-      {live?.id ? <PublishHistory live={running} /> : null}
-
     </div>
   );
 }

@@ -34,9 +34,11 @@ test.describe('admin integrations', () => {
     await page.goto('/admin/integrations');
     await expect(page.getByRole('heading', { name: 'Integrations' })).toBeVisible();
 
-    // GitHub is the one service today; the credential is configured here rather
-    // than inside each feature that reaches it.
+    // GitHub is one entry in the provider list; the credential is configured on
+    // its detail page rather than inside each feature that reaches it.
     await expect(page.getByText(/Used by Git export and by static site publishing/i)).toBeVisible();
+    await page.getByRole('link', { name: 'Configure' }).click();
+    await page.waitForURL('/admin/integrations/github');
     await expect(page.getByRole('button', { name: /generate deploy key/i })).toBeVisible();
   });
 
@@ -44,7 +46,7 @@ test.describe('admin integrations', () => {
     page,
   }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/static-site');
+    await page.goto('/admin/static-site/settings');
 
     await expect(page.getByRole('heading', { name: /static site/i })).toBeVisible();
     // No credential fields here any more.

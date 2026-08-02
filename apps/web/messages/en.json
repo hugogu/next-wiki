@@ -1893,6 +1893,19 @@
       "metadataTitle": "Static site",
       "title": "Static site publishing",
       "description": "Publish your publicly readable pages as a browsable HTML website on a static host such as GitHub Pages.",
+      "tabs": {
+        "overview": "Overview",
+        "settings": "Settings",
+        "history": "History"
+      },
+      "state": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "notConfiguredTitle": "Publishing is not configured yet",
+      "notConfiguredBody": "Point publishing at a repository on the settings page, then enable it here.",
+      "openSettings": "Open settings",
+      "configuration": "Configuration",
       "notGitExport": "This is not Git export. Git export writes raw Markdown for backup and portability; this publishes a rendered, reader-facing website. They use separate branches and can be enabled independently.",
       "remoteUrl": "Repository",
       "remoteUrlHint": "HTTPS or SSH remote, without credentials in the URL.",
@@ -1982,6 +1995,10 @@
       "fingerprint": "Fingerprint",
       "saved": "Integration saved.",
       "keyGenerated": "Deploy key generated. Install it on the repository.",
+      "statusConfigured": "Configured",
+      "statusNotConfigured": "Not configured",
+      "configure": "Configure",
+      "updated": "Updated {date}",
       "github": {
         "name": "GitHub",
         "description": "Used by Git export and by static site publishing. Both reach the same account, so the credential lives here rather than in either feature."

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { StaticSitePageShell } from '@/components/admin/static-site/StaticSitePageShell';
-import { StaticSiteOverview } from '@/components/admin/static-site/StaticSiteOverview';
+import { StaticSiteSettingsForm } from '@/components/admin/static-site/StaticSiteSettingsForm';
 import { getCurrentActor } from '@/server/services/auth';
 import { getTarget } from '@/server/services/static-site';
 import { DomainError } from '@/server/errors';
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('admin.staticSite.metadataTitle') };
 }
 
-export default async function AdminStaticSitePage() {
+export default async function AdminStaticSiteSettingsPage() {
   const actor = await getCurrentActor();
 
   // Hidden denial: a non-admin sees a 404 rather than a forbidden page, so the
@@ -30,7 +30,7 @@ export default async function AdminStaticSitePage() {
 
   return (
     <StaticSitePageShell>
-      <StaticSiteOverview initial={target} />
+      <StaticSiteSettingsForm initial={target} />
     </StaticSitePageShell>
   );
 }

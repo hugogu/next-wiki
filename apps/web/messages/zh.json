@@ -1893,6 +1893,19 @@
       "metadataTitle": "静态站点",
       "title": "静态站点发布",
       "description": "把可公开阅读的页面发布为可浏览的 HTML 网站，托管在 GitHub Pages 等静态服务上。",
+      "tabs": {
+        "overview": "概览",
+        "settings": "设置",
+        "history": "历史"
+      },
+      "state": {
+        "enabled": "已启用",
+        "disabled": "已停用"
+      },
+      "notConfiguredTitle": "尚未配置发布",
+      "notConfiguredBody": "请先在设置页指向一个仓库，然后回到这里启用发布。",
+      "openSettings": "打开设置",
+      "configuration": "当前配置",
       "notGitExport": "这不是 Git 导出。Git 导出写出的是用于备份和迁移的原始 Markdown；本功能发布的是面向读者的渲染网站。两者使用各自独立的分支，可分别启用。",
       "remoteUrl": "仓库",
       "remoteUrlHint": "HTTPS 或 SSH 地址，URL 中不得包含凭据。",
@@ -1982,6 +1995,10 @@
       "fingerprint": "指纹",
       "saved": "集成配置已保存。",
       "keyGenerated": "部署密钥已生成，请安装到仓库。",
+      "statusConfigured": "已配置",
+      "statusNotConfigured": "未配置",
+      "configure": "配置",
+      "updated": "更新于 {date}",
       "github": {
         "name": "GitHub",
         "description": "由 Git 导出与静态站点发布共同使用。两者访问同一个账号，因此凭据放在这里，而不是各自功能内部。"
