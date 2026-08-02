@@ -1955,7 +1955,11 @@
         "space_kind_raw": "原始捕获空间",
         "space_kind_generated": "生成知识空间"
       },
-      "spaceKindNotice": "原始捕获空间与生成知识空间永不发布，无论其可见性如何。如需公开这些内容，请先将其整理为正式的 wiki 页面。"
+      "spaceKindNotice": "原始捕获空间与生成知识空间永不发布，无论其可见性如何。如需公开这些内容，请先将其整理为正式的 wiki 页面。",
+      "reuseKey": "复用 Git 导出的部署密钥",
+      "reuseKeyHint": "Git 导出已在该仓库上配置了部署密钥。一个密钥只能注册到一个仓库，因此在此复用可省去再安装一把。",
+      "reuseKeyDifferentRepo": "Git 导出使用的是另一个仓库，其部署密钥无法复用——一个密钥只能注册到一个仓库。请为当前仓库单独生成密钥。",
+      "reuseKeyDone": "已复用部署密钥，无需在仓库上做额外配置。"
     }
   },
   "renderer": {

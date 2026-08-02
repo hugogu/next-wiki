@@ -7,14 +7,17 @@ import * as schema from '@/server/db/schema';
 import { setBoss } from '@/server/jobs/runtime';
 import { buildApiKeyCtx, buildAnonymousCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { encryptKey } from '@/server/crypto/key-encryption';
 import {
   configureTarget,
   deleteTarget,
   findTarget,
+  getKeyReuseOffer,
   getTarget,
   listPublications,
   markStaleAndMaybePublish,
   publishNow,
+  reuseGitExportKey,
   takeDownSite,
   tickScheduledPublish,
 } from './static-site';
@@ -316,5 +319,86 @@ describe('takedown', () => {
   it('denies a non-admin', async () => {
     await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
     await expect(takeDownSite(editorCtx, 'gh-pages')).rejects.toThrow(DomainError);
+  });
+});
+
+describe('deploy key reuse', () => {
+  async function seedGitExportKey(remoteUrl: string) {
+    await db.insert(schema.storageBackends).values({
+      type: 'git',
+      purpose: 'git_export',
+      isActive: true,
+      replicaState: 'enabled',
+      config: {
+        remoteUrl,
+        branch: 'main',
+        assetsDir: 'assets',
+        authMode: 'ssh',
+        publicKey: 'ssh-ed25519 AAAAC3Nz shared-key',
+        fingerprint: 'SHA256:abc',
+        autoSyncOnPublish: true,
+        scheduledSyncEnabled: false,
+        scheduledSyncIntervalMinutes: 60,
+      },
+      secretEncrypted: encryptKey('PRIVATE_KEY_MATERIAL'),
+    });
+  }
+
+  afterEach(async () => {
+    await db.delete(schema.storageBackends);
+  });
+
+  it('offers reuse when both features target the same repository', async () => {
+    // A deploy key can only be registered on one repository, so reuse is
+    // exactly as useful as the two targets being the same repository.
+    await seedGitExportKey('git@github.com:owner/wiki.git');
+    const offer = await getKeyReuseOffer(adminCtx, 'https://github.com/owner/wiki.git');
+    expect(offer.available).toBe(true);
+  });
+
+  it('declines when the repositories differ, because the host would reject the key', async () => {
+    await seedGitExportKey('git@github.com:owner/backup.git');
+    const offer = await getKeyReuseOffer(adminCtx, 'git@github.com:owner/site.git');
+    expect(offer).toEqual({ available: false, reason: 'different_repository' });
+  });
+
+  it('declines when Git export uses a token rather than a key', async () => {
+    const offer = await getKeyReuseOffer(adminCtx, 'git@github.com:owner/wiki.git');
+    expect(offer).toEqual({ available: false, reason: 'no_git_export_key' });
+  });
+
+  it('copies the key rather than referencing it, so the features stay independent', async () => {
+    await seedGitExportKey('git@github.com:owner/wiki.git');
+    await configureTarget(
+      adminCtx,
+      upsert({ remoteUrl: 'https://github.com/owner/wiki.git', authMode: 'ssh' }),
+    );
+
+    const result = await reuseGitExportKey(adminCtx);
+    expect(result.publicKey).toContain('shared-key');
+
+    const target = await findTarget();
+    expect(target?.authMode).toBe('ssh');
+    expect(target?.secretEncrypted).toBeTruthy();
+
+    // Removing Git export afterwards must not affect publishing.
+    await db.delete(schema.storageBackends);
+    expect((await findTarget())?.secretEncrypted).toBeTruthy();
+  });
+
+  it('refuses to copy a key from a different repository', async () => {
+    await seedGitExportKey('git@github.com:owner/backup.git');
+    await configureTarget(
+      adminCtx,
+      upsert({ remoteUrl: 'git@github.com:owner/site.git', authMode: 'ssh' }),
+    );
+    await expect(reuseGitExportKey(adminCtx)).rejects.toThrow(DomainError);
+  });
+
+  it('denies a non-admin', async () => {
+    await seedGitExportKey('git@github.com:owner/wiki.git');
+    await expect(getKeyReuseOffer(editorCtx, 'git@github.com:owner/wiki.git')).rejects.toThrow(
+      DomainError,
+    );
   });
 });

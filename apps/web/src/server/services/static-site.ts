@@ -5,10 +5,14 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import {
+  gitBackendConfigSchema,
+  isSameGitRepository,
   staticSiteTargetUpsertSchema,
   type StaticSiteExclusionCounts,
   type StaticSitePublicationTrigger,
   type StaticSitePublicationView,
+  type StaticSiteKeyReuseOffer,
+  type StaticSiteKeyReuseResult,
   type StaticSiteTargetUpsertInput,
   type StaticSiteTargetView,
 } from '@next-wiki/shared';
@@ -16,7 +20,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { encryptKey } from '@/server/crypto/key-encryption';
+import { decryptKey, encryptKey } from '@/server/crypto/key-encryption';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
 const execFileAsync = promisify(execFile);
@@ -180,6 +184,91 @@ export async function deleteTarget(ctx: PermCtx): Promise<void> {
   // published site: taking a site down is a separate, explicitly confirmed act,
   // so removing configuration can never silently unpublish.
   await db.delete(schema.staticSiteTargets).where(eq(schema.staticSiteTargets.id, target.id));
+}
+
+/**
+ * Whether the Git export deploy key can also serve this target.
+ *
+ * GitHub enforces deploy-key uniqueness globally: a public key registered on
+ * one repository is rejected everywhere else. So reuse is possible exactly when
+ * both features push to the same repository — the common setup being one
+ * repository with raw Markdown on one branch and the published site on another.
+ * For different repositories the operator genuinely needs two keys, and
+ * offering reuse there would produce a key GitHub refuses to accept.
+ */
+export async function getKeyReuseOffer(
+  ctx: PermCtx,
+  remoteUrl: string,
+): Promise<StaticSiteKeyReuseOffer> {
+  assertCanManageStaticSite(ctx);
+
+  const backend = await db.query.storageBackends.findFirst({
+    where: eq(schema.storageBackends.purpose, 'git_export'),
+  });
+  if (!backend?.secretEncrypted) return { available: false, reason: 'no_git_export_key' };
+
+  const config = gitBackendConfigSchema.safeParse(backend.config);
+  if (!config.success || config.data.authMode !== 'ssh' || !config.data.publicKey) {
+    return { available: false, reason: 'no_git_export_key' };
+  }
+  if (!isSameGitRepository(config.data.remoteUrl, remoteUrl)) {
+    return { available: false, reason: 'different_repository' };
+  }
+
+  return {
+    available: true,
+    reason: null,
+    publicKey: config.data.publicKey,
+    fingerprint: config.data.fingerprint ?? null,
+  };
+}
+
+/**
+ * Copy the Git export deploy key onto this target.
+ *
+ * A copy rather than a reference: the two features must stay independent
+ * (FR-002), so removing or reconfiguring Git export cannot be allowed to break
+ * publishing. What the operator saves is the step of registering a second
+ * deploy key on GitHub — which they could not do anyway, since the key is
+ * already in use on that repository.
+ */
+export async function reuseGitExportKey(ctx: PermCtx): Promise<StaticSiteKeyReuseResult> {
+  assertCanManageStaticSite(ctx);
+  const target = await findTarget();
+  if (!target) throw new DomainError('BAD_REQUEST', 'Save the publishing target first');
+
+  const offer = await getKeyReuseOffer(ctx, target.remoteUrl);
+  if (!offer.available) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      offer.reason === 'different_repository'
+        ? 'The Git export key belongs to a different repository. A deploy key can only be registered on one repository, so this target needs its own key.'
+        : 'Git export does not have an SSH deploy key to reuse',
+    );
+  }
+
+  const backend = await db.query.storageBackends.findFirst({
+    where: eq(schema.storageBackends.purpose, 'git_export'),
+  });
+  if (!backend?.secretEncrypted) {
+    throw new DomainError('BAD_REQUEST', 'Git export does not have an SSH deploy key to reuse');
+  }
+
+  // Re-encrypted into this feature's own row; the two never read each other's
+  // storage after this point.
+  const privateKey = decryptKey(backend.secretEncrypted);
+  await db
+    .update(schema.staticSiteTargets)
+    .set({
+      authMode: 'ssh',
+      publicKey: offer.publicKey ?? null,
+      fingerprint: offer.fingerprint,
+      secretEncrypted: encryptKey(privateKey),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.staticSiteTargets.id, target.id));
+
+  return { publicKey: offer.publicKey!, fingerprint: offer.fingerprint };
 }
 
 export async function generateSshKey(

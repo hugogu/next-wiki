@@ -150,3 +150,19 @@ export type StaticSiteValidationResult = {
   /** Safe to display: never contains credential material. */
   message: string | null;
 };
+
+/**
+ * Whether the Git export deploy key can be reused for this target.
+ *
+ * Only possible when both features push to the same repository: hosts enforce
+ * deploy-key uniqueness globally, so a key already registered on one repository
+ * cannot be registered on another.
+ */
+export type StaticSiteKeyReuseOffer =
+  | { available: true; reason: null; publicKey: string; fingerprint: string | null }
+  | { available: false; reason: 'no_git_export_key' | 'different_repository' };
+
+export type StaticSiteKeyReuseResult = {
+  publicKey: string;
+  fingerprint: string | null;
+};

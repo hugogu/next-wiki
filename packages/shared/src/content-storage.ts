@@ -321,3 +321,48 @@ export const storageOverviewSchema = z.object({
   deployment: storageDeploymentInfoSchema,
 });
 export type StorageOverview = z.infer<typeof storageOverviewSchema>;
+
+/**
+ * Reduce a Git remote to `host/owner/repo`, so the same repository written in
+ * different forms compares equal.
+ *
+ * Used to decide whether two features can share one deploy key. GitHub enforces
+ * deploy-key uniqueness globally — a public key registered on one repository is
+ * rejected on any other — so key reuse is only possible when both features
+ * target the same repository, typically on different branches.
+ *
+ * Returns null for anything unparseable rather than guessing; the caller treats
+ * that as "not the same repository".
+ */
+export function gitRepositoryIdentity(remoteUrl: string): string | null {
+  const trimmed = remoteUrl.trim();
+  if (trimmed === '') return null;
+
+  // scp-like form: git@host:owner/repo.git
+  const scpLike = /^[\w.-]+@([\w.-]+):(.+)$/.exec(trimmed);
+  if (scpLike) return normalizeRepositoryPath(scpLike[1]!, scpLike[2]!);
+
+  try {
+    const url = new URL(trimmed);
+    if (!url.hostname) return null;
+    return normalizeRepositoryPath(url.hostname, url.pathname);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeRepositoryPath(host: string, path: string): string | null {
+  const cleaned = path
+    .replace(/^\/+/, '')
+    .replace(/\.git$/i, '')
+    .replace(/\/+$/, '');
+  if (cleaned === '') return null;
+  return `${host.toLowerCase()}/${cleaned.toLowerCase()}`;
+}
+
+/** Whether two remotes name the same repository, however each is written. */
+export function isSameGitRepository(a: string, b: string): boolean {
+  const left = gitRepositoryIdentity(a);
+  const right = gitRepositoryIdentity(b);
+  return left !== null && left === right;
+}

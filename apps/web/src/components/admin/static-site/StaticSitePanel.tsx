@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type {
+  StaticSiteKeyReuseOffer,
+  StaticSiteKeyReuseResult,
   StaticSitePublicationView,
   StaticSiteSshKeyResult,
   StaticSiteTargetUpsertInput,
@@ -94,13 +96,30 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
   const generateKey = useApiMutation<void, StaticSiteSshKeyResult>(
     '/api/static-site/target/ssh-key',
   );
+  // Offered only when Git export's key targets the same repository; hosts
+  // reject a deploy key that is already registered elsewhere.
+  const reuseOffer = useQuery({
+    queryKey: ['static-site-key-reuse', remoteUrl],
+    queryFn: () =>
+      apiGet<StaticSiteKeyReuseOffer>(
+        `/api/static-site/target/ssh-key/reuse?remoteUrl=${encodeURIComponent(remoteUrl)}`,
+      ),
+    enabled: authMode === 'ssh' && remoteUrl.trim() !== '',
+  });
+  const reuseKey = useApiMutation<void, StaticSiteKeyReuseResult>(
+    '/api/static-site/target/ssh-key/reuse',
+  );
   const takedown = useApiMutation<{ confirm: string }, StaticSitePublicationView>(
     '/api/static-site/site',
     { method: 'DELETE' },
   );
 
   const pending =
-    save.isPending || publish.isPending || generateKey.isPending || takedown.isPending;
+    save.isPending ||
+    publish.isPending ||
+    generateKey.isPending ||
+    reuseKey.isPending ||
+    takedown.isPending;
   const enabled = live?.isEnabled ?? false;
   const running = RUNNING_STATES.includes(lastRun?.status ?? '');
 
@@ -162,6 +181,20 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
         onError: (e: ApiError) => setError(e.message),
       },
     );
+  };
+
+  const onReuseKey = () => {
+    setError(null);
+    setMessage(null);
+    reuseKey.mutate(undefined, {
+      onSuccess: (result) => {
+        setPublicKey(result.publicKey);
+        setFingerprint(result.fingerprint ?? '');
+        setMessage(t('admin.staticSite.reuseKeyDone'));
+        afterChange();
+      },
+      onError: (e: ApiError) => setError(e.message),
+    });
   };
 
   const onGenerateKey = () => {
@@ -243,6 +276,20 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
           </>
         ) : (
           <div className="space-y-sm">
+            {reuseOffer.data?.available ? (
+              <div className="space-y-xs rounded-md border border-border p-sm">
+                <p className="text-xs text-muted">{t('admin.staticSite.reuseKeyHint')}</p>
+                <Button variant="secondary" onClick={onReuseKey} disabled={pending || !live?.id}>
+                  {t('admin.staticSite.reuseKey')}
+                </Button>
+              </div>
+            ) : null}
+            {reuseOffer.data?.available === false &&
+            reuseOffer.data.reason === 'different_repository' ? (
+              <p className="text-xs text-muted">
+                {t('admin.staticSite.reuseKeyDifferentRepo')}
+              </p>
+            ) : null}
             <Button variant="secondary" onClick={onGenerateKey} disabled={pending}>
               {t('admin.staticSite.generateKey')}
             </Button>
