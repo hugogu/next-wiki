@@ -25,6 +25,15 @@
 ## Recent Changes
 - 004-system-ai-support: Planned system AI providers, capability-aware models, pgvector retrieval, async AI actions, and governed editor/chat features.
 
+## .gitignore — never use bare directory names
+
+A bare pattern like `integrations` matches a directory of that name at ANY
+depth, silently excluding source directories from commits — this once shipped
+a feature whose page files never landed in the repo. Local-config ignore rules
+must be anchored to the repo root (`/integrations`, `/commands`, ...). After
+editing .gitignore, run `git status --short` and confirm no unexpected
+untracked source directories appear or disappear.
+
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
