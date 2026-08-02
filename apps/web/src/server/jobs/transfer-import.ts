@@ -16,7 +16,7 @@ import { findMarkdownImages } from '@/server/transfers/markdown-links';
 import { localizeWikiJsImage } from '@/server/services/transfer-wikijs-assets';
 import { createWikiJsLinkReplacer } from '@/server/transfers/markdown-links';
 import { patchMetadata } from '@/server/services/page-metadata';
-import { enqueueGitExport } from '@/server/services/git-export';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { getSpaceByKind } from '@/server/services/spaces';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
 
@@ -223,7 +223,7 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
     warningItems: crossModeSkips > 0 ? crossModeSkips : undefined,
   });
   if (processed > 0 && !wasCancelled) {
-    await enqueueGitExport('manual');
+    await notifyPublicContentChanged('manual');
   }
 }
 
@@ -418,7 +418,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   // One full snapshot sync at the end is enough; do not enqueue per page.
   // Skip it on cancellation — a partial import shouldn't trigger a git commit.
   if (processed > 0 && !cancelled) {
-    await enqueueGitExport('manual');
+    await notifyPublicContentChanged('manual');
   }
 }
 

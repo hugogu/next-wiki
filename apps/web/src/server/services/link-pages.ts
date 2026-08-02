@@ -8,7 +8,7 @@ import { DomainError } from '@/server/errors';
 import { renderMarkdown } from '@/server/pipeline';
 import { persistRevisionMetadata } from '@/server/services/page-metadata';
 import { assertNotMigrating } from '@/server/services/migration';
-import { enqueueGitExport } from '@/server/services/git-export';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { invalidatePublicContentCache, invalidatePublicLinkPaths } from '@/server/cache/public-cache';
 import { getSpaceById, resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
@@ -128,7 +128,7 @@ export async function createLinkPage(
   });
   invalidatePublicContentCache();
   invalidatePublicLinkPaths([parsedPath.data]);
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
   return created;
 }
 
@@ -195,7 +195,7 @@ export async function retargetLinkPage(
   });
   invalidatePublicContentCache();
   invalidatePublicLinkPaths([page.path]);
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
   return retargeted;
 }
 
@@ -212,7 +212,7 @@ export async function deleteLinkPage(ctx: PermCtx, pageId: string): Promise<void
   });
   invalidatePublicContentCache();
   invalidatePublicLinkPaths([page.path]);
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
 }
 
 /**

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PgBoss } from 'pg-boss';
+import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { setBoss } from '@/server/jobs/runtime';
@@ -12,7 +13,10 @@ import {
   findTarget,
   getTarget,
   listPublications,
+  markStaleAndMaybePublish,
   publishNow,
+  takeDownSite,
+  tickScheduledPublish,
 } from './static-site';
 
 let adminCtx: PermCtx;
@@ -220,5 +224,97 @@ describe('remote validation', () => {
     await expect(
       configureTarget(adminCtx, upsert({ remoteUrl: 'https://user:pass@github.com/o/r.git' })),
     ).rejects.toThrow();
+  });
+});
+
+describe('trigger collapsing', () => {
+  it('reuses an in-flight run instead of stacking rows the queue would strand', async () => {
+    // Every trigger creating its own row would leave a trail that can never
+    // run: the queue's singleton slot merges the jobs behind them.
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    const first = await listPublications(adminCtx);
+    expect(first).toHaveLength(1);
+
+    await markStaleAndMaybePublish();
+    await markStaleAndMaybePublish();
+    await markStaleAndMaybePublish();
+
+    expect(await listPublications(adminCtx)).toHaveLength(1);
+  });
+
+  it('marks the site stale when a change lands during an active run', async () => {
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await markStaleAndMaybePublish();
+    expect((await findTarget())?.isStale).toBe(true);
+  });
+
+  it('does nothing at all when publishing is disabled', async () => {
+    await configureTarget(adminCtx, upsert({ secret: TOKEN }));
+    await markStaleAndMaybePublish();
+    expect((await findTarget())?.isStale).toBe(false);
+    expect(await listPublications(adminCtx)).toHaveLength(0);
+  });
+});
+
+describe('scheduled publishing', () => {
+  it('does nothing when scheduling is off', async () => {
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    expect(await tickScheduledPublish()).toBe(false);
+  });
+
+  it('skips while a run is already in flight', async () => {
+    // Otherwise a slow publish would stack interval-triggered runs behind it.
+    await configureTarget(
+      adminCtx,
+      upsert({ isEnabled: true, secret: TOKEN, scheduledPublishEnabled: true }),
+    );
+    expect(await tickScheduledPublish()).toBe(false);
+  });
+
+  it('queues once the interval has elapsed since the last success', async () => {
+    await configureTarget(
+      adminCtx,
+      upsert({ isEnabled: true, secret: TOKEN, scheduledPublishEnabled: true, scheduledIntervalMinutes: 60 }),
+    );
+    const target = await findTarget();
+    await db
+      .update(schema.staticSitePublications)
+      .set({ status: 'succeeded', completedAt: new Date('2026-01-01T00:00:00Z') })
+      .where(eq(schema.staticSitePublications.targetId, target!.id));
+
+    expect(await tickScheduledPublish(new Date('2026-01-01T00:30:00Z'))).toBe(false);
+    expect(await tickScheduledPublish(new Date('2026-01-01T01:30:00Z'))).toBe(true);
+  });
+});
+
+describe('takedown', () => {
+  it('requires the branch name as confirmation', async () => {
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await expect(takeDownSite(adminCtx, 'wrong')).rejects.toThrow(DomainError);
+  });
+
+  it('queues a takedown and switches publishing off', async () => {
+    // Otherwise a scheduled or change trigger would put the site straight back.
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    const run = await takeDownSite(adminCtx, 'gh-pages');
+
+    expect(run.trigger).toBe('takedown');
+    expect((await findTarget())?.isEnabled).toBe(false);
+  });
+
+  it('cancels a pending publish so the site is not republished on the way out', async () => {
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    const before = await listPublications(adminCtx);
+    expect(before[0]!.status).toBe('queued');
+
+    await takeDownSite(adminCtx, 'gh-pages');
+    const after = await listPublications(adminCtx);
+    const superseded = after.find((run) => run.id === before[0]!.id);
+    expect(superseded?.status).toBe('cancelled');
+  });
+
+  it('denies a non-admin', async () => {
+    await configureTarget(adminCtx, upsert({ isEnabled: true, secret: TOKEN }));
+    await expect(takeDownSite(editorCtx, 'gh-pages')).rejects.toThrow(DomainError);
   });
 });

@@ -1938,7 +1938,24 @@
         "noResults": "未找到结果。",
         "notFound": "已发布的站点上不存在该页面。它可能已被重命名，或已不再公开。",
         "translationMissing": "本页没有该语言的版本。此链接将前往该语言的首页。"
-      }
+      },
+      "history": "发布历史",
+      "historyEmpty": "尚无发布记录。",
+      "takedown": "移除公开站点",
+      "takedownWarning": "该操作会从分支上移除已发布内容，公开地址将停止提供服务，并同时停用发布。请输入分支名以确认。",
+      "takedownConfirm": "移除站点",
+      "takedownQueued": "下线任务已排队，公开站点稍后将停止服务。",
+      "excluded": "已排除",
+      "excludedByReason": "按原因统计的排除项",
+      "reason": {
+        "not_published": "无已发布修订",
+        "deleted": "已删除",
+        "restricted": "受限可见性",
+        "space_not_anonymous": "空间不允许匿名阅读",
+        "space_kind_raw": "原始捕获空间",
+        "space_kind_generated": "生成知识空间"
+      },
+      "spaceKindNotice": "原始捕获空间与生成知识空间永不发布，无论其可见性如何。如需公开这些内容，请先将其整理为正式的 wiki 页面。"
     }
   },
   "renderer": {

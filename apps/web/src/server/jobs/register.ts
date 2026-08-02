@@ -47,6 +47,7 @@ import { runRawConversationCapture } from './raw-conversation-capture';
 import { runRequestLogPersist } from './request-log-persist';
 import { runScheduledAiJobRun, runScheduledAiTick } from './scheduled-ai-jobs';
 import { runStaticSitePublish } from './static-site-publish';
+import { tickScheduledPublish } from '@/server/services/static-site';
 
 type JobBatch = { data: unknown }[];
 
@@ -107,6 +108,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     } else if (items.some((item) => item?.scheduled)) {
       await tickScheduledGitExport();
     }
+  });
+  await boss.work(QUEUES.staticSiteTick, async () => {
+    await tickScheduledPublish();
   });
   await boss.work(QUEUES.staticSitePublish, async (jobs: JobBatch) => {
     // A full snapshot reconciles everything, so only the newest trigger in a
@@ -203,6 +207,7 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.schedule(QUEUES.feishuDelivery, '* * * * *', {});
   await boss.schedule(QUEUES.feishuCleanup, '30 * * * *', {});
   await boss.schedule(QUEUES.scheduledAiTick, '* * * * *', {});
+  await boss.schedule(QUEUES.staticSiteTick, '* * * * *', {});
 
   const pendingReplication = await db
     .select({ id: schema.storageReplicationTasks.id })

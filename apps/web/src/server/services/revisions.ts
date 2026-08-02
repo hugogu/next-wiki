@@ -4,7 +4,7 @@ import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId, pagePermissionOptions } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { assertNotMigrating } from '@/server/services/migration';
-import { enqueueGitExport } from '@/server/services/git-export';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { invalidateTranslationsForSource } from '@/server/services/translations';
 import { invalidatePublicContentCache, invalidatePublicLinkPaths } from '@/server/cache/public-cache';
@@ -90,7 +90,7 @@ export async function publish(
   invalidatePublicContentCache();
   invalidatePublicLinkPaths(linkedPaths);
   await enqueuePublicPageWarmup(getPageHref(input.path));
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   // Publishing a source page invalidates its translations (they now trail the
   // newest published revision). Safe no-op for translated pages.

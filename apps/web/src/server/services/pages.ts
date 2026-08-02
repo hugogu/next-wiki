@@ -28,7 +28,7 @@ import {
   readMarkdownFromDatabase,
   readMarkdownWithFallback,
 } from '@/server/content-store/read-router';
-import { enqueueGitExport } from '@/server/services/git-export';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { parseFrontmatter } from '@/server/metadata/frontmatter';
@@ -949,7 +949,7 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
   const linkedPaths = await listLiveLinksForTarget(page.id);
   invalidatePublicContentCache();
   invalidatePublicLinkPaths(linkedPaths);
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
 }
 
@@ -1273,7 +1273,7 @@ export async function updateProperties(
   invalidatePublicContentCache();
   invalidatePublicLinkPaths([...linkedPaths, ...(result.isPublished ? [currentPath, result.newPath] : [])]);
   if (result.isPublished) await enqueuePublicPageWarmup(getPageHref(result.newPath));
-  if (result.newPath !== currentPath) await enqueueGitExport('publish');
+  if (result.newPath !== currentPath) await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   return result;
 }
@@ -1412,7 +1412,7 @@ export async function moveToSpace(
   // it so anonymous ISR reflects the new state either way.
   if (result.isPublished) invalidatePublicLinkPaths([result.path]);
   await reconcilePageAcrossIndexes(result.pageId, ctx);
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
   await kickReplication();
   return { pageId: result.pageId, targetSpace: target.slug, path: result.path };
 }

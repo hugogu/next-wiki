@@ -247,17 +247,17 @@ occurs on time.
 
 ### Tests for User Story 6
 
-- [ ] T069 [P] [US6] Write `apps/web/src/server/jobs/static-site-publish.test.ts` asserting that triggers during an active run collapse into exactly one follow-up run, and that a failed run leaves the previous delivery intact
+- [X] T069 [P] [US6] Write `apps/web/src/server/jobs/static-site-publish.test.ts` asserting that triggers during an active run collapse into exactly one follow-up run, and that a failed run leaves the previous delivery intact
 
 ### Implementation for User Story 6
 
-- [ ] T070 [US6] Implement trigger collapsing and the single-active-run guarantee in `apps/web/src/server/jobs/static-site-publish.ts`
-- [ ] T071 [US6] Mark the target stale and enqueue a republish from the existing public-content mutation paths (publish, unpublish, delete, path/title/metadata change, visibility change, space anonymous-read change), alongside the ISR revalidation those paths already perform
-- [ ] T072 [P] [US6] Implement the scheduled tick handler and register it in `apps/web/src/server/jobs/register.ts`, following the `tickScheduledGitExport` pattern
-- [ ] T073 [P] [US6] Add trigger controls (auto on change, scheduled with interval) to `apps/web/src/components/admin/static-site/TargetForm.tsx`
-- [ ] T074 [US6] Add run history with pagination to `apps/web/src/components/admin/static-site/PublishHistory.tsx`
-- [ ] T075 [P] [US6] Add `apps/web/src/server/services/static-site.history.test.ts` asserting error messages are stored redacted of credential material
-- [ ] T095 [P] [US6] **Independence check** (gap from `/speckit.analyze`): assert that Git export and static site publishing run without blocking, overwriting, or altering each other's target, state, or artifact — the verification FR-002 and US6 scenario 5 require
+- [X] T070 [US6] Implement trigger collapsing and the single-active-run guarantee in `apps/web/src/server/jobs/static-site-publish.ts`
+- [X] T071 [US6] Mark the target stale and enqueue a republish from the existing public-content mutation paths (publish, unpublish, delete, path/title/metadata change, visibility change, space anonymous-read change), alongside the ISR revalidation those paths already perform
+- [X] T072 [P] [US6] Implement the scheduled tick handler and register it in `apps/web/src/server/jobs/register.ts`, following the `tickScheduledGitExport` pattern
+- [X] T073 [P] [US6] Add trigger controls (auto on change, scheduled with interval) to `apps/web/src/components/admin/static-site/TargetForm.tsx`
+- [X] T074 [US6] Add run history with pagination to `apps/web/src/components/admin/static-site/PublishHistory.tsx`
+- [X] T075 [P] [US6] Add `apps/web/src/server/services/static-site.history.test.ts` asserting error messages are stored redacted of credential material
+- [X] T095 [P] [US6] **Independence check** (gap from `/speckit.analyze`): assert that Git export and static site publishing run without blocking, overwriting, or altering each other's target, state, or artifact — the verification FR-002 and US6 scenario 5 require
 
 **Checkpoint**: the site follows the wiki without manual action.
 
@@ -272,14 +272,14 @@ and previously published addresses stop serving.
 
 ### Tests for User Story 7
 
-- [ ] T076 [P] [US7] Write `apps/web/app/api/static-site/site/route.test.ts` asserting the confirmation token is required, that takedown is admin-only, and that a takedown during an active run cancels the pending rerun
+- [X] T076 [P] [US7] Write `apps/web/app/api/static-site/site/route.test.ts` asserting the confirmation token is required, that takedown is admin-only, and that a takedown during an active run cancels the pending rerun
 
 ### Implementation for User Story 7
 
-- [ ] T077 [US7] Implement `DELETE apps/web/app/api/static-site/site/route.ts` requiring the branch-name confirmation token and queueing a run with `trigger: 'takedown'`
-- [ ] T078 [US7] Implement takedown delivery in `apps/web/src/server/jobs/static-site-publish.ts`, emptying the target branch so published addresses stop serving
-- [ ] T079 [US7] Ensure `DELETE apps/web/app/api/static-site/target/route.ts` destroys the stored credential and cascades publication history, without touching the published site
-- [ ] T080 [P] [US7] Add the takedown control to the admin panel with an explicit confirmation dialog stating the public site will become unavailable — a designed dialog, never a browser `confirm()`
+- [X] T077 [US7] Implement `DELETE apps/web/app/api/static-site/site/route.ts` requiring the branch-name confirmation token and queueing a run with `trigger: 'takedown'`
+- [X] T078 [US7] Implement takedown delivery in `apps/web/src/server/jobs/static-site-publish.ts`, emptying the target branch so published addresses stop serving
+- [X] T079 [US7] Ensure `DELETE apps/web/app/api/static-site/target/route.ts` destroys the stored credential and cascades publication history, without touching the published site
+- [X] T080 [P] [US7] Add the takedown control to the admin panel with an explicit confirmation dialog stating the public site will become unavailable — a designed dialog, never a browser `confirm()`
 - [ ] T081 [US7] Extend `apps/web/e2e/static-site-publish.spec.ts` with the takedown path
 
 **Checkpoint**: publishing is fully reversible.

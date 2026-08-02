@@ -1938,7 +1938,24 @@
         "noResults": "No results found.",
         "notFound": "This page does not exist on the published site. It may have been renamed, or it may no longer be public.",
         "translationMissing": "This page has no version in that language. The link goes to that language’s home page."
-      }
+      },
+      "history": "Publish history",
+      "historyEmpty": "No publishes yet.",
+      "takedown": "Remove public site",
+      "takedownWarning": "This removes the published content from the branch, so the public addresses stop serving it, and switches publishing off. Type the branch name to confirm.",
+      "takedownConfirm": "Remove the site",
+      "takedownQueued": "Takedown queued. The public site will stop serving shortly.",
+      "excluded": "Excluded",
+      "excludedByReason": "Withheld by reason",
+      "reason": {
+        "not_published": "No published revision",
+        "deleted": "Deleted",
+        "restricted": "Restricted visibility",
+        "space_not_anonymous": "Space disallows anonymous reading",
+        "space_kind_raw": "Raw capture space",
+        "space_kind_generated": "Generated knowledge space"
+      },
+      "spaceKindNotice": "Raw-capture and generated-knowledge spaces are never published, whatever their visibility. Promote that material into an ordinary wiki page to publish it."
     }
   },
   "renderer": {

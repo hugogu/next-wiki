@@ -18,7 +18,7 @@ import type { PermCtx } from '@/server/permissions';
 import { isMigrationActive } from './migration';
 import { assertCanManageTransfers } from './transfer-sources';
 import { reconcilePageAcrossIndexes } from './ai-index';
-import { enqueueGitExport } from './git-export';
+import { notifyPublicContentChanged } from './public-content-events';
 import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 
@@ -344,7 +344,7 @@ export async function cleanupRun(ctx: PermCtx, id: string): Promise<TransferClea
       // Drop each page from every active index (targetRevision null → chunks removed).
       for (const pageId of toDelete) await reconcilePageAcrossIndexes(pageId, ctx);
       // One snapshot export reflects all the deletions.
-      await enqueueGitExport('publish');
+      await notifyPublicContentChanged('publish');
       // Refresh the cached public page tree so the navigator drops the removed
       // pages (and any now-empty folders) immediately instead of showing them
       // until the tree cache's TTL expires — same as a normal page delete.

@@ -13,6 +13,7 @@ import { getSiteName } from '@/server/services/site-settings';
 import { buildSnapshot } from '@/server/static-site/snapshot';
 import { preflightSnapshot } from '@/server/static-site/preflight';
 import { readStaticSiteAssets, staticSiteAssetsDir } from '@/server/static-site/build-assets';
+import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { logger } from '@/server/logger';
 
 const execFileAsync = promisify(execFile);
@@ -21,6 +22,29 @@ type PublicationRow = typeof schema.staticSitePublications.$inferSelect;
 type TargetRow = typeof schema.staticSiteTargets.$inferSelect;
 
 let activeRun: Promise<void> | null = null;
+
+/**
+ * Queue the single follow-up pass a mid-run change earns.
+ *
+ * Written here rather than through the service to keep the job's dependencies
+ * one-directional; the service enqueues jobs, the job does not call back into it.
+ */
+async function enqueueFollowUp(targetId: string): Promise<void> {
+  const [publication] = await db
+    .insert(schema.staticSitePublications)
+    .values({ targetId, trigger: 'content_change', status: 'queued' })
+    .returning();
+  if (!publication) return;
+  await db
+    .update(schema.staticSiteTargets)
+    .set({ lastPublicationId: publication.id, updatedAt: new Date() })
+    .where(eq(schema.staticSiteTargets.id, targetId));
+  await enqueue(
+    QUEUES.staticSitePublish,
+    { targetId, publicationId: publication.id },
+    { singletonKey: targetId, singletonNextSlot: true },
+  );
+}
 
 /**
  * Strip anything credential-shaped from a message before it is stored or shown.
@@ -39,11 +63,18 @@ export function redactCredentials(message: string, secret?: string | null): stri
   return output;
 }
 
-async function markRunning(publicationId: string): Promise<void> {
+async function markRunning(publicationId: string, targetId: string): Promise<void> {
   await db
     .update(schema.staticSitePublications)
     .set({ status: 'running', startedAt: new Date() })
     .where(eq(schema.staticSitePublications.id, publicationId));
+  // Cleared here, not on completion: this run publishes the state as of now, so
+  // anything that arrives while it works sets the flag again and is recognized
+  // afterwards as needing one more pass.
+  await db
+    .update(schema.staticSiteTargets)
+    .set({ isStale: false, updatedAt: new Date() })
+    .where(eq(schema.staticSiteTargets.id, targetId));
 }
 
 async function markFailed(
@@ -179,7 +210,7 @@ async function executePublish(targetId: string, publicationId: string): Promise<
     return;
   }
 
-  await markRunning(publicationId);
+  await markRunning(publicationId, target.id);
   const secret = decryptKey(target.secretEncrypted);
   let staging: string | null = null;
 
@@ -238,10 +269,15 @@ async function executePublish(targetId: string, publicationId: string): Promise<
       })
       .where(eq(schema.staticSitePublications.id, publicationId));
 
-    await db
-      .update(schema.staticSiteTargets)
-      .set({ isStale: false, updatedAt: new Date() })
-      .where(eq(schema.staticSiteTargets.id, target.id));
+    // Content that changed while this run was working leaves the flag set. One
+    // follow-up pass reconciles all of it, so a burst of edits costs one extra
+    // rebuild rather than one per edit (FR-030).
+    const after = await db.query.staticSiteTargets.findFirst({
+      where: eq(schema.staticSiteTargets.id, target.id),
+    });
+    if (after?.isStale && after.isEnabled && after.autoPublishOnChange && !isTakedown) {
+      await enqueueFollowUp(after.id);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await markFailed(publicationId, message, secret);

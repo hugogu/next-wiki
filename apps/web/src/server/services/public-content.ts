@@ -46,7 +46,7 @@ import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { renderMarkdown } from '@/server/pipeline';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
-import { enqueueGitExport } from '@/server/services/git-export';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { parsePageFrontmatter, matchesFrontmatterFilters, type FrontmatterFilters } from '@/server/transfers/frontmatter';
 import { findFrontmatterRelatedPages, findMarkdownLinks } from '@/server/transfers/markdown-links';
@@ -1951,7 +1951,7 @@ async function batchUpdateOneItem(
   });
 
   await kickReplication();
-  if (hasPathChange) await enqueueGitExport('publish');
+  if (hasPathChange) await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
 
   return { pageId: page.id, status: 'success', revisionId };
@@ -1996,7 +1996,7 @@ async function batchSoftDeleteOneItem(ctx: PermCtx, space: SpaceRow, pageId: str
     await assertNoSwitchInProgress(tx);
     await tx.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, page.id));
   });
-  await enqueueGitExport('publish');
+  await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
   return { pageId: page.id, status: 'success' };
 }

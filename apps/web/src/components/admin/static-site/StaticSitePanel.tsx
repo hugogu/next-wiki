@@ -15,6 +15,8 @@ import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { apiGet, useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
+import { PublishHistory } from './PublishHistory';
+import { TakedownDialog } from './TakedownDialog';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -92,8 +94,13 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
   const generateKey = useApiMutation<void, StaticSiteSshKeyResult>(
     '/api/static-site/target/ssh-key',
   );
+  const takedown = useApiMutation<{ confirm: string }, StaticSitePublicationView>(
+    '/api/static-site/site',
+    { method: 'DELETE' },
+  );
 
-  const pending = save.isPending || publish.isPending || generateKey.isPending;
+  const pending =
+    save.isPending || publish.isPending || generateKey.isPending || takedown.isPending;
   const enabled = live?.isEnabled ?? false;
   const running = RUNNING_STATES.includes(lastRun?.status ?? '');
 
@@ -142,6 +149,21 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
     });
   };
 
+  const onTakedown = (confirm: string) => {
+    setError(null);
+    setMessage(null);
+    takedown.mutate(
+      { confirm },
+      {
+        onSuccess: () => {
+          setMessage(t('admin.staticSite.takedownQueued'));
+          afterChange();
+        },
+        onError: (e: ApiError) => setError(e.message),
+      },
+    );
+  };
+
   const onGenerateKey = () => {
     setError(null);
     setMessage(null);
@@ -164,6 +186,10 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
           discovering it by publishing raw Markdown to a public site. */}
       <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
         {t('admin.staticSite.notGitExport')}
+      </p>
+
+      <p className="rounded-md border border-border bg-surface p-md text-sm text-muted">
+        {t('admin.staticSite.spaceKindNotice')}
       </p>
 
       {error ? <p className="text-sm text-danger">{error}</p> : null}
@@ -285,6 +311,9 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
             {t('admin.staticSite.enable')}
           </Button>
         )}
+        {live?.id ? (
+          <TakedownDialog branch={branch} pending={pending} onConfirm={onTakedown} />
+        ) : null}
         {live?.baseUrl && lastRun?.status === 'succeeded' ? (
           <a
             href={live.baseUrl}
@@ -297,27 +326,8 @@ export function StaticSitePanel({ initial }: { initial: StaticSiteTargetView | n
         ) : null}
       </div>
 
-      {lastRun ? (
-        <div className="space-y-xs rounded-md border border-border p-md text-sm">
-          <p className="font-medium">{t('admin.staticSite.lastRun')}</p>
-          <p className="text-muted">
-            {t(`admin.staticSite.status.${lastRun.status}`)}
-            {lastRun.completedAt ? ` · ${new Date(lastRun.completedAt).toLocaleString()}` : ''}
-          </p>
-          {lastRun.status === 'succeeded' ? (
-            <p className="text-muted">
-              {t('admin.staticSite.counts', {
-                pages: lastRun.pagesPublished,
-                assets: lastRun.assetsPublished,
-                excluded: lastRun.pagesExcluded,
-              })}
-            </p>
-          ) : null}
-          {lastRun.errorMessage ? (
-            <p className="text-danger">{lastRun.errorMessage}</p>
-          ) : null}
-        </div>
-      ) : null}
+      {live?.id ? <PublishHistory live={running} /> : null}
+
     </div>
   );
 }

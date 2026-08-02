@@ -8,7 +8,7 @@ import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { renderMarkdown } from '@/server/pipeline';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
-import { enqueueGitExport } from '@/server/services/git-export';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 
@@ -182,7 +182,7 @@ export async function runTagMutation(mutationId: string) {
       }).where(eq(schema.tagMutations.id, mutationId));
     });
     await kickReplication();
-    await enqueueGitExport('publish');
+    await notifyPublicContentChanged('publish');
     await Promise.all([...affectedPageIds].map((pageId) => reconcilePageAcrossIndexes(pageId)));
   } catch (error) {
     await db.update(schema.tagMutations).set({

@@ -306,6 +306,61 @@ export async function publishNow(
   return toPublicationView(row);
 }
 
+/**
+ * Remove the published site.
+ *
+ * Confirmed by typing the branch name, so a stray or replayed request cannot
+ * unpublish a live site. Allowed while publishing is disabled — otherwise an
+ * operator who switched publishing off first could never remove the site that
+ * is still being served.
+ *
+ * Any pending run is cancelled first: republishing content immediately after
+ * being asked to remove it is the one outcome this must not produce.
+ */
+export async function takeDownSite(
+  ctx: PermCtx,
+  confirm: string,
+): Promise<StaticSitePublicationView> {
+  assertCanManageStaticSite(ctx);
+  const target = await findTarget();
+  if (!target) throw new DomainError('BAD_REQUEST', 'Static site publishing is not configured');
+  if (confirm !== target.branch) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      'Type the branch name to confirm that the public site should be removed',
+    );
+  }
+
+  await db
+    .update(schema.staticSitePublications)
+    .set({
+      status: 'cancelled',
+      completedAt: new Date(),
+      errorMessage: 'Superseded by a takedown request',
+    })
+    .where(
+      and(
+        eq(schema.staticSitePublications.targetId, target.id),
+        inArray(schema.staticSitePublications.status, ['queued', 'running']),
+      ),
+    );
+
+  // Publishing is switched off as part of taking the site down, so a scheduled
+  // or change trigger cannot put it straight back.
+  await db
+    .update(schema.staticSiteTargets)
+    .set({ isEnabled: false, isStale: false, updatedAt: new Date() })
+    .where(eq(schema.staticSiteTargets.id, target.id));
+
+  const id = await enqueuePublication({ ...target, isEnabled: false }, 'takedown');
+  if (!id) throw new Error('Failed to queue takedown');
+  const row = await db.query.staticSitePublications.findFirst({
+    where: eq(schema.staticSitePublications.id, id),
+  });
+  if (!row) throw new Error('Failed to read queued takedown');
+  return toPublicationView(row);
+}
+
 export async function listPublications(
   ctx: PermCtx,
   limit = 20,
@@ -330,6 +385,39 @@ export async function getPublication(
     where: eq(schema.staticSitePublications.id, id),
   });
   return row ? toPublicationView(row) : null;
+}
+
+/**
+ * Due-check for scheduled publishing.
+ *
+ * Discovers only; the work happens on the publish queue. Skipped while a run is
+ * in flight so a slow publish cannot stack interval-triggered runs behind it.
+ */
+export async function tickScheduledPublish(now: Date = new Date()): Promise<boolean> {
+  const target = await findTarget();
+  if (!target?.isEnabled || !target.scheduledPublishEnabled) return false;
+
+  const active = await db.query.staticSitePublications.findFirst({
+    where: and(
+      eq(schema.staticSitePublications.targetId, target.id),
+      inArray(schema.staticSitePublications.status, ['queued', 'running']),
+    ),
+  });
+  if (active) return false;
+
+  const lastSuccess = await db.query.staticSitePublications.findFirst({
+    where: and(
+      eq(schema.staticSitePublications.targetId, target.id),
+      eq(schema.staticSitePublications.status, 'succeeded'),
+    ),
+    orderBy: desc(schema.staticSitePublications.completedAt),
+  });
+
+  const intervalMs = target.scheduledIntervalMinutes * 60_000;
+  const last = lastSuccess?.completedAt?.getTime() ?? 0;
+  if (now.getTime() - last < intervalMs) return false;
+
+  return (await enqueuePublication(target, 'scheduled')) !== null;
 }
 
 /**
