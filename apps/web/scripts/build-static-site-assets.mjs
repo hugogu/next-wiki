@@ -63,9 +63,12 @@ function buildStylesheet() {
 
   const cssIn = path.join(appRoot, 'app', 'globals.css');
   const cssOut = path.join(outDir, 'site.tmp.css');
+  // `pnpm exec` rather than `npx`: pnpm's node_modules is a symlink tree that
+  // npx does not always resolve, and npx would try the network on a miss —
+  // neither is acceptable inside an image build.
   execFileSync(
-    'npx',
-    ['tailwindcss', '-c', configPath, '-i', cssIn, '-o', cssOut, '--minify'],
+    'pnpm',
+    ['exec', 'tailwindcss', '-c', configPath, '-i', cssIn, '-o', cssOut, '--minify'],
     { cwd: appRoot, stdio: 'inherit' },
   );
 

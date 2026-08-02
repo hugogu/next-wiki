@@ -170,7 +170,20 @@ Two build arguments control it:
 The site's stylesheet and client runtime are produced at image build time by
 `pnpm --filter @next-wiki/web build:static-site-assets` (Tailwind CLI plus
 esbuild). Both are build-time only and add nothing to the running container
-beyond the static files themselves.
+beyond the static files themselves. The output lands in
+`apps/web/public/static-site/` and is copied into the runtime image with the
+rest of that directory.
+
+If a publish fails with *"Static site assets are missing"*, the image was built
+before this step existed. Rebuild it:
+
+```bash
+docker compose build --no-cache web
+```
+
+The assets are located relative to the app's working directory. Set
+`STATIC_SITE_ASSETS_DIR` if your deployment runs the process from somewhere
+else.
 
 ## Mainland China / registry mirrors
 

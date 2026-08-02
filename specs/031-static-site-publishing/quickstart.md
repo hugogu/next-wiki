@@ -96,6 +96,7 @@ credential but leaves whatever is already published in place.
 | Publish fails on size | Artifact exceeds host limits | Reduce large assets. The site is not partially updated; the previous one is still served. |
 | A page is missing from the site | It fails one of the five eligibility conditions | Check the exclusion summary, which groups by reason. |
 | Search finds nothing | Index step failed | The run reports this as a failure rather than shipping a site with dead search; check the run's error. |
+| "Static site assets are missing" | The image predates the asset build step, or the process runs from an unexpected directory | Rebuild the image (`docker compose build --no-cache web`). For a local checkout run `pnpm --filter @next-wiki/web build:static-site-assets`. If the assets live elsewhere, set `STATIC_SITE_ASSETS_DIR`. |
 
 ---
 

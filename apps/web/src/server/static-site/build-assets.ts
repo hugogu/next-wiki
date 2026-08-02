@@ -18,15 +18,25 @@ import type { DocumentAssets } from './document';
 export class StaticSiteAssetsMissingError extends Error {
   constructor(directory: string) {
     super(
-      `Static site assets are missing from ${directory}. Run "pnpm --filter @next-wiki/web build:static-site-assets"; ` +
-        'the published site would otherwise reference a stylesheet and script that do not exist.',
+      `Static site assets are missing from ${directory}, so the published site would reference a stylesheet and script that do not exist.\n` +
+        'In a Docker deployment this means the image was built before these assets were part of the build — rebuild the image ' +
+        '(docker compose build --no-cache web, or pull a newer image).\n' +
+        'For a local checkout run: pnpm --filter @next-wiki/web build:static-site-assets\n' +
+        'If the assets live somewhere else in your deployment, set STATIC_SITE_ASSETS_DIR to that path.',
     );
     this.name = 'StaticSiteAssetsMissingError';
   }
 }
 
+/**
+ * Where the build step wrote its output.
+ *
+ * Resolved from the working directory, which `next start` sets to the app root.
+ * `STATIC_SITE_ASSETS_DIR` overrides it for deployments that run the worker
+ * from somewhere else, so a path mismatch is fixable without a code change.
+ */
 export function staticSiteAssetsDir(): string {
-  return join(process.cwd(), 'public', 'static-site');
+  return process.env.STATIC_SITE_ASSETS_DIR ?? join(process.cwd(), 'public', 'static-site');
 }
 
 /**

@@ -23,6 +23,13 @@ ENV DATABASE_URL=postgresql://localhost:5432/next_wiki
 RUN pnpm --filter @next-wiki/web exec drizzle-kit generate & \
     pnpm --filter @next-wiki/web openapi:generate & \
     wait
+# Static site publishing (031) serves a stylesheet and client runtime that do
+# not vary with wiki content, so they are built once here rather than on every
+# publish. This must run explicitly: the image invokes `next build` directly
+# rather than through Turborepo, so the task graph's dependency on it does not
+# apply. The output lands in apps/web/public/ and is copied to the runner with
+# the rest of that directory.
+RUN pnpm --filter @next-wiki/web build:static-site-assets
 # Mount Next.js build cache so incremental Docker builds reuse previous work.
 RUN --mount=type=cache,target=/app/apps/web/.next/cache,id=next-cache-${TARGETARCH} \
     pnpm --filter @next-wiki/web exec next build --webpack
