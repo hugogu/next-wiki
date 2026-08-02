@@ -67,8 +67,13 @@ export function pageAddress(
   defaultLocale: string,
 ): PageAddress {
   const normalized = normalizePathSegments(path);
+  // An empty path with a locale is that locale's home page, so the segments are
+  // joined rather than concatenated — otherwise it yields `zh/` and, once the
+  // trailing slash is added below, the doubled `zh//`.
   const prefixed =
-    locale && locale !== defaultLocale ? `${locale}/${normalized}` : normalized;
+    locale && locale !== defaultLocale
+      ? [locale, normalized].filter((segment) => segment !== '').join('/')
+      : normalized;
   const base = staticSiteBasePath(baseUrl);
   return {
     filePath: prefixed === '' ? 'index.html' : `${prefixed}/index.html`,

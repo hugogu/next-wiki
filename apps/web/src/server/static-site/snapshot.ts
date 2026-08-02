@@ -24,6 +24,7 @@ import {
   buildLanguageOptions,
   buildNavTree,
   buildSitemap,
+  localeHomeHref,
   publishedLocales,
 } from './navigation';
 
@@ -100,6 +101,7 @@ function stringsFor(locale: string, siteName: string): DocumentStrings {
   return {
     siteName,
     search: t('admin.staticSite.site.search'),
+    translationMissing: t('admin.staticSite.site.translationMissing'),
     searchPlaceholder: t('admin.staticSite.site.searchPlaceholder'),
     home: t('admin.staticSite.site.home'),
     onThisPage: t('admin.staticSite.site.onThisPage'),
@@ -215,14 +217,35 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
     analyticsSnippet,
   };
 
-  documents.push({
-    filePath: 'index.html',
-    bytes: await write(
-      rootDir,
-      'index.html',
-      renderHomeDocument({ ...shell, title: siteName, description: siteName }),
-    ),
-  });
+  // One home page per language. A reader switching to a language this page has
+  // no version in lands on that language's tree rather than on nothing, and it
+  // costs one page per language rather than one per page per language.
+  for (const locale of locales) {
+    const isDefault = locale === set.defaultLocale;
+    const filePath = isDefault ? 'index.html' : `${locale}/index.html`;
+    const localeShell = {
+      ...shell,
+      locale,
+      nav: buildNavTree(set, baseUrl, locale),
+      strings: stringsFor(locale, siteName),
+      canonicalUrl: `${origin}${localeHomeHref(baseUrl, locale, set.defaultLocale)}`,
+      languages: locales
+        .filter((other) => other !== locale)
+        .map((other) => ({
+          locale: other,
+          href: localeHomeHref(baseUrl, other, set.defaultLocale),
+          available: true,
+        })),
+    };
+    documents.push({
+      filePath,
+      bytes: await write(
+        rootDir,
+        filePath,
+        renderHomeDocument({ ...localeShell, title: siteName, description: siteName }),
+      ),
+    });
+  }
 
   const notFoundStrings = stringsFor(homeLocale, siteName);
   documents.push({

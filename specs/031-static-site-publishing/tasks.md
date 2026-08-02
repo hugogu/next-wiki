@@ -222,15 +222,15 @@ non-dead-end for the missing translation.
 
 ### Tests for User Story 5
 
-- [ ] T062 [P] [US5] Write `apps/web/src/server/static-site/navigation.locale.test.ts` asserting per-locale addresses, that the switcher offers only translations that exist, and that a missing translation produces a stub rather than a 404
+- [X] T062 [P] [US5] Write `apps/web/src/server/static-site/navigation.locale.test.ts` asserting per-locale addresses, that the switcher offers only translations that exist, and that a missing translation produces a stub rather than a 404
 
 ### Implementation for User Story 5
 
-- [ ] T063 [US5] Emit translations at `<locale>/<path>/index.html` in `apps/web/src/server/static-site/snapshot.ts`, matching the reader route's existing locale-prefix convention
-- [ ] T064 [US5] Build language-switcher data per page from the translation group in `apps/web/src/server/static-site/navigation.ts`
-- [ ] T065 [P] [US5] Generate the missing-translation stub page linking to available versions, per FR-025
-- [ ] T066 [US5] Select the interface locale from the document's content locale (falling back to `defaultLocale`) in `document.tsx`, drawing strings from the existing catalogs — no site-specific translation file
-- [ ] T067 [US5] Set the document language attribute so the client runtime's existing `lang` observer resolves the right catalog
+- [X] T063 [US5] Emit translations at `<locale>/<path>/index.html` in `apps/web/src/server/static-site/snapshot.ts`, matching the reader route's existing locale-prefix convention
+- [X] T064 [US5] Build language-switcher data per page from the translation group in `apps/web/src/server/static-site/navigation.ts`
+- [X] T065 [P] [US5] Generate the missing-translation stub page linking to available versions, per FR-025
+- [X] T066 [US5] Select the interface locale from the document's content locale (falling back to `defaultLocale`) in `document.tsx`, drawing strings from the existing catalogs — no site-specific translation file
+- [X] T067 [US5] Set the document language attribute so the client runtime's existing `lang` observer resolves the right catalog
 - [ ] T068 [US5] Extend `apps/web/e2e/static-site-artifact.spec.ts` with language switching and the missing-translation path
 
 **Checkpoint**: the published site serves every audience the wiki serves.

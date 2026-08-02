@@ -20,7 +20,13 @@ export type NavNode = {
 
 export type Breadcrumb = { title: string; href: string | null };
 
-export type LanguageOption = { locale: string; href: string };
+export type LanguageOption = {
+  locale: string;
+  href: string;
+  /** False when this page has no version in that language; the href then points
+   *  at the language's own home page rather than nowhere. */
+  available: boolean;
+};
 
 /**
  * Build the page tree for one locale.
@@ -104,27 +110,53 @@ export function buildBreadcrumbs(
 }
 
 /**
- * Languages this page is actually available in.
+ * Every language the site publishes, and where this page's reader should go for
+ * each one.
  *
- * Only translations that are themselves publishable appear, so the switcher can
- * never offer a destination that does not exist (FR-025).
+ * A reader can only be told a translation is missing if the switcher shows the
+ * language at all (FR-025), so every published language appears. When this page
+ * has a version in that language the link goes straight to it; when it does not,
+ * the link goes to that language's home page — a real destination with that
+ * language's full page tree — and the option is flagged so the shell can say
+ * why.
+ *
+ * The alternative, generating a placeholder page per missing page-and-language
+ * pair, would multiply the artifact by the number of languages to say something
+ * the switcher can say in place.
  */
 export function buildLanguageOptions(
   set: PublishableSet,
   baseUrl: string,
   page: PublishablePage,
 ): LanguageOption[] {
-  if (!page.translationGroupId) return [];
-  const group = set.translationGroups.get(page.translationGroupId);
-  if (!group) return [];
+  const locales = publishedLocales(set);
+  if (locales.length < 2) return [];
 
-  return [...group.entries()]
-    .filter(([locale]) => locale !== page.locale)
-    .map(([locale, path]) => ({
-      locale,
-      href: pageAddress(baseUrl, path, locale, set.defaultLocale).href,
-    }))
-    .sort((a, b) => a.locale.localeCompare(b.locale));
+  const group = page.translationGroupId
+    ? set.translationGroups.get(page.translationGroupId)
+    : undefined;
+
+  return locales
+    .filter((locale) => locale !== page.locale)
+    .map((locale) => {
+      const translatedPath = group?.get(locale);
+      return translatedPath !== undefined
+        ? {
+            locale,
+            href: pageAddress(baseUrl, translatedPath, locale, set.defaultLocale).href,
+            available: true,
+          }
+        : { locale, href: localeHomeHref(baseUrl, locale, set.defaultLocale), available: false };
+    });
+}
+
+/** Home page address for one language. */
+export function localeHomeHref(
+  baseUrl: string,
+  locale: string,
+  defaultLocale: string,
+): string {
+  return pageAddress(baseUrl, '', locale === defaultLocale ? null : locale, defaultLocale).href;
 }
 
 /** Every locale that has at least one publishable page. */

@@ -83,6 +83,12 @@ describe('pageAddress', () => {
     expect(address.filePath).toBe('index.html');
     expect(address.href).toBe('/repo/');
   });
+
+  it('maps an empty path with a locale to that locale home, without a doubled slash', () => {
+    const address = pageAddress('https://owner.github.io/repo/', '', 'zh', 'en');
+    expect(address.filePath).toBe('zh/index.html');
+    expect(address.href).toBe('/repo/zh/');
+  });
 });
 
 describe('artifactHref', () => {

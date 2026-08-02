@@ -192,6 +192,46 @@ describe('artifact layout', () => {
     expect(zh).toContain('<html lang="zh">');
   });
 
+  it('does not repeat the site name in the home page title', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await snapshot(root);
+    const home = await readFile(join(root, 'index.html'), 'utf8');
+    expect(home).toContain('<title>Test Wiki</title>');
+  });
+
+  it('writes a home page per language so a language switch always lands somewhere', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en' });
+    await makePage({ spaceId: space, path: 'b', title: '乙', locale: 'zh' });
+
+    const root = await stage();
+    await snapshot(root);
+
+    // One per language, not one per page per language.
+    await expect(stat(join(root, 'index.html'))).resolves.toBeTruthy();
+    await expect(stat(join(root, 'zh', 'index.html'))).resolves.toBeTruthy();
+
+    const zhHome = await readFile(join(root, 'zh', 'index.html'), 'utf8');
+    expect(zhHome).toContain('<html lang="zh">');
+    expect(zhHome).toContain('/repo/zh/b/');
+  });
+
+  it('offers a language this page lacks, pointing at that language home', async () => {
+    // FR-025: a reader can only be told a translation is missing if the
+    // switcher shows the language at all.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'english-only', title: 'English Only', locale: 'en' });
+    await makePage({ spaceId: space, path: 'other', title: '其他', locale: 'zh' });
+
+    const root = await stage();
+    await snapshot(root);
+    const html = await readFile(join(root, 'english-only', 'index.html'), 'utf8');
+    expect(html).toContain('hreflang="zh"');
+    expect(html).toContain('href="/repo/zh/"');
+  });
+
   it('renders content through the wiki pipeline, keeping code and math markers', async () => {
     const space = await makeSpace('wiki');
     await makePage({

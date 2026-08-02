@@ -1399,6 +1399,7 @@ export const translationKeys = [
   "admin.staticSite.site.languages",
   "admin.staticSite.site.noResults",
   "admin.staticSite.site.notFound",
+  "admin.staticSite.site.translationMissing",
   "renderer.codeBlock.copy",
   "renderer.codeBlock.copied",
   "renderer.mermaid.diagramButton",

@@ -36,6 +36,8 @@ export type DocumentStrings = {
   toggleTheme: string;
   languages: string;
   noResults: string;
+  /** Shown on a language the current page has no version in. */
+  translationMissing: string;
 };
 
 export type RenderDocumentInput = {
@@ -128,17 +130,24 @@ function renderToc(headings: Heading[], label: string): string {
     </nav>`;
 }
 
-function renderLanguages(languages: LanguageOption[], label: string): string {
+function renderLanguages(
+  languages: LanguageOption[],
+  label: string,
+  missingLabel: string,
+): string {
   if (languages.length === 0) return '';
   const links = languages
-    .map(
-      (option) =>
-        `<a href="${escapeHtml(option.href)}" hreflang="${escapeHtml(
-          option.locale,
-        )}" class="rounded-sm px-xs py-xs text-xs text-muted hover:text-foreground">${escapeHtml(
-          option.locale.toUpperCase(),
-        )}</a>`,
-    )
+    .map((option) => {
+      // An unavailable language still links somewhere real — that language's
+      // home page — and says why, rather than being silently absent.
+      const title = option.available ? '' : ` title="${escapeHtml(missingLabel)}"`;
+      const classes = option.available
+        ? 'rounded-sm px-xs py-xs text-xs text-muted hover:text-foreground'
+        : 'rounded-sm px-xs py-xs text-xs text-muted/60 italic hover:text-foreground';
+      return `<a href="${escapeHtml(option.href)}" hreflang="${escapeHtml(
+        option.locale,
+      )}"${title} class="${classes}">${escapeHtml(option.locale.toUpperCase())}</a>`;
+    })
     .join('');
   return `<div class="flex items-center gap-xs" aria-label="${escapeHtml(label)}">${links}</div>`;
 }
@@ -169,7 +178,10 @@ export function renderDocument(input: RenderDocumentInput): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} · ${escapeHtml(strings.siteName)}</title>
+<title>${escapeHtml(
+  // The home page's title is the site name; suffixing it would repeat it.
+  title === strings.siteName ? title : `${title} · ${strings.siteName}`,
+)}</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
 <link rel="stylesheet" href="${asset(assets.stylesheet)}">
@@ -190,7 +202,7 @@ ${analyticsSnippet ?? ''}
       )}" data-label="${escapeHtml(strings.search)}" data-empty="${escapeHtml(
         strings.noResults,
       )}"></div>
-      ${renderLanguages(languages, strings.languages)}
+      ${renderLanguages(languages, strings.languages, strings.translationMissing)}
       <div data-static-site-theme data-label="${escapeHtml(strings.toggleTheme)}"></div>
     </div>
   </header>
@@ -223,7 +235,7 @@ ${analyticsSnippet ?? ''}
 
 /** Site home page: the published content tree and nothing else. */
 export function renderHomeDocument(
-  input: Omit<RenderDocumentInput, 'bodyHtml' | 'headings' | 'breadcrumbs' | 'languages'>,
+  input: Omit<RenderDocumentInput, 'bodyHtml' | 'headings' | 'breadcrumbs'>,
 ): string {
   return renderDocument({
     ...input,
@@ -232,7 +244,6 @@ export function renderHomeDocument(
     )}">${renderNavNodes(input.nav)}</nav>`,
     headings: [],
     breadcrumbs: [],
-    languages: [],
   });
 }
 
