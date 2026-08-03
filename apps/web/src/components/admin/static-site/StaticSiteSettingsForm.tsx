@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { githubPagesDefaultUrl, staticSiteCustomDomain } from '@next-wiki/shared';
 import type {
   StaticSiteProvider,
   StaticSiteTargetUpsertInput,
@@ -78,6 +79,17 @@ export function StaticSiteSettingsForm({ initial }: { initial: StaticSiteTargetV
     { method: 'PUT' },
   );
 
+  // The most damaging misconfiguration this feature has: a base address that
+  // does not match how the host serves the site publishes successfully and
+  // then resolves every link, image, and stylesheet against the wrong root.
+  const expectedBaseUrl = githubPagesDefaultUrl(remoteUrl);
+  const customDomain = staticSiteCustomDomain(baseUrl);
+  const baseUrlMismatch =
+    expectedBaseUrl !== null &&
+    baseUrl.trim() !== '' &&
+    customDomain === null &&
+    baseUrl.replace(/\/*$/, '/') !== expectedBaseUrl;
+
   const onSave = () => {
     setError(null);
     setMessage(null);
@@ -137,9 +149,31 @@ export function StaticSiteSettingsForm({ initial }: { initial: StaticSiteTargetV
             <Input
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://owner.github.io/repository/"
+              placeholder={expectedBaseUrl ?? 'https://owner.github.io/repository/'}
             />
           </Field>
+
+          {baseUrlMismatch && expectedBaseUrl ? (
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-sm">
+              <p className="text-xs text-foreground">
+                {t('admin.staticSite.baseUrlMismatch', {
+                  repo: remoteUrl,
+                  expected: expectedBaseUrl,
+                })}
+              </p>
+              <Button
+                variant="secondary"
+                className="mt-xs"
+                onClick={() => setBaseUrl(expectedBaseUrl)}
+              >
+                {t('admin.staticSite.baseUrlUseExpected', { expected: expectedBaseUrl })}
+              </Button>
+            </div>
+          ) : null}
+
+          {customDomain ? (
+            <p className="text-xs text-muted">{t('admin.staticSite.baseUrlCustomDomain')}</p>
+          ) : null}
 
           {/* Credentials are not configured here: Git export and publishing reach
               the same GitHub account, so the credential is set once under

@@ -1978,7 +1978,10 @@
       "provider": {
         "github_pages": "GitHub Pages"
       },
-      "credentialFromIntegration": "认证信息来自共享的 GitHub 集成，只需为所有访问 GitHub 的功能统一配置一次："
+      "credentialFromIntegration": "认证信息来自共享的 GitHub 集成，只需为所有访问 GitHub 的功能统一配置一次：",
+      "baseUrlMismatch": "该地址与 GitHub Pages 实际提供 {repo} 的方式不符。除非已配置自定义域名，否则应填写 {expected}——不匹配会导致站点上所有链接、图片和样式表都基于错误的根路径解析。",
+      "baseUrlCustomDomain": "将按自定义域名处理，会一并发布 CNAME 文件以便 GitHub Pages 继续为其服务；同时该域名的 DNS 需指向 GitHub Pages，且需在 GitHub Pages 中完成配置。",
+      "baseUrlUseExpected": "使用 {expected}"
     },
     "integrations": {
       "metadataTitle": "集成",

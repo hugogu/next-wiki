@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { gitBranchNameSchema, gitRemoteUrlSchema } from './content-storage';
+import { gitRepositoryIdentity, gitBranchNameSchema, gitRemoteUrlSchema } from './content-storage';
 
 // Static site publishing (031): a reader-facing HTML site of publicly readable
 // pages, delivered to a static host.
@@ -150,3 +150,45 @@ export type StaticSiteValidationResult = {
   message: string | null;
 };
 
+
+/**
+ * The address GitHub Pages serves a repository from by default.
+ *
+ * `owner/owner.github.io` is a user or organization site served at the domain
+ * root; anything else is a project site served under `/{repo}/`. Getting this
+ * wrong is the single most common way to end up with a site whose every link
+ * and stylesheet 404s, so it is derived rather than left to memory.
+ *
+ * Returns null when the remote is not a GitHub repository.
+ */
+export function githubPagesDefaultUrl(remoteUrl: string): string | null {
+  const identity = gitRepositoryIdentity(remoteUrl);
+  if (identity === null) return null;
+
+  const [host, owner, repo] = identity.split('/');
+  if (host !== 'github.com' || !owner || !repo) return null;
+
+  return repo === `${owner}.github.io`
+    ? `https://${owner}.github.io/`
+    : `https://${owner}.github.io/${repo}/`;
+}
+
+/**
+ * The custom domain a published site should claim, or null when it is served
+ * from the host's own domain.
+ *
+ * GitHub Pages reads this from a `CNAME` file in the served branch. Because a
+ * publish replaces that branch wholesale, the file has to be part of the
+ * artifact — otherwise the first publish silently clears a configured custom
+ * domain.
+ */
+export function staticSiteCustomDomain(baseUrl: string): string | null {
+  let host: string;
+  try {
+    host = new URL(baseUrl).hostname;
+  } catch {
+    return null;
+  }
+  if (host === '' || host.endsWith('.github.io') || host === 'localhost') return null;
+  return host;
+}

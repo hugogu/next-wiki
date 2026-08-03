@@ -141,6 +141,30 @@ describe('artifact layout', () => {
     expect(manifest.pagesPublished).toBe(2);
   });
 
+  it('publishes a CNAME for a custom domain, so a publish does not clear it', async () => {
+    // The branch is replaced wholesale on every publish; without this the file
+    // GitHub wrote when the domain was configured disappears.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await buildSnapshot({
+      rootDir: root,
+      baseUrl: 'https://docs.example.cn/',
+      siteName: 'Test Wiki',
+      themeCss: '',
+      skipSearchIndex: true,
+    });
+    expect((await readFile(join(root, 'CNAME'), 'utf8')).trim()).toBe('docs.example.cn');
+  });
+
+  it('writes no CNAME when served from the host default domain', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await snapshot(root);
+    await expect(stat(join(root, 'CNAME'))).rejects.toThrow();
+  });
+
   it('writes .nojekyll so the host serves files without building them', async () => {
     const space = await makeSpace('wiki');
     await makePage({ spaceId: space, path: 'a', title: 'A' });

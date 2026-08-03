@@ -1978,7 +1978,10 @@
       "provider": {
         "github_pages": "GitHub Pages"
       },
-      "credentialFromIntegration": "Authentication comes from the shared GitHub integration, so it is configured once for every feature that reaches GitHub:"
+      "credentialFromIntegration": "Authentication comes from the shared GitHub integration, so it is configured once for every feature that reaches GitHub:",
+      "baseUrlMismatch": "This does not match how GitHub Pages serves {repo}. Unless you have set up a custom domain, the address should be {expected} — a mismatch makes every link, image, and stylesheet on the published site resolve against the wrong root.",
+      "baseUrlCustomDomain": "Treated as a custom domain. A CNAME file is published so GitHub Pages keeps serving it; the domain must also point at GitHub Pages in DNS, and GitHub Pages must have it configured.",
+      "baseUrlUseExpected": "Use {expected}"
     },
     "integrations": {
       "metadataTitle": "Integrations",

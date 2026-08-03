@@ -1,6 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { staticSiteBasePath, type StaticSiteExclusionCounts } from '@next-wiki/shared';
+import {
+  staticSiteBasePath,
+  staticSiteCustomDomain,
+  type StaticSiteExclusionCounts,
+} from '@next-wiki/shared';
 import { renderMarkdown } from '@/server/pipeline';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
@@ -271,6 +275,17 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   // what makes "no build step performed by the host" literally true — and stops
   // paths beginning with an underscore from being dropped.
   documents.push({ filePath: '.nojekyll', bytes: await write(rootDir, '.nojekyll', '') });
+
+  // A custom domain is claimed by a file in the served branch. Since a publish
+  // replaces that branch wholesale, omitting it would clear the domain the host
+  // had configured — silently, on the first publish.
+  const customDomain = staticSiteCustomDomain(baseUrl);
+  if (customDomain) {
+    documents.push({
+      filePath: 'CNAME',
+      bytes: await write(rootDir, 'CNAME', `${customDomain}\n`),
+    });
+  }
 
   // Runs last, over the finished HTML: the index is derived from the artifact
   // itself, which is what makes it inherit the content filter.
