@@ -234,14 +234,45 @@ ${analyticsSnippet ?? ''}
 }
 
 /** Site home page: the published content tree and nothing else. */
+/**
+ * Site home page.
+ *
+ * On a multilingual site this lists every language's tree, not just the
+ * document's own. A wiki whose content is mostly in one language but whose
+ * default locale is another would otherwise open on a nearly empty page, with
+ * the actual content reachable only by noticing a two-letter language link —
+ * the site would look like it published almost nothing.
+ *
+ * Sections are ordered by size, so the language a reader is most likely to want
+ * comes first. A single-language site renders exactly as before, with no
+ * section heading.
+ */
 export function renderHomeDocument(
-  input: Omit<RenderDocumentInput, 'bodyHtml' | 'headings' | 'breadcrumbs'>,
+  input: Omit<RenderDocumentInput, 'bodyHtml' | 'headings' | 'breadcrumbs'> & {
+    /** Every published language's tree, largest first. */
+    localeSections?: { locale: string; label: string; count: number; nav: NavNode[] }[];
+  },
 ): string {
+  const sections = input.localeSections ?? [];
+  const body =
+    sections.length > 1
+      ? sections
+          .map(
+            (section) =>
+              `<section><h2>${escapeHtml(section.label)} <span class="text-sm font-normal text-muted">(${
+                section.count
+              })</span></h2><nav aria-label="${escapeHtml(section.label)}">${renderNavNodes(
+                section.nav,
+              )}</nav></section>`,
+          )
+          .join('')
+      : `<nav aria-label="${escapeHtml(input.strings.home)}">${renderNavNodes(
+          sections[0]?.nav ?? input.nav,
+        )}</nav>`;
+
   return renderDocument({
     ...input,
-    bodyHtml: `<h1>${escapeHtml(input.title)}</h1><nav aria-label="${escapeHtml(
-      input.strings.home,
-    )}">${renderNavNodes(input.nav)}</nav>`,
+    bodyHtml: `<h1>${escapeHtml(input.title)}</h1>${body}`,
     headings: [],
     breadcrumbs: [],
   });

@@ -221,6 +221,18 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
     analyticsSnippet,
   };
 
+  // Every language's tree, largest first, for the site root. A wiki whose
+  // content is mostly in one language but whose default locale is another would
+  // otherwise open on a nearly empty page.
+  const localeSections = locales
+    .map((locale) => ({
+      locale,
+      label: new Intl.DisplayNames([locale], { type: 'language' }).of(locale) ?? locale,
+      count: set.pages.filter((page) => page.locale === locale).length,
+      nav: buildNavTree(set, baseUrl, locale),
+    }))
+    .sort((a, b) => b.count - a.count);
+
   // One home page per language. A reader switching to a language this page has
   // no version in lands on that language's tree rather than on nothing, and it
   // costs one page per language rather than one per page per language.
@@ -230,7 +242,10 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
     const localeShell = {
       ...shell,
       locale,
-      nav: buildNavTree(set, baseUrl, locale),
+      // No sidebar on a home page: its body already is the navigation, and a
+      // sidebar showing only one language would suggest the site holds less
+      // than it does.
+      nav: [],
       strings: stringsFor(locale, siteName),
       canonicalUrl: `${origin}${localeHomeHref(baseUrl, locale, set.defaultLocale)}`,
       languages: locales
@@ -246,7 +261,16 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
       bytes: await write(
         rootDir,
         filePath,
-        renderHomeDocument({ ...localeShell, title: siteName, description: siteName }),
+        renderHomeDocument({
+          ...localeShell,
+          title: siteName,
+          description: siteName,
+          // The site root surveys every language; a language's own home page
+          // shows just that language.
+          localeSections: isDefault
+            ? localeSections
+            : localeSections.filter((section) => section.locale === locale),
+        }),
       ),
     });
   }

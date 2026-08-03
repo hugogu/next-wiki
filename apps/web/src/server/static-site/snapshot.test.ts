@@ -225,6 +225,57 @@ describe('artifact layout', () => {
     expect(home).toContain('<title>Test Wiki</title>');
   });
 
+  it('surveys every language from the site root, not just the default one', async () => {
+    // A wiki whose content is mostly in one language but whose default locale
+    // is another would otherwise open on a nearly empty page, with the real
+    // content reachable only by noticing a two-letter language link.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'lone-english', title: 'Lone English', locale: 'en' });
+    for (const path of ['a', 'b', 'c']) {
+      await makePage({ spaceId: space, path, title: `中文-${path}`, locale: 'zh' });
+    }
+
+    const root = await stage();
+    await snapshot(root);
+    const home = await readFile(join(root, 'index.html'), 'utf8');
+
+    // Both trees are present, and the larger language leads. Compared by
+    // section heading rather than by link, since the sidebar also carries the
+    // default language's tree earlier in the document.
+    expect(home).toContain('/repo/zh/a/');
+    expect(home).toContain('/repo/lone-english/');
+    const headings = [...home.matchAll(/<section><h2>([^<]+)/g)].map((m) => m[1]!.trim());
+    expect(headings).toHaveLength(2);
+    expect(headings[0]).toBe('中文');
+  });
+
+  it('does not repeat navigation in a sidebar on the home page', async () => {
+    // The body is the navigation there; a sidebar carrying one language would
+    // suggest the site holds less than it does.
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    const root = await stage();
+    await snapshot(root);
+
+    const home = await readFile(join(root, 'index.html'), 'utf8');
+    const page = await readFile(join(root, 'a', 'index.html'), 'utf8');
+    // The page keeps its sidebar; the home page's is empty.
+    expect(page).toMatch(/<aside[^>]*>\s*<ul/);
+    expect(home).not.toMatch(/<aside[^>]*>\s*<ul/);
+  });
+
+  it('shows only its own language on a per-language home page', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'english', title: 'English', locale: 'en' });
+    await makePage({ spaceId: space, path: 'chinese', title: '中文', locale: 'zh' });
+
+    const root = await stage();
+    await snapshot(root);
+    const zhHome = await readFile(join(root, 'zh', 'index.html'), 'utf8');
+    expect(zhHome).toContain('/repo/zh/chinese/');
+    expect(zhHome).not.toContain('/repo/english/');
+  });
+
   it('writes a home page per language so a language switch always lands somewhere', async () => {
     const space = await makeSpace('wiki');
     await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en' });
