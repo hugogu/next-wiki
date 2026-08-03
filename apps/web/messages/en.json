@@ -1962,6 +1962,19 @@
       "takedownQueued": "Takedown queued. The public site will stop serving shortly.",
       "excluded": "Excluded",
       "excludedByReason": "Withheld by reason",
+      "eligibility": {
+        "title": "Publish eligibility",
+        "publishable": "Pages to publish",
+        "excluded": "Pages withheld",
+        "loading": "Loading eligibility…",
+        "error": "The eligibility summary could not be loaded.",
+        "runExclusions": "Exclusions for this run",
+        "noExclusions": "No pages were excluded.",
+        "withholdingRaw": "Raw-capture pages are withheld from the public site.",
+        "withholdingGenerated": "Generated-knowledge pages are withheld from the public site.",
+        "openRaw": "Open raw space in wiki",
+        "openGenerated": "Open generated space in wiki"
+      },
       "reason": {
         "not_published": "No published revision",
         "deleted": "Deleted",

@@ -13,7 +13,7 @@ import { artifactHref, normalizePathSegments, pageAddress } from './paths';
  */
 
 const HREF_PATTERN = /<a\b([^>]*?)href\s*=\s*(["'])(.*?)\2([^>]*)>([\s\S]*?)<\/a>/gi;
-const ASSET_URL_PATTERN = /\/api\/assets\/([0-9a-f-]{36})/gi;
+const ASSET_URL_PATTERN = /\/api\/(?:v1\/)?assets\/([0-9a-f-]{36})(?:\/content)?/gi;
 
 /** Protocols that are not internal wiki references and are left untouched. */
 const EXTERNAL_PREFIX = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#|mailto:|tel:)/i;

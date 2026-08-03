@@ -4,7 +4,7 @@ import nextTypescript from 'eslint-config-next/typescript';
 
 const config = [
   {
-    ignores: ['node_modules/', 'dist/', 'build/', '.next/', '.next-e2e/', 'out/', 'coverage/', 'e2e/', '*.min.js'],
+    ignores: ['node_modules/', 'dist/', 'build/', '.next/', '.next-e2e/', 'out/', 'coverage/', 'e2e/', 'public/static-site/', '*.min.js'],
   },
   ...next,
   ...nextTypescript,

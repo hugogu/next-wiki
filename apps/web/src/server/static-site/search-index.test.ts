@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildSearchIndex, SearchIndexError } from './search-index';
+import { buildSearchIndex, chooseSearchLanguage, SearchIndexError } from './search-index';
 
 /**
  * Pagefind indexes the generated HTML directory, so these tests operate on a
@@ -77,6 +77,20 @@ describe('buildSearchIndex', () => {
     expect(fragments).not.toContain('chrome');
   }, 120_000);
 
+  it('can force a multilingual site into a single-language index', async () => {
+    const dir = await artifact([
+      { path: 'en', lang: 'en', title: 'English', body: '<p>English content.</p>' },
+      { path: 'zh', lang: 'zh', title: '中文页面', body: '<p>这是中文内容，用于验证分词。</p>' },
+    ]);
+
+    await buildSearchIndex(dir, { forceLanguage: 'zh' });
+    const entry = JSON.parse(await readFile(join(dir, 'pagefind', 'pagefind-entry.json'), 'utf8'));
+    // A unified index collapses every page into one partition so readers on any
+    // language page can find pages published in any other language.
+    expect(Object.keys(entry.languages)).toEqual(['zh']);
+    expect(entry.languages.zh.page_count).toBe(2);
+  }, 120_000);
+
   it('fails loudly when the binary cannot be found', async () => {
     // A publish that quietly skipped indexing would ship a site whose search
     // box finds nothing, and the operator would never learn about it.
@@ -94,4 +108,27 @@ describe('buildSearchIndex', () => {
       else process.env.PAGEFIND_BINARY = previous;
     }
   }, 120_000);
+});
+
+describe('chooseSearchLanguage', () => {
+  it('leaves single-language sites on their default partition', () => {
+    expect(chooseSearchLanguage(['en'])).toBeUndefined();
+  });
+
+  it('prefers a language that needs word segmentation for a unified index', () => {
+    // Forcing a whitespace-delimited language would leave CJK text unsegmented
+    // and break Chinese/Japanese/Thai search, so the heuristic picks the
+    // segmenting language even if it is not the first locale alphabetically.
+    expect(chooseSearchLanguage(['en', 'zh'])).toBe('zh');
+    expect(chooseSearchLanguage(['fr', 'ja'])).toBe('ja');
+    expect(chooseSearchLanguage(['en', 'th', 'de'])).toBe('th');
+  });
+
+  it('falls back to the first locale when no language needs segmentation', () => {
+    expect(chooseSearchLanguage(['en', 'fr'])).toBe('en');
+  });
+
+  it('matches sub-locale tags against the segmentation list', () => {
+    expect(chooseSearchLanguage(['en', 'zh-CN'])).toBe('zh-CN');
+  });
 });

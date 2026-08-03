@@ -14,7 +14,7 @@ import { buildPublishableSet, type PublishableSet } from './eligibility';
 import { describeConflict, findPathConflicts, pageAddress } from './paths';
 import { rewriteAssetUrls, rewriteLinks } from './links';
 import { exportAssets } from './assets';
-import { buildSearchIndex } from './search-index';
+import { buildSearchIndex, chooseSearchLanguage } from './search-index';
 import { markNonIndexableContent } from './indexing';
 import {
   renderDocument,
@@ -155,6 +155,9 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   let linksDowngraded = 0;
   const unresolvedAssets = new Set<string>();
 
+  const locales = publishedLocales(set);
+  const searchLanguage = chooseSearchLanguage(locales);
+
   for (const page of set.pages) {
     // Read from the authoritative database: a publish must not stall on a slow
     // read-preferred replica, and the published source always lives in the DB.
@@ -197,6 +200,7 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
       canonicalUrl: `${origin}${address.href}`,
       description: summarize(bodyHtml),
       analyticsSnippet,
+      searchLanguage,
     });
     documents.push({
       filePath: address.filePath,
@@ -208,7 +212,6 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   // to the wiki, breaking FR-020's self-containment guarantee.
   if (unresolvedAssets.size > 0) throw new UnresolvedAssetError([...unresolvedAssets]);
 
-  const locales = publishedLocales(set);
   const homeLocale = locales.includes(set.defaultLocale) ? set.defaultLocale : locales[0]!;
   const shell = {
     locale: homeLocale,
@@ -255,6 +258,7 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
           href: localeHomeHref(baseUrl, other, set.defaultLocale),
           available: true,
         })),
+      searchLanguage,
     };
     documents.push({
       filePath,
@@ -282,7 +286,7 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
       rootDir,
       '404.html',
       renderNotFoundDocument(
-        { ...shell, title: notFoundStrings.home, description: '' },
+        { ...shell, title: notFoundStrings.home, description: '', searchLanguage },
         getDictionary(isLocale(homeLocale) ? homeLocale : defaultLocale)(
           'admin.staticSite.site.notFound',
         ),
@@ -313,7 +317,7 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
 
   // Runs last, over the finished HTML: the index is derived from the artifact
   // itself, which is what makes it inherit the content filter.
-  if (!options.skipSearchIndex) await buildSearchIndex(rootDir);
+  if (!options.skipSearchIndex) await buildSearchIndex(rootDir, { forceLanguage: searchLanguage });
 
   const totalBytes = documents.reduce((sum, doc) => sum + doc.bytes, 0) + assets.bytes;
   const largestFileBytes = documents.reduce((max, doc) => Math.max(max, doc.bytes), 0);

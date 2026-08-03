@@ -14,11 +14,11 @@ import { Input } from '@/components/ui/Input';
  * shareable and survives back/forward — the same contract the app's own
  * surfaces keep.
  *
- * Known limitation on multilingual sites: Pagefind partitions its index by the
- * document's `lang`, and a search covers the language of the page the reader is
- * on. So a reader on an English page finds English pages, and the same for
- * Chinese. Single-language sites — the common case — are unaffected. Merging
- * the partitions is tracked as its own task rather than guessed at here.
+ * On a multilingual site the index is forced to a single language at publish
+ * time so every page is searchable from every language page. The shell passes
+ * that language through `data-search-language` and the panel loads Pagefind
+ * with it explicitly. Single-language sites use the default behavior and keep
+ * language-specific stemming.
  */
 
 type PagefindResultData = {
@@ -33,6 +33,7 @@ type PagefindApi = {
   init?: () => Promise<void>;
   options?: (opts: Record<string, unknown>) => Promise<void>;
   search: (query: string) => Promise<{ results: PagefindResult[] }>;
+  createInstance?: (opts: Record<string, unknown>) => PagefindApi;
 };
 
 export type SearchPanelStrings = {
@@ -57,20 +58,33 @@ function initialQuery(): string {
  * The path is built at runtime so the bundler leaves it alone: the index does
  * not exist at build time, and its location depends on the base path the site
  * is served from.
+ *
+ * On a multilingual site we create a dedicated instance configured for the
+ * forced index language, because Pagefind otherwise picks the page's own
+ * `lang` and would look for a missing language partition.
  */
-async function loadPagefind(basePath: string): Promise<PagefindApi> {
+async function loadPagefind(basePath: string, searchLanguage?: string): Promise<PagefindApi> {
   const url = `${basePath}pagefind/pagefind.js`;
-  const api = (await import(/* webpackIgnore: true */ /* @vite-ignore */ url)) as PagefindApi;
-  await api.init?.();
-  return api;
+  const module_ = (await import(/* webpackIgnore: true */ /* @vite-ignore */ url)) as PagefindApi;
+
+  if (searchLanguage && module_.createInstance) {
+    const api = module_.createInstance({ language: searchLanguage });
+    await api.init?.();
+    return api;
+  }
+
+  await module_.init?.();
+  return module_;
 }
 
 export function SearchPanel({
   basePath,
   strings,
+  searchLanguage,
 }: {
   basePath: string;
   strings: SearchPanelStrings;
+  searchLanguage?: string;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<PagefindResultData[] | null>(null);
@@ -89,7 +103,7 @@ export function SearchPanel({
       try {
         // Loaded on first use rather than on page load, so a reader who never
         // searches never downloads the index entry point.
-        apiRef.current ??= await loadPagefind(basePath);
+        apiRef.current ??= await loadPagefind(basePath, searchLanguage);
         const search = await apiRef.current.search(value);
         const data = await Promise.all(
           search.results.slice(0, MAX_RESULTS).map((result) => result.data()),
@@ -101,7 +115,7 @@ export function SearchPanel({
         setLoading(false);
       }
     },
-    [basePath],
+    [basePath, searchLanguage],
   );
 
   useEffect(() => {

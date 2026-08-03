@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import {
   staticSiteTargetUpsertSchema,
@@ -6,13 +9,15 @@ import {
   type StaticSitePublicationView,
   type StaticSiteTargetUpsertInput,
   type StaticSiteTargetView,
+  type StaticSiteValidationResult,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { findIntegration } from './integrations';
+import { findIntegration, resolveCredential } from './integrations';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
+import { buildGitEnvironment, git } from '@/server/git/transport';
 
 type TargetRow = typeof schema.staticSiteTargets.$inferSelect;
 type PublicationRow = typeof schema.staticSitePublications.$inferSelect;
@@ -159,6 +164,108 @@ export async function deleteTarget(ctx: PermCtx): Promise<void> {
   // silently unpublish. The credential is not destroyed here either — it belongs
   // to the integration and other features may still be using it.
   await db.delete(schema.staticSiteTargets).where(eq(schema.staticSiteTargets.id, target.id));
+}
+
+/**
+ * Dry-run connectivity and write-permission check against the configured target.
+ *
+ * Reads the target from the database and the credential from the shared GitHub
+ * integration, then performs the same `git fetch` + write-probe that a publish
+ * will. The probe creates and immediately deletes a throwaway reference under
+ * `refs/meta/next-wiki-validation/` so a successful run leaves no trace on the
+ * remote and the access check covers both connectivity and push permission.
+ *
+ * Returns a result that is safe to surface in the admin UI: the message has any
+ * stored secret and URL userinfo stripped before it leaves the service.
+ */
+export async function validateTarget(ctx: PermCtx): Promise<StaticSiteValidationResult> {
+  assertCanManageStaticSite(ctx);
+  const target = await findTarget();
+  if (!target) {
+    throw new DomainError('BAD_REQUEST', 'Static site publishing is not configured');
+  }
+  const credential = await resolveCredential('github');
+  if (!credential) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      'The GitHub integration is not configured, so there is no credential to validate with',
+    );
+  }
+
+  const temp = await mkdtemp(join(tmpdir(), 'next-wiki-static-site-validate-'));
+  const checkout = join(temp, 'repository');
+  // A throwaway ref in the `refs/meta/` namespace, which GitHub Pages hosts will
+  // reject — so a successful push of this ref proves the credential can write
+  // arbitrary refs, which is what a publish actually needs.
+  const probeRef = `refs/meta/next-wiki-validation/${Date.now()}`;
+  try {
+    await git(checkout, ['init'], { ...process.env, GIT_TERMINAL_PROMPT: '0' });
+    const env = await buildGitEnvironment(
+      temp,
+      credential.authMode,
+      credential.username ?? undefined,
+      credential.secret,
+    );
+    await git(checkout, ['remote', 'add', 'origin', target.remoteUrl], env);
+    try {
+      await git(checkout, ['fetch', '--depth=1', 'origin', target.branch], env);
+    } catch (fetchError) {
+      const raw = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      // The branch may not exist yet — a first publish creates it. Connectivity
+      // failures, however, are a real validation failure and should surface.
+      if (!/could not find remote ref/i.test(raw)) {
+        return {
+          ok: false,
+          message: redactValidationMessage(raw, credential.secret),
+        };
+      }
+    }
+
+    // Write-permission probe: push a throwaway ref and immediately delete it.
+    // `git push` accepts `src:dst` and `src` in one invocation, so a single
+    // round trip covers both create and delete.
+    try {
+      await git(
+        checkout,
+        ['push', 'origin', `${probeRef}:${probeRef}`, `:${probeRef}`],
+        env,
+      );
+    } catch (pushError) {
+      const raw =
+        pushError instanceof Error
+          ? pushError.message
+          : String(pushError);
+      return {
+        ok: false,
+        message: redactValidationMessage(raw, credential.secret),
+      };
+    }
+
+    return { ok: true, message: null };
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      message: redactValidationMessage(raw, credential.secret),
+    };
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Strip credential material from a validation message before it leaves the
+ * service. The shared integration's secret is removed verbatim and any URL
+ * userinfo (which git echoes on auth failure) is collapsed, so the admin UI
+ * never displays a token by accident.
+ */
+function redactValidationMessage(message: string, secret: string): string {
+  let output = message;
+  if (secret.length >= 8) {
+    output = output.split(secret).join('[redacted]');
+  }
+  output = output.replace(/(\w+:\/\/)[^/\s@]*@/g, '$1[redacted]@');
+  return output;
 }
 
 /**

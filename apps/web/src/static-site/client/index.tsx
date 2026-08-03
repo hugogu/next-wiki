@@ -156,7 +156,10 @@ function hydrateSearch(): void {
       placeholder: element.dataset.placeholder ?? '',
       noResults: element.dataset.empty ?? '',
     };
-    addIsland(element, () => <SearchPanel basePath={basePath} strings={strings} />);
+    const searchLanguage = element.dataset.searchLanguage;
+    addIsland(element, () => (
+      <SearchPanel basePath={basePath} strings={strings} searchLanguage={searchLanguage} />
+    ));
   });
 }
 

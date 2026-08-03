@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { githubPagesDefaultUrl, staticSiteCustomDomain } from '@next-wiki/shared';
-import type {
-  StaticSiteProvider,
-  StaticSiteTargetUpsertInput,
-  StaticSiteTargetView,
+import {
+  githubPagesDefaultUrl,
+  staticSiteCustomDomain,
+  type StaticSiteProvider,
+  type StaticSiteTargetUpsertInput,
+  type StaticSiteTargetView,
 } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';

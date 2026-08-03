@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+
+REPO_FILE=/tmp/next-wiki-static-site-repo
+
+if [ ! -f "$REPO_FILE" ]; then
+  echo "ssh-wrapper: repo file not found: $REPO_FILE" >&2
+  exit 1
+fi
+
+repo_path=$(cat "$REPO_FILE")
+if [ -z "$repo_path" ]; then
+  echo "ssh-wrapper: repo path is empty" >&2
+  exit 1
+fi
+
+# Git invokes the ssh command like:
+#   ssh -i <key> -o ... git@host git-receive-pack '/path/to/repo.git'
+# The last argument is either the quoted command line or the remote repo path.
+cmd_line="$*"
+last2=$(printf '%s\n' "$cmd_line" | awk '{print $(NF-1)}')
+last1=$(printf '%s\n' "$cmd_line" | awk '{print $NF}')
+
+if [ "$last2" = "git-receive-pack" ] || [ "$last2" = "git-upload-pack" ]; then
+  exec "$last2" "$repo_path"
+fi
+
+cmd_name=$(printf '%s\n' "$last1" | awk '{print $1}')
+if [ "$cmd_name" = "git-receive-pack" ] || [ "$cmd_name" = "git-upload-pack" ]; then
+  exec "$cmd_name" "$repo_path"
+fi
+
+echo "ssh-wrapper: could not parse command from: $cmd_line" >&2
+exit 1

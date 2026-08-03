@@ -1962,6 +1962,19 @@
       "takedownQueued": "下线任务已排队，公开站点稍后将停止服务。",
       "excluded": "已排除",
       "excludedByReason": "按原因统计的排除项",
+      "eligibility": {
+        "title": "发布资格",
+        "publishable": "将发布的页面",
+        "excluded": "暂不发布的页面",
+        "loading": "正在加载发布资格…",
+        "error": "无法加载发布资格摘要。",
+        "runExclusions": "本次运行的排除项",
+        "noExclusions": "没有页面被排除。",
+        "withholdingRaw": "原始捕获页面不会发布到公开站点。",
+        "withholdingGenerated": "生成知识页面不会发布到公开站点。",
+        "openRaw": "在 wiki 中打开原始空间",
+        "openGenerated": "在 wiki 中打开生成空间"
+      },
       "reason": {
         "not_published": "无已发布修订",
         "deleted": "已删除",

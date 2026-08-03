@@ -216,6 +216,38 @@ describe('artifact layout', () => {
     expect(zh).toContain('<html lang="zh">');
   });
 
+  it('tags every page with the unified search language on multilingual sites', async () => {
+    const space = await makeSpace('wiki');
+    const group = randomUUID();
+    await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en', translationGroupId: group });
+    await makePage({ spaceId: space, path: 'a', title: '甲', locale: 'zh', translationGroupId: group });
+
+    const root = await stage();
+    await snapshot(root);
+
+    const en = await readFile(join(root, 'a', 'index.html'), 'utf8');
+    const zh = await readFile(join(root, 'zh', 'a', 'index.html'), 'utf8');
+    const home = await readFile(join(root, 'index.html'), 'utf8');
+    const notFound = await readFile(join(root, '404.html'), 'utf8');
+
+    // The forced index language is Chinese, so a reader on the English page
+    // still loads the Chinese partition and searches every page.
+    for (const html of [en, zh, home, notFound]) {
+      expect(html).toContain('data-search-language="zh"');
+    }
+  });
+
+  it('does not tag a single-language site with a forced search language', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en' });
+
+    const root = await stage();
+    await snapshot(root);
+
+    const page = await readFile(join(root, 'a', 'index.html'), 'utf8');
+    expect(page).not.toContain('data-search-language');
+  });
+
   it('does not repeat the site name in the home page title', async () => {
     const space = await makeSpace('wiki');
     await makePage({ spaceId: space, path: 'a', title: 'A' });

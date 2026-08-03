@@ -62,6 +62,11 @@ export type RenderDocumentInput = {
   analyticsSnippet?: string | null;
   /** False for synthetic pages that should never be a search result. */
   indexable?: boolean;
+  /** Language Pagefind should use for this site's search index. On multilingual
+   *  sites the index is forced to a single language so all pages are searchable
+   *  from any page; the shell passes this through so the client loads that
+   *  language rather than the page's own. */
+  searchLanguage?: string;
 };
 
 export function escapeHtml(value: string): string {
@@ -174,6 +179,7 @@ export function renderDocument(input: RenderDocumentInput): string {
     description,
     analyticsSnippet,
     indexable = true,
+    searchLanguage,
   } = input;
 
   const asset = (path: string) => escapeHtml(`${basePath}${path}`);
@@ -206,7 +212,7 @@ ${analyticsSnippet ?? ''}
         strings.searchPlaceholder,
       )}" data-label="${escapeHtml(strings.search)}" data-empty="${escapeHtml(
         strings.noResults,
-      )}"></div>
+      )}"${searchLanguage ? ` data-search-language="${escapeHtml(searchLanguage)}"` : ''}></div>
       ${renderLanguages(languages, strings.languages, strings.translationMissing)}
       <div data-static-site-theme data-label="${escapeHtml(strings.toggleTheme)}"></div>
     </div>

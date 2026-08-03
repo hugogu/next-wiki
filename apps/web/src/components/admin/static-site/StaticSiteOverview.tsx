@@ -15,6 +15,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { apiGet, useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import { TakedownDialog } from './TakedownDialog';
+import { EligibilitySummary } from './EligibilitySummary';
 import { RUNNING_STATES } from './PublishHistory';
 
 function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -172,6 +173,8 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
           </Link>
         </p>
       </section>
+
+      <EligibilitySummary run={lastRun} />
 
       {lastRun ? (
         <section className="space-y-sm">

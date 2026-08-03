@@ -123,7 +123,7 @@ guarantees (link downgrade, asset scoping, exclusion reporting) and the proof.
 
 - [X] T090 [US1] **Empty-set guard**: abort the run in `apps/web/src/server/static-site/snapshot.ts` when the publishable set is empty, failing with an explicit reason instead of delivering an empty tree. Without this, FR-004's full-replacement semantics turn one bad eligibility result into a silently wiped public site. Must land before T031 delivers anything
 - [X] T091 [P] [US1] Add the empty-set and credential-failure cases to `apps/web/src/server/jobs/static-site-publish.test.ts`, asserting the previous delivery survives both
-- [ ] T092 [US1] **Target validation**: add `POST apps/web/app/api/static-site/target/validation/route.ts` performing a dry-run connectivity and write-permission check, and surface it in `TargetForm.tsx`. Spec US1 scenario 2 begins "Given a validated target" and is untestable without it
+- [X] T092 [US1] **Target validation**: add `POST apps/web/app/api/static-site/target/validation/route.ts` performing a dry-run connectivity and write-permission check, and surface it in `TargetForm.tsx`. Spec US1 scenario 2 begins "Given a validated target" and is untestable without it
 
 **Checkpoint**: a published site exists and is browsable. MVP.
 
@@ -140,8 +140,8 @@ scan every byte for excluded titles, paths, and asset ids.
 
 ### Tests for User Story 2
 
-- [ ] T037 [US2] Write the release-blocking leak test in `apps/web/src/server/static-site/disclosure.test.ts`: seed the mixed fixture, generate a snapshot, and scan every file in the artifact for each excluded page's title, path, excerpt, and asset id — **and for credential material**, closing FR-034's artifact clause. **A failure here is a release blocker, never a test to adjust.**
-- [ ] T038 [P] [US2] Write `apps/web/src/server/static-site/links.test.ts` asserting that links to ineligible pages become plain text carrying no address, and that links to eligible pages resolve correctly under both root and sub-path base paths
+- [X] T037 [US2] Write the release-blocking leak test in `apps/web/src/server/static-site/disclosure.test.ts`: seed the mixed fixture, generate a snapshot, and scan every file in the artifact for each excluded page's title, path, excerpt, and asset id — **and for credential material**, closing FR-034's artifact clause. **A failure here is a release blocker, never a test to adjust.**
+- [X] T038 [P] [US2] Write `apps/web/src/server/static-site/links.test.ts` asserting that links to ineligible pages become plain text carrying no address, and that links to eligible pages resolve correctly under both root and sub-path base paths
 
 ### Implementation for User Story 2
 
@@ -149,8 +149,8 @@ scan every byte for excluded titles, paths, and asset ids.
 - [X] T040 [US2] Wire link rewriting into `apps/web/src/server/static-site/snapshot.ts` so every document passes through it
 - [X] T041 [P] [US2] Implement `GET apps/web/app/api/static-site/eligibility/route.ts` returning counts and exclusion reasons only — never titles or paths
 - [X] T042 [P] [US2] Persist `exclusion_summary` counts on each run record in `apps/web/src/server/jobs/static-site-publish.ts`
-- [ ] T043 [US2] Show the pre-publish summary and per-run exclusions grouped by reason in `apps/web/src/components/admin/static-site/EligibilitySummary.tsx`, including the space-kind withholding notice required by FR-014 with a link back into the wiki
-- [ ] T044 [P] [US2] Add `apps/web/app/api/static-site/eligibility/route.test.ts` asserting the response carries counts only and is admin-only
+- [X] T043 [US2] Show the pre-publish summary and per-run exclusions grouped by reason in `apps/web/src/components/admin/static-site/EligibilitySummary.tsx`, including the space-kind withholding notice required by FR-014 with a link back into the wiki
+- [X] T044 [P] [US2] Add `apps/web/app/api/static-site/eligibility/route.test.ts` asserting the response carries counts only and is admin-only
 
 **Checkpoint**: non-disclosure is asserted mechanically, not by inspection.
 
@@ -166,8 +166,8 @@ then browse with the wiki stopped and confirm nothing fails to load.
 
 ### Tests for User Story 3
 
-- [ ] T045 [P] [US3] Write `apps/web/src/server/static-site/document.test.ts` asserting the shell contains no edit, AI, admin, account, or sign-in affordance, and that every `href`/`src` it generates resolves inside the artifact
-- [ ] T046 [P] [US3] Write `apps/web/scripts/build-static-site-assets.test.mjs` asserting the built CSS and JS exist, are content-hashed, and that the CSS references no absolute external URL
+- [X] T045 [P] [US3] Write `apps/web/src/server/static-site/document.test.ts` asserting the shell contains no edit, AI, admin, account, or sign-in affordance, and that every `href`/`src` it generates resolves inside the artifact
+- [X] T046 [P] [US3] Write `apps/web/scripts/build-static-site-assets.test.mjs` asserting the built CSS and JS exist, are content-hashed, and that the CSS references no absolute external URL
 
 ### Implementation for User Story 3
 
@@ -178,9 +178,9 @@ then browse with the wiki stopped and confirm nothing fails to load.
 - [X] T051 [P] [US3] Render the in-page table of contents from `extractHeadings()` and the breadcrumb trail in `document.tsx`, reusing the reader's own components
 - [X] T052 [US3] Copy the built assets into every snapshot under the reserved `_static/` prefix in `apps/web/src/server/static-site/snapshot.ts`
 - [X] T053 [US3] Style `404.html` consistently with the site and give it links to the home page and search
-- [ ] T054 [US3] Add `apps/web/e2e/static-site-artifact.spec.ts` serving a generated snapshot from a plain static file server **with the wiki stopped**, asserting navigation, anchor jumps, dark-mode persistence, and that code, math, diagrams, and images all render
-- [ ] T093 [US3] **Rendering parity check** (gap from `/speckit.analyze`): add `apps/web/src/server/static-site/parity.test.ts` comparing the static document's body against the reader's output for the same revision, so SC-003's 100% claim is asserted rather than eyeballed
-- [ ] T094 [P] [US3] **Dead-link scan** (gap from `/speckit.analyze`): assert every internal `href` in a generated snapshot resolves to a file in the artifact, covering SC-004's zero-dead-link claim
+- [X] T054 [US3] Add `apps/web/e2e/static-site-artifact.spec.ts` serving a generated snapshot from a plain static file server **with the wiki stopped**, asserting navigation, anchor jumps, dark-mode persistence, and that code, math, diagrams, and images all render
+- [X] T093 [US3] **Rendering parity check** (gap from `/speckit.analyze`): add `apps/web/src/server/static-site/parity.test.ts` comparing the static document's body against the reader's output for the same revision, so SC-003's 100% claim is asserted rather than eyeballed
+- [X] T094 [P] [US3] **Dead-link scan** (gap from `/speckit.analyze`): assert every internal `href` in a generated snapshot resolves to a file in the artifact, covering SC-004's zero-dead-link claim
 
 **Checkpoint**: the artifact is self-contained and visually consistent with the wiki.
 
@@ -205,8 +205,8 @@ right pages.
 - [X] T058 [P] [US4] Build the search UI in `apps/web/src/components/static-site/SearchPanel.tsx` on `@/components/ui` primitives, not the Pagefind default web component
 - [X] T059 [US4] Wire the search UI to the Pagefind JS API in `apps/web/src/static-site/client/search.tsx`, reflecting query state in the URL so results are shareable and back/forward work
 - [X] T060 [P] [US4] Add localized search placeholder, result-count, and empty-state strings to `apps/web/messages/en.json` and `zh.json`
-- [ ] T061 [US4] Extend `apps/web/e2e/static-site-artifact.spec.ts` with search coverage including an unsegmented Chinese query, still with the wiki unreachable
-- [ ] T096 [US4] **Cross-language search** (found during browser verification): Pagefind partitions its index by document `lang`, so a search currently covers only the language of the page the reader is on. Evaluate `mergeIndex` (a first attempt had no effect) or a per-language index entry point, so FR-021's "every published page" holds on multilingual sites
+- [X] T061 [US4] Extend `apps/web/e2e/static-site-artifact.spec.ts` with search coverage including an unsegmented Chinese query, still with the wiki unreachable
+- [X] T096 [US4] **Cross-language search** (found during browser verification): Pagefind partitions its index by document `lang`, so a search currently covers only the language of the page the reader is on. Evaluate `mergeIndex` (a first attempt had no effect) or a per-language index entry point, so FR-021's "every published page" holds on multilingual sites
 
 **Checkpoint**: readers can search without a server.
 
@@ -231,7 +231,7 @@ non-dead-end for the missing translation.
 - [X] T065 [P] [US5] Generate the missing-translation stub page linking to available versions, per FR-025
 - [X] T066 [US5] Select the interface locale from the document's content locale (falling back to `defaultLocale`) in `document.tsx`, drawing strings from the existing catalogs — no site-specific translation file
 - [X] T067 [US5] Set the document language attribute so the client runtime's existing `lang` observer resolves the right catalog
-- [ ] T068 [US5] Extend `apps/web/e2e/static-site-artifact.spec.ts` with language switching and the missing-translation path
+- [X] T068 [US5] Extend `apps/web/e2e/static-site-artifact.spec.ts` with language switching and the missing-translation path
 
 **Checkpoint**: the published site serves every audience the wiki serves.
 
@@ -280,7 +280,7 @@ and previously published addresses stop serving.
 - [X] T078 [US7] Implement takedown delivery in `apps/web/src/server/jobs/static-site-publish.ts`, emptying the target branch so published addresses stop serving
 - [X] T079 [US7] Ensure `DELETE apps/web/app/api/static-site/target/route.ts` destroys the stored credential and cascades publication history, without touching the published site
 - [X] T080 [P] [US7] Add the takedown control to the admin panel with an explicit confirmation dialog stating the public site will become unavailable — a designed dialog, never a browser `confirm()`
-- [ ] T081 [US7] Extend `apps/web/e2e/static-site-publish.spec.ts` with the takedown path
+- [X] T081 [US7] Extend `apps/web/e2e/static-site-publish.spec.ts` with the takedown path
 
 **Checkpoint**: publishing is fully reversible.
 

@@ -1,8 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_PORT = process.env.WEB_PORT || '3001';
 const E2E_DATABASE_URL =
   process.env.E2E_DATABASE_URL || 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_e2e_test';
+
+/**
+ * Directory containing the `ssh` wrapper used to redirect git's SSH transport to
+ * a local bare repository during static-site publish E2E tests.
+ */
+const SSH_WRAPPER_DIR = path.join(__dirname, 'e2e', 'ssh-wrapper');
 
 /**
  * Playwright configuration for the no-SPA navigation contract and role/publish
@@ -35,6 +44,7 @@ export default defineConfig({
       `CONTENT_LOCAL_BASE_PATH=/tmp/next-wiki-e2e-content ` +
       `CONTENT_LOCAL_HOST_PATH=/tmp/next-wiki-e2e-content ` +
       `API_KEY_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 ` +
+      `PATH="${SSH_WRAPPER_DIR}:${process.env.PATH ?? ''}" ` +
       `node test/run-e2e-server.mjs ${WEB_PORT}`,
     url: `http://localhost:${WEB_PORT}`,
     // Never attach destructive E2E flows to an already-running development or

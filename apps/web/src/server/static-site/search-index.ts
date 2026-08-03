@@ -22,6 +22,33 @@ const execFileAsync = promisify(execFile);
 
 const INDEX_TIMEOUT_MS = 10 * 60 * 1000;
 
+/**
+ * Choose a single language to index a multilingual site under.
+ *
+ * Pagefind partitions its index by the document's `html lang`. A reader on one
+ * language page only finds pages in that language, so a multilingual site needs
+ * a unified index. Forcing a single language collapses every published page
+ * into one partition.
+ *
+ * We prefer a language that requires word segmentation (Chinese, Japanese, or
+ * Thai). Whitespace-delimited languages still tokenize usefully under a
+ * segmenting analyzer, but the reverse is not true: forcing English would leave
+ * CJK text as unsegmented blobs and Chinese searches would fail.
+ */
+export function chooseSearchLanguage(locales: string[]): string | undefined {
+  if (locales.length <= 1) return undefined;
+  const needsSegmentation = ['zh', 'ja', 'th'];
+  const segmented = locales.find((locale) =>
+    needsSegmentation.includes(locale.split('-')[0]!.toLowerCase()),
+  );
+  return segmented ?? locales[0]!;
+}
+
+export type BuildSearchIndexOptions = {
+  /** Index every page under this ISO 639-1 language, creating one partition. */
+  forceLanguage?: string;
+};
+
 export class SearchIndexError extends Error {
   constructor(message: string) {
     super(message);
@@ -46,14 +73,15 @@ function candidates(): { command: string; leadingArgs: string[] }[] {
   ];
 }
 
-async function runPagefind(siteDir: string): Promise<string> {
+async function runPagefind(siteDir: string, forceLanguage?: string): Promise<string> {
   const failures: string[] = [];
+  const extraArgs = forceLanguage ? ['--force-language', forceLanguage] : [];
 
   for (const { command, leadingArgs } of candidates()) {
     try {
       const { stdout } = await execFileAsync(
         command,
-        [...leadingArgs, '--site', siteDir],
+        [...leadingArgs, '--site', siteDir, ...extraArgs],
         { timeout: INDEX_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 },
       );
       return `${command}: ${stdout.trim().split('\n').at(-1) ?? 'done'}`;
@@ -75,8 +103,11 @@ export type SearchIndexResult = {
   detail: string;
 };
 
-export async function buildSearchIndex(siteDir: string): Promise<SearchIndexResult> {
-  const detail = await runPagefind(siteDir);
+export async function buildSearchIndex(
+  siteDir: string,
+  options: BuildSearchIndexOptions = {},
+): Promise<SearchIndexResult> {
+  const detail = await runPagefind(siteDir, options.forceLanguage);
 
   // A run that reports success but produces no index would ship a site whose
   // search box silently returns nothing, which is worse than a failed publish

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PgBoss } from 'pg-boss';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
@@ -8,6 +8,32 @@ import { setBoss } from '@/server/jobs/runtime';
 import { buildApiKeyCtx, buildAnonymousCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { encryptKey } from '@/server/crypto/key-encryption';
+
+const gitCalls: { args: string[] }[] = [];
+const gitMock = vi.hoisted(() => vi.fn(async (_cwd: string, args: string[]) => {
+  gitCalls.push({ args });
+  return { stdout: '', stderr: '' };
+}));
+const execFileMock = vi.hoisted(() => vi.fn(async () => ({ stdout: '', stderr: '' })));
+
+vi.mock('@/server/git/transport', async () => {
+  const actual = await vi.importActual<typeof import('@/server/git/transport')>(
+    '@/server/git/transport',
+  );
+  return {
+    ...actual,
+    git: gitMock,
+    buildGitEnvironment: vi.fn(async () => ({ GIT_TERMINAL_PROMPT: '0' })),
+  };
+});
+vi.mock('node:child_process', async () => {
+  const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
+  return {
+    ...actual,
+    execFile: execFileMock,
+  };
+});
+
 import {
   configureTarget,
   deleteTarget,
@@ -18,6 +44,7 @@ import {
   publishNow,
   takeDownSite,
   tickScheduledPublish,
+  validateTarget,
 } from './static-site';
 
 let adminCtx: PermCtx;
@@ -301,6 +328,109 @@ describe('takedown', () => {
   it('denies a non-admin', async () => {
     await configureTarget(adminCtx, upsert({ isEnabled: true }));
     await expect(takeDownSite(editorCtx, 'gh-pages')).rejects.toThrow(DomainError);
+  });
+});
+
+describe('validateTarget', () => {
+  beforeEach(() => {
+    gitCalls.length = 0;
+    gitMock.mockReset().mockImplementation(async (_cwd: string, args: string[]) => {
+      gitCalls.push({ args });
+      return { stdout: '', stderr: '' };
+    });
+  });
+
+  it('refuses without a target', async () => {
+    await expect(validateTarget(adminCtx)).rejects.toThrow(DomainError);
+    expect(gitMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the GitHub integration has no credential', async () => {
+    await db.delete(schema.integrations);
+    await configureTarget(adminCtx, upsert());
+    await expect(validateTarget(adminCtx)).rejects.toThrow(/integration/i);
+    expect(gitMock).not.toHaveBeenCalled();
+  });
+
+  it('denies editors', async () => {
+    await configureTarget(adminCtx, upsert());
+    await expect(validateTarget(editorCtx)).rejects.toThrow(DomainError);
+  });
+
+  it('runs the connectivity + write probe and returns ok on success', async () => {
+    await configureTarget(adminCtx, upsert());
+    const result = await validateTarget(adminCtx);
+    expect(result.ok).toBe(true);
+    expect(result.message).toBeNull();
+
+    // Probe: remote add, fetch to test connectivity, then push of the throwaway
+    // ref and its deletion in a single round trip.
+    const commands = gitCalls.map((c) => c.args);
+    expect(commands).toContainEqual(['remote', 'add', 'origin', 'https://github.com/owner/site.git']);
+    expect(commands.some((args) => args[0] === 'fetch' && args.includes('gh-pages'))).toBe(true);
+    expect(commands.some((args) => args[0] === 'push' && args.some((a) => a.startsWith('refs/meta/next-wiki-validation/')))).toBe(
+      true,
+    );
+  });
+
+  it('survives a missing remote branch — the first publish will create it', async () => {
+    await configureTarget(adminCtx, upsert());
+    gitMock.mockImplementation(async (_cwd: string, args: string[]) => {
+      gitCalls.push({ args });
+      if (args[0] === 'fetch') throw new Error('fatal: could not find remote ref gh-pages');
+      return { stdout: '', stderr: '' };
+    });
+
+    const result = await validateTarget(adminCtx);
+    expect(result.ok).toBe(true);
+  });
+
+  it('returns ok=false when the write probe is rejected, with the secret redacted', async () => {
+    await configureTarget(adminCtx, upsert());
+    gitMock.mockImplementation(async (_cwd: string, args: string[]) => {
+      gitCalls.push({ args });
+      if (args[0] === 'push') {
+        throw new Error(
+          `fatal: unable to access '${TOKEN}': Permission denied to deploy_key\n` +
+            `fatal: Could not read from remote repository.`,
+        );
+      }
+      return { stdout: '', stderr: '' };
+    });
+
+    const result = await validateTarget(adminCtx);
+    expect(result.ok).toBe(false);
+    expect(result.message).not.toContain(TOKEN);
+    expect(result.message).toContain('[redacted]');
+  });
+
+  it('redacts URL userinfo that git surfaces on auth failures', async () => {
+    await configureTarget(adminCtx, upsert());
+    gitMock.mockImplementation(async (_cwd: string, args: string[]) => {
+      gitCalls.push({ args });
+      if (args[0] === 'push') {
+        throw new Error('fatal: Authentication failed for https://hunter2@github.com/owner/site.git/');
+      }
+      return { stdout: '', stderr: '' };
+    });
+
+    const result = await validateTarget(adminCtx);
+    expect(result.ok).toBe(false);
+    expect(result.message).not.toContain('hunter2');
+    expect(result.message).toContain('[redacted]@');
+  });
+
+  it('falls back to plain BAD_REQUEST when the connectivity probe itself fails', async () => {
+    await configureTarget(adminCtx, upsert());
+    gitMock.mockImplementation(async (_cwd: string, args: string[]) => {
+      gitCalls.push({ args });
+      if (args[0] === 'fetch') throw new Error('fatal: unable to connect to github.com');
+      return { stdout: '', stderr: '' };
+    });
+
+    const result = await validateTarget(adminCtx);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('unable to connect');
   });
 });
 
