@@ -1178,6 +1178,7 @@
     },
     "users": {
       "metadataTitle": "用户管理",
+      "title": "用户管理",
       "description": "管理角色、状态和密码。",
       "table": {
         "email": "邮箱",

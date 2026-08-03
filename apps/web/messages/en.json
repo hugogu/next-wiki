@@ -1178,6 +1178,7 @@
     },
     "users": {
       "metadataTitle": "User management",
+      "title": "User management",
       "description": "Manage roles, status, and passwords.",
       "table": {
         "email": "Email",

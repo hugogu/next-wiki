@@ -827,6 +827,7 @@ export const translationKeys = [
   "admin.requestLog.loadFailed",
   "admin.requestLog.settingsSaved",
   "admin.users.metadataTitle",
+  "admin.users.title",
   "admin.users.description",
   "admin.users.table.email",
   "admin.users.table.role",

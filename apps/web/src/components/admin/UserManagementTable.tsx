@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserView } from '@next-wiki/shared';
 import { useApiMutation } from '@/lib/api/client';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import {
@@ -18,35 +19,6 @@ import { UserAiAccessDialog } from '@/components/admin/ai/UserAiAccessDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LockIcon, UnlockIcon, KeyIcon, CheckIcon, XIcon, SettingsIcon, TrashIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
-
-function IconButton({
-  onClick,
-  label,
-  children,
-  variant = 'default',
-  disabled = false,
-}: {
-  onClick?: () => void;
-  label: string;
-  children: React.ReactNode;
-  variant?: 'default' | 'danger' | 'primary';
-  disabled?: boolean;
-}) {
-  const baseClass =
-    'inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-40 disabled:cursor-not-allowed';
-  const stateClass =
-    variant === 'danger'
-      ? 'text-danger hover:bg-danger/10'
-      : variant === 'primary'
-        ? 'text-primary hover:bg-primary/10'
-        : 'text-muted hover:text-foreground hover:bg-surface-elevated';
-
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`${baseClass} ${stateClass}`}>
-      {children}
-    </button>
-  );
-}
 
 export function UserManagementTable({ users }: { users: UserView[] }) {
   const { t } = useTranslation();
@@ -119,15 +91,16 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
           <p className="text-sm font-medium">{t('admin.users.resetPassword.successMessage', { email: resetResult.email })}</p>
           <code className="block mt-sm p-sm bg-background rounded text-sm break-all">{resetResult.password}</code>
           <p className="text-xs text-muted mt-sm">{t('admin.users.resetPassword.securityHint')}</p>
-          <button
-            type="button"
+          <Button
+            size="icon"
+            variant="ghost"
             onClick={() => setResetResult(null)}
-            className="mt-sm inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
             aria-label={t('common.actions.dismiss')}
             title={t('common.actions.dismiss')}
+            className="mt-sm"
           >
             <XIcon />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -183,36 +156,53 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                           onChange={(e) => setTempPassword(e.target.value)}
                           className="w-48"
                         />
-                        <IconButton label={t('admin.users.resetPassword.confirmButton')} variant="primary">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          type="submit"
+                          aria-label={t('admin.users.resetPassword.confirmButton')}
+                          title={t('admin.users.resetPassword.confirmButton')}
+                        >
                           <CheckIcon />
-                        </IconButton>
-                        <IconButton
-                          label={t('common.actions.cancel')}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('common.actions.cancel')}
+                          title={t('common.actions.cancel')}
                           onClick={() => {
                             setResettingUserId(null);
                             setTempPassword('');
                           }}
                         >
                           <XIcon />
-                        </IconButton>
+                        </Button>
                       </form>
                     ) : (
                       <>
-                        <IconButton
-                          label={t('admin.ai.entitlement.manage')}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('admin.ai.entitlement.manage')}
+                          title={t('admin.ai.entitlement.manage')}
                           onClick={() => setAiUser(user)}
                         >
                           <SettingsIcon />
-                        </IconButton>
-                        <IconButton
-                          label={t('admin.users.resetPassword.button')}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('admin.users.resetPassword.button')}
+                          title={t('admin.users.resetPassword.button')}
                           onClick={() => setResettingUserId(user.id)}
                         >
                           <KeyIcon />
-                        </IconButton>
-                        <IconButton
-                          label={user.status === 'active' ? t('admin.users.status.disable') : t('admin.users.status.enable')}
-                          variant={user.status === 'active' ? 'danger' : 'primary'}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={user.status === 'active' ? t('admin.users.status.disable') : t('admin.users.status.enable')}
+                          title={user.status === 'active' ? t('admin.users.status.disable') : t('admin.users.status.enable')}
                           disabled={setStatus.isPending}
                           onClick={() =>
                             handleSetStatus(
@@ -222,15 +212,17 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                           }
                         >
                           {user.status === 'active' ? <LockIcon /> : <UnlockIcon />}
-                        </IconButton>
-                        <IconButton
-                          label={t('admin.users.delete.button')}
-                          variant="danger"
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={t('admin.users.delete.button')}
+                          title={t('admin.users.delete.button')}
                           disabled={deleteUser.isPending}
                           onClick={() => setDeletingUser(user)}
                         >
                           <TrashIcon />
-                        </IconButton>
+                        </Button>
                       </>
                     )}
                   </div>
