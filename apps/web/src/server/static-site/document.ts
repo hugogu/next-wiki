@@ -219,7 +219,7 @@ ${analyticsSnippet ?? ''}
   </header>
 
   <div class="flex flex-1 gap-lg px-lg py-md">
-    <aside class="hidden w-nav shrink-0 md:block" data-pagefind-ignore aria-label="${escapeHtml(
+    <aside class="hidden w-nav shrink-0 self-start md:sticky md:top-[var(--header-height)] md:block md:max-h-[calc(100vh-var(--header-height)-var(--space-md))] md:overflow-y-auto" data-pagefind-ignore aria-label="${escapeHtml(
       strings.home,
     )}">
       ${renderNavNodes(nav)}
