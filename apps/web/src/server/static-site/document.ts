@@ -91,7 +91,12 @@ function renderNavNodes(nodes: NavNode[]): string {
       const link = node.href
         ? `<a href="${escapeHtml(node.href)}" class="block rounded-sm px-sm py-xs text-sm hover:bg-surface-elevated">${label}</a>`
         : `<span class="block px-sm py-xs text-sm text-muted">${label}</span>`;
-      return `<li>${link}${renderNavNodes(node.children)}</li>`;
+      const content = node.children.length
+        ? `<details open class="group"><summary class="cursor-pointer list-none rounded-sm px-sm py-xs text-sm hover:bg-surface-elevated before:mr-xs before:inline-block before:transition-transform group-open:before:rotate-90 before:content-['›']">${label}</summary>${
+            node.href ? link : ''
+          }${renderNavNodes(node.children)}</details>`
+        : link;
+      return `<li>${content}</li>`;
     })
     .join('');
   return `<ul class="ml-sm border-l border-border pl-sm">${items}</ul>`;
@@ -222,7 +227,7 @@ ${analyticsSnippet ?? ''}
       <div class="prose max-w-none"${indexable ? ' data-pagefind-body' : ''}>${bodyHtml}</div>
     </main>
 
-    <aside class="w-nav shrink-0" data-pagefind-ignore>${renderToc(headings, strings.onThisPage)}</aside>
+    <aside class="w-nav shrink-0 self-start xl:sticky xl:top-[var(--header-height)] xl:max-h-[calc(100vh-var(--header-height)-var(--space-md))] xl:overflow-y-auto" data-pagefind-ignore>${renderToc(headings, strings.onThisPage)}</aside>
   </div>
 </div>
 <!-- The runtime is an ES module (code splitting keeps mermaid out of the

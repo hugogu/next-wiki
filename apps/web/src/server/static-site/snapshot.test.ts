@@ -261,7 +261,23 @@ describe('artifact layout', () => {
     const page = await readFile(join(root, 'a', 'index.html'), 'utf8');
     // The page keeps its sidebar; the home page's is empty.
     expect(page).toMatch(/<aside[^>]*>\s*<ul/);
+    expect(page).toContain('xl:sticky');
     expect(home).not.toMatch(/<aside[^>]*>\s*<ul/);
+  });
+
+  it('renders nested navigation branches as expanded, collapsible details', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup' });
+    await makePage({ spaceId: space, path: 'guides/advanced', title: 'Advanced' });
+
+    const root = await stage();
+    await snapshot(root);
+    const html = await readFile(join(root, 'guides', 'setup', 'index.html'), 'utf8');
+
+    expect(html).toContain('<details open');
+    expect(html).toContain('<summary');
+    expect(html).toContain('guides/setup');
+    expect(html).toContain('guides/advanced');
   });
 
   it('shows only its own language on a per-language home page', async () => {
