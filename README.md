@@ -26,6 +26,14 @@ client.
 | --- | --- |
 | ![AI settings](docs/screenshots/ai-settings.png) | ![API documentation](docs/screenshots/api-docs.png) |
 
+## From capture to durable knowledge
+
+![How next-wiki turns content into governed knowledge](docs/imgs/knowledge-flow.png)
+
+Solid blue represents capabilities available today. Amber dashed cards represent
+planned import connectors. The editable source and regeneration instructions
+live in [the diagram source](docs/diagrams/knowledge-flow.md).
+
 ## Why next-wiki?
 
 Most wikis are good at storing pages, while most AI assistants are good at
