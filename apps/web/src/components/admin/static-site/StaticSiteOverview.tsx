@@ -143,30 +143,21 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
             {enabled ? t('admin.staticSite.state.enabled') : t('admin.staticSite.state.disabled')}
           </StatusBadge>
         </div>
-        <div className="rounded-md border border-border px-md">
+        <ul className="rounded-md border border-border px-md">
           <SummaryRow
             label={t('admin.staticSite.provider.github_pages')}
-            value={live.remoteUrl}
-          />
-          <SummaryRow label={t('admin.staticSite.branch')} value={live.branch} />
-          <SummaryRow label={t('admin.staticSite.baseUrl')} value={live.baseUrl} />
-          <SummaryRow
-            label={t('admin.staticSite.autoPublish')}
             value={
-              live.autoPublishOnChange
-                ? t('admin.staticSite.state.enabled')
-                : t('admin.staticSite.state.disabled')
+              <Link
+                href="/admin/integrations/github"
+                className="text-primary hover:underline"
+              >
+                {live.integrationId
+                  ? t('admin.integrations.statusConfigured')
+                  : t('admin.integrations.statusNotConfigured')}
+              </Link>
             }
           />
-          <SummaryRow
-            label={t('admin.staticSite.scheduled')}
-            value={
-              live.scheduledPublishEnabled
-                ? `${t('admin.staticSite.state.enabled')} · ${live.scheduledIntervalMinutes} min`
-                : t('admin.staticSite.state.disabled')
-            }
-          />
-        </div>
+        </ul>
         <p className="text-xs text-muted">
           <Link href="/admin/static-site/settings" className="text-primary hover:underline">
             {t('admin.staticSite.openSettings')}

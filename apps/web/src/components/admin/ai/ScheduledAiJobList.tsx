@@ -29,11 +29,21 @@ export function ScheduledAiJobList({ jobs, runs, options }: Props) {
   const search = useSearchParams();
   const [creating, setCreating] = useState(false);
   const tab = search.get('tab') === 'runs' ? 'runs' : 'jobs';
-  const select = (value: 'jobs' | 'runs') => {
+  const jobFilter = search.get('jobId') ?? '';
+  const setParam = (key: string, value: string | null) => {
     const params = new URLSearchParams(search.toString());
-    params.set('tab', value);
+    if (value && value.length > 0) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
     router.replace(`${pathname}?${params}`);
   };
+  const select = (value: 'jobs' | 'runs') => setParam('tab', value);
+  const filteredRuns = jobFilter
+    ? runs.filter((run) => run.jobId === jobFilter)
+    : runs;
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
   return (
     <>
       <SettingsTabs
@@ -89,44 +99,73 @@ export function ScheduledAiJobList({ jobs, runs, options }: Props) {
             </DataTableBody>
           </DataTable>
         ) : (
-          <DataTable>
-            <DataTableHead>
-              <DataTableRow>
-                <DataTableHeader>Run</DataTableHeader>
-                <DataTableHeader>Status</DataTableHeader>
-                <DataTableHeader>Trigger</DataTableHeader>
-                <DataTableHeader>Queued</DataTableHeader>
-              </DataTableRow>
-            </DataTableHead>
-            <DataTableBody>
-              {runs.map((run) => (
-                <DataTableRow key={run.id}>
-                  <DataTableCell>
-                    <Link
-                      className="text-primary hover:underline"
-                      href={`/admin/ai/jobs/${run.jobId}/runs/${run.id}`}
-                    >
-                      {run.id.slice(0, 8)}
-                    </Link>
-                  </DataTableCell>
-                  <DataTableCell>{run.status}</DataTableCell>
-                  <DataTableCell>{run.trigger}</DataTableCell>
-                  <DataTableCell>
-                    {run.scheduledFor || run.startedAt
-                      ? new Date(run.scheduledFor ?? run.startedAt!).toLocaleString()
-                      : '—'}
-                  </DataTableCell>
-                </DataTableRow>
-              ))}
-              {!runs.length && (
+          <>
+            <div className="mb-md flex items-center gap-sm">
+              <label htmlFor="scheduled-ai-runs-job-filter" className="text-xs text-muted">
+                Job
+              </label>
+              <select
+                id="scheduled-ai-runs-job-filter"
+                value={jobFilter}
+                onChange={(e) => setParam('jobId', e.target.value || null)}
+                className="rounded-md border border-border bg-background px-sm py-xs text-sm"
+              >
+                <option value="">All jobs</option>
+                {jobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <DataTable>
+              <DataTableHead>
                 <DataTableRow>
-                  <DataTableCell colSpan={4} className="text-muted">
-                    No scheduled AI runs yet.
-                  </DataTableCell>
+                  <DataTableHeader>Run</DataTableHeader>
+                  <DataTableHeader>Job</DataTableHeader>
+                  <DataTableHeader>Status</DataTableHeader>
+                  <DataTableHeader>Trigger</DataTableHeader>
+                  <DataTableHeader>Queued</DataTableHeader>
                 </DataTableRow>
-              )}
-            </DataTableBody>
-          </DataTable>
+              </DataTableHead>
+              <DataTableBody>
+                {filteredRuns.map((run) => (
+                  <DataTableRow key={run.id}>
+                    <DataTableCell>
+                      <Link
+                        className="text-primary hover:underline"
+                        href={`/admin/ai/jobs/${run.jobId}/runs/${run.id}`}
+                      >
+                        {run.id.slice(0, 8)}
+                      </Link>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <Link
+                        className="text-primary hover:underline"
+                        href={`/admin/ai/jobs/${run.jobId}`}
+                      >
+                        {jobsById.get(run.jobId)?.name ?? run.definitionSnapshot.name}
+                      </Link>
+                    </DataTableCell>
+                    <DataTableCell>{run.status}</DataTableCell>
+                    <DataTableCell>{run.trigger}</DataTableCell>
+                    <DataTableCell>
+                      {run.scheduledFor || run.startedAt
+                        ? new Date(run.scheduledFor ?? run.startedAt!).toLocaleString()
+                        : '—'}
+                    </DataTableCell>
+                  </DataTableRow>
+                ))}
+                {!filteredRuns.length && (
+                  <DataTableRow>
+                    <DataTableCell colSpan={5} className="text-muted">
+                      {jobFilter ? 'No runs for the selected job.' : 'No scheduled AI runs yet.'}
+                    </DataTableCell>
+                  </DataTableRow>
+                )}
+              </DataTableBody>
+            </DataTable>
+          </>
         )}
       </SettingsTabs>
       {creating && (

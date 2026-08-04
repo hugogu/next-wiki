@@ -213,16 +213,16 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
                         >
                           {user.status === 'active' ? <LockIcon /> : <UnlockIcon />}
                         </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
+                        <button
+                          type="button"
                           aria-label={t('admin.users.delete.button')}
                           title={t('admin.users.delete.button')}
                           disabled={deleteUser.isPending}
                           onClick={() => setDeletingUser(user)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <TrashIcon />
-                        </Button>
+                        </button>
                       </>
                     )}
                   </div>
