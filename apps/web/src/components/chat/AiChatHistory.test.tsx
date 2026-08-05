@@ -18,8 +18,8 @@ vi.mock('./chat-store', () => ({
   useChatStore: () => chatState,
 }));
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+vi.mock('./load-conversation', () => ({
+  loadConversationFromKey: vi.fn(),
 }));
 
 import { AiChatHistory } from './AiChatHistory';

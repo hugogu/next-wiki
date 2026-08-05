@@ -23,14 +23,8 @@ vi.mock('@/hooks/use-ai-chat', () => ({
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
-}));
 vi.mock('./chat-store', () => ({
   useChatStore: { persist: { rehydrate: vi.fn() }, getState: vi.fn() },
-}));
-vi.mock('./history-api', () => ({
-  fetchHistoryDetail: vi.fn(),
 }));
 vi.mock('./reconstruct-session', () => ({
   reconstructSessionFromEvents: vi.fn((events: Array<{ type?: string; payload?: { text?: string } }>) => {
@@ -48,11 +42,9 @@ vi.mock('./reconstruct-session', () => ({
   }),
   recoverSessionFromServer: vi.fn(),
 }));
-vi.mock('./resolve-session-id', () => ({
-  resolveSessionId: () => 'resolved-session-id',
-}));
 
-import { AiChatPane, aiChatPaneClassName, buildMessagesFromDetail } from './AiChatPane';
+import { AiChatPane, aiChatPaneClassName } from './AiChatPane';
+import { buildMessagesFromDetail } from './load-conversation';
 
 const entitlements = {
   userId: '00000000-0000-4000-8000-000000000001',

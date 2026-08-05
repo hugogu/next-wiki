@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { AiConversationListResponse, AiConversationSummary } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { apiDelete, apiGet, type ApiError } from '@/lib/api/client';
@@ -9,12 +8,12 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PlusIcon, SparklesIcon, TrashIcon } from '@/components/icons';
 import { useChatStore } from './chat-store';
+import { loadConversationFromKey } from './load-conversation';
 
 const PAGE_SIZE = 50;
 
 export function AiChatHistory() {
   const { t } = useTranslation();
-  const router = useRouter();
   const newSession = useChatStore((state) => state.newSession);
 
   const [items, setItems] = useState<AiConversationSummary[]>([]);
@@ -44,14 +43,16 @@ export function AiChatHistory() {
     };
   }, [t]);
 
-  const handleContinue = (conversation: AiConversationSummary) => {
+  // Loads the historical conversation straight into the chat store — no URL
+  // round-trip, so the active session id never appears in the address bar
+  // (and the page stays shareable as a plain wiki URL).
+  const handleContinue = async (conversation: AiConversationSummary) => {
     setContinuingKey(conversation.conversationKey);
-    // Reflect the continued conversation in the URL so it can be shared.
-    // The chat pane itself reads the `chat` query param and loads the detail.
-    const params = new URLSearchParams(window.location.search);
-    params.set('chat', conversation.conversationKey);
-    router.replace(`${window.location.pathname}?${params.toString()}`);
-    setContinuingKey(null);
+    try {
+      await loadConversationFromKey(conversation.conversationKey);
+    } finally {
+      setContinuingKey(null);
+    }
   };
 
   const handleDelete = async () => {
