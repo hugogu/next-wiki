@@ -16,8 +16,7 @@ export default async function AdminSpacesPage() {
   const [spaces, llmWikiMode] = await Promise.all([listSpaceConfigurations(), isLlmWikiMode()]);
   return (
     <Layout admin>
-      <div className="space-y-md px-lg py-md">
-        <div><h1 className="font-display text-xl font-semibold">Space settings</h1><p className="mt-xs text-sm text-muted">Configure the public URL prefix and default visibility for each built-in space.</p></div>
+      <div className="px-lg py-md">
         <SpaceSettingsPanel initialSpaces={spaces.map((space) => ({ ...space, isActive: space.kind === 'wiki' || llmWikiMode }))} />
       </div>
     </Layout>
