@@ -3932,6 +3932,10 @@
             "type": "string",
             "description": "Human-readable page title."
           },
+          "canonicalUrl": {
+            "type": "string",
+            "description": "Configured public reader URL for this page."
+          },
           "origin": {
             "type": "object",
             "properties": {
@@ -5684,6 +5688,9 @@
             "maximum": 100
           },
           "cursor": {
+            "type": "string"
+          },
+          "space": {
             "type": "string"
           }
         },
@@ -19833,6 +19840,14 @@
           {
             "in": "query",
             "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "space",
             "required": false,
             "schema": {
               "type": "string"

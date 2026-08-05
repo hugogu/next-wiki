@@ -787,6 +787,7 @@ export const PublicPageResource = z
     path: PublicPagePath,
     locale: z.string().describe('Locale of the page content (e.g. "en", "zh").'),
     title: z.string().describe('Human-readable page title.'),
+    canonicalUrl: z.string().optional().describe('Configured public reader URL for this page.'),
     origin: z
       .object({
         actorKind: z.enum(['human', 'machine']).describe('Whether the page was created through a session (human) or an API key/pipeline (machine).'),
@@ -885,6 +886,7 @@ export const PublicTagListQuery = z.object({
   q: z.string().max(100).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   cursor: z.string().optional(),
+  space: z.string().optional(),
 }).describe('Tag-directory filter and pagination parameters.');
 
 export const PublicTagCreateInput = z.object({
