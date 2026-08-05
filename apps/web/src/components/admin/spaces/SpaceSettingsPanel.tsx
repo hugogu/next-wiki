@@ -17,6 +17,7 @@ import { ModalDialog } from '@/components/ui/ModalDialog';
 import { Select } from '@/components/ui/Select';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { useTranslation } from '@/i18n/client';
 
 export type SpaceSettingsItem = {
   id: string;
@@ -30,12 +31,6 @@ export type SpaceSettingsItem = {
 type EditableSpaceSettings = Pick<SpaceSettingsItem, 'displayName' | 'routePrefix' | 'defaultVisibility'>;
 type SpaceSettingsResponse = Partial<SpaceSettingsItem> & { message?: string };
 
-const VISIBILITY_HELP = 'Public pages are readable without signing in after they are published. Registered pages require any signed-in account. Restricted pages require an administrator. This is the default for new pages and can be changed per page.';
-
-function visibilityLabel(visibility: SpaceSettingsItem['defaultVisibility']): string {
-  return visibility === 'public' ? 'Public' : visibility === 'registered' ? 'Registered' : 'Restricted';
-}
-
 function hasChanged(space: SpaceSettingsItem, savedSpace: SpaceSettingsItem | undefined): boolean {
   return !savedSpace
     || space.displayName !== savedSpace.displayName
@@ -44,6 +39,7 @@ function hasChanged(space: SpaceSettingsItem, savedSpace: SpaceSettingsItem | un
 }
 
 export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSettingsItem[] }) {
+  const { t } = useTranslation();
   const [spaces, setSpaces] = useState(initialSpaces);
   const [savedSpaces, setSavedSpaces] = useState(initialSpaces);
   const [editingSpace, setEditingSpace] = useState<SpaceSettingsItem | null>(null);
@@ -81,31 +77,31 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
           }),
         });
         const body = await response.json().catch(() => null) as SpaceSettingsResponse | null;
-        if (!response.ok) throw new Error(body?.message ?? 'Unable to save space settings');
+        if (!response.ok) throw new Error(body?.message ?? t('admin.spaces.saveError'));
 
         nextSpaces = nextSpaces.map((item) => item.id === space.id ? { ...item, ...body } : item);
         setSpaces(nextSpaces);
         setSavedSpaces(nextSpaces);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to save space settings');
+      setError(cause instanceof Error ? cause.message : t('admin.spaces.saveError'));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="space-y-md" aria-label="Space settings">
+    <section className="space-y-md" aria-label={t('admin.spaces.ariaLabel')}>
       <header className="flex items-start justify-between gap-md">
         <div>
-          <h1 className="font-display text-xl font-semibold">Space settings</h1>
+          <h1 className="font-display text-xl font-semibold">{t('admin.spaces.title')}</h1>
           <p className="mt-xs max-w-3xl text-sm text-muted">
-            Configure the public URL prefix and default visibility for each built-in space.
+            {t('admin.spaces.description')}
           </p>
         </div>
         <Button className="shrink-0" onClick={() => void saveAll()} disabled={saving || changedSpaces.length === 0}>
           <SaveIcon className="h-4 w-4" aria-hidden="true" />
-          {saving ? 'Saving changes…' : 'Save changes'}
+          {saving ? t('admin.spaces.savingChanges') : t('admin.spaces.saveChanges')}
         </Button>
       </header>
 
@@ -114,45 +110,51 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
       <DataTable>
         <DataTableHead>
           <DataTableRow>
-            <DataTableHeader>Name</DataTableHeader>
-            <DataTableHeader>Type</DataTableHeader>
-            <DataTableHeader>URL prefix</DataTableHeader>
+            <DataTableHeader>{t('admin.spaces.table.name')}</DataTableHeader>
+            <DataTableHeader>{t('admin.spaces.table.type')}</DataTableHeader>
+            <DataTableHeader>{t('admin.spaces.table.urlPrefix')}</DataTableHeader>
             <DataTableHeader>
               <span className="inline-flex items-center gap-xs">
-                New page visibility
-                <Tooltip label={VISIBILITY_HELP}>
+                {t('admin.spaces.table.newPageVisibility')}
+                <Tooltip label={t('admin.spaces.visibilityHelp')}>
                   <button
                     type="button"
                     className="inline-flex rounded-sm text-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    aria-label="Explain new page visibility"
+                    aria-label={t('admin.spaces.explainVisibility')}
                   >
                     <InfoIcon className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Tooltip>
               </span>
             </DataTableHeader>
-            <DataTableHeader>Status</DataTableHeader>
-            <DataTableHeader align="right">Actions</DataTableHeader>
+            <DataTableHeader>{t('admin.spaces.table.status')}</DataTableHeader>
+            <DataTableHeader align="right">{t('admin.spaces.table.actions')}</DataTableHeader>
           </DataTableRow>
         </DataTableHead>
         <DataTableBody>
           {spaces.map((space) => (
             <DataTableRow key={space.id}>
               <DataTableCell className="font-medium">{space.displayName}</DataTableCell>
-              <DataTableCell className="capitalize text-muted">{space.kind}</DataTableCell>
+              <DataTableCell className="text-muted">
+                {space.kind === 'wiki'
+                  ? t('layout.nav.spaces.wiki')
+                  : space.kind === 'generated'
+                    ? t('layout.nav.spaces.generated')
+                    : t('layout.nav.spaces.raw')}
+              </DataTableCell>
               <DataTableCell className="font-mono text-muted">/{space.routePrefix}</DataTableCell>
-              <DataTableCell>{visibilityLabel(space.defaultVisibility)}</DataTableCell>
+              <DataTableCell>{t(`admin.spaces.visibility.${space.defaultVisibility}`)}</DataTableCell>
               <DataTableCell>
                 <StatusBadge tone={space.isActive ? 'success' : 'neutral'}>
-                  {space.isActive ? 'Active' : 'Inactive'}
+                  {space.isActive ? t('admin.spaces.status.active') : t('admin.spaces.status.inactive')}
                 </StatusBadge>
               </DataTableCell>
               <DataTableCell align="right">
-                <Tooltip label={`Edit ${space.displayName}`}>
+                <Tooltip label={t('admin.spaces.edit', { name: space.displayName })}>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Edit ${space.displayName}`}
+                    aria-label={t('admin.spaces.edit', { name: space.displayName })}
                     onClick={() => {
                       setError(null);
                       setEditingSpace({ ...space });
@@ -169,21 +171,21 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
 
       {editingSpace ? (
         <ModalDialog
-          title={`Edit ${editingSpace.displayName}`}
-          description="Changes are applied to the table first. Save all changes to update the spaces."
+          title={t('admin.spaces.editTitle', { name: editingSpace.displayName })}
+          description={t('admin.spaces.editDescription')}
           onClose={() => setEditingSpace(null)}
           maxWidth="max-w-md"
         >
           <form className="space-y-md" onSubmit={applyEdit}>
             <label className="block space-y-xs text-sm font-medium">
-              <span>Display name</span>
+              <span>{t('admin.spaces.displayName')}</span>
               <Input
                 value={editingSpace.displayName}
                 onChange={(event) => updateEditingSpace('displayName', event.target.value)}
               />
             </label>
             <label className="block space-y-xs text-sm font-medium">
-              <span>URL prefix</span>
+              <span>{t('admin.spaces.urlPrefix')}</span>
               <Input
                 value={editingSpace.routePrefix}
                 onChange={(event) => updateEditingSpace('routePrefix', event.target.value)}
@@ -191,9 +193,9 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
             </label>
             <label className="block space-y-xs text-sm font-medium">
               <span className="inline-flex items-center gap-xs">
-                New page visibility
-                <Tooltip label={VISIBILITY_HELP}>
-                  <span className="inline-flex text-muted" aria-label="Explain new page visibility">
+                {t('admin.spaces.table.newPageVisibility')}
+                <Tooltip label={t('admin.spaces.visibilityHelp')}>
+                  <span className="inline-flex text-muted" aria-label={t('admin.spaces.explainVisibility')}>
                     <InfoIcon className="h-4 w-4" aria-hidden="true" />
                   </span>
                 </Tooltip>
@@ -202,14 +204,14 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
                 value={editingSpace.defaultVisibility}
                 onChange={(event) => updateEditingSpace('defaultVisibility', event.target.value)}
               >
-                <option value="restricted">Restricted</option>
-                <option value="registered">Registered users</option>
-                <option value="public">Public</option>
+                <option value="restricted">{t('admin.spaces.visibility.restricted')}</option>
+                <option value="registered">{t('admin.spaces.visibility.registered')}</option>
+                <option value="public">{t('admin.spaces.visibility.public')}</option>
               </Select>
             </label>
             <div className="flex justify-end gap-sm">
-              <Button variant="ghost" onClick={() => setEditingSpace(null)}>Cancel</Button>
-              <Button type="submit">Apply to table</Button>
+              <Button variant="ghost" onClick={() => setEditingSpace(null)}>{t('common.actions.cancel')}</Button>
+              <Button type="submit">{t('admin.spaces.applyToTable')}</Button>
             </div>
           </form>
         </ModalDialog>

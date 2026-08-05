@@ -608,6 +608,39 @@
       "staticSite": "静态站点",
       "integrations": "集成"
     },
+    "spaces": {
+      "ariaLabel": "空间设置",
+      "title": "空间设置",
+      "description": "为每个内置空间配置公开 URL 前缀和新页面默认可见性。",
+      "saveChanges": "保存更改",
+      "savingChanges": "正在保存更改…",
+      "saveError": "无法保存空间设置",
+      "table": {
+        "name": "名称",
+        "type": "类型",
+        "urlPrefix": "URL 前缀",
+        "newPageVisibility": "新页面可见性",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "visibilityHelp": "页面发布后，公开页面无需登录即可阅读；已注册页面要求任何已登录账户；受限页面要求管理员权限。这是新页面的默认设置，且可在单个页面中调整。",
+      "explainVisibility": "说明新页面可见性",
+      "visibility": {
+        "public": "公开",
+        "registered": "已注册用户",
+        "restricted": "受限"
+      },
+      "status": {
+        "active": "启用中",
+        "inactive": "未启用"
+      },
+      "edit": "编辑{name}",
+      "editTitle": "编辑{name}",
+      "editDescription": "更改会先应用到表格。保存所有更改后才会更新空间。",
+      "displayName": "显示名称",
+      "urlPrefix": "URL 前缀",
+      "applyToTable": "应用到表格"
+    },
     "searchSettings": {
       "title": "搜索设置",
       "description": "调整全文、模糊和语义搜索，以及结果介绍展示。",

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
+export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
+export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
 import { wikiAiChannelSchema } from './ai';
 
 export const slugSchema = z

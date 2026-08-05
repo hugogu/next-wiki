@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { userRoleSchema, userStatusSchema } from './auth';
+import { pageVisibilitySchema } from './pages';
 
 export * from './analytics';
 export * from './auth';
@@ -30,9 +31,6 @@ export * from './static-site';
 
 export const revisionStatusSchema = z.enum(['draft', 'published']);
 export type RevisionStatus = z.infer<typeof revisionStatusSchema>;
-
-export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
-export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
 
 export const contentTypeSchema = z.enum(['text/markdown']);
 export type ContentType = z.infer<typeof contentTypeSchema>;

@@ -608,6 +608,39 @@
       "staticSite": "Static site",
       "integrations": "Integrations"
     },
+    "spaces": {
+      "ariaLabel": "Space settings",
+      "title": "Space settings",
+      "description": "Configure the public URL prefix and default visibility for each built-in space.",
+      "saveChanges": "Save changes",
+      "savingChanges": "Saving changes…",
+      "saveError": "Unable to save space settings",
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "urlPrefix": "URL prefix",
+        "newPageVisibility": "New page visibility",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "visibilityHelp": "Public pages are readable without signing in after they are published. Registered pages require any signed-in account. Restricted pages require an administrator. This is the default for new pages and can be changed per page.",
+      "explainVisibility": "Explain new page visibility",
+      "visibility": {
+        "public": "Public",
+        "registered": "Registered users",
+        "restricted": "Restricted"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "edit": "Edit {name}",
+      "editTitle": "Edit {name}",
+      "editDescription": "Changes are applied to the table first. Save all changes to update the spaces.",
+      "displayName": "Display name",
+      "urlPrefix": "URL prefix",
+      "applyToTable": "Apply to table"
+    },
     "searchSettings": {
       "title": "Search Settings",
       "description": "Tune full-text, fuzzy, and semantic search alongside result preview display.",

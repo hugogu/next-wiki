@@ -4,8 +4,13 @@ import { resolveActorFromSession, SESSION_COOKIE } from '@/server/services/auth'
 import * as audit from '@/server/services/audit';
 import { isReservedSpacePrefix } from '@/server/services/space-routes';
 
-function isExternalReaderPath(pathname: string): boolean {
-  if (pathname === '/' || pathname.endsWith('.md')) return false;
+export function isExternalReaderPath(pathname: string): boolean {
+  if (
+    pathname === '/'
+    || pathname.startsWith('/_next/')
+    || pathname.endsWith('.md')
+    || pathname.split('/').some((segment) => segment.includes('.'))
+  ) return false;
   const firstSegment = pathname.split('/').filter(Boolean)[0];
   return Boolean(firstSegment && !isReservedSpacePrefix(firstSegment));
 }
@@ -19,7 +24,13 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   const path = request.nextUrl.pathname;
   const ip = audit.clientIp(request.headers);
   const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
-  const actor = sessionCookie ? await resolveActorFromSession(sessionCookie) : null;
+  const isReaderPath = isExternalReaderPath(path);
+
+  // A session lookup is only on the response path when it is needed to select
+  // the registered reader. Other audit lookups stay inside waitUntil.
+  const readerActor = sessionCookie && isReaderPath
+    ? await resolveActorFromSession(sessionCookie)
+    : null;
 
   // Best-effort page audit logging via waitUntil so it runs after the response
   // is sent without blocking it. This catches both full page loads (HTML) and
@@ -29,6 +40,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
       let userId: string | null = null;
       let authStatus: 'authenticated' | 'anonymous' = 'anonymous';
 
+      const actor = readerActor ?? (sessionCookie ? await resolveActorFromSession(sessionCookie) : null);
       if (actor?.kind === 'user') {
         userId = actor.userId;
         authStatus = 'authenticated';
@@ -51,7 +63,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
     }),
   );
 
-  if (actor?.kind === 'user' && isExternalReaderPath(path)) {
+  if (readerActor?.kind === 'user') {
     const destination = request.nextUrl.clone();
     destination.pathname = `/registered-reader${path}`;
     return NextResponse.rewrite(destination);
@@ -67,7 +79,7 @@ export const config = {
       // and resource files. Both HTML page loads and RSC client-side
       // navigations are GET requests that match this source.
       source:
-        '/((?!api|_next/static|_next/image|_static|_vercel|.*\\.(?:css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|otf|webp|mp4|webm|pdf)).*)',
+        '/((?!api|_next|_static|_vercel|.*\\.(?:css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|otf|webp|mp4|webm|pdf)).*)',
       // Exclude hover/link prefetches so they don't create log entries.
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
