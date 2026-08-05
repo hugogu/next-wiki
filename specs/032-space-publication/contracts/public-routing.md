@@ -37,6 +37,7 @@ session.
 |---|---|
 | Previous space prefix | Resolve alias, then 308 redirect to the current canonical route only after current public eligibility succeeds. |
 | Previous bare Wiki route | Resolve as a migration-era legacy input; native content wins. A public result redirects to the configured Wiki route. |
+| Generated/raw route before LLM Wiki-to-Copilot migration | Resolve its recorded page-route redirect to `/wiki-prefix/generated/...` or `/wiki-prefix/raw/...` only while the migrated page is currently public/published. |
 | Former link URL | Native content at the path wins. Otherwise look up the retired-link record and redirect only if its target is currently public/published. |
 | Retired prefix or link whose target is private, draft, deleted, or missing | Return opaque not-found. |
 

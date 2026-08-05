@@ -28,6 +28,11 @@ Returns one item for each enabled built-in space:
 Internal slugs, aliases, retired links, and target identifiers are not returned
 to non-Admin callers.
 
+The Wiki route prefix remains active and stable in both writing modes. Raw and
+generated settings remain visible to Administrators as inactive configuration
+while Copilot mode is selected; their prefix values are retained for a later
+LLM Wiki reactivation.
+
 ### Update one space
 
 `PUT /api/settings/spaces/{spaceId}`

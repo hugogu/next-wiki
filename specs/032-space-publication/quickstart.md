@@ -89,5 +89,10 @@ schema changes; generated OpenAPI has no active link-page fields.
   intentionally Wiki-only static artifact still excludes those pages.
 - Switch writing mode after retirement: verify the transition does not revive,
   materialize, or dereference retired link pages.
+- Switch from LLM Wiki to Copilot with public and restricted generated/raw
+  pages: verify `/g/...` and `/r/...` become `/w/generated/...` and
+  `/w/raw/...` respectively, that public old URLs redirect, and that restricted
+  old URLs remain opaque not-found. Switch back and verify the stored `g`/`r`
+  prefix settings are restored while the Wiki `w` prefix stays unchanged.
 - Rename a public page, move it, and change a space prefix: confirm old/new
   canonical paths and legacy redirect behavior have no stale cached content.

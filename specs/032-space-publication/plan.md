@@ -124,7 +124,8 @@ packages/
 **Structure Decision**: Extend the existing page/space service boundaries.
 `spaces` owns stable space identity and presentation configuration;
 `space-routes` owns prefix validation, URL generation, reverse resolution, and
-legacy aliases; `page-link-retirement` owns the one-time historical transition.
+legacy aliases; `page-link-retirement` owns the one-time historical transition
+and writing-mode route redirects.
 The existing public reader remains the sole static reader route, while the
 existing workspace route remains dynamic for protected pages. UI components
 receive resolved route data rather than carrying a hard-coded three-space
@@ -153,7 +154,11 @@ union.
    conditional legacy redirect handling. Remove dereferencing from reader,
    history, revisions, export, API, MCP, image generation, and writing-mode
    transition code.
-7. Regenerate public API documentation, update MCP shapes, run all focused and
+7. Update the LLM Wiki-to-Copilot migration to preserve the stable Wiki prefix,
+   place moved raw/generated pages below source-space path segments, and record
+   conditional old-route redirects. Retain inactive raw/generated prefix
+   settings so a later return to LLM Wiki restores their canonical roots.
+8. Regenerate public API documentation, update MCP shapes, run all focused and
    cross-surface tests, then run the full validation gates.
 
 ## Complexity Tracking

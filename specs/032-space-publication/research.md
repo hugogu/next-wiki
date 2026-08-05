@@ -145,3 +145,23 @@ captured sources downloadable. The existing asset service has its own boundary.
 
 **Alternatives considered**: Expose all referenced raw assets when a page is
 public (rejected: disclosure risk and contrary to FR-013).
+
+## D11 — Writing-mode migration preserves Wiki URLs and safely redirects moved pages
+
+**Decision**: Every enabled space has a non-empty prefix. The Wiki prefix is
+stable across writing modes. On LLM Wiki-to-Copilot migration, raw/generated
+pages retain their source-space directory below the Wiki root (for example,
+"/g/concepts/x" becomes "/w/generated/concepts/x"). The migration records a
+page-route redirect from the old canonical URL to the new one; it redirects only
+after freshly confirming that the migrated target remains public and published.
+Raw/generated prefix settings remain stored while those spaces are inactive.
+
+**Rationale**: A default empty prefix would overlap both space prefixes and
+locale-first paths, forcing global path reservations and creating migration
+hazards. Keeping Wiki rooted at a stable non-empty prefix avoids that ambiguity.
+A route redirect preserves safe shared links without making a mode transition an
+oracle for private migrated content.
+
+**Alternatives considered**: Make Wiki root-prefix-less (rejected: ambiguous
+"/g/..." and "/zh/..." routing); leave old generated/raw URLs permanently
+live (rejected: two canonical URLs and a stale access path).

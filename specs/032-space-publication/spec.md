@@ -264,6 +264,12 @@ permissions and the configured space paths.
   creation and target fields, document page visibility and configured canonical
   URLs, and provide a clear migration outcome for callers using the retired
   link-page behavior.
+- **FR-017**: A writing-mode switch MUST preserve the Wiki space's configured
+  canonical prefix. When raw or generated pages migrate into Wiki while
+  switching to Copilot mode, their destination paths MUST retain a
+  source-space directory, and their former canonical routes MUST redirect only
+  while the migrated target is currently public and published; otherwise the
+  former route MUST be unavailable without disclosing the target.
 
 ### Public Content Delivery
 
@@ -346,3 +352,10 @@ permissions and the configured space paths.
 - Changing a route prefix should preserve safe inbound links through redirects;
   operators are responsible for choosing meaningful stable prefixes and must
   resolve any path conflicts before saving.
+- Every enabled space has a non-empty canonical prefix. The Wiki prefix remains
+  stable across writing-mode changes; raw and generated prefix settings are
+  retained while inactive and reused when LLM Wiki mode is enabled again.
+- Switching from LLM Wiki to Copilot keeps the existing non-destructive content
+  migration: raw and generated pages move into Wiki below source-space path
+  segments. A safe legacy route redirect preserves previously shared public
+  addresses only while the migrated page remains public and published.

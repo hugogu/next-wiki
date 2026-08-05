@@ -52,6 +52,24 @@ prefix.
 An alias is redirect input only, never a second canonical URL. The resolver
 performs a fresh public eligibility check before redirecting.
 
+### Page route redirect
+
+Records a page address that changed for a reason other than a simple prefix
+rename, including an LLM Wiki-to-Copilot migration.
+
+| Field | Meaning | Validation |
+|---|---|---|
+| `id` | Redirect identity | Generated UUID. |
+| `legacy_route` | Complete former canonical route | Unique and never emitted as canonical. |
+| `target_page_id` | Page after migration or move | References the durable page identity. |
+| `reason` | Why the address changed | Includes `writing_mode_switch`; immutable. |
+| `created_at` | Redirect creation time | Required. |
+
+The resolver redirects only if the target is currently public and published;
+otherwise it returns opaque not-found. The writing-mode migration uses this
+record for raw/generated routes that become Wiki routes, while prefix aliases
+remain the simpler same-space rename mechanism.
+
 ### Retired link record
 
 Private audit and legacy-route record created while retiring an active link.
@@ -79,6 +97,7 @@ new general-purpose audit store is introduced.
 ```text
 Content space 1 ── * Page 1 ── * Page revision
       │                    │
+      │                    ├── * Page route redirect
       │                    └── 0..1 Retired link record (former links only)
       └── * Space route alias
 ```
@@ -116,3 +135,15 @@ active link page ── Admin retirement ──> soft-deleted page + retired rec
 ```
 
 No transition returns a retired link to active content in this feature.
+
+### Writing-mode migration address transition
+
+```text
+/w/wiki-page                 ── mode switch ──> /w/wiki-page
+/g/concepts/payment          ── Copilot move ─> /w/generated/concepts/payment
+/r/sources/notice            ── Copilot move ─> /w/raw/sources/notice
+```
+
+The Wiki prefix is unchanged. The old generated/raw address is recorded as a
+conditional page-route redirect; inactive-space prefix settings remain stored
+for a later LLM Wiki reactivation.
