@@ -11,7 +11,7 @@ const paramsSchema = z.object({ spaceId: z.string().uuid() });
 const inputSchema = z.object({
   displayName: z.string().min(1).max(100),
   routePrefix: z.string().min(1).max(63),
-  defaultVisibility: z.enum(['public', 'restricted']),
+  defaultVisibility: z.enum(['public', 'registered', 'restricted']),
 });
 
 export async function PUT(request: Request, { params }: { params: Promise<{ spaceId: string }> }) {

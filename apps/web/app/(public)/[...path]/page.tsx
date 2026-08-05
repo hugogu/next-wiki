@@ -1,22 +1,13 @@
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { Layout } from '@/components/ui/Layout';
-import { ContentRenderer } from '@/components/renderer/ContentRenderer';
-import { PageMetadata } from '@/components/pages/PageMetadata';
-import { PageSidebar } from '@/components/pages/PageSidebar';
-import { ShareButton } from '@/components/pages/ShareButton';
-import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
+import { ReaderPageView } from '@/components/pages/ReaderPageView';
 import * as pageService from '@/server/services/pages';
-import { extractHeadings, injectHeadingIds } from '@/lib/html';
-import type { LivePage } from '@next-wiki/shared';
-import { buildAnonymousCtx, type PermCtx } from '@/server/permissions';
+import { buildAnonymousCtx } from '@/server/permissions';
 import { getPagePathFromParams } from '@/lib/path';
-import { canonicalSpacePath, findPageRouteRedirectTarget, resolveSpacePrefix } from '@/server/services/space-routes';
-import { resolveSpace, type SpaceRow } from '@/server/services/spaces';
-import { findRetiredLinkTarget } from '@/server/services/link-pages';
+import { canonicalSpacePath } from '@/server/services/space-routes';
+import { resolveReaderPage } from '@/server/services/reader-routing';
 import { buildPageDescription } from '@/lib/seo';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
-import { createAppFormatter } from '@/i18n/formatter';
 import { env } from '@/server/config';
 
 // Published reader pages are generated on their first visit and then served as
@@ -37,78 +28,12 @@ export async function generateStaticParams(): Promise<{ path: string[] }[]> {
 
 type PageParams = Promise<{ path: string[] }>;
 
-const LOCALE_PREFIX_RE = /^[a-z]{2}$/;
-
-type Resolved =
-  | { kind: 'original'; page: LivePage; sourcePath: string; space: SpaceRow; legacy: boolean }
-  | { kind: 'translation'; page: LivePage; locale: string; sourcePath: string; space: SpaceRow; legacy: boolean }
-  | { kind: 'unavailable'; locale: string; sourcePath: string; space: SpaceRow; legacy: boolean }
-  | { kind: 'not_found' };
-
-/**
- * Resolve a catch-all reader address. A leading two-letter segment is tried as
- * a translation language first; a genuine source page whose first path segment
- * happens to look like a locale still wins because unmatched translation
- * attempts fall through to original resolution of the full path (content-routing
- * contract — originals keep precedence).
- */
-async function resolve(ctx: PermCtx, rawSegments: string[]): Promise<Resolved> {
-  const isAnonymous = ctx.actor.kind === 'anonymous';
-  const segments = rawSegments.map((s) => decodeURIComponent(s));
-  const prefix = segments[0] ? await resolveSpacePrefix(segments[0]) : null;
-  let resolvedRoute = prefix
-    ? { space: prefix.space, segments: segments.slice(1), legacy: prefix.isAlias }
-    : null;
-  // Bare Wiki reader paths remain legacy input only. They are never emitted
-  // as canonical URLs and redirect only after the normal public-read check.
-  if (!resolvedRoute) {
-    const wiki = await resolveSpace();
-    resolvedRoute = wiki ? { space: wiki, segments, legacy: true } : null;
-  }
-  if (!resolvedRoute || !resolvedRoute.segments.length) return { kind: 'not_found' };
-  const { space, legacy } = resolvedRoute;
-  const fullPath = resolvedRoute.segments.join('/');
-
-  if (resolvedRoute.segments.length >= 2 && LOCALE_PREFIX_RE.test(resolvedRoute.segments[0]!)) {
-    const locale = resolvedRoute.segments[0]!;
-    const sourcePath = resolvedRoute.segments.slice(1).join('/');
-    const result = isAnonymous
-      ? await pageService.getCachedPublicLiveTranslation(locale, sourcePath, space.slug)
-      : await pageService.getLiveTranslation(ctx, locale, sourcePath, space.slug);
-    if (result.kind === 'page') {
-      return { kind: 'translation', page: result.page, locale, sourcePath, space, legacy };
-    }
-    if (result.kind === 'unavailable') {
-      return { kind: 'unavailable', locale, sourcePath: result.sourcePath, space, legacy };
-    }
-    // not_found → fall through to original resolution below.
-  }
-
-  const original = isAnonymous
-    ? await pageService.getCachedPublicLivePage(fullPath, space.slug)
-    : await pageService.getLive(ctx, fullPath, space.slug);
-  if (original) return { kind: 'original', page: original, sourcePath: fullPath, space, legacy };
-
-  // A former link page is never rendered. Its historical route may redirect
-  // only after looking up the target through the same public-read service.
-  const movedTarget = await findPageRouteRedirectTarget(`/${segments.join('/')}`);
-  const retiredTarget = movedTarget ?? await findRetiredLinkTarget(fullPath);
-  if (!retiredTarget) return { kind: 'not_found' };
-  const targetSpace = await resolveSpace(retiredTarget.spaceSlug);
-  const target = targetSpace && (isAnonymous
-    ? await pageService.getCachedPublicLivePage(retiredTarget.path, targetSpace.slug)
-    : await pageService.getLive(ctx, retiredTarget.path, targetSpace.slug));
-  return target && targetSpace
-    ? { kind: 'original', page: target, sourcePath: retiredTarget.path, space: targetSpace, legacy: true }
-    : { kind: 'not_found' };
-}
-
 export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
   const [raw, locale] = await Promise.all([params, getStaticLocale()]);
   const t = getDictionary(locale);
   const siteUrl = env.APP_URL.replace(/\/$/, '');
   // Anonymous context so crawlers see the same metadata logged-out visitors do.
-  const resolved = await resolve(buildAnonymousCtx(), raw.path);
+  const resolved = await resolveReaderPage(buildAnonymousCtx(), raw.path);
 
   if (resolved.kind === 'not_found' || resolved.kind === 'unavailable') {
     const path = getPagePathFromParams(raw);
@@ -155,14 +80,12 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
 
 export default async function PageRead({ params }: { params: PageParams }) {
   const locale = await getStaticLocale();
-  const t = getDictionary(locale);
-  const formatter = createAppFormatter(locale);
   const raw = await params;
   // This route has a single anonymous published representation. Authenticated
   // actions are fetched by AppShell after hydration and remain protected by
   // their server endpoints.
   const actor = buildAnonymousCtx().actor;
-  const resolved = await resolve({ actor }, raw.path);
+  const resolved = await resolveReaderPage({ actor }, raw.path);
 
   if (resolved.kind === 'not_found') notFound();
 
@@ -174,130 +97,5 @@ export default async function PageRead({ params }: { params: PageParams }) {
     ));
   }
 
-  if (resolved.kind === 'unavailable') {
-    // Localized empty/in-progress state for an authorized source reader. Never
-    // substitutes another language or the original as translated output.
-    return (
-      <Layout staticPublic>
-        <article className="flex-1 px-lg py-2xl max-w-none text-center">
-          <h1 className="text-xl font-semibold mb-sm">{t('translation.reader.unavailable.title')}</h1>
-          <p className="text-muted mb-lg">{t('translation.reader.unavailable.body')}</p>
-          <a className="text-primary underline" href={canonicalSpacePath(resolved.space, resolved.sourcePath)}>
-            {t('errors.notFound.backHome')}
-          </a>
-        </article>
-      </Layout>
-    );
-  }
-
-  const { page } = resolved;
-  const isTranslation = resolved.kind === 'translation';
-  // Editing/history controls target the original; a translation is read-only.
-  const canEdit = false;
-  const isAuthor = actor.kind === 'user' ? page.authorId === actor.userId : false;
-  const canPublish =
-    !isTranslation &&
-    page.status === 'draft' &&
-    (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
-
-  const createdAt = new Date(page.createdAt);
-  const siteUrl = env.APP_URL.replace(/\/$/, '');
-  const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
-  const jsonLd =
-    page.status === 'published'
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'Article',
-          headline: page.title,
-          description: buildPageDescription(page.contentHtml, ''),
-          mainEntityOfPage: `${siteUrl}${canonicalPath}`,
-          datePublished: page.publishedAt ?? undefined,
-          dateModified: page.publishedAt ?? undefined,
-          ...(page.authorDisplayName ? { author: { '@type': 'Person', name: page.authorDisplayName } } : {}),
-        }
-      : null;
-
-  // Language versions available for this page (original + published translations),
-  // used by the header's view control to link between locales. Public info, so
-  // the anonymous cached lookup is safe on the static document.
-  const translationLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug);
-
-  const pageContext = {
-    pageId: page.pageId,
-    revisionId: page.revisionId,
-    path: resolved.sourcePath,
-    title: page.title,
-    status: page.status,
-    canEdit,
-    canPublish,
-    version: page.version,
-    sourcePath: resolved.sourcePath,
-    translationLocales,
-    currentLocale: isTranslation ? resolved.locale : null,
-    space: resolved.space.kind,
-    routePrefix: resolved.space.routePrefix ?? (resolved.space.kind === 'wiki' ? 'wiki' : resolved.space.kind),
-    date: page.metadata.date,
-    tags: page.metadata.tags.map((tag) => tag.name),
-    summary: page.metadata.summary,
-    visibility: 'public' as const,
-  };
-
-  const bodyHtml = injectHeadingIds(page.contentHtml);
-  const headings = extractHeadings(bodyHtml);
-  const showShare = page.status === 'published' && !isTranslation;
-
-  return (
-    <Layout pageContext={pageContext} staticPublic space={resolved.space.kind} routePrefix={pageContext.routePrefix}>
-      <div className="min-h-full flex flex-col">
-        {page.status === 'draft' && (
-          <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-lg py-sm text-sm">
-            {t('page.read.draftBanner')}
-          </div>
-        )}
-        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]">
-          <article
-            className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md"
-            data-has-share={showShare || undefined}
-            data-testid="page-reader-article"
-          >
-            {showShare && (
-              <div className="absolute right-lg top-md z-10">
-                <ShareButton pageId={page.pageId} title={page.title} />
-              </div>
-            )}
-            <PageMetadata
-              date={page.metadata.date}
-              summary={page.metadata.summary}
-              tags={[]}
-              labels={{
-                date: t('page.metadata.date'),
-                summary: t('page.metadata.summary'),
-                tags: t('page.metadata.tags'),
-              }}
-            />
-            <ContentRenderer html={bodyHtml} />
-            <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
-              <div className="flex flex-wrap items-center gap-sm">
-                <span>{t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
-                {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}</span>
-                <ProvenanceIndicators pageId={page.pageId} />
-              </div>
-            </footer>
-          </article>
-          <PageSidebar
-            headings={headings}
-            tags={page.metadata.tags}
-            tagsLabel={t('page.metadata.tags')}
-            outlineLabel={t('page.read.outline') ?? 'Outline'}
-          />
-        </div>
-        {jsonLd && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-          />
-        )}
-      </div>
-    </Layout>
-  );
+  return <ReaderPageView actor={actor} locale={locale} resolved={resolved} staticPublic />;
 }

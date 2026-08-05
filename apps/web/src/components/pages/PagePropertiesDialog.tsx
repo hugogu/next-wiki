@@ -24,7 +24,7 @@ type Props = {
   initialDate: string | null;
   initialTags: string[];
   initialSummary: string | null;
-  initialVisibility?: 'public' | 'restricted';
+  initialVisibility?: 'public' | 'registered' | 'restricted';
   canSetVisibility?: boolean;
   pathReadOnly?: boolean;
   onSaved: (path: string) => void;
@@ -123,7 +123,7 @@ export function PagePropertiesDialog({
       }
 
       if (visibilityChanged && visibility) {
-        await apiPut<{ visibility: 'public' | 'restricted' }, unknown>(
+        await apiPut<{ visibility: 'public' | 'registered' | 'restricted' }, unknown>(
           `/api/pages/${encodeURIComponent(pageId)}/visibility`,
           { visibility },
         );

@@ -512,6 +512,7 @@
         "summaryLabel": "Summary",
         "visibilityLabel": "Page visibility",
         "visibilityPublic": "Public",
+        "visibilityRegistered": "Registered users",
         "visibilityRestricted": "Restricted",
         "frontmatterLabel": "Write page metadata to Markdown frontmatter",
         "frontmatterHint": "When off, title, date, tags, and summary are stored only in the wiki database without rewriting the Markdown source.",
@@ -704,6 +705,7 @@
         "visibilityLabel": "Visibility after moving",
         "visibility": {
           "public": "Public",
+          "registered": "Registered users",
           "restricted": "Admin-only"
         },
         "confirm": "Move page",
@@ -1802,6 +1804,7 @@
       "retry": "Retry switch",
       "visibility": {
         "public": "Public",
+        "registered": "Registered users",
         "restricted": "Admin-only"
       },
       "dialog": {

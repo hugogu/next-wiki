@@ -31,6 +31,9 @@ export * from './static-site';
 export const revisionStatusSchema = z.enum(['draft', 'published']);
 export type RevisionStatus = z.infer<typeof revisionStatusSchema>;
 
+export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
+export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
+
 export const contentTypeSchema = z.enum(['text/markdown']);
 export type ContentType = z.infer<typeof contentTypeSchema>;
 
@@ -57,6 +60,7 @@ export const livePageSchema = z.object({
   publishedAt: z.string().nullable(),
   authorDisplayName: z.string().nullable(),
   authorId: z.string(),
+  visibility: pageVisibilitySchema,
   status: revisionStatusSchema,
   createdAt: z.string(),
   metadata: z.object({
@@ -79,7 +83,7 @@ export const editableViewSchema = z.object({
   status: revisionStatusSchema,
   canPublish: z.boolean(),
   canDelete: z.boolean(),
-  visibility: z.enum(['public', 'restricted']),
+  visibility: pageVisibilitySchema,
   writeMetadataToFrontmatter: z.boolean(),
   metadata: z.object({
     date: z.string().nullable(),

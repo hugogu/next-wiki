@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { useApiMutation, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
-type Visibility = 'public' | 'restricted';
+type Visibility = 'public' | 'registered' | 'restricted';
 
 export function SwitchModeDialog({
   onAccepted,
@@ -50,6 +50,7 @@ export function SwitchModeDialog({
           <span>{t('admin.writingMode.dialog.rawVisibility')}</span>
           <Select value={rawVisibility} onChange={(event) => setRawVisibility(event.target.value as Visibility)}>
             <option value="public">{t('admin.writingMode.visibility.public')}</option>
+            <option value="registered">{t('admin.writingMode.visibility.registered')}</option>
             <option value="restricted">{t('admin.writingMode.visibility.restricted')}</option>
           </Select>
         </label>
@@ -57,6 +58,7 @@ export function SwitchModeDialog({
           <span>{t('admin.writingMode.dialog.generatedVisibility')}</span>
           <Select value={generatedVisibility} onChange={(event) => setGeneratedVisibility(event.target.value as Visibility)}>
             <option value="public">{t('admin.writingMode.visibility.public')}</option>
+            <option value="registered">{t('admin.writingMode.visibility.registered')}</option>
             <option value="restricted">{t('admin.writingMode.visibility.restricted')}</option>
           </Select>
         </label>

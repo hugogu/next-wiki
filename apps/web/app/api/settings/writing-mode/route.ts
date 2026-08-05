@@ -32,8 +32,8 @@ export async function GET() {
 
 const switchInputSchema = z.object({
   mode: writingModeSchema,
-  rawVisibility: z.enum(['public', 'restricted']).optional(),
-  generatedVisibility: z.enum(['public', 'restricted']).optional(),
+  rawVisibility: z.enum(['public', 'registered', 'restricted']).optional(),
+  generatedVisibility: z.enum(['public', 'registered', 'restricted']).optional(),
 });
 
 /**

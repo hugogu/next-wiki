@@ -14,7 +14,7 @@ export const WRITING_MODE_CACHE_TAG = 'writing-mode';
 const SETTINGS_ID = 'default';
 
 export type WritingMode = typeof schema.writingModeSettings.$inferSelect.mode;
-export type WritingModeVisibility = 'public' | 'restricted';
+export type WritingModeVisibility = 'public' | 'registered' | 'restricted';
 export type WritingModeSwitchOptions = {
   rawVisibility: WritingModeVisibility;
   generatedVisibility: WritingModeVisibility;

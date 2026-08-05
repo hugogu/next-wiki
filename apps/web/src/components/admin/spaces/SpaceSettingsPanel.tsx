@@ -23,17 +23,17 @@ export type SpaceSettingsItem = {
   kind: 'wiki' | 'generated' | 'raw';
   displayName: string;
   routePrefix: string;
-  defaultVisibility: 'public' | 'restricted';
+  defaultVisibility: 'public' | 'registered' | 'restricted';
   isActive: boolean;
 };
 
 type EditableSpaceSettings = Pick<SpaceSettingsItem, 'displayName' | 'routePrefix' | 'defaultVisibility'>;
 type SpaceSettingsResponse = Partial<SpaceSettingsItem> & { message?: string };
 
-const VISIBILITY_HELP = 'Public pages are readable without signing in after they are published. Restricted pages require an administrator. This is the default for new pages and can be changed per page.';
+const VISIBILITY_HELP = 'Public pages are readable without signing in after they are published. Registered pages require any signed-in account. Restricted pages require an administrator. This is the default for new pages and can be changed per page.';
 
 function visibilityLabel(visibility: SpaceSettingsItem['defaultVisibility']): string {
-  return visibility === 'public' ? 'Public' : 'Restricted';
+  return visibility === 'public' ? 'Public' : visibility === 'registered' ? 'Registered' : 'Restricted';
 }
 
 function hasChanged(space: SpaceSettingsItem, savedSpace: SpaceSettingsItem | undefined): boolean {
@@ -203,6 +203,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
                 onChange={(event) => updateEditingSpace('defaultVisibility', event.target.value)}
               >
                 <option value="restricted">Restricted</option>
+                <option value="registered">Registered users</option>
                 <option value="public">Public</option>
               </Select>
             </label>

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."page_visibility" ADD VALUE 'registered' BEFORE 'restricted';

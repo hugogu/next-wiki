@@ -11,7 +11,7 @@ import { apiPost, type ApiError } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 import { ADMIN_PAGES_CHANGED_EVENT } from './AdminPageStats';
 
-type Visibility = 'public' | 'restricted';
+type Visibility = 'public' | 'registered' | 'restricted';
 
 /**
  * Admin-list action to move a page to the other content space (LLM Wiki mode).
@@ -74,6 +74,7 @@ export function MovePageButton({
               <span>{t('admin.pages.move.visibilityLabel')}</span>
               <Select value={visibility} onChange={(event) => setVisibility(event.target.value as Visibility)}>
                 <option value="public">{t('admin.pages.move.visibility.public')}</option>
+                <option value="registered">{t('admin.pages.move.visibility.registered')}</option>
                 <option value="restricted">{t('admin.pages.move.visibility.restricted')}</option>
               </Select>
             </label>

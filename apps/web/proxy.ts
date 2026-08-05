@@ -2,6 +2,13 @@ import { NextResponse, type NextFetchEvent } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveActorFromSession, SESSION_COOKIE } from '@/server/services/auth';
 import * as audit from '@/server/services/audit';
+import { isReservedSpacePrefix } from '@/server/services/space-routes';
+
+function isExternalReaderPath(pathname: string): boolean {
+  if (pathname === '/' || pathname.endsWith('.md')) return false;
+  const firstSegment = pathname.split('/').filter(Boolean)[0];
+  return Boolean(firstSegment && !isReservedSpacePrefix(firstSegment));
+}
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (request.method !== 'GET') {
@@ -11,22 +18,20 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   const start = Date.now();
   const path = request.nextUrl.pathname;
   const ip = audit.clientIp(request.headers);
+  const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
+  const actor = sessionCookie ? await resolveActorFromSession(sessionCookie) : null;
 
   // Best-effort page audit logging via waitUntil so it runs after the response
   // is sent without blocking it. This catches both full page loads (HTML) and
   // client-side navigations (RSC data requests).
   event.waitUntil(
     (async () => {
-      const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
       let userId: string | null = null;
       let authStatus: 'authenticated' | 'anonymous' = 'anonymous';
 
-      if (sessionCookie) {
-        const actor = await resolveActorFromSession(sessionCookie);
-        if (actor?.kind === 'user') {
-          userId = actor.userId;
-          authStatus = 'authenticated';
-        }
+      if (actor?.kind === 'user') {
+        userId = actor.userId;
+        authStatus = 'authenticated';
       }
 
       await audit.writeEntry({
@@ -45,6 +50,12 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
       // Ignore audit logging failures so a logging problem never breaks pages.
     }),
   );
+
+  if (actor?.kind === 'user' && isExternalReaderPath(path)) {
+    const destination = request.nextUrl.clone();
+    destination.pathname = `/registered-reader${path}`;
+    return NextResponse.rewrite(destination);
+  }
 
   return NextResponse.next();
 }

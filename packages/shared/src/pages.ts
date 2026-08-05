@@ -1,4 +1,6 @@
 import { z } from 'zod';
+
+const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
 import { wikiAiChannelSchema } from './ai';
 
 export const slugSchema = z
@@ -167,7 +169,7 @@ export const publicPageResourceSchema = z.object({
     })
     .optional(),
   humanModified: z.boolean().optional(),
-  visibility: z.enum(['public', 'restricted']).optional(),
+  visibility: pageVisibilitySchema.optional(),
   // 023: set only for raw pages filed under a built-in (system) category —
   // e.g. 'conversation' — so search/reader UIs can show a source-specific
   // cue without a second lookup. Absent/null for every other page.
@@ -336,7 +338,7 @@ export type AdminPageListFilters = {
  * auto-adapted (OKF frontmatter injected when moving into the generated space). */
 export const pageMoveInputSchema = z.object({
   targetSpace: z.enum(['default', 'generated']),
-  visibility: z.enum(['public', 'restricted']).optional(),
+  visibility: pageVisibilitySchema.optional(),
 });
 export type PageMoveInput = z.infer<typeof pageMoveInputSchema>;
 

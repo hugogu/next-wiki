@@ -30,7 +30,7 @@ export type PageContext = {
   /** Current tags used to seed the shared properties dialog. */
   tags?: string[];
   /** Administrator-controlled anonymous-read setting. */
-  visibility?: 'public' | 'restricted';
+  visibility?: 'public' | 'registered' | 'restricted';
 } | null;
 
 export type AppShellProps = {

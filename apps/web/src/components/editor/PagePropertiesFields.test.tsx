@@ -40,6 +40,7 @@ describe('PagePropertiesFields', () => {
 
     expect(html).toContain('Page visibility');
     expect(html).toContain('Restricted');
+    expect(html).toContain('Registered users');
     expect(html).not.toContain('Write page metadata to Markdown frontmatter');
     expect(html).not.toContain('id="prop-path"');
   });

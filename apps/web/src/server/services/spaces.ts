@@ -26,14 +26,14 @@ export type SpaceConfiguration = {
   kind: SpaceKind;
   displayName: string;
   routePrefix: string;
-  defaultVisibility: 'public' | 'restricted';
+  defaultVisibility: 'public' | 'registered' | 'restricted';
 };
 
-function defaultVisibility(kind: SpaceKind): 'public' | 'restricted' {
+function defaultVisibility(kind: SpaceKind): 'public' | 'registered' | 'restricted' {
   return kind === 'wiki' ? 'public' : 'restricted';
 }
 
-export function getEffectiveDefaultVisibility(space: Pick<SpaceRow, 'kind' | 'defaultVisibility'>): 'public' | 'restricted' {
+export function getEffectiveDefaultVisibility(space: Pick<SpaceRow, 'kind' | 'defaultVisibility'>): 'public' | 'registered' | 'restricted' {
   return space.defaultVisibility ?? defaultVisibility(space.kind);
 }
 
@@ -117,7 +117,7 @@ function requireAdmin(ctx: PermCtx): string {
 export async function updateSpaceConfiguration(
   ctx: PermCtx,
   spaceId: string,
-  input: { displayName: string; routePrefix: string; defaultVisibility: 'public' | 'restricted' },
+  input: { displayName: string; routePrefix: string; defaultVisibility: 'public' | 'registered' | 'restricted' },
 ): Promise<SpaceConfiguration> {
   requireAdmin(ctx);
   const displayName = input.displayName.trim();

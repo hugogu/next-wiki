@@ -42,8 +42,8 @@ export function PagePropertiesPanel({
   onSummaryChange?: (value: string) => void;
   writeMetadataToFrontmatter?: boolean;
   onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
-  visibility?: 'public' | 'restricted';
-  onVisibilityChange?: (value: 'public' | 'restricted') => void;
+  visibility?: 'public' | 'registered' | 'restricted';
+  onVisibilityChange?: (value: 'public' | 'registered' | 'restricted') => void;
   error?: string | null;
   saving?: boolean;
   /** Called when the user clicks "Save properties". Triggers path validation

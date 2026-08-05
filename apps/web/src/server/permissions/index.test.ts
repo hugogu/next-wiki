@@ -90,6 +90,16 @@ describe('permissions space-kind matrix (022)', () => {
 });
 
 describe('permissions visibility matrix (022)', () => {
+  it('registered pages are readable by any signed-in user but not anonymously', () => {
+    const opts = { visibility: 'registered' } as const;
+    expect(can(buildAnonymousCtx(), 'read', pageList, opts)).toBe(false);
+    expect(can(buildUserCtx('u1', 'reader'), 'read', pageList, opts)).toBe(true);
+    expect(can(buildUserCtx('u1', 'editor'), 'read', pageList, opts)).toBe(true);
+    expect(can(buildUserCtx('u1', 'admin'), 'read', pageList, opts)).toBe(true);
+    expect(can(buildUserCtx('u1', 'editor'), 'edit', page, opts)).toBe(true);
+    expect(can(buildUserCtx('u1', 'reader'), 'read_draft', revision, opts)).toBe(false);
+  });
+
   it('restricted read/read_draft/edit are admin-only', () => {
     const opts = { visibility: 'restricted' } as const;
     expect(can(buildAnonymousCtx(), 'read', pageList, opts)).toBe(false);

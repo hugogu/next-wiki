@@ -26,8 +26,8 @@ export type PermCtx = {
 /** 022: space kinds gate whole action families before role evaluation. */
 export type SpaceKind = 'wiki' | 'raw' | 'generated';
 
-/** Restricted pages are admin-only for read/read_draft/edit. */
-export type PageVisibility = 'public' | 'restricted';
+/** Registered pages require any signed-in account; restricted pages are admin-only. */
+export type PageVisibility = 'public' | 'registered' | 'restricted';
 
 export type CanOptions = {
   isAuthor?: boolean;
@@ -123,7 +123,7 @@ function roleAllows(
   role: 'admin' | 'editor' | 'reader' | 'anonymous',
   opts: { isAuthor?: boolean; anonymousRead?: boolean; spaceKind?: SpaceKind; visibility?: PageVisibility },
 ): boolean {
-  const { isAuthor = false, anonymousRead = true, spaceKind, visibility = 'public' } = opts;
+  const { isAuthor = false, spaceKind, visibility = 'public' } = opts;
 
   // Raw remains append-only and generated remains admin-curated. Public reads
   // are deliberately evaluated separately: page visibility, not space kind,
@@ -133,7 +133,8 @@ function roleAllows(
       return false;
     }
     if (action === 'create') return role === 'admin';
-    if (action === 'read' && visibility !== 'public') return role === 'admin';
+    if (action === 'read' && visibility === 'restricted') return role === 'admin';
+    if (action === 'read' && visibility === 'registered') return role !== 'anonymous';
   }
   if (
     spaceKind === 'generated' &&
@@ -153,7 +154,7 @@ function roleAllows(
     case 'read':
       // `anonymous_read` is retained as compatibility state for old spaces,
       // but cannot veto an explicit page-level public decision.
-      return role !== 'anonymous' || visibility === 'public' || anonymousRead;
+      return visibility === 'public' || role !== 'anonymous';
     case 'read_draft':
       if (role === 'admin') return true;
       if (role === 'anonymous' || role === 'reader') return false;

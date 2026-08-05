@@ -37,8 +37,8 @@ export function PagePropertiesFields({
   onSummaryChange?: (value: string) => void;
   writeMetadataToFrontmatter?: boolean;
   onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
-  visibility?: 'public' | 'restricted';
-  onVisibilityChange?: (value: 'public' | 'restricted') => void;
+  visibility?: 'public' | 'registered' | 'restricted';
+  onVisibilityChange?: (value: 'public' | 'registered' | 'restricted') => void;
 }) {
   const { t } = useTranslation();
 
@@ -101,10 +101,11 @@ export function PagePropertiesFields({
           <Select
             id="prop-visibility"
             value={visibility}
-            onChange={(event) => onVisibilityChange(event.target.value as 'public' | 'restricted')}
+            onChange={(event) => onVisibilityChange(event.target.value as 'public' | 'registered' | 'restricted')}
             aria-label={t('editor.properties.fields.visibilityLabel')}
           >
             <option value="restricted">{t('editor.properties.fields.visibilityRestricted')}</option>
+            <option value="registered">{t('editor.properties.fields.visibilityRegistered')}</option>
             <option value="public">{t('editor.properties.fields.visibilityPublic')}</option>
           </Select>
         </div>

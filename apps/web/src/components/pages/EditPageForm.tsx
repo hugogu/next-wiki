@@ -33,7 +33,7 @@ type EditPageInitial = {
   canDelete: boolean;
   latestVersion: number;
   metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
-  visibility: 'public' | 'restricted';
+  visibility: 'public' | 'registered' | 'restricted';
   canSetVisibility: boolean;
   writeMetadataToFrontmatter: boolean;
 };
@@ -164,7 +164,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
         setCommittedRevisionId(res.latestRevision?.id ?? committedRevisionId);
       }
       if (visibilityChanged) {
-        await apiPut<{ visibility: 'public' | 'restricted' }, unknown>(
+        await apiPut<{ visibility: 'public' | 'registered' | 'restricted' }, unknown>(
           `/api/pages/${encodeURIComponent(initial.pageId)}/visibility`,
           { visibility },
         );

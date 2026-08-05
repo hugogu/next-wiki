@@ -440,7 +440,7 @@ export const actorKindEnum = pgEnum('actor_kind', ['human', 'machine']);
 
 export const contentNatureEnum = pgEnum('content_nature', ['original', 'generated']);
 
-export const pageVisibilityEnum = pgEnum('page_visibility', ['public', 'restricted']);
+export const pageVisibilityEnum = pgEnum('page_visibility', ['public', 'registered', 'restricted']);
 
 // ---- Raw Conversation Search (023) -----------------------------------------
 

@@ -3970,9 +3970,10 @@
             "type": "string",
             "enum": [
               "public",
+              "registered",
               "restricted"
             ],
-            "description": "Page visibility: public within its space rules, or restricted to administrators."
+            "description": "Page visibility: public, registered-user-only, or restricted to administrators."
           },
           "rawCategorySystemKey": {
             "type": [
@@ -9430,6 +9431,7 @@
             "type": "string",
             "enum": [
               "public",
+              "registered",
               "restricted"
             ],
             "description": "Required when returning to Copilot; visibility for moved raw pages."
@@ -9438,6 +9440,7 @@
             "type": "string",
             "enum": [
               "public",
+              "registered",
               "restricted"
             ],
             "description": "Required when returning to Copilot; visibility for moved generated pages."

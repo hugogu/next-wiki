@@ -418,8 +418,8 @@ export const writingModeSettings = pgTable(
     // Inputs required to resume an accepted switch after a process dies between
     // recording the pending state and enqueueing its pg-boss job.
     switchOptions: jsonb('switch_options').$type<{
-      rawVisibility: 'public' | 'restricted';
-      generatedVisibility: 'public' | 'restricted';
+      rawVisibility: 'public' | 'registered' | 'restricted';
+      generatedVisibility: 'public' | 'registered' | 'restricted';
     } | null>(),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

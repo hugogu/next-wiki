@@ -17,7 +17,7 @@ export type VectorMatch = {
   routePrefix: string | null;
   spaceKind: 'wiki' | 'raw' | 'generated';
   spaceAnonymousRead: boolean;
-  visibility: 'public' | 'restricted';
+  visibility: 'public' | 'registered' | 'restricted';
   // 023: built-in raw category key (e.g. 'conversation'), null otherwise.
   rawCategorySystemKey: string | null;
 };
@@ -55,7 +55,7 @@ export async function exactCosineSearch(
     route_prefix: string | null;
     space_kind: 'wiki' | 'raw' | 'generated';
     space_anonymous_read: boolean;
-    visibility: 'public' | 'restricted';
+    visibility: 'public' | 'registered' | 'restricted';
     raw_category_system_key: string | null;
   }>(sql`
     select

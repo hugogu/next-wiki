@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalSpacePath,
   effectiveRoutePrefix,
+  isReservedSpacePrefix,
   normalizeRoutePrefix,
   routePrefixValidationError,
 } from './space-routes';
@@ -18,6 +19,7 @@ describe('space route prefixes', () => {
     expect(routePrefixValidationError('')).toMatch(/required/i);
     expect(routePrefixValidationError('zh')).toMatch(/reserved/i);
     expect(routePrefixValidationError('api')).toMatch(/reserved/i);
+    expect(isReservedSpacePrefix('registered-reader')).toBe(true);
     expect(routePrefixValidationError('two/segments')).toMatch(/single/i);
     expect(routePrefixValidationError('not_valid')).toMatch(/lowercase/i);
     expect(routePrefixValidationError('g')).toBeNull();

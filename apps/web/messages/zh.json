@@ -512,6 +512,7 @@
         "summaryLabel": "摘要",
         "visibilityLabel": "页面可见性",
         "visibilityPublic": "公开",
+        "visibilityRegistered": "已注册用户",
         "visibilityRestricted": "受限",
         "frontmatterLabel": "将页面元数据写入 Markdown frontmatter",
         "frontmatterHint": "关闭时，标题、日期、标签和摘要仅保存在 Wiki 数据库中，不改写 Markdown 原文。",
@@ -704,6 +705,7 @@
         "visibilityLabel": "移动后的可见性",
         "visibility": {
           "public": "公开",
+          "registered": "已注册用户",
           "restricted": "仅管理员"
         },
         "confirm": "移动页面",
@@ -1802,6 +1804,7 @@
       "retry": "重试切换",
       "visibility": {
         "public": "公开",
+        "registered": "已注册用户",
         "restricted": "仅管理员"
       },
       "dialog": {

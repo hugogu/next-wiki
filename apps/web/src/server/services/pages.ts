@@ -587,6 +587,7 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
       publishedAt: revision.publishedAt?.toISOString() ?? null,
       authorDisplayName: author?.displayName ?? null,
       authorId: page.authorId,
+      visibility: page.visibility,
       status: 'published',
       createdAt: page.createdAt.toISOString(),
       metadata,
@@ -620,6 +621,7 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
     publishedAt: null,
     authorDisplayName: author?.displayName ?? null,
     authorId: page.authorId,
+    visibility: page.visibility,
     status: 'draft',
     createdAt: page.createdAt.toISOString(),
     metadata,
@@ -741,6 +743,7 @@ export async function getLiveTranslation(
       publishedAt: revision.publishedAt?.toISOString() ?? null,
       authorDisplayName: author?.displayName ?? null,
       authorId: translation.authorId,
+      visibility: translation.visibility,
       status: 'published',
       createdAt: translation.createdAt.toISOString(),
       metadata,
@@ -786,6 +789,52 @@ export async function getPublishedTranslationLocales(sourcePath: string, spaceSl
       ),
     );
   return rows.map((r) => r.locale);
+}
+
+/** Published translations visible to a specific actor, including registered-only pages. */
+export async function getReadablePublishedTranslationLocales(
+  ctx: PermCtx,
+  sourcePath: string,
+  spaceSlug?: string,
+): Promise<string[]> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) return [];
+  const source = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, sourcePath),
+      isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!source?.currentPublishedVersionId) return [];
+  const actorUserId = getUserId(ctx);
+  if (!can(ctx, 'read', { kind: 'page', pageId: source.id }, pagePermissionOptions(space, source, { isAuthor: actorUserId === source.authorId }))) {
+    return [];
+  }
+  const group = await db.query.translationGroups.findFirst({ where: eq(schema.translationGroups.sourcePageId, source.id) });
+  if (!group) return [];
+  const translations = await db
+    .select({ id: schema.pages.id, locale: schema.pages.locale, authorId: schema.pages.authorId, visibility: schema.pages.visibility })
+    .from(schema.pages)
+    .innerJoin(schema.translationLanguages, eq(schema.translationLanguages.code, schema.pages.locale))
+    .where(
+      and(
+        eq(schema.pages.translationGroupId, group.id),
+        isNull(schema.pages.deletedAt),
+        sql`${schema.pages.currentPublishedVersionId} is not null`,
+        eq(schema.translationLanguages.enabled, true),
+        isNull(schema.translationLanguages.retiredAt),
+      ),
+    );
+  return translations
+    .filter((translation) => can(
+      ctx,
+      'read',
+      { kind: 'page', pageId: translation.id },
+      pagePermissionOptions(space, translation, { isAuthor: actorUserId === translation.authorId }),
+    ))
+    .map((translation) => translation.locale);
 }
 
 const readCachedPublicLivePage = unstable_cache(
@@ -928,7 +977,7 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
 
 export async function create(
   ctx: PermCtx,
-  input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated'; visibility?: 'public' | 'restricted' },
+  input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated'; visibility?: 'public' | 'registered' | 'restricted' },
   spaceSlug?: string,
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
@@ -1042,8 +1091,8 @@ export async function create(
 export async function setVisibility(
   ctx: PermCtx,
   pageId: string,
-  visibility: 'public' | 'restricted',
-): Promise<'public' | 'restricted'> {
+  visibility: 'public' | 'registered' | 'restricted',
+): Promise<'public' | 'registered' | 'restricted'> {
   if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
     throw new DomainError('FORBIDDEN', 'Only Administrators can change page visibility');
   }
@@ -1282,7 +1331,7 @@ export async function updateProperties(
 export async function moveToSpace(
   ctx: PermCtx,
   pageId: string,
-  input: { targetSpace: 'default' | 'generated'; visibility?: 'public' | 'restricted' },
+  input: { targetSpace: 'default' | 'generated'; visibility?: 'public' | 'registered' | 'restricted' },
 ): Promise<{ pageId: string; targetSpace: string; path: string }> {
   assertAdmin(ctx);
   const userId = getUserId(ctx)!;

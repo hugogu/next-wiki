@@ -25,6 +25,16 @@ afterEach(() => {
 });
 
 describe('ModalDialog focus', () => {
+  it('layers above the navigation drawer', () => {
+    mount(
+      <ModalDialog title="Layer check" onClose={() => {}}>
+        <p>Content</p>
+      </ModalDialog>,
+    );
+
+    expect(container.innerHTML).toContain('z-[60]');
+  });
+
   it('focuses the first form field on mount, not the close button', () => {
     mount(
       <ModalDialog title="Add source" onClose={() => {}}>

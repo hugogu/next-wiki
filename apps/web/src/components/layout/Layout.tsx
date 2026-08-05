@@ -46,7 +46,7 @@ export async function Layout({
   // start collapsed with a `hasChildren` flag so the client can lazy-load them
   // on expand via `/api/v1/tree?pathPrefix=…`. This keeps the initial HTML
   // payload proportional to sidebar depth instead of wiki size.
-  const treeResult = space && space !== 'wiki'
+  const treeResult = !staticPublic && space
     ? await publicContent.getPageTree({ actor }, { status: 'all', space })
     : await publicContent.getCachedPublishedPageTree();
   const tree = sparsifyTree(treeResult.root, pageContext?.path);

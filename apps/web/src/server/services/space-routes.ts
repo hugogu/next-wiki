@@ -16,8 +16,13 @@ export type ResolvedSpacePrefix = {
 
 const RESERVED_PREFIXES = new Set([
   'api', 'admin', 'auth', 'edit', 'forbidden', 'h', 'healthz', 'new', 'pages',
-  'readyz', 's', 'search', 'setup', 'spaces', 'tags', 'user-center',
+  'readyz', 'registered-reader', 's', 'search', 'setup', 'spaces', 'tags', 'user-center',
 ]);
+
+/** Whether a first URL segment belongs to application routing, not wiki content. */
+export function isReservedSpacePrefix(value: string): boolean {
+  return RESERVED_PREFIXES.has(normalizeRoutePrefix(value));
+}
 
 function builtInPrefix(kind: RouteableSpace['kind']): string {
   return kind === 'wiki' ? 'wiki' : kind;
@@ -40,7 +45,7 @@ export function routePrefixValidationError(value: string): string | null {
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$|^[a-z0-9]$/.test(normalized)) {
     return 'Use lowercase letters, numbers, and hyphens only.';
   }
-  if (RESERVED_PREFIXES.has(normalized) || /^[a-z]{2}$/.test(normalized)) {
+  if (isReservedSpacePrefix(normalized) || /^[a-z]{2}$/.test(normalized)) {
     return 'This route prefix is reserved.';
   }
   return null;

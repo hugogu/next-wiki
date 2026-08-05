@@ -800,9 +800,9 @@ export const PublicPageResource = z
       .optional()
       .describe('Whether any revision of the page was written by a human actor.'),
     visibility: z
-      .enum(['public', 'restricted'])
+      .enum(['public', 'registered', 'restricted'])
       .optional()
-      .describe('Page visibility: public within its space rules, or restricted to administrators.'),
+      .describe('Page visibility: public, registered-user-only, or restricted to administrators.'),
     rawCategorySystemKey: z
       .string()
       .nullable()
@@ -1986,8 +1986,8 @@ export const WritingModeSettingsView = z
 export const WritingModeSwitchInput = z
   .object({
     mode: z.enum(['copilot', 'llm-wiki']).describe('Target instance writing mode.'),
-    rawVisibility: z.enum(['public', 'restricted']).optional().describe('Required when returning to Copilot; visibility for moved raw pages.'),
-    generatedVisibility: z.enum(['public', 'restricted']).optional().describe('Required when returning to Copilot; visibility for moved generated pages.'),
+    rawVisibility: z.enum(['public', 'registered', 'restricted']).optional().describe('Required when returning to Copilot; visibility for moved raw pages.'),
+    generatedVisibility: z.enum(['public', 'registered', 'restricted']).optional().describe('Required when returning to Copilot; visibility for moved generated pages.'),
   })
   .describe('Writing-mode transition request.');
 
