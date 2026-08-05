@@ -410,7 +410,11 @@ export async function retry(ctx: PermCtx, id: string): Promise<TransferRunAccept
           : row.kind === 'archive_preview'
             ? ({ kind: 'archive_preview', sourceArtifactId: row.sourceArtifactId!, options: row.options as { conflictStrategy: 'skip' | 'replace' } } as const)
             : row.kind === 'wikijs_preview'
-              ? ({ kind: 'wikijs_preview', sourceId: row.sourceId!, options: row.options as { conflictStrategy: 'skip' | 'replace' } } as const)
+              ? ({
+                  kind: 'wikijs_preview',
+                  sourceId: row.sourceId!,
+                  options: row.options as { conflictStrategy: 'skip' | 'replace'; includeHistory: boolean; historyLimit: number },
+                } as const)
               : ({ kind: 'wikijs_source_test', sourceId: row.sourceId! } as const);
   return create(ctx, input);
 }

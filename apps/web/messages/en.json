@@ -903,7 +903,11 @@
         "testFailed": "Connection failed",
         "preview": "Preview",
         "import": "Import",
-        "delete": "Delete"
+        "delete": "Delete",
+        "includeHistory": "Import full page history",
+        "includeHistoryHelp": "Requires the API token to have the read:history permission. Existing pages previously imported from this source are fully rebuilt from their Wiki.js revision trail; pages not previously imported from this source are left untouched.",
+        "historyLimit": "Version limit per page",
+        "historyBadge": "History"
       },
       "history": {
         "empty": "No transfer runs yet."

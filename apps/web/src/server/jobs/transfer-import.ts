@@ -7,10 +7,21 @@ import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { parsePage } from '@/server/transfers/manifest';
 import { rewriteMarkdownImages, rewriteMarkdownLinks } from '@/server/transfers/markdown-links';
 import { writeImportedAsset } from '@/server/services/transfer-asset-writer';
-import { writeImportedPage, writeImportedRawEntry, writeImportedGeneratedPage } from '@/server/services/transfer-page-writer';
+import {
+  writeImportedPage,
+  writeImportedPageWithHistory,
+  writeImportedRawEntry,
+  writeImportedGeneratedPage,
+} from '@/server/services/transfer-page-writer';
 import { isRunCancelRequested, markRunPaused, markRunTerminal, readRunControlSignal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
-import { WikiJsClient, wikiJsTagNames } from '@/server/transfers/wikijs-client';
+import {
+  WikiJsClient,
+  computeWikiJsHistoryFingerprint,
+  selectHistoryWindow,
+  wikiJsTagNames,
+  type WikiJsHistoryEntry,
+} from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
 import { findMarkdownImages } from '@/server/transfers/markdown-links';
 import { localizeWikiJsImage } from '@/server/services/transfer-wikijs-assets';
@@ -233,6 +244,9 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   if (!preview) throw new Error('Wiki.js preview is missing');
   const source = await getRuntimeSource(run.sourceId);
   const client = new WikiJsClient(source.baseUrl, source.apiToken, source.allowPrivateNetwork);
+  const runOptions = run.options as { includeHistory?: boolean; historyLimit?: number };
+  const includeHistory = Boolean(runOptions.includeHistory);
+  const historyLimit = runOptions.historyLimit ?? 300;
   const plans = await db.query.transferItems.findMany({
     where: and(eq(schema.transferItems.runId, preview.id), eq(schema.transferItems.kind, 'page')),
   });
@@ -273,6 +287,53 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     }).where(eq(schema.transferRuns.id, run.id));
   }
 
+  // Convert one Wiki.js content blob (current or historical) into localized,
+  // link-rewritten markdown. Shared by both the single-version and
+  // full-history write paths so every version goes through the same
+  // conversion/link/image/tag pipeline. Returns null for unsupported content
+  // types. Image failures are non-fatal — the link is left as-is and the
+  // outer `warnings` counter is bumped.
+  async function processWikiJsContent(input: {
+    content: string;
+    contentType?: string | null;
+    editor?: string | null;
+    tags?: (string | { tag: string; title?: string })[];
+    title: string;
+    pagePath: string;
+  }): Promise<{ markdown: string; converted: boolean } | null> {
+    const converter = getTransferConverter(input.contentType, input.editor);
+    if (!converter) return null;
+    const conversion = converter(input.content);
+    let markdown = conversion.markdown;
+    // Wiki.js content may contain internal page links with locale routing
+    // prefixes (e.g. `/zh/docs/foo` or `https://wiki.host/zh/docs/foo`).
+    // next-wiki stores locale as page metadata, so strip the prefix from the
+    // same-origin/internal links while leaving external URLs untouched.
+    markdown = rewriteMarkdownLinks(markdown, createWikiJsLinkReplacer(source.baseUrl, input.pagePath));
+    const images = findMarkdownImages(markdown).sort((a, b) => b.start - a.start);
+    for (const image of images) {
+      try {
+        const localUrl = await localizeWikiJsImage({
+          sourceId: source.id,
+          baseUrl: source.baseUrl,
+          apiToken: source.apiToken,
+          allowPrivateNetwork: source.allowPrivateNetwork,
+          pagePath: input.pagePath,
+          imageUrl: image.url,
+          actorUserId: run.actorUserId!,
+          runId: run.id,
+        });
+        markdown = `${markdown.slice(0, image.start)}${localUrl}${markdown.slice(image.end)}`;
+      } catch {
+        warnings += 1;
+      }
+    }
+    if (input.tags !== undefined) {
+      markdown = patchMetadata(markdown, { tags: wikiJsTagNames(input.tags) }, input.title).source;
+    }
+    return { markdown, converted: conversion.converted };
+  }
+
   for (const plan of plans) {
     // Already imported in an earlier segment of this (resumed) run — skip in
     // memory before any DB/network work so counters are never double-counted.
@@ -310,60 +371,135 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       continue;
     }
     const page = await client.getPage(Number(plan.sourceKey));
-    if (page.fingerprint !== plan.sourceFingerprint) throw new Error(`Wiki.js page changed after preview: ${page.path}`);
     const converter = getTransferConverter(page.contentType, page.editor);
     if (!converter) continue;
-    const conversion = converter(page.content);
-    let markdown = conversion.markdown;
-    // Wiki.js content may contain internal page links with locale routing
-    // prefixes (e.g. `/zh/docs/foo` or `https://wiki.host/zh/docs/foo`).
-    // next-wiki stores locale as page metadata, so strip the prefix from the
-    // same-origin/internal links while leaving external URLs untouched.
-    markdown = rewriteMarkdownLinks(markdown, createWikiJsLinkReplacer(source.baseUrl, page.path));
-    const images = findMarkdownImages(markdown).sort((a, b) => b.start - a.start);
-    for (const image of images) {
-      try {
-        const localUrl = await localizeWikiJsImage({
-          sourceId: source.id,
-          baseUrl: source.baseUrl,
-          apiToken: source.apiToken,
-          allowPrivateNetwork: source.allowPrivateNetwork,
-          pagePath: page.path,
-          imageUrl: image.url,
-          actorUserId: run.actorUserId,
-          runId: run.id,
+
+    const targetActionMeta = (plan.metadata as { targetAction?: string }).targetAction;
+    const writeAction = targetActionMeta === 'replace' ? 'replace' : targetActionMeta === 'skip' ? 'skip' : 'create';
+
+    // Only re-fetch/verify the history trail for pages that will actually be
+    // written — matches previewWikiJs, which likewise skips history for
+    // 'skip' items, so `plan.sourceFingerprint` lines up with what we
+    // recompute here.
+    let trail: WikiJsHistoryEntry[] = [];
+    let expectedFingerprint = page.fingerprint;
+    if (includeHistory && writeAction !== 'skip') {
+      trail = await client.listHistory(page.id);
+      expectedFingerprint = computeWikiJsHistoryFingerprint(page.fingerprint, trail);
+    }
+    if (expectedFingerprint !== plan.sourceFingerprint) {
+      throw new Error(`Wiki.js page changed after preview: ${page.path}`);
+    }
+
+    let writePageId: string | null;
+    let writeResultAction: 'create' | 'replace' | 'skip';
+    let anyConverted = false;
+    let itemWarned = false;
+    let historyTruncated = false;
+    let historyIncludedCount = 0;
+    let historyTotalAvailable = 0;
+
+    if (includeHistory) {
+      const { keep, truncated } = selectHistoryWindow(trail, historyLimit);
+      const versions: Array<{ markdown: string; title: string; createdAt: Date; sourceMetadata: Record<string, unknown> }> = [];
+      for (const entry of keep) {
+        const versionContent = await client.getVersion(page.id, entry.versionId);
+        const built = await processWikiJsContent({
+          content: versionContent.content,
+          contentType: versionContent.contentType,
+          tags: versionContent.tags ?? undefined,
+          title: versionContent.title,
+          pagePath: versionContent.path,
         });
-        markdown = `${markdown.slice(0, image.start)}${localUrl}${markdown.slice(image.end)}`;
-      } catch {
-        warnings += 1;
+        if (!built) {
+          itemWarned = true;
+          continue;
+        }
+        if (built.converted) anyConverted = true;
+        versions.push({
+          markdown: built.markdown,
+          title: versionContent.title,
+          createdAt: new Date(versionContent.versionDate),
+          sourceMetadata: {
+            wikijsVersionId: entry.versionId,
+            wikijsAuthorId: entry.authorId,
+            wikijsAuthorName: entry.authorName,
+            actionType: entry.actionType,
+            isCurrent: false,
+          },
+        });
       }
+      const currentBuilt = await processWikiJsContent({
+        content: page.content,
+        contentType: page.contentType,
+        editor: page.editor,
+        tags: page.tags,
+        title: page.title,
+        pagePath: page.path,
+      });
+      if (!currentBuilt) continue;
+      if (currentBuilt.converted) anyConverted = true;
+      versions.push({
+        markdown: currentBuilt.markdown,
+        title: page.title,
+        createdAt: page.updatedAt ? new Date(page.updatedAt) : new Date(),
+        sourceMetadata: {
+          wikijsAuthorName: page.authorName ?? null,
+          wikijsCreatorName: page.creatorName ?? null,
+          isCurrent: true,
+        },
+      });
+
+      const result = await writeImportedPageWithHistory({
+        actorUserId: run.actorUserId,
+        path: page.path,
+        locale: page.locale,
+        versions,
+        action: writeAction,
+      });
+      writePageId = result.pageId;
+      writeResultAction = result.action;
+      historyTruncated = truncated;
+      historyIncludedCount = versions.length;
+      historyTotalAvailable = trail.length + 1;
+      if (truncated) itemWarned = true;
+    } else {
+      const built = await processWikiJsContent({
+        content: page.content,
+        contentType: page.contentType,
+        editor: page.editor,
+        tags: page.tags,
+        title: page.title,
+        pagePath: page.path,
+      });
+      if (!built) continue;
+      anyConverted = built.converted;
+      const result = await writeImportedPage({
+        actorUserId: run.actorUserId,
+        path: page.path,
+        locale: page.locale,
+        title: page.title,
+        markdown: built.markdown,
+        action: writeAction,
+      });
+      writePageId = result.pageId;
+      writeResultAction = result.action;
     }
-    if (page.tags !== undefined) {
-      markdown = patchMetadata(markdown, { tags: wikiJsTagNames(page.tags) }, page.title).source;
-    }
-    const targetAction = (plan.metadata as { targetAction?: string }).targetAction;
-    const action = targetAction === 'replace' ? 'replace' : targetAction === 'skip' ? 'skip' : 'create';
-    const result = await writeImportedPage({
-      actorUserId: run.actorUserId,
-      path: page.path,
-      locale: page.locale,
-      title: page.title,
-      markdown,
-      action,
-    });
-    if (result.action === 'create') created += 1;
-    else if (result.action === 'replace') replaced += 1;
+
+    if (writeResultAction === 'create') created += 1;
+    else if (writeResultAction === 'replace') replaced += 1;
     else skipped += 1;
-    if (conversion.converted) converted += 1;
+    if (anyConverted) converted += 1;
+    if (itemWarned) warnings += 1;
     processed += 1;
     await reportProgress(`${page.locale}/${page.path}`);
-    if (result.pageId) {
+    if (writePageId) {
       await db.insert(schema.transferPageMappings).values({
         sourceType: 'wikijs',
         sourceIdentity: source.id,
         sourcePageKey: String(page.id),
-        sourceFingerprint: page.fingerprint,
-        targetPageId: result.pageId,
+        sourceFingerprint: expectedFingerprint,
+        targetPageId: writePageId,
         targetPath: page.path,
         targetLocale: page.locale,
         lastRunId: run.id,
@@ -374,8 +510,8 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
           schema.transferPageMappings.sourcePageKey,
         ],
         set: {
-          sourceFingerprint: page.fingerprint,
-          targetPageId: result.pageId,
+          sourceFingerprint: expectedFingerprint,
+          targetPageId: writePageId,
           targetPath: page.path,
           targetLocale: page.locale,
           lastRunId: run.id,
@@ -387,12 +523,21 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       runId: run.id,
       kind: 'page',
       sourceKey: String(page.id),
-      sourceFingerprint: page.fingerprint,
+      sourceFingerprint: expectedFingerprint,
       displayName: `${page.locale}/${page.path}`,
-      targetKey: result.pageId,
-      action: conversion.converted ? 'convert' : result.action,
-      status: warnings ? 'warning' : 'completed',
-      metadata: { converted: conversion.converted },
+      targetKey: writePageId,
+      action: anyConverted ? 'convert' : writeResultAction,
+      status: itemWarned ? 'warning' : 'completed',
+      warningCode: historyTruncated ? 'WIKIJS_HISTORY_TRUNCATED' : undefined,
+      warningMessage: historyTruncated
+        ? `Kept ${historyIncludedCount} of ${historyTotalAvailable} historical versions.`
+        : undefined,
+      metadata: {
+        converted: anyConverted,
+        ...(includeHistory
+          ? { history: { totalAvailable: historyTotalAvailable, includedCount: historyIncludedCount, limit: historyLimit, truncated: historyTruncated } }
+          : {}),
+      },
       finishedAt: new Date(),
     }).onConflictDoNothing();
   }

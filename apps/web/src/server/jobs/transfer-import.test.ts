@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { computeWikiJsHistoryFingerprint, type WikiJsHistoryEntry } from '@/server/transfers/wikijs-client';
 import { runTransferImport } from './transfer-import';
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getRuntimeSource: vi.fn(),
   getTransferConverter: vi.fn(),
   writeImportedPage: vi.fn(),
+  writeImportedPageWithHistory: vi.fn(),
   writeImportedAsset: vi.fn(),
   localizeWikiJsImage: vi.fn(),
   enqueueGitExport: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock('@/server/transfers/registry', () => ({
 
 vi.mock('@/server/services/transfer-page-writer', () => ({
   writeImportedPage: mocks.writeImportedPage,
+  writeImportedPageWithHistory: mocks.writeImportedPageWithHistory,
 }));
 
 vi.mock('@/server/services/transfer-asset-writer', () => ({
@@ -47,6 +50,8 @@ vi.mock('@/server/services/git-export', () => ({
 const TRUNCATE =
   'TRUNCATE TABLE transfer_page_mappings, transfer_asset_mappings, transfer_items, transfer_runs, transfer_artifacts, transfer_sources, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
 
+type HistoryVersionDef = WikiJsHistoryEntry & { content: string; contentType?: string; title: string };
+
 type PageDef = {
   id: number;
   path: string;
@@ -59,6 +64,7 @@ type PageDef = {
   tags?: Array<string | { tag: string; title?: string }>;
   action?: 'create' | 'replace' | 'skip';
   unsupported?: boolean;
+  history?: HistoryVersionDef[];
 };
 
 let adminId: string;
@@ -105,8 +111,9 @@ afterAll(async () => {
   vi.restoreAllMocks();
 });
 
-async function seedImport(opts: { pages: PageDef[] }) {
+async function seedImport(opts: { pages: PageDef[]; includeHistory?: boolean; historyLimit?: number }) {
   const pageIds = new Map<string, string>();
+  const includeHistory = Boolean(opts.includeHistory);
 
   for (const page of opts.pages) {
     if (page.unsupported) continue;
@@ -124,6 +131,17 @@ async function seedImport(opts: { pages: PageDef[] }) {
     pageIds.set(`${page.locale}/${page.path}`, row!.id);
   }
 
+  // Mirrors previewWikiJs: history is only ever fetched/fingerprinted for
+  // pages that will actually be written (not 'skip'), so the preview-stage
+  // sourceFingerprint recorded here must match what runWikiJsImport
+  // recomputes.
+  function sourceFingerprintFor(page: PageDef): string {
+    const writeAction = page.unsupported ? 'skip' : page.action ?? 'create';
+    if (!includeHistory || writeAction === 'skip') return page.fingerprint;
+    const trail = [...(page.history ?? [])].sort((a, b) => a.versionId - b.versionId);
+    return computeWikiJsHistoryFingerprint(page.fingerprint, trail);
+  }
+
   const [preview] = await db
     .insert(schema.transferRuns)
     .values({
@@ -131,7 +149,7 @@ async function seedImport(opts: { pages: PageDef[] }) {
       status: 'completed',
       actorUserId: adminId,
       sourceId,
-      options: { conflictStrategy: 'skip' },
+      options: { conflictStrategy: 'skip', includeHistory, historyLimit: opts.historyLimit ?? 300 },
       totalItems: opts.pages.length,
       processedItems: opts.pages.length,
       createdItems: opts.pages.filter((p) => p.action === 'create').length,
@@ -146,7 +164,7 @@ async function seedImport(opts: { pages: PageDef[] }) {
       runId: preview!.id,
       kind: 'page' as const,
       sourceKey: String(page.id),
-      sourceFingerprint: page.fingerprint,
+      sourceFingerprint: sourceFingerprintFor(page),
       displayName: `${page.locale}/${page.path}`,
       targetKey: `${page.locale}/${page.path}`,
       action: (page.unsupported ? 'skip' : page.action ?? 'create') as 'create' | 'replace' | 'skip',
@@ -165,7 +183,7 @@ async function seedImport(opts: { pages: PageDef[] }) {
       actorUserId: adminId,
       sourceId,
       previewRunId: preview!.id,
-      options: { conflictStrategy: 'skip' },
+      options: { conflictStrategy: 'skip', includeHistory, historyLimit: opts.historyLimit ?? 300 },
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
@@ -186,6 +204,32 @@ async function seedImport(opts: { pages: PageDef[] }) {
         fingerprint: page.fingerprint,
       };
     }),
+    listHistory: vi.fn(async (id: number) => {
+      const page = opts.pages.find((p) => p.id === id);
+      return [...(page?.history ?? [])]
+        .sort((a, b) => a.versionId - b.versionId)
+        .map(({ versionId, versionDate, authorId, authorName, actionType }) => ({ versionId, versionDate, authorId, authorName, actionType }));
+    }),
+    getVersion: vi.fn(async (pageId: number, versionId: number) => {
+      const page = opts.pages.find((p) => p.id === pageId);
+      const version = page?.history?.find((v) => v.versionId === versionId);
+      if (!page || !version) throw new Error(`Version not found: ${pageId}/${versionId}`);
+      return {
+        action: version.actionType,
+        authorId: String(version.authorId),
+        authorName: version.authorName,
+        content: version.content,
+        contentType: version.contentType ?? 'text/markdown',
+        createdAt: version.versionDate,
+        versionDate: version.versionDate,
+        locale: page.locale,
+        pageId: page.id,
+        path: page.path,
+        tags: [],
+        title: version.title,
+        versionId: version.versionId,
+      };
+    }),
   }));
 
   mocks.getTransferConverter.mockImplementation(() => (content: string) => ({
@@ -196,6 +240,12 @@ async function seedImport(opts: { pages: PageDef[] }) {
   mocks.writeImportedPage.mockImplementation(async (input: { path: string; locale: string; action: 'create' | 'replace' | 'skip' }) => ({
     pageId: pageIds.get(`${input.locale}/${input.path}`) ?? null,
     revisionId: randomUUID(),
+    action: input.action,
+  }));
+
+  mocks.writeImportedPageWithHistory.mockImplementation(async (input: { path: string; locale: string; versions: unknown[]; action: 'create' | 'replace' | 'skip' }) => ({
+    pageId: pageIds.get(`${input.locale}/${input.path}`) ?? null,
+    revisionIds: input.versions.map(() => randomUUID()),
     action: input.action,
   }));
 
@@ -367,5 +417,119 @@ describe('runTransferImport wikijs_import', () => {
     expect(updated?.createdItems).toBe(2);
     expect(updated?.skippedItems).toBe(1);
     expect(updated?.warningItems).toBe(1);
+  });
+});
+
+describe('runTransferImport wikijs_import includeHistory', () => {
+  it('fetches and writes the full ordered version history, current version last', async () => {
+    const pages: PageDef[] = [{
+      id: 50,
+      path: 'docs/history-one',
+      locale: 'en',
+      title: 'Current title',
+      content: '# current',
+      fingerprint: 'fp50',
+      history: [
+        { versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 7, authorName: 'Alice', actionType: 'initial', content: '# v1', title: 'V1' },
+        { versionId: 2, versionDate: '2026-02-01T00:00:00.000Z', authorId: 8, authorName: 'Bob', actionType: 'edit', content: '# v2', title: 'V2' },
+      ],
+    }];
+    const { runId } = await seedImport({ pages, includeHistory: true });
+    mocks.writeImportedPageWithHistory.mockClear();
+
+    await runTransferImport(runId);
+
+    const completed = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(completed?.status, completed?.errorMessage ?? undefined).toBe('completed');
+
+    expect(mocks.writeImportedPageWithHistory).toHaveBeenCalledTimes(1);
+    const call = mocks.writeImportedPageWithHistory.mock.calls.at(-1)![0] as {
+      versions: Array<{ markdown: string; sourceMetadata: Record<string, unknown> }>;
+    };
+    // Wiki.js's PageVersion.tags is always an array (never undefined), so
+    // every historical version round-trips through patchMetadata and gains a
+    // frontmatter block — assert on the body, not exact byte equality.
+    expect(call.versions.map((v) => v.markdown)).toMatchObject([
+      expect.stringContaining('# v1'),
+      expect.stringContaining('# v2'),
+      '# current',
+    ]);
+    expect(call.versions.at(-1)!.sourceMetadata.isCurrent).toBe(true);
+    expect(call.versions[0]!.sourceMetadata.wikijsVersionId).toBe(1);
+  });
+
+  it('fails the run when the history trail changed after preview', async () => {
+    const pages: PageDef[] = [{
+      id: 51,
+      path: 'docs/history-stale',
+      locale: 'en',
+      title: 'T',
+      content: '# current',
+      fingerprint: 'fp51',
+      history: [
+        { versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 1, authorName: 'A', actionType: 'initial', content: '# v1', title: 'V1' },
+      ],
+    }];
+    const { runId } = await seedImport({ pages, includeHistory: true });
+    // Simulate a new edit landing on Wiki.js after the preview snapshot was taken.
+    pages[0]!.history!.push({
+      versionId: 2, versionDate: '2026-03-01T00:00:00.000Z', authorId: 2, authorName: 'B', actionType: 'edit', content: '# v2', title: 'V2',
+    });
+    mocks.writeImportedPageWithHistory.mockClear();
+
+    await runTransferImport(runId);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(updated?.status).toBe('failed');
+    expect(updated?.errorMessage).toMatch(/changed after preview/);
+    expect(mocks.writeImportedPageWithHistory).not.toHaveBeenCalled();
+  });
+
+  it('marks the item as a WIKIJS_HISTORY_TRUNCATED warning when history exceeds the configured limit', async () => {
+    const history: HistoryVersionDef[] = Array.from({ length: 5 }, (_, i) => ({
+      versionId: i + 1,
+      versionDate: `2026-01-0${i + 1}T00:00:00.000Z`,
+      authorId: 1,
+      authorName: 'A',
+      actionType: 'edit',
+      content: `# v${i + 1}`,
+      title: `V${i + 1}`,
+    }));
+    const pages: PageDef[] = [{ id: 52, path: 'docs/history-truncated', locale: 'en', title: 'T', content: '# current', fingerprint: 'fp52', history }];
+    const { runId } = await seedImport({ pages, includeHistory: true, historyLimit: 3 });
+
+    await runTransferImport(runId);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(updated?.status).toBe('completed_with_warnings');
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, runId) });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.warningCode).toBe('WIKIJS_HISTORY_TRUNCATED');
+    const historyMeta = (items[0]?.metadata as { history?: { truncated: boolean; includedCount: number } }).history;
+    expect(historyMeta?.truncated).toBe(true);
+    expect(historyMeta?.includedCount).toBe(3);
+  });
+
+  it('does not fetch the history trail for a page targeted to be skipped', async () => {
+    const pages: PageDef[] = [{
+      id: 53,
+      path: 'docs/history-skip-target',
+      locale: 'en',
+      title: 'T',
+      content: '# current',
+      fingerprint: 'fp53',
+      action: 'skip',
+      history: [
+        { versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 1, authorName: 'A', actionType: 'initial', content: '# v1', title: 'V1' },
+      ],
+    }];
+    const { runId } = await seedImport({ pages, includeHistory: true });
+
+    await runTransferImport(runId);
+
+    const clientInstance = mocks.WikiJsClient.mock.results.at(-1)!.value as { listHistory: ReturnType<typeof vi.fn> };
+    expect(clientInstance.listHistory).not.toHaveBeenCalled();
+    expect(mocks.writeImportedPageWithHistory).toHaveBeenCalledWith(expect.objectContaining({ action: 'skip' }));
   });
 });

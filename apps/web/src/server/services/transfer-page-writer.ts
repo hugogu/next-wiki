@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, max } from 'drizzle-orm';
+import { and, eq, inArray, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown } from '@/server/pipeline';
@@ -316,5 +316,163 @@ export async function writeImportedPage(input: {
     pageId: result.pageId,
     revisionId,
     action: existing && !(result.restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
+  };
+}
+
+/**
+ * Import a page's full Wiki.js revision trail as a coherent, connected
+ * next-wiki page history instead of a single overwrite revision. When the
+ * page already exists, its current revisions are wiped and replaced end to
+ * end — a "full re-import" as agreed with the product owner — because the
+ * existing revision sequence has no way to represent Wiki.js version numbers
+ * it never saw. `versions` must be ordered oldest to newest; the last entry
+ * becomes the page's current published version.
+ */
+export async function writeImportedPageWithHistory(input: {
+  actorUserId: string;
+  path: string;
+  locale: string;
+  versions: Array<{
+    markdown: string;
+    title: string;
+    createdAt: Date;
+    sourceMetadata: Record<string, unknown>;
+  }>;
+  action: 'create' | 'replace' | 'skip';
+}): Promise<{ pageId: string | null; revisionIds: string[]; action: 'create' | 'replace' | 'skip' }> {
+  const space = await resolveSpace();
+  if (!space) throw new Error('Default space not found');
+  const existing = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, input.path),
+      eq(schema.pages.locale, input.locale),
+    ),
+  });
+  if (input.action === 'skip') return { pageId: existing?.id ?? null, revisionIds: [], action: 'skip' };
+  if (existing && !existing.deletedAt && input.action === 'create') {
+    return { pageId: existing.id, revisionIds: [], action: 'skip' };
+  }
+  if (input.versions.length === 0) {
+    throw new Error('writeImportedPageWithHistory requires at least one version');
+  }
+
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
+    let pageId: string;
+    if (existing) {
+      // Full re-import: wipe this page's existing revision sequence before
+      // rebuilding it from the Wiki.js trail. Order matters:
+      const oldRevisions = await tx
+        .select({ id: schema.pageRevisions.id })
+        .from(schema.pageRevisions)
+        .where(eq(schema.pageRevisions.pageId, existing.id));
+      const oldRevisionIds = oldRevisions.map((row) => row.id);
+      // 1. aiPageIndexStates.targetRevisionId has no onDelete cascade/set null
+      //    (plain FK) — deleting pageRevisions first would violate it. The
+      //    reconcile call below rebuilds these rows against the new revision
+      //    anyway, so it's safe to just drop the page's stale state.
+      await tx.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, existing.id));
+      if (oldRevisionIds.length > 0) {
+        // 2. storageReplicationTasks.objectId is a polymorphic reference with
+        //    no real FK, so it is never cleaned up by cascade; leaving it
+        //    would make the replication worker retry against revision ids
+        //    that no longer exist.
+        await tx.delete(schema.storageReplicationTasks).where(
+          and(
+            eq(schema.storageReplicationTasks.objectKind, 'markdown'),
+            inArray(schema.storageReplicationTasks.objectId, oldRevisionIds),
+          ),
+        );
+      }
+      // 3. Detach the page's revision pointers before deleting the rows they
+      //    reference, so there is never a moment where they dangle.
+      await tx
+        .update(schema.pages)
+        .set({ currentPublishedVersionId: null, latestVersionId: null })
+        .where(eq(schema.pages.id, existing.id));
+      // 4. pageRevisionMetadata/pageRevisionTags/contentAssetRefs/
+      //    aiKnowledgeChunks cascade; translation-related FKs set null.
+      await tx.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, existing.id));
+      pageId = existing.id;
+    } else {
+      const [page] = await tx
+        .insert(schema.pages)
+        .values({
+          spaceId: space.id,
+          slug: input.path.split('/').at(-1) ?? input.path,
+          path: input.path,
+          locale: input.locale,
+          title: input.versions.at(-1)!.title,
+          authorId: input.actorUserId,
+          nature: 'original',
+        })
+        .returning({ id: schema.pages.id });
+      pageId = page!.id;
+    }
+
+    // Insert the full trail strictly in order — versionNumber is a per-page
+    // running counter, so concurrent inserts for the same page would race.
+    let versionNumber = 1;
+    const revisionIds: string[] = [];
+    let finalTitle = input.versions.at(-1)!.title;
+    for (const version of input.versions) {
+      const revisionId = randomUUID();
+      const { html, hash } = renderMarkdown(version.markdown);
+      await tx.insert(schema.pageRevisions).values({
+        id: revisionId,
+        pageId,
+        versionNumber: versionNumber++,
+        locale: input.locale,
+        contentType: 'text/markdown',
+        contentSource: version.markdown,
+        contentHtml: html,
+        contentHash: hash,
+        authorId: input.actorUserId,
+        // Every imported version is 'published', not just the latest one:
+        // getHistory() hides draft revisions from non-admin readers, and a
+        // Wiki.js trail entry is by definition a version that was once live.
+        status: 'published',
+        publishedAt: version.createdAt,
+        createdAt: version.createdAt,
+        actorKind: 'machine',
+        sourceMetadata: version.sourceMetadata,
+      });
+      const metadata = await persistRevisionMetadata(tx, {
+        revisionId,
+        spaceId: space.id,
+        source: version.markdown,
+        fallbackTitle: version.title,
+      });
+      await syncRevisionAssetRefs(tx, revisionId, version.markdown);
+      await addReplicationTasks(tx, 'markdown', revisionId, hash);
+      revisionIds.push(revisionId);
+      finalTitle = metadata.title;
+    }
+
+    await tx
+      .update(schema.pages)
+      .set({
+        title: finalTitle,
+        currentPublishedVersionId: revisionIds.at(-1),
+        latestVersionId: revisionIds.at(-1),
+        deletedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, pageId));
+
+    return { pageId, revisionIds };
+  });
+
+  // Per-page reconcile/replication kick, not per-revision: both only care
+  // about the page's final currentPublishedVersionId, so calling them once
+  // after the whole trail is written avoids redundant work (see ai-index.ts).
+  await kickReplication();
+  await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
+  return {
+    pageId: result.pageId,
+    revisionIds: result.revisionIds,
+    action: existing ? 'replace' : 'create',
   };
 }

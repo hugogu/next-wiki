@@ -7,7 +7,22 @@ import * as schema from '@/server/db/schema';
 import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { writePortableArchive } from '@/server/transfers/archive-writer';
 import { sha256 } from '@/server/transfers/manifest';
+import { DomainError } from '@/server/errors';
 import { runTransferPreview } from './transfer-preview';
+
+const mocks = vi.hoisted(() => ({
+  WikiJsClient: vi.fn(),
+  getRuntimeSource: vi.fn(),
+}));
+
+vi.mock('@/server/transfers/wikijs-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/transfers/wikijs-client')>()),
+  WikiJsClient: mocks.WikiJsClient,
+}));
+
+vi.mock('@/server/services/transfer-sources', () => ({
+  getRuntimeSource: mocks.getRuntimeSource,
+}));
 
 // Redirect the singleton store to a temp dir BEFORE the job module (and its
 // transitive config import) is evaluated, so inspectPortableArchive reads from
@@ -30,6 +45,7 @@ const NOW = '2026-06-21T00:00:00.000Z';
 
 let adminId: string;
 let spaceId: string;
+let wikijsSourceId: string;
 
 beforeAll(async () => {
   await db.execute(sql.raw(TRUNCATE));
@@ -47,6 +63,25 @@ beforeAll(async () => {
     .values({ slug: 'default', name: 'Default' })
     .returning();
   spaceId = space!.id;
+
+  const [source] = await db
+    .insert(schema.transferSources)
+    .values({
+      name: 'Wiki.js Test',
+      baseUrl: 'http://wiki.example.com',
+      allowPrivateNetwork: false,
+      credentialsEncrypted: 'encrypted',
+      status: 'healthy',
+      createdBy: adminId,
+    })
+    .returning();
+  wikijsSourceId = source!.id;
+  mocks.getRuntimeSource.mockResolvedValue({
+    id: wikijsSourceId,
+    baseUrl: 'http://wiki.example.com',
+    apiToken: 'token',
+    allowPrivateNetwork: false,
+  });
 });
 
 afterAll(async () => {
@@ -54,6 +89,65 @@ afterAll(async () => {
   await rm(tempDir, { recursive: true, force: true });
   await closeDb();
 });
+
+type WikiJsPageDef = {
+  id: number;
+  path: string;
+  locale?: string;
+  title?: string;
+  history?: Array<{ versionId: number; versionDate: string; authorId: number; authorName: string; actionType: string }>;
+};
+
+/** Wire up a queued wikijs_preview run backed by a mocked WikiJsClient. */
+async function buildWikiJsPreviewRun(opts: {
+  pages: WikiJsPageDef[];
+  conflictStrategy?: 'skip' | 'replace';
+  includeHistory?: boolean;
+  historyLimit?: number;
+  historyAccessError?: Error;
+}) {
+  mocks.WikiJsClient.mockImplementation(() => ({
+    listPages: vi.fn(async () =>
+      opts.pages.map((p) => ({
+        id: p.id,
+        path: p.path,
+        locale: p.locale ?? 'en',
+        title: p.title ?? p.path,
+        description: null,
+        contentType: 'text/markdown',
+        isPublished: true,
+        isPrivate: false,
+        createdAt: null,
+        updatedAt: null,
+        tags: [],
+      })),
+    ),
+    listHistory: vi.fn(async (id: number) => {
+      const page = opts.pages.find((p) => p.id === id);
+      return [...(page?.history ?? [])].sort((a, b) => a.versionId - b.versionId);
+    }),
+    assertHistoryAccess: vi.fn(async () => {
+      if (opts.historyAccessError) throw opts.historyAccessError;
+    }),
+  }));
+
+  const [run] = await db
+    .insert(schema.transferRuns)
+    .values({
+      kind: 'wikijs_preview',
+      status: 'queued',
+      actorUserId: adminId,
+      sourceId: wikijsSourceId,
+      options: {
+        conflictStrategy: opts.conflictStrategy ?? 'skip',
+        includeHistory: Boolean(opts.includeHistory),
+        historyLimit: opts.historyLimit ?? 300,
+      },
+      expiresAt: new Date(Date.now() + 3_600_000),
+    })
+    .returning();
+  return { run: run! };
+}
 
 type PageInput = { id: string; path: string; locale?: string; markdown?: string };
 
@@ -276,5 +370,108 @@ describe('runTransferPreview (archive_preview)', () => {
     });
     expect(failed?.status).toBe('failed');
     expect(failed?.errorCode).toBe('INVALID_ARCHIVE');
+  });
+});
+
+describe('previewWikiJs includeHistory', () => {
+  it('fails the whole run up front when the source lacks read:history access', async () => {
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{ id: 100, path: 'docs/one' }, { id: 101, path: 'docs/two' }],
+      includeHistory: true,
+      historyAccessError: new DomainError('WIKIJS_HISTORY_FORBIDDEN', 'missing read:history'),
+    });
+
+    await runTransferPreview(run.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    expect(updated?.status).toBe('failed');
+    expect(updated?.errorCode).toBe('WIKIJS_HISTORY_FORBIDDEN');
+
+    // Aborted before any per-page processing — no partial item rows.
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    expect(items).toHaveLength(0);
+  });
+
+  it('marks a page item WIKIJS_HISTORY_TRUNCATED when its trail exceeds the configured limit', async () => {
+    const history = Array.from({ length: 5 }, (_, i) => ({
+      versionId: i + 1,
+      versionDate: `2026-01-0${i + 1}T00:00:00.000Z`,
+      authorId: 1,
+      authorName: 'A',
+      actionType: 'edit',
+    }));
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{ id: 102, path: 'docs/truncate', history }],
+      includeHistory: true,
+      historyLimit: 3,
+    });
+
+    await runTransferPreview(run.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    expect(updated?.status).toBe('completed_with_warnings');
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.action).toBe('create');
+    expect(items[0]?.warningCode).toBe('WIKIJS_HISTORY_TRUNCATED');
+    const historyMeta = (items[0]?.metadata as { history?: { truncated: boolean; includedCount: number } }).history;
+    expect(historyMeta?.truncated).toBe(true);
+    expect(historyMeta?.includedCount).toBe(3);
+  });
+
+  it('downgrades a full-history replace to skip when the existing page has no mapping from this source', async () => {
+    await db.insert(schema.pages).values({
+      spaceId, slug: 'unmapped', path: 'docs/unmapped', locale: 'en', title: 'Manually created', authorId: adminId,
+    });
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{ id: 103, path: 'docs/unmapped' }],
+      includeHistory: true,
+      conflictStrategy: 'replace',
+    });
+
+    await runTransferPreview(run.id);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.action).toBe('skip');
+    expect(items[0]?.warningCode).toBe('HISTORY_REPLACE_UNMAPPED_PAGE');
+    expect((items[0]?.metadata as { targetAction?: string }).targetAction).toBe('skip');
+  });
+
+  it('allows a full-history replace when the existing page was previously imported from this source', async () => {
+    const [page] = await db.insert(schema.pages).values({
+      spaceId, slug: 'mapped', path: 'docs/mapped', locale: 'en', title: 'Previously imported', authorId: adminId,
+    }).returning();
+    const [priorRun] = await db.insert(schema.transferRuns).values({
+      kind: 'wikijs_import',
+      status: 'completed',
+      actorUserId: adminId,
+      sourceId: wikijsSourceId,
+      options: {},
+      expiresAt: new Date(Date.now() + 3_600_000),
+    }).returning();
+    await db.insert(schema.transferPageMappings).values({
+      sourceType: 'wikijs',
+      sourceIdentity: wikijsSourceId,
+      sourcePageKey: '104',
+      sourceFingerprint: 'irrelevant',
+      targetPageId: page!.id,
+      targetPath: 'docs/mapped',
+      targetLocale: 'en',
+      lastRunId: priorRun!.id,
+    });
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{ id: 104, path: 'docs/mapped' }],
+      includeHistory: true,
+      conflictStrategy: 'replace',
+    });
+
+    await runTransferPreview(run.id);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.action).toBe('replace');
+    expect(items[0]?.warningCode).toBeNull();
   });
 });

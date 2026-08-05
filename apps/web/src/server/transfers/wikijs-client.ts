@@ -33,6 +33,35 @@ const sourcePageSchema = z.object({
   creatorName: z.string().nullable().optional(),
 });
 
+const historyEntrySchema = z.object({
+  versionId: z.number().int(),
+  versionDate: z.string(),
+  authorId: z.number().int(),
+  authorName: z.string(),
+  actionType: z.string(),
+});
+
+const historyResultSchema = z.object({
+  trail: z.array(historyEntrySchema).nullable().optional(),
+  total: z.number().int(),
+});
+
+const versionContentSchema = z.object({
+  action: z.string(),
+  authorId: z.string(),
+  authorName: z.string(),
+  content: z.string(),
+  contentType: z.string(),
+  createdAt: z.string(),
+  versionDate: z.string(),
+  locale: z.string(),
+  pageId: z.number().int(),
+  path: z.string(),
+  tags: z.array(z.string()).nullable().optional(),
+  title: z.string(),
+  versionId: z.number().int(),
+});
+
 const INVENTORY_QUERY = `query NextWikiPageInventory {
   pages { list(orderBy: ID, orderByDirection: ASC) {
     id path locale title description contentType isPublished isPrivate createdAt updatedAt tags
@@ -44,6 +73,24 @@ const SOURCE_QUERY = `query NextWikiPageSource($id: Int!) {
     tags { tag title } authorName creatorName
   } }
 }`;
+const HISTORY_QUERY = `query NextWikiPageHistory($id: Int!, $offsetPage: Int, $offsetSize: Int) {
+  pages { history(id: $id, offsetPage: $offsetPage, offsetSize: $offsetSize) {
+    trail { versionId versionDate authorId authorName actionType }
+    total
+  } }
+}`;
+const VERSION_QUERY = `query NextWikiPageVersion($pageId: Int!, $versionId: Int!) {
+  pages { version(pageId: $pageId, versionId: $versionId) {
+    action authorId authorName content contentType createdAt versionDate
+    locale pageId path tags title versionId
+  } }
+}`;
+
+export type WikiJsHistoryEntry = z.infer<typeof historyEntrySchema>;
+export type WikiJsVersionContent = z.infer<typeof versionContentSchema>;
+
+const HISTORY_PAGE_SIZE = 100;
+const HISTORY_ACCESS_ERROR_PATTERN = /permission|forbidden|unauthorized|access denied/i;
 
 type WikiJsPageMetadata = {
   id: number;
@@ -90,6 +137,41 @@ export function computeWikiJsPageFingerprint(page: WikiJsPageMetadata): string {
       }),
     )
     .digest('hex');
+}
+
+export function computeWikiJsHistoryFingerprint(pageFingerprint: string, trail: WikiJsHistoryEntry[]): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        pageFingerprint,
+        trail: trail.map((entry) => `${entry.versionId}:${entry.versionDate}`),
+      }),
+    )
+    .digest('hex');
+}
+
+/**
+ * Pick which historical versions to keep when a page's trail exceeds `limit`.
+ * The current version always occupies one slot; when the trail itself must be
+ * trimmed, the oldest entry is kept as the import's "starting point" version
+ * even if it falls outside the most-recent window, so page history always
+ * begins at a real Wiki.js version rather than an arbitrary cutoff.
+ */
+export function selectHistoryWindow(
+  trail: WikiJsHistoryEntry[],
+  limit: number,
+): { keep: WikiJsHistoryEntry[]; truncated: boolean } {
+  const totalAvailable = trail.length + 1; // +1 = current version, not part of trail
+  if (totalAvailable <= limit) return { keep: trail, truncated: false };
+  const budgetForTrail = Math.max(limit - 1, 0); // 1 slot reserved for the current version
+  if (budgetForTrail === 0) return { keep: [], truncated: true };
+  // Truncation only triggers once trail.length >= limit, which keeps
+  // recentBudget (limit - 2) strictly below trail.length — so `recent` (the
+  // most recent entries) can never already reach back to index 0.
+  const recentBudget = Math.max(budgetForTrail - 1, 0); // 1 slot reserved for the oldest starting-point version
+  const recent = recentBudget > 0 ? trail.slice(-recentBudget) : [];
+  const keep = [trail[0]!, ...recent];
+  return { keep, truncated: true };
 }
 
 export class WikiJsClient {
@@ -154,5 +236,52 @@ export class WikiJsClient {
       ...page,
       fingerprint: computeWikiJsPageFingerprint(page),
     };
+  }
+
+  /** Fetch a page's full revision trail (oldest to newest), paging through
+   * Wiki.js's `history` query until `total` entries have been collected. */
+  async listHistory(id: number): Promise<WikiJsHistoryEntry[]> {
+    const trail: WikiJsHistoryEntry[] = [];
+    for (let offsetPage = 1; ; offsetPage += 1) {
+      const data = await this.query<{ pages: { history: unknown } }>(HISTORY_QUERY, {
+        id,
+        offsetPage,
+        offsetSize: HISTORY_PAGE_SIZE,
+      });
+      const page = historyResultSchema.parse(data.pages.history);
+      const entries = page.trail ?? [];
+      trail.push(...entries);
+      if (entries.length === 0 || trail.length >= page.total) break;
+    }
+    return trail.sort((a, b) => a.versionId - b.versionId);
+  }
+
+  async getVersion(pageId: number, versionId: number): Promise<WikiJsVersionContent> {
+    const data = await this.query<{ pages: { version: unknown } }>(VERSION_QUERY, { pageId, versionId });
+    return versionContentSchema.parse(data.pages.version);
+  }
+
+  /** Probe whether this source's API token can read page history. Throws a
+   * `WIKIJS_HISTORY_FORBIDDEN` DomainError on a permission-shaped GraphQL
+   * error so callers can fail the whole import up front rather than
+   * discovering the gap page by page. Non-permission errors (network,
+   * timeout, etc.) are rethrown unchanged for the existing retry/handling. */
+  async assertHistoryAccess(probeId: number): Promise<void> {
+    try {
+      await this.query<{ pages: { history: unknown } }>(HISTORY_QUERY, {
+        id: probeId,
+        offsetPage: 1,
+        offsetSize: 1,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (HISTORY_ACCESS_ERROR_PATTERN.test(message)) {
+        throw new DomainError(
+          'WIKIJS_HISTORY_FORBIDDEN',
+          'Wiki.js API token is missing the read:history permission. Grant read:history to this token (or its group) in the Wiki.js admin panel, then retry.',
+        );
+      }
+      throw error;
+    }
   }
 }

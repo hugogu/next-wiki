@@ -162,9 +162,14 @@ export function TransferRunList({ runs }: { runs: TransferRunView[] }) {
         {runs.map((run) => (
           <DataTableRow key={run.id}>
             <DataTableCell>
-              <Link className="font-medium text-primary hover:underline" href={`/admin/transfers/${run.id}`}>
-                {t(`admin.transfers.kind.${run.kind}`)}
-              </Link>
+              <div className="flex items-center gap-xs">
+                <Link className="font-medium text-primary hover:underline" href={`/admin/transfers/${run.id}`}>
+                  {t(`admin.transfers.kind.${run.kind}`)}
+                </Link>
+                {Boolean(run.options.includeHistory) && (
+                  <StatusBadge tone="info">{t('admin.transfers.wikijs.historyBadge')}</StatusBadge>
+                )}
+              </div>
             </DataTableCell>
             <DataTableCell>
               <div className="flex items-center gap-xs">

@@ -83,6 +83,12 @@ export const transferOptionsSchema = z.object({
 });
 export type TransferOptions = z.infer<typeof transferOptionsSchema>;
 
+export const wikijsTransferOptionsSchema = transferOptionsSchema.extend({
+  includeHistory: z.boolean().default(false),
+  historyLimit: z.number().int().min(1).max(2000).default(300),
+});
+export type WikijsTransferOptions = z.infer<typeof wikijsTransferOptionsSchema>;
+
 export const generatedOkfExportOptionsSchema = z.object({
   space: z.literal('generated'),
   format: z.literal('okf'),
@@ -159,7 +165,11 @@ export const transferRunCreateSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('wikijs_preview'),
     sourceId: z.string().uuid(),
-    options: transferOptionsSchema.default({ conflictStrategy: 'skip' }),
+    options: wikijsTransferOptionsSchema.default({
+      conflictStrategy: 'skip',
+      includeHistory: false,
+      historyLimit: 300,
+    }),
   }),
   z.object({ kind: z.literal('wikijs_import'), previewRunId: z.string().uuid() }),
 ]);

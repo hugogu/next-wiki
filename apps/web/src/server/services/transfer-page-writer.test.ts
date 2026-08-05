@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { writeImportedPage } from './transfer-page-writer';
+import { writeImportedPage, writeImportedPageWithHistory } from './transfer-page-writer';
 
 vi.mock('@/server/pipeline', () => ({
   renderMarkdown: (source: string) => ({ html: `<p>${source}</p>`, hash: `hash-${source.length}` }),
@@ -13,10 +13,15 @@ vi.mock('./storage-replication', () => ({ addReplicationTasks: vi.fn(), kickRepl
 vi.mock('./ai-index', () => ({ reconcilePageAcrossIndexes: vi.fn() }));
 
 const TRUNCATE =
-  'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_actions, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
+  'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_models, ai_providers, storage_backends, ai_actions, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
 
 let adminId: string;
 let spaceId: string;
+// Fixtures a real (unmocked) import would have created rows against — used to
+// prove writeImportedPageWithHistory's full-rebuild cleanup does not trip the
+// FK on ai_page_index_states or leave orphaned storage_replication_tasks rows.
+let backendId: string;
+let generationId: string;
 
 beforeAll(async () => {
   await db.execute(sql.raw(TRUNCATE));
@@ -35,6 +40,23 @@ beforeAll(async () => {
     .values({ slug: 'default', name: 'Default' })
     .returning();
   spaceId = space!.id;
+
+  const [backend] = await db.insert(schema.storageBackends).values({ type: 'local' }).returning();
+  backendId = backend!.id;
+
+  const [provider] = await db
+    .insert(schema.aiProviders)
+    .values({ name: 'test-provider', kind: 'openai_compatible', baseUrl: 'https://example.test', credentialsEncrypted: 'enc:test' })
+    .returning();
+  const [model] = await db
+    .insert(schema.aiModels)
+    .values({ providerId: provider!.id, externalId: 'test-model', displayName: 'Test Model' })
+    .returning();
+  const [generation] = await db
+    .insert(schema.aiIndexGenerations)
+    .values({ modelId: model!.id, embeddingDimensions: 8, chunkerVersion: 'v1' })
+    .returning();
+  generationId = generation!.id;
 });
 
 afterAll(async () => {
@@ -139,5 +161,130 @@ describe('writeImportedPage', () => {
     });
     expect(metadata?.title).toBe('Tagged import');
     expect(assignments.map((tag) => tag.normalizedName).sort()).toEqual(['devops', 'docker']);
+  });
+});
+
+describe('writeImportedPageWithHistory', () => {
+  it('creates a page with a full, ordered, all-published revision history', async () => {
+    const result = await writeImportedPageWithHistory({
+      actorUserId: adminId,
+      path: 'docs/history-create',
+      locale: 'en',
+      versions: [
+        { markdown: '# v1', title: 'V1', createdAt: new Date('2026-01-01T00:00:00.000Z'), sourceMetadata: { wikijsVersionId: 1 } },
+        { markdown: '# v2', title: 'V2', createdAt: new Date('2026-02-01T00:00:00.000Z'), sourceMetadata: { wikijsVersionId: 2 } },
+        { markdown: '# v3 current', title: 'V3 current', createdAt: new Date('2026-03-01T00:00:00.000Z'), sourceMetadata: { isCurrent: true } },
+      ],
+      action: 'create',
+    });
+
+    expect(result.action).toBe('create');
+    expect(result.revisionIds).toHaveLength(3);
+
+    const revisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, result.pageId!),
+      orderBy: (r, { asc }) => asc(r.versionNumber),
+    });
+    expect(revisions.map((r) => r.versionNumber)).toEqual([1, 2, 3]);
+    expect(revisions.map((r) => r.id)).toEqual(result.revisionIds);
+    expect(revisions.every((r) => r.status === 'published')).toBe(true);
+    expect(revisions[0]?.createdAt.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId!) });
+    expect(page?.currentPublishedVersionId).toBe(result.revisionIds.at(-1));
+    expect(page?.latestVersionId).toBe(result.revisionIds.at(-1));
+    expect(page?.title).toBe('V3 current');
+  });
+
+  it('wipes existing revisions and orphaned replication/index rows on a full re-import replace', async () => {
+    const [page] = await db
+      .insert(schema.pages)
+      .values({ spaceId, slug: 'history-replace', path: 'docs/history-replace', locale: 'en', title: 'Old title', authorId: adminId })
+      .returning();
+    const [oldRevision] = await db
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: page!.id,
+        versionNumber: 1,
+        contentType: 'text/markdown',
+        contentSource: '# old',
+        contentHtml: '<p># old</p>',
+        contentHash: 'old-hash',
+        authorId: adminId,
+        status: 'published',
+        publishedAt: new Date(),
+        actorKind: 'machine',
+      })
+      .returning();
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: oldRevision!.id, latestVersionId: oldRevision!.id })
+      .where(eq(schema.pages.id, page!.id));
+
+    // Rows a prior real (unmocked) import would have left behind for the old
+    // revision — proves the cleanup order in writeImportedPageWithHistory
+    // avoids the ai_page_index_states FK violation and doesn't orphan
+    // storage_replication_tasks.
+    await db.insert(schema.storageReplicationTasks).values({
+      backendId,
+      objectKind: 'markdown',
+      objectId: oldRevision!.id,
+      expectedHash: 'old-hash',
+    });
+    await db.insert(schema.aiPageIndexStates).values({
+      generationId,
+      pageId: page!.id,
+      targetRevisionId: oldRevision!.id,
+      status: 'completed',
+    });
+
+    const result = await writeImportedPageWithHistory({
+      actorUserId: adminId,
+      path: 'docs/history-replace',
+      locale: 'en',
+      versions: [
+        { markdown: '# new v1', title: 'New V1', createdAt: new Date('2026-01-01T00:00:00.000Z'), sourceMetadata: {} },
+        { markdown: '# new v2 current', title: 'New V2', createdAt: new Date('2026-02-01T00:00:00.000Z'), sourceMetadata: { isCurrent: true } },
+      ],
+      action: 'replace',
+    });
+
+    expect(result.pageId).toBe(page!.id);
+    expect(result.action).toBe('replace');
+    expect(result.revisionIds).toHaveLength(2);
+
+    const oldRevisionRow = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, oldRevision!.id) });
+    expect(oldRevisionRow).toBeUndefined();
+
+    const remainingReplicationTasks = await db.query.storageReplicationTasks.findMany({
+      where: eq(schema.storageReplicationTasks.objectId, oldRevision!.id),
+    });
+    expect(remainingReplicationTasks).toHaveLength(0);
+
+    const remainingIndexStates = await db.query.aiPageIndexStates.findMany({
+      where: eq(schema.aiPageIndexStates.pageId, page!.id),
+    });
+    expect(remainingIndexStates).toHaveLength(0);
+
+    const newRevisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, page!.id),
+      orderBy: (r, { asc }) => asc(r.versionNumber),
+    });
+    expect(newRevisions.map((r) => r.versionNumber)).toEqual([1, 2]);
+
+    const updatedPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) });
+    expect(updatedPage?.currentPublishedVersionId).toBe(result.revisionIds.at(-1));
+    expect(updatedPage?.title).toBe('New V2');
+  });
+
+  it('returns early without writing when action is skip', async () => {
+    const result = await writeImportedPageWithHistory({
+      actorUserId: adminId,
+      path: 'docs/history-skip',
+      locale: 'en',
+      versions: [{ markdown: '# skip', title: 'Skip', createdAt: new Date(), sourceMetadata: {} }],
+      action: 'skip',
+    });
+    expect(result).toEqual({ pageId: null, revisionIds: [], action: 'skip' });
   });
 });

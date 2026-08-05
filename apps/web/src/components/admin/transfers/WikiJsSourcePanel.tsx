@@ -31,6 +31,17 @@ export function WikiJsSourcePanel({
 
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
+  const [historyOptions, setHistoryOptions] = useState<Record<string, { includeHistory: boolean; historyLimit: number }>>({});
+
+  function historyOptionsFor(sourceId: string) {
+    return historyOptions[sourceId] ?? { includeHistory: false, historyLimit: 300 };
+  }
+  function setHistoryOptionsFor(sourceId: string, patch: Partial<{ includeHistory: boolean; historyLimit: number }>) {
+    setHistoryOptions((prev) => ({
+      ...prev,
+      [sourceId]: { ...(prev[sourceId] ?? { includeHistory: false, historyLimit: 300 }), ...patch },
+    }));
+  }
 
   async function createSource() {
     setBusy(true);
@@ -87,9 +98,10 @@ export function WikiJsSourcePanel({
   async function start(kind: 'wikijs_source_test' | 'wikijs_preview', sourceId: string) {
     setBusy(true);
     try {
+      const { includeHistory, historyLimit } = historyOptionsFor(sourceId);
       await apiPost<Record<string, unknown>, TransferRunAccepted>('/api/transfers',
         kind === 'wikijs_preview'
-          ? { kind, sourceId, options: { conflictStrategy: 'skip' } }
+          ? { kind, sourceId, options: { conflictStrategy: 'skip', includeHistory, historyLimit } }
           : { kind, sourceId });
       router.refresh();
     } finally {
@@ -166,6 +178,7 @@ export function WikiJsSourcePanel({
 
       {sources.map((source) => {
         const preview = runs.find((run) => run.sourceId === source.id && run.kind === 'wikijs_preview' && (run.status === 'completed' || run.status === 'completed_with_warnings'));
+        const { includeHistory, historyLimit } = historyOptionsFor(source.id);
         return (
           <div key={source.id} className="rounded-lg border border-border p-md">
             <div className="flex flex-wrap items-center justify-between gap-sm">
@@ -194,6 +207,39 @@ export function WikiJsSourcePanel({
                   </Button>
                 </Tooltip>
               </div>
+            </div>
+            <div className="mt-sm flex flex-wrap items-center gap-sm border-t border-border pt-sm text-sm">
+              <label className="flex items-center gap-xs">
+                <input
+                  type="checkbox"
+                  checked={includeHistory}
+                  disabled={busy}
+                  onChange={(event) => setHistoryOptionsFor(source.id, { includeHistory: event.target.checked })}
+                />
+                {t('admin.transfers.wikijs.includeHistory')}
+                <Tooltip label={t('admin.transfers.wikijs.includeHistoryHelp')}>
+                  <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.wikijs.includeHistoryHelp')}>
+                    <InfoIcon className="h-4 w-4" />
+                  </span>
+                </Tooltip>
+              </label>
+              {includeHistory && (
+                <label className="flex items-center gap-xs text-muted">
+                  {t('admin.transfers.wikijs.historyLimit')}
+                  <Input
+                    type="number"
+                    min={1}
+                    max={2000}
+                    value={historyLimit}
+                    disabled={busy}
+                    className="w-20"
+                    onChange={(event) => {
+                      const parsed = Number(event.target.value);
+                      if (Number.isFinite(parsed) && parsed > 0) setHistoryOptionsFor(source.id, { historyLimit: Math.min(2000, Math.floor(parsed)) });
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </div>
         );

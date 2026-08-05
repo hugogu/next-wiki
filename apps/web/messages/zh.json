@@ -903,7 +903,11 @@
         "testFailed": "连接失败",
         "preview": "预览",
         "import": "导入",
-        "delete": "删除"
+        "delete": "删除",
+        "includeHistory": "导入完整页面历史",
+        "includeHistoryHelp": "需要 API token 具备 read:history 权限。之前已从该数据源导入过的页面会按 Wiki.js 修订历史完整重建；未从该数据源导入过的同路径页面则保持不变。",
+        "historyLimit": "单页历史版本上限",
+        "historyBadge": "含历史"
       },
       "history": {
         "empty": "暂无导入导出运行记录。"
