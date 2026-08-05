@@ -21,6 +21,15 @@ The existing `/{language}/{path}` convention remains content translation
 routing. `zh` in that URL identifies translated page content; it never selects
 the UI language.
 
+# Content spaces and sharing
+
+Wiki, generated, and raw pages have independent configured URL prefixes. A
+published page can be **Public**, **Registered** (available after sign-in), or
+**Restricted** (Administrator-only). Public pages use the configured canonical
+space URL; registered pages keep that same URL but are served dynamically to
+signed-in users. The retired `Publish as link` workflow is not supported:
+sharing is configured on the page itself in Page Properties.
+
 # First-run onboarding
 
 `/setup` is the single canonical first-run entry point. It walks the operator

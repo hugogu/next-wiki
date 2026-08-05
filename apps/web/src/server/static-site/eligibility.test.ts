@@ -33,6 +33,8 @@ async function makePage(options: {
   title?: string;
   locale?: string;
   visibility?: 'public' | 'restricted';
+  kind?: 'native' | 'link';
+  linkTargetPageId?: string;
   published?: boolean;
   deleted?: boolean;
   translationGroupId?: string | null;
@@ -48,6 +50,8 @@ async function makePage(options: {
       title: options.title ?? options.path,
       authorId,
       visibility: options.visibility ?? 'public',
+      kind: options.kind ?? 'native',
+      linkTargetPageId: options.linkTargetPageId,
       translationGroupId: options.translationGroupId ?? null,
       deletedAt: options.deleted ? new Date() : null,
     })
@@ -173,6 +177,21 @@ describe('buildPublishableSet', () => {
     const set = await buildPublishableSet();
     expect(set.pages).toHaveLength(0);
     expect(set.exclusions.space_kind_generated).toBe(1);
+  });
+
+  it('excludes historical link pages even when their target is publishable', async () => {
+    const space = await makeSpace('wiki-open', 'wiki', true);
+    const target = await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup' });
+    await makePage({
+      spaceId: space,
+      path: 'legacy-setup',
+      title: 'Legacy setup',
+      kind: 'link',
+      linkTargetPageId: target,
+    });
+
+    const set = await buildPublishableSet();
+    expect(set.pages.map((page) => page.path)).toEqual(['guides/setup']);
   });
 
   it('publishes only the eligible pages from a mixed wiki', async () => {

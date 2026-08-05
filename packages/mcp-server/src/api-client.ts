@@ -114,7 +114,7 @@ export const publicPageResourceSchema = z.object({
   canonicalUrl: z.string().optional(),
   origin: publicOriginSchema.optional(),
   humanModified: z.boolean().optional(),
-  visibility: z.enum(['public', 'restricted']).optional(),
+  visibility: z.enum(['public', 'registered', 'restricted']).optional(),
   rawCategorySystemKey: z.string().nullable().optional(),
   // 025: capture channel for a Conversation Raw page (e.g. 'feishu'); absent
   // or null for non-conversation pages and legacy captures.

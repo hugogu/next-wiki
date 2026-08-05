@@ -6,6 +6,7 @@ import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, typ
 import { parsePageFrontmatter } from '@/server/transfers/frontmatter';
 import { getRevisionMetadata } from '@/server/services/page-metadata';
 import { getSpaceById, type SpaceRow } from '@/server/services/spaces';
+import { canonicalSpacePath } from '@/server/services/space-routes';
 import { assertSpaceKindAllowed } from '@/server/services/writing-mode';
 
 function encodePath(path: string): string {
@@ -99,6 +100,7 @@ export async function projectReadableCandidatePages(
       inArray(schema.pages.spaceId, [...spaceById.keys()]),
       isNull(schema.pages.deletedAt),
       isNotNull(schema.pages.currentPublishedVersionId),
+      eq(schema.pages.kind, 'native'),
       inArray(schema.pages.id, ids),
     ));
 
@@ -130,6 +132,7 @@ export async function projectReadableCandidatePages(
         path: row.page.path,
         locale: row.page.locale,
         title: row.page.title,
+        canonicalUrl: canonicalSpacePath(space, row.page.path, row.page.locale),
         frontmatter,
         metadata: row.page.currentPublishedVersionId ? await getRevisionMetadata(row.page.currentPublishedVersionId) : undefined,
         status: 'published',

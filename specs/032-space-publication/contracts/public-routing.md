@@ -13,15 +13,29 @@ existing language-neutral page path. Locale addressing continues to use the
 project's established locale convention inside the public route, with the
 resolved space prefix remaining part of the canonical URL.
 
-The public route returns a static/ISR document only when the resolved page:
+The anonymous public route returns a static/ISR document only when the
+resolved page:
 
 1. belongs to an enabled space;
 2. is not deleted;
 3. has a current published revision; and
 4. has `visibility=public`.
 
-Any failure returns not-found without page title, target, provenance, raw
-asset, draft, or audit disclosure.
+Missing, deleted, draft, disabled-space, and opaque legacy failures return
+not-found without page title, target, provenance, raw asset, draft, or audit
+disclosure.
+
+Published protected pages intentionally differ from missing pages:
+
+| Visibility | Anonymous request | Authenticated request |
+|---|---|---|
+| `public` | static/ISR document | static/ISR document |
+| `registered` | generic access-denied page with register/sign-in actions | dynamic reader at the same canonical URL |
+| `restricted` | generic access-denied page | generic access-denied page unless the actor is an Administrator |
+
+The access-denied response never identifies the protected page. Authenticated
+external-reader requests are internally rewritten to the dynamic registered
+reader so registered content cannot enter the anonymous ISR cache.
 
 ## Protected workspace reader
 

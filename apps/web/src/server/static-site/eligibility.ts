@@ -123,6 +123,7 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
     .where(
       and(
         isNull(schema.pages.deletedAt),
+        eq(schema.pages.kind, 'native'),
         isNotNull(schema.pages.currentPublishedVersionId),
         eq(schema.pages.visibility, 'public'),
         eq(schema.spaces.anonymousRead, true),

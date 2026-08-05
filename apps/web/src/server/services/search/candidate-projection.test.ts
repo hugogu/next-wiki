@@ -43,6 +43,7 @@ describe('search candidate projection', () => {
       spaceSlug: 'default',
       path: corpus.pages.english.path,
       title: 'Search Architecture',
+      canonicalUrl: `/wiki/${corpus.pages.english.path}`,
     });
     expect(english?.page.locale).toBeTruthy();
     // Projection is intentionally engine-neutral: provenance is added only by

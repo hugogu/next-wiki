@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultComparePair,
+  getConfiguredSpaceHref,
   getRevisionDiffHref,
   getSpaceDraftReviewHref,
   parseRevisionDiffOptions,
   parseRevisionPair,
 } from './path';
+
+describe('configured space URLs', () => {
+  it('uses the configured prefix before locale and page path', () => {
+    expect(getConfiguredSpaceHref('g', 'concepts/payment', 'zh')).toBe('/g/zh/concepts/payment');
+  });
+});
 
 describe('revision diff URLs', () => {
   it('sorts a pair into its canonical address', () => {

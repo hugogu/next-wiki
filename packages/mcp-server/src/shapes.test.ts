@@ -17,6 +17,23 @@ describe('shape transformers', () => {
     }], nextCursor: null });
     expect(result.pages[0]?.metadata?.summary).toBe('Summary');
   });
+
+  it('accepts registered-only page visibility from the public API', async () => {
+    const { publicPageResourceSchema } = await import('./api-client');
+    expect(publicPageResourceSchema.parse({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      spaceSlug: 'generated',
+      path: 'concepts/payment',
+      locale: 'en',
+      title: 'Payment',
+      visibility: 'registered',
+      status: 'published',
+      author: { id: null, displayName: null },
+      createdAt: '2026-08-05T00:00:00.000Z',
+      updatedAt: '2026-08-05T00:00:00.000Z',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    }).visibility).toBe('registered');
+  });
   it('flattens search response', () => {
     const result = searchWikiResponse({
       items: [

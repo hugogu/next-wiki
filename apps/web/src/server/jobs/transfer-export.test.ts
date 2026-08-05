@@ -50,6 +50,8 @@ const seed = {
   generatedPage: randomUUID(),
   generatedPublished: randomUUID(),
   generatedDraft: randomUUID(),
+  legacyLink: randomUUID(),
+  legacyLinkRevision: randomUUID(),
 };
 
 beforeAll(async () => {
@@ -209,6 +211,32 @@ beforeAll(async () => {
     publishedAt: new Date('2026-01-05T00:00:00.000Z'),
   });
 
+  // Active records left behind by older installations must not be exported.
+  await db.insert(schema.pages).values({
+    id: seed.legacyLink,
+    spaceId: seed.space,
+    slug: 'legacy-a',
+    path: 'legacy-a',
+    title: 'Legacy A',
+    authorId: seed.user,
+    kind: 'link',
+    linkTargetPageId: seed.pubA,
+    currentPublishedVersionId: seed.legacyLinkRevision,
+    latestVersionId: seed.legacyLinkRevision,
+  });
+  await db.insert(schema.pageRevisions).values({
+    id: seed.legacyLinkRevision,
+    pageId: seed.legacyLink,
+    versionNumber: 1,
+    contentSource: '',
+    contentHtml: '',
+    contentHash: sha256('legacy-a'),
+    authorId: seed.user,
+    linkTargetPageId: seed.pubA,
+    status: 'published',
+    publishedAt: new Date('2026-01-05T00:00:00.000Z'),
+  });
+
   const generatedPublishedSource = '---\ntype: Service\n---\n\n# Published';
   const generatedDraftSource = '---\ntype: Service\ncustom: unchanged\n---\n\n# Latest draft';
   await db.insert(schema.pages).values({
@@ -264,7 +292,7 @@ afterAll(async () => {
 describe('capturePublishedSnapshot', () => {
   it('selects only published, non-deleted pages', async () => {
     const snapshot = await capturePublishedSnapshot();
-    // Draft B (no currentPublishedVersionId) and soft-deleted E are excluded;
+    // Draft B, soft-deleted E, and the retired link record are excluded;
     // pages are ordered by (locale, path).
     expect(snapshot.pages.map((page) => page.path)).toEqual(['a', 'c', 'd']);
   });

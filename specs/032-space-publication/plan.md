@@ -164,3 +164,17 @@ union.
 ## Complexity Tracking
 
 No constitution violation or exceptional complexity is introduced.
+
+## Implementation Notes and Intentional Deviations
+
+- The final visibility model adds `registered` between `public` and
+  `restricted`. This was requested during implementation so a page can be
+  shareable with every account holder without becoming anonymous content.
+- Page visibility is configured in the shared Page Properties dialog for both
+  reader and editor contexts, rather than as a separate reader-header control.
+  This keeps reading controls out of the article layout and prevents two
+  divergent properties editors.
+- Published protected pages render an identity-free access-denied state rather
+  than a 404. Missing, deleted, draft, and unsafe legacy routes remain opaque
+  not-found responses. Registered content is dynamically served to signed-in
+  users at its canonical external URL and never enters the anonymous ISR cache.

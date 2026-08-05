@@ -29,13 +29,19 @@ parallel reader documents.
 2. Mark that published page public and reload the URL anonymously.
 3. Create a new draft for the same page; confirm anonymous reading still shows
    the prior published version only.
-4. Set the page restricted again, unpublish it, and delete it in separate
-   checks.
-5. Repeat public visibility on a raw page, then try downloading its original
+4. Set the page to **Registered** and verify an anonymous reader sees the
+   registration invitation while a signed-in Reader can open the same canonical
+   URL.
+5. Set the page restricted again, unpublish it, and delete it in separate
+   checks. Verify each protected published state has an access-denied response,
+   while missing and unpublished pages remain not-found.
+6. Repeat public visibility on a raw page, then try downloading its original
    raw asset anonymously.
 
-Expected result: only public published body/safe metadata are readable; drafts,
-restricted pages, provenance, audit data, and raw source bytes remain protected.
+Expected result: only public published body/safe metadata are anonymously
+readable. Registered pages require an account, restricted pages require an
+Administrator, and no protected page discloses its identity. Drafts,
+provenance, audit data, and raw source bytes remain protected.
 
 ## 3. Validate peer navigation and discovery
 

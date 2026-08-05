@@ -58,9 +58,11 @@ verify that the same URL no longer reveals it.
    changes it back to restricted, unpublishes it, deletes it, or changes its
    path, **Then** anonymous access and shared links promptly reflect that
    change without exposing stale content.
-4. **Given** a restricted page in raw, generated, or wiki, **When** an
-   anonymous visitor, unauthenticated integration, or unauthorized user tries
-   to read it, **Then** the page and its protected metadata are not disclosed.
+4. **Given** a registered-only or restricted page in raw, generated, or wiki,
+   **When** a visitor without access tries to read it, **Then** the reader
+   shows an access-denied state without disclosing the page title, path,
+   content, or protected metadata. A registered-only page invites an anonymous
+   visitor to register or sign in.
 5. **Given** a newly created page, **When** no page-specific visibility is
    selected, **Then** it receives the configured default for its space;
    existing Wiki pages retain their current public behavior and existing raw
@@ -213,10 +215,11 @@ permissions and the configured space paths.
 - **FR-002**: The system MUST retain intentional per-space authoring rules,
   including raw append-only behavior and generated-content format/provenance
   requirements; peer treatment MUST NOT weaken those rules.
-- **FR-003**: Each page MUST retain an explicit anonymous-read visibility
-  setting independent from its space identity. A page is anonymously readable
-  only when both its visibility is public and it has a currently published
-  revision.
+- **FR-003**: Each page MUST retain an explicit visibility setting independent
+  from its space identity: public, registered, or restricted. A page is
+  anonymously readable only when it is public and has a currently published
+  revision; a registered page additionally requires a signed-in reader, and a
+  restricted page requires an Administrator.
 - **FR-004**: Administrators MUST be able to view and change a page's
   anonymous-read visibility. The control MUST state the current setting and
   warn before an unpublished or previously restricted page becomes public.
@@ -294,9 +297,9 @@ permissions and the configured space paths.
 - **Content Space**: An enabled logical location for pages (wiki, generated,
   or raw), with fixed content rules and configurable display name, URL path
   prefix, and new-page visibility default.
-- **Page Visibility**: The explicit public or restricted anonymous-read state
-  of one page. It takes effect for public access only while the page has a
-  published revision.
+- **Page Visibility**: The explicit public, registered, or restricted read
+  state of one page. It takes effect only while the page has a published
+  revision.
 - **Canonical Space URL**: The single shareable route composed from a space's
   configured prefix and a page path, used by reader, search, navigation, and
   integrations.

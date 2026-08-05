@@ -139,7 +139,7 @@ describe('AI image generation', () => {
     expect(generateImage).not.toHaveBeenCalled();
   });
 
-  it('illustrates a link page from its generated target, not from its empty placeholder revision', async () => {
+  it('rejects image generation for a retired link page instead of following its target', async () => {
     const linkPageId = randomUUID();
     const linkRevisionId = randomUUID();
     await db.update(schema.pages).set({ currentPublishedVersionId: revisionId }).where(eq(schema.pages.id, pageId));
@@ -154,16 +154,12 @@ describe('AI image generation', () => {
       status: 'published',
     });
 
-    const action = await createImageGeneration(buildUserCtx(editorId, 'editor'), {
+    await expect(createImageGeneration(buildUserCtx(editorId, 'editor'), {
       pageId: linkPageId,
       revisionId: linkRevisionId,
       source: { kind: 'page' },
-    }, { enqueue: false });
-    await executeImageGenerationAction(action.id);
-
-    expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.stringContaining('Content'),
-    }));
+    }, { enqueue: false })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(generateImage).not.toHaveBeenCalled();
   });
 
   it('runs a child action inline without requiring a duplicate queue job', async () => {

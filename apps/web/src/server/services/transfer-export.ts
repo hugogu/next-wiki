@@ -75,7 +75,11 @@ async function captureSnapshot(args: {
     .select({ page: schema.pages, revision: schema.pageRevisions })
     .from(schema.pages)
     .innerJoin(schema.pageRevisions, eq(revisionColumn, schema.pageRevisions.id))
-    .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)))
+    .where(and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.kind, 'native'),
+      isNull(schema.pages.deletedAt),
+    ))
     .orderBy(schema.pages.locale, schema.pages.path);
 
   const pages: ExportPage[] = await Promise.all(

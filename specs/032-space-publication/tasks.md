@@ -8,7 +8,7 @@
 
 **Purpose**: Establish reusable coverage for the feature contracts.
 
-- [ ] T001 [P] Add route-prefix validation and canonical/legacy URL fixtures in apps/web/src/server/services/space-routes.test.ts
+- [X] T001 [P] Add route-prefix validation and canonical/legacy URL fixtures in apps/web/src/server/services/space-routes.test.ts
 - [ ] T002 [P] Add end-to-end publication, space-settings, link-retirement, and cross-space-search journeys in apps/web/e2e/space-publication.spec.ts
 
 ---
@@ -19,19 +19,19 @@
 
 **CRITICAL**: No user story is complete until this phase is complete.
 
-- [ ] T003 Extend the spaces schema with route_prefix and default_visibility, and add space_route_aliases, page_route_redirects, and retired_link_pages tables in apps/web/src/server/db/schema/index.ts
-- [ ] T004 Generate the Drizzle migration and snapshot for the schema changes with pnpm db:generate in apps/web/src/server/db/migrations/
-- [ ] T005 [P] Implement validation for non-empty, reserved-segment-safe, and unique current or historical route prefixes in apps/web/src/server/services/space-routes.ts
-- [ ] T006 [P] Implement canonical public URL resolution, workspace URL resolution, prefix-alias lookup, and opaque legacy-route eligibility checks in apps/web/src/server/services/space-routes.ts
-- [ ] T007 Extend cached space lookup, administrative space updates, and cache invalidation for route configuration in apps/web/src/server/services/spaces.ts
-- [ ] T008 Replace the closed ReaderSpace route assumptions with configured-space URL helpers in apps/web/src/lib/path.ts
-- [ ] T009 Update public cache tags and invalidation fan-out for page visibility, space prefixes, aliases, redirects, and retired link records in apps/web/src/server/cache/public-cache.ts
-- [ ] T010 Update page read models to expose page visibility, owning space, and canonical route inputs without treating a link page as a publishable page in apps/web/src/server/services/pages.ts
-- [ ] T011 Separate read authorization from raw/generated authoring restrictions so public published pages can be read while source-space writes remain restricted in apps/web/src/server/permissions/index.ts
-- [ ] T012 Preserve protection of raw source bytes and file downloads regardless of page visibility in apps/web/src/server/services/raw-markdown-export.ts
-- [ ] T013 Add schema-backed service tests for prefix uniqueness, aliases, redirect eligibility, invalidation, and raw/generated read permissions in apps/web/src/server/services/space-routes.test.ts
+- [X] T003 Extend the spaces schema with route_prefix and default_visibility, and add space_route_aliases, page_route_redirects, and retired_link_pages tables in apps/web/src/server/db/schema/index.ts
+- [X] T004 Generate the Drizzle migration and snapshot for the schema changes with pnpm db:generate in apps/web/src/server/db/migrations/
+- [X] T005 [P] Implement validation for non-empty, reserved-segment-safe, and unique current or historical route prefixes in apps/web/src/server/services/space-routes.ts
+- [X] T006 [P] Implement canonical public URL resolution, workspace URL resolution, prefix-alias lookup, and opaque legacy-route eligibility checks in apps/web/src/server/services/space-routes.ts
+- [X] T007 Extend cached space lookup, administrative space updates, and cache invalidation for route configuration in apps/web/src/server/services/spaces.ts
+- [X] T008 Replace the closed ReaderSpace route assumptions with configured-space URL helpers in apps/web/src/lib/path.ts
+- [X] T009 Update public cache tags and invalidation fan-out for page visibility, space prefixes, aliases, redirects, and retired link records in apps/web/src/server/cache/public-cache.ts
+- [X] T010 Update page read models to expose page visibility, owning space, and canonical route inputs without treating a link page as a publishable page in apps/web/src/server/services/pages.ts
+- [X] T011 Separate read authorization from raw/generated authoring restrictions so public published pages can be read while source-space writes remain restricted in apps/web/src/server/permissions/index.ts
+- [X] T012 Preserve protection of raw source bytes and file downloads regardless of page visibility in apps/web/src/server/services/raw-markdown-export.ts
+- [X] T013 Add schema-backed service tests for prefix uniqueness, aliases, redirect eligibility, invalidation, and raw/generated read permissions in apps/web/src/server/services/space-routes.test.ts
 - [ ] T014 Add migration regression coverage for existing wiki, generated, raw, and historical link-page records in apps/web/src/server/db/schema/index.test.ts
-- [ ] T015 Verify the generated migration is clean by rerunning pnpm db:generate and confirming no additional schema change is detected
+- [X] T015 Verify the generated migration is clean by rerunning pnpm db:generate and confirming no additional schema change is detected
 
 **Checkpoint**: Space and page route state is persistable, resolvable, cache-safe, and authorization-correct.
 
@@ -43,16 +43,16 @@
 
 **Independent Test**: Configure a non-Wiki space prefix, mark one published page public, and verify its canonical URL returns static public content while unpublished or restricted siblings return 404.
 
-- [ ] T016 [P] [US1] Add public-page eligibility tests for enabled spaces, published revisions, and page visibility in apps/web/src/server/services/public-content.test.ts
+- [X] T016 [P] [US1] Add public-page eligibility tests for enabled spaces, published revisions, and page visibility in apps/web/src/server/services/public-content.test.ts
 - [ ] T017 [P] [US1] Add public reader route tests for configured prefixes, localized paths, metadata, canonical URLs, and 404 behavior in apps/web/app/(public)/[...path]/page.test.tsx
-- [ ] T018 [P] [US1] Add public page visibility update API tests in apps/web/app/api/pages/[pageId]/visibility/route.test.ts
-- [ ] T019 [US1] Extend public content lookup to resolve any enabled space by configured prefix and require public visibility plus a published revision in apps/web/src/server/services/public-content.ts
-- [ ] T020 [US1] Replace the Wiki-only public catch-all resolution with canonical configured-space prefix resolution, including locale fallback, in apps/web/app/(public)/[...path]/page.tsx
-- [ ] T021 [US1] Render canonical URL, robots, Open Graph, and alternate-language metadata from the resolved space prefix in apps/web/app/(public)/[...path]/page.tsx
-- [ ] T022 [US1] Add a page visibility mutation route that permits only Editor or Admin roles and invalidates public content safely in apps/web/app/api/pages/[pageId]/visibility/route.ts
-- [ ] T023 [US1] Add the editor/admin page-header visibility control using existing UI primitives in apps/web/src/components/pages/PageVisibilityControl.tsx
-- [ ] T024 [US1] Place the page visibility control in the private reader header without consuming article reading space in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
-- [ ] T025 [US1] Update sitemap entry generation to include canonical routes for public pages in every enabled space and exclude all other pages in apps/web/app/sitemap.ts
+- [X] T018 [P] [US1] Add public page visibility update API tests in apps/web/app/api/pages/[pageId]/visibility/route.test.ts
+- [X] T019 [US1] Extend public content lookup to resolve any enabled space by configured prefix and require public visibility plus a published revision in apps/web/src/server/services/public-content.ts
+- [X] T020 [US1] Replace the Wiki-only public catch-all resolution with canonical configured-space prefix resolution, including locale fallback, in apps/web/app/(public)/[...path]/page.tsx
+- [X] T021 [US1] Render canonical URL, robots, Open Graph, and alternate-language metadata from the resolved space prefix in apps/web/app/(public)/[...path]/page.tsx
+- [X] T022 [US1] Add a page visibility mutation route that permits only Editor or Admin roles and invalidates public content safely in apps/web/app/api/pages/[pageId]/visibility/route.ts
+- [X] T023 [US1] Add the editor/admin page-header visibility control using existing UI primitives in apps/web/src/components/pages/PageVisibilityControl.tsx
+- [X] T024 [US1] Place the page visibility control in the private reader header without consuming article reading space in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
+- [X] T025 [US1] Update sitemap entry generation to include canonical routes for public pages in every enabled space and exclude all other pages in apps/web/app/sitemap.ts
 - [ ] T026 [US1] Add static-render and cache-invalidation regression coverage for public pages in apps/web/e2e/space-publication.spec.ts
 
 **Checkpoint**: A public published page can be read anonymously through its space prefix; no restricted, unpublished, disabled-space, or raw-byte content leaks.
@@ -65,13 +65,13 @@
 
 **Independent Test**: Change the generated prefix to g, confirm configured navigation and public URLs use it, switch writing mode off and on, and verify /g/concepts/payment safely redirects only when its migrated Wiki page is public and published.
 
-- [ ] T027 [P] [US2] Add settings API tests for list/update permissions, non-empty prefix validation, reserved names, collisions, aliases, and disabled spaces in apps/web/app/api/settings/spaces/route.test.ts
-- [ ] T028 [P] [US2] Add writing-mode migration tests for source-directory migration, retained inactive configuration, and conditional public legacy redirects in apps/web/src/server/jobs/writing-mode-switch.test.ts
-- [ ] T029 [P] [US2] Add route helper tests for configurable workspace links and navigation labels in apps/web/src/lib/path.test.ts
-- [ ] T030 [US2] Implement the authenticated administrator GET and update endpoints for all space settings and prefix changes in apps/web/app/api/settings/spaces/route.ts
-- [ ] T031 [US2] Implement per-space update validation and alias creation for renamed prefixes in apps/web/app/api/settings/spaces/[spaceId]/route.ts
-- [ ] T032 [US2] Add the administrator space-settings page and navigation entry in apps/web/app/(admin)/admin/spaces/page.tsx
-- [ ] T033 [US2] Build the reusable space configuration list, edit form, visibility-default selector, validation feedback, and safe rename confirmation in apps/web/src/components/admin/spaces/SpaceSettingsPanel.tsx
+- [X] T027 [P] [US2] Add settings API tests for list/update permissions, non-empty prefix validation, reserved names, collisions, aliases, and disabled spaces in apps/web/app/api/settings/spaces/route.test.ts
+- [X] T028 [P] [US2] Add writing-mode migration tests for source-directory migration, retained inactive configuration, and conditional public legacy redirects in apps/web/src/server/jobs/writing-mode-switch.test.ts
+- [X] T029 [P] [US2] Add route helper tests for configurable workspace links and navigation labels in apps/web/src/lib/path.test.ts
+- [X] T030 [US2] Implement the authenticated administrator GET and update endpoints for all space settings and prefix changes in apps/web/app/api/settings/spaces/route.ts
+- [X] T031 [US2] Implement per-space update validation and alias creation for renamed prefixes in apps/web/app/api/settings/spaces/[spaceId]/route.ts
+- [X] T032 [US2] Add the administrator space-settings page and navigation entry in apps/web/app/(admin)/admin/spaces/page.tsx
+- [X] T033 [US2] Build the reusable space configuration list, edit form, visibility-default selector, validation feedback, and safe rename confirmation in apps/web/src/components/admin/spaces/SpaceSettingsPanel.tsx
 - [ ] T034 [US2] Replace literal raw/generated workspace routes with resolved configured-space routes while retaining authenticated workspace access in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
 - [ ] T035 [US2] Update space navigation, breadcrumbs, page creation, move, and return-link callers to use configured route helpers in apps/web/src/components/spaces/SpaceNavigation.tsx
 - [ ] T036 [US2] Update page creation and move services to apply a space default visibility only when a page has no explicit visibility choice in apps/web/src/server/services/pages.ts
@@ -135,15 +135,15 @@
 
 **Purpose**: Complete documentation, generated artifacts, and full regression verification.
 
-- [ ] T066 [P] Update public-routing, space-settings, and deprecation contract examples to match final endpoint and route behavior in specs/032-space-publication/contracts/public-routing.md
-- [ ] T067 [P] Update the feature quickstart with actual commands, configured-prefix examples, and manual migration checks in specs/032-space-publication/quickstart.md
-- [ ] T068 [P] Remove obsolete publish-as-link documentation and update public-space terminology in apps/web/README.md
-- [ ] T069 Regenerate API documentation after endpoint and schema changes with the project next-open-api command in apps/web
-- [ ] T070 Run pnpm lint and resolve warnings in apps/web
-- [ ] T071 Run pnpm test for the web application and resolve feature regressions in apps/web
-- [ ] T072 Run pnpm build to verify public/static routing, route handlers, and generated API artifacts in apps/web
+- [X] T066 [P] Update public-routing, space-settings, and deprecation contract examples to match final endpoint and route behavior in specs/032-space-publication/contracts/public-routing.md
+- [X] T067 [P] Update the feature quickstart with actual commands, configured-prefix examples, and manual migration checks in specs/032-space-publication/quickstart.md
+- [X] T068 [P] Remove obsolete publish-as-link documentation and update public-space terminology in apps/web/README.md
+- [X] T069 Regenerate API documentation after endpoint and schema changes with the project next-open-api command in apps/web
+- [X] T070 Run pnpm lint and resolve warnings in apps/web
+- [X] T071 Run pnpm test for the web application and resolve feature regressions in apps/web
+- [X] T072 Run pnpm build to verify public/static routing, route handlers, and generated API artifacts in apps/web
 - [ ] T073 Run the focused browser suite in apps/web/e2e/space-publication.spec.ts against the Docker Compose test environment
-- [ ] T074 Re-run the quickstart acceptance checks in specs/032-space-publication/quickstart.md and record any intentional implementation deviations in specs/032-space-publication/plan.md
+- [X] T074 Re-run the quickstart acceptance checks in specs/032-space-publication/quickstart.md and record any intentional implementation deviations in specs/032-space-publication/plan.md
 
 ---
 
