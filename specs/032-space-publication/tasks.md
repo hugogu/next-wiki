@@ -72,11 +72,11 @@
 - [X] T031 [US2] Implement per-space update validation and alias creation for renamed prefixes in apps/web/app/api/settings/spaces/[spaceId]/route.ts
 - [X] T032 [US2] Add the administrator space-settings page and navigation entry in apps/web/app/(admin)/admin/spaces/page.tsx
 - [X] T033 [US2] Build the reusable space configuration list, edit form, visibility-default selector, validation feedback, and safe rename confirmation in apps/web/src/components/admin/spaces/SpaceSettingsPanel.tsx
-- [ ] T034 [US2] Replace literal raw/generated workspace routes with resolved configured-space routes while retaining authenticated workspace access in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
-- [ ] T035 [US2] Update space navigation, breadcrumbs, page creation, move, and return-link callers to use configured route helpers in apps/web/src/components/spaces/SpaceNavigation.tsx
-- [ ] T036 [US2] Update page creation and move services to apply a space default visibility only when a page has no explicit visibility choice in apps/web/src/server/services/pages.ts
-- [ ] T037 [US2] Update the writing-mode switch job to migrate generated and raw paths beneath the Wiki source-space directories, preserve their stored configurations while inactive, and create migration redirect records in apps/web/src/server/jobs/writing-mode-switch.ts
-- [ ] T038 [US2] Resolve old source-space routes as redirects only when the migrated target remains public and published, returning an indistinguishable 404 otherwise, in apps/web/src/server/services/space-routes.ts
+- [X] T034 [US2] Replace literal raw/generated workspace routes with resolved configured-space routes while retaining authenticated workspace access in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
+- [X] T035 [US2] Update space navigation, breadcrumbs, page creation, move, and return-link callers to use configured route helpers in apps/web/src/components/spaces/SpaceNavigation.tsx
+- [X] T036 [US2] Update page creation and move services to apply a space default visibility only when a page has no explicit visibility choice in apps/web/src/server/services/pages.ts
+- [X] T037 [US2] Update the writing-mode switch job to migrate generated and raw paths beneath the Wiki source-space directories, preserve their stored configurations while inactive, and create migration redirect records in apps/web/src/server/jobs/writing-mode-switch.ts
+- [X] T038 [US2] Resolve old source-space routes as redirects only when the migrated target remains public and published, returning an indistinguishable 404 otherwise, in apps/web/src/server/services/space-routes.ts
 - [ ] T039 [US2] Add browser coverage for prefix rename aliases, configured navigation, disabled spaces, defaults, and LLM writing-mode transitions in apps/web/e2e/space-publication.spec.ts
 
 **Checkpoint**: Spaces are peer-configurable and unambiguous; no root/default prefix exists, and mode changes do not expose private migration history.
@@ -92,17 +92,17 @@
 - [ ] T040 [P] [US3] Add service tests proving new link-page creation and link resolution are rejected while historical audit records remain readable to authorized users in apps/web/src/server/services/link-pages.test.ts
 - [ ] T041 [P] [US3] Add API and OpenAPI contract tests for removal of publish-as-link endpoints and link-page payload fields in apps/web/app/api/pages/route.test.ts
 - [ ] T042 [P] [US3] Add reader tests for historical link route redirect versus opaque 404 behavior in apps/web/app/(public)/[...path]/page.test.tsx
-- [ ] T043 [US3] Replace link-page creation and materialization with retirement and historical-record handling in apps/web/src/server/services/link-pages.ts
-- [ ] T044 [US3] Remove link-target resolution from page reads, mutations, revision publication, and public-content lookups in apps/web/src/server/services/pages.ts
-- [ ] T045 [US3] Remove link-page target traversal and link-related revalidation paths from apps/web/src/server/services/revisions.ts
-- [ ] T046 [US3] Remove link-page publication controls, dialogs, and provenance actions from apps/web/src/components/pages/PublishLinkButton.tsx
-- [ ] T047 [US3] Remove publish-as-link and link-target UI entry points from private page and space readers in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
-- [ ] T048 [US3] Remove link-page creation and lookup operations from page API routes and shared request schemas in apps/web/app/api/pages/route.ts
-- [ ] T049 [US3] Remove link-page tools, payload shapes, and search/result handling from the MCP server in packages/mcp-server/src/index.ts
-- [ ] T050 [US3] Remove link-page fields and operations from generated API documentation source in apps/web/src/server/openapi/pages.ts
-- [ ] T051 [US3] Replace historical public link handling with a target-page redirect only for an eligible public published target in apps/web/src/server/services/space-routes.ts
-- [ ] T052 [US3] Remove publish-as-link translations and obsolete link-page copy from apps/web/messages/en.json
-- [ ] T053 [US3] Remove publish-as-link translations and obsolete link-page copy from apps/web/messages/zh.json
+- [X] T043 [US3] Replace link-page creation and materialization with retirement and historical-record handling in apps/web/src/server/services/link-pages.ts
+- [X] T044 [US3] Remove link-target resolution from page reads, mutations, revision publication, and public-content lookups in apps/web/src/server/services/pages.ts
+- [X] T045 [US3] Remove link-page target traversal and link-related revalidation paths from apps/web/src/server/services/revisions.ts
+- [X] T046 [US3] Remove link-page publication controls, dialogs, and provenance actions from apps/web/src/components/pages/PublishLinkButton.tsx
+- [X] T047 [US3] Remove publish-as-link and link-target UI entry points from private page and space readers in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
+- [X] T048 [US3] Remove link-page creation and lookup operations from page API routes and shared request schemas in apps/web/app/api/pages/route.ts
+- [X] T049 [US3] Remove link-page tools, payload shapes, and search/result handling from the MCP server in packages/mcp-server/src/index.ts
+- [X] T050 [US3] Remove link-page fields and operations from generated API documentation source in apps/web/src/server/openapi/pages.ts
+- [X] T051 [US3] Replace historical public link handling with a target-page redirect only for an eligible public published target in apps/web/src/server/services/space-routes.ts
+- [X] T052 [US3] Remove publish-as-link translations and obsolete link-page copy from apps/web/messages/en.json
+- [X] T053 [US3] Remove publish-as-link translations and obsolete link-page copy from apps/web/messages/zh.json
 - [ ] T054 [US3] Add browser regression coverage that historical link routes do not leak target names or visibility state in apps/web/e2e/space-publication.spec.ts
 
 **Checkpoint**: There is one normal page model; link history is retained safely but has no creation, discovery, search, or public-content surface.
@@ -118,13 +118,13 @@
 - [ ] T055 [P] [US4] Add mixed-space search and canonical result URL tests, including retired-link exclusion, in apps/web/src/server/services/search.test.ts
 - [ ] T056 [P] [US4] Add public API contract tests for configured canonical paths, visibility filtering, and retired-link exclusion in apps/web/app/api/v1/pages/route.test.ts
 - [ ] T057 [P] [US4] Add MCP result-shape tests for configured canonical paths and no link-page results in packages/mcp-server/src/index.test.ts
-- [ ] T058 [US4] Update authenticated and public search query filters to exclude retired link pages and attach canonical configured-space paths in apps/web/src/server/services/search.ts
-- [ ] T059 [US4] Update search result links, page preview links, and result metadata to use canonical route helpers in apps/web/src/components/search/SearchResults.tsx
-- [ ] T060 [US4] Update public Wiki API page and search serializers to resolve configured prefixes and filter by public eligibility in apps/web/app/api/v1/pages/route.ts
-- [ ] T061 [US4] Update MCP page/search serializers to emit canonical configured-space routes and omit retired link pages in packages/mcp-server/src/index.ts
-- [ ] T062 [US4] Update AI retrieval and image-generation page references to use canonical page identities rather than link targets in apps/web/src/server/services/ai-image-generation.ts
-- [ ] T063 [US4] Update import/export page traversal to preserve space identity while excluding retired link pages from normal exports in apps/web/src/server/services/transfers/export.ts
-- [ ] T064 [US4] Update wiki static-site publishing eligibility and generated route manifests to remain Wiki-only while using the configured Wiki prefix in apps/web/src/server/services/static-sites.ts
+- [X] T058 [US4] Update authenticated and public search query filters to exclude retired link pages and attach canonical configured-space paths in apps/web/src/server/services/search.ts
+- [X] T059 [US4] Update search result links, page preview links, and result metadata to use canonical route helpers in apps/web/src/components/search/SearchResults.tsx
+- [X] T060 [US4] Update public Wiki API page and search serializers to resolve configured prefixes and filter by public eligibility in apps/web/app/api/v1/pages/route.ts
+- [X] T061 [US4] Update MCP page/search serializers to emit canonical configured-space routes and omit retired link pages in packages/mcp-server/src/index.ts
+- [X] T062 [US4] Update AI retrieval and image-generation page references to use canonical page identities rather than link targets in apps/web/src/server/services/ai-image-generation.ts
+- [X] T063 [US4] Update import/export page traversal to preserve space identity while excluding retired link pages from normal exports in apps/web/src/server/services/transfers/export.ts
+- [X] T064 [US4] Update wiki static-site publishing eligibility and generated route manifests to remain Wiki-only while using the configured Wiki prefix in apps/web/src/server/services/static-sites.ts
 - [ ] T065 [US4] Add browser coverage for cross-space search result URLs and anonymous search exclusion in apps/web/e2e/space-publication.spec.ts
 
 **Checkpoint**: All supported readers and integrations agree on a page’s canonical space-aware URL and no feature resurrects link pages.
