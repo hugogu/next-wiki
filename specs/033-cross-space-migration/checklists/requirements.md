@@ -35,3 +35,4 @@
 
 - Validation completed in one iteration. “Documented external interface” and “MCP” are required user-facing integration surfaces, not a prescribed implementation stack; no endpoint paths, data-storage design, framework, or language choices are specified.
 - The scope intentionally excludes Raw cross-space moves to preserve the existing append-only evidence boundary. A future feature may define a separately governed promotion workflow for Raw material.
+- Planning refined the actor to Administrator because AI Generation is already administrator-curated; the specification was revalidated with that existing governance constraint.
