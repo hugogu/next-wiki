@@ -47,7 +47,7 @@ test.describe('AI tool proposals — governance boundaries', () => {
       await expect(page.getByText('Content awaiting review.')).toBeVisible();
 
       await page.getByRole('button', { name: /Publish this revision|发布此版本/ }).click();
-      await expect(page).toHaveURL(new RegExp(`/${path}$`));
+      await expect(page).toHaveURL(new RegExp(`/wiki/${path}$`));
       await expect(page.getByText('Content awaiting review.')).toBeVisible();
     } finally {
       await page.request.delete(`/api/v1/pages/${created.id}`);

@@ -27,7 +27,7 @@ test.describe('Header hybrid page search', () => {
     await response;
     const welcome = page.getByTestId('header-search-results').getByRole('link', { name: /Welcome to next-wiki/ });
     await expect(welcome).toBeVisible();
-    await Promise.all([page.waitForURL('/welcome'), welcome.click()]);
+    await Promise.all([page.waitForURL('/wiki/welcome'), welcome.click()]);
   });
 
   test('Escape closes search once without changing the current URL', async ({ page }) => {

@@ -99,7 +99,7 @@ test('compares two revisions without requesting a server diff endpoint', async (
   expect(
     await changedPreviewBlock.evaluate((element) => getComputedStyle(element).backgroundColor),
   ).not.toBe('rgba(0, 0, 0, 0)');
-  await page.goto(`/revisions/3..2/${path}`);
-  await page.waitForURL(`/h/${path}?compare=2..3`);
+  await page.goto(`/h/${path}?compare=2..3`);
+  await expect(page).toHaveURL(`/h/${path}?compare=2..3`);
   expect(diffRequests).toEqual([]);
 });

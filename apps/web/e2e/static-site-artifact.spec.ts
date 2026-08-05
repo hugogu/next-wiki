@@ -4,6 +4,7 @@ import {
   createApiKey,
   createAndPublishChinesePage,
   createAndPublishImagePage,
+  restoreWelcomePage,
   createGitServer,
   createStaticFileServer,
   configureAndPublish,
@@ -25,6 +26,7 @@ test.describe('static site artifact', () => {
     [gitServer, staticServer] = await Promise.all([createGitServer(), createStaticFileServer()]);
     await login(setupPage);
     const key = await createApiKey(setupPage, `Static site artifact ${Date.now()}`, ['View', 'Create', 'Edit']);
+    await restoreWelcomePage(setupPage, key);
     await createAndPublishChinesePage(setupPage, key);
     await createAndPublishImagePage(setupPage, key);
     await configureAndPublish(setupPage, gitServer.url, staticServer.url);

@@ -51,7 +51,7 @@ async function savePage(page: Page) {
 
 async function publishPage(page: Page, path: string) {
   await page.getByRole('button', { name: /publish this revision/i }).first().click();
-  await page.waitForURL(`/${path}`);
+  await page.waitForURL(`/wiki/${path}`);
 }
 
 test.describe('access control flows', () => {
@@ -90,7 +90,7 @@ test.describe('publish workflow', () => {
     const readerContext = await browser.newContext();
     const readerPage = await readerContext.newPage();
     await registerReader(readerPage, readerEmail);
-    await readerPage.goto(`/${path}`);
+    await readerPage.goto(`/wiki/${path}`);
     await expect(readerPage.locator('h1:has-text("404")')).toBeVisible();
 
     await publishPage(page, path);
@@ -104,7 +104,7 @@ test.describe('publish workflow', () => {
     await savePage(page);
     await page.waitForURL(`/h/${path}?compare=2..3`);
 
-    await readerPage.goto(`/${path}`);
+    await readerPage.goto(`/wiki/${path}`);
     await expect(readerPage.locator('text=draft content')).toBeVisible();
     await expect(readerPage.locator('text=updated draft content')).not.toBeVisible();
 

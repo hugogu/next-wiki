@@ -6,6 +6,8 @@ import { join, dirname, extname } from 'node:path';
 import { promisify } from 'node:util';
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+import postgres from 'postgres';
+import { WELCOME_PAGE_SOURCE, WELCOME_PAGE_TITLE } from '@/server/services/setup-sample-page-definitions';
 
 const execFileAsync = promisify(execFile);
 
@@ -71,7 +73,7 @@ export async function uploadAsset(
 export async function createPublishedPage(
   page: Page,
   key: string,
-  input: { path: string; locale?: string; title: string; contentSource: string },
+  input: { path: string; title: string; contentSource: string },
 ): Promise<{ id: string; path: string; locale: string; title: string; latestRevision: { id: string } }> {
   const create = await page.request.post('/api/v1/pages?include=latestRevision', {
     headers: { Authorization: `Bearer ${key}` },
@@ -96,10 +98,16 @@ export async function createPublishedPage(
 export async function createAndPublishChinesePage(page: Page, key: string): Promise<string> {
   const created = await createPublishedPage(page, key, {
     path: 'chinese-search-demo',
-    locale: 'zh',
     title: '中文搜索示例',
     contentSource: '# 中文搜索示例\n\n这是一段用于测试中文搜索功能的示例文本。关键词：北京烤鸭。',
   });
+  const sql = postgres(process.env.E2E_DATABASE_URL ?? 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_e2e_test');
+  try {
+    await sql`UPDATE pages SET locale = 'zh' WHERE id = ${created.id}`;
+    await sql`UPDATE page_revisions SET locale = 'zh' WHERE page_id = ${created.id}`;
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
   return created.id;
 }
 
@@ -114,6 +122,29 @@ export async function createAndPublishImagePage(page: Page, key: string): Promis
     title: 'Image Demo',
     contentSource: `# Image Demo\n\n${asset.markdown}`,
   });
+}
+
+export async function restoreWelcomePage(page: Page, key: string): Promise<void> {
+  const lookup = await page.request.get('/api/v1/pages?path=welcome', {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  expect(lookup.status()).toBe(200);
+  const body = (await lookup.json()) as { items: { id: string }[] };
+  const welcome = body.items[0];
+  if (!welcome) throw new Error('Seeded welcome page not found');
+
+  const draft = await page.request.post(`/api/v1/pages/${welcome.id}/drafts`, {
+    headers: { Authorization: `Bearer ${key}` },
+    data: { title: WELCOME_PAGE_TITLE, contentSource: WELCOME_PAGE_SOURCE },
+  });
+  expect(draft.status()).toBe(201);
+  const revision = (await draft.json()) as { id: string; version: number };
+
+  const publish = await page.request.post(`/api/v1/pages/${welcome.id}/revisions/${revision.version}/publication`, {
+    headers: { Authorization: `Bearer ${key}` },
+    data: { expectedRevisionId: revision.id },
+  });
+  expect(publish.status()).toBe(200);
 }
 
 export async function configureAndPublish(page: Page, gitUrl: string, baseUrl: string): Promise<void> {

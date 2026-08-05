@@ -55,6 +55,10 @@ jobs:
         working-directory: apps/web
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Build static site assets
+        working-directory: apps/web
+        run: pnpm build:static-site-assets
+
       - name: Run e2e suite
         working-directory: apps/web
         run: pnpm test:e2e --reporter=list,html
