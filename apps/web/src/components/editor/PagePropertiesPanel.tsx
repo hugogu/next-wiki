@@ -20,6 +20,8 @@ export function PagePropertiesPanel({
   onSummaryChange,
   writeMetadataToFrontmatter,
   onWriteMetadataToFrontmatterChange,
+  visibility,
+  onVisibilityChange,
   error,
   saving = false,
   onSave,
@@ -28,8 +30,8 @@ export function PagePropertiesPanel({
   title: string;
   onTitleChange: (value: string) => void;
   titleError?: string;
-  path: string;
-  onPathChange: (value: string) => void;
+  path?: string;
+  onPathChange?: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
   date?: string;
@@ -40,6 +42,8 @@ export function PagePropertiesPanel({
   onSummaryChange?: (value: string) => void;
   writeMetadataToFrontmatter?: boolean;
   onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
+  visibility?: 'public' | 'restricted';
+  onVisibilityChange?: (value: 'public' | 'restricted') => void;
   error?: string | null;
   saving?: boolean;
   /** Called when the user clicks "Save properties". Triggers path validation
@@ -69,6 +73,8 @@ export function PagePropertiesPanel({
           onSummaryChange={onSummaryChange}
           writeMetadataToFrontmatter={writeMetadataToFrontmatter}
           onWriteMetadataToFrontmatterChange={onWriteMetadataToFrontmatterChange}
+          visibility={visibility}
+          onVisibilityChange={onVisibilityChange}
         />
 
         {error && <Alert>{error}</Alert>}

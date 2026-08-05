@@ -1461,6 +1461,7 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
     status: revision.status,
     canPublish,
     canDelete,
+    visibility: page.visibility,
     writeMetadataToFrontmatter: page.writeMetadataToFrontmatter,
     metadata,
   };

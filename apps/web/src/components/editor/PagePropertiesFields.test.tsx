@@ -27,4 +27,20 @@ describe('PagePropertiesFields', () => {
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('checked=""');
   });
+
+  it('can expose page visibility while omitting properties that do not apply', () => {
+    const html = renderWithI18n(
+      <PagePropertiesFields
+        title="Guide"
+        onTitleChange={() => undefined}
+        visibility="restricted"
+        onVisibilityChange={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Page visibility');
+    expect(html).toContain('Restricted');
+    expect(html).not.toContain('Write page metadata to Markdown frontmatter');
+    expect(html).not.toContain('id="prop-path"');
+  });
 });

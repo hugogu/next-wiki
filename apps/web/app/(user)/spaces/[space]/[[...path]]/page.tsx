@@ -7,7 +7,6 @@ import { RawContentRenderer } from '@/components/pages/raw-content/RawContentRen
 import { ConversationStatusBadge } from '@/components/chat/ConversationSessionView';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
-import { PageVisibilityControl } from '@/components/pages/PageVisibilityControl';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { getCurrentActor } from '@/server/services/auth';
@@ -104,7 +103,9 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     version: latestRevision?.version ?? page.publishedRevision?.version ?? 1,
     space: space.kind,
     date: page.metadata?.date ?? null,
+    tags: (page.metadata?.tags ?? []).map((tag) => tag.name),
     summary: page.metadata?.summary ?? null,
+    visibility: page.visibility ?? 'restricted',
   };
 
   return (
@@ -117,12 +118,9 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
         )}
         <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
-            <div className="absolute right-lg top-md">
-              <PageVisibilityControl pageId={page.id} initialVisibility={page.visibility ?? 'restricted'} />
-            </div>
             <nav
               aria-label={t('space.reader.breadcrumbs')}
-              className="mb-lg flex flex-wrap items-center gap-xs pr-48 text-sm text-muted"
+              className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted"
             >
               <Link className="hover:text-foreground" href={workspaceHref(space.routePrefix ?? space.kind)}>{space.name}</Link>
               {segments.map((segment, index) => {

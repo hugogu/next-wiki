@@ -101,6 +101,10 @@ function LanguageLink({ href, label, active }: { href: string; label: string; ac
   );
 }
 
+function encodeReaderPath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
 /**
  * Hover/focus-triggered dropdown consolidating the reader-page page actions
  * (edit, history, settings, delete) and — when translations exist — the
@@ -392,8 +396,26 @@ export function Header({
           pageId={pageContext.pageId}
           revisionId={pageContext.revisionId}
           initialTitle={pageContext.title}
+          initialPath={pageContext.path}
           initialDate={pageContext.date ?? null}
+          initialTags={pageContext.tags ?? []}
           initialSummary={pageContext.summary ?? null}
+          initialVisibility={pageContext.visibility}
+          canSetVisibility={role === 'admin'}
+          pathReadOnly={Boolean(pageContext.currentLocale)}
+          onSaved={(savedPath) => {
+            if (savedPath === pageContext.path) {
+              window.location.reload();
+              return;
+            }
+            const currentPath = window.location.pathname;
+            const previousPath = encodeReaderPath(pageContext.path);
+            if (currentPath.endsWith(`/${previousPath}`)) {
+              window.location.href = `${currentPath.slice(0, -previousPath.length)}${encodeReaderPath(savedPath)}${window.location.search}${window.location.hash}`;
+              return;
+            }
+            window.location.reload();
+          }}
           onClose={() => setSettingsOpen(false)}
         />
       )}

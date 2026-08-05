@@ -27,6 +27,10 @@ export type PageContext = {
   date?: string | null;
   /** Page summary used to seed the properties dialog. */
   summary?: string | null;
+  /** Current tags used to seed the shared properties dialog. */
+  tags?: string[];
+  /** Administrator-controlled anonymous-read setting. */
+  visibility?: 'public' | 'restricted';
 } | null;
 
 export type AppShellProps = {

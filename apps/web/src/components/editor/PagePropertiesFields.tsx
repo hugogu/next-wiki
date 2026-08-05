@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { useTranslation } from '@/i18n/client';
 import { TagPicker } from '@/components/pages/TagPicker';
 
@@ -18,12 +19,14 @@ export function PagePropertiesFields({
   onSummaryChange,
   writeMetadataToFrontmatter,
   onWriteMetadataToFrontmatterChange,
+  visibility,
+  onVisibilityChange,
 }: {
   title: string;
   onTitleChange: (value: string) => void;
   titleError?: string;
-  path: string;
-  onPathChange: (value: string) => void;
+  path?: string;
+  onPathChange?: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
   date?: string;
@@ -34,6 +37,8 @@ export function PagePropertiesFields({
   onSummaryChange?: (value: string) => void;
   writeMetadataToFrontmatter?: boolean;
   onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
+  visibility?: 'public' | 'restricted';
+  onVisibilityChange?: (value: 'public' | 'restricted') => void;
 }) {
   const { t } = useTranslation();
 
@@ -88,25 +93,44 @@ export function PagePropertiesFields({
         </label>
       )}
 
-      <div>
-        <label htmlFor="prop-path" className="block text-sm font-medium mb-xs">
-          {t('editor.properties.fields.pathLabel')}
-        </label>
-        <Input
-          id="prop-path"
-          value={path}
-          onChange={(e) => !pathReadOnly && onPathChange(e.target.value)}
-          placeholder={t('editor.properties.fields.pathPlaceholder')}
-          aria-label={t('editor.properties.fields.pathLabel')}
-          disabled={pathReadOnly}
-        />
-        {pathError && <p className="text-danger text-xs mt-xs">{pathError}</p>}
-        {!pathReadOnly && (
-          <p className="text-xs text-muted mt-xs">
-            {t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}
-          </p>
-        )}
-      </div>
+      {onVisibilityChange && visibility && (
+        <div>
+          <label htmlFor="prop-visibility" className="block text-sm font-medium mb-xs">
+            {t('editor.properties.fields.visibilityLabel')}
+          </label>
+          <Select
+            id="prop-visibility"
+            value={visibility}
+            onChange={(event) => onVisibilityChange(event.target.value as 'public' | 'restricted')}
+            aria-label={t('editor.properties.fields.visibilityLabel')}
+          >
+            <option value="restricted">{t('editor.properties.fields.visibilityRestricted')}</option>
+            <option value="public">{t('editor.properties.fields.visibilityPublic')}</option>
+          </Select>
+        </div>
+      )}
+
+      {path !== undefined && onPathChange && (
+        <div>
+          <label htmlFor="prop-path" className="block text-sm font-medium mb-xs">
+            {t('editor.properties.fields.pathLabel')}
+          </label>
+          <Input
+            id="prop-path"
+            value={path}
+            onChange={(e) => !pathReadOnly && onPathChange(e.target.value)}
+            placeholder={t('editor.properties.fields.pathPlaceholder')}
+            aria-label={t('editor.properties.fields.pathLabel')}
+            disabled={pathReadOnly}
+          />
+          {pathError && <p className="text-danger text-xs mt-xs">{pathError}</p>}
+          {!pathReadOnly && (
+            <p className="text-xs text-muted mt-xs">
+              {t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

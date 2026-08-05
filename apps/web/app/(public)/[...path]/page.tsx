@@ -237,7 +237,9 @@ export default async function PageRead({ params }: { params: PageParams }) {
     space: resolved.space.kind,
     routePrefix: resolved.space.routePrefix ?? (resolved.space.kind === 'wiki' ? 'wiki' : resolved.space.kind),
     date: page.metadata.date,
+    tags: page.metadata.tags.map((tag) => tag.name),
     summary: page.metadata.summary,
+    visibility: 'public' as const,
   };
 
   const bodyHtml = injectHeadingIds(page.contentHtml);

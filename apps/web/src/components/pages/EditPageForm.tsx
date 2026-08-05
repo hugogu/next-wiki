@@ -14,7 +14,7 @@ import {
   updatePagePropertiesSchema,
 } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
-import { apiPost, apiPatch, apiDelete, type ApiError } from '@/lib/api/client';
+import { apiPost, apiPatch, apiPut, apiDelete, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import { useSetEditor } from '@/components/editor/EditorContext';
 import { getPublicApiPageDraftsUrl, getPublicApiPageUrl, getSpaceHref, getSpaceHistoryHref, type ReaderSpace } from '@/lib/path';
@@ -33,6 +33,8 @@ type EditPageInitial = {
   canDelete: boolean;
   latestVersion: number;
   metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
+  visibility: 'public' | 'restricted';
+  canSetVisibility: boolean;
   writeMetadataToFrontmatter: boolean;
 };
 
@@ -64,6 +66,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   // Initialized from the page's persisted preference (022) rather than
   // re-guessed from content, so this dialog and the admin one always agree.
   const [writeMetadataToFrontmatter, setWriteMetadataToFrontmatter] = useState(initial.writeMetadataToFrontmatter);
+  const [visibility, setVisibility] = useState(initial.visibility);
 
   const {
     handleSubmit,
@@ -129,30 +132,43 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   const handleSaveProperties = useCallback(async () => {
     setPropertiesError(null);
     const pathChanged = newPath !== committedPath;
-    if (!pathChanged) {
-      // Nothing on the path side has actually changed since the last commit
-      // (title edits in this panel save with the next draft). Just close.
+    const visibilityChanged = initial.canSetVisibility && visibility !== initial.visibility;
+    if (!pathChanged && !visibilityChanged) {
+      // Title and metadata edits in this panel save with the next draft; only
+      // path and administrator visibility settings persist immediately here.
       setPropertiesOpen(false);
       return;
     }
-    const parsed = updatePagePropertiesSchema.safeParse({ path: newPath });
-    if (!parsed.success) {
-      setPropertiesError(parsed.error.issues[0]?.message ?? t('page.edit.error.invalidPath'));
-      return;
+    let nextPath: string | undefined;
+    if (pathChanged) {
+      const parsed = updatePagePropertiesSchema.safeParse({ path: newPath });
+      if (!parsed.success) {
+        setPropertiesError(parsed.error.issues[0]?.message ?? t('page.edit.error.invalidPath'));
+        return;
+      }
+      nextPath = parsed.data.path;
     }
     setPropertiesSaving(true);
     try {
-      const body = publicPagePropertiesInputSchema.parse({
-        path: parsed.data.path,
-        baseRevisionId: committedRevisionId,
-      });
-      const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(
-        `${getPublicApiPageUrl(initial.pageId)}?include=latestRevision`,
-        body,
-      );
-      setCommittedPath(res.path);
-      setNewPath(res.path);
-      setCommittedRevisionId(res.latestRevision?.id ?? committedRevisionId);
+      if (nextPath) {
+        const body = publicPagePropertiesInputSchema.parse({
+          path: nextPath,
+          baseRevisionId: committedRevisionId,
+        });
+        const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(
+          `${getPublicApiPageUrl(initial.pageId)}?include=latestRevision`,
+          body,
+        );
+        setCommittedPath(res.path);
+        setNewPath(res.path);
+        setCommittedRevisionId(res.latestRevision?.id ?? committedRevisionId);
+      }
+      if (visibilityChanged) {
+        await apiPut<{ visibility: 'public' | 'restricted' }, unknown>(
+          `/api/pages/${encodeURIComponent(initial.pageId)}/visibility`,
+          { visibility },
+        );
+      }
       setPropertiesOpen(false);
     } catch (err) {
       const error = err as ApiError;
@@ -170,7 +186,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     } finally {
       setPropertiesSaving(false);
     }
-  }, [newPath, committedPath, committedRevisionId, initial.pageId, t]);
+  }, [newPath, committedPath, committedRevisionId, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
 
   const save = useCallback(() => {
     handleSubmit(onSubmit)();
@@ -271,6 +287,8 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
             onSummaryChange={(summary) => setMetadata((current) => ({ ...current, summary }))}
             writeMetadataToFrontmatter={writeMetadataToFrontmatter}
             onWriteMetadataToFrontmatterChange={setWriteMetadataToFrontmatter}
+            visibility={initial.canSetVisibility ? visibility : undefined}
+            onVisibilityChange={initial.canSetVisibility ? setVisibility : undefined}
             error={propertiesError}
             saving={propertiesSaving}
             onSave={handleSaveProperties}

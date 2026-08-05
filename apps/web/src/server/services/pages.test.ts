@@ -305,6 +305,7 @@ describe('pageService US3', () => {
 
       const view = await pageService.getForEdit(ctx, 'get-edit');
       expect(view?.contentSource).toBe('source');
+      expect(view?.visibility).toBe('public');
       // The authoring editor may delete their own page.
       expect(view?.canDelete).toBe(true);
     });
