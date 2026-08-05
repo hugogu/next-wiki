@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pageService = vi.hoisted(() => ({
   getCachedPublicLivePage: vi.fn(),
   getCachedPublicLiveTranslation: vi.fn(),
+  getReaderAccessStatus: vi.fn(),
 }));
 
 const publicContent = vi.hoisted(() => ({
@@ -42,6 +43,7 @@ describe('getWikiRawMarkdown', () => {
 
   it('returns 404 when the page does not exist', async () => {
     pageService.getCachedPublicLivePage.mockResolvedValue(null);
+    pageService.getReaderAccessStatus.mockResolvedValue(null);
     const result = await getWikiRawMarkdown(['foo']);
     expect(result).toEqual({ kind: 'not_found' });
   });
@@ -89,6 +91,13 @@ describe('getWikiRawMarkdown', () => {
     pageService.getCachedPublicLiveTranslation.mockResolvedValue({ kind: 'unavailable', sourcePath: 'foo' });
     const result = await getWikiRawMarkdown(['zh', 'foo']);
     expect(result).toEqual({ kind: 'unavailable' });
+  });
+
+  it('returns forbidden when an anonymous reader requests a registered page', async () => {
+    pageService.getCachedPublicLivePage.mockResolvedValue(null);
+    pageService.getReaderAccessStatus.mockResolvedValue({ kind: 'forbidden', visibility: 'registered' });
+
+    await expect(getWikiRawMarkdown(['members', 'guide'])).resolves.toEqual({ kind: 'forbidden' });
   });
 
   it('returns unsupported for a non-markdown revision', async () => {

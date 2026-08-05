@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { type Actor } from '@/server/permissions';
+import { buildAnonymousCtx, type Actor } from '@/server/permissions';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import * as pageService from '@/server/services/pages';
 import * as publicContent from '@/server/services/public-content';
@@ -35,11 +35,18 @@ export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdow
     if (translation.kind === 'unavailable') {
       return { kind: 'unavailable' };
     }
+    if (translation.kind === 'forbidden') {
+      return { kind: 'forbidden' };
+    }
     // not_found → fall through to original resolution of the full path.
   }
 
   const original = await pageService.getCachedPublicLivePage(fullPath);
-  if (!original) return { kind: 'not_found' };
+  if (!original) {
+    return (await pageService.getReaderAccessStatus(buildAnonymousCtx(), fullPath))?.kind === 'forbidden'
+      ? { kind: 'forbidden' }
+      : { kind: 'not_found' };
+  }
   return readRevisionMarkdown(original.revisionId, original.title);
 }
 

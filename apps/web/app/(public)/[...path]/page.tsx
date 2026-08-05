@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   // Anonymous context so crawlers see the same metadata logged-out visitors do.
   const resolved = await resolveReaderPage(buildAnonymousCtx(), raw.path);
 
-  if (resolved.kind === 'not_found' || resolved.kind === 'unavailable') {
+  if (resolved.kind === 'not_found' || resolved.kind === 'unavailable' || resolved.kind === 'forbidden') {
     const path = getPagePathFromParams(raw);
     return { title: path, robots: { index: false, follow: true } };
   }
@@ -88,6 +88,10 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const resolved = await resolveReaderPage({ actor }, raw.path);
 
   if (resolved.kind === 'not_found') notFound();
+
+  if (resolved.kind === 'forbidden') {
+    return <ReaderPageView actor={actor} locale={locale} resolved={resolved} staticPublic />;
+  }
 
   if (resolved.legacy) {
     permanentRedirect(canonicalSpacePath(

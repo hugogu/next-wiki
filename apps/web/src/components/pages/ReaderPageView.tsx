@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
@@ -25,6 +26,32 @@ type Props = {
 export async function ReaderPageView({ actor, locale, resolved, staticPublic }: Props) {
   const t = getDictionary(locale);
   const formatter = createAppFormatter(locale);
+
+  if (resolved.kind === 'forbidden') {
+    const canRegister = resolved.visibility === 'registered' && actor.kind === 'anonymous';
+    return (
+      <Layout staticPublic={staticPublic}>
+        <article className="flex-1 px-lg py-2xl max-w-none text-center">
+          <h1 className="text-xl font-semibold mb-sm">{t('page.read.accessDeniedTitle')}</h1>
+          <p className="text-muted mb-lg">
+            {canRegister ? t('page.read.registeredAccessDenied') : t('page.read.restrictedAccessDenied')}
+          </p>
+          {canRegister ? (
+            <div className="flex justify-center gap-sm">
+              <Link className="rounded-md bg-primary px-md py-sm text-sm font-medium text-primary-foreground" href="/auth/register">
+                {t('page.read.registerToView')}
+              </Link>
+              <Link className="rounded-md border border-border px-md py-sm text-sm font-medium hover:bg-surface-elevated" href="/auth/login">
+                {t('auth.login.heading')}
+              </Link>
+            </div>
+          ) : (
+            <Link className="text-primary underline" href="/">{t('errors.forbidden.backHome')}</Link>
+          )}
+        </article>
+      </Layout>
+    );
+  }
 
   if (resolved.kind === 'unavailable') {
     return (

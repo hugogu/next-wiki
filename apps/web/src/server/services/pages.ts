@@ -634,12 +634,14 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
  * - `unavailable`: the source is a readable published page but no current
  *   translation exists for this enabled language (localized empty/in-progress
  *   state). Never substitutes another language or the original.
- * - `not_found`: unknown/disabled language, missing source, or an unauthorized
- *   context — revealing nothing about hidden source/translation existence.
+ * - `forbidden`: a published source or translation exists but is not readable
+ *   by the actor.
+ * - `not_found`: unknown/disabled language or missing source.
  */
 export type TranslationReadResult =
   | { kind: 'page'; page: LivePage }
   | { kind: 'unavailable'; sourcePath: string; freshness: TranslationFreshnessStatus | null }
+  | { kind: 'forbidden'; visibility: 'public' | 'registered' | 'restricted' }
   | { kind: 'not_found' };
 
 /**
@@ -677,7 +679,7 @@ export async function getLiveTranslation(
       isNull(schema.pages.translationGroupId),
     ),
   });
-  // A hidden or unpublished source reveals nothing — treated as not found.
+  // Draft or missing sources are not reader-addressable.
   if (!source || !source.currentPublishedVersionId) return { kind: 'not_found' };
   const actorUserId = getUserId(ctx);
   if (!can(
@@ -686,7 +688,7 @@ export async function getLiveTranslation(
     { kind: 'page', pageId: source.id },
     pagePermissionOptions(space, source, { isAuthor: actorUserId ? source.authorId === actorUserId : false }),
   )) {
-    return { kind: 'not_found' };
+    return { kind: 'forbidden', visibility: source.visibility };
   }
 
   const group = await db.query.translationGroups.findFirst({
@@ -716,7 +718,7 @@ export async function getLiveTranslation(
     { kind: 'page', pageId: translation.id },
     pagePermissionOptions(space, translation, { isAuthor: actorUserId ? translation.authorId === actorUserId : false }),
   )) {
-    return { kind: 'not_found' };
+    return { kind: 'forbidden', visibility: translation.visibility };
   }
 
   const revision = await db.query.pageRevisions.findFirst({
@@ -749,6 +751,30 @@ export async function getLiveTranslation(
       metadata,
     },
   };
+}
+
+/** Identify a published page that exists but is not readable by this actor. */
+export async function getReaderAccessStatus(
+  ctx: PermCtx,
+  path: string,
+  spaceSlug?: string,
+): Promise<{ kind: 'forbidden'; visibility: 'public' | 'registered' | 'restricted' } | null> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) return null;
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, path),
+      isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!page?.currentPublishedVersionId || page.kind === 'link') return null;
+  const actorUserId = getUserId(ctx);
+  if (can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: actorUserId === page.authorId }))) {
+    return null;
+  }
+  return { kind: 'forbidden', visibility: page.visibility };
 }
 
 /**

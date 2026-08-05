@@ -11,6 +11,7 @@ export type ResolvedReaderPage =
   | { kind: 'original'; page: LivePage; sourcePath: string; space: SpaceRow; legacy: boolean }
   | { kind: 'translation'; page: LivePage; locale: string; sourcePath: string; space: SpaceRow; legacy: boolean }
   | { kind: 'unavailable'; locale: string; sourcePath: string; space: SpaceRow; legacy: boolean }
+  | { kind: 'forbidden'; visibility: 'public' | 'registered' | 'restricted'; legacy: boolean }
   | { kind: 'not_found' };
 
 /** Resolve an external reader URL for either an anonymous or signed-in actor. */
@@ -37,12 +38,16 @@ export async function resolveReaderPage(ctx: PermCtx, rawSegments: string[]): Pr
       : await pageService.getLiveTranslation(ctx, locale, sourcePath, space.slug);
     if (result.kind === 'page') return { kind: 'translation', page: result.page, locale, sourcePath, space, legacy };
     if (result.kind === 'unavailable') return { kind: 'unavailable', locale, sourcePath: result.sourcePath, space, legacy };
+    if (result.kind === 'forbidden') return { kind: 'forbidden', visibility: result.visibility, legacy };
   }
 
   const original = isAnonymous
     ? await pageService.getCachedPublicLivePage(fullPath, space.slug)
     : await pageService.getLive(ctx, fullPath, space.slug);
   if (original) return { kind: 'original', page: original, sourcePath: fullPath, space, legacy };
+
+  const access = await pageService.getReaderAccessStatus(ctx, fullPath, space.slug);
+  if (access) return { ...access, legacy };
 
   const movedTarget = await findPageRouteRedirectTarget(`/${segments.join('/')}`);
   const retiredTarget = movedTarget ?? await findRetiredLinkTarget(fullPath);

@@ -24,6 +24,9 @@ export default async function RegisteredReaderPage({ params }: { params: PagePar
   const resolved = await resolveReaderPage({ actor }, raw.path);
 
   if (resolved.kind === 'not_found') notFound();
+  if (resolved.kind === 'forbidden') {
+    return <ReaderPageView actor={actor} locale={locale} resolved={resolved} staticPublic={false} />;
+  }
   if (resolved.legacy) {
     permanentRedirect(canonicalSpacePath(
       resolved.space,
