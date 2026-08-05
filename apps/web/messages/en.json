@@ -612,8 +612,6 @@
       "ariaLabel": "Space settings",
       "title": "Space settings",
       "description": "Configure the public URL prefix and default visibility for each built-in space.",
-      "saveChanges": "Save changes",
-      "savingChanges": "Saving changes…",
       "saveError": "Unable to save space settings",
       "table": {
         "name": "Name",
@@ -636,10 +634,9 @@
       },
       "edit": "Edit {name}",
       "editTitle": "Edit {name}",
-      "editDescription": "Changes are applied to the table first. Save all changes to update the spaces.",
+      "editDescription": "Changes are saved to this space immediately.",
       "displayName": "Display name",
-      "urlPrefix": "URL prefix",
-      "applyToTable": "Apply to table"
+      "urlPrefix": "URL prefix"
     },
     "searchSettings": {
       "title": "Search Settings",

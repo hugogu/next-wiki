@@ -612,8 +612,6 @@
       "ariaLabel": "空间设置",
       "title": "空间设置",
       "description": "为每个内置空间配置公开 URL 前缀和新页面默认可见性。",
-      "saveChanges": "保存更改",
-      "savingChanges": "正在保存更改…",
       "saveError": "无法保存空间设置",
       "table": {
         "name": "名称",
@@ -636,10 +634,9 @@
       },
       "edit": "编辑{name}",
       "editTitle": "编辑{name}",
-      "editDescription": "更改会先应用到表格。保存所有更改后才会更新空间。",
+      "editDescription": "更改会立即保存到该空间。",
       "displayName": "显示名称",
-      "urlPrefix": "URL 前缀",
-      "applyToTable": "应用到表格"
+      "urlPrefix": "URL 前缀"
     },
     "searchSettings": {
       "title": "搜索设置",

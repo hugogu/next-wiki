@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { EditIcon, InfoIcon, SaveIcon } from '@/components/icons';
+import { EditIcon, InfoIcon } from '@/components/icons';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import {
@@ -28,61 +28,40 @@ export type SpaceSettingsItem = {
   isActive: boolean;
 };
 
-type EditableSpaceSettings = Pick<SpaceSettingsItem, 'displayName' | 'routePrefix' | 'defaultVisibility'>;
 type SpaceSettingsResponse = Partial<SpaceSettingsItem> & { message?: string };
-
-function hasChanged(space: SpaceSettingsItem, savedSpace: SpaceSettingsItem | undefined): boolean {
-  return !savedSpace
-    || space.displayName !== savedSpace.displayName
-    || space.routePrefix !== savedSpace.routePrefix
-    || space.defaultVisibility !== savedSpace.defaultVisibility;
-}
 
 export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSettingsItem[] }) {
   const { t } = useTranslation();
   const [spaces, setSpaces] = useState(initialSpaces);
-  const [savedSpaces, setSavedSpaces] = useState(initialSpaces);
   const [editingSpace, setEditingSpace] = useState<SpaceSettingsItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const changedSpaces = spaces.filter((space) => hasChanged(space, savedSpaces.find((saved) => saved.id === space.id)));
-
-  function updateEditingSpace(field: keyof EditableSpaceSettings, value: string) {
+  function updateEditingSpace(field: keyof Pick<SpaceSettingsItem, 'displayName' | 'routePrefix' | 'defaultVisibility'>, value: string) {
     setEditingSpace((current) => current ? { ...current, [field]: value } : null);
   }
 
-  function applyEdit(event: FormEvent<HTMLFormElement>) {
+  async function saveEditingSpace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingSpace) return;
-    setSpaces((current) => current.map((space) => space.id === editingSpace.id ? editingSpace : space));
-    setEditingSpace(null);
-  }
-
-  async function saveAll() {
-    if (changedSpaces.length === 0) return;
 
     setSaving(true);
     setError(null);
-    let nextSpaces = spaces;
     try {
-      for (const space of changedSpaces) {
-        const response = await fetch(`/api/settings/spaces/${space.id}`, {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            displayName: space.displayName,
-            routePrefix: space.routePrefix,
-            defaultVisibility: space.defaultVisibility,
-          }),
-        });
-        const body = await response.json().catch(() => null) as SpaceSettingsResponse | null;
-        if (!response.ok) throw new Error(body?.message ?? t('admin.spaces.saveError'));
+      const response = await fetch(`/api/settings/spaces/${editingSpace.id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          displayName: editingSpace.displayName,
+          routePrefix: editingSpace.routePrefix,
+          defaultVisibility: editingSpace.defaultVisibility,
+        }),
+      });
+      const body = await response.json().catch(() => null) as SpaceSettingsResponse | null;
+      if (!response.ok) throw new Error(body?.message ?? t('admin.spaces.saveError'));
 
-        nextSpaces = nextSpaces.map((item) => item.id === space.id ? { ...item, ...body } : item);
-        setSpaces(nextSpaces);
-        setSavedSpaces(nextSpaces);
-      }
+      setSpaces((current) => current.map((space) => space.id === editingSpace.id ? { ...space, ...editingSpace, ...body } : space));
+      setEditingSpace(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('admin.spaces.saveError'));
     } finally {
@@ -99,10 +78,6 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
             {t('admin.spaces.description')}
           </p>
         </div>
-        <Button className="shrink-0" onClick={() => void saveAll()} disabled={saving || changedSpaces.length === 0}>
-          <SaveIcon className="h-4 w-4" aria-hidden="true" />
-          {saving ? t('admin.spaces.savingChanges') : t('admin.spaces.saveChanges')}
-        </Button>
       </header>
 
       {error ? <Alert>{error}</Alert> : null}
@@ -176,7 +151,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
           onClose={() => setEditingSpace(null)}
           maxWidth="max-w-md"
         >
-          <form className="space-y-md" onSubmit={applyEdit}>
+          <form className="space-y-md" onSubmit={(event) => void saveEditingSpace(event)}>
             <label className="block space-y-xs text-sm font-medium">
               <span>{t('admin.spaces.displayName')}</span>
               <Input
@@ -210,8 +185,8 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
               </Select>
             </label>
             <div className="flex justify-end gap-sm">
-              <Button variant="ghost" onClick={() => setEditingSpace(null)}>{t('common.actions.cancel')}</Button>
-              <Button type="submit">{t('admin.spaces.applyToTable')}</Button>
+              <Button variant="ghost" onClick={() => setEditingSpace(null)} disabled={saving}>{t('common.actions.cancel')}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t('common.status.saving') : t('common.actions.save')}</Button>
             </div>
           </form>
         </ModalDialog>

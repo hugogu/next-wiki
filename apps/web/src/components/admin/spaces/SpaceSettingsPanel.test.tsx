@@ -32,12 +32,11 @@ describe('SpaceSettingsPanel', () => {
     );
   }
 
-  it('shows space configuration in a table with one page-level save action', () => {
+  it('shows space configuration in a table without a page-level save action', () => {
     const html = render();
 
     expect(html).toContain('<table');
-    expect(html).toContain('Save changes');
-    expect((html.match(/Save changes/g) ?? [])).toHaveLength(1);
+    expect(html).not.toContain('Save changes');
     expect(html).toContain('>Wiki<');
     expect(html).toContain('>Generated<');
     expect(html).toContain('/w');
@@ -59,7 +58,7 @@ describe('SpaceSettingsPanel', () => {
     const html = render('zh');
 
     expect(html).toContain('空间设置');
-    expect(html).toContain('保存更改');
     expect(html).toContain('新页面可见性');
+    expect(html).toContain('编辑Wiki');
   });
 });
