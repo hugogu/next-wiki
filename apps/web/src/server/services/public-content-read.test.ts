@@ -225,7 +225,7 @@ describe('public content read facade', () => {
     expect(withRevisions.items[0]?.latestRevision?.origin).toEqual({ actorKind: 'human', nature: 'original' });
   });
 
-  it('keeps provenance on deleted-page list projections without revealing link targets', async () => {
+  it('keeps provenance on deleted-page list projections', async () => {
     const admin = await createPublicApiUser('public-deleted-provenance-admin@example.com', 'admin');
     const adminCtx = buildUserCtx(admin.id, 'admin');
     await pageService.create(adminCtx, { path: 'docs/deleted-provenance', title: 'Deleted', contentSource: '# Deleted' });
@@ -243,7 +243,6 @@ describe('public content read facade', () => {
     expect(result.items).toEqual([expect.objectContaining({
       status: 'deleted',
       origin: { actorKind: 'human', nature: 'original' },
-      linkTarget: null,
     })]);
   });
 
@@ -783,7 +782,7 @@ describe('public content read facade', () => {
     await setModeInternal('copilot', null);
   });
 
-  it('rejects a non-Admin explicitly searching the raw space before any candidate is touched', async () => {
+  it('allows an explicitly scoped raw-space search while still applying page visibility', async () => {
     await setModeInternal('llm-wiki', null);
     await ensurePrivateSpaces();
     const reader = await createPublicApiUser('public-raw-hybrid-reader@example.com', 'reader');
@@ -792,13 +791,11 @@ describe('public content read facade', () => {
       id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: true,
     });
 
-    await expect(
-      publicContent.hybridSearchPages(readerCtx, {
-        kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
-        searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'raw evidence', limit: 20, space: 'raw',
-      }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-    expect(searchAnalytics.getOrCreateSearchRecord).not.toHaveBeenCalled();
+    await expect(publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'raw evidence', limit: 20, space: 'raw',
+    })).resolves.toMatchObject({ items: [] });
+    expect(searchAnalytics.getOrCreateSearchRecord).toHaveBeenCalled();
 
     await setModeInternal('copilot', null);
   });

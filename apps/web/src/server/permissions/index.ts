@@ -26,7 +26,7 @@ export type PermCtx = {
 /** 022: space kinds gate whole action families before role evaluation. */
 export type SpaceKind = 'wiki' | 'raw' | 'generated';
 
-/** 022: restricted pages are admin-only for read/read_draft/edit. */
+/** Restricted pages are admin-only for read/read_draft/edit. */
 export type PageVisibility = 'public' | 'restricted';
 
 export type CanOptions = {
@@ -125,19 +125,19 @@ function roleAllows(
 ): boolean {
   const { isAuthor = false, anonymousRead = true, spaceKind, visibility = 'public' } = opts;
 
-  // 022: the raw space is an append-only evidence store — edits, deletes,
-  // publishes, and draft reads are denied for EVERY actor (deny before allow);
-  // reads and creates are admin-only. The generated space is admin-curated.
+  // Raw remains append-only and generated remains admin-curated. Public reads
+  // are deliberately evaluated separately: page visibility, not space kind,
+  // determines whether an already-published document may be read anonymously.
   if (spaceKind === 'raw') {
     if (action === 'edit' || action === 'delete' || action === 'publish' || action === 'read_draft') {
       return false;
     }
-    if (action === 'read' || action === 'create') return role === 'admin';
+    if (action === 'create') return role === 'admin';
+    if (action === 'read' && visibility !== 'public') return role === 'admin';
   }
   if (
     spaceKind === 'generated' &&
-    (action === 'read' ||
-      action === 'read_draft' ||
+    (action === 'read_draft' ||
       action === 'create' ||
       action === 'edit' ||
       action === 'publish' ||
@@ -151,7 +151,9 @@ function roleAllows(
 
   switch (action) {
     case 'read':
-      return role !== 'anonymous' || anonymousRead;
+      // `anonymous_read` is retained as compatibility state for old spaces,
+      // but cannot veto an explicit page-level public decision.
+      return role !== 'anonymous' || visibility === 'public' || anonymousRead;
     case 'read_draft':
       if (role === 'admin') return true;
       if (role === 'anonymous' || role === 'reader') return false;

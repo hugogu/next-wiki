@@ -98,8 +98,6 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
     title: node.title,
     pageId: node.pageId,
     status: node.status,
-    kind: node.kind,
-    linkTarget: node.linkTarget,
     hasChildren: node.children.length > 0,
     children: withHasChildrenFlag(node.children),
   }));
@@ -321,6 +319,11 @@ export function Navigator({
           href: '/admin/writing-mode',
           label: t('admin.nav.writingMode'),
           icon: <PenSparkIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/spaces',
+          label: t('admin.nav.spaces'),
+          icon: <LayersIcon className="shrink-0" />,
         },
         {
           href: '/admin/pages',

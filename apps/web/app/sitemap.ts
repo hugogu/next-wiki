@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next';
 import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
-import { getPageHref } from '@/lib/path';
+import { canonicalSpacePath } from '@/server/services/space-routes';
+import { listSpaces } from '@/server/services/spaces';
 import { env } from '@/server/config';
 
 // `sitemap` reads from PostgreSQL via `pageService.listPublished`. Prerendering
@@ -26,10 +27,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = env.APP_URL.replace(/\/$/, '');
   const ctx = buildAnonymousCtx();
 
-  const pages = await pageService.listPublished(ctx);
+  const spaces = await listSpaces();
+  const pagesBySpace = await Promise.all(spaces.map(async (space) => ({
+    space,
+    pages: await pageService.listPublished(ctx, { spaceSlug: space.slug }),
+  })));
+  const pages = pagesBySpace.flatMap(({ space, pages }) => pages.map((page) => ({ space, page })));
 
-  const entries: MetadataRoute.Sitemap = pages.map((page) => ({
-    url: `${siteUrl}${getPageHref(page.path)}`,
+  const entries: MetadataRoute.Sitemap = pages.map(({ space, page }) => ({
+    url: `${siteUrl}${canonicalSpacePath(space, page.path)}`,
     lastModified: page.updatedAt ?? page.publishedAt ?? undefined,
     changeFrequency: 'weekly',
     priority: 0.7,
@@ -40,13 +46,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   entries.unshift(
     {
       url: `${siteUrl}/`,
-      lastModified: pages[0]?.updatedAt ?? pages[0]?.publishedAt ?? new Date(),
+      lastModified: pages[0]?.page.updatedAt ?? pages[0]?.page.publishedAt ?? new Date(),
       changeFrequency: 'daily',
       priority: 1.0,
     },
     {
       url: `${siteUrl}/pages`,
-      lastModified: pages[0]?.updatedAt ?? pages[0]?.publishedAt ?? new Date(),
+      lastModified: pages[0]?.page.updatedAt ?? pages[0]?.page.publishedAt ?? new Date(),
       changeFrequency: 'daily',
       priority: 0.8,
     },

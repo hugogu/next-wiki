@@ -11,7 +11,7 @@ import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { actorKindOf } from '@/server/services/pages';
-import { resolveSpace } from '@/server/services/spaces';
+import { getEffectiveDefaultVisibility, resolveSpace } from '@/server/services/spaces';
 import { resolveCategoryForCreate } from '@/server/services/raw-categories';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
@@ -144,7 +144,7 @@ export async function createEntry(
         title: input.title,
         authorId: userId,
         nature: 'original',
-        visibility: 'restricted',
+        visibility: getEffectiveDefaultVisibility(space),
         rawCategoryId: categoryId,
       })
       .returning();

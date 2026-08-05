@@ -47,8 +47,7 @@ export type SearchWikiResult = {
   excerpt: string | null;
   score: number | null;
   frontmatter: Record<string, unknown> | null;
-  kind?: PublicPageResource['kind'];
-  linkTarget?: PublicPageResource['linkTarget'];
+  canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
   /** 025: the bot channel a captured Raw Conversation result came from (e.g.
@@ -59,8 +58,7 @@ export type SearchWikiResult = {
 function pageProvenance(source: PublicPageResource) {
   return {
     space: source.spaceSlug,
-    ...(source.kind ? { kind: source.kind } : {}),
-    ...(source.linkTarget !== undefined ? { linkTarget: source.linkTarget } : {}),
+    ...(source.canonicalUrl ? { canonicalUrl: source.canonicalUrl } : {}),
     ...(source.origin ? { origin: source.origin } : {}),
     ...(source.humanModified !== undefined ? { humanModified: source.humanModified } : {}),
     ...(source.conversationChannel !== undefined ? { conversationChannel: source.conversationChannel } : {}),
@@ -70,7 +68,6 @@ function pageProvenance(source: PublicPageResource) {
 function revisionProvenance(source: PublicRevisionResource) {
   return {
     ...(source.origin ? { origin: source.origin } : {}),
-    ...(source.linkTargetPageId !== undefined ? { linkTargetPageId: source.linkTargetPageId } : {}),
     ...(source.source !== undefined ? { source: source.source } : {}),
     ...(source.originalAsset !== undefined ? { originalAsset: source.originalAsset } : {}),
     ...(source.categoryId !== undefined ? { categoryId: source.categoryId } : {}),
@@ -104,8 +101,7 @@ export type PageListItem = {
   status: string;
   locale: string;
   metadata?: PublicPageResource['metadata'];
-  kind?: PublicPageResource['kind'];
-  linkTarget?: PublicPageResource['linkTarget'];
+  canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
 };
@@ -142,8 +138,7 @@ export function getPageResponse(source: PublicPageResource): {
   publishedRevisionId?: string;
   updatedAt: string;
   metadata?: PublicPageResource['metadata'];
-  kind?: PublicPageResource['kind'];
-  linkTarget?: PublicPageResource['linkTarget'];
+  canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
 } {
@@ -169,8 +164,7 @@ export function createPageResponse(source: PublicPageResource): {
   title: string;
   status: string;
   revisionId?: string;
-  kind?: PublicPageResource['kind'];
-  linkTarget?: PublicPageResource['linkTarget'];
+  canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
 } {
@@ -189,7 +183,6 @@ export function saveDraftResponse(source: PublicRevisionResource): {
   version: number;
   status: string;
   origin?: PublicRevisionResource['origin'];
-  linkTargetPageId?: string | null;
   source?: PublicRevisionResource['source'];
   originalAsset?: PublicRevisionResource['originalAsset'];
   categoryId?: string | null;
@@ -208,8 +201,7 @@ export function updatePropertiesResponse(source: PublicPageResource): {
   path: string;
   title: string;
   updatedAt: string;
-  kind?: PublicPageResource['kind'];
-  linkTarget?: PublicPageResource['linkTarget'];
+  canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
 } {
@@ -230,8 +222,7 @@ export function publishPageResponse(source: PublicPageResource): {
   status: string;
   publishedRevisionId?: string;
   publishedAt?: string;
-  kind?: PublicPageResource['kind'];
-  linkTarget?: PublicPageResource['linkTarget'];
+  canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
 } {
@@ -254,7 +245,6 @@ export type RevisionListItem = {
   createdAt: string;
   publishedAt: string | null;
   origin?: PublicRevisionResource['origin'];
-  linkTargetPageId?: string | null;
   source?: PublicRevisionResource['source'];
   originalAsset?: PublicRevisionResource['originalAsset'];
   categoryId?: string | null;
@@ -291,7 +281,6 @@ export function getRevisionResponse(source: PublicRevisionResource): {
   publishedAt: string | null;
   canPublish: boolean;
   origin?: PublicRevisionResource['origin'];
-  linkTargetPageId?: string | null;
   source?: PublicRevisionResource['source'];
   originalAsset?: PublicRevisionResource['originalAsset'];
   categoryId?: string | null;
@@ -372,8 +361,6 @@ export type TreeNode = {
   title: string | null;
   pageId: string | null;
   status: string | null;
-  kind?: PublicPageTreeNode['kind'];
-  linkTarget?: PublicPageTreeNode['linkTarget'];
   children: TreeNode[];
 };
 
@@ -384,8 +371,6 @@ function flattenTree(node: PublicPageTreeNode): TreeNode {
     title: node.title,
     pageId: node.pageId,
     status: node.status,
-    ...(node.kind ? { kind: node.kind } : {}),
-    ...(node.linkTarget !== undefined ? { linkTarget: node.linkTarget } : {}),
     children: node.children.map(flattenTree),
   };
 }

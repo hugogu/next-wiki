@@ -14,6 +14,7 @@ export type VectorMatch = {
   // 022 (Phase 11): the candidate's space + page visibility, so the retrieval
   // permission gate can decide per candidate instead of on one default space.
   spaceSlug: string;
+  routePrefix: string | null;
   spaceKind: 'wiki' | 'raw' | 'generated';
   spaceAnonymousRead: boolean;
   visibility: 'public' | 'restricted';
@@ -51,6 +52,7 @@ export async function exactCosineSearch(
     content_text: string;
     score: number | string;
     space_slug: string;
+    route_prefix: string | null;
     space_kind: 'wiki' | 'raw' | 'generated';
     space_anonymous_read: boolean;
     visibility: 'public' | 'restricted';
@@ -67,6 +69,7 @@ export async function exactCosineSearch(
       c.content_text,
       1 - (c.embedding <=> ${vector}::vector) as score,
       s.slug as space_slug,
+      s.route_prefix,
       s.kind as space_kind,
       s.anonymous_read as space_anonymous_read,
       p.visibility,
@@ -95,6 +98,7 @@ export async function exactCosineSearch(
     contentText: row.content_text,
     score: Number(row.score),
     spaceSlug: row.space_slug,
+    routePrefix: row.route_prefix,
     spaceKind: row.space_kind,
     spaceAnonymousRead: row.space_anonymous_read,
     visibility: row.visibility,

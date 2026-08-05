@@ -7,12 +7,11 @@ import { assertNotMigrating } from '@/server/services/migration';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { invalidateTranslationsForSource } from '@/server/services/translations';
-import { invalidatePublicContentCache, invalidatePublicLinkPaths } from '@/server/cache/public-cache';
+import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
-import { listLiveLinksForTarget } from '@/server/services/link-pages';
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -86,9 +85,7 @@ export async function publish(
 
     return { versionId: revision.id, pageId: page.id };
   });
-  const linkedPaths = await listLiveLinksForTarget(result.pageId);
   invalidatePublicContentCache();
-  invalidatePublicLinkPaths(linkedPaths);
   await enqueuePublicPageWarmup(getPageHref(input.path));
   await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);

@@ -116,15 +116,46 @@ const vector = customType<{ data: number[]; driverData: string }>({
   },
 });
 
-export const spaces = pgTable('spaces', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  slug: text('slug').notNull().unique(),
-  name: text('name').notNull(),
-  defaultLocale: text('default_locale').notNull().default('en'),
-  anonymousRead: boolean('anonymous_read').notNull().default(true),
-  kind: spaceKindEnum('kind').notNull().default('wiki'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const spaces = pgTable(
+  'spaces',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    // 032: stable slugs remain service identifiers. The reader uses this
+    // administrator-managed, non-empty first path segment instead.
+    routePrefix: text('route_prefix'),
+    // Nullable only for rows created before 032. The spaces service supplies a
+    // safe built-in default until an administrator saves the configuration.
+    defaultVisibility: pageVisibilityEnum('default_visibility'),
+    defaultLocale: text('default_locale').notNull().default('en'),
+    anonymousRead: boolean('anonymous_read').notNull().default(true),
+    kind: spaceKindEnum('kind').notNull().default('wiki'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    routePrefixUnique: uniqueIndex('spaces_route_prefix_unique')
+      .on(t.routePrefix)
+      .where(sql`${t.routePrefix} is not null`),
+  }),
+);
+
+/** Previous public prefixes. Aliases are redirect inputs, never canonical roots. */
+export const spaceRouteAliases = pgTable(
+  'space_route_aliases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'restrict' }),
+    prefix: text('prefix').notNull(),
+    retiredAt: timestamp('retired_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    prefixUnique: uniqueIndex('space_route_aliases_prefix_unique').on(t.prefix),
+    spaceIdx: index('space_route_aliases_space_idx').on(t.spaceId),
+  }),
+);
 
 export const users = pgTable(
   'users',
@@ -271,6 +302,47 @@ export const pages = pgTable(
       'pages_link_kind_target_pair',
       sql`(${t.kind} = 'link') = (${t.linkTargetPageId} is not null)`,
     ),
+  }),
+);
+
+/** Address moves which cannot be represented by a simple space-prefix alias. */
+export const pageRouteRedirects = pgTable(
+  'page_route_redirects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    legacyRoute: text('legacy_route').notNull(),
+    targetPageId: uuid('target_page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'restrict' }),
+    reason: text('reason').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    legacyRouteUnique: uniqueIndex('page_route_redirects_legacy_route_unique').on(t.legacyRoute),
+    targetIdx: index('page_route_redirects_target_idx').on(t.targetPageId),
+  }),
+);
+
+/** Private audit trail for historical link pages retired by the 032 transition. */
+export const retiredLinkPages = pgTable(
+  'retired_link_pages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    linkPageId: uuid('link_page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'restrict' }),
+    legacyPath: text('legacy_path').notNull(),
+    targetPageId: uuid('target_page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'restrict' }),
+    retiredBy: uuid('retired_by').references(() => users.id, { onDelete: 'set null' }),
+    retiredAt: timestamp('retired_at', { withTimezone: true }).notNull().defaultNow(),
+    disposition: text('disposition').notNull(),
+  },
+  (t) => ({
+    linkPageUnique: uniqueIndex('retired_link_pages_link_page_unique').on(t.linkPageId),
+    legacyPathUnique: uniqueIndex('retired_link_pages_legacy_path_unique').on(t.legacyPath),
+    targetIdx: index('retired_link_pages_target_idx').on(t.targetPageId),
   }),
 );
 

@@ -104,8 +104,6 @@ export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
       nature: z.enum(['original', 'generated']),
     })
     .optional(),
-  // 022: immutable link target recorded on link create/retarget revisions.
-  linkTargetPageId: z.string().uuid().nullable().optional(),
   // 022: immutable raw-source metadata of a raw create/append chunk.
   source: z
     .object({
@@ -161,12 +159,7 @@ export const publicPageResourceSchema = z.object({
   path: pathSchema,
   locale: z.string(),
   title: z.string(),
-  // 022: optional until the raw/generated/link resource assembly lands.
-  kind: z.enum(['native', 'link']).optional(),
-  linkTarget: z
-    .object({ pageId: z.string().uuid(), path: z.string(), title: z.string() })
-    .nullable()
-    .optional(),
+  canonicalUrl: z.string().optional(),
   origin: z
     .object({
       actorKind: z.enum(['human', 'machine']),
@@ -386,16 +379,7 @@ export const publicPageCreateInputSchema = z.object({
   contentType: mimeTypeSchema.optional(),
   originalBytes: z.string().optional(),
   categoryId: z.string().uuid().optional(),
-  kind: z.enum(['native', 'link']).optional(),
-  linkTargetPageId: z.string().uuid().optional(),
-}).superRefine((value, ctx) => {
-  if (value.kind === 'link' && !value.linkTargetPageId) {
-    ctx.addIssue({ code: 'custom', path: ['linkTargetPageId'], message: 'Link pages require a target page id' });
-  }
-  if (value.kind !== 'link' && value.linkTargetPageId) {
-    ctx.addIssue({ code: 'custom', path: ['kind'], message: 'Only link pages may include a target page id' });
-  }
-});
+}).strict();
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 
 // 022 (Phase 11): raw taxonomy exposed through the public v1 API + MCP so agents
@@ -463,10 +447,9 @@ export type PublicDraftCreateInput = z.infer<typeof publicDraftCreateInputSchema
 export const publicPagePropertiesInputSchema = z.object({
   path: pathSchema.optional(),
   title: z.string().min(1).max(200).optional(),
-  linkTargetPageId: z.string().uuid().optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).refine((value) => value.path || value.title || value.linkTargetPageId, {
-  message: 'Provide path, title, or link target',
+}).strict().refine((value) => value.path || value.title, {
+  message: 'Provide path or title',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 
@@ -616,8 +599,6 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   title: z.string().nullable(),
   pageId: z.string().uuid().nullable(),
   status: publicPageStatusSchema.nullable(),
-  kind: z.enum(['native', 'link']).nullable().optional(),
-  linkTarget: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }).nullable().optional(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
 export type PublicPageTreeNode = {
@@ -626,8 +607,6 @@ export type PublicPageTreeNode = {
   title: string | null;
   pageId: string | null;
   status: PublicPageStatus | null;
-  kind?: 'native' | 'link' | null;
-  linkTarget?: { pageId: string; path: string; title: string } | null;
   children: PublicPageTreeNode[];
 };
 

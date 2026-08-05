@@ -7,30 +7,12 @@ const cache = vi.hoisted(() => ({
 
 vi.mock('next/cache', () => cache);
 
-import { invalidatePublicLinkPaths, runWithoutDataCache, shouldUseDataCache } from './public-cache';
+import { runWithoutDataCache, shouldUseDataCache } from './public-cache';
 
-describe('invalidatePublicLinkPaths', () => {
+describe('public cache context', () => {
   afterEach(() => {
     cache.revalidatePath.mockReset();
     vi.unstubAllEnvs();
-  });
-
-  it('revalidates each unique softlink path outside tests', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-
-    invalidatePublicLinkPaths(['docs/payments', 'docs/payments', 'guides/runtime']);
-
-    expect(cache.revalidatePath).toHaveBeenCalledTimes(2);
-    expect(cache.revalidatePath).toHaveBeenCalledWith('/docs/payments');
-    expect(cache.revalidatePath).toHaveBeenCalledWith('/guides/runtime');
-  });
-
-  it('does not invoke Next cache APIs in the test environment', () => {
-    vi.stubEnv('NODE_ENV', 'test');
-
-    invalidatePublicLinkPaths(['docs/payments']);
-
-    expect(cache.revalidatePath).not.toHaveBeenCalled();
   });
 
   it('disables the Next data cache across an async background operation and restores it afterward', async () => {

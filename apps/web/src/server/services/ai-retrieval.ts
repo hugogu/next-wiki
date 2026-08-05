@@ -13,6 +13,7 @@ import { providerRuntime } from './ai-admin';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction, readActionInput, appendActionEvent, finishAction } from './ai-actions';
 import { resolveSpace } from '@/server/services/spaces';
+import { canonicalSpacePath } from '@/server/services/space-routes';
 
 export type SemanticSearchInput = {
   query: string;
@@ -132,6 +133,7 @@ export async function retrieve(
       excerpt: combinedExcerpt,
       score: best.score,
       spaceSlug: best.spaceSlug,
+      canonicalUrl: canonicalSpacePath({ kind: best.spaceKind, routePrefix: best.routePrefix }, best.path, best.locale),
       rawCategorySystemKey: best.rawCategorySystemKey,
     };
   });

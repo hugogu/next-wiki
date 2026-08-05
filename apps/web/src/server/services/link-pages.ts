@@ -1,272 +1,102 @@
-import { randomUUID } from 'node:crypto';
-import { and, eq, isNotNull, isNull, max, sql } from 'drizzle-orm';
-import { pathSchema } from '@next-wiki/shared';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { renderMarkdown } from '@/server/pipeline';
-import { persistRevisionMetadata } from '@/server/services/page-metadata';
-import { assertNotMigrating } from '@/server/services/migration';
+import { getActorUserId, type PermCtx } from '@/server/permissions';
+import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
-import { invalidatePublicContentCache, invalidatePublicLinkPaths } from '@/server/cache/public-cache';
-import { getSpaceById, resolveSpace } from '@/server/services/spaces';
-import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 
-function actorKindOf(ctx: PermCtx): 'human' | 'machine' {
-  return ctx.actor.kind === 'api_key' ? 'machine' : 'human';
+function retiredOperation(): never {
+  throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired and can no longer be created or changed');
 }
 
-function leafSlug(path: string): string {
-  return path.split('/').at(-1) ?? path;
+/** Retained only to give former integrations a clear unsupported outcome. */
+export async function createLinkPage(_ctx: PermCtx, _input: { path: string; title?: string; targetPageId: string }): Promise<{ pageId: string; versionId: string }> {
+  return retiredOperation();
 }
 
-function requireUser(ctx: PermCtx): string {
-  const userId = getActorUserId(ctx);
-  if (!userId) throw new DomainError('UNAUTHORIZED', 'Sign in to manage link pages');
-  return userId;
+/** Retained only to give former integrations a clear unsupported outcome. */
+export async function retargetLinkPage(_ctx: PermCtx, _pageId: string, _targetPageId: string, _options?: { expectedRevisionId?: string }): Promise<{ versionId: string }> {
+  return retiredOperation();
 }
 
-async function getLiveGeneratedTarget(targetPageId: string) {
-  const target = await db.query.pages.findFirst({
-    where: and(eq(schema.pages.id, targetPageId), isNull(schema.pages.deletedAt)),
-  });
-  if (!target || target.kind !== 'native' || !target.currentPublishedVersionId) {
-    throw new DomainError('LINK_TARGET_INVALID', 'Link targets must be live native generated pages');
-  }
-  const targetSpace = await getSpaceById(target.spaceId);
-  if (!targetSpace || targetSpace.kind !== 'generated') {
-    throw new DomainError('LINK_TARGET_INVALID', 'Link targets must be in the generated space');
-  }
-  await assertSpaceKindAllowed(targetSpace.kind);
-  return target;
+/** Retained only to give former integrations a clear unsupported outcome. */
+export async function deleteLinkPage(_ctx: PermCtx, _pageId: string): Promise<void> {
+  return retiredOperation();
 }
 
-function assertLinkWrite(ctx: PermCtx, action: 'create' | 'edit' | 'delete', space: Awaited<ReturnType<typeof resolveSpace>>, page?: typeof schema.pages.$inferSelect): void {
-  if (!space || space.kind !== 'wiki') {
-    throw new DomainError('LINK_TARGET_INVALID', 'Link pages must be created in the wiki space');
+/** Retire all active links without deleting their page or revision history. */
+export async function retireLinkPages(ctx: PermCtx): Promise<{ retiredCount: number; alreadyRetiredCount: number }> {
+  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'Only Administrators can retire link pages');
   }
-  if (ctx.actor.kind === 'anonymous' || ctx.actor.role !== 'admin') {
-    throw new DomainError('FORBIDDEN', 'Only Admins can manage link pages');
-  }
-  const options = page
-    ? pagePermissionOptions(space, page, { isAuthor: page.authorId === getActorUserId(ctx) })
-    : spacePermissionOptions(space);
-  const resource = page ? { kind: 'page' as const, pageId: page.id } : { kind: 'page_list' as const };
-  if (!can(ctx, action, resource, options)) {
-    throw new DomainError('FORBIDDEN', 'You do not have permission to manage link pages');
-  }
-}
-
-export async function createLinkPage(
-  ctx: PermCtx,
-  input: { path: string; title?: string; targetPageId: string },
-): Promise<{ pageId: string; versionId: string }> {
-  const userId = requireUser(ctx);
-  const parsedPath = pathSchema.safeParse(input.path);
-  if (!parsedPath.success) throw new DomainError('BAD_REQUEST', parsedPath.error.issues[0]?.message ?? 'Invalid path');
-  const space = await resolveSpace();
-  await assertSpaceKindAllowed(space?.kind ?? 'wiki');
-  assertLinkWrite(ctx, 'create', space);
-  const target = await getLiveGeneratedTarget(input.targetPageId);
-  await assertNotMigrating();
-  const revisionId = randomUUID();
-  const title = input.title ?? target.title;
-
-  const created = await db.transaction(async (tx) => {
-    await assertNoSwitchInProgress(tx);
-    const existing = await tx.query.pages.findFirst({
-      where: and(
-        eq(schema.pages.spaceId, space!.id),
-        eq(schema.pages.path, parsedPath.data),
-        isNull(schema.pages.translationGroupId),
-      ),
+  const retiredBy = getActorUserId(ctx);
+  const result = await db.transaction(async (tx) => {
+    const active = await tx.query.pages.findMany({
+      where: and(eq(schema.pages.kind, 'link'), isNull(schema.pages.deletedAt)),
     });
-    if (existing) throw new DomainError('CONFLICT', 'A page with this path already exists');
-
-    const { html, hash } = renderMarkdown('');
-    const [page] = await tx
-      .insert(schema.pages)
-      .values({
-        spaceId: space!.id,
-        slug: leafSlug(parsedPath.data),
-        path: parsedPath.data,
-        title,
-        authorId: userId,
-        kind: 'link',
-        linkTargetPageId: target.id,
-        nature: 'generated',
-        visibility: 'public',
-      })
-      .returning();
-    if (!page) throw new Error('Failed to create link page');
-
-    const [revision] = await tx
-      .insert(schema.pageRevisions)
-      .values({
-        id: revisionId,
-        pageId: page.id,
-        versionNumber: 1,
-        contentType: 'text/markdown',
-        contentSource: null,
-        contentHtml: html,
-        contentHash: hash,
-        authorId: userId,
-        status: 'published',
-        actorKind: actorKindOf(ctx),
-        linkTargetPageId: target.id,
-        publishedAt: new Date(),
-      })
-      .returning();
-    if (!revision) throw new Error('Failed to create link revision');
-    await persistRevisionMetadata(tx, { revisionId: revision.id, spaceId: space!.id, source: '', fallbackTitle: title });
-    await tx
-      .update(schema.pages)
-      .set({ latestVersionId: revision.id, currentPublishedVersionId: revision.id, updatedAt: new Date() })
-      .where(eq(schema.pages.id, page.id));
-    return { pageId: page.id, versionId: revision.id };
-  });
-  invalidatePublicContentCache();
-  invalidatePublicLinkPaths([parsedPath.data]);
-  await notifyPublicContentChanged('publish');
-  return created;
-}
-
-export async function retargetLinkPage(
-  ctx: PermCtx,
-  pageId: string,
-  targetPageId: string,
-  options: { expectedRevisionId?: string } = {},
-): Promise<{ versionId: string }> {
-  const userId = requireUser(ctx);
-  const page = await db.query.pages.findFirst({ where: and(eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)) });
-  if (!page || page.kind !== 'link') throw new DomainError('NOT_FOUND', 'Link page not found');
-  const space = await getSpaceById(page.spaceId);
-  await assertSpaceKindAllowed(space?.kind ?? 'wiki');
-  assertLinkWrite(ctx, 'edit', space, page);
-  const target = await getLiveGeneratedTarget(targetPageId);
-  await assertNotMigrating();
-  const revisionId = randomUUID();
-
-  const retargeted = await db.transaction(async (tx) => {
-    await assertNoSwitchInProgress(tx);
-    await tx.execute(sql`select id from pages where id = ${page.id} for update`);
-    const currentPage = await tx.query.pages.findFirst({
-      where: and(eq(schema.pages.id, page.id), isNull(schema.pages.deletedAt)),
-    });
-    if (!currentPage || currentPage.kind !== 'link') throw new DomainError('NOT_FOUND', 'Link page not found');
-    if (options.expectedRevisionId && currentPage.latestVersionId !== options.expectedRevisionId) {
-      throw new DomainError('STALE_REVISION', 'The page has changed since the supplied base revision');
+    let retiredCount = 0;
+    let alreadyRetiredCount = 0;
+    for (const link of active) {
+      if (!link.linkTargetPageId) continue;
+      const existing = await tx.query.retiredLinkPages.findFirst({
+        where: eq(schema.retiredLinkPages.linkPageId, link.id),
+      });
+      if (existing) {
+        await tx.update(schema.pages).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(schema.pages.id, link.id));
+        alreadyRetiredCount += 1;
+        continue;
+      }
+      const target = await tx.query.pages.findFirst({ where: eq(schema.pages.id, link.linkTargetPageId) });
+      await tx.insert(schema.retiredLinkPages).values({
+        linkPageId: link.id,
+        legacyPath: link.path,
+        targetPageId: link.linkTargetPageId,
+        retiredBy,
+        disposition: target?.currentPublishedVersionId && target.visibility === 'public' ? 'redirectable' : 'unavailable',
+      });
+      await tx.update(schema.pages).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(schema.pages.id, link.id));
+      retiredCount += 1;
     }
-    const versionRows = await tx
-      .select({ value: max(schema.pageRevisions.versionNumber) })
-      .from(schema.pageRevisions)
-      .where(eq(schema.pageRevisions.pageId, page.id));
-    const { html, hash } = renderMarkdown('');
-    const [revision] = await tx
-      .insert(schema.pageRevisions)
-      .values({
-        id: revisionId,
-        pageId: currentPage.id,
-        versionNumber: (versionRows[0]?.value ?? 0) + 1,
-        contentType: 'text/markdown',
-        contentSource: null,
-        contentHtml: html,
-        contentHash: hash,
-        authorId: userId,
-        status: 'published',
-        actorKind: actorKindOf(ctx),
-        linkTargetPageId: target.id,
-        publishedAt: new Date(),
-      })
-      .returning();
-    if (!revision) throw new Error('Failed to retarget link page');
-    await persistRevisionMetadata(tx, { revisionId: revision.id, spaceId: space!.id, source: '', fallbackTitle: currentPage.title });
-    await tx
-      .update(schema.pages)
-      .set({
-        linkTargetPageId: target.id,
-        latestVersionId: revision.id,
-        currentPublishedVersionId: revision.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.pages.id, currentPage.id));
-    return { versionId: revision.id };
+    return { retiredCount, alreadyRetiredCount };
   });
-  invalidatePublicContentCache();
-  invalidatePublicLinkPaths([page.path]);
-  await notifyPublicContentChanged('publish');
-  return retargeted;
+  if (result.retiredCount) {
+    invalidatePublicContentCache();
+    await notifyPublicContentChanged('publish');
+  }
+  return result;
 }
 
-export async function deleteLinkPage(ctx: PermCtx, pageId: string): Promise<void> {
-  requireUser(ctx);
-  const page = await db.query.pages.findFirst({ where: and(eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)) });
-  if (!page || page.kind !== 'link') throw new DomainError('NOT_FOUND', 'Link page not found');
-  const space = await getSpaceById(page.spaceId);
-  await assertSpaceKindAllowed(space?.kind ?? 'wiki');
-  assertLinkWrite(ctx, 'delete', space, page);
-  await db.transaction(async (tx) => {
-    await assertNoSwitchInProgress(tx);
-    await tx.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, page.id));
+/** A former Wiki-path link can redirect only after callers re-check its target. */
+export async function findRetiredLinkTarget(legacyPath: string): Promise<{ path: string; spaceSlug: string } | null> {
+  const retired = await db.query.retiredLinkPages.findFirst({
+    where: eq(schema.retiredLinkPages.legacyPath, legacyPath),
   });
-  invalidatePublicContentCache();
-  invalidatePublicLinkPaths([page.path]);
-  await notifyPublicContentChanged('publish');
+  if (!retired) return null;
+  const target = await db.query.pages.findFirst({
+    where: and(eq(schema.pages.id, retired.targetPageId), isNull(schema.pages.deletedAt)),
+  });
+  if (!target?.currentPublishedVersionId || target.visibility !== 'public') return null;
+  const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.id, target.spaceId) });
+  return space ? { path: target.path, spaceSlug: space.slug } : null;
 }
 
-/**
- * Resolve a page to the page that actually holds its content.
- *
- * A link page stores none of its own: it publishes a generated target at a
- * wiki path (FR-012), which is why the reader resolves the target's published
- * revision and the editor redirects to the target when a link path is opened.
- * Every other content operation needs the same redirection, or it reads the
- * link's empty placeholder revision and concludes the page has no source.
- * Native pages resolve to themselves; a link whose target is gone resolves to
- * nothing.
- */
+/** Link pages never resolve as normal content after feature 032. */
 export async function resolveContentPage(
   page: typeof schema.pages.$inferSelect,
 ): Promise<typeof schema.pages.$inferSelect | null> {
-  if (page.kind !== 'link') return page;
-  if (!page.linkTargetPageId) return null;
-  const target = await db.query.pages.findFirst({
-    where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt)),
-  });
-  return target ?? null;
+  return page.kind === 'native' ? page : null;
 }
 
-/**
- * Resolve a page and one of its revisions to the revision that actually holds
- * content. For a link page that is the target's currently published revision —
- * exactly what a reader sees at the wiki path. See {@link resolveContentPage}.
- */
+/** Link pages never resolve as normal content after feature 032. */
 export async function resolveContentRevision(
   page: typeof schema.pages.$inferSelect,
   revision: typeof schema.pageRevisions.$inferSelect,
 ): Promise<typeof schema.pageRevisions.$inferSelect | null> {
-  const target = await resolveContentPage(page);
-  if (!target) return null;
-  if (target.id === page.id) return revision;
-  if (!target.currentPublishedVersionId) return null;
-  return (
-    (await db.query.pageRevisions.findFirst({
-      where: eq(schema.pageRevisions.id, target.currentPublishedVersionId),
-    })) ?? null
-  );
+  return page.kind === 'native' ? revision : null;
 }
 
-/** Return public wiki paths currently pointing at a generated page. */
-export async function listLiveLinksForTarget(targetPageId: string): Promise<string[]> {
-  const rows = await db
-    .select({ path: schema.pages.path })
-    .from(schema.pages)
-    .where(and(
-      eq(schema.pages.kind, 'link'),
-      eq(schema.pages.linkTargetPageId, targetPageId),
-      isNull(schema.pages.deletedAt),
-      isNotNull(schema.pages.currentPublishedVersionId),
-    ));
-  return rows.map((row) => row.path);
+/** Retired links are not part of normal cache fan-out. */
+export async function listLiveLinksForTarget(_targetPageId: string): Promise<string[]> {
+  return [];
 }

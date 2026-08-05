@@ -120,12 +120,8 @@ function MoreActionsMenu({
 }) {
   const { t } = useTranslation();
 
-  const editHref = pageContext.linkTargetPath
-    ? getSpaceEditHref('generated', pageContext.linkTargetPath)
-    : getSpaceEditHref(pageContext.space ?? 'wiki', pageContext.path);
-  const historyHref = pageContext.linkTargetPath
-    ? getSpaceHistoryHref('generated', pageContext.linkTargetPath)
-    : getSpaceHistoryHref(pageContext.space ?? 'wiki', pageContext.path);
+  const editHref = getSpaceEditHref(pageContext.space ?? 'wiki', pageContext.path);
+  const historyHref = getSpaceHistoryHref(pageContext.space ?? 'wiki', pageContext.path);
   const hasLanguages = pageContext.sourcePath ? (pageContext.translationLocales?.length ?? 0) > 0 : false;
 
   // The static reader document carries no page-level canDelete; the menu only

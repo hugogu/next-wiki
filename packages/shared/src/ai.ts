@@ -784,6 +784,8 @@ export const aiSearchResultSchema = aiCitationSchema.extend({
   // 023: lets result UIs build a space-correct link (e.g. /spaces/raw/...)
   // instead of assuming every result lives in the default wiki space.
   spaceSlug: z.string(),
+  /** Canonical public reader URL resolved from the space's current prefix. */
+  canonicalUrl: z.string().optional(),
   rawCategorySystemKey: z.string().nullable(),
 });
 export type AiSearchResult = z.infer<typeof aiSearchResultSchema>;

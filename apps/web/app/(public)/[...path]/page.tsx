@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { PageMetadata } from '@/components/pages/PageMetadata';
@@ -10,7 +10,10 @@ import * as pageService from '@/server/services/pages';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import type { LivePage } from '@next-wiki/shared';
 import { buildAnonymousCtx, type PermCtx } from '@/server/permissions';
-import { getPageHref, getPagePathFromParams, getTranslatedPageHref } from '@/lib/path';
+import { getPagePathFromParams } from '@/lib/path';
+import { canonicalSpacePath, findPageRouteRedirectTarget, resolveSpacePrefix } from '@/server/services/space-routes';
+import { resolveSpace, type SpaceRow } from '@/server/services/spaces';
+import { findRetiredLinkTarget } from '@/server/services/link-pages';
 import { buildPageDescription } from '@/lib/seo';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
@@ -37,9 +40,9 @@ type PageParams = Promise<{ path: string[] }>;
 const LOCALE_PREFIX_RE = /^[a-z]{2}$/;
 
 type Resolved =
-  | { kind: 'original'; page: LivePage; sourcePath: string }
-  | { kind: 'translation'; page: LivePage; locale: string; sourcePath: string }
-  | { kind: 'unavailable'; locale: string; sourcePath: string }
+  | { kind: 'original'; page: LivePage; sourcePath: string; space: SpaceRow; legacy: boolean }
+  | { kind: 'translation'; page: LivePage; locale: string; sourcePath: string; space: SpaceRow; legacy: boolean }
+  | { kind: 'unavailable'; locale: string; sourcePath: string; space: SpaceRow; legacy: boolean }
   | { kind: 'not_found' };
 
 /**
@@ -52,27 +55,52 @@ type Resolved =
 async function resolve(ctx: PermCtx, rawSegments: string[]): Promise<Resolved> {
   const isAnonymous = ctx.actor.kind === 'anonymous';
   const segments = rawSegments.map((s) => decodeURIComponent(s));
-  const fullPath = segments.join('/');
+  const prefix = segments[0] ? await resolveSpacePrefix(segments[0]) : null;
+  let resolvedRoute = prefix
+    ? { space: prefix.space, segments: segments.slice(1), legacy: prefix.isAlias }
+    : null;
+  // Bare Wiki reader paths remain legacy input only. They are never emitted
+  // as canonical URLs and redirect only after the normal public-read check.
+  if (!resolvedRoute) {
+    const wiki = await resolveSpace();
+    resolvedRoute = wiki ? { space: wiki, segments, legacy: true } : null;
+  }
+  if (!resolvedRoute || !resolvedRoute.segments.length) return { kind: 'not_found' };
+  const { space, legacy } = resolvedRoute;
+  const fullPath = resolvedRoute.segments.join('/');
 
-  if (segments.length >= 2 && LOCALE_PREFIX_RE.test(segments[0]!)) {
-    const locale = segments[0]!;
-    const sourcePath = segments.slice(1).join('/');
+  if (resolvedRoute.segments.length >= 2 && LOCALE_PREFIX_RE.test(resolvedRoute.segments[0]!)) {
+    const locale = resolvedRoute.segments[0]!;
+    const sourcePath = resolvedRoute.segments.slice(1).join('/');
     const result = isAnonymous
-      ? await pageService.getCachedPublicLiveTranslation(locale, sourcePath)
-      : await pageService.getLiveTranslation(ctx, locale, sourcePath);
+      ? await pageService.getCachedPublicLiveTranslation(locale, sourcePath, space.slug)
+      : await pageService.getLiveTranslation(ctx, locale, sourcePath, space.slug);
     if (result.kind === 'page') {
-      return { kind: 'translation', page: result.page, locale, sourcePath };
+      return { kind: 'translation', page: result.page, locale, sourcePath, space, legacy };
     }
     if (result.kind === 'unavailable') {
-      return { kind: 'unavailable', locale, sourcePath: result.sourcePath };
+      return { kind: 'unavailable', locale, sourcePath: result.sourcePath, space, legacy };
     }
     // not_found → fall through to original resolution below.
   }
 
   const original = isAnonymous
-    ? await pageService.getCachedPublicLivePage(fullPath)
-    : await pageService.getLive(ctx, fullPath);
-  return original ? { kind: 'original', page: original, sourcePath: fullPath } : { kind: 'not_found' };
+    ? await pageService.getCachedPublicLivePage(fullPath, space.slug)
+    : await pageService.getLive(ctx, fullPath, space.slug);
+  if (original) return { kind: 'original', page: original, sourcePath: fullPath, space, legacy };
+
+  // A former link page is never rendered. Its historical route may redirect
+  // only after looking up the target through the same public-read service.
+  const movedTarget = await findPageRouteRedirectTarget(`/${segments.join('/')}`);
+  const retiredTarget = movedTarget ?? await findRetiredLinkTarget(fullPath);
+  if (!retiredTarget) return { kind: 'not_found' };
+  const targetSpace = await resolveSpace(retiredTarget.spaceSlug);
+  const target = targetSpace && (isAnonymous
+    ? await pageService.getCachedPublicLivePage(retiredTarget.path, targetSpace.slug)
+    : await pageService.getLive(ctx, retiredTarget.path, targetSpace.slug));
+  return target && targetSpace
+    ? { kind: 'original', page: target, sourcePath: retiredTarget.path, space: targetSpace, legacy: true }
+    : { kind: 'not_found' };
 }
 
 export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
@@ -93,19 +121,17 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   }
 
   const isTranslation = resolved.kind === 'translation';
-  const canonicalPath = isTranslation
-    ? getTranslatedPageHref(resolved.locale, resolved.sourcePath)
-    : getPageHref(resolved.sourcePath);
+  const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
   const description = buildPageDescription(page.contentHtml, t('site.description'));
 
   // hreflang alternates: the original plus every published translation in the
   // group. Original is the default alternate, never a redirect target.
-  const translatedLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath);
+  const translatedLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug);
   const languages: Record<string, string> = {
-    'x-default': `${siteUrl}${getPageHref(resolved.sourcePath)}`,
+    'x-default': `${siteUrl}${canonicalSpacePath(resolved.space, resolved.sourcePath)}`,
   };
   for (const loc of translatedLocales) {
-    languages[loc] = `${siteUrl}${getTranslatedPageHref(loc, resolved.sourcePath)}`;
+    languages[loc] = `${siteUrl}${canonicalSpacePath(resolved.space, resolved.sourcePath, loc)}`;
   }
 
   return {
@@ -140,6 +166,14 @@ export default async function PageRead({ params }: { params: PageParams }) {
 
   if (resolved.kind === 'not_found') notFound();
 
+  if (resolved.legacy) {
+    permanentRedirect(canonicalSpacePath(
+      resolved.space,
+      resolved.sourcePath,
+      resolved.kind === 'translation' || resolved.kind === 'unavailable' ? resolved.locale : null,
+    ));
+  }
+
   if (resolved.kind === 'unavailable') {
     // Localized empty/in-progress state for an authorized source reader. Never
     // substitutes another language or the original as translated output.
@@ -148,7 +182,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
         <article className="flex-1 px-lg py-2xl max-w-none text-center">
           <h1 className="text-xl font-semibold mb-sm">{t('translation.reader.unavailable.title')}</h1>
           <p className="text-muted mb-lg">{t('translation.reader.unavailable.body')}</p>
-          <a className="text-primary underline" href={getPageHref(resolved.sourcePath)}>
+          <a className="text-primary underline" href={canonicalSpacePath(resolved.space, resolved.sourcePath)}>
             {t('errors.notFound.backHome')}
           </a>
         </article>
@@ -159,7 +193,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const { page } = resolved;
   const isTranslation = resolved.kind === 'translation';
   // Editing/history controls target the original; a translation is read-only.
-  const canEdit = !isTranslation && (await pageService.canCreate({ actor }));
+  const canEdit = false;
   const isAuthor = actor.kind === 'user' ? page.authorId === actor.userId : false;
   const canPublish =
     !isTranslation &&
@@ -168,9 +202,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
 
   const createdAt = new Date(page.createdAt);
   const siteUrl = env.APP_URL.replace(/\/$/, '');
-  const canonicalPath = isTranslation
-    ? getTranslatedPageHref(resolved.locale, resolved.sourcePath)
-    : getPageHref(resolved.sourcePath);
+  const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
   const jsonLd =
     page.status === 'published'
       ? {
@@ -188,12 +220,12 @@ export default async function PageRead({ params }: { params: PageParams }) {
   // Language versions available for this page (original + published translations),
   // used by the header's view control to link between locales. Public info, so
   // the anonymous cached lookup is safe on the static document.
-  const translationLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath);
+  const translationLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug);
 
   const pageContext = {
     pageId: page.pageId,
     revisionId: page.revisionId,
-    path: isTranslation ? getTranslatedPageHref(resolved.locale, resolved.sourcePath).slice(1) : resolved.sourcePath,
+    path: canonicalPath.slice(1),
     title: page.title,
     status: page.status,
     canEdit,
@@ -202,7 +234,6 @@ export default async function PageRead({ params }: { params: PageParams }) {
     sourcePath: resolved.sourcePath,
     translationLocales,
     currentLocale: isTranslation ? resolved.locale : null,
-    linkTargetPath: page.linkTargetPath,
     date: page.metadata.date,
     summary: page.metadata.summary,
   };

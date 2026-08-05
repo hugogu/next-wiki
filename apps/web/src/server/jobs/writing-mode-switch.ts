@@ -1,19 +1,13 @@
-import { randomUUID } from 'node:crypto';
 import type { PgBoss } from 'pg-boss';
-import { and, asc, eq, isNull, max, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { DatabaseStore } from '@/server/content-store/database-store';
-import { readMarkdownWithFallback } from '@/server/content-store/read-router';
-import { getActiveStore } from '@/server/content-store/registry';
-import { renderMarkdown } from '@/server/pipeline';
 import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { logger } from '@/server/logger';
 import { QUEUES } from './runtime';
-import { syncRevisionAssetRefs } from '@/server/services/content-assets';
-import { persistRevisionMetadata } from '@/server/services/page-metadata';
-import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
+import { kickReplication } from '@/server/services/storage-replication';
 import { clearPendingSwitchIfMatches, type WritingModeSwitchOptions } from '@/server/services/writing-mode';
+import { canonicalSpacePath } from '@/server/services/space-routes';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -75,108 +69,29 @@ async function getLockedSettings(tx: Transaction) {
   });
 }
 
-async function materializeLinks(
+/** Copilot has no active link model: preserve the audit trail, then retire it. */
+async function retireLinks(
   tx: Transaction,
   defaultSpaceId: string,
-  activeStore: Awaited<ReturnType<typeof getActiveStore>>,
 ): Promise<{ materialized: number; deleted: number }> {
   const links = await tx
     .select()
     .from(schema.pages)
-    .where(and(
-      eq(schema.pages.spaceId, defaultSpaceId),
-      eq(schema.pages.kind, 'link'),
-      isNull(schema.pages.deletedAt),
-    ))
-    .orderBy(asc(schema.pages.path), asc(schema.pages.locale), asc(schema.pages.id));
-
-  let materialized = 0;
+    .where(and(eq(schema.pages.spaceId, defaultSpaceId), eq(schema.pages.kind, 'link'), isNull(schema.pages.deletedAt)));
   let deleted = 0;
   for (const link of links) {
-    const target = link.linkTargetPageId
-      ? await tx.query.pages.findFirst({
-          where: and(
-            eq(schema.pages.id, link.linkTargetPageId),
-            eq(schema.pages.kind, 'native'),
-            isNull(schema.pages.deletedAt),
-          ),
-        })
-      : null;
-    const targetRevision = target?.currentPublishedVersionId
-      ? await tx.query.pageRevisions.findFirst({
-          where: and(
-            eq(schema.pageRevisions.id, target.currentPublishedVersionId),
-            eq(schema.pageRevisions.status, 'published'),
-          ),
-        })
-      : null;
-
-    if (!target || !targetRevision) {
-      await tx
-        .update(schema.pages)
-        .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(eq(schema.pages.id, link.id));
-      deleted += 1;
-      continue;
+    if (link.linkTargetPageId) {
+      await tx.insert(schema.retiredLinkPages).values({
+        linkPageId: link.id,
+        legacyPath: link.path,
+        targetPageId: link.linkTargetPageId,
+        disposition: 'unavailable',
+      }).onConflictDoNothing();
     }
-
-    // The target remains available until all link pages have their own published
-    // revision. For an external active store, putMarkdown stages an orphan-safe
-    // object before the transaction exposes its revision row.
-    const source = await readMarkdownWithFallback(targetRevision);
-    const revisionId = randomUUID();
-    const { html, hash } = renderMarkdown(source);
-    if (activeStore.type !== 'database') await activeStore.putMarkdown(revisionId, source);
-
-    const versionRows = await tx
-      .select({ value: max(schema.pageRevisions.versionNumber) })
-      .from(schema.pageRevisions)
-      .where(eq(schema.pageRevisions.pageId, link.id));
-    const [revision] = await tx
-      .insert(schema.pageRevisions)
-      .values({
-        id: revisionId,
-        pageId: link.id,
-        versionNumber: (versionRows[0]?.value ?? 0) + 1,
-        locale: link.locale,
-        contentType: 'text/markdown',
-        contentSource: source,
-        contentHtml: html,
-        contentHash: hash,
-        authorId: link.authorId,
-        status: 'published',
-        actorKind: 'machine',
-        // Preserve the historical soft-link target even though the page itself
-        // becomes native once Copilot mode no longer has generated space.
-        linkTargetPageId: target.id,
-        publishedAt: new Date(),
-      })
-      .returning();
-    if (!revision) throw new Error('Failed to materialize link page');
-    if (activeStore.type === 'database') {
-      await new DatabaseStore(tx).putMarkdown(revision.id, source);
-    }
-    await persistRevisionMetadata(tx, {
-      revisionId: revision.id,
-      spaceId: defaultSpaceId,
-      source,
-      fallbackTitle: link.title,
-    });
-    await syncRevisionAssetRefs(tx, revision.id, source);
-    await addReplicationTasks(tx, 'markdown', revision.id, hash);
-    await tx
-      .update(schema.pages)
-      .set({
-        kind: 'native',
-        linkTargetPageId: null,
-        latestVersionId: revision.id,
-        currentPublishedVersionId: revision.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.pages.id, link.id));
-    materialized += 1;
+    await tx.update(schema.pages).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(schema.pages.id, link.id));
+    deleted += 1;
   }
-  return { materialized, deleted };
+  return { materialized: 0, deleted };
 }
 
 async function moveSpacePages(
@@ -184,6 +99,7 @@ async function moveSpacePages(
   input: {
     sourceSpaceId: string;
     sourceSpace: 'raw' | 'generated';
+    sourceSpaceRow: typeof schema.spaces.$inferSelect;
     defaultSpaceId: string;
     visibility: WritingModeSwitchOptions['rawVisibility'];
     occupied: Set<string>;
@@ -197,6 +113,7 @@ async function moveSpacePages(
 
   const conflicts: WritingModeSwitchReport['conflicts'] = [];
   for (const page of pages) {
+    if (page.deletedAt) continue;
     const desired = destinationPath(input.sourceSpace, page.path);
     const path = nextFreePath(input.occupied, page.locale, desired);
     if (path !== desired) {
@@ -218,6 +135,14 @@ async function moveSpacePages(
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, page.id));
+    await tx
+      .insert(schema.pageRouteRedirects)
+      .values({
+        legacyRoute: canonicalSpacePath(input.sourceSpaceRow, page.path, page.locale),
+        targetPageId: page.id,
+        reason: 'writing_mode_switch',
+      })
+      .onConflictDoNothing();
   }
   return { count: pages.length, conflicts };
 }
@@ -232,7 +157,6 @@ export async function runWritingModeSwitch(
   jobId: string,
   input: WritingModeSwitchJobData,
 ): Promise<WritingModeSwitchReport> {
-  const activeStore = await getActiveStore();
   const report = await db.transaction(async (tx) => {
     const settings = await getLockedSettings(tx);
     if (!settings || settings.pendingMode !== 'copilot' || settings.switchJobId !== jobId) {
@@ -254,10 +178,11 @@ export async function runWritingModeSwitch(
       .where(eq(schema.pages.spaceId, defaultSpace.id));
     const occupied = new Set(occupiedRows.map((page) => `${page.locale}\u0000${page.path}`));
 
-    const links = await materializeLinks(tx, defaultSpace.id, activeStore);
+    const links = await retireLinks(tx, defaultSpace.id);
     const rawMove = await moveSpacePages(tx, {
       sourceSpaceId: rawSpace.id,
       sourceSpace: 'raw',
+      sourceSpaceRow: rawSpace,
       defaultSpaceId: defaultSpace.id,
       visibility: input.rawVisibility,
       occupied,
@@ -265,6 +190,7 @@ export async function runWritingModeSwitch(
     const generatedMove = await moveSpacePages(tx, {
       sourceSpaceId: generatedSpace.id,
       sourceSpace: 'generated',
+      sourceSpaceRow: generatedSpace,
       defaultSpaceId: defaultSpace.id,
       visibility: input.generatedVisibility,
       occupied,

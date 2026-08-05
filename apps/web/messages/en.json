@@ -443,18 +443,6 @@
       "linkedFromGenerated": "Linked from generated",
       "generatedHumanModified": "Generated, then human-modified"
     },
-    "publishLink": {
-      "button": "Publish as link",
-      "title": "Publish generated page as link",
-      "description": "Choose the public Wiki path for this generated page.",
-      "pathLabel": "Wiki path",
-      "titleLabel": "Link title",
-      "submit": "Publish link",
-      "error": {
-        "pathExists": "A page with this path already exists.",
-        "generic": "Failed to publish the link."
-      }
-    },
     "metadata": {
       "date": "Date",
       "tags": "Tags",
@@ -606,6 +594,7 @@
       "feishu": "Feishu",
       "bots": "Bots",
       "writingMode": "Writing Mode",
+      "spaces": "Spaces",
       "rawCategories": "Raw categories",
       "contentDataSources": "Data Sources",
       "staticSite": "Static site",

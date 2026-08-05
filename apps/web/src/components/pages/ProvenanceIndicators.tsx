@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import type { PublicPageResource } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { apiGet } from '@/lib/api/client';
-import { getPublicApiPageUrl, getSpaceHref } from '@/lib/path';
+import { getPublicApiPageUrl } from '@/lib/path';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
 type AdminSession = { id: string; role: 'admin' | 'editor' | 'reader' };
@@ -57,21 +56,13 @@ export function ProvenanceIndicators({
 
   if (!isAdmin) return null;
 
-  const linkTarget = page?.kind === 'link' ? page.linkTarget : null;
-  const wasHumanModified = page?.kind === 'native' && page.origin?.nature === 'generated' && page.humanModified;
+  const wasHumanModified = page?.origin?.nature === 'generated' && page.humanModified;
 
-  if (!linkTarget && !wasHumanModified) return null;
+  if (!wasHumanModified) return null;
 
   return (
     <div className={className} data-testid="page-provenance-indicators">
-      {linkTarget && (
-        <Link href={getSpaceHref('generated', linkTarget.path)}>
-          <StatusBadge tone="info">{t('page.indicators.linkedFromGenerated')}</StatusBadge>
-        </Link>
-      )}
       {wasHumanModified && <StatusBadge tone="warning">{t('page.indicators.generatedHumanModified')}</StatusBadge>}
     </div>
   );
 }
-
-export { PublishAsLinkDialog } from './PublishAsLinkDialog';

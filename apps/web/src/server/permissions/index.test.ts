@@ -7,11 +7,12 @@ const revision = { kind: 'revision', pageId: 'p1', version: 1 } as const;
 
 describe('permissions space-kind matrix (022)', () => {
   describe('raw space', () => {
-    it('read is admin-only', () => {
-      expect(can(buildAnonymousCtx(), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
-      expect(can(buildUserCtx('u1', 'reader'), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
-      expect(can(buildUserCtx('u1', 'editor'), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
+    it('allows public reads but keeps restricted reads admin-only', () => {
+      expect(can(buildAnonymousCtx(), 'read', pageList, { spaceKind: 'raw', visibility: 'public', anonymousRead: false })).toBe(true);
+      expect(can(buildUserCtx('u1', 'reader'), 'read', pageList, { spaceKind: 'raw', visibility: 'public' })).toBe(true);
+      expect(can(buildUserCtx('u1', 'editor'), 'read', pageList, { spaceKind: 'raw', visibility: 'public' })).toBe(true);
       expect(can(buildUserCtx('u1', 'admin'), 'read', pageList, { spaceKind: 'raw' })).toBe(true);
+      expect(can(buildAnonymousCtx(), 'read', pageList, { spaceKind: 'raw', visibility: 'restricted' })).toBe(false);
     });
 
     it('create is admin-only', () => {
@@ -36,7 +37,7 @@ describe('permissions space-kind matrix (022)', () => {
       expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1'), 'read', pageList, { spaceKind: 'raw' })).toBe(true);
       expect(can(buildApiKeyCtx('u1', 'admin', ['create'], 'k1'), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
       expect(can(buildApiKeyCtx('u1', 'admin', ['create'], 'k1'), 'create', pageList, { spaceKind: 'raw' })).toBe(true);
-      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
+      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'raw', visibility: 'public' })).toBe(true);
       expect(can(buildApiKeyCtx('u1', 'editor', ['create'], 'k1'), 'create', pageList, { spaceKind: 'raw' })).toBe(false);
     });
 
@@ -47,9 +48,9 @@ describe('permissions space-kind matrix (022)', () => {
   });
 
   describe('generated space', () => {
-    it('read, read_draft, create, edit, publish, delete are admin-only', () => {
+    it('allows public reads but keeps authoring and restricted reads admin-only', () => {
       const editor = buildUserCtx('u1', 'editor');
-      expect(can(editor, 'read', pageList, { spaceKind: 'generated' })).toBe(false);
+      expect(can(editor, 'read', pageList, { spaceKind: 'generated', visibility: 'public' })).toBe(true);
       expect(can(editor, 'read_draft', revision, { spaceKind: 'generated' })).toBe(false);
       expect(can(editor, 'create', pageList, { spaceKind: 'generated' })).toBe(false);
       expect(can(editor, 'edit', page, { spaceKind: 'generated' })).toBe(false);
@@ -64,15 +65,16 @@ describe('permissions space-kind matrix (022)', () => {
       expect(can(admin, 'publish', revision, { spaceKind: 'generated' })).toBe(true);
       expect(can(admin, 'delete', page, { spaceKind: 'generated' })).toBe(true);
 
-      expect(can(buildAnonymousCtx(), 'read', pageList, { spaceKind: 'generated' })).toBe(false);
-      expect(can(buildUserCtx('u1', 'reader'), 'read', pageList, { spaceKind: 'generated' })).toBe(false);
+      expect(can(buildAnonymousCtx(), 'read', pageList, { spaceKind: 'generated', visibility: 'public', anonymousRead: false })).toBe(true);
+      expect(can(buildUserCtx('u1', 'reader'), 'read', pageList, { spaceKind: 'generated', visibility: 'public' })).toBe(true);
+      expect(can(buildAnonymousCtx(), 'read', pageList, { spaceKind: 'generated', visibility: 'restricted' })).toBe(false);
     });
 
     it('api_key still needs the matching scope (scope ∩ role)', () => {
       expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1'), 'read', pageList, { spaceKind: 'generated' })).toBe(true);
       expect(can(buildApiKeyCtx('u1', 'admin', ['delete'], 'k1'), 'read', pageList, { spaceKind: 'generated' })).toBe(false);
       expect(can(buildApiKeyCtx('u1', 'admin', ['delete'], 'k1'), 'delete', page, { spaceKind: 'generated' })).toBe(true);
-      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'generated' })).toBe(false);
+      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'generated', visibility: 'public' })).toBe(true);
     });
   });
 

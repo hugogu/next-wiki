@@ -73,10 +73,6 @@ export default async function HistoryPage({
     notFound();
   }
 
-  if (page.linkTargetPath && !space) {
-    redirect(`${getSpaceHistoryHref('generated', page.linkTargetPath)}`);
-  }
-
   const revisions = await pageService.getHistory({ actor }, path, space);
 
   if (revisions.length === 0) {

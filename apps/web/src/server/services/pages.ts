@@ -34,13 +34,12 @@ import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevi
 import { parseFrontmatter } from '@/server/metadata/frontmatter';
 import { buildPageDescription } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
-import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, invalidatePublicLinkPaths, shouldUseDataCache } from '@/server/cache/public-cache';
+import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
-import { getSpaceById, resolveSpace, type SpaceKind } from '@/server/services/spaces';
+import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
-import { listLiveLinksForTarget } from '@/server/services/link-pages';
 
 const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
@@ -55,15 +54,13 @@ export function actorKindOf(ctx: PermCtx): 'human' | 'machine' {
   return ctx.actor.kind === 'api_key' ? 'machine' : 'human';
 }
 
-/** 022 nature forcing: raw-space pages are original, link pages generated. */
+/** Raw-space pages are always original; otherwise preserve the writer's nature. */
 function deriveNature(input: {
   spaceKind: SpaceKind;
-  kind: 'native' | 'link';
   explicit?: 'original' | 'generated';
   actorKind: 'human' | 'machine';
 }): 'original' | 'generated' {
   if (input.spaceKind === 'raw') return 'original';
-  if (input.kind === 'link') return 'generated';
   return input.explicit ?? (input.actorKind === 'machine' ? 'generated' : 'original');
 }
 
@@ -194,13 +191,15 @@ export interface ListPublishedOptions {
    * `recent` returns the most recently published pages first.
    */
   order?: 'path' | 'recent';
+  /** Stable internal space slug; omitted retains the Wiki list behavior. */
+  spaceSlug?: string;
 }
 
 export async function listPublished(
   ctx: PermCtx,
   options: ListPublishedOptions = {},
 ): Promise<PageSummary[]> {
-  const space = await resolveSpace();
+  const space = await resolveSpace(options.spaceSlug);
   if (!space) return [];
 
   if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
@@ -562,35 +561,9 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
     return null;
   }
 
-  if (page.kind === 'link') {
-    if (!page.linkTargetPageId) return null;
-    const target = await db.query.pages.findFirst({
-      where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt)),
-    });
-    if (!target?.currentPublishedVersionId) return null;
-    const revision = await db.query.pageRevisions.findFirst({
-      where: eq(schema.pageRevisions.id, target.currentPublishedVersionId),
-    });
-    if (!revision) return null;
-    const author = await db.query.users.findFirst({ where: eq(schema.users.id, page.authorId) });
-    const metadata = await getRevisionMetadata(revision.id);
-    return {
-      pageId: page.id,
-      revisionId: revision.id,
-      path: page.path,
-      title: page.title,
-      contentHtml: revision.contentHtml,
-      contentHash: revision.contentHash,
-      version: revision.versionNumber,
-      publishedAt: revision.publishedAt?.toISOString() ?? null,
-      authorDisplayName: author?.displayName ?? null,
-      authorId: page.authorId,
-      status: 'published',
-      createdAt: page.createdAt.toISOString(),
-      linkTargetPath: target.path,
-      metadata,
-    };
-  }
+  // Link rows are historical-only after feature 032. They are retired into a
+  // separate audit record and never dereferenced by a normal reader.
+  if (page.kind === 'link') return null;
 
   if (page.currentPublishedVersionId) {
     const revision = await db.query.pageRevisions.findFirst({
@@ -678,8 +651,9 @@ export async function getLiveTranslation(
   ctx: PermCtx,
   locale: string,
   path: string,
+  spaceSlug?: string,
 ): Promise<TranslationReadResult> {
-  const space = await resolveSpace();
+  const space = await resolveSpace(spaceSlug);
   if (!space) return { kind: 'not_found' };
 
   // Only an enabled, non-retired target language has reader-visible URLs.
@@ -779,8 +753,8 @@ export async function getLiveTranslation(
  * for a source path, used to emit hreflang alternates. Returns [] when the path
  * is not a published source page.
  */
-export async function getPublishedTranslationLocales(sourcePath: string): Promise<string[]> {
-  const space = await resolveSpace();
+export async function getPublishedTranslationLocales(sourcePath: string, spaceSlug?: string): Promise<string[]> {
+  const space = await resolveSpace(spaceSlug);
   if (!space) return [];
   const source = await db.query.pages.findFirst({
     where: and(
@@ -815,44 +789,45 @@ export async function getPublishedTranslationLocales(sourcePath: string): Promis
 }
 
 const readCachedPublicLivePage = unstable_cache(
-  async (path: string) => getLive(buildAnonymousCtx(), path),
+  async (path: string, spaceSlug?: string) => getLive(buildAnonymousCtx(), path, spaceSlug),
   ['public-live-page'],
   { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
 );
 
 const readCachedPublicLiveTranslation = unstable_cache(
-  async (locale: string, path: string) => getLiveTranslation(buildAnonymousCtx(), locale, path),
+  async (locale: string, path: string, spaceSlug?: string) => getLiveTranslation(buildAnonymousCtx(), locale, path, spaceSlug),
   ['public-live-translation'],
   { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
 );
 
 const getCachedTranslationLocales = unstable_cache(
-  async (sourcePath: string) => getPublishedTranslationLocales(sourcePath),
+  async (sourcePath: string, spaceSlug?: string) => getPublishedTranslationLocales(sourcePath, spaceSlug),
   ['published-translation-locales'],
   { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
 );
 
 /** Cached published source page for anonymous readers and metadata generation. */
-export async function getCachedPublicLivePage(path: string): Promise<LivePage | null> {
+export async function getCachedPublicLivePage(path: string, spaceSlug?: string): Promise<LivePage | null> {
   return shouldUseDataCache()
-    ? readCachedPublicLivePage(path)
-    : getLive(buildAnonymousCtx(), path);
+    ? readCachedPublicLivePage(path, spaceSlug)
+    : getLive(buildAnonymousCtx(), path, spaceSlug);
 }
 
 /** Cached published translation lookup for anonymous readers and metadata generation. */
 export async function getCachedPublicLiveTranslation(
   locale: string,
   path: string,
+  spaceSlug?: string,
 ): Promise<TranslationReadResult> {
   return shouldUseDataCache()
-    ? readCachedPublicLiveTranslation(locale, path)
-    : getLiveTranslation(buildAnonymousCtx(), locale, path);
+    ? readCachedPublicLiveTranslation(locale, path, spaceSlug)
+    : getLiveTranslation(buildAnonymousCtx(), locale, path, spaceSlug);
 }
 
-export async function getCachedPublishedTranslationLocales(sourcePath: string): Promise<string[]> {
+export async function getCachedPublishedTranslationLocales(sourcePath: string, spaceSlug?: string): Promise<string[]> {
   return shouldUseDataCache()
-    ? getCachedTranslationLocales(sourcePath)
-    : getPublishedTranslationLocales(sourcePath);
+    ? getCachedTranslationLocales(sourcePath, spaceSlug)
+    : getPublishedTranslationLocales(sourcePath, spaceSlug);
 }
 
 export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | null> {
@@ -932,7 +907,7 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
 
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be deleted');
-  if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages must be deleted through the link page service');
+  if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
 
   const isAuthor = page.authorId === userId;
   if (!can(ctx, 'delete', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
@@ -946,16 +921,14 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
       .set({ deletedAt: new Date() })
       .where(eq(schema.pages.id, page.id));
   });
-  const linkedPaths = await listLiveLinksForTarget(page.id);
   invalidatePublicContentCache();
-  invalidatePublicLinkPaths(linkedPaths);
   await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
 }
 
 export async function create(
   ctx: PermCtx,
-  input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated' },
+  input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated'; visibility?: 'public' | 'restricted' },
   spaceSlug?: string,
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
@@ -1016,11 +989,10 @@ export async function create(
         authorId: userId,
         nature: deriveNature({
           spaceKind: space.kind,
-          kind: 'native',
           explicit: input.nature,
           actorKind: actorKindOf(ctx),
         }),
-        visibility: space.kind === 'generated' ? 'restricted' : 'public',
+        visibility: input.visibility ?? getEffectiveDefaultVisibility(space),
         writeMetadataToFrontmatter: parseFrontmatter(contentSource).hasValidFrontmatter,
       })
       .returning();
@@ -1064,6 +1036,31 @@ export async function create(
   });
   await kickReplication();
   return created;
+}
+
+/** Set the anonymous-read decision without changing publication state. */
+export async function setVisibility(
+  ctx: PermCtx,
+  pageId: string,
+  visibility: 'public' | 'restricted',
+): Promise<'public' | 'restricted'> {
+  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'Only Administrators can change page visibility');
+  }
+  const page = await db.query.pages.findFirst({
+    where: and(eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)),
+  });
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getSpaceById(page.spaceId);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+
+  await db
+    .update(schema.pages)
+    .set({ visibility, updatedAt: new Date() })
+    .where(eq(schema.pages.id, page.id));
+  invalidatePublicContentCache();
+  await notifyPublicContentChanged('publish');
+  return visibility;
 }
 
 export async function newDraft(
@@ -1115,7 +1112,7 @@ export async function newDraft(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-    if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages cannot have content drafts');
+    if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
@@ -1228,9 +1225,7 @@ export async function updateProperties(
     });
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-    if (page.kind === 'link' && (ctx.actor.kind === 'anonymous' || ctx.actor.role !== 'admin')) {
-      throw new DomainError('FORBIDDEN', 'Only Admins can manage link pages');
-    }
+    if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
@@ -1269,9 +1264,7 @@ export async function updateProperties(
       isPublished: page.currentPublishedVersionId !== null,
     };
   });
-  const linkedPaths = await listLiveLinksForTarget(result.pageId);
   invalidatePublicContentCache();
-  invalidatePublicLinkPaths([...linkedPaths, ...(result.isPublished ? [currentPath, result.newPath] : [])]);
   if (result.isPublished) await enqueuePublicPageWarmup(getPageHref(result.newPath));
   if (result.newPath !== currentPath) await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
@@ -1315,18 +1308,9 @@ export async function moveToSpace(
 
     if (source.id === target.id) throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'The page is already in this space');
     if (source.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be moved between spaces');
-    if (page.kind === 'link') throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'Link pages cannot be moved between spaces');
+    if (page.kind === 'link') throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'Link pages are retired');
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(source, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to move this page');
-    }
-
-    // Moving a generated page that is published as a wiki link would strand the
-    // link; the admin must remove the link first.
-    if (source.kind === 'generated') {
-      const links = await listLiveLinksForTarget(page.id);
-      if (links.length > 0) {
-        throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'This page is published through a wiki link; remove the link before moving it');
-      }
     }
 
     if (target.kind === 'generated') ensureOkfConceptPath(page.path);
@@ -1410,7 +1394,6 @@ export async function moveToSpace(
   invalidatePublicContentCache();
   // The public path flips visibility on a move to/from the wiki space; revalidate
   // it so anonymous ISR reflects the new state either way.
-  if (result.isPublished) invalidatePublicLinkPaths([result.path]);
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   await notifyPublicContentChanged('publish');
   await kickReplication();
@@ -1441,41 +1424,7 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
 
   if (!page) return null;
 
-  // For link pages, redirect editing to the linked target's generated page.
-  if (page.kind === 'link' && page.linkTargetPageId) {
-    const targetPage = await db.query.pages.findFirst({
-      where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt), isNull(schema.pages.translationGroupId)),
-    });
-    if (!targetPage) return null;
-    const targetSpace = await getSpaceById(targetPage.spaceId);
-    if (!targetSpace) return null;
-    if (!can(ctx, 'edit', { kind: 'page', pageId: targetPage.id }, pagePermissionOptions(targetSpace, targetPage, { isAuthor: userId ? targetPage.authorId === userId : false }))) {
-      return null;
-    }
-    const targetRevision = targetPage.latestVersionId
-      ? await db.query.pageRevisions.findFirst({
-          where: eq(schema.pageRevisions.id, targetPage.latestVersionId),
-        })
-      : null;
-    if (!targetRevision) return null;
-    const targetMetadata = await getRevisionMetadata(targetRevision.id);
-    const targetIsAuthor = userId ? targetRevision.authorId === userId : false;
-    const targetCanPublish = can(ctx, 'publish', { kind: 'revision', pageId: targetPage.id, version: targetRevision.versionNumber }, pagePermissionOptions(targetSpace, targetPage, { isAuthor: targetIsAuthor }));
-    const targetCanDelete = can(ctx, 'delete', { kind: 'page', pageId: targetPage.id }, pagePermissionOptions(targetSpace, targetPage, { isAuthor: targetIsAuthor }));
-    return {
-      pageId: targetPage.id,
-      revisionId: targetRevision.id,
-      path: targetPage.path,
-      title: targetPage.title,
-      contentSource: await readMarkdownFromDatabase(targetRevision),
-      latestVersion: targetRevision.versionNumber,
-      status: targetRevision.status,
-      canPublish: targetCanPublish,
-      canDelete: targetCanDelete,
-      writeMetadataToFrontmatter: targetPage.writeMetadataToFrontmatter,
-      metadata: targetMetadata,
-    };
-  }
+  if (page.kind === 'link') return null;
 
   const isAuthor = userId ? page.authorId === userId : false;
   if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
@@ -1507,14 +1456,12 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
     title: page.title,
     // Editing reads the authoritative source directly: blocking the page load
     // on a remote replica (e.g. S3) is not worth it for the small markdown body.
-    contentSource: page.kind === 'link' ? '' : await readMarkdownFromDatabase(revision),
+    contentSource: await readMarkdownFromDatabase(revision),
     latestVersion: revision.versionNumber,
     status: revision.status,
     canPublish,
     canDelete,
     writeMetadataToFrontmatter: page.writeMetadataToFrontmatter,
-    kind: page.kind,
-    linkTargetPageId: page.linkTargetPageId,
     metadata,
   };
 }

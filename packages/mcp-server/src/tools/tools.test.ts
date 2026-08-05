@@ -321,40 +321,6 @@ describe('tools', () => {
     });
   });
 
-  it('create_page defaults space to default when kind=link and caller omits it', async () => {
-    const createPageClient = vi.fn().mockResolvedValue({
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      spaceSlug: 'default',
-      path: 'wiki/link-target',
-      locale: 'en',
-      title: 'Link to generated target',
-      status: 'published',
-      author: { id: null, displayName: null },
-      createdAt: '',
-      updatedAt: '',
-      links: { self: '', byPath: '', revisions: '', drafts: '' },
-    });
-    const client = createClient({ createPage: createPageClient });
-
-    await createPage(client, {
-      path: 'wiki/link-target',
-      title: 'Link to generated target',
-      contentSource: '',
-      kind: 'link',
-      linkTargetPageId: '00000000-0000-0000-0000-000000000001',
-    });
-
-    // Link pages must publish through the wiki space; defaulting them to
-    // 'generated' would have the server reject the call with LINK_TARGET_INVALID.
-    expect(createPageClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: 'wiki/link-target',
-        space: 'default',
-        kind: 'link',
-      }),
-    );
-  });
-
   it('create_page defaults space to generated when caller omits it', async () => {
     const createPageClient = vi.fn().mockResolvedValue({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
@@ -387,7 +353,7 @@ describe('tools', () => {
     );
   });
 
-  it('create_page forwards raw and link creation metadata', async () => {
+  it('create_page forwards raw creation metadata without link fields', async () => {
     const createPageClient = vi.fn().mockResolvedValue({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       spaceSlug: 'raw',
@@ -413,7 +379,6 @@ describe('tools', () => {
       contentType: 'application/pdf',
       originalBytes: 'JVBERi0=',
       categoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      kind: 'native',
     });
 
     expect(createPageClient).toHaveBeenCalledWith({
@@ -428,8 +393,6 @@ describe('tools', () => {
       contentType: 'application/pdf',
       originalBytes: 'JVBERi0=',
       categoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      kind: 'native',
-      linkTargetPageId: undefined,
     });
   });
 

@@ -62,14 +62,14 @@ import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { DEFAULT_SPACE_SLUG, getSpaceById, listSpaces, resolveSpace } from '@/server/services/spaces';
+import { canonicalSpacePath } from '@/server/services/space-routes';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConformance } from '@/server/services/okf';
 import * as rawEntries from '@/server/services/raw-entries';
-import * as linkPages from '@/server/services/link-pages';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
-type SpaceRow = Pick<typeof schema.spaces.$inferSelect, 'id' | 'slug' | 'anonymousRead' | 'defaultLocale' | 'kind'>;
+type SpaceRow = Pick<typeof schema.spaces.$inferSelect, 'id' | 'slug' | 'anonymousRead' | 'defaultLocale' | 'kind' | 'routePrefix'>;
 
 /**
  * Machine writers (public API / MCP / Wiki AI tools) often supply frontmatter
@@ -195,8 +195,6 @@ async function minimalDeletedPageResource(space: { slug: string }, page: PageRow
     path: page.path,
     locale: page.locale,
     title: page.title,
-    kind: page.kind,
-    linkTarget: null,
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     status: 'deleted',
     author: { id: null, displayName: null },
@@ -251,15 +249,8 @@ const DEFAULT_VISIBLE_PAGE_OPTIONS: VisiblePageOptions = {
   include: [],
 };
 
-/**
- * Markdown a page serves at its own path. A link page holds no content row of
- * its own — it publishes its generated target (FR-012), which is what a reader
- * already sees at the wiki path, so this surface must return that source
- * rather than an empty body.
- */
 async function readPageSource(page: PageRow, current: RevisionRow): Promise<string> {
-  const contentRevision = await linkPages.resolveContentRevision(page, current);
-  return contentRevision ? readMarkdownFromDatabase(contentRevision) : '';
+  return readMarkdownFromDatabase(current);
 }
 
 async function visiblePageResource(
@@ -268,6 +259,7 @@ async function visiblePageResource(
   page: PageRow,
   options: VisiblePageOptions = DEFAULT_VISIBLE_PAGE_OPTIONS,
 ): Promise<PublicPageResource | null> {
+  if (page.kind === 'link') return null;
   const userId = getActorUserId(ctx);
   const isPageAuthor = userId ? page.authorId === userId : false;
   if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }))) {
@@ -277,7 +269,7 @@ async function visiblePageResource(
   const canSeeDraft = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }));
   const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
 
-  const [publishedRow, latestRow, initialRevision, humanRevision, linkTarget] = await Promise.all([
+  const [publishedRow, latestRow, initialRevision, humanRevision] = await Promise.all([
     page.currentPublishedVersionId
       ? db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, page.currentPublishedVersionId) })
       : Promise.resolve(undefined),
@@ -296,12 +288,6 @@ async function visiblePageResource(
         eq(schema.pageRevisions.actorKind, 'human'),
       ),
     }),
-    canViewProvenance && page.linkTargetPageId
-      ? db.query.pages.findFirst({
-          columns: { id: true, path: true, title: true },
-          where: and(eq(schema.pages.id, page.linkTargetPageId), isNull(schema.pages.deletedAt)),
-        })
-      : Promise.resolve(undefined),
   ]);
   const published = publishedRow ?? null;
   const latest = latestRow ?? null;
@@ -334,14 +320,7 @@ async function visiblePageResource(
     path: page.path,
     locale: page.locale,
     title: page.title,
-    kind: page.kind,
-    // Provenance-gated: omitted entirely for callers who may not see link
-    // targets, null for a native page, the resolved target for an Admin.
-    linkTarget: canViewProvenance
-      ? (page.linkTargetPageId
-          ? (linkTarget ? { pageId: linkTarget.id, path: linkTarget.path, title: linkTarget.title } : null)
-          : null)
-      : undefined,
+    canonicalUrl: canonicalSpacePath(space, page.path, page.locale),
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
     visibility: canViewProvenance ? page.visibility : undefined,
@@ -412,7 +391,7 @@ async function visibleRevisionResource(
   }
   const [summary, content] = await Promise.all([
     revisionSummary(ctx, space, page, revision),
-    page.kind === 'link' ? Promise.resolve('') : readMarkdownFromDatabase(revision),
+    readMarkdownFromDatabase(revision),
   ]);
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(revision.id);
@@ -427,7 +406,6 @@ async function visibleRevisionResource(
     frontmatter,
     metadata,
     origin: { actorKind: revision.actorKind, nature: page.nature },
-    linkTargetPageId: canViewProvenance ? revision.linkTargetPageId : null,
     source: canViewProvenance && space.kind === 'raw' ? projectRawSource(revision.sourceMetadata) : null,
     originalAsset: originalAsset
       ? { id: originalAsset.id, contentType: originalAsset.contentType, sizeBytes: originalAsset.sizeBytes, contentHash: originalAsset.contentHash }
@@ -729,22 +707,13 @@ export async function createPage(
   include: readonly PublicPageInclude[] = [],
 ): Promise<PublicPageResource> {
   const targetSpaceSlug = input.space ?? (
-    input.kind !== 'link' && ctx.actor.kind === 'api_key' && await isLlmWikiMode()
+    ctx.actor.kind === 'api_key' && await isLlmWikiMode()
       ? 'generated'
       : undefined
   );
   const targetSpace = await resolveSpace(targetSpaceSlug);
   if (!targetSpace) throw new DomainError('NOT_FOUND', 'Space not found');
-  if (input.kind === 'link' && targetSpace.kind !== 'wiki') {
-    throw new DomainError('LINK_TARGET_INVALID', 'Link pages must be created in the wiki space');
-  }
-  const created = input.kind === 'link'
-    ? await linkPages.createLinkPage(ctx, {
-        path: input.path,
-        title: input.title,
-        targetPageId: input.linkTargetPageId!,
-      })
-    : targetSpace.kind === 'raw'
+  const created = targetSpace.kind === 'raw'
     ? await rawEntries.createEntry(ctx, {
         path: input.path,
         title: input.title,
@@ -771,18 +740,14 @@ export async function createPage(
 export async function createDraft(ctx: PermCtx, pageId: string, input: PublicDraftCreateInput): Promise<PublicRevisionResource> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  // Drafting over a link path writes its generated target: the link publishes
-  // that target and holds no content of its own (FR-012), so this is the same
-  // redirection the editor performs when a link path is opened for editing.
-  const contentPage = await linkPages.resolveContentPage(page);
-  if (!contentPage) throw new DomainError('LINK_TARGET_INVALID', 'The link target is no longer available');
-  const space = await getSpaceById(contentPage.spaceId);
+  if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
+  const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   const draftInput = space.kind === 'generated' && input.contentSource
-    ? { ...input, contentSource: adaptGeneratedContent(input.contentSource, contentPage.path, input.title) }
+    ? { ...input, contentSource: adaptGeneratedContent(input.contentSource, page.path, input.title) }
     : input;
-  const created = await pageService.newDraft(ctx, contentPage.path, draftInput, space.slug);
-  const revision = await getRevision(ctx, contentPage.id, created.versionNumber);
+  const created = await pageService.newDraft(ctx, page.path, draftInput, space.slug);
+  const revision = await getRevision(ctx, page.id, created.versionNumber);
   if (!revision) throw new DomainError('NOT_FOUND', 'Created revision is not visible');
   return revision;
 }
@@ -798,24 +763,7 @@ export async function updateProperties(
   const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
-  if (page.kind === 'link') {
-    if (input.path || input.title) {
-      await pageService.updateProperties(ctx, page.path, {
-        path: input.path,
-        title: input.title,
-        baseRevisionId: input.baseRevisionId,
-      }, space.slug);
-    }
-    if (input.linkTargetPageId) {
-      await linkPages.retargetLinkPage(ctx, page.id, input.linkTargetPageId, {
-        expectedRevisionId: input.baseRevisionId,
-      });
-    }
-    const view = await getPageById(ctx, page.id, include);
-    if (!view) throw new DomainError('NOT_FOUND', 'Updated page is not visible');
-    return view;
-  }
-  if (input.linkTargetPageId) throw new DomainError('LINK_TARGET_INVALID', 'Only link pages may be retargeted');
+  if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
   const metadataUpdated = input.title
     ? await updatePageMetadata(ctx, pageId, {
         baseRevisionId: input.baseRevisionId ?? page.latestVersionId!,
@@ -1343,7 +1291,6 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
       authorId: schema.pages.authorId,
       visibility: schema.pages.visibility,
       kind: schema.pages.kind,
-      linkTargetPageId: schema.pages.linkTargetPageId,
       currentPublishedVersionId: schema.pages.currentPublishedVersionId,
       contentSource: schema.pageRevisions.contentSource,
     })
@@ -1357,12 +1304,9 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     path: string;
     title: string;
     status: 'draft' | 'published';
-    kind: 'native' | 'link';
-    linkTarget: { pageId: string; path: string; title: string } | null;
   };
   const visible: Row[] = [];
   const userId = getActorUserId(ctx);
-  const canViewProvenance = ctx.actor.kind !== 'anonymous' && ctx.actor.role === 'admin';
   const filterType = extractTypeFilter(query);
   for (const row of rows) {
     const status: Row['status'] = row.currentPublishedVersionId ? 'published' : 'draft';
@@ -1372,19 +1316,12 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     if (!can(ctx, 'read', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     if (status === 'draft' && !can(ctx, 'read_draft', { kind: 'revision', pageId: row.id, version: 0 }, pagePermissionOptions(space, row, { isAuthor }))) continue;
     if (filterType && parsePageFrontmatter(row.contentSource ?? '').frontmatter?.type !== filterType) continue;
-    const target = canViewProvenance && row.linkTargetPageId
-      ? await db.query.pages.findFirst({
-          columns: { id: true, path: true, title: true },
-          where: and(eq(schema.pages.id, row.linkTargetPageId), isNull(schema.pages.deletedAt)),
-        })
-      : null;
+    if (row.kind === 'link') continue;
     visible.push({
       id: row.id,
       path: row.path,
       title: row.title,
       status,
-      kind: row.kind,
-      linkTarget: target ? { pageId: target.id, path: target.path, title: target.title } : null,
     });
   }
 
@@ -1418,8 +1355,6 @@ function buildTree(pages: {
   path: string;
   title: string;
   status: 'draft' | 'published';
-  kind: 'native' | 'link';
-  linkTarget: { pageId: string; path: string; title: string } | null;
 }[], pathPrefix?: string): PublicPageTreeNode {
   const prefix = pathPrefix ?? '';
   const root: PublicPageTreeNode = { path: prefix, segment: lastSegment(prefix), title: null, pageId: null, status: null, children: [] };
@@ -1444,8 +1379,6 @@ function buildTree(pages: {
         child.title = page.title;
         child.pageId = page.id;
         child.status = page.status;
-        child.kind = page.kind;
-        child.linkTarget = page.linkTarget;
       }
       current = child;
     }
@@ -1483,8 +1416,7 @@ export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
   const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   if (page.kind === 'link') {
-    await linkPages.deleteLinkPage(ctx, page.id);
-    return;
+    throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
   }
   await pageService.remove(ctx, page.path, space.slug);
 }

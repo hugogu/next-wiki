@@ -443,18 +443,6 @@
       "linkedFromGenerated": "链接到生成内容",
       "generatedHumanModified": "已生成，后经人工修改"
     },
-    "publishLink": {
-      "button": "发布为链接",
-      "title": "将生成页面发布为链接",
-      "description": "为此生成页面选择公开知识库路径。",
-      "pathLabel": "知识库路径",
-      "titleLabel": "链接标题",
-      "submit": "发布链接",
-      "error": {
-        "pathExists": "该路径的页面已存在。",
-        "generic": "发布链接失败。"
-      }
-    },
     "metadata": {
       "date": "日期",
       "tags": "标签",
@@ -606,6 +594,7 @@
       "feishu": "飞书",
       "bots": "机器人",
       "writingMode": "写作模式",
+      "spaces": "空间",
       "rawCategories": "原始分类",
       "contentDataSources": "数据源",
       "staticSite": "静态站点",

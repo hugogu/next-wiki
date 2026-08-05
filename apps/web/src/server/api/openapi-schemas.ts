@@ -731,12 +731,6 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
     })
     .optional()
     .describe('Provenance of this revision.'),
-  linkTargetPageId: z
-    .string()
-    .uuid()
-    .nullable()
-    .optional()
-    .describe('Immutable link target recorded on link create/retarget revisions.'),
   source: z
     .object({
       channel: z.string().optional().describe('Ingestion channel of a raw chunk.'),
@@ -793,19 +787,6 @@ export const PublicPageResource = z
     path: PublicPagePath,
     locale: z.string().describe('Locale of the page content (e.g. "en", "zh").'),
     title: z.string().describe('Human-readable page title.'),
-    kind: z
-      .enum(['native', 'link'])
-      .optional()
-      .describe('Page kind: a native content page or a softlink page rendering a generated target.'),
-    linkTarget: z
-      .object({
-        pageId: z.string().uuid().describe('Target page identifier of a softlink page.'),
-        path: z.string().describe('Target page path.'),
-        title: z.string().describe('Target page title.'),
-      })
-      .nullable()
-      .optional()
-      .describe('Resolved softlink target, projected only to Admin callers. Null for native pages and omitted for other callers.'),
     origin: z
       .object({
         actorKind: z.enum(['human', 'machine']).describe('Whether the page was created through a session (human) or an API key/pipeline (machine).'),
@@ -1060,8 +1041,6 @@ export const PublicPageCreateInput = z
     contentType: z.string().optional().describe('MIME type of a raw entry body (RFC 2046). Required when the body is not markdown; defaults to text/markdown.'),
     originalBytes: z.string().optional().describe('Optional base64 raw payload (PDF, HTML, JSON, image, log) stored via content_assets; its sha256 is recorded on the revision.'),
     categoryId: z.string().uuid().optional().describe('Raw taxonomy category id. Required when space=raw unless an admin default is configured; immutable after creation.'),
-    kind: z.enum(['native', 'link']).optional().describe('Page kind. Use link only for an Admin-managed wiki softlink.'),
-    linkTargetPageId: z.string().uuid().optional().describe('Required when kind is link. The target must be a live generated-space native page.'),
   })
   .describe('Create a public wiki page.');
 
@@ -1164,9 +1143,8 @@ export const PublicPagePropertiesInput = z
       .uuid()
       .optional()
       .describe('Expected current revision id, used for optimistic concurrency control.'),
-    linkTargetPageId: z.string().uuid().optional().describe('New live generated target for an existing link page.'),
   })
-  .describe('Update page properties. Provide at least one of path, title, or linkTargetPageId.');
+  .describe('Update page properties. Provide at least one of path or title.');
 
 export const PublicRevisionListQuery = z
   .object({
@@ -1556,20 +1534,6 @@ export const PublicPageTreeNode: z.ZodType<{
     title: z.string().nullable().describe('Page title when a page exists at this path, otherwise null.'),
     pageId: z.string().uuid().nullable().describe('Page id when a page exists at this path, otherwise null.'),
     status: z.enum(['draft', 'published', 'deleted']).nullable().describe('Page status when a page exists, otherwise null.'),
-    kind: z
-      .enum(['native', 'link'])
-      .nullable()
-      .optional()
-      .describe('Page kind when a page exists at this node: native or a softlink page.'),
-    linkTarget: z
-      .object({
-        pageId: z.string().uuid().describe('Target page identifier of a softlink page.'),
-        path: z.string().describe('Target page path.'),
-        title: z.string().describe('Target page title.'),
-      })
-      .nullable()
-      .optional()
-      .describe('Resolved softlink target, projected only to Admin callers.'),
     children: z.array(z.lazy(() => PublicPageTreeNode)).describe('Child nodes ordered by path segment.'),
   })
   .describe('A single node in the public wiki page directory tree.');

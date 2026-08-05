@@ -41,7 +41,7 @@ export function SemanticSearch({ initialQuery = '' }: { initialQuery?: string })
       {status && <p className="text-sm text-muted">{status}</p>}
       <div className="space-y-sm">
         {results.slice((page - 1) * pageSize, page * pageSize).map((result) => (
-          <a key={result.pageId} href={getSpaceHref(readerSpaceFromSlug(result.spaceSlug), result.path)} className="block rounded-lg border border-border bg-surface p-md hover:bg-surface-elevated">
+          <a key={result.pageId} href={result.canonicalUrl ?? getSpaceHref(readerSpaceFromSlug(result.spaceSlug), result.path)} className="block rounded-lg border border-border bg-surface p-md hover:bg-surface-elevated">
             <div className="flex items-center justify-between gap-md">
               <h2 className="font-medium">{result.title}</h2>
               <span className="flex shrink-0 items-center gap-xs">

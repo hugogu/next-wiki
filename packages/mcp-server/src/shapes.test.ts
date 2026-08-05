@@ -139,7 +139,7 @@ describe('shape transformers', () => {
     });
   });
 
-  it('preserves page and revision provenance, link targets, and raw source metadata', async () => {
+  it('preserves page and revision provenance and raw source metadata', async () => {
     const { getPageResponse, getRevisionResponse } = await import('./shapes');
     const page = getPageResponse({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
@@ -147,8 +147,6 @@ describe('shape transformers', () => {
       path: 'concepts/payment',
       locale: 'en',
       title: 'Payment',
-      kind: 'link',
-      linkTarget: { pageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', path: 'concepts/source', title: 'Source' },
       origin: { actorKind: 'machine', nature: 'generated' },
       humanModified: true,
       status: 'published',
@@ -169,20 +167,16 @@ describe('shape transformers', () => {
       publishedAt: '',
       canPublish: false,
       origin: { actorKind: 'human', nature: 'generated' },
-      linkTargetPageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       source: { channel: 'support', occurredAt: '2026-07-18T00:00:00.000Z' },
     });
 
     expect(page).toMatchObject({
       space: 'generated',
-      kind: 'link',
-      linkTarget: { pageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
       origin: { actorKind: 'machine', nature: 'generated' },
       humanModified: true,
     });
     expect(revision).toMatchObject({
       origin: { actorKind: 'human', nature: 'generated' },
-      linkTargetPageId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       source: { channel: 'support' },
     });
   });

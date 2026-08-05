@@ -1,7 +1,6 @@
 import type * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { resolveContentRevision } from './link-pages';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction } from './ai-actions';
 import { getAssignedModel } from './ai-question';
@@ -14,18 +13,12 @@ export type ImageGenerationInput = {
   aspectRatio?: string;
 };
 
-/**
- * Markdown a `{ kind: 'page' }` illustration is derived from. A link page's own
- * revision is an empty placeholder — the content it publishes lives on its
- * generated target, so illustrating one has to follow the link exactly as the
- * reader and the editor do.
- */
 export async function readIllustrationSource(
   page: typeof schema.pages.$inferSelect,
   revision: typeof schema.pageRevisions.$inferSelect,
 ): Promise<string> {
-  const contentRevision = await resolveContentRevision(page, revision);
-  return contentRevision?.contentSource ?? '';
+  if (page.kind === 'link') return '';
+  return revision.contentSource ?? '';
 }
 
 export async function createImageGeneration(

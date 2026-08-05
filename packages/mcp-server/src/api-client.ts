@@ -9,9 +9,6 @@ export type PublicRevisionStatus = z.infer<typeof publicRevisionStatusSchema>;
 export const contentSpaceSchema = z.enum(['default', 'raw', 'generated']);
 export type ContentSpace = z.infer<typeof contentSpaceSchema>;
 
-export const publicPageKindSchema = z.enum(['native', 'link']);
-export type PublicPageKind = z.infer<typeof publicPageKindSchema>;
-
 export const publicContentNatureSchema = z.enum(['original', 'generated']);
 export type PublicContentNature = z.infer<typeof publicContentNatureSchema>;
 
@@ -74,7 +71,6 @@ export type PublicRevisionSummary = z.infer<typeof publicRevisionSummarySchema>;
 export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
   contentSource: z.string().optional(),
   frontmatter: z.record(z.unknown()).nullable().optional(),
-  linkTargetPageId: z.string().uuid().nullable().optional(),
   source: publicRawSourceSchema.nullable().optional(),
   originalAsset: z
     .object({
@@ -115,8 +111,7 @@ export const publicPageResourceSchema = z.object({
   path: pathSchema,
   locale: z.string(),
   title: z.string(),
-  kind: publicPageKindSchema.optional(),
-  linkTarget: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }).nullable().optional(),
+  canonicalUrl: z.string().optional(),
   origin: publicOriginSchema.optional(),
   humanModified: z.boolean().optional(),
   visibility: z.enum(['public', 'restricted']).optional(),
@@ -182,15 +177,6 @@ export const publicPageCreateInputSchema = z.object({
   contentType: z.string().optional(),
   originalBytes: z.string().optional(),
   categoryId: z.string().uuid().optional(),
-  kind: publicPageKindSchema.optional(),
-  linkTargetPageId: z.string().uuid().optional(),
-}).superRefine((value, ctx) => {
-  if (value.kind === 'link' && !value.linkTargetPageId) {
-    ctx.addIssue({ code: 'custom', path: ['linkTargetPageId'], message: 'Link pages require a target page id' });
-  }
-  if (value.kind !== 'link' && value.linkTargetPageId) {
-    ctx.addIssue({ code: 'custom', path: ['kind'], message: 'Only link pages may include a target page id' });
-  }
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 
@@ -348,8 +334,6 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   title: z.string().nullable(),
   pageId: z.string().uuid().nullable(),
   status: publicPageStatusSchema.nullable(),
-  kind: publicPageKindSchema.nullable().optional(),
-  linkTarget: z.object({ pageId: z.string().uuid(), path: z.string(), title: z.string() }).nullable().optional(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
 export type PublicPageTreeNode = {
@@ -358,8 +342,6 @@ export type PublicPageTreeNode = {
   title: string | null;
   pageId: string | null;
   status: PublicPageStatus | null;
-  kind?: PublicPageKind | null;
-  linkTarget?: { pageId: string; path: string; title: string } | null;
   children: PublicPageTreeNode[];
 };
 
