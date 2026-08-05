@@ -38,6 +38,7 @@ export function AppShell({
   siteName,
   children,
   space = 'wiki',
+  routePrefix,
   writingMode: initialWritingMode,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
@@ -126,6 +127,7 @@ export function AppShell({
             onClose={() => setNavOpen(false)}
             user={user}
             space={space}
+            routePrefix={routePrefix}
             writingMode={writingMode}
             aiChatMaximized={aiMaximized}
           />

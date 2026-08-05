@@ -33,7 +33,7 @@ import {
   LayersIcon,
   FunctionPlotIcon,
 } from '@/components/icons';
-import { getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
+import { getConfiguredSpaceHref, getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 import type { Actor } from '@/server/permissions';
@@ -137,6 +137,7 @@ function TreeItem({
   canCreate,
   addChildLabel,
   space,
+  routePrefix,
 }: {
   node: LazyPublicPageTreeNode;
   currentPath?: string;
@@ -155,6 +156,7 @@ function TreeItem({
   canCreate: boolean;
   addChildLabel: string;
   space: ReaderSpace;
+  routePrefix?: string;
 }) {
   const loadState = getLoadState(node);
   const active = node.pageId !== null && node.path === currentPath;
@@ -193,7 +195,7 @@ function TreeItem({
         )}
         {node.pageId ? (
           <Link
-            href={getSpaceHref(space, node.path)}
+            href={routePrefix ? getConfiguredSpaceHref(routePrefix, node.path) : getSpaceHref(space, node.path)}
             onClick={onNavigate}
             className={`flex flex-1 min-w-0 items-center gap-xs rounded-md px-sm py-1 text-sm transition-colors ${
               active
@@ -250,6 +252,7 @@ function TreeItem({
                 canCreate={canCreate}
                 addChildLabel={addChildLabel}
                 space={space}
+                routePrefix={routePrefix}
               />
             ))
           ) : loadState.status === 'loading' ? (
@@ -283,6 +286,7 @@ export function Navigator({
   onClose,
   user,
   space = 'wiki',
+  routePrefix,
   writingMode,
   aiChatMaximized = false,
 }: {
@@ -294,6 +298,7 @@ export function Navigator({
   onClose: () => void;
   user: Actor;
   space?: ReaderSpace;
+  routePrefix?: string;
   writingMode?: WritingMode;
   aiChatMaximized?: boolean;
 }) {
@@ -735,6 +740,7 @@ export function Navigator({
                       canCreate={canCreatePages}
                       addChildLabel={addChildLabel}
                       space={space}
+                      routePrefix={routePrefix}
                     />
                   ))}
                 </ul>

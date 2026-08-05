@@ -21,6 +21,8 @@ export type PageContext = {
   currentLocale?: string | null;
   /** Content space that owns the reader/editor route. */
   space?: ReaderSpace;
+  /** Resolved public prefix for this page's space. */
+  routePrefix?: string;
   /** Frontmatter date (YYYY-MM-DD) used to seed the properties dialog. */
   date?: string | null;
   /** Page summary used to seed the properties dialog. */
@@ -53,6 +55,7 @@ export type AppShellProps = {
    */
   hydrateSession?: boolean;
   space?: ReaderSpace;
+  routePrefix?: string;
   writingMode?: WritingMode;
   footer?: React.ReactNode;
   siteName: string;

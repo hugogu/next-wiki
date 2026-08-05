@@ -20,6 +20,7 @@ export async function Layout({
   skipPasswordGate = false,
   staticPublic = false,
   space,
+  routePrefix,
 }: {
   children: ReactNode;
   pageContext?: PageContext;
@@ -29,6 +30,7 @@ export async function Layout({
   skipPasswordGate?: boolean;
   staticPublic?: boolean;
   space?: ReaderSpace;
+  routePrefix?: string;
 }) {
   const actor = await authService.getCurrentActor();
 
@@ -66,6 +68,7 @@ export async function Layout({
       aiEntitlements={aiEntitlements}
       hydrateSession={staticPublic}
       space={space}
+      routePrefix={routePrefix}
       writingMode={writingMode}
       footer={<Footer site={site} />}
       siteName={site.siteName}

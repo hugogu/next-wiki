@@ -6,6 +6,14 @@ function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
 
+/** Public reader URL when the server has resolved the space configuration. */
+export function getConfiguredSpaceHref(prefix: string, path?: string, locale?: string | null): string {
+  const segments = [encodeURIComponent(prefix)];
+  if (locale && locale !== 'en') segments.push(encodeURIComponent(locale));
+  if (path) segments.push(encodePath(path));
+  return `/${segments.join('/')}`;
+}
+
 export type ReaderSpace = 'wiki' | 'raw' | 'generated';
 
 /** Maps a space's slug (e.g. from a search result) to the reader-space

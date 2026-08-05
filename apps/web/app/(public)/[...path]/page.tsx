@@ -225,7 +225,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const pageContext = {
     pageId: page.pageId,
     revisionId: page.revisionId,
-    path: canonicalPath.slice(1),
+    path: resolved.sourcePath,
     title: page.title,
     status: page.status,
     canEdit,
@@ -234,6 +234,8 @@ export default async function PageRead({ params }: { params: PageParams }) {
     sourcePath: resolved.sourcePath,
     translationLocales,
     currentLocale: isTranslation ? resolved.locale : null,
+    space: resolved.space.kind,
+    routePrefix: resolved.space.routePrefix ?? (resolved.space.kind === 'wiki' ? 'wiki' : resolved.space.kind),
     date: page.metadata.date,
     summary: page.metadata.summary,
   };
@@ -243,7 +245,7 @@ export default async function PageRead({ params }: { params: PageParams }) {
   const showShare = page.status === 'published' && !isTranslation;
 
   return (
-    <Layout pageContext={pageContext} staticPublic>
+    <Layout pageContext={pageContext} staticPublic space={resolved.space.kind} routePrefix={pageContext.routePrefix}>
       <div className="min-h-full flex flex-col">
         {page.status === 'draft' && (
           <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-lg py-sm text-sm">

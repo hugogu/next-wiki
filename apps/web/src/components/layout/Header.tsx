@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { apiPost, apiDelete, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import {
+  getConfiguredSpaceHref,
   getPageHref,
   getSpaceHistoryHref,
   getPublicApiPageUrl,
@@ -180,11 +181,11 @@ function MoreActionsMenu({
           <>
             <div className="my-xs border-t border-border" />
             <p className="px-md py-xs text-xs font-medium text-muted">{t('page.header.otherLanguages')}</p>
-            <LanguageLink href={getPageHref(pageContext.path)} label={t('page.header.original')} active={!pageContext.currentLocale} />
+            <LanguageLink href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath ?? pageContext.path) : getPageHref(pageContext.path)} label={t('page.header.original')} active={!pageContext.currentLocale} />
             {pageContext.translationLocales!.map((locale) => (
               <LanguageLink
                 key={locale}
-                href={getTranslatedPageHref(locale, pageContext.sourcePath!)}
+                href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!, locale) : getTranslatedPageHref(locale, pageContext.sourcePath!)}
                 label={translationLanguageName(locale)}
                 active={pageContext.currentLocale === locale}
               />
@@ -259,7 +260,7 @@ export function Header({
     setPublishing(true);
     try {
       await apiPost<Record<string, never>, unknown>(getPublicApiPagePublicationUrl(pageContext.pageId, pageContext.version), {});
-      window.location.href = getSpaceHref(pageContext.space ?? 'wiki', pageContext.path);
+      window.location.href = pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.path) : getSpaceHref(pageContext.space ?? 'wiki', pageContext.path);
     } catch {
       setPublishing(false);
     }
@@ -281,7 +282,7 @@ export function Header({
     setDeleteError(null);
     try {
       await apiDelete<void>(getPublicApiPageUrl(pageContext.pageId));
-      window.location.href = getSpaceHref(pageContext.space ?? 'wiki');
+      window.location.href = pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix) : getSpaceHref(pageContext.space ?? 'wiki');
     } catch (err) {
       const error = err as ApiError;
       setDeleteError(error.message || t('editor.delete.error'));
