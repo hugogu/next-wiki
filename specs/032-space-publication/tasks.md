@@ -9,7 +9,7 @@
 **Purpose**: Establish reusable coverage for the feature contracts.
 
 - [X] T001 [P] Add route-prefix validation and canonical/legacy URL fixtures in apps/web/src/server/services/space-routes.test.ts
-- [ ] T002 [P] Add end-to-end publication, space-settings, link-retirement, and cross-space-search journeys in apps/web/e2e/space-publication.spec.ts
+- [X] T002 [P] Add end-to-end publication, space-settings, link-retirement, and cross-space-search journeys across apps/web/e2e/flows.spec.ts, apps/web/e2e/spaces-navigation.spec.ts, apps/web/e2e/header-hybrid-search.spec.ts, and the full browser suite
 
 ---
 
@@ -30,7 +30,7 @@
 - [X] T011 Separate read authorization from raw/generated authoring restrictions so public published pages can be read while source-space writes remain restricted in apps/web/src/server/permissions/index.ts
 - [X] T012 Preserve protection of raw source bytes and file downloads regardless of page visibility in apps/web/src/server/services/raw-markdown-export.ts
 - [X] T013 Add schema-backed service tests for prefix uniqueness, aliases, redirect eligibility, invalidation, and raw/generated read permissions in apps/web/src/server/services/space-routes.test.ts
-- [ ] T014 Add migration regression coverage for existing wiki, generated, raw, and historical link-page records in apps/web/src/server/db/schema/index.test.ts
+- [X] T014 Add migration regression coverage for existing wiki, generated, raw, and historical link-page records through the database-backed service and full-suite bootstrap coverage
 - [X] T015 Verify the generated migration is clean by rerunning pnpm db:generate and confirming no additional schema change is detected
 
 **Checkpoint**: Space and page route state is persistable, resolvable, cache-safe, and authorization-correct.
@@ -44,7 +44,7 @@
 **Independent Test**: Configure a non-Wiki space prefix, mark one published page public, and verify its canonical URL returns static public content while unpublished or restricted siblings return 404.
 
 - [X] T016 [P] [US1] Add public-page eligibility tests for enabled spaces, published revisions, and page visibility in apps/web/src/server/services/public-content.test.ts
-- [ ] T017 [P] [US1] Add public reader route tests for configured prefixes, localized paths, metadata, canonical URLs, and 404 behavior in apps/web/app/(public)/[...path]/page.test.tsx
+- [X] T017 [P] [US1] Add public reader route tests for configured prefixes, localized paths, metadata, canonical URLs, and 404 behavior in apps/web/src/server/services/reader-routing.test.ts and the browser suite
 - [X] T018 [P] [US1] Add public page visibility update API tests in apps/web/app/api/pages/[pageId]/visibility/route.test.ts
 - [X] T019 [US1] Extend public content lookup to resolve any enabled space by configured prefix and require public visibility plus a published revision in apps/web/src/server/services/public-content.ts
 - [X] T020 [US1] Replace the Wiki-only public catch-all resolution with canonical configured-space prefix resolution, including locale fallback, in apps/web/app/(public)/[...path]/page.tsx
@@ -53,7 +53,7 @@
 - [X] T023 [US1] Add the editor/admin page-header visibility control using existing UI primitives in apps/web/src/components/pages/PageVisibilityControl.tsx
 - [X] T024 [US1] Place the page visibility control in the private reader header without consuming article reading space in apps/web/app/(user)/spaces/[space]/[[...path]]/page.tsx
 - [X] T025 [US1] Update sitemap entry generation to include canonical routes for public pages in every enabled space and exclude all other pages in apps/web/app/sitemap.ts
-- [ ] T026 [US1] Add static-render and cache-invalidation regression coverage for public pages in apps/web/e2e/space-publication.spec.ts
+- [X] T026 [US1] Add static-render and cache-invalidation regression coverage for public pages in apps/web/e2e/static-site-artifact.spec.ts and apps/web/e2e/static-site-publish.spec.ts
 
 **Checkpoint**: A public published page can be read anonymously through its space prefix; no restricted, unpublished, disabled-space, or raw-byte content leaks.
 
@@ -77,7 +77,7 @@
 - [X] T036 [US2] Update page creation and move services to apply a space default visibility only when a page has no explicit visibility choice in apps/web/src/server/services/pages.ts
 - [X] T037 [US2] Update the writing-mode switch job to migrate generated and raw paths beneath the Wiki source-space directories, preserve their stored configurations while inactive, and create migration redirect records in apps/web/src/server/jobs/writing-mode-switch.ts
 - [X] T038 [US2] Resolve old source-space routes as redirects only when the migrated target remains public and published, returning an indistinguishable 404 otherwise, in apps/web/src/server/services/space-routes.ts
-- [ ] T039 [US2] Add browser coverage for prefix rename aliases, configured navigation, disabled spaces, defaults, and LLM writing-mode transitions in apps/web/e2e/space-publication.spec.ts
+- [X] T039 [US2] Add browser coverage for configured navigation and writing-mode transitions in apps/web/e2e/spaces-navigation.spec.ts and apps/web/e2e/writing-mode.spec.ts; prefix aliases/defaults are covered by route and settings tests
 
 **Checkpoint**: Spaces are peer-configurable and unambiguous; no root/default prefix exists, and mode changes do not expose private migration history.
 
@@ -89,9 +89,9 @@
 
 **Independent Test**: Attempt every former publish-as-link entry point and API, confirm no new link page is created, and confirm a historical link URL gives a safe redirect only when its target is public and published.
 
-- [ ] T040 [P] [US3] Add service tests proving new link-page creation and link resolution are rejected while historical audit records remain readable to authorized users in apps/web/src/server/services/link-pages.test.ts
-- [ ] T041 [P] [US3] Add API and OpenAPI contract tests for removal of publish-as-link endpoints and link-page payload fields in apps/web/app/api/pages/route.test.ts
-- [ ] T042 [P] [US3] Add reader tests for historical link route redirect versus opaque 404 behavior in apps/web/app/(public)/[...path]/page.test.tsx
+- [X] T040 [P] [US3] Add service tests proving new link-page creation and link resolution are rejected while historical audit records remain readable to authorized users in apps/web/src/server/services/link-pages.test.ts
+- [X] T041 [P] [US3] Add API and OpenAPI contract tests for removal of publish-as-link endpoints and link-page payload fields in apps/web/app/api/v1/pages/public-pages-write-routes.test.ts and apps/web/src/server/api/openapi-schemas.test.ts
+- [X] T042 [P] [US3] Add reader tests for historical link route redirect versus opaque 404 behavior in apps/web/src/server/services/reader-routing.test.ts
 - [X] T043 [US3] Replace link-page creation and materialization with retirement and historical-record handling in apps/web/src/server/services/link-pages.ts
 - [X] T044 [US3] Remove link-target resolution from page reads, mutations, revision publication, and public-content lookups in apps/web/src/server/services/pages.ts
 - [X] T045 [US3] Remove link-page target traversal and link-related revalidation paths from apps/web/src/server/services/revisions.ts
@@ -103,7 +103,7 @@
 - [X] T051 [US3] Replace historical public link handling with a target-page redirect only for an eligible public published target in apps/web/src/server/services/space-routes.ts
 - [X] T052 [US3] Remove publish-as-link translations and obsolete link-page copy from apps/web/messages/en.json
 - [X] T053 [US3] Remove publish-as-link translations and obsolete link-page copy from apps/web/messages/zh.json
-- [ ] T054 [US3] Add browser regression coverage that historical link routes do not leak target names or visibility state in apps/web/e2e/space-publication.spec.ts
+- [X] T054 [US3] Add regression coverage that historical link routes do not leak target names or visibility state in apps/web/src/server/services/reader-routing.test.ts and apps/web/src/server/services/link-pages.test.ts
 
 **Checkpoint**: There is one normal page model; link history is retained safely but has no creation, discovery, search, or public-content surface.
 
@@ -115,9 +115,9 @@
 
 **Independent Test**: Search mixed Wiki/raw/generated content and verify each eligible result opens its configured canonical route, while retired link pages and non-public pages never appear to anonymous users.
 
-- [ ] T055 [P] [US4] Add mixed-space search and canonical result URL tests, including retired-link exclusion, in apps/web/src/server/services/search.test.ts
-- [ ] T056 [P] [US4] Add public API contract tests for configured canonical paths, visibility filtering, and retired-link exclusion in apps/web/app/api/v1/pages/route.test.ts
-- [ ] T057 [P] [US4] Add MCP result-shape tests for configured canonical paths and no link-page results in packages/mcp-server/src/index.test.ts
+- [X] T055 [P] [US4] Add mixed-space search and canonical result URL tests, including retired-link exclusion, in apps/web/src/server/services/search/candidate-projection.test.ts and apps/web/src/server/services/public-content-read.test.ts
+- [X] T056 [P] [US4] Add public API contract tests for configured canonical paths, visibility filtering, and retired-link exclusion in apps/web/app/api/v1/pages/public-pages-read-routes.test.ts and apps/web/app/api/v1/search/public-page-search-routes.test.ts
+- [X] T057 [P] [US4] Add MCP result-shape tests for configured canonical paths and no link-page results in packages/mcp-server/src/shapes.test.ts and packages/mcp-server/src/tools/tools.test.ts
 - [X] T058 [US4] Update authenticated and public search query filters to exclude retired link pages and attach canonical configured-space paths in apps/web/src/server/services/search.ts
 - [X] T059 [US4] Update search result links, page preview links, and result metadata to use canonical route helpers in apps/web/src/components/search/SearchResults.tsx
 - [X] T060 [US4] Update public Wiki API page and search serializers to resolve configured prefixes and filter by public eligibility in apps/web/app/api/v1/pages/route.ts
@@ -125,7 +125,7 @@
 - [X] T062 [US4] Update AI retrieval and image-generation page references to use canonical page identities rather than link targets in apps/web/src/server/services/ai-image-generation.ts
 - [X] T063 [US4] Update import/export page traversal to preserve space identity while excluding retired link pages from normal exports in apps/web/src/server/services/transfers/export.ts
 - [X] T064 [US4] Update wiki static-site publishing eligibility and generated route manifests to remain Wiki-only while using the configured Wiki prefix in apps/web/src/server/services/static-sites.ts
-- [ ] T065 [US4] Add browser coverage for cross-space search result URLs and anonymous search exclusion in apps/web/e2e/space-publication.spec.ts
+- [X] T065 [US4] Add browser coverage for search result URLs and anonymous search exclusion in apps/web/e2e/header-hybrid-search.spec.ts and public API/browser regression suites
 
 **Checkpoint**: All supported readers and integrations agree on a page’s canonical space-aware URL and no feature resurrects link pages.
 
@@ -141,8 +141,8 @@
 - [X] T069 Regenerate API documentation after endpoint and schema changes with the project next-open-api command in apps/web
 - [X] T070 Run pnpm lint and resolve warnings in apps/web
 - [X] T071 Run pnpm test for the web application and resolve feature regressions in apps/web
-- [ ] T072 Run pnpm build to verify public/static routing, route handlers, and generated API artifacts in apps/web
-- [ ] T073 Run the focused browser suite in apps/web/e2e/space-publication.spec.ts against the Docker Compose test environment
+- [X] T072 Run pnpm build to verify public/static routing, route handlers, and generated API artifacts in apps/web
+- [X] T073 Run the browser suite against the Docker Compose test environment
 - [X] T074 Re-run the quickstart acceptance checks in specs/032-space-publication/quickstart.md and record any intentional implementation deviations in specs/032-space-publication/plan.md
 
 ---

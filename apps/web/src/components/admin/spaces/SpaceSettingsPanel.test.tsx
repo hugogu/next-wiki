@@ -8,7 +8,6 @@ const spaces: SpaceSettingsItem[] = [
   {
     id: 'wiki',
     kind: 'wiki',
-    displayName: 'Wiki',
     routePrefix: 'w',
     defaultVisibility: 'public',
     isActive: true,
@@ -16,7 +15,6 @@ const spaces: SpaceSettingsItem[] = [
   {
     id: 'generated',
     kind: 'generated',
-    displayName: 'Generated',
     routePrefix: 'g',
     defaultVisibility: 'restricted',
     isActive: false,
@@ -59,6 +57,6 @@ describe('SpaceSettingsPanel', () => {
 
     expect(html).toContain('空间设置');
     expect(html).toContain('新页面可见性');
-    expect(html).toContain('编辑Wiki');
+    expect(html).toContain('编辑知识库');
   });
 });

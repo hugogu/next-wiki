@@ -24,7 +24,6 @@ export type SpaceKind = SpaceRow['kind'];
 export type SpaceConfiguration = {
   id: string;
   kind: SpaceKind;
-  displayName: string;
   routePrefix: string;
   defaultVisibility: 'public' | 'registered' | 'restricted';
 };
@@ -41,7 +40,6 @@ export function toSpaceConfiguration(space: SpaceRow): SpaceConfiguration {
   return {
     id: space.id,
     kind: space.kind,
-    displayName: space.name,
     routePrefix: effectiveRoutePrefix(space),
     defaultVisibility: getEffectiveDefaultVisibility(space),
   };
@@ -113,15 +111,13 @@ function requireAdmin(ctx: PermCtx): string {
   return ctx.actor.userId;
 }
 
-/** Update presentation-only space settings without changing stable identity. */
+/** Update configurable space routing and page defaults without changing its identity. */
 export async function updateSpaceConfiguration(
   ctx: PermCtx,
   spaceId: string,
-  input: { displayName: string; routePrefix: string; defaultVisibility: 'public' | 'registered' | 'restricted' },
+  input: { routePrefix: string; defaultVisibility: 'public' | 'registered' | 'restricted' },
 ): Promise<SpaceConfiguration> {
   requireAdmin(ctx);
-  const displayName = input.displayName.trim();
-  if (!displayName) throw new DomainError('BAD_REQUEST', 'A space display name is required.');
   const routePrefix = await assertRoutePrefixAvailable(spaceId, input.routePrefix);
 
   const updated = await db.transaction(async (tx) => {
@@ -143,7 +139,7 @@ export async function updateSpaceConfiguration(
 
     const [space] = await tx
       .update(schema.spaces)
-      .set({ name: displayName, routePrefix: normalizeRoutePrefix(routePrefix), defaultVisibility: input.defaultVisibility })
+      .set({ routePrefix: normalizeRoutePrefix(routePrefix), defaultVisibility: input.defaultVisibility })
       .where(eq(schema.spaces.id, spaceId))
       .returning();
     if (!space) throw new DomainError('NOT_FOUND', 'Space not found');

@@ -15,8 +15,8 @@ describe('GET /api/settings/spaces', () => {
     vi.clearAllMocks();
     session.createApiContext.mockResolvedValue({ actor: { kind: 'user', userId: 'admin', role: 'admin' } });
     spaces.listSpaceConfigurations.mockResolvedValue([
-      { id: 'wiki', kind: 'wiki', displayName: 'Wiki', routePrefix: 'w', defaultVisibility: 'public' },
-      { id: 'generated', kind: 'generated', displayName: 'Generated', routePrefix: 'g', defaultVisibility: 'registered' },
+      { id: 'wiki', kind: 'wiki', routePrefix: 'w', defaultVisibility: 'public' },
+      { id: 'generated', kind: 'generated', routePrefix: 'g', defaultVisibility: 'registered' },
     ]);
     writingMode.isLlmWikiMode.mockResolvedValue(true);
   });
@@ -27,8 +27,8 @@ describe('GET /api/settings/spaces', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       spaces: [
-        { id: 'wiki', kind: 'wiki', displayName: 'Wiki', routePrefix: 'w', defaultVisibility: 'public', isActive: true },
-        { id: 'generated', kind: 'generated', displayName: 'Generated', routePrefix: 'g', defaultVisibility: 'registered', isActive: true },
+        { id: 'wiki', kind: 'wiki', routePrefix: 'w', defaultVisibility: 'public', isActive: true },
+        { id: 'generated', kind: 'generated', routePrefix: 'g', defaultVisibility: 'registered', isActive: true },
       ],
     });
   });

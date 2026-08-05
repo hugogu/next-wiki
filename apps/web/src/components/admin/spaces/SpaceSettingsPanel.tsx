@@ -22,7 +22,6 @@ import { useTranslation } from '@/i18n/client';
 export type SpaceSettingsItem = {
   id: string;
   kind: 'wiki' | 'generated' | 'raw';
-  displayName: string;
   routePrefix: string;
   defaultVisibility: 'public' | 'registered' | 'restricted';
   isActive: boolean;
@@ -37,7 +36,15 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function updateEditingSpace(field: keyof Pick<SpaceSettingsItem, 'displayName' | 'routePrefix' | 'defaultVisibility'>, value: string) {
+  function spaceLabel(kind: SpaceSettingsItem['kind']): string {
+    return kind === 'wiki'
+      ? t('layout.nav.spaces.wiki')
+      : kind === 'generated'
+        ? t('layout.nav.spaces.generated')
+        : t('layout.nav.spaces.raw');
+  }
+
+  function updateEditingSpace(field: keyof Pick<SpaceSettingsItem, 'routePrefix' | 'defaultVisibility'>, value: string) {
     setEditingSpace((current) => current ? { ...current, [field]: value } : null);
   }
 
@@ -52,7 +59,6 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          displayName: editingSpace.displayName,
           routePrefix: editingSpace.routePrefix,
           defaultVisibility: editingSpace.defaultVisibility,
         }),
@@ -85,8 +91,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
       <DataTable>
         <DataTableHead>
           <DataTableRow>
-            <DataTableHeader>{t('admin.spaces.table.name')}</DataTableHeader>
-            <DataTableHeader>{t('admin.spaces.table.type')}</DataTableHeader>
+            <DataTableHeader>{t('admin.spaces.table.space')}</DataTableHeader>
             <DataTableHeader>{t('admin.spaces.table.urlPrefix')}</DataTableHeader>
             <DataTableHeader>
               <span className="inline-flex items-center gap-xs">
@@ -109,14 +114,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
         <DataTableBody>
           {spaces.map((space) => (
             <DataTableRow key={space.id}>
-              <DataTableCell className="font-medium">{space.displayName}</DataTableCell>
-              <DataTableCell className="text-muted">
-                {space.kind === 'wiki'
-                  ? t('layout.nav.spaces.wiki')
-                  : space.kind === 'generated'
-                    ? t('layout.nav.spaces.generated')
-                    : t('layout.nav.spaces.raw')}
-              </DataTableCell>
+              <DataTableCell className="font-medium">{spaceLabel(space.kind)}</DataTableCell>
               <DataTableCell className="font-mono text-muted">/{space.routePrefix}</DataTableCell>
               <DataTableCell>{t(`admin.spaces.visibility.${space.defaultVisibility}`)}</DataTableCell>
               <DataTableCell>
@@ -125,11 +123,11 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
                 </StatusBadge>
               </DataTableCell>
               <DataTableCell align="right">
-                <Tooltip label={t('admin.spaces.edit', { name: space.displayName })}>
+                <Tooltip label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={t('admin.spaces.edit', { name: space.displayName })}
+                    aria-label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}
                     onClick={() => {
                       setError(null);
                       setEditingSpace({ ...space });
@@ -146,19 +144,12 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
 
       {editingSpace ? (
         <ModalDialog
-          title={t('admin.spaces.editTitle', { name: editingSpace.displayName })}
+          title={t('admin.spaces.editTitle', { name: spaceLabel(editingSpace.kind) })}
           description={t('admin.spaces.editDescription')}
           onClose={() => setEditingSpace(null)}
           maxWidth="max-w-md"
         >
           <form className="space-y-md" onSubmit={(event) => void saveEditingSpace(event)}>
-            <label className="block space-y-xs text-sm font-medium">
-              <span>{t('admin.spaces.displayName')}</span>
-              <Input
-                value={editingSpace.displayName}
-                onChange={(event) => updateEditingSpace('displayName', event.target.value)}
-              />
-            </label>
             <label className="block space-y-xs text-sm font-medium">
               <span>{t('admin.spaces.urlPrefix')}</span>
               <Input

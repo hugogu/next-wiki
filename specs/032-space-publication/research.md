@@ -2,9 +2,10 @@
 
 ## D1 — Preserve stable space identity; add presentation settings
 
-**Decision**: Keep `spaces.slug` and `spaces.kind` as stable internal identity
-and behavior keys. Add a display name, a unique public route prefix, and a
-per-space default page visibility. Do not repurpose `slug` as a URL.
+**Decision**: Keep `spaces.slug`, `spaces.kind`, and the existing internal
+name as stable identity and behavior labels. Configure only a unique public
+route prefix and a per-space default page visibility. Do not repurpose `slug`
+as a URL or make the built-in space type/name mutable.
 
 **Rationale**: Services, jobs, imports, API parameters, and historical records
 use `default`, `raw`, and `generated` as stable identifiers. Changing them to

@@ -27,7 +27,7 @@ describe('PUT /api/settings/spaces/[spaceId]', () => {
   });
 
   it('persists a non-empty prefix and registered default visibility through the service', async () => {
-    const input = { displayName: 'Generated', routePrefix: 'g', defaultVisibility: 'registered' };
+    const input = { routePrefix: 'g', defaultVisibility: 'registered' };
     spaces.updateSpaceConfiguration.mockResolvedValue({ id: spaceId, kind: 'generated', ...input });
 
     expect((await put(input)).status).toBe(200);
@@ -35,7 +35,7 @@ describe('PUT /api/settings/spaces/[spaceId]', () => {
   });
 
   it('rejects an empty prefix before calling the service', async () => {
-    expect((await put({ displayName: 'Generated', routePrefix: '', defaultVisibility: 'registered' })).status).toBe(400);
+    expect((await put({ routePrefix: '', defaultVisibility: 'registered' })).status).toBe(400);
     expect(spaces.updateSpaceConfiguration).not.toHaveBeenCalled();
   });
 });

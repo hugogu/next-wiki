@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 
 const paramsSchema = z.object({ spaceId: z.string().uuid() });
 const inputSchema = z.object({
-  displayName: z.string().min(1).max(100),
   routePrefix: z.string().min(1).max(63),
   defaultVisibility: z.enum(['public', 'registered', 'restricted']),
 });

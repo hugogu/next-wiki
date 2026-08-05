@@ -11,8 +11,8 @@
 ## 1. Validate space configuration
 
 1. Open the new Admin Space settings page.
-2. Verify Wiki, generated, and raw are shown together with display name, route
-   prefix, and default page visibility.
+2. Verify Wiki, generated, and raw are shown together with route prefix and
+   default page visibility.
 3. Set concise non-conflicting prefixes, such as `w`, `g`, and `r`.
 4. Confirm rejected validation for a duplicate, a built-in route name, and a
    prefix that conflicts with existing content.

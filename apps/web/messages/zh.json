@@ -614,8 +614,7 @@
       "description": "为每个内置空间配置公开 URL 前缀和新页面默认可见性。",
       "saveError": "无法保存空间设置",
       "table": {
-        "name": "名称",
-        "type": "类型",
+        "space": "空间",
         "urlPrefix": "URL 前缀",
         "newPageVisibility": "新页面可见性",
         "status": "状态",
@@ -635,7 +634,6 @@
       "edit": "编辑{name}",
       "editTitle": "编辑{name}",
       "editDescription": "更改会立即保存到该空间。",
-      "displayName": "显示名称",
       "urlPrefix": "URL 前缀"
     },
     "searchSettings": {

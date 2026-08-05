@@ -9,9 +9,9 @@
 | `id` | Stable space identity | Existing immutable identifier. |
 | `slug` | Stable internal key | Retained; never derived from a user-facing prefix. |
 | `kind` | Built-in editorial behavior | Retained: `wiki`, `generated`, `raw`. |
-| `name` | Administrator-facing display name | Existing field becomes editable. Non-empty and unique among enabled spaces. |
+| `name` | Internal/admin label | Existing stable label used by administrative and AI workflows; it is not configured from the Space settings UI. |
 | `route_prefix` | Current public canonical first path segment | New; normalized, non-empty, globally unique, and not reserved or ambiguous. |
-| `default_visibility` | Visibility applied to a new page when omitted | New; `public` or `restricted`. Wiki=`public`; raw/generated=`restricted`. |
+| `default_visibility` | Visibility applied to a new page when omitted | New; `public`, `registered`, or `restricted`. Wiki defaults to `public`; raw/generated default to `restricted`. |
 
 The prior `anonymous_read` space switch is retired from anonymous page-read
 authorization. It is preserved or removed only through the generated migration
@@ -23,7 +23,7 @@ veto.
 | Field | Meaning after this feature | Rules |
 |---|---|---|
 | `space_id`, `path`, `locale` | Stable page address | Canonical reader URL derives from owning space prefix and this path. |
-| `visibility` | Anonymous-read setting | Existing `public`/`restricted` field becomes the sole visibility input, alongside published/deleted state. |
+| `visibility` | Read-access setting | `public`, `registered`, or `restricted`; it is evaluated alongside published/deleted state. |
 | `current_published_version_id` | Published-reader boundary | Public reading requires a current published revision. |
 | `kind`, `link_target_page_id` | Historical link data | No new active link may use these fields. Existing links are soft-deleted; fields remain for retention. |
 
@@ -88,8 +88,8 @@ and MCP projections.
 
 ### Space configuration audit event
 
-Existing audit infrastructure records before/after events for display name,
-route prefix, default visibility, page visibility, and link retirement. No
+Existing audit infrastructure records before/after events for route prefix,
+default visibility, page visibility, and link retirement. No
 new general-purpose audit store is introduced.
 
 ## Relationships

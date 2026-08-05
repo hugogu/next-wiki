@@ -614,8 +614,7 @@
       "description": "Configure the public URL prefix and default visibility for each built-in space.",
       "saveError": "Unable to save space settings",
       "table": {
-        "name": "Name",
-        "type": "Type",
+        "space": "Space",
         "urlPrefix": "URL prefix",
         "newPageVisibility": "New page visibility",
         "status": "Status",
@@ -635,7 +634,6 @@
       "edit": "Edit {name}",
       "editTitle": "Edit {name}",
       "editDescription": "Changes are saved to this space immediately.",
-      "displayName": "Display name",
       "urlPrefix": "URL prefix"
     },
     "searchSettings": {

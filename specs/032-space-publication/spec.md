@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-05
 
-**Status**: Draft
+**Status**: Complete
 
 **Input**: User description: "Make wiki, generated, and raw content spaces equivalent; allow generated pages to be publicly visible through their own configured route; remove link pages and all related publishing, search, and reader behavior; provide an admin configuration page for spaces and their URL path names."
 
@@ -14,9 +14,9 @@
 
 The three content spaces — wiki, generated, and raw — become peer content
 locations rather than a public wiki plus two special-purpose locations that
-must be bridged through a separate link page. Every enabled space has an
-administrator-configured display name and canonical URL path prefix. Every
-page has its own anonymous-read visibility, so an Administrator can publish a
+must be bridged through a separate link page. Every enabled space has a
+canonical URL path prefix and default page visibility configured by an
+Administrator. Every page has its own anonymous-read visibility, so an Administrator can publish a
 reviewed generated page directly at that page's canonical generated-space URL.
 
 The former `Publish as link` workflow and the link-page content type are
@@ -73,7 +73,7 @@ verify that the same URL no longer reveals it.
 ### User Story 2 - Configure and Navigate Peer Spaces (Priority: P1)
 
 As an Administrator, I want one configuration page where I can inspect each
-enabled space and choose its display name, URL path prefix, and default page
+enabled space and choose its URL path prefix and default page
 visibility, so that public and authenticated URLs are concise, meaningful, and
 stable for my knowledge-base structure.
 
@@ -81,8 +81,8 @@ stable for my knowledge-base structure.
 space has a clearly owned, configurable canonical route rather than an
 application-imposed generated/raw URL.
 
-**Independent Test**: Change the generated space's display name and path
-prefix, save the configuration, navigate to an existing generated page via
+**Independent Test**: Change the generated space's path prefix, save the
+configuration, navigate to an existing generated page via
 the new URL, and confirm the old URL safely redirects to the new canonical
 address.
 
@@ -90,15 +90,15 @@ address.
 
 1. **Given** LLM Wiki mode is enabled, **When** an Administrator opens Space
    settings, **Then** the page presents the wiki, generated, and raw spaces
-   together with their purpose, display name, canonical URL path prefix, and
+   together with their stable localized label, canonical URL path prefix, and
    default page visibility.
 2. **Given** a proposed space URL path prefix is empty where a prefix is
    required, malformed, reserved, duplicates another space, or conflicts with
    an existing canonical content route, **When** the Administrator tries to
    save it, **Then** the change is rejected with an actionable explanation and
    the existing configuration remains intact.
-3. **Given** an Administrator changes a space display name or valid URL path
-   prefix, **When** the change is saved, **Then** navigation, breadcrumbs,
+3. **Given** an Administrator changes a valid space URL path prefix,
+   **When** the change is saved, **Then** navigation, breadcrumbs,
    page URLs, shared links, search-result links, and page-management links use
    the new canonical value; previously issued space URLs redirect to the
    canonical URL without serving a second copy of the page.
@@ -223,10 +223,10 @@ permissions and the configured space paths.
 - **FR-004**: Administrators MUST be able to view and change a page's
   anonymous-read visibility. The control MUST state the current setting and
   warn before an unpublished or previously restricted page becomes public.
-- **FR-005**: Each enabled space MUST have Administrator-configurable display
-  name, canonical URL path prefix, and default visibility for newly created
-  pages. Space identity and its deliberate content rules are not renamed or
-  removed by these presentation settings.
+- **FR-005**: Each enabled space MUST have an Administrator-configurable
+  canonical URL path prefix and default visibility for newly created pages.
+  Its identity, built-in label, and deliberate content rules are not renamed
+  or removed by these settings.
 - **FR-006**: Space path prefixes MUST be globally unambiguous, valid for
   human-readable URLs, and protected from reserved-route and content-route
   collisions. Every public or authenticated page MUST have one canonical URL.
@@ -295,8 +295,8 @@ permissions and the configured space paths.
 ### Key Entities
 
 - **Content Space**: An enabled logical location for pages (wiki, generated,
-  or raw), with fixed content rules and configurable display name, URL path
-  prefix, and new-page visibility default.
+  or raw), with fixed content rules, a stable localized label, and configurable
+  URL path prefix and new-page visibility default.
 - **Page Visibility**: The explicit public, registered, or restricted read
   state of one page. It takes effect only while the page has a published
   revision.
@@ -307,8 +307,8 @@ permissions and the configured space paths.
   link page, excluded from active content and retained only for audit,
   restoration policy, and safe legacy-route handling.
 - **Space Configuration**: Administrator-owned settings that define a space's
-  display label, canonical URL prefix, and default page visibility without
-  altering the space's identity or editorial constraints.
+  canonical URL prefix and default page visibility without altering the
+  space's identity, built-in label, or editorial constraints.
 
 ## Success Criteria *(mandatory)*
 
@@ -319,7 +319,7 @@ permissions and the configured space paths.
   current published revision, while 100% of restricted, draft, and deleted
   pages disclose no protected body or metadata.
 - **SC-002**: An Administrator can change a page's public visibility or a
-  space's display name/path prefix and verify the resulting canonical link in
+  space's path prefix and verify the resulting canonical link in
   under two minutes without creating a second page.
 - **SC-003**: In a mixed set of public and restricted pages across all enabled
   spaces, 100% of direct-read, list, search, and AI-client checks return the

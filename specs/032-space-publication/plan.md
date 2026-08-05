@@ -178,3 +178,7 @@ No constitution violation or exceptional complexity is introduced.
   than a 404. Missing, deleted, draft, and unsafe legacy routes remain opaque
   not-found responses. Registered content is dynamically served to signed-in
   users at its canonical external URL and never enters the anonymous ISR cache.
+- Space settings expose only route prefix and default visibility. Built-in
+  space kind and name remain stable implementation labels; the table identifies
+  a row with the localized built-in space label instead of exposing mutable
+  Name or Type fields.

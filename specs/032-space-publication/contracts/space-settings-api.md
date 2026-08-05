@@ -16,7 +16,6 @@ Returns one item for each enabled built-in space:
     {
       "id": "space UUID",
       "kind": "wiki",
-      "displayName": "Wiki",
       "routePrefix": "wiki",
       "defaultVisibility": "public",
       "isActive": true
@@ -41,7 +40,6 @@ Authentication: Admin session only.
 
 ```json
 {
-  "displayName": "Generated knowledge",
   "routePrefix": "g",
   "defaultVisibility": "restricted"
 }
