@@ -10,7 +10,6 @@ import { PageSidebar } from '@/components/pages/PageSidebar';
 import { PageVisibilityControl } from '@/components/pages/PageVisibilityControl';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
-import type { ReaderSpace } from '@/lib/path';
 import { getCurrentActor } from '@/server/services/auth';
 import * as publicContent from '@/server/services/public-content';
 import { getCategorySystemKeyById } from '@/server/services/raw-categories';
@@ -25,8 +24,6 @@ import { createAppFormatter } from '@/i18n/formatter';
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ space: string; path?: string[] }>;
-
-type PrivateSpace = Exclude<ReaderSpace, 'wiki'>;
 
 async function resolvePrivateSpace(value: string): Promise<SpaceRow | null> {
   const resolved = await resolveSpacePrefix(value);

@@ -10,7 +10,6 @@ import {
   getPagePathFromParams,
   getHistoryHref,
   getSpaceHref,
-  getSpaceHistoryHref,
   defaultComparePair,
   parseRevisionPair,
   type ReaderSpace,
