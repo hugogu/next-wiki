@@ -37,7 +37,7 @@ untracked source directories appear or disappear.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/030-scheduled-ai-jobs/plan.md
+at specs/032-space-publication/plan.md
 <!-- SPECKIT END -->
 
 ## Database Migrations (Drizzle) — never hand-author
