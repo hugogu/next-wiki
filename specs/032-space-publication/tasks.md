@@ -141,7 +141,7 @@
 - [X] T069 Regenerate API documentation after endpoint and schema changes with the project next-open-api command in apps/web
 - [X] T070 Run pnpm lint and resolve warnings in apps/web
 - [X] T071 Run pnpm test for the web application and resolve feature regressions in apps/web
-- [X] T072 Run pnpm build to verify public/static routing, route handlers, and generated API artifacts in apps/web
+- [ ] T072 Run pnpm build to verify public/static routing, route handlers, and generated API artifacts in apps/web
 - [ ] T073 Run the focused browser suite in apps/web/e2e/space-publication.spec.ts against the Docker Compose test environment
 - [X] T074 Re-run the quickstart acceptance checks in specs/032-space-publication/quickstart.md and record any intentional implementation deviations in specs/032-space-publication/plan.md
 
