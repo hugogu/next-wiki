@@ -4,7 +4,7 @@ import * as schema from '@/server/db/schema';
 import { inspectPortableArchive } from '@/server/transfers/archive-reader';
 import { transferArtifactStore } from '@/server/transfers/artifact-store';
 import { parsePage } from '@/server/transfers/manifest';
-import { markRunTerminal } from '@/server/services/transfers';
+import { isRunCancelRequested, markRunTerminal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import {
   WikiJsClient,
@@ -227,6 +227,25 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   await db.update(schema.transferRuns).set({ totalItems: inventory.length }).where(eq(schema.transferRuns.id, run.id));
 
   for (let index = 0; index < inventory.length; index += 1) {
+    if (await isRunCancelRequested(run.id)) {
+      // Flush the completed batch before recording the terminal state so the
+      // report and its counters always agree, including a cancellation between
+      // the final item and the next progress update.
+      await flushPreviewItems(run.id, items, {
+        totalItems: inventory.length,
+        processedItems: index,
+      });
+      await markRunTerminal(run.id, 'cancelled', {
+        totalItems: inventory.length,
+        processedItems: index,
+        createdItems: created,
+        replacedItems: replaced,
+        skippedItems: skipped,
+        convertedItems: converted,
+        warningItems: warnings,
+      });
+      return;
+    }
     const summary = inventory[index]!;
     const fingerprint = computeWikiJsPageFingerprint({
         id: summary.id,
@@ -362,6 +381,21 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
     }
   }
 
+  // A one-page preview has no next iteration in which to observe a cancel
+  // request. Recheck before publishing a completed result, just as the import
+  // worker does for its final page.
+  if (await isRunCancelRequested(run.id)) {
+    await markRunTerminal(run.id, 'cancelled', {
+      totalItems: inventory.length,
+      processedItems: inventory.length,
+      createdItems: created,
+      replacedItems: replaced,
+      skippedItems: skipped,
+      convertedItems: converted,
+      warningItems: warnings,
+    });
+    return;
+  }
   const fingerprint = (await import('node:crypto')).createHash('sha256').update(fingerprints.sort().join('\n')).digest('hex');
   await markRunTerminal(run.id, warnings > 0 ? 'completed_with_warnings' : 'completed', {
     sourceFingerprint: fingerprint,
@@ -388,21 +422,34 @@ async function runTransferPreviewWithoutDataCache(runId: string): Promise<void> 
   const run = await db.query.transferRuns.findFirst({
     where: eq(schema.transferRuns.id, runId),
   });
-  if (!run) return;
-  await db
+  if (!run || !['queued', 'running'].includes(run.status)) return;
+  if (run.cancelRequested) {
+    await markRunTerminal(runId, 'cancelled');
+    return;
+  }
+  // pg-boss may redeliver a job after a worker restart. Claim the run only if
+  // it is still active and has not been cancelled; otherwise a stale job could
+  // restart a completed preview and overwrite its progress counters.
+  const [started] = await db
     .update(schema.transferRuns)
     .set({ status: 'running', phase: 'validating', startedAt: run.startedAt ?? new Date() })
-    .where(eq(schema.transferRuns.id, runId));
+    .where(and(
+      eq(schema.transferRuns.id, runId),
+      eq(schema.transferRuns.status, run.status),
+      eq(schema.transferRuns.cancelRequested, false),
+    ))
+    .returning();
+  if (!started) return;
   try {
-    if (run.kind === 'archive_preview') await previewArchive(run);
-    else if (run.kind === 'wikijs_preview') await previewWikiJs(run);
+    if (started.kind === 'archive_preview') await previewArchive(started);
+    else if (started.kind === 'wikijs_preview') await previewWikiJs(started);
     else throw new Error('Unsupported preview kind');
   } catch (error) {
     // A non-DomainError failure (e.g. a plain thrown Error from a missing
     // source/space, or an unexpected exception) has no typed code to report.
     // Fall back per run kind so a Wiki.js preview failure isn't mislabeled as
     // an archive problem, which makes troubleshooting harder.
-    const fallbackCode = run.kind === 'wikijs_preview' ? 'WIKIJS_PREVIEW_FAILED' : 'INVALID_ARCHIVE';
+    const fallbackCode = started.kind === 'wikijs_preview' ? 'WIKIJS_PREVIEW_FAILED' : 'INVALID_ARCHIVE';
     await markRunTerminal(runId, 'failed', {
       errorCode: error instanceof DomainError ? error.code : fallbackCode,
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Preview failed',

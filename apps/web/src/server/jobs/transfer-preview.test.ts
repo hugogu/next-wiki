@@ -105,6 +105,7 @@ async function buildWikiJsPreviewRun(opts: {
   includeHistory?: boolean;
   historyLimit?: number;
   historyAccessError?: Error;
+  requestCancellationAfterHistoryForPageId?: number;
 }) {
   mocks.WikiJsClient.mockImplementation(() => ({
     listPages: vi.fn(async () =>
@@ -124,6 +125,9 @@ async function buildWikiJsPreviewRun(opts: {
     ),
     listHistory: vi.fn(async (id: number) => {
       const page = opts.pages.find((p) => p.id === id);
+      if (id === opts.requestCancellationAfterHistoryForPageId) {
+        await db.update(schema.transferRuns).set({ cancelRequested: true }).where(eq(schema.transferRuns.status, 'running'));
+      }
       return [...(page?.history ?? [])].sort((a, b) => a.versionId - b.versionId);
     }),
     assertHistoryAccess: vi.fn(async () => {
@@ -505,6 +509,38 @@ describe('previewArchive includeHistory', () => {
 });
 
 describe('previewWikiJs includeHistory', () => {
+  it('cancels a one-page history preview requested during its final item', async () => {
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{
+        id: 99,
+        path: 'docs/cancel-history-preview',
+        history: [{ versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 1, authorName: 'A', actionType: 'initial' }],
+      }],
+      includeHistory: true,
+      requestCancellationAfterHistoryForPageId: 99,
+    });
+
+    await runTransferPreview(run.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    expect(updated).toMatchObject({ status: 'cancelled', processedItems: 1, totalItems: 1 });
+  });
+
+  it('does not restart a completed preview when its job is delivered again', async () => {
+    const { run } = await buildWikiJsPreviewRun({ pages: [{ id: 98, path: 'docs/no-restart' }] });
+
+    await runTransferPreview(run.id);
+    const completed = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    await runTransferPreview(run.id);
+    const afterRedelivery = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+
+    expect(afterRedelivery).toMatchObject({
+      status: 'completed',
+      processedItems: completed?.processedItems,
+      finishedAt: completed?.finishedAt,
+    });
+  });
+
   it('fails the whole run up front when the source lacks read:history access', async () => {
     const { run } = await buildWikiJsPreviewRun({
       pages: [{ id: 100, path: 'docs/one' }, { id: 101, path: 'docs/two' }],
