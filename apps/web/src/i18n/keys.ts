@@ -610,6 +610,7 @@ export const translationKeys = [
   "admin.transfers.wikijs.delete",
   "admin.transfers.wikijs.includeHistory",
   "admin.transfers.wikijs.includeHistoryHelp",
+  "admin.transfers.wikijs.existingPages",
   "admin.transfers.wikijs.historyLimit",
   "admin.transfers.wikijs.historyBadge",
   "admin.transfers.history.empty",

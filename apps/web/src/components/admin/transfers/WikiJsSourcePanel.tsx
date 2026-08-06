@@ -6,6 +6,7 @@ import type { TransferRunAccepted, TransferRunView, TransferSourceView } from '@
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { EyeIcon, LinkIcon, ImportIcon, InfoIcon, PlusIcon, TrashIcon } from '@/components/icons';
@@ -31,15 +32,17 @@ export function WikiJsSourcePanel({
 
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
-  const [historyOptions, setHistoryOptions] = useState<Record<string, { includeHistory: boolean; historyLimit: number }>>({});
+  type WikiJsRunOptions = { includeHistory: boolean; historyLimit: number; conflictStrategy: 'skip' | 'replace' };
+  const defaultRunOptions: WikiJsRunOptions = { includeHistory: false, historyLimit: 300, conflictStrategy: 'skip' };
+  const [historyOptions, setHistoryOptions] = useState<Record<string, WikiJsRunOptions>>({});
 
   function historyOptionsFor(sourceId: string) {
-    return historyOptions[sourceId] ?? { includeHistory: false, historyLimit: 300 };
+    return historyOptions[sourceId] ?? defaultRunOptions;
   }
-  function setHistoryOptionsFor(sourceId: string, patch: Partial<{ includeHistory: boolean; historyLimit: number }>) {
+  function setHistoryOptionsFor(sourceId: string, patch: Partial<WikiJsRunOptions>) {
     setHistoryOptions((prev) => ({
       ...prev,
-      [sourceId]: { ...(prev[sourceId] ?? { includeHistory: false, historyLimit: 300 }), ...patch },
+      [sourceId]: { ...(prev[sourceId] ?? defaultRunOptions), ...patch },
     }));
   }
 
@@ -98,10 +101,10 @@ export function WikiJsSourcePanel({
   async function start(kind: 'wikijs_source_test' | 'wikijs_preview', sourceId: string) {
     setBusy(true);
     try {
-      const { includeHistory, historyLimit } = historyOptionsFor(sourceId);
+      const { includeHistory, historyLimit, conflictStrategy } = historyOptionsFor(sourceId);
       await apiPost<Record<string, unknown>, TransferRunAccepted>('/api/transfers',
         kind === 'wikijs_preview'
-          ? { kind, sourceId, options: { conflictStrategy: 'skip', includeHistory, historyLimit } }
+          ? { kind, sourceId, options: { conflictStrategy, includeHistory, historyLimit } }
           : { kind, sourceId });
       router.refresh();
     } finally {
@@ -182,7 +185,7 @@ export function WikiJsSourcePanel({
 
       {sources.map((source) => {
         const preview = runs.find((run) => run.sourceId === source.id && run.kind === 'wikijs_preview' && (run.status === 'completed' || run.status === 'completed_with_warnings'));
-        const { includeHistory, historyLimit } = historyOptionsFor(source.id);
+        const { includeHistory, historyLimit, conflictStrategy } = historyOptionsFor(source.id);
         return (
           <div key={source.id} className="rounded-lg border border-border p-md">
             <div className="flex flex-wrap items-center justify-between gap-sm">
@@ -219,7 +222,19 @@ export function WikiJsSourcePanel({
                     type="checkbox"
                     checked={includeHistory}
                     disabled={busy}
-                    onChange={(event) => setHistoryOptionsFor(source.id, { includeHistory: event.target.checked })}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      // Re-importing history only does something for pages
+                      // that already exist, so default the conflict strategy
+                      // to 'replace' when the box is checked — otherwise the
+                      // hardcoded/default 'skip' silently no-ops the whole
+                      // feature for every previously-imported page. Users can
+                      // still override this via the selector below.
+                      setHistoryOptionsFor(source.id, {
+                        includeHistory: checked,
+                        conflictStrategy: checked ? 'replace' : 'skip',
+                      });
+                    }}
                   />
                   {t('admin.transfers.wikijs.includeHistory')}
                 </label>
@@ -231,8 +246,20 @@ export function WikiJsSourcePanel({
                   </span>
                 </Tooltip>
               </div>
+              <label className="flex items-center gap-xs whitespace-nowrap text-muted">
+                {t('admin.transfers.wikijs.existingPages')}
+                <Select
+                  value={conflictStrategy}
+                  disabled={busy}
+                  className="w-auto"
+                  onChange={(event) => setHistoryOptionsFor(source.id, { conflictStrategy: event.target.value as 'skip' | 'replace' })}
+                >
+                  <option value="skip">{t('admin.transfers.conflict.skip')}</option>
+                  <option value="replace">{t('admin.transfers.conflict.replace')}</option>
+                </Select>
+              </label>
               {includeHistory && (
-                <label className="flex items-center gap-xs text-muted">
+                <label className="flex items-center gap-xs whitespace-nowrap text-muted">
                   {t('admin.transfers.wikijs.historyLimit')}
                   <Input
                     type="number"
