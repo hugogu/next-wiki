@@ -66,6 +66,20 @@ and document formats.
   limit? → A: Fail the upload outright; truncating and storing a partial
   file is never acceptable.
 
+### Session 2026-08-06 (Architecture Review)
+
+- Q: A synchronous 100 MB upload can take well over the project's 500ms
+  "heavy operation" threshold for interactive request handling, which would
+  require a background-job (staged upload + async finalization) delivery
+  model instead of the simple, immediately-visible attach flow the rest of
+  this spec assumes. Given that tradeoff, should attaching stay a simple
+  synchronous request, or become an asynchronous, job-tracked operation? →
+  A: Keep attaching a simple synchronous request; lower the default maximum
+  attachment size to 20 MB (superseding the earlier 100 MB answer) so a
+  synchronous request comfortably stays fast. An administrator may still
+  raise the configured limit, accepting that very large uploads then take
+  longer to attach.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Attach a file to a page (Priority: P1)
@@ -305,7 +319,7 @@ granting that permission and confirming the same call succeeds.
   without any administrator change, that accepts PNG, JPEG, GIF, and WebP
   images; MP4 and WebM videos; and PDF, plain-text, Markdown, CSV,
   Office Open XML (DOCX, XLSX, PPTX), and OpenDocument (ODT, ODS, ODP) files,
-  up to a default maximum size of 100 MB per file. SVG, HTML, and other active
+  up to a default maximum size of 20 MB per file. SVG, HTML, and other active
   document formats are not accepted as attachments in this feature.
 - **FR-011**: The system MUST refuse an upload that exceeds the currently
   configured maximum size or whose type is not currently accepted, and MUST
@@ -390,7 +404,7 @@ granting that permission and confirming the same call succeeds.
 ### Measurable Outcomes
 
 - **SC-001**: A page author can attach a file and see it available for
-  download on the page in under 10 seconds for files up to the 100 MB
+  download on the page in under 10 seconds for files up to the 20 MB
   default size limit.
 - **SC-002**: 100% of attachment downloads — whether through the web UI, the
   public content API, or MCP tooling — return the exact original file
@@ -426,9 +440,12 @@ granting that permission and confirming the same call succeeds.
   document categories, but this feature does not add arbitrary MIME-type or
   extension rules, archive support, or active-content formats such as SVG and
   HTML.
-- The default maximum attachment size is 100 MB per file, chosen to cover
-  common document, image, and short video files while remaining bounded; an
-  administrator can raise or lower it at any time.
+- The default maximum attachment size is 20 MB per file — kept small enough
+  that attaching stays a simple synchronous operation (see the Architecture
+  Review clarification) while still covering common documents, images, and
+  short/low-resolution video clips. An administrator can raise or lower it
+  at any time; raising it well beyond the default trades away the "stays
+  fast" guarantee this default was chosen to provide.
 - For browser/session users, the ability to attach or remove a file on a page
   continues to follow that user's existing permission to edit the page — no
   new permission concept is introduced for human authors, only for

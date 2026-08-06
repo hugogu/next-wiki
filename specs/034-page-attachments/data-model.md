@@ -66,7 +66,7 @@ Wiki-wide admin configuration, following the exact `site_settings`/
 | Field | Type | Notes |
 |---|---|---|
 | `id` | text, PK, default `'default'` | Singleton row key |
-| `max_size_bytes` | integer, not null, default `104857600` (100 MB) | FR-008/FR-010 |
+| `max_size_bytes` | integer, not null, default `20971520` (20 MB — kept small so a synchronous request stays well under the constitution's P7 500ms threshold; see plan.md's Constitution Check and research.md §10) | FR-008/FR-010 |
 | `allowed_categories` | text[] (or jsonb array), not null, default `['image','video','document']` | FR-009/FR-010; each element ∈ `{'image','video','document'}` |
 | `updated_by` | uuid, FK → `users.id`, `onDelete: set null` | Last admin to change it |
 | `updated_at` | timestamptz, not null, default now() | |

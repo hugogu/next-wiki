@@ -58,7 +58,15 @@
 - 2026-08-06 review: made the default accepted types explicit, excluded SVG
   and other active formats so byte-for-byte delivery never conflicts with
   existing sanitisation, made protected resources opaque, and added filename
-  safety and lifecycle-audit requirements. The attached plan is intentionally
-  marked blocked on the separate P7 architecture decision: a 100 MB
-  synchronous upload cannot be treated as compliant with the constitution's
-  mandatory async rule for large asset processing.
+  safety and lifecycle-audit requirements. The attached plan was marked
+  blocked on a separate P7 architecture decision: a 100 MB synchronous
+  upload could not be treated as compliant with the constitution's mandatory
+  async rule for large asset processing.
+- 2026-08-06 architecture review resolution: chose to lower the default
+  maximum attachment size from 100 MB to 20 MB (spec's "Architecture Review"
+  clarification session) rather than introduce a staged/async upload
+  pipeline, so the synchronous attach flow stays within the constitution's
+  P7 threshold by construction. FR-010, SC-001, data-model.md, and plan.md's
+  Constitution Check were updated accordingly; the P7 gate in plan.md and
+  tasks.md is now resolved (PASS), not open. Checklist re-validated; all
+  items still pass.

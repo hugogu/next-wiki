@@ -30,17 +30,18 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-> **Architecture gate**: Do not start this phase until the P7 upload-delivery
-> decision recorded in plan.md and research.md §10 is resolved. The current
-> synchronous multipart tasks do not satisfy the constitution for a 100 MB
-> attachment limit and must be regenerated after the chosen design is known.
+> **Architecture gate resolved (2026-08-06)**: The P7 upload-delivery
+> question in plan.md/research.md §10 is settled — the default max
+> attachment size is 20 MB (not the original 100 MB), which keeps the
+> synchronous multipart design in this phase compliant. The tasks below
+> already reflect that decision.
 
 **Purpose**: Core data model, permission chokepoint, validation, and a critical existing-job correctness fix that every user story depends on.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
 - [ ] T003 Add `page_attachments` table (`id, page_id, asset_id, file_name, uploaded_by, created_at, removed_at, removed_by` + the two indexes from data-model.md) to `apps/web/src/server/db/schema/index.ts`, preserving the lifecycle audit fields required by FR-016
-- [ ] T004 Add singleton `attachment_settings` table (`id, max_size_bytes, allowed_categories, updated_by, updated_at`, defaults `104857600` / `['image','video','document']`, mirroring `site_settings`'s pattern) to `apps/web/src/server/db/schema/index.ts` (same file as T003 — sequential with it)
+- [ ] T004 Add singleton `attachment_settings` table (`id, max_size_bytes, allowed_categories, updated_by, updated_at`, defaults `20971520` (20 MB) / `['image','video','document']`, mirroring `site_settings`'s pattern) to `apps/web/src/server/db/schema/index.ts` (same file as T003 — sequential with it)
 - [ ] T005 [P] Add `'attachments'` value to `apiKeyScopeEnum` in `apps/web/src/server/db/schema/enums.ts`
 - [ ] T006 Run `pnpm db:generate` for T003–T005, then run it a second time with no further edits and confirm it reports "No schema changes, nothing to migrate" per this repo's binding migration rule (depends on T003, T004, T005)
 - [ ] T007 Add `'attach_file'` to the `Action` union, a `roleAllows('attach_file', ...)` case mirroring `'edit'`, and `scopeToActions.attachments = ['attach_file']` (deliberately not added to `create`/`edit`'s mappings) in `apps/web/src/server/permissions/index.ts` (depends on T001)

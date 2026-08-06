@@ -116,7 +116,7 @@ key or MCP.
 
 - **Permission**: `can(ctx, 'manage_storage', {kind:'storage'})` (admin
   only — same gate as `storage-config.ts`'s `isStorageAdmin`).
-- **Response 200**: `{ "maxSizeBytes": 104857600, "allowedCategories":
+- **Response 200**: `{ "maxSizeBytes": 20971520, "allowedCategories":
   ["image","video","document"], "updatedAt": "...", "updatedBy": "uuid |
   null" }`.
 

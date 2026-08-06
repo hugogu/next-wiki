@@ -20,14 +20,17 @@ page-read access; removal uses the established page-edit permission. Reading
 (list/download) requires no new scope and follows
 the same page-read permission already used everywhere else. An admin-facing
 settings surface (mirroring the existing `/api/settings/*` pattern) makes the
-per-file size cap (default 100 MB) and accepted type categories
-configurable, replacing today's hardcoded image-only env values for this new
-surface without touching the existing image upload path. Downloads use a
-type-appropriate `Content-Disposition` (inline only for a fixed, hand-picked
-"cannot execute code in this origin" allowlist such as PDF and raster
-images; forced download for everything else, unconditionally). Oversized
-uploads are rejected outright — the whole request is buffered and measured
-before any bytes are persisted, so nothing is ever partially written.
+per-file size cap (default 20 MB — deliberately kept small, per the
+Architecture Review clarification, so attaching stays a simple synchronous
+request rather than requiring a background-job delivery model) and accepted
+type categories configurable, replacing today's hardcoded image-only env
+values for this new surface without touching the existing image upload path.
+Downloads use a type-appropriate `Content-Disposition` (inline only for a
+fixed, hand-picked "cannot execute code in this origin" allowlist such as
+PDF and raster images; forced download for everything else, unconditionally).
+Oversized uploads are rejected outright — the whole request is buffered and
+measured before any bytes are persisted, so nothing is ever partially
+written.
 
 ## Technical Context
 
@@ -70,14 +73,16 @@ existing `packages/shared` (Zod contracts) + existing `packages/mcp-server`
 (MCP tools). No new package.
 
 **Performance Goals**: Matches SC-001 (attachment visible/downloadable
-within 10s for files up to the 100 MB default limit) — no new performance
+within 10s for files up to the 20 MB default limit) — no new performance
 target beyond what the existing image/asset read-write path already meets;
-uploads up to 100 MB are handled by the same in-memory buffer-then-validate
+uploads up to 20 MB are handled by the same in-memory buffer-then-validate
 approach already used for images (`Buffer.from(await file.arrayBuffer())`),
-which today defaults to a 10 MB image cap — this plan must confirm (Phase 0)
-that no framework- or proxy-level body-size ceiling silently truncates or
-rejects a 100 MB request before application code can produce the FR-011/
-FR-011a "whole-file refusal with reason" behavior.
+which today defaults to a 10 MB image cap, so server-side hash+write time
+stays well under the constitution's 500ms threshold (see Constitution Check
+P7 below) — this plan confirmed (Phase 0) that no framework- or proxy-level
+body-size ceiling silently truncates or rejects a 20 MB request before
+application code can produce the FR-011/FR-011a "whole-file refusal with
+reason" behavior.
 
 **Constraints**: FR-011a (reject over-size uploads in full, never truncate
 and store a partial file) is the binding constraint driving the upload
@@ -118,13 +123,27 @@ admin settings page.
   interaction, never a bespoke check. Anonymous read of attachments is
   derived from the existing page-visibility/anonymous-read configuration,
   not a new special case. PASS.
-- **P7 (Async-First for Heavy Operations)**: **OPEN — not yet compliant.** A
-  100 MB upload can exceed the constitution's 500 ms threshold and is
-  explicitly within its "large asset processing" examples. The current
-  synchronous multipart design cannot be marked PASS merely because the image
-  path is synchronous. Before implementation, resolve whether this feature
-  uses a staged upload plus pg-boss finalization/status flow or narrows its
-  upload scope so no attachment processing can exceed that threshold.
+- **P7 (Async-First for Heavy Operations)**: **RESOLVED — PASS.** An
+  architecture review (spec's "Architecture Review" clarification) flagged
+  that a 100 MB synchronous upload could plausibly exceed the constitution's
+  500ms threshold and sit within its "large asset processing" examples,
+  which a staged upload + pg-boss finalization/status flow would properly
+  address — but at a UX and implementation-complexity cost (SC-001's
+  near-immediate "attach and see it" experience becomes a submit-then-poll
+  flow) disproportionate to this feature's scope. Instead, the default
+  maximum attachment size was lowered from 100 MB to **20 MB**
+  specifically so the operation stays outside P7's threshold by
+  construction: the actual server-side work per attachment (magic-byte
+  sniffing, sha256 hashing, one `content_blobs` write) is a small, roughly
+  linear function of byte count, and 20 MB keeps that work in the same
+  sub-second range the already-shipped, never-flagged 10 MB image-upload
+  path already runs in on ordinary hardware — this is a genuine size
+  reduction that removes the risk, not a re-assertion of the earlier
+  "network transfer time doesn't count" argument the review rejected. An
+  administrator who raises the configured limit beyond the default
+  knowingly trades away that guarantee (documented in spec.md's Assumptions);
+  revisit with a staged/async design if a future need for materially larger
+  attachments (e.g. long-form video) arises.
 - **P8 (Version Everything)**: Attachments are **not** modeled as page
   revisions — mirroring the existing precedent that page property changes
   (`pages.updateProperties`: title/path) mutate the `pages` row directly
@@ -154,9 +173,9 @@ admin settings page.
   representation; only the (uncached, permission-checked) attachment list
   fetch is affected. PASS — documented in data-model.md's cache-impact note.
 
-P7 remains an unresolved constitution gate. Do not begin implementation or
-claim the plan is ready until the upload delivery design is chosen and the
-plan, data model, contracts, and tasks are updated accordingly.
+No open Constitution Check gates remain. P7 is resolved via the 20 MB
+default (above); Complexity Tracking is empty because no violation is being
+accepted — the risk was designed away rather than justified.
 
 ## Project Structure
 
@@ -222,4 +241,7 @@ attachments are additive, not a parallel system.
 
 ## Complexity Tracking
 
-| P7 upload delivery | 100 MB synchronous upload conflicts with the mandatory async rule for large asset processing. | Choose staged upload + pg-boss finalization/status, or reduce/re-scope the upload path and update the specification before implementation. |
+*No Constitution Check violations — table intentionally empty. (P7 was a
+real risk at the original 100 MB default; it was resolved by lowering the
+default to 20 MB — see Constitution Check above — rather than by accepting
+a violation, so there is nothing to justify here.)*

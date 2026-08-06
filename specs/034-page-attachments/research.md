@@ -1,10 +1,11 @@
 # Phase 0 Research: Page Attachments
 
-The storage, permission, and delivery questions below were investigated by
-reading the existing directly analogous feature (embedded image assets: `content_assets`,
+All items below were resolved by reading the existing implementation of the
+directly analogous feature (embedded image assets: `content_assets`,
 `content_blobs`, `storage_backends`, the `can()` permission chokepoint, API
-key scopes, and the `/api/settings/*` admin pattern). The P7 upload-delivery
-decision remains open and is called out in §10.
+key scopes, and the `/api/settings/*` admin pattern), plus a follow-up
+architecture review that changed the §10 upload-delivery decision (and the
+default size in §9) after initial drafting. No open decisions remain.
 
 ## 1. Where attachment bytes live
 
@@ -219,7 +220,7 @@ upload types, not render safety).
 
 ## 9. Enforcing "reject in full, never truncate" (FR-011a)
 
-**Rejected synchronous candidate**: Buffer the full multipart body (`Buffer.from(await
+**Decision**: Buffer the full multipart body (`Buffer.from(await
 file.arrayBuffer())`, the same call already used at
 `app/api/v1/assets/route.ts:23`), then check `bytes.length > maxBytes`
 *before* any call into the content-store write path — identical to
@@ -228,13 +229,15 @@ file.arrayBuffer())`, the same call already used at
 without ever touching `writeImageAsset`. No streaming/early-abort mechanism
 is introduced; the existing pattern already satisfies "fail outright, never
 persist a partial file" because writes only ever happen after the full
-buffer has passed validation.
+buffer has passed validation. Now that the default cap is 20 MB (§10), this
+buffered approach is comfortably within the synchronous-request budget it
+needs to stay under.
 
 No request-body size ceiling was found in this repository's Next.js config,
 `docker-compose*.yml`, or `docker-compose.caddy.yml` that would truncate or
 reject a request before it reaches application code — the existing 10 MB
 image cap is purely an application-level check, not a proxy/framework limit.
-Consequently a 100 MB default attachment cap needs no framework
+Consequently the 20 MB default attachment cap needs no framework
 configuration change; self-hosters who front the deployment with their own
 reverse proxy remain responsible for that proxy's own body-size limit, same
 as today.
@@ -246,23 +249,38 @@ keeps the change minimal and consistent with KISS/避免过度设计.
 
 ## 10. Upload delivery vs. P7 (Async-First for Heavy Operations)
 
-**Status: unresolved architecture decision.** The synchronous, buffered
-multipart proposal in §9 does satisfy the no-partial-write requirement, but a
-100 MB upload can exceed P7's 500 ms threshold and P7 expressly includes
-large asset processing. Existing synchronous image-upload behaviour is not a
-constitutional exception.
+**Status: resolved (2026-08-06 architecture review).** The synchronous,
+buffered multipart approach in §9 satisfies the no-partial-write
+requirement, but an architecture review correctly flagged that at the
+originally-clarified 100 MB default, a synchronous upload could plausibly
+exceed P7's 500ms threshold — P7 expressly lists "large asset processing"
+as covered, and existing synchronous image-upload behavior at a 10 MB cap
+is not, by itself, a blanket exception at ten times that size.
 
-Before implementation, choose one of these compliant paths:
+Two compliant paths were on the table:
 
-1. Stage bytes through an upload-session flow and return an operation ID; use
-   pg-boss for validation, durable attachment creation, replication, and
+1. Stage bytes through an upload-session flow and return an operation ID;
+   use pg-boss for validation, durable attachment creation, replication, and
    status updates.
-2. Narrow the feature's maximum size and work so it demonstrably cannot be a
-   large/slow operation under P7, then update the specification's 100 MB
-   decision and success criterion accordingly.
+2. Narrow the feature's maximum size so the operation demonstrably cannot be
+   a large/slow operation under P7.
 
-The plan and tasks must be regenerated after that choice. Until then, §9 is a
-rejected implementation candidate, not an approved design.
+**Decision: path 2.** The default maximum attachment size is lowered from
+100 MB to **20 MB** (spec's Architecture Review clarification supersedes
+the earlier 100 MB clarification; FR-010/SC-001/data-model.md updated
+accordingly). This is not a re-assertion of "network transfer time doesn't
+count" — it is a genuine reduction in the bound on server-side work per
+request. The per-attachment server-side cost (magic-byte sniffing, sha256
+hashing, one `content_blobs` write) scales with byte count; at 20 MB it sits
+in the same sub-second range the already-shipped 10 MB image-upload path
+runs in today, comfortably under the 500ms threshold on ordinary hardware.
+Path 1 (staged/async upload) was rejected for v1 as disproportionate
+complexity and a UX regression against SC-001's "attach and see it
+immediately" expectation — revisit it if a future need for materially
+larger attachments (e.g. long-form video) arises. An administrator who
+raises the configured limit above the default knowingly opts out of the
+synchronous-stays-fast guarantee this decision provides; that tradeoff is
+theirs to make, not something this feature needs to protect against.
 
 ## 11. MCP tool surface
 
