@@ -72,6 +72,13 @@ async function readMovedPage(pageId: string) {
 async function clearMoved() {
   const sql = database();
   try {
+    await sql`
+      DELETE FROM cross_space_migrations
+      WHERE id IN (
+        SELECT migration_id FROM cross_space_migration_items
+        WHERE page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})
+      )`;
+    await sql`DELETE FROM page_route_redirects WHERE target_page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})`;
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})`;
     await sql`DELETE FROM pages WHERE path = ${MOVE_PATH}`;
   } finally {
@@ -111,15 +118,18 @@ test.describe('admin cross-space page move', () => {
     await row.getByRole('button', { name: /move to another space/i }).click();
 
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText(/Move to Generated/i)).toBeVisible();
+    await expect(dialog.getByText(/Move to another space/i)).toBeVisible();
+    await dialog.getByRole('button', { name: /preview migration/i }).click();
+    await expect(dialog.getByRole('button', { name: /move page/i })).toBeVisible();
     await dialog.getByRole('button', { name: /move page/i }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
 
-    // The page now lives in generated, admin-only, with injected OKF frontmatter.
+    // The page now lives in generated with injected OKF frontmatter. A move
+    // preserves visibility unless the caller explicitly requests a change.
     await expect.poll(async () => (await readMovedPage(pageId))?.slug).toBe('generated');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     const moved = await readMovedPage(pageId);
     expect(moved).toBeTruthy();
-    expect(moved!).toMatchObject({ nature: 'generated', visibility: 'restricted' });
+    expect(moved!).toMatchObject({ nature: 'generated', visibility: 'public' });
     expect(moved!.source).toMatch(/^---\ntype: /);
     expect(moved!.source).toContain('This wiki page was actually AI generated.');
   });
