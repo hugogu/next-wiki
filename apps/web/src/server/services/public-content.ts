@@ -920,8 +920,9 @@ export async function attachToPage(
   pageId: string,
   bytes: Buffer,
   fileName: string,
+  declaredContentType?: string,
 ): Promise<PublicAttachmentResource> {
-  const attachment = await pageAttachments.attachFile(ctx, pageId, bytes, fileName);
+  const attachment = await pageAttachments.attachFile(ctx, pageId, bytes, fileName, declaredContentType);
   return toPublicAttachmentResource(attachment);
 }
 

@@ -143,6 +143,7 @@ export async function attachFile(
   pageId: string,
   bytes: Buffer,
   fileName: string,
+  declaredContentType?: string,
 ): Promise<AttachedFile> {
   const userId = getActorUserId(ctx);
   if (userId === null) {
@@ -161,7 +162,7 @@ export async function attachFile(
   const safeName = validateFileName(fileName);
 
   const settings = await getAttachmentSettings();
-  const result = validateAttachment(bytes, settings.maxSizeBytes, settings.allowedCategories);
+  const result = validateAttachment(bytes, settings.maxSizeBytes, settings.allowedCategories, declaredContentType);
   if (!result.ok) {
     if (result.reason === 'too_large') {
       throw new DomainError(

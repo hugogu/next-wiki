@@ -23,6 +23,7 @@ export const POST = withPublicApi<{ id: string }>(async (request, { params }, ct
 
   let bytes: Buffer;
   let fileName: string;
+  let declaredContentType: string | undefined;
   try {
     const formData = await request.formData();
     const file = formData.get('file');
@@ -31,11 +32,15 @@ export const POST = withPublicApi<{ id: string }>(async (request, { params }, ct
     }
     bytes = Buffer.from(await file.arrayBuffer());
     fileName = file.name;
+    // Only ever consulted as a fallback for types with no reliable magic
+    // number (plain text/Markdown/CSV) — sniffed bytes always take
+    // precedence for every other type (attachment-validation.ts).
+    declaredContentType = file.type || undefined;
   } catch {
     return publicApiError('VALIDATION_FAILED', 'Invalid multipart form data', 422);
   }
 
-  const attachment = await publicContent.attachToPage(ctx, parsedParams.data.id, bytes, fileName);
+  const attachment = await publicContent.attachToPage(ctx, parsedParams.data.id, bytes, fileName, declaredContentType);
   return publicJson(attachment, { status: 201 });
 });
 
