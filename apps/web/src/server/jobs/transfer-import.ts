@@ -513,6 +513,16 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     }
   }
 
+  // The operator can cancel while the final page is being fetched, converted,
+  // or written. There is no subsequent loop iteration in that case, so poll
+  // once more before choosing the terminal status. This is especially common
+  // for a one-page import that includes a long Wiki.js revision history.
+  if (!cancelled && !paused) {
+    const control = await readRunControlSignal(run.id);
+    cancelled = control === 'cancel';
+    paused = control === 'pause';
+  }
+
   async function processPage(plan: typeof schema.transferItems.$inferSelect): Promise<void> {
     const page = await client.getPage(Number(plan.sourceKey));
     const converter = getTransferConverter(page.contentType, page.editor);
@@ -731,15 +741,23 @@ export function runTransferImport(runId: string): Promise<void> {
 
 async function runTransferImportWithoutDataCache(runId: string): Promise<void> {
   const run = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
-  if (!run) return;
-  await db.update(schema.transferRuns).set({
+  if (!run || !['queued', 'running'].includes(run.status) || run.cancelRequested) return;
+  // Do not revive a run that was cancelled while its pg-boss job was waiting.
+  // The condition also protects the hand-off between a queued cancellation and
+  // the worker claiming the job.
+  const [started] = await db.update(schema.transferRuns).set({
     status: 'running',
     phase: 'writing_assets',
     startedAt: run.startedAt ?? new Date(),
-  }).where(eq(schema.transferRuns.id, runId));
+  }).where(and(
+    eq(schema.transferRuns.id, runId),
+    eq(schema.transferRuns.status, run.status),
+    eq(schema.transferRuns.cancelRequested, false),
+  )).returning();
+  if (!started) return;
   try {
-    if (run.kind === 'archive_import') await runArchiveImport(run);
-    else if (run.kind === 'wikijs_import') await runWikiJsImport(run);
+    if (started.kind === 'archive_import') await runArchiveImport(started);
+    else if (started.kind === 'wikijs_import') await runWikiJsImport(started);
     else throw new Error('Unsupported import kind');
   } catch (error) {
     await markRunTerminal(runId, 'failed', {

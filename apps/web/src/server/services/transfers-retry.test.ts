@@ -48,4 +48,26 @@ describe('transfer retry', () => {
     expect(row?.options).toEqual({ space: 'generated', format: 'okf' });
     expect(runtime.enqueue).toHaveBeenCalledWith('transfer-export', { runId: retried.id });
   });
+
+  it('cancels a queued run immediately so it does not wait for a worker', async () => {
+    const { userId } = await createAdminUser();
+    const [queued] = await db
+      .insert(schema.transferRuns)
+      .values({
+        kind: 'wikijs_import',
+        actorUserId: userId,
+        status: 'queued',
+        activeMutationSlot: true,
+        options: {},
+        expiresAt: new Date(Date.now() + 3_600_000),
+      })
+      .returning();
+
+    const cancelled = await transfers.requestCancellation(buildUserCtx(userId, 'admin'), queued!.id);
+
+    expect(cancelled).toMatchObject({ status: 'cancelled', cancelRequested: true, canCancel: false });
+    const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, queued!.id) });
+    expect(row?.activeMutationSlot).toBeNull();
+    expect(row?.finishedAt).not.toBeNull();
+  });
 });

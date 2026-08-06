@@ -229,15 +229,49 @@ export async function listItems(
 
 export async function requestCancellation(ctx: PermCtx, id: string): Promise<TransferRunView> {
   assertCanManageTransfers(ctx);
-  const row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
+  let row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
   if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer run not found');
+  // A queued run may be waiting behind another import or an unavailable
+  // worker. Finalize it immediately instead of leaving the UI to wait for a
+  // worker that may not run for some time. The worker also refuses a cancelled
+  // run before changing its status to running.
+  if (row.status === 'queued') {
+    const [cancelled] = await db
+      .update(schema.transferRuns)
+      .set({
+        cancelRequested: true,
+        status: 'cancelled',
+        phase: 'completed',
+        activeMutationSlot: null,
+        finishedAt: new Date(),
+        currentItem: null,
+      })
+      .where(and(eq(schema.transferRuns.id, id), eq(schema.transferRuns.status, 'queued')))
+      .returning();
+    if (cancelled) return runView(cancelled);
+
+    // A worker claimed the run between the read and update. Reload it and
+    // request the normal cooperative cancellation below.
+    row = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
+    if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer run not found');
+  }
   // A paused run has no live worker to observe the cancel flag, so terminate it
   // directly and release its mutation slot. An active run is flagged and stops
   // itself at the next loop iteration.
   if (row.status === 'paused') {
-    await markRunTerminal(id, 'cancelled');
-    const done = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, id) });
-    return runView(done!);
+    const [cancelled] = await db
+      .update(schema.transferRuns)
+      .set({
+        cancelRequested: true,
+        status: 'cancelled',
+        phase: 'completed',
+        activeMutationSlot: null,
+        finishedAt: new Date(),
+        currentItem: null,
+      })
+      .where(eq(schema.transferRuns.id, id))
+      .returning();
+    return runView(cancelled!);
   }
   if (!ACTIVE.includes(row.status as (typeof ACTIVE)[number])) {
     throw new DomainError('RUN_NOT_ACTIVE', 'Transfer run is not active');

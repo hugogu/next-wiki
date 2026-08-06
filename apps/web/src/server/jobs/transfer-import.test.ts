@@ -358,6 +358,37 @@ describe('runTransferImport wikijs_import', () => {
     expect(mocks.enqueueGitExport).not.toHaveBeenCalled();
   });
 
+  it('honors cancellation requested while the only page history is being written', async () => {
+    const pages: PageDef[] = [{
+      id: 22,
+      path: 'docs/cancel-history',
+      locale: 'en',
+      title: 'History',
+      content: '# current',
+      fingerprint: 'fp22',
+      history: [
+        { versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 1, authorName: 'A', actionType: 'initial', content: '# v1', title: 'V1' },
+      ],
+    }];
+    const { runId, pageIds } = await seedImport({ pages, includeHistory: true });
+    mocks.enqueueGitExport.mockClear();
+    mocks.writeImportedPageWithHistory.mockImplementation(async (input: { path: string; locale: string; action: 'create' | 'replace' | 'skip' }) => {
+      await db.update(schema.transferRuns).set({ cancelRequested: true }).where(eq(schema.transferRuns.id, runId));
+      return {
+        pageId: pageIds.get(`${input.locale}/${input.path}`) ?? null,
+        revisionId: randomUUID(),
+        action: input.action,
+      };
+    });
+
+    await runTransferImport(runId);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
+    expect(updated?.status).toBe('cancelled');
+    expect(updated?.processedItems).toBe(1);
+    expect(mocks.enqueueGitExport).not.toHaveBeenCalled();
+  });
+
   it('pauses mid-run and resumes to finish only the remaining pages', async () => {
     const pages: PageDef[] = [
       { id: 30, path: 'docs/pause-one', locale: 'en', title: 'One', content: '# One', fingerprint: 'fp30' },
