@@ -571,6 +571,21 @@ function joinUrl(baseUrl: string, path: string): URL {
   return new URL(normalizedPath, normalizedBase);
 }
 
+/** Extracts the file name from a `Content-Disposition` header this server
+ * itself sets (RFC 6266 `filename*=UTF-8''...`, falling back to `filename="..."`). */
+function parseFileNameFromDisposition(header: string): string | null {
+  const extended = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (extended?.[1]) {
+    try {
+      return decodeURIComponent(extended[1]);
+    } catch {
+      // fall through to the plain filename below
+    }
+  }
+  const plain = /filename="([^"]*)"/i.exec(header);
+  return plain?.[1] ?? null;
+}
+
 export class WikiApiClient {
   constructor(
     private readonly baseUrl: string,
@@ -806,6 +821,35 @@ export class WikiApiClient {
       method: 'POST',
       body: formData,
     });
+  }
+
+  async listAttachments(pageId: string): Promise<PublicAttachmentList> {
+    return this.request<PublicAttachmentList>(`/pages/${encodeURIComponent(pageId)}/attachments`);
+  }
+
+  /** Downloads raw bytes — bypasses `request()`'s JSON parsing, since the
+   * content route streams the attachment's binary content. */
+  async downloadAttachment(
+    attachmentId: string,
+  ): Promise<{ fileName: string; contentType: string; bytes: Uint8Array }> {
+    const url = joinUrl(this.baseUrl, `/attachments/${encodeURIComponent(attachmentId)}/content`);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as WikiApiError | Record<string, never>;
+      throw new WikiApiClientError(
+        'message' in body ? body.message : `HTTP ${response.status}`,
+        response.status,
+        'code' in body ? body.code : `HTTP_${response.status}`,
+      );
+    }
+
+    const contentType = response.headers.get('Content-Type') ?? 'application/octet-stream';
+    const fileName = parseFileNameFromDisposition(response.headers.get('Content-Disposition') ?? '') ?? 'download';
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return { fileName, contentType, bytes };
   }
 
   async generateImage(input: PublicImageGenerationInput): Promise<PublicImageGeneration> {

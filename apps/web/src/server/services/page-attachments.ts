@@ -5,6 +5,8 @@ import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { DatabaseStore } from '@/server/content-store/database-store';
 import { writeAsset } from '@/server/content-store/atomic-write';
+import { readImageWithFallback } from '@/server/content-store/read-router';
+import { ContentStoreError } from '@/server/content-store/types';
 import { validateAttachment } from '@/server/content-store/attachment-validation';
 import { assertNotMigrating } from '@/server/services/migration';
 import { getAttachmentSettings } from './attachment-settings';
@@ -218,4 +220,92 @@ export async function listAttachments(ctx: PermCtx, pageId: string): Promise<Att
     .orderBy(desc(schema.pageAttachments.createdAt));
 
   return rows.map((r) => toAttachedFile(r.attachment, r.contentType, r.sizeBytes));
+}
+
+export type ServableAttachment =
+  | { kind: 'ok'; bytes: Buffer; contentType: string; fileName: string }
+  | { kind: 'not_found' }
+  | { kind: 'unavailable' };
+
+type AttachmentWithPage = {
+  attachment: typeof schema.pageAttachments.$inferSelect;
+  assetId: string;
+  assetContentHash: string;
+  assetContentType: string;
+  assetDeletedAt: Date | null;
+  page: PageForAttachment;
+};
+
+async function loadAttachmentWithPage(attachmentId: string): Promise<AttachmentWithPage | null> {
+  const rows = await db
+    .select({
+      attachment: schema.pageAttachments,
+      assetId: schema.contentAssets.id,
+      assetContentHash: schema.contentAssets.contentHash,
+      assetContentType: schema.contentAssets.contentType,
+      assetDeletedAt: schema.contentAssets.deletedAt,
+      pageId: schema.pages.id,
+      authorId: schema.pages.authorId,
+      currentPublishedVersionId: schema.pages.currentPublishedVersionId,
+      spaceKind: schema.spaces.kind,
+      anonymousRead: schema.spaces.anonymousRead,
+      visibility: schema.pages.visibility,
+    })
+    .from(schema.pageAttachments)
+    .innerJoin(schema.contentAssets, eq(schema.pageAttachments.assetId, schema.contentAssets.id))
+    .innerJoin(schema.pages, eq(schema.pageAttachments.pageId, schema.pages.id))
+    .innerJoin(schema.spaces, eq(schema.pages.spaceId, schema.spaces.id))
+    .where(and(eq(schema.pageAttachments.id, attachmentId), isNull(schema.pages.deletedAt)));
+
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    attachment: row.attachment,
+    assetId: row.assetId,
+    assetContentHash: row.assetContentHash,
+    assetContentType: row.assetContentType,
+    assetDeletedAt: row.assetDeletedAt,
+    page: {
+      id: row.pageId,
+      authorId: row.authorId,
+      currentPublishedVersionId: row.currentPublishedVersionId,
+      spaceKind: row.spaceKind,
+      anonymousRead: row.anonymousRead,
+      visibility: row.visibility,
+    },
+  };
+}
+
+/**
+ * Whether the caller may read (list/download) a specific attachment —
+ * derived from the same page-read permission as `canReadPage`, with no
+ * independent scope (FR-003b). A removed attachment or a deleted underlying
+ * asset is never readable, regardless of page permission.
+ */
+export function canReadAttachment(ctx: PermCtx, row: AttachmentWithPage): boolean {
+  if (row.attachment.removedAt || row.assetDeletedAt) return false;
+  return canReadPage(ctx, row.page);
+}
+
+/**
+ * Resolve an attachment for download, enforcing page-equivalent read
+ * permission. Unreadable, removed, or missing attachments are all reported
+ * as `not_found` — no existence leak (FR-003c) — matching the equivalent
+ * `getServableImage` behavior for embedded images.
+ */
+export async function getServableAttachment(ctx: PermCtx, attachmentId: string): Promise<ServableAttachment> {
+  const row = await loadAttachmentWithPage(attachmentId);
+  if (!row) return { kind: 'not_found' };
+  if (!canReadAttachment(ctx, row)) return { kind: 'not_found' };
+
+  try {
+    const { bytes, contentType } = await readImageWithFallback({
+      id: row.assetId,
+      contentHash: row.assetContentHash,
+    });
+    return { kind: 'ok', bytes, contentType, fileName: row.attachment.fileName };
+  } catch (error) {
+    if (error instanceof ContentStoreError) return { kind: 'unavailable' };
+    throw error;
+  }
 }

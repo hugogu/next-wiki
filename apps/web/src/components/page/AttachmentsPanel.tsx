@@ -35,6 +35,7 @@ export function AttachmentsPanel({ pageId, canManage = false }: { pageId: string
   const [pendingRemoval, setPendingRemoval] = useState<PublicAttachmentResource | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [unavailableIds, setUnavailableIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -62,6 +63,43 @@ export function AttachmentsPanel({ pageId, canManage = false }: { pageId: string
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  /**
+   * Fetches the file ourselves (rather than a plain `<a href>` navigation)
+   * so a 404 (attachment removed/backend unavailable since the list was
+   * fetched) surfaces as an in-panel "no longer available" state instead of
+   * silently navigating away to a broken page (spec User Story 2, scenario
+   * 3). On success, replays the response into a native save/open action via
+   * a short-lived object URL, honoring the server's own inline-vs-forced-
+   * download `Content-Disposition` decision (FR-014).
+   */
+  async function handleDownload(event: React.MouseEvent, item: PublicAttachmentResource) {
+    event.preventDefault();
+    try {
+      const res = await fetch(item.url, { credentials: 'same-origin' });
+      if (!res.ok) {
+        setUnavailableIds((current) => new Set(current).add(item.id));
+        return;
+      }
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.rel = 'noopener';
+      if (disposition.includes('attachment')) {
+        link.download = item.fileName;
+      } else {
+        link.target = '_blank';
+      }
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setUnavailableIds((current) => new Set(current).add(item.id));
     }
   }
 
@@ -96,13 +134,20 @@ export function AttachmentsPanel({ pageId, canManage = false }: { pageId: string
               className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm"
             >
               <FileTextIcon className="h-4 w-4 shrink-0 text-muted" />
-              <a
-                href={item.url}
-                className="min-w-0 flex-1 truncate text-primary hover:underline"
-                rel="noopener"
-              >
-                {item.fileName}
-              </a>
+              {unavailableIds.has(item.id) ? (
+                <span className="min-w-0 flex-1 truncate text-muted italic">
+                  {item.fileName} — {t('page.attachments.unavailable')}
+                </span>
+              ) : (
+                <a
+                  href={item.url}
+                  onClick={(event) => void handleDownload(event, item)}
+                  className="min-w-0 flex-1 truncate text-primary hover:underline"
+                  rel="noopener"
+                >
+                  {item.fileName}
+                </a>
+              )}
               <span className="shrink-0 text-xs text-muted">{formatBytes(item.sizeBytes)}</span>
               {canManage && (
                 <button

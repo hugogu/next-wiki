@@ -1,8 +1,9 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildApiKeyCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
 import * as pageAttachments from '@/server/services/page-attachments';
 
 const PDF = Buffer.from('%PDF-1.4\nfake pdf body for tests\n');
@@ -120,5 +121,49 @@ describe('canAttach — API key credentials (FR-007/FR-007a)', () => {
     await expect(pageAttachments.attachFile(ctx, pageId, PDF, 'a.pdf')).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
+  });
+});
+
+describe('canReadAttachment — reading needs no independent scope (FR-003b/FR-003c)', () => {
+  it('lets an anonymous caller read an attachment on a published, public-visibility page', async () => {
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: randomUUID() })
+      .where(eq(schema.pages.id, pageId));
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+
+    const result = await pageAttachments.getServableAttachment(buildAnonymousCtx(), created.id);
+    expect(result.kind).toBe('ok');
+  });
+
+  it('refuses an anonymous caller on an unpublished page — indistinguishable from a missing attachment', async () => {
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+    const result = await pageAttachments.getServableAttachment(buildAnonymousCtx(), created.id);
+    expect(result.kind).toBe('not_found');
+  });
+
+  it('lets an API key with only the view scope (no attachments scope) list and download (SC-007)', async () => {
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: randomUUID() })
+      .where(eq(schema.pages.id, pageId));
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+
+    const ctx = buildApiKeyCtx(readerId, 'reader', ['view'], 'key-read-1');
+    const list = await pageAttachments.listAttachments(ctx, pageId);
+    expect(list.map((i) => i.id)).toContain(created.id);
+    expect((await pageAttachments.getServableAttachment(ctx, created.id)).kind).toBe('ok');
+  });
+
+  it('refuses an API key with no read-granting scope at all', async () => {
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: randomUUID() })
+      .where(eq(schema.pages.id, pageId));
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+
+    const ctx = buildApiKeyCtx(readerId, 'reader', ['attachments'], 'key-read-2');
+    expect((await pageAttachments.getServableAttachment(ctx, created.id)).kind).toBe('not_found');
+    await expect(pageAttachments.listAttachments(ctx, pageId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

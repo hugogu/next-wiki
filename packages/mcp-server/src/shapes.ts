@@ -1,5 +1,6 @@
 import type {
   PublicAssetResource,
+  PublicAttachmentList,
   PublicAttachmentResource,
   PublicImageGeneration,
   PublicNeighborhoodResponse,
@@ -331,6 +332,20 @@ export function attachFileResponse(source: PublicAttachmentResource): {
     contentType: source.contentType,
     sizeBytes: source.sizeBytes,
     url: source.url,
+  };
+}
+
+export function listAttachmentsResponse(source: PublicAttachmentList): {
+  items: Array<{ id: string; fileName: string; contentType: string; sizeBytes: number; url: string }>;
+} {
+  return {
+    items: source.items.map((item) => ({
+      id: item.id,
+      fileName: item.fileName,
+      contentType: item.contentType,
+      sizeBytes: item.sizeBytes,
+      url: item.url,
+    })),
   };
 }
 

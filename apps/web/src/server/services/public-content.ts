@@ -933,6 +933,10 @@ export async function listAttachmentsForPage(
   return items.map(toPublicAttachmentResource);
 }
 
+export async function getAttachmentContent(ctx: PermCtx, id: string) {
+  return pageAttachments.getServableAttachment(ctx, id);
+}
+
 export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promise<PublicPageSearchResponse> {
   const space = await resolveSpace(query.space);
   if (!space) return { items: [], nextCursor: null };

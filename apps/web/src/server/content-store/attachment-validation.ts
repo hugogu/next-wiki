@@ -208,6 +208,24 @@ export function sniffAttachmentType(
   return null;
 }
 
+/**
+ * Fixed, code-level allowlist of types the browser may render inline on
+ * download (FR-014). Never administrator-configurable — an admin cannot
+ * accidentally mark an executable-content type (HTML, SVG, ...) as
+ * browser-inline, since those are outside the FR-010 allowlist entirely.
+ */
+const INLINE_SAFE_TYPES: ReadonlySet<AttachmentContentType> = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]);
+
+export function isInlineSafeType(contentType: string): boolean {
+  return INLINE_SAFE_TYPES.has(contentType as AttachmentContentType);
+}
+
 export type AttachmentValidationResult =
   | {
       ok: true;

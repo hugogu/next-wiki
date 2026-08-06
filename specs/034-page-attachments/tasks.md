@@ -90,17 +90,17 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T022 [P] [US2] Unit tests for `getServableAttachment` (`ok`/`not_found`/`unavailable` outcomes, matching `ServableImage`'s shape) and the inline-vs-forced-download disposition decision, extending `apps/web/src/server/services/page-attachments.test.ts`
-- [ ] T023 [P] [US2] Permission tests for `canReadAttachment`: anonymous read on a public page succeeds/fails per page visibility; `api_key` with only `view` scope (no `attachments` scope) can list and download (FR-003b, SC-007); a credential without read access to the page receives the same not-found outcome as a missing attachment (FR-003/FR-003c), extending `apps/web/src/server/services/page-attachments-permissions.test.ts`
+- [X] T022 [P] [US2] Unit tests for `getServableAttachment` (`ok`/`not_found`/`unavailable` outcomes, matching `ServableImage`'s shape) and the inline-vs-forced-download disposition decision, extending `apps/web/src/server/services/page-attachments.test.ts`
+- [X] T023 [P] [US2] Permission tests for `canReadAttachment`: anonymous read on a public page succeeds/fails per page visibility; `api_key` with only `view` scope (no `attachments` scope) can list and download (FR-003b, SC-007); a credential without read access to the page receives the same not-found outcome as a missing attachment (FR-003/FR-003c), extending `apps/web/src/server/services/page-attachments-permissions.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Add `canReadAttachment(ctx, pageAttachment)` and `getServableAttachment(ctx, id)` to `apps/web/src/server/services/page-attachments.ts` (page-read-derived permission via `page_attachments.page_id`, per research.md §4) (depends on T015)
-- [ ] T025 [US2] Add a fixed, code-level `isInlineSafeType(contentType)` allowlist (PNG, JPEG, GIF, WebP, and `application/pdf`) to `apps/web/src/server/content-store/attachment-validation.ts`, never administrator-configurable (FR-014) (depends on T008)
-- [ ] T026 [US2] Create `apps/web/app/api/v1/attachments/[id]/content/route.ts` with a `GET` handler serving bytes with `Content-Type` = stored type and a safely encoded `Content-Disposition` = `inline` (T025 allowlist) or `attachment` (everything else), `404` for unreadable/removed/missing (depends on T009, T024, T025)
-- [ ] T027 [US2] Add `getAttachment`/`getAttachmentContent` wrappers to `apps/web/src/server/services/public-content.ts` (depends on T024)
-- [ ] T028 [US2] Wire `AttachmentsPanel.tsx` to render download links from the list response, and a "no longer available" state for a 404 on download (depends on T019, T026)
-- [ ] T029 [US2] Add MCP tools `list_attachments` and `download_attachment`: schemas + handlers in `packages/mcp-server/src/tools/list-attachments.ts` and `download-attachment.ts` (base64-encoded bytes in the response), corresponding `listAttachments`/`downloadAttachment` methods on `packages/mcp-server/src/api-client.ts`, and registration in `packages/mcp-server/src/server.ts` (depends on T018, T026)
+- [X] T024 [US2] Add `canReadAttachment(ctx, pageAttachment)` and `getServableAttachment(ctx, id)` to `apps/web/src/server/services/page-attachments.ts` (page-read-derived permission via `page_attachments.page_id`, per research.md §4) (depends on T015)
+- [X] T025 [US2] Add a fixed, code-level `isInlineSafeType(contentType)` allowlist (PNG, JPEG, GIF, WebP, and `application/pdf`) to `apps/web/src/server/content-store/attachment-validation.ts`, never administrator-configurable (FR-014) (depends on T008)
+- [X] T026 [US2] Create `apps/web/app/api/v1/attachments/[id]/content/route.ts` with a `GET` handler serving bytes with `Content-Type` = stored type and a safely encoded `Content-Disposition` = `inline` (T025 allowlist) or `attachment` (everything else), `404` for unreadable/removed/missing (depends on T009, T024, T025)
+- [X] T027 [US2] Add `getAttachment`/`getAttachmentContent` wrappers to `apps/web/src/server/services/public-content.ts` (depends on T024)
+- [X] T028 [US2] Wire `AttachmentsPanel.tsx` to render download links from the list response, and a "no longer available" state for a 404 on download (depends on T019, T026)
+- [X] T029 [US2] Add MCP tools `list_attachments` and `download_attachment`: schemas + handlers in `packages/mcp-server/src/tools/list-attachments.ts` and `download-attachment.ts` (base64-encoded bytes in the response), corresponding `listAttachments`/`downloadAttachment` methods on `packages/mcp-server/src/api-client.ts`, and registration in `packages/mcp-server/src/server.ts` (depends on T018, T026)
 
 **Checkpoint**: User Stories 1 and 2 both work independently — attach and download are fully usable end-to-end.
 

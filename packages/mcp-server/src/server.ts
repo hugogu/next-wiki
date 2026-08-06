@@ -17,6 +17,8 @@ import { searchWiki, searchWikiSchema } from './tools/search-wiki';
 import { updatePageProperties, updatePagePropertiesSchema } from './tools/update-properties';
 import { uploadImage, uploadImageSchema } from './tools/upload-image';
 import { attachFile, attachFileSchema } from './tools/attach-file';
+import { listAttachments, listAttachmentsSchema } from './tools/list-attachments';
+import { downloadAttachment, downloadAttachmentSchema } from './tools/download-attachment';
 import { batchCreatePages, batchCreatePagesSchema } from './tools/batch-create-pages';
 import { findSimilar, findSimilarSchema } from './tools/find-similar';
 import { submitSemanticSearch, submitSemanticSearchSchema } from './tools/submit-semantic-search';
@@ -157,6 +159,24 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     attachFileSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await attachFile(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'list_attachments',
+    "List a page's current attachments. Only needs read access to the page — no independent scope.",
+    listAttachmentsSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await listAttachments(client, args)) }],
+    }),
+  );
+
+  server.tool(
+    'download_attachment',
+    'Download an attachment by id (base64-encoded bytes). Only needs read access to the attachment\'s page — no independent scope.',
+    downloadAttachmentSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await downloadAttachment(client, args)) }],
     }),
   );
 
