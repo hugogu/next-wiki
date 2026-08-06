@@ -258,6 +258,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   let skipped = run.skippedItems;
   let converted = run.convertedItems;
   let warnings = run.warningItems;
+  let failed = run.failedItems;
   let processed = run.processedItems;
   let cancelled = false;
   let paused = false;
@@ -285,6 +286,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       skippedItems: skipped,
       convertedItems: converted,
       warningItems: warnings,
+      failedItems: failed,
     }).where(eq(schema.transferRuns.id, run.id));
   }
 
@@ -371,9 +373,38 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       await reportProgress(plan.displayName);
       continue;
     }
+    // A single page's fetch/verify/write failing (stale fingerprint, a
+    // transient Wiki.js network error, etc.) must not abort the rest of a
+    // large batch. Record it as a failed item and move on instead of letting
+    // the exception bubble up to runTransferImport's top-level catch, which
+    // would mark the *entire* run failed and skip notifyPublicContentChanged
+    // for every page already written before the failure.
+    try {
+      await processPage(plan);
+    } catch (error) {
+      failed += 1;
+      processed += 1;
+      await db.insert(schema.transferItems).values({
+        runId: run.id,
+        kind: 'page',
+        sourceKey: plan.sourceKey,
+        sourceFingerprint: plan.sourceFingerprint,
+        displayName: plan.displayName,
+        action: 'skip',
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Import failed',
+        metadata: {},
+        finishedAt: new Date(),
+      }).onConflictDoNothing();
+      doneKeys.add(plan.sourceKey);
+      await reportProgress(plan.displayName);
+    }
+  }
+
+  async function processPage(plan: typeof schema.transferItems.$inferSelect): Promise<void> {
     const page = await client.getPage(Number(plan.sourceKey));
     const converter = getTransferConverter(page.contentType, page.editor);
-    if (!converter) continue;
+    if (!converter) return;
 
     const targetActionMeta = (plan.metadata as { targetAction?: string }).targetAction;
     const writeAction = targetActionMeta === 'replace' ? 'replace' : targetActionMeta === 'skip' ? 'skip' : 'create';
@@ -444,7 +475,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
         title: page.title,
         pagePath: page.path,
       });
-      if (!currentBuilt) continue;
+      if (!currentBuilt) return;
       if (currentBuilt.converted) anyConverted = true;
       versions.push({
         markdown: currentBuilt.markdown,
@@ -458,7 +489,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       });
 
       const result = await writeImportedPageWithHistory({
-        actorUserId: run.actorUserId,
+        actorUserId: run.actorUserId!,
         path: page.path,
         locale: page.locale,
         versions,
@@ -481,10 +512,10 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
         title: page.title,
         pagePath: page.path,
       });
-      if (!built) continue;
+      if (!built) return;
       anyConverted = built.converted;
       const result = await writeImportedPage({
-        actorUserId: run.actorUserId,
+        actorUserId: run.actorUserId!,
         path: page.path,
         locale: page.locale,
         title: page.title,
@@ -558,7 +589,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   }
   await markRunTerminal(
     run.id,
-    cancelled ? 'cancelled' : warnings ? 'completed_with_warnings' : 'completed',
+    cancelled ? 'cancelled' : warnings || failed ? 'completed_with_warnings' : 'completed',
     {
       totalItems: plans.length,
       processedItems: processed,
@@ -567,6 +598,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       skippedItems: skipped,
       convertedItems: converted,
       warningItems: warnings,
+      failedItems: failed,
     },
   );
   // One full snapshot sync at the end is enough; do not enqueue per page.

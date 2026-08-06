@@ -458,18 +458,21 @@ describe('runTransferImport wikijs_import includeHistory', () => {
     expect(call.versions[0]!.sourceMetadata.wikijsVersionId).toBe(1);
   });
 
-  it('fails the run when the history trail changed after preview', async () => {
-    const pages: PageDef[] = [{
-      id: 51,
-      path: 'docs/history-stale',
-      locale: 'en',
-      title: 'T',
-      content: '# current',
-      fingerprint: 'fp51',
-      history: [
-        { versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 1, authorName: 'A', actionType: 'initial', content: '# v1', title: 'V1' },
-      ],
-    }];
+  it('records a single stale page as a failed item instead of aborting the whole run', async () => {
+    const pages: PageDef[] = [
+      {
+        id: 51,
+        path: 'docs/history-stale',
+        locale: 'en',
+        title: 'T',
+        content: '# current',
+        fingerprint: 'fp51',
+        history: [
+          { versionId: 1, versionDate: '2026-01-01T00:00:00.000Z', authorId: 1, authorName: 'A', actionType: 'initial', content: '# v1', title: 'V1' },
+        ],
+      },
+      { id: 52, path: 'docs/history-fine', locale: 'en', title: 'Fine', content: '# fine', fingerprint: 'fp52' },
+    ];
     const { runId } = await seedImport({ pages, includeHistory: true });
     // Simulate a new edit landing on Wiki.js after the preview snapshot was taken.
     pages[0]!.history!.push({
@@ -480,9 +483,19 @@ describe('runTransferImport wikijs_import includeHistory', () => {
     await runTransferImport(runId);
 
     const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
-    expect(updated?.status).toBe('failed');
-    expect(updated?.errorMessage).toMatch(/changed after preview/);
-    expect(mocks.writeImportedPageWithHistory).not.toHaveBeenCalled();
+    // A single bad item degrades the run to warnings, not a hard failure —
+    // the other (unaffected) page still gets processed normally below.
+    expect(updated?.status).toBe('completed_with_warnings');
+    expect(updated?.failedItems).toBe(1);
+    expect(updated?.processedItems).toBe(2);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, runId) });
+    const staleItem = items.find((item) => item.sourceKey === '51');
+    expect(staleItem?.status).toBe('failed');
+    expect(staleItem?.errorMessage).toMatch(/changed after preview/);
+    // Only the stale page's write is skipped — the unaffected page still went through.
+    expect(mocks.writeImportedPageWithHistory).toHaveBeenCalledTimes(1);
+    expect(mocks.writeImportedPageWithHistory).toHaveBeenCalledWith(expect.objectContaining({ path: 'docs/history-fine' }));
   });
 
   it('marks the item as a WIKIJS_HISTORY_TRUNCATED warning when history exceeds the configured limit', async () => {
