@@ -133,7 +133,12 @@ export async function retrieve(
       excerpt: combinedExcerpt,
       score: best.score,
       spaceSlug: best.spaceSlug,
-      canonicalUrl: canonicalSpacePath({ kind: best.spaceKind, routePrefix: best.routePrefix }, best.path, best.locale),
+      // A locale segment only routes for a genuine translation row
+      // (sourcePageId set — see getLiveTranslation). best.locale just
+      // records what language the page is written in; passing it
+      // unconditionally produced a citation link that 404s for any
+      // non-English original page.
+      canonicalUrl: canonicalSpacePath({ kind: best.spaceKind, routePrefix: best.routePrefix }, best.path, best.sourcePageId ? best.locale : null),
       rawCategorySystemKey: best.rawCategorySystemKey,
     };
   });

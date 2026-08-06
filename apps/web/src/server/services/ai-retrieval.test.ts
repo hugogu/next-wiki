@@ -59,6 +59,53 @@ describe('AI vector retrieval', () => {
     await removeAiTestUser(userId);
   });
 
+  it('omits the locale segment from canonicalUrl for a non-English original page', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('admin');
+    const spaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: spaceId, slug: `retrieval-locale-${spaceId}`, name: 'Retrieval Locale' });
+    const [provider] = await db.insert(schema.aiProviders).values({
+      name: 'Retrieval locale fixture', kind: 'openai_compatible', baseUrl: 'https://example.com',
+      credentialsEncrypted: 'encrypted', createdBy: userId, updatedBy: userId,
+    }).returning();
+    const [model] = await db.insert(schema.aiModels).values({
+      providerId: provider!.id, externalId: 'embed', displayName: 'Embed',
+      availability: 'available', embeddingDimensions: 3,
+    }).returning();
+    const [generation] = await db.insert(schema.aiIndexGenerations).values({
+      modelId: model!.id, embeddingDimensions: 3, chunkerVersion: 'test', status: 'ready', isActive: true,
+    }).returning();
+    // Original page (sourcePageId null — not a translation row), locale 'zh',
+    // e.g. any Wiki.js-imported page. Only a genuine translation resolves at
+    // a locale-prefixed URL (getLiveTranslation); this one must stay bare.
+    const pageId = randomUUID();
+    const revisionId = randomUUID();
+    await db.insert(schema.pages).values({
+      id: pageId, spaceId, slug: 'zh-original', path: 'zh-original', locale: 'zh', title: 'Zh Page',
+      authorId: userId, currentPublishedVersionId: revisionId, latestVersionId: revisionId,
+    });
+    await db.insert(schema.pageRevisions).values({
+      id: revisionId, pageId, versionNumber: 1, contentSource: 'zh content',
+      contentHtml: '<p>zh content</p>', contentHash: 'hash-zh', authorId: userId,
+      status: 'published', publishedAt: new Date(),
+    });
+    await db.insert(schema.aiKnowledgeChunks).values({
+      generationId: generation!.id, pageId, revisionId,
+      chunkIndex: 0, contentText: 'zh content', contentHash: 'chunk-zh',
+      byteCount: 9, embedding: [1, 0, 0],
+    });
+
+    const grouped = await retrieve(buildUserCtx(userId, 'admin'), generation!.id, [1, 0, 0], 1);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]).toMatchObject({ pageId, locale: 'zh', canonicalUrl: '/wiki/zh-original' });
+
+    await clearAiData();
+    await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, revisionId));
+    await db.delete(schema.pages).where(eq(schema.pages.id, pageId));
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, spaceId));
+    await removeAiTestUser(userId);
+  });
+
   it('filters out results the caller cannot read (FR-009 regression)', async () => {
     await clearAiData();
     const userId = await createAiTestUser('reader');

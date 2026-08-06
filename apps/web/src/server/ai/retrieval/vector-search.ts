@@ -8,6 +8,10 @@ export type VectorMatch = {
   title: string;
   path: string;
   locale: string;
+  // A locale segment only routes for a genuine translation row (see
+  // getLiveTranslation) — null for a source/original page, which is what
+  // canonicalUrl below must key off instead of `locale`.
+  sourcePageId: string | null;
   contentHash: string;
   contentText: string;
   score: number;
@@ -48,6 +52,7 @@ export async function exactCosineSearch(
     title: string;
     path: string;
     locale: string;
+    source_page_id: string | null;
     content_hash: string;
     content_text: string;
     score: number | string;
@@ -65,6 +70,7 @@ export async function exactCosineSearch(
       p.title,
       p.path,
       p.locale,
+      p.source_page_id,
       r.content_hash,
       c.content_text,
       1 - (c.embedding <=> ${vector}::vector) as score,
@@ -94,6 +100,7 @@ export async function exactCosineSearch(
     title: row.title,
     path: row.path,
     locale: row.locale,
+    sourcePageId: row.source_page_id,
     contentHash: row.content_hash,
     contentText: row.content_text,
     score: Number(row.score),
