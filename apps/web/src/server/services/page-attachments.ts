@@ -309,3 +309,30 @@ export async function getServableAttachment(ctx: PermCtx, attachmentId: string):
     throw error;
   }
 }
+
+/**
+ * Remove (soft-delete) an attachment from its page. Gated by the existing
+ * `edit` action on the owning page — deliberately not the `attach_file`
+ * action/`attachments` scope, so an API key with only `edit` can remove an
+ * attachment it could not have uploaded (FR-004; research.md §5 documents
+ * this as an intentional asymmetry with attaching, not an oversight).
+ */
+export async function removeAttachment(ctx: PermCtx, attachmentId: string): Promise<void> {
+  const userId = getActorUserId(ctx);
+  if (userId === null) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to remove attachments');
+  }
+
+  const row = await loadAttachmentWithPage(attachmentId);
+  if (!row || row.attachment.removedAt) {
+    throw new DomainError('NOT_FOUND', 'Attachment not found');
+  }
+  if (!can(ctx, 'edit', { kind: 'page', pageId: row.page.id }, permOptions(ctx, row.page))) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to remove this attachment');
+  }
+
+  await db
+    .update(schema.pageAttachments)
+    .set({ removedAt: new Date(), removedBy: userId })
+    .where(eq(schema.pageAttachments.id, attachmentId));
+}

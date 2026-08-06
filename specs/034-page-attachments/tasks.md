@@ -114,14 +114,14 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T030 [P] [US3] Unit tests for `removeAttachment` (soft-deletes `removed_at`/`removed_by`, preserves uploader/attach and remover/removal audit data, and makes subsequent `getServableAttachment` return `not_found`) in `apps/web/src/server/services/page-attachments.test.ts`
-- [ ] T031 [P] [US3] Permission tests: session editor/author can remove, session reader cannot; `api_key` with `edit` scope but no `attachments` scope **can** remove (research.md §5's documented intentional asymmetry with attach) in `apps/web/src/server/services/page-attachments-permissions.test.ts`
+- [X] T030 [P] [US3] Unit tests for `removeAttachment` (soft-deletes `removed_at`/`removed_by`, preserves uploader/attach and remover/removal audit data, and makes subsequent `getServableAttachment` return `not_found`) in `apps/web/src/server/services/page-attachments.test.ts`
+- [X] T031 [P] [US3] Permission tests: session editor/author can remove, session reader cannot; `api_key` with `edit` scope but no `attachments` scope **can** remove (research.md §5's documented intentional asymmetry with attach) in `apps/web/src/server/services/page-attachments-permissions.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Add `removeAttachment(ctx, id)` to `apps/web/src/server/services/page-attachments.ts`, gated by the existing `edit` action on the owning page (no new scope) (depends on T015)
-- [ ] T033 [US3] Create `apps/web/app/api/v1/attachments/[id]/route.ts` with a `DELETE` handler → `204` (depends on T009, T032)
-- [ ] T034 [US3] Add a remove button to `AttachmentsPanel.tsx` for users who can edit the page, with optimistic removal from the rendered list (depends on T019, T033)
+- [X] T032 [US3] Add `removeAttachment(ctx, id)` to `apps/web/src/server/services/page-attachments.ts`, gated by the existing `edit` action on the owning page (no new scope) (depends on T015)
+- [X] T033 [US3] Create `apps/web/app/api/v1/attachments/[id]/route.ts` with a `DELETE` handler → `204` (depends on T009, T032)
+- [X] T034 [US3] Add a remove button to `AttachmentsPanel.tsx` for users who can edit the page, with optimistic removal from the rendered list (depends on T019, T033) — built alongside T019
 
 **Checkpoint**: User Stories 1–3 are all independently functional.
 

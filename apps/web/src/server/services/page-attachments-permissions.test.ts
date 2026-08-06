@@ -167,3 +167,33 @@ describe('canReadAttachment — reading needs no independent scope (FR-003b/FR-0
     await expect(pageAttachments.listAttachments(ctx, pageId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
+
+describe('removeAttachment — permission (FR-004, research.md §5)', () => {
+  it('lets the editor/author remove', async () => {
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+    await pageAttachments.removeAttachment(editorCtx(), created.id);
+    expect((await pageAttachments.getServableAttachment(editorCtx(), created.id)).kind).toBe('not_found');
+  });
+
+  it('refuses a reader session', async () => {
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+    await expect(pageAttachments.removeAttachment(readerCtx(), created.id)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
+  it('lets an API key with only the edit scope remove, even without the attachments scope — an intentional asymmetry with attaching', async () => {
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+    const ctx = buildApiKeyCtx(editorId, 'editor', ['edit'], 'key-remove-1');
+    await pageAttachments.removeAttachment(ctx, created.id);
+    expect((await pageAttachments.getServableAttachment(editorCtx(), created.id)).kind).toBe('not_found');
+  });
+
+  it('refuses an API key with only the attachments scope and no edit scope', async () => {
+    const created = await pageAttachments.attachFile(editorCtx(), pageId, PDF, 'a.pdf');
+    const ctx = buildApiKeyCtx(editorId, 'editor', ['attachments'], 'key-remove-2');
+    await expect(pageAttachments.removeAttachment(ctx, created.id)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+});

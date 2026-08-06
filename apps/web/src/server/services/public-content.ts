@@ -937,6 +937,10 @@ export async function getAttachmentContent(ctx: PermCtx, id: string) {
   return pageAttachments.getServableAttachment(ctx, id);
 }
 
+export async function removeAttachment(ctx: PermCtx, id: string): Promise<void> {
+  await pageAttachments.removeAttachment(ctx, id);
+}
+
 export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promise<PublicPageSearchResponse> {
   const space = await resolveSpace(query.space);
   if (!space) return { items: [], nextCursor: null };
