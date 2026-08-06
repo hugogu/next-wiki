@@ -44,6 +44,8 @@ export const QUEUES = {
   staticSitePublish: 'static-site-publish',
   /** Discovers a due scheduled publish only; the work happens on the queue above. */
   staticSiteTick: 'static-site-tick',
+  /** Durable page/folder relocation; one page is committed at a time. */
+  crossSpaceMigration: 'cross-space-migration',
 } as const;
 
 /**
@@ -69,6 +71,7 @@ export const QUEUE_EXPIRE_SECONDS: Partial<Record<string, number>> = {
   // tree. Larger ceiling than gitExport because rendering and indexing dominate
   // on a big wiki, and a false expiry here stalls the worker permanently.
   [QUEUES.staticSitePublish]: 4 * 60 * 60,
+  [QUEUES.crossSpaceMigration]: 4 * 60 * 60,
 };
 
 /**

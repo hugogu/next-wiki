@@ -24,6 +24,16 @@ pnpm db:generate
 
 The final migration generation check must report no further schema changes.
 
+## Recovery and cancellation
+
+- Migration previews expire after four hours; create a new preview after a page,
+  folder, or destination changes.
+- The worker claims one item at a time. Restarting a worker re-enqueues queued
+  or running operations and completed items are never moved again.
+- Cancel through the dialog or `POST /api/v1/space-migrations/{id}/cancellation`.
+  The current item may finish; pending items are retained as cancelled and a
+  fresh preview is required before retrying them.
+
 ## Scenario 1 — Page from Pages list
 
 1. As an Administrator, open an imported Wiki page in Pages.

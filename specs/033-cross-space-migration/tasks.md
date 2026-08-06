@@ -23,16 +23,16 @@
 
 **⚠️ CRITICAL**: Complete this phase before beginning any user story.
 
-- [ ] T004 Add cross-space migration status enums, operation tables, item tables, constraints, and indexes to `apps/web/src/server/db/schema/enums.ts` and `apps/web/src/server/db/schema/index.ts`
-- [ ] T005 Generate the Drizzle migration and snapshot for the migration schema with `pnpm db:generate`, producing files under `apps/web/src/server/db/migrations/`
-- [ ] T006 Add shared Zod input/output schemas, status types, error codes, and API/MCP result models in `packages/shared/src/page-migrations.ts`
-- [ ] T007 Export the shared migration contracts from `packages/shared/src/index.ts`
-- [ ] T008 Add OpenAPI migration schemas, operation status models, and standard error mappings in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/src/server/api/errors.ts`
-- [ ] T009 Implement administrator and API-key/MCP authorization, Wiki/AI-Generation mode validation, source/destination visibility checks, and selection-fingerprint validation helpers in `apps/web/src/server/services/cross-space-migrations.ts`
-- [ ] T010 Add a `cross-space-migration` pg-boss queue definition and worker runtime dependencies in `apps/web/src/server/jobs/runtime.ts`
-- [ ] T011 Register the migration worker and recover queued/running operations safely on worker startup in `apps/web/src/server/jobs/register.ts`
-- [ ] T012 Add unit tests for shared migration contracts and invalid status transitions in `packages/shared/src/page-migrations.test.ts`
-- [ ] T013 Add service tests for authority, content-mode, same-space, invisible-space, and stale-preview rejection in `apps/web/src/server/services/cross-space-migrations.test.ts`
+- [X] T004 Add cross-space migration status enums, operation tables, item tables, constraints, and indexes to `apps/web/src/server/db/schema/enums.ts` and `apps/web/src/server/db/schema/index.ts`
+- [X] T005 Generate the Drizzle migration and snapshot for the migration schema with `pnpm db:generate`, producing files under `apps/web/src/server/db/migrations/`
+- [X] T006 Add shared Zod input/output schemas, status types, error codes, and API/MCP result models in `packages/shared/src/page-migrations.ts`
+- [X] T007 Export the shared migration contracts from `packages/shared/src/index.ts`
+- [X] T008 Add OpenAPI migration schemas, operation status models, and standard error mappings in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/src/server/api/errors.ts`
+- [X] T009 Implement administrator and API-key/MCP authorization, Wiki/AI-Generation mode validation, source/destination visibility checks, and selection-fingerprint validation helpers in `apps/web/src/server/services/cross-space-migrations.ts`
+- [X] T010 Add a `cross-space-migration` pg-boss queue definition and worker runtime dependencies in `apps/web/src/server/jobs/runtime.ts`
+- [X] T011 Register the migration worker and recover queued/running operations safely on worker startup in `apps/web/src/server/jobs/register.ts`
+- [X] T012 Add unit tests for shared migration contracts and invalid status transitions in `packages/shared/src/page-migrations.test.ts`
+- [X] T013 Add service tests for authority, content-mode, same-space, invisible-space, and stale-preview rejection in `apps/web/src/server/services/cross-space-migrations.test.ts`
 
 **Checkpoint**: Durable migration records, validated shared contracts, and an executable but not yet page-moving worker are available to all stories.
 
@@ -46,17 +46,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T014 [P] [US1] Add service tests for a single-page preview snapshot, idempotent confirmation, and duplicate-confirm protection in `apps/web/src/server/services/cross-space-migrations.test.ts`
-- [ ] T015 [P] [US1] Add worker tests for single-page movement, revision-preserving tag rehoming, human-initiated AI/OKF adaptation metadata, and source permission cleanup in `apps/web/src/server/jobs/cross-space-migration.test.ts`
+- [X] T014 [P] [US1] Add service tests for a single-page preview snapshot, idempotent confirmation, and duplicate-confirm protection in `apps/web/src/server/services/cross-space-migrations.test.ts`
+- [X] T015 [P] [US1] Add worker tests for single-page movement, revision-preserving tag rehoming, human-initiated AI/OKF adaptation metadata, and source permission cleanup in `apps/web/src/server/jobs/cross-space-migration.test.ts`
 - [ ] T016 [P] [US1] Add routing/cache tests for cross-space legacy routes, opaque private pages, cache invalidation, and index reconciliation in `apps/web/src/server/services/cross-space-migrations.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Implement single-page preview creation with immutable selected-page snapshots, source/destination summaries, warnings, and expiry in `apps/web/src/server/services/cross-space-migrations.ts`
-- [ ] T018 [US1] Implement atomic idempotent confirmation that persists an operation and one item, records an audit event, and enqueues the worker in `apps/web/src/server/services/cross-space-migrations.ts`
-- [ ] T019 [US1] Implement one-item worker execution with short database transactions, preserved page/revision/provenance IDs, destination placement, explicit page-permission removal, tag rehoming revisions, and failure recording in `apps/web/src/server/jobs/cross-space-migration.ts`
-- [ ] T020 [US1] Record old canonical paths as `cross_space_migration` redirects and enforce public/published-only redirect behavior in `apps/web/src/server/jobs/cross-space-migration.ts` and `apps/web/src/server/services/reader-routing.ts`
-- [ ] T021 [US1] Invalidate source/destination page and navigation caches, notify public content changes, reconcile search/AI indexes, and schedule canonical warmups after a page finishes in `apps/web/src/server/jobs/cross-space-migration.ts`
+- [X] T017 [US1] Implement single-page preview creation with immutable selected-page snapshots, source/destination summaries, warnings, and expiry in `apps/web/src/server/services/cross-space-migrations.ts`
+- [X] T018 [US1] Implement atomic idempotent confirmation that persists an operation and one item, records an audit event, and enqueues the worker in `apps/web/src/server/services/cross-space-migrations.ts`
+- [X] T019 [US1] Implement one-item worker execution with short database transactions, preserved page/revision/provenance IDs, destination placement, explicit page-permission removal, tag rehoming revisions, and failure recording in `apps/web/src/server/jobs/cross-space-migration.ts`
+- [X] T020 [US1] Record old canonical paths as `cross_space_migration` redirects and enforce public/published-only redirect behavior in `apps/web/src/server/jobs/cross-space-migration.ts` and `apps/web/src/server/services/reader-routing.ts`
+- [X] T021 [US1] Invalidate source/destination page and navigation caches, notify public content changes, reconcile search/AI indexes, and schedule canonical warmups after a page finishes in `apps/web/src/server/jobs/cross-space-migration.ts`
 - [ ] T022 [US1] Delegate the existing admin single-page move service to the new migration domain service without changing its legacy route contract in `apps/web/src/server/services/pages.ts`
 - [ ] T023 [US1] Add an end-to-end single-page migration and legacy-route verification scenario in `apps/web/e2e/cross-space-migration.spec.ts`
 
@@ -78,11 +78,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Extend preview selection to resolve Navigator folder paths and recursively snapshot eligible pages and translations in `apps/web/src/server/services/cross-space-migrations.ts`
-- [ ] T028 [US2] Persist ordered migration items, collision warnings, excluded descendants, and translated-page relationships on confirmation in `apps/web/src/server/services/cross-space-migrations.ts`
-- [ ] T029 [US2] Extend the worker to claim, move, and finalize one item at a time; derive operation progress and terminal `completed`, `completed_with_warnings`, `failed`, or `cancelled` state in `apps/web/src/server/jobs/cross-space-migration.ts`
-- [ ] T030 [US2] Implement recoverable-operation discovery and safe queue re-enqueueing for interrupted migration jobs in `apps/web/src/server/services/cross-space-migrations.ts` and `apps/web/src/server/jobs/register.ts`
-- [ ] T031 [US2] Implement cancellation requests that stop unclaimed items, preserve completed work, and expose stable terminal details in `apps/web/src/server/services/cross-space-migrations.ts`
+- [X] T027 [US2] Extend preview selection to resolve Navigator folder paths and recursively snapshot eligible pages and translations in `apps/web/src/server/services/cross-space-migrations.ts`
+- [X] T028 [US2] Persist ordered migration items, collision warnings, excluded descendants, and translated-page relationships on confirmation in `apps/web/src/server/services/cross-space-migrations.ts`
+- [X] T029 [US2] Extend the worker to claim, move, and finalize one item at a time; derive operation progress and terminal `completed`, `completed_with_warnings`, `failed`, or `cancelled` state in `apps/web/src/server/jobs/cross-space-migration.ts`
+- [X] T030 [US2] Implement recoverable-operation discovery and safe queue re-enqueueing for interrupted migration jobs in `apps/web/src/server/services/cross-space-migrations.ts` and `apps/web/src/server/jobs/register.ts`
+- [X] T031 [US2] Implement cancellation requests that stop unclaimed items, preserve completed work, and expose stable terminal details in `apps/web/src/server/services/cross-space-migrations.ts`
 - [ ] T032 [US2] Add an end-to-end folder migration scenario covering nested pages, translations, exclusions, collisions, and progress in `apps/web/e2e/cross-space-migration.spec.ts`
 
 **Checkpoint**: Folder migration is durable, transparent about conflicts, and safe to resume or cancel without duplicate moves.
@@ -103,11 +103,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T036 [US3] Build a reusable cross-space migration dialog and launcher with preview, confirm, progress, cancellation, and destination-space selection in `apps/web/src/components/pages/CrossSpaceMigrationDialog.tsx`
-- [ ] T037 [US3] Add localized migration labels, warnings, status messages, and accessibility keys in `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/i18n/keys.ts`
-- [ ] T038 [US3] Add administrator-only page and virtual-folder overflow launchers to `apps/web/src/components/layout/Navigator.tsx`, passing virtual-folder paths rather than fabricated IDs
-- [ ] T039 [US3] Replace the Pages-list row move entry with the shared launcher and refresh/rekey affected list data in `apps/web/src/components/admin/pages/AdminPagesPanel.tsx` and `apps/web/src/components/admin/pages/MovePageButton.tsx`
-- [ ] T040 [US3] Refresh route state and clear/rekey Navigator lazy-tree caches after terminal migration results in `apps/web/src/components/pages/CrossSpaceMigrationDialog.tsx` and `apps/web/src/components/layout/Navigator.tsx`
+- [X] T036 [US3] Build a reusable cross-space migration dialog and launcher with preview, confirm, progress, cancellation, and destination-space selection in `apps/web/src/components/pages/CrossSpaceMigrationDialog.tsx`
+- [X] T037 [US3] Add localized migration labels, warnings, status messages, and accessibility keys in `apps/web/messages/en.json`, `apps/web/messages/zh.json`, and `apps/web/src/i18n/keys.ts`
+- [X] T038 [US3] Add administrator-only page and virtual-folder overflow launchers to `apps/web/src/components/layout/Navigator.tsx`, passing virtual-folder paths rather than fabricated IDs
+- [X] T039 [US3] Replace the Pages-list row move entry with the shared launcher and refresh/rekey affected list data in `apps/web/src/components/admin/pages/AdminPagesPanel.tsx` and `apps/web/src/components/admin/pages/MovePageButton.tsx`
+- [X] T040 [US3] Refresh route state and clear/rekey Navigator lazy-tree caches after terminal migration results in `apps/web/src/components/pages/CrossSpaceMigrationDialog.tsx` and `apps/web/src/components/layout/Navigator.tsx`
 - [ ] T041 [US3] Add end-to-end UI coverage for Navigator page, Navigator folder, and Pages-list migration entry points in `apps/web/e2e/cross-space-migration.spec.ts`
 
 **Checkpoint**: All requested web entry points use one consistent, accessible migration experience.
@@ -128,12 +128,12 @@
 
 ### Implementation for User Story 4
 
-- [ ] T045 [US4] Implement authenticated preview and create endpoints with OpenAPI annotations in `apps/web/app/api/v1/space-migrations/previews/route.ts` and `apps/web/app/api/v1/space-migrations/route.ts`
-- [ ] T046 [US4] Implement operation status, paginated item-list, and cancellation endpoints with standard public API wrappers in `apps/web/app/api/v1/space-migrations/[id]/route.ts`, `apps/web/app/api/v1/space-migrations/[id]/items/route.ts`, and `apps/web/app/api/v1/space-migrations/[id]/cancellation/route.ts`
-- [ ] T047 [US4] Add migration client methods and typed error handling in `packages/mcp-server/src/api-client.ts`
-- [ ] T048 [US4] Register `preview_space_migration`, `start_space_migration`, `get_space_migration`, `list_space_migration_items`, and `cancel_space_migration` MCP tools in `packages/mcp-server/src/server.ts` and `packages/mcp-server/src/tools/space-migrations.ts`
-- [ ] T049 [US4] Add the migration tool definitions and API links to `packages/shared/src/mcp-tool-catalog.ts`
-- [ ] T050 [US4] Generate the checked-in OpenAPI document from route annotations with `pnpm --filter @next-wiki/web openapi:generate`, updating `apps/web/public/openapi.json`
+- [X] T045 [US4] Implement authenticated preview and create endpoints with OpenAPI annotations in `apps/web/app/api/v1/space-migrations/previews/route.ts` and `apps/web/app/api/v1/space-migrations/route.ts`
+- [X] T046 [US4] Implement operation status, paginated item-list, and cancellation endpoints with standard public API wrappers in `apps/web/app/api/v1/space-migrations/[id]/route.ts`, `apps/web/app/api/v1/space-migrations/[id]/items/route.ts`, and `apps/web/app/api/v1/space-migrations/[id]/cancellation/route.ts`
+- [X] T047 [US4] Add migration client methods and typed error handling in `packages/mcp-server/src/api-client.ts`
+- [X] T048 [US4] Register `preview_space_migration`, `start_space_migration`, `get_space_migration`, `list_space_migration_items`, and `cancel_space_migration` MCP tools in `packages/mcp-server/src/server.ts` and `packages/mcp-server/src/tools/space-migrations.ts`
+- [X] T049 [US4] Add the migration tool definitions and API links to `packages/shared/src/mcp-tool-catalog.ts`
+- [X] T050 [US4] Generate the checked-in OpenAPI document from route annotations with `pnpm --filter @next-wiki/web openapi:generate`, updating `apps/web/public/openapi.json`
 - [ ] T051 [US4] Add public API and MCP end-to-end migration coverage in `apps/web/e2e/cross-space-migration.spec.ts` and `packages/mcp-server/src/tools/tools.test.ts`
 
 **Checkpoint**: UI, REST, and MCP use the same durable migration service and expose matching progress/error semantics.
@@ -146,7 +146,7 @@
 
 - [ ] T052 [P] Add recognized internal-link rewrite/warning policy coverage for moved pages in `apps/web/src/server/services/cross-space-migrations.test.ts`
 - [ ] T053 Implement the approved internal-link rewrite and unresolved-link warning behavior during item execution in `apps/web/src/server/jobs/cross-space-migration.ts`
-- [ ] T054 [P] Update migration setup, recovery, and manual verification guidance in `specs/033-cross-space-migration/quickstart.md`
+- [X] T054 [P] Update migration setup, recovery, and manual verification guidance in `specs/033-cross-space-migration/quickstart.md`
 - [ ] T055 Run focused migration unit/component/route/MCP tests and the cross-space Playwright suite, fixing failures in their owning files
 - [ ] T056 Run `pnpm --filter @next-wiki/web lint`, `pnpm --filter @next-wiki/web typecheck`, and `pnpm db:generate`; confirm lint/type checks pass and Drizzle reports no additional schema changes
 - [ ] T057 Run `docker compose up -d --build` and complete the migration quickstart smoke test against the local stack

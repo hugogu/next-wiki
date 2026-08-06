@@ -26,6 +26,7 @@ export * from './mcp-tool-catalog';
 export * from './scheduled-ai-jobs';
 export * from './integrations';
 export * from './static-site';
+export * from './page-migrations';
 
 // ---- Enums (mirror db/schema/enums.ts) -------------------------------------
 

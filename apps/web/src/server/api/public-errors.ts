@@ -33,6 +33,12 @@ export type PublicApiErrorCode =
   | 'RAW_CATEGORY_RETIRED'
   | 'RAW_CATEGORY_HAS_ENTRIES'
   | 'PAGE_SPACE_MOVE_INVALID'
+  | 'MIGRATION_PREVIEW_NOT_FOUND'
+  | 'STALE_MIGRATION_PREVIEW'
+  | 'MIGRATION_ALREADY_RUNNING'
+  | 'MIGRATION_CONFLICT'
+  | 'MIGRATION_SELECTION_INVALID'
+  | 'MIGRATION_DESTINATION_INVALID'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -118,6 +124,18 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'RAW_CATEGORY_HAS_ENTRIES', status: 409 };
     case 'PAGE_SPACE_MOVE_INVALID':
       return { code: 'PAGE_SPACE_MOVE_INVALID', status: 422 };
+    case 'MIGRATION_PREVIEW_NOT_FOUND':
+      return { code: 'MIGRATION_PREVIEW_NOT_FOUND', status: 404 };
+    case 'STALE_MIGRATION_PREVIEW':
+      return { code: 'STALE_MIGRATION_PREVIEW', status: 409 };
+    case 'MIGRATION_ALREADY_RUNNING':
+      return { code: 'MIGRATION_ALREADY_RUNNING', status: 409 };
+    case 'MIGRATION_CONFLICT':
+      return { code: 'MIGRATION_CONFLICT', status: 409 };
+    case 'MIGRATION_SELECTION_INVALID':
+      return { code: 'MIGRATION_SELECTION_INVALID', status: 422 };
+    case 'MIGRATION_DESTINATION_INVALID':
+      return { code: 'MIGRATION_DESTINATION_INVALID', status: 422 };
     default:
       return { code: 'VALIDATION_FAILED', status: 422 };
   }

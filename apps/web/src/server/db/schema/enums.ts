@@ -57,6 +57,28 @@ export const migrationStatusEnum = pgEnum('migration_status', [
   'aborted',
 ]);
 
+/** Lifecycle of a durable cross-space page/folder migration. */
+export const crossSpaceMigrationStatusEnum = pgEnum('cross_space_migration_status', [
+  'previewed',
+  'queued',
+  'running',
+  'completed',
+  'completed_with_warnings',
+  'failed',
+  'cancelled',
+]);
+
+/** Per-page work is deliberately resumable; an operation never holds one large transaction. */
+export const crossSpaceMigrationItemStatusEnum = pgEnum('cross_space_migration_item_status', [
+  'pending',
+  'running',
+  'moved',
+  'excluded',
+  'conflicted',
+  'failed',
+  'cancelled',
+]);
+
 export const cleanupStatusEnum = pgEnum('cleanup_status', [
   'pending',
   'running',

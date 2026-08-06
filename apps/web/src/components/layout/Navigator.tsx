@@ -32,6 +32,7 @@ import {
   LinkIcon,
   LayersIcon,
   FunctionPlotIcon,
+  MoveIcon,
 } from '@/components/icons';
 import { getConfiguredSpaceHref, getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
@@ -40,6 +41,7 @@ import type { Actor } from '@/server/permissions';
 import { NavFooterMenu } from './NavFooterMenu';
 import { AiChatHistory } from '@/components/chat/AiChatHistory';
 import type { WritingMode } from '@next-wiki/shared';
+import { CrossSpaceMigrationDialog } from '@/components/pages/CrossSpaceMigrationDialog';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
 
@@ -136,8 +138,10 @@ function TreeItem({
   onLoad,
   canCreate,
   addChildLabel,
+  moveLabel,
   space,
   routePrefix,
+  canMigrate,
 }: {
   node: LazyPublicPageTreeNode;
   currentPath?: string;
@@ -155,9 +159,14 @@ function TreeItem({
   /** Whether to show the per-row "new child page" button (editors/admins). */
   canCreate: boolean;
   addChildLabel: string;
+  moveLabel: string;
   space: ReaderSpace;
   routePrefix?: string;
+  canMigrate: boolean;
 }) {
+  const [migrationSelection, setMigrationSelection] = useState<
+    { kind: 'page'; pageId: string } | { kind: 'folder'; sourceSpaceId: string; pathPrefix: string } | null
+  >(null);
   const loadState = getLoadState(node);
   const active = node.pageId !== null && node.path === currentPath;
   const isOpen = expanded.has(node.path);
@@ -233,7 +242,20 @@ function TreeItem({
             <PlusIcon className="h-4 w-4" />
           </Link>
         )}
+        {canMigrate && space !== 'raw' && (
+          <button
+            type="button"
+            onClick={() => setMigrationSelection(node.pageId && !node.hasChildren ? { kind: 'page', pageId: node.pageId } : { kind: 'folder', sourceSpaceId: '', pathPrefix: node.path })}
+            title={moveLabel}
+            aria-label={moveLabel}
+            className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-opacity hover:text-foreground hover:bg-surface-elevated focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+          >
+            <MoveIcon className="h-4 w-4" />
+          </button>
+        )}
       </div>
+
+      {migrationSelection && <CrossSpaceMigrationDialog selection={migrationSelection} sourceSpaceKind={space === 'generated' ? 'generated' : 'wiki'} title={node.title || node.segment} onClose={() => setMigrationSelection(null)} onComplete={() => { setMigrationSelection(null); window.location.reload(); }} />}
 
       {node.hasChildren && isOpen && (
         <ul>
@@ -251,8 +273,10 @@ function TreeItem({
                 onLoad={onLoad}
                 canCreate={canCreate}
                 addChildLabel={addChildLabel}
+                moveLabel={moveLabel}
                 space={space}
                 routePrefix={routePrefix}
+                canMigrate={canMigrate}
               />
             ))
           ) : loadState.status === 'loading' ? (
@@ -314,7 +338,9 @@ export function Navigator({
     user.role === 'admin' &&
     !admin &&
     !userCenter;
+  const canMigrate = canSwitchSpaces;
   const addChildLabel = t('layout.nav.addChild');
+  const moveLabel = t('admin.pages.actions.move');
   const pathname = usePathname();
   const ADMIN_GROUPS: AdminNavGroup[] = [
     {
@@ -738,9 +764,11 @@ export function Navigator({
                       getLoadState={getLoadState}
                       onLoad={loadBranch}
                       canCreate={canCreatePages}
-                      addChildLabel={addChildLabel}
+                    addChildLabel={addChildLabel}
+                    moveLabel={moveLabel}
                       space={space}
-                      routePrefix={routePrefix}
+                    routePrefix={routePrefix}
+                    canMigrate={canMigrate}
                     />
                   ))}
                 </ul>

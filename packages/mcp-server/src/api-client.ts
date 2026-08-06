@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import type {
+  SpaceMigrationConfirmInput,
+  SpaceMigrationOperation,
+  SpaceMigrationPreview,
+  SpaceMigrationPreviewInput,
+} from '@next-wiki/shared';
 
 export const publicPageStatusSchema = z.enum(['draft', 'published', 'deleted']);
 export type PublicPageStatus = z.infer<typeof publicPageStatusSchema>;
@@ -834,5 +840,28 @@ export class WikiApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
+  }
+
+  async previewSpaceMigration(input: SpaceMigrationPreviewInput): Promise<SpaceMigrationPreview> {
+    return this.request<SpaceMigrationPreview>('/space-migrations/previews', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async startSpaceMigration(input: SpaceMigrationConfirmInput): Promise<SpaceMigrationOperation> {
+    return this.request<SpaceMigrationOperation>('/space-migrations', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async getSpaceMigration(id: string): Promise<SpaceMigrationOperation> {
+    return this.request<SpaceMigrationOperation>(`/space-migrations/${id}`);
+  }
+
+  async listSpaceMigrationItems(id: string, options: { limit?: number; cursor?: string } = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.cursor) params.set('cursor', options.cursor);
+    return this.request<{ items: unknown[]; nextCursor: string | null }>(`/space-migrations/${id}/items?${params.toString()}`);
+  }
+
+  async cancelSpaceMigration(id: string): Promise<SpaceMigrationOperation> {
+    return this.request<SpaceMigrationOperation>(`/space-migrations/${id}/cancellation`, { method: 'POST' });
   }
 }

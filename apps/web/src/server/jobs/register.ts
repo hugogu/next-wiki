@@ -48,6 +48,7 @@ import { runRequestLogPersist } from './request-log-persist';
 import { runScheduledAiJobRun, runScheduledAiTick } from './scheduled-ai-jobs';
 import { runStaticSitePublish } from './static-site-publish';
 import { tickScheduledPublish } from '@/server/services/static-site';
+import { findRecoverableCrossSpaceMigrationIds, runCrossSpaceMigration } from '@/server/services/cross-space-migrations';
 
 type JobBatch = { data: unknown }[];
 
@@ -118,6 +119,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
     const items = jobs.map((job) => job.data as { targetId?: string; publicationId?: string });
     const latest = items.filter((item) => item?.targetId && item?.publicationId).at(-1);
     if (latest) await runStaticSitePublish(latest.targetId!, latest.publicationId!);
+  });
+  await boss.work(QUEUES.crossSpaceMigration, async (jobs: JobBatch) => {
+    for (const job of jobs) await runCrossSpaceMigration((job.data as { migrationId: string }).migrationId);
   });
   await boss.work(QUEUES.aiAction, async (jobs: JobBatch) => {
     for (const job of jobs) {
@@ -229,6 +233,10 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   for (const migrationId of await findInterruptedMigrationIds()) {
     await boss.send(QUEUES.migration, { migrationId });
     logger.info('re-enqueued interrupted migration', { migrationId });
+  }
+  for (const migrationId of await findRecoverableCrossSpaceMigrationIds()) {
+    await boss.send(QUEUES.crossSpaceMigration, { migrationId });
+    logger.info('re-enqueued interrupted cross-space migration', { migrationId });
   }
   for (const { id: actionId, feature } of await findRecoverableActionIds()) {
     await boss.send(queueForFeature(feature), { actionId });

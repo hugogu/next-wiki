@@ -734,6 +734,13 @@
       "move": {
         "title": "Move to {space}",
         "description": "Move \"{title}\" to the {space} space. The content format is adapted automatically (OKF frontmatter is added when moving into Generated).",
+        "destinationLabel": "Destination space",
+        "destinationPathLabel": "Destination folder (optional)",
+        "destinationPathPlaceholder": "Keep the existing path when empty",
+        "preview": "Preview migration",
+        "previewCount": "{count} page(s) will be migrated",
+        "operationStatus": "Migration {status}: {moved} of {total} page(s) moved",
+        "cancelMigration": "Cancel migration",
         "visibilityLabel": "Visibility after moving",
         "visibility": {
           "public": "Public",

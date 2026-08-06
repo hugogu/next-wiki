@@ -7153,6 +7153,354 @@
           }
         ]
       },
+      "SpaceMigrationConfirmInput": {
+        "type": "object",
+        "properties": {
+          "previewId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 16
+          }
+        },
+        "required": [
+          "previewId",
+          "fingerprint"
+        ]
+      },
+      "SpaceMigrationItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourcePath": {
+            "type": "string"
+          },
+          "destinationPath": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "moved",
+              "excluded",
+              "conflicted",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "warning": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canonicalUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "pageId",
+          "sourcePath",
+          "destinationPath",
+          "locale",
+          "status",
+          "warning",
+          "failure"
+        ]
+      },
+      "SpaceMigrationItemsQuery": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SpaceMigrationOperation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "previewed",
+              "queued",
+              "running",
+              "completed",
+              "completed_with_warnings",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "sourceSpaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "destinationSpaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "totalItems": {
+            "type": "integer"
+          },
+          "movedItems": {
+            "type": "integer"
+          },
+          "warningCount": {
+            "type": "integer"
+          },
+          "failedItems": {
+            "type": "integer"
+          },
+          "cancellationRequested": {
+            "type": "boolean"
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "sourceSpaceId",
+          "destinationSpaceId",
+          "totalItems",
+          "movedItems",
+          "warningCount",
+          "failedItems",
+          "cancellationRequested",
+          "failure",
+          "createdAt",
+          "startedAt",
+          "completedAt"
+        ]
+      },
+      "SpaceMigrationPreview": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "previewed"
+            ]
+          },
+          "sourceSpace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "wiki",
+                  "generated"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "kind"
+            ]
+          },
+          "destinationSpace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "wiki",
+                  "generated"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "kind"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpaceMigrationItem"
+            }
+          },
+          "warningCount": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "fingerprint",
+          "status",
+          "sourceSpace",
+          "destinationSpace",
+          "items",
+          "warningCount",
+          "expiresAt"
+        ]
+      },
+      "SpaceMigrationPreviewInput": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/SpaceMigrationSelection"
+          },
+          "destinationSpaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "destinationPathPrefix": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "registered",
+              "restricted"
+            ]
+          },
+          "adaptOkf": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "selection",
+          "destinationSpaceId"
+        ],
+        "description": "Creates a durable migration preview; confirmation requires its fingerprint."
+      },
+      "SpaceMigrationSelection": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "page"
+                ]
+              },
+              "pageId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "kind",
+              "pageId"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "folder"
+                ]
+              },
+              "sourceSpaceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pathPrefix": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind",
+              "sourceSpaceId",
+              "pathPrefix"
+            ]
+          }
+        ],
+        "description": "One page or a folder subtree selected for cross-space migration."
+      },
       "StaticSiteEligibilitySummary": {},
       "StaticSitePublicationListResponse": {
         "type": "object",
@@ -8858,8 +9206,8 @@
               "completed",
               "failed",
               "cancelled",
-              "paused",
-              "completed_with_warnings"
+              "completed_with_warnings",
+              "paused"
             ]
           },
           "id": {
@@ -18866,6 +19214,195 @@
         }
       }
     },
+    "/v1/space-migrations": {
+      "post": {
+        "operationId": "post-v1-space-migrations",
+        "summary": "Start a reviewed cross-space migration",
+        "description": "",
+        "tags": [
+          "Space migrations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpaceMigrationConfirmInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceMigrationOperation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/space-migrations/{id}": {
+      "get": {
+        "operationId": "get-v1-space-migrations-{id}",
+        "summary": "Get cross-space migration status",
+        "description": "",
+        "tags": [
+          "Space migrations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceMigrationOperation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/space-migrations/previews": {
+      "post": {
+        "operationId": "post-v1-space-migrations-previews",
+        "summary": "Preview a cross-space page or folder migration",
+        "description": "",
+        "tags": [
+          "Space migrations"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpaceMigrationPreviewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceMigrationPreview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/space-migrations/{id}/cancellation": {
+      "post": {
+        "operationId": "post-v1-space-migrations-{id}-cancellation",
+        "summary": "Cancel a queued or running cross-space migration",
+        "description": "",
+        "tags": [
+          "Space migrations"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceMigrationOperation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/space-migrations/{id}/items": {
+      "get": {
+        "operationId": "get-v1-space-migrations-{id}-items",
+        "summary": "List per-page cross-space migration outcomes",
+        "description": "",
+        "tags": [
+          "Space migrations"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/static-site/eligibility": {
       "get": {
         "operationId": "get-static-site-eligibility",
@@ -22153,6 +22690,9 @@
     },
     {
       "name": "Setup"
+    },
+    {
+      "name": "Space migrations"
     },
     {
       "name": "StaticSite"

@@ -20,6 +20,8 @@ import {
   apiKeyScopeEnum,
   cleanupStatusEnum,
   migrationStatusEnum,
+  crossSpaceMigrationStatusEnum,
+  crossSpaceMigrationItemStatusEnum,
   revisionStatusEnum,
   storageBackendPurposeEnum,
   storageObjectKindEnum,
@@ -320,6 +322,65 @@ export const pageRouteRedirects = pgTable(
   (t) => ({
     legacyRouteUnique: uniqueIndex('page_route_redirects_legacy_route_unique').on(t.legacyRoute),
     targetIdx: index('page_route_redirects_target_idx').on(t.targetPageId),
+  }),
+);
+
+/** Durable preview and execution record for a page or folder migration. */
+export const crossSpaceMigrations = pgTable(
+  'cross_space_migrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    requestedBy: uuid('requested_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    sourceSpaceId: uuid('source_space_id').notNull().references(() => spaces.id, { onDelete: 'restrict' }),
+    destinationSpaceId: uuid('destination_space_id').notNull().references(() => spaces.id, { onDelete: 'restrict' }),
+    selectionKind: text('selection_kind').notNull(),
+    selectionPath: text('selection_path'),
+    selectionPageId: uuid('selection_page_id').references(() => pages.id, { onDelete: 'set null' }),
+    destinationPathPrefix: text('destination_path_prefix'),
+    visibility: pageVisibilityEnum('visibility'),
+    adaptOkf: boolean('adapt_okf').notNull().default(true),
+    fingerprint: text('fingerprint').notNull(),
+    snapshot: jsonb('snapshot').notNull(),
+    status: crossSpaceMigrationStatusEnum('status').notNull().default('previewed'),
+    warningCount: integer('warning_count').notNull().default(0),
+    failure: text('failure'),
+    cancellationRequestedAt: timestamp('cancellation_requested_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    statusIdx: index('cross_space_migrations_status_idx').on(t.status, t.createdAt),
+    requesterIdx: index('cross_space_migrations_requester_idx').on(t.requestedBy, t.createdAt),
+    previewExpiryIdx: index('cross_space_migrations_preview_expiry_idx').on(t.expiresAt),
+  }),
+);
+
+/** One ordered, independently claimable page movement within an operation. */
+export const crossSpaceMigrationItems = pgTable(
+  'cross_space_migration_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    migrationId: uuid('migration_id').notNull().references(() => crossSpaceMigrations.id, { onDelete: 'cascade' }),
+    pageId: uuid('page_id').notNull().references(() => pages.id, { onDelete: 'restrict' }),
+    ordinal: integer('ordinal').notNull(),
+    sourcePath: text('source_path').notNull(),
+    destinationPath: text('destination_path').notNull(),
+    locale: text('locale').notNull(),
+    status: crossSpaceMigrationItemStatusEnum('status').notNull().default('pending'),
+    warning: text('warning'),
+    failure: text('failure'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    migrationOrdinalUnique: uniqueIndex('cross_space_migration_items_migration_ordinal_unique').on(t.migrationId, t.ordinal),
+    migrationStatusIdx: index('cross_space_migration_items_migration_status_idx').on(t.migrationId, t.status, t.ordinal),
+    pageIdx: index('cross_space_migration_items_page_idx').on(t.pageId),
   }),
 );
 

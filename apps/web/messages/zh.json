@@ -734,6 +734,13 @@
       "move": {
         "title": "移动到 {space}",
         "description": "将\"{title}\"移动到 {space} 空间。内容格式会自动适配（移入 Generated 时自动添加 OKF frontmatter）。",
+        "destinationLabel": "目标空间",
+        "destinationPathLabel": "目标文件夹（可选）",
+        "destinationPathPlaceholder": "留空则保留原始路径",
+        "preview": "预览迁移",
+        "previewCount": "将迁移 {count} 个页面",
+        "operationStatus": "迁移 {status}：已移动 {moved}/{total} 个页面",
+        "cancelMigration": "取消迁移",
         "visibilityLabel": "移动后的可见性",
         "visibility": {
           "public": "公开",

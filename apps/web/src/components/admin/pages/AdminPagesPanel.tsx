@@ -97,10 +97,6 @@ export function AdminPagesPanel({
 }) {
   const currentSpace =
     list.filters.space === 'generated' ? 'generated' : list.filters.space === 'raw' ? 'raw' : 'default';
-  // Move only ever crosses Wiki <-> Generated; Raw content is append-only and
-  // is never a move source or target (see constitution: Raw pages stay append-only).
-  const targetSpace = currentSpace === 'generated' ? 'default' : 'generated';
-  const targetSpaceLabel = t(targetSpace === 'generated' ? 'admin.pages.spaces.generated' : 'admin.pages.spaces.wiki');
   return (
     <div className="space-y-md">
       <div className="grid gap-md lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.8fr)] lg:items-start">
@@ -258,8 +254,7 @@ export function AdminPagesPanel({
                         <MovePageButton
                           pageId={page.id}
                           title={page.title}
-                          targetSpace={targetSpace}
-                          targetSpaceLabel={targetSpaceLabel}
+                          sourceSpaceKind={currentSpace === 'generated' ? 'generated' : 'wiki'}
                         />
                       )}
                       <DeletePageButton pageId={page.id} title={page.title} />

@@ -3,6 +3,39 @@ import { apiKeyScopeSchema, auditEntrySchema, auditQueryParamsSchema, userViewSc
 
 export { apiKeyScopeSchema, auditEntrySchema, auditQueryParamsSchema, userViewSchema };
 
+export const SpaceMigrationSelection = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('page'), pageId: z.string().uuid() }),
+  z.object({ kind: z.literal('folder'), sourceSpaceId: z.string().uuid(), pathPrefix: z.string().min(1) }),
+]).describe('One page or a folder subtree selected for cross-space migration.');
+
+export const SpaceMigrationPreviewInput = z.object({
+  selection: SpaceMigrationSelection,
+  destinationSpaceId: z.string().uuid(),
+  destinationPathPrefix: z.string().optional(),
+  visibility: z.enum(['public', 'registered', 'restricted']).optional(),
+  adaptOkf: z.boolean().optional(),
+}).describe('Creates a durable migration preview; confirmation requires its fingerprint.');
+
+export const SpaceMigrationConfirmInput = z.object({ previewId: z.string().uuid(), fingerprint: z.string().min(16) });
+export const SpaceMigrationItem = z.object({
+  id: z.string().uuid(), pageId: z.string().uuid(), sourcePath: z.string(), destinationPath: z.string(), locale: z.string(),
+  status: z.enum(['pending', 'running', 'moved', 'excluded', 'conflicted', 'failed', 'cancelled']),
+  warning: z.string().nullable(), failure: z.string().nullable(), canonicalUrl: z.string().nullable().optional(),
+});
+export const SpaceMigrationPreview = z.object({
+  id: z.string().uuid(), fingerprint: z.string(), status: z.literal('previewed'),
+  sourceSpace: z.object({ id: z.string().uuid(), slug: z.string(), kind: z.enum(['wiki', 'generated']) }),
+  destinationSpace: z.object({ id: z.string().uuid(), slug: z.string(), kind: z.enum(['wiki', 'generated']) }),
+  items: z.array(SpaceMigrationItem), warningCount: z.number().int(), expiresAt: z.string().datetime(),
+});
+export const SpaceMigrationOperation = z.object({
+  id: z.string().uuid(), status: z.enum(['previewed', 'queued', 'running', 'completed', 'completed_with_warnings', 'failed', 'cancelled']),
+  sourceSpaceId: z.string().uuid(), destinationSpaceId: z.string().uuid(), totalItems: z.number().int(), movedItems: z.number().int(),
+  warningCount: z.number().int(), failedItems: z.number().int(), cancellationRequested: z.boolean(), failure: z.string().nullable(),
+  createdAt: z.string().datetime(), startedAt: z.string().datetime().nullable(), completedAt: z.string().datetime().nullable(),
+});
+export const SpaceMigrationItemsQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).optional(), cursor: z.string().uuid().optional() });
+
 /**
  * The schemas below are hand-written literal `z.object(...)` copies of
  * @next-wiki/shared runtime schemas, not re-exports or aliases of them. That

@@ -38,6 +38,7 @@ import { createRawCategory, createRawCategorySchema } from './tools/create-raw-c
 import { generateImage, generateImageSchema } from './tools/generate-image';
 import { getImageGeneration, getImageGenerationSchema } from './tools/get-image-generation';
 import { promoteGeneratedImage, promoteGeneratedImageSchema } from './tools/promote-generated-image';
+import { cancelSpaceMigration, cancelSpaceMigrationSchema, getSpaceMigration, getSpaceMigrationSchema, listSpaceMigrationItems, listSpaceMigrationItemsSchema, previewSpaceMigration, previewSpaceMigrationSchema, startSpaceMigration, startSpaceMigrationSchema } from './tools/space-migrations';
 
 export function createWikiMcpServer(client: WikiApiClient): McpServer {
   const server = new McpServer({
@@ -169,6 +170,12 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     promoteGeneratedImageSchema,
     async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await promoteGeneratedImage(client, args)) }] }),
   );
+
+  server.tool('preview_space_migration', description('preview_space_migration'), previewSpaceMigrationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await previewSpaceMigration(client, args)) }] }));
+  server.tool('start_space_migration', description('start_space_migration'), startSpaceMigrationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await startSpaceMigration(client, args)) }] }));
+  server.tool('get_space_migration', description('get_space_migration'), getSpaceMigrationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await getSpaceMigration(client, args)) }] }));
+  server.tool('list_space_migration_items', description('list_space_migration_items'), listSpaceMigrationItemsSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await listSpaceMigrationItems(client, args)) }] }));
+  server.tool('cancel_space_migration', description('cancel_space_migration'), cancelSpaceMigrationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await cancelSpaceMigration(client, args)) }] }));
 
   server.tool('delete_page', 'Soft-delete a wiki page, preserving its revision history.', deletePageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await deletePage(client, args)) }],

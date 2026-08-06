@@ -26,6 +26,11 @@ export const wikiMcpToolDescriptions = {
   get_neighborhood: 'Get the bounded link neighborhood of a page.',
   batch_update_pages: 'Update multiple pages in one request.',
   batch_soft_delete_pages: 'Soft-delete multiple pages in one request.',
+  preview_space_migration: 'Preview a durable page or folder migration between Wiki and AI Generation. Review mappings and warnings before starting.',
+  start_space_migration: 'Start a previously reviewed space migration preview. Returns an operation to poll.',
+  get_space_migration: 'Get the progress and terminal status of a space migration.',
+  list_space_migration_items: 'List individual page results for a space migration.',
+  cancel_space_migration: 'Request cancellation of a queued or running space migration; completed items remain moved.',
 } as const;
 
 export type WikiMcpToolName = keyof typeof wikiMcpToolDescriptions;
