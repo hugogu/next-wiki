@@ -11,7 +11,9 @@ import {
   writeImportedPage,
   writeImportedPageWithHistory,
   writeImportedRawEntry,
+  writeImportedRawEntryWithHistory,
   writeImportedGeneratedPage,
+  writeImportedGeneratedPageWithHistory,
 } from '@/server/services/transfer-page-writer';
 import { isRunCancelRequested, markRunPaused, markRunTerminal, readRunControlSignal } from '@/server/services/transfers';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
@@ -54,7 +56,11 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
   if (preview.sourceFingerprint !== artifact.contentHash) throw new Error('Preview is stale');
   const inspected = await inspectPortableArchive(transferArtifactStore.pathFor(artifact.storageKey));
   const sourceIdentity = artifact.contentHash ?? artifact.id;
+  const includeHistory = Boolean((preview.options as { includeHistory?: boolean }).includeHistory);
   const assetTargets = new Map<string, string>();
+  // Keyed by the manifest's hashed asset id (not the zip entry path) — raw
+  // history entries reference their original-bytes asset this way.
+  const assetTargetsById = new Map<string, string>();
   const kinds = await availableKinds();
 
   for (const asset of inspected.manifest.assets) {
@@ -67,6 +73,7 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
     });
     if (existing) {
       assetTargets.set(asset.entry, existing.targetAssetId);
+      assetTargetsById.set(asset.id, existing.targetAssetId);
       continue;
     }
     const bytes = await inspected.readEntry(asset.entry);
@@ -76,6 +83,7 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
       actorUserId: run.actorUserId,
     });
     assetTargets.set(asset.entry, target.id);
+    assetTargetsById.set(asset.id, target.id);
     await db.insert(schema.transferAssetMappings).values({
       sourceType: 'archive',
       sourceIdentity,
@@ -128,14 +136,117 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
 
     const bytes = await inspected.readEntry(page.entry);
     const parsed = parsePage(bytes.toString('utf8'));
-    const markdown = rewriteMarkdownImages(parsed.markdown, (url) => {
-      const clean = url.split(/[?#]/)[0]!;
-      const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(page.entry), clean));
-      const targetId = assetTargets.get(resolved);
-      return targetId ? `/api/assets/${targetId}` : null;
-    });
+    const rewriteImages = (entry: string, markdown: string) =>
+      rewriteMarkdownImages(markdown, (url) => {
+        const clean = url.split(/[?#]/)[0]!;
+        const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(entry), clean));
+        const targetId = assetTargets.get(resolved);
+        return targetId ? `/api/assets/${targetId}` : null;
+      });
+    const markdown = page.spaceKind === 'raw' ? parsed.markdown : rewriteImages(page.entry, parsed.markdown);
     let writeResult: { pageId: string | null; revisionId: string | null; action: 'create' | 'replace' | 'skip' };
-    if (page.spaceKind === 'raw') {
+    const historyMeta: Record<string, unknown> | undefined =
+      includeHistory && action !== 'skip' && page.historyEntries?.length
+        ? { totalAvailable: page.historyEntries.length + 1, includedCount: page.historyEntries.length + 1 }
+        : undefined;
+
+    if (historyMeta && page.historyEntries) {
+      const historyVersions = await Promise.all(
+        page.historyEntries.map(async (historyEntry) => {
+          const historyBytes = await inspected.readEntry(historyEntry.entry);
+          const historyParsed = parsePage(historyBytes.toString('utf8'));
+          const historyMarkdown = page.spaceKind === 'raw'
+            ? historyParsed.markdown
+            : rewriteImages(historyEntry.entry, historyParsed.markdown);
+          return { entry: historyEntry, frontmatter: historyParsed.frontmatter, markdown: historyMarkdown };
+        }),
+      );
+      if (page.spaceKind === 'raw') {
+        const versions = [
+          ...historyVersions.map((v) => ({
+            body: v.markdown,
+            contentType: v.entry.contentType ?? 'text/plain',
+            createdAt: new Date(v.entry.publishedAt),
+            sourceMetadata: {
+              archiveAuthorEmail: v.entry.authorEmail,
+              archiveAuthorDisplayName: v.entry.authorDisplayName,
+              archiveVersionNumber: v.entry.versionNumber,
+              isCurrent: false,
+            },
+            originalAssetId: v.entry.originalAssetId ? assetTargetsById.get(v.entry.originalAssetId) ?? null : null,
+          })),
+          {
+            body: markdown,
+            contentType: parsed.frontmatter.contentType,
+            createdAt: page.publishedAt ? new Date(page.publishedAt) : new Date(page.createdAt),
+            sourceMetadata: {
+              ...(parsed.frontmatter.inputKind ? { inputKind: parsed.frontmatter.inputKind } : {}),
+              ...(parsed.frontmatter.rawSource ?? {}),
+              isCurrent: true,
+            },
+            originalAssetId: null,
+          },
+        ];
+        const result = await writeImportedRawEntryWithHistory({
+          actorUserId: run.actorUserId!,
+          path: page.path,
+          locale: page.locale,
+          title: page.title,
+          versions,
+          action,
+        });
+        writeResult = { pageId: result.pageId, revisionId: result.revisionIds.at(-1) ?? null, action: result.action };
+      } else if (page.spaceKind === 'generated') {
+        const versions = [
+          ...historyVersions.map((v) => ({
+            markdown: v.markdown,
+            title: v.frontmatter.title,
+            createdAt: new Date(v.entry.publishedAt),
+          })),
+          {
+            markdown,
+            title: page.title,
+            createdAt: page.publishedAt ? new Date(page.publishedAt) : new Date(page.createdAt),
+          },
+        ];
+        const result = await writeImportedGeneratedPageWithHistory({
+          actorUserId: run.actorUserId!,
+          path: page.path,
+          locale: page.locale,
+          versions,
+          action,
+        });
+        writeResult = { pageId: result.pageId, revisionId: result.revisionIds.at(-1) ?? null, action: result.action };
+      } else {
+        const versions = [
+          ...historyVersions.map((v) => ({
+            markdown: v.markdown,
+            title: v.frontmatter.title,
+            createdAt: new Date(v.entry.publishedAt),
+            sourceMetadata: {
+              archiveAuthorEmail: v.entry.authorEmail,
+              archiveAuthorDisplayName: v.entry.authorDisplayName,
+              archiveVersionNumber: v.entry.versionNumber,
+              isCurrent: false,
+            },
+          })),
+          {
+            markdown,
+            title: page.title,
+            createdAt: page.publishedAt ? new Date(page.publishedAt) : new Date(page.createdAt),
+            sourceMetadata: { isCurrent: true },
+          },
+        ];
+        const result = await writeImportedPageWithHistory({
+          actorUserId: run.actorUserId!,
+          path: page.path,
+          locale: page.locale,
+          versions,
+          action,
+        });
+        writeResult = { pageId: result.pageId, revisionId: result.revisionIds.at(-1) ?? null, action: result.action };
+      }
+    } else if (page.spaceKind === 'raw') {
       writeResult = await writeImportedRawEntry({
         actorUserId: run.actorUserId!,
         page: {
@@ -209,7 +320,7 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
       targetKey: writeResult.pageId,
       action: writeResult.action,
       status: 'completed',
-      metadata: { entry: page.entry },
+      metadata: { entry: page.entry, ...(historyMeta ? { history: historyMeta } : {}) },
       finishedAt: new Date(),
     }).onConflictDoNothing();
     await db.update(schema.transferRuns).set({

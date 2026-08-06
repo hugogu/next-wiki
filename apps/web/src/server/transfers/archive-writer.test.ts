@@ -4,7 +4,8 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { TransferArtifactStore } from './artifact-store';
 import { writePortableArchive } from './archive-writer';
-import { sha256 } from './manifest';
+import { inspectPortableArchive } from './archive-reader';
+import { pageHistoryEntryPath, parsePage, sha256 } from './manifest';
 
 let directory: string | null = null;
 afterEach(async () => {
@@ -53,5 +54,69 @@ describe('portable archive writer', () => {
     expect(result.manifest.assets).toHaveLength(1);
     expect(result.stored.contentHash).toHaveLength(64);
     expect((await readFile(path.join(directory, result.stored.storageKey))).byteLength).toBeGreaterThan(0);
+  });
+
+  it('writes a page\'s history entries as their own declared zip files', async () => {
+    directory = await mkdtemp(path.join(tmpdir(), 'next-wiki-transfer-'));
+    const store = new TransferArtifactStore(directory, 1024 * 1024);
+    const now = '2026-06-21T00:00:00.000Z';
+    const page = {
+      id: 'page-1',
+      revisionId: 'rev-current',
+      path: 'docs/history',
+      locale: 'en',
+      title: 'Current title',
+      markdown: '# current body',
+      contentHash: sha256('current'),
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      assetIds: [],
+      spaceKind: 'wiki' as const,
+      spaceSlug: 'default',
+      markdownContentType: 'text/markdown',
+      historyVersions: [
+        {
+          revisionId: 'rev-old',
+          versionNumber: 1,
+          markdown: '# old body',
+          title: 'Old title',
+          contentHash: sha256('old'),
+          publishedAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          authorEmail: 'old-author@example.com',
+          authorDisplayName: 'Old Author',
+          contentType: null,
+          originalAssetId: null,
+        },
+      ],
+    };
+    const result = await writePortableArchive({
+      storageKey: '00000000-0000-0000-0000-000000000098.zip',
+      instanceId: 'instance',
+      productVersion: '1',
+      capturedAt: now,
+      pages: [page],
+      assets: [],
+      store,
+    });
+
+    const manifestPage = result.manifest.pages[0]!;
+    expect(manifestPage.historyEntries).toHaveLength(1);
+    const historyEntry = manifestPage.historyEntries![0]!;
+    expect(historyEntry.entry).toBe(pageHistoryEntryPath('en', 'docs/history', 1));
+    expect(historyEntry.versionNumber).toBe(1);
+    expect(historyEntry.revisionId).toBe('rev-old');
+    expect(historyEntry.authorEmail).toBe('old-author@example.com');
+    // Declared in files[] so archive-reader's undeclared-entry check passes.
+    expect(result.manifest.files.some((f) => f.entry === historyEntry.entry)).toBe(true);
+
+    const inspected = await inspectPortableArchive(path.join(directory, result.stored.storageKey));
+    const bytes = await inspected.readEntry(historyEntry.entry);
+    const parsed = parsePage(bytes.toString('utf8'));
+    expect(parsed.frontmatter.versionNumber).toBe(1);
+    expect(parsed.frontmatter.authorDisplayName).toBe('Old Author');
+    expect(parsed.frontmatter.title).toBe('Old title');
+    expect(parsed.markdown.trim()).toBe('# old body');
   });
 });

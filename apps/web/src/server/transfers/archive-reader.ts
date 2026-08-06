@@ -169,6 +169,14 @@ export async function inspectPortableArchive(
     if (!entry) invalid(`Archive is missing declared entry: ${file.entry}`);
     if (entry.uncompressedSize !== file.sizeBytes) invalid(`Archive size mismatch: ${file.entry}`);
   }
+  const declaredFiles = new Set(manifest.files.map((file) => file.entry));
+  for (const page of manifest.pages) {
+    for (const historyEntry of page.historyEntries ?? []) {
+      if (!declaredFiles.has(historyEntry.entry)) {
+        invalid(`Archive history entry is not declared in files: ${historyEntry.entry}`);
+      }
+    }
+  }
   return {
     manifest,
     readEntry: async (entry, maxBytes = limits.maxEntryBytes) => {

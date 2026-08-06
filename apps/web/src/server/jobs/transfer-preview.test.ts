@@ -149,13 +149,35 @@ async function buildWikiJsPreviewRun(opts: {
   return { run: run! };
 }
 
-type PageInput = { id: string; path: string; locale?: string; markdown?: string };
+type HistoryVersionInput = {
+  revisionId: string;
+  versionNumber: number;
+  markdown: string;
+  title: string;
+  contentHash: string;
+  publishedAt: string;
+  createdAt: string;
+  authorEmail: string | null;
+  authorDisplayName: string | null;
+  contentType: string | null;
+  originalAssetId: string | null;
+};
+
+type PageInput = {
+  id: string;
+  path: string;
+  locale?: string;
+  markdown?: string;
+  historyVersions?: HistoryVersionInput[];
+};
 
 /** Build a valid portable archive on disk and wire up ready artifact + queued run rows. */
 async function buildArchiveAndRun(opts: {
   pages: PageInput[];
   assets?: { id: string; bytes: Buffer; contentType: 'image/png' }[];
   conflictStrategy?: 'skip' | 'replace';
+  includeHistory?: boolean;
+  historyLimit?: number;
 }) {
   const storageKey = `${randomUUID()}.zip`;
   const pages = opts.pages.map((p) => {
@@ -175,6 +197,7 @@ async function buildArchiveAndRun(opts: {
       spaceKind: 'wiki' as const,
       spaceSlug: 'default',
       markdownContentType: 'text/markdown',
+      historyVersions: p.historyVersions,
     };
   });
   const assets = (opts.assets ?? []).map((a) => ({
@@ -214,7 +237,11 @@ async function buildArchiveAndRun(opts: {
       status: 'queued',
       actorUserId: adminId,
       sourceArtifactId: artifact!.id,
-      options: { conflictStrategy: opts.conflictStrategy ?? 'skip' },
+      options: {
+        conflictStrategy: opts.conflictStrategy ?? 'skip',
+        includeHistory: Boolean(opts.includeHistory),
+        historyLimit: opts.historyLimit ?? 300,
+      },
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
@@ -370,6 +397,110 @@ describe('runTransferPreview (archive_preview)', () => {
     });
     expect(failed?.status).toBe('failed');
     expect(failed?.errorCode).toBe('INVALID_ARCHIVE');
+  });
+});
+
+describe('previewArchive includeHistory', () => {
+  const historyVersion = (overrides: Partial<HistoryVersionInput> = {}): HistoryVersionInput => ({
+    revisionId: 'r-old',
+    versionNumber: 1,
+    markdown: '# old',
+    title: 'Old title',
+    contentHash: sha256('old'),
+    publishedAt: '2026-01-01T00:00:00.000Z',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    authorEmail: null,
+    authorDisplayName: null,
+    contentType: null,
+    originalAssetId: null,
+    ...overrides,
+  });
+
+  it('reports history metadata for a create action', async () => {
+    const { run } = await buildArchiveAndRun({
+      pages: [{ id: 'h1', path: 'docs/history-new', historyVersions: [historyVersion()] }],
+      includeHistory: true,
+      historyLimit: 300,
+    });
+    await runTransferPreview(run!.id);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    const item = items.find((i) => i.kind === 'page')!;
+    expect(item.action).toBe('create');
+    expect((item.metadata as { history?: { totalAvailable: number; includedCount: number } }).history).toEqual({
+      totalAvailable: 2,
+      includedCount: 2,
+      limit: 300,
+    });
+  });
+
+  it('downgrades an unmapped existing page\'s replace to skip with HISTORY_REPLACE_UNMAPPED_PAGE', async () => {
+    await db
+      .insert(schema.pages)
+      .values({
+        spaceId,
+        slug: 'unmapped-history',
+        path: 'docs/unmapped-history',
+        locale: 'en',
+        title: 'Pre-existing, not from this archive',
+        authorId: adminId,
+      })
+      .returning();
+    const { run } = await buildArchiveAndRun({
+      pages: [{ id: 'h2', path: 'docs/unmapped-history', historyVersions: [historyVersion({ revisionId: 'r-old-2' })] }],
+      conflictStrategy: 'replace',
+      includeHistory: true,
+    });
+    await runTransferPreview(run!.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run!.id) });
+    expect(updated?.status).toBe('completed_with_warnings');
+    expect(updated?.skippedItems).toBe(1);
+    expect(updated?.replacedItems).toBe(0);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    const item = items.find((i) => i.kind === 'page')!;
+    expect(item.action).toBe('skip');
+    expect(item.warningCode).toBe('HISTORY_REPLACE_UNMAPPED_PAGE');
+  });
+
+  it('allows replace when the target page was previously imported from this same archive', async () => {
+    const [page] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId,
+        slug: 'mapped-history',
+        path: 'docs/mapped-history',
+        locale: 'en',
+        title: 'Previously imported from this archive',
+        authorId: adminId,
+      })
+      .returning();
+    const { run, stored } = await buildArchiveAndRun({
+      pages: [{ id: 'h3', path: 'docs/mapped-history', historyVersions: [historyVersion({ revisionId: 'r-old-3' })] }],
+      conflictStrategy: 'replace',
+      includeHistory: true,
+    });
+    await db.insert(schema.transferPageMappings).values({
+      sourceType: 'archive',
+      sourceIdentity: stored.contentHash,
+      sourcePageKey: 'h3',
+      sourceFingerprint: sha256('# docs/mapped-history'),
+      targetPageId: page!.id,
+      targetPath: 'docs/mapped-history',
+      targetLocale: 'en',
+      lastRunId: run!.id,
+    });
+    await runTransferPreview(run!.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run!.id) });
+    expect(updated?.replacedItems).toBe(1);
+    expect(updated?.skippedItems).toBe(0);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    const item = items.find((i) => i.kind === 'page')!;
+    expect(item.action).toBe('replace');
+    expect(item.warningCode).toBeNull();
   });
 });
 

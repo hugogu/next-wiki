@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { writePortableArchive } from '@/server/transfers/archive-writer';
@@ -27,6 +27,20 @@ const NOW = '2026-06-21T00:00:00.000Z';
 
 let adminId: string;
 
+type HistoryVersionInput = {
+  revisionId: string;
+  versionNumber: number;
+  markdown: string;
+  title: string;
+  contentHash: string;
+  publishedAt: string;
+  createdAt: string;
+  authorEmail: string | null;
+  authorDisplayName: string | null;
+  contentType: string | null;
+  originalAssetId: string | null;
+};
+
 type PageInput = {
   id: string;
   path: string;
@@ -38,6 +52,7 @@ type PageInput = {
   markdownContentType?: string;
   inputKind?: 'chat-transcript' | 'external-fetch' | 'script-run' | 'manual-note' | null;
   rawSource?: Record<string, unknown> | null;
+  historyVersions?: HistoryVersionInput[];
 };
 
 beforeAll(async () => {
@@ -77,7 +92,12 @@ afterAll(async () => {
   await closeDb();
 });
 
-async function buildArchiveAndImport(opts: { pages: PageInput[]; conflictStrategy?: 'skip' | 'replace' }) {
+async function buildArchiveAndImport(opts: {
+  pages: PageInput[];
+  conflictStrategy?: 'skip' | 'replace';
+  includeHistory?: boolean;
+  historyLimit?: number;
+}) {
   const storageKey = `${randomUUID()}.zip`;
   const pages = opts.pages.map((p) => {
     const markdown = p.markdown ?? `# ${p.path}`;
@@ -100,6 +120,7 @@ async function buildArchiveAndImport(opts: { pages: PageInput[]; conflictStrateg
       markdownContentType,
       inputKind: p.inputKind ?? null,
       rawSource: p.rawSource ?? null,
+      historyVersions: p.historyVersions,
     };
   });
 
@@ -135,7 +156,11 @@ async function buildArchiveAndImport(opts: { pages: PageInput[]; conflictStrateg
       status: 'queued',
       actorUserId: adminId,
       sourceArtifactId: artifact!.id,
-      options: { conflictStrategy: opts.conflictStrategy ?? 'skip' },
+      options: {
+        conflictStrategy: opts.conflictStrategy ?? 'skip',
+        includeHistory: Boolean(opts.includeHistory),
+        historyLimit: opts.historyLimit ?? 300,
+      },
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
@@ -150,7 +175,6 @@ async function buildArchiveAndImport(opts: { pages: PageInput[]; conflictStrateg
       actorUserId: adminId,
       sourceArtifactId: artifact!.id,
       previewRunId: previewRun!.id,
-      options: { conflictStrategy: opts.conflictStrategy ?? 'skip' },
       expiresAt: new Date(Date.now() + 3_600_000),
     })
     .returning();
@@ -236,5 +260,136 @@ describe('runTransferImport (archive_import)', () => {
     });
     expect(revision).toBeTruthy();
     expect(revision!.contentType).toBe('text/markdown');
+  });
+});
+
+describe('runTransferImport (archive_import) with includeHistory', () => {
+  const oldWikiVersion: HistoryVersionInput = {
+    revisionId: 'r-w2-old',
+    versionNumber: 1,
+    markdown: '# Wiki History Old body',
+    title: 'Wiki History Old title',
+    contentHash: sha256('old-wiki'),
+    publishedAt: '2026-01-01T00:00:00.000Z',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    authorEmail: 'old-author@example.com',
+    authorDisplayName: 'Old Author',
+    contentType: null,
+    originalAssetId: null,
+  };
+
+  it('rebuilds a new wiki page with its full history, oldest to newest', async () => {
+    await buildArchiveAndImport({
+      pages: [
+        {
+          id: 'w2',
+          path: 'docs/wiki-history',
+          title: 'Wiki History Current',
+          markdown: '# Wiki History Current body',
+          spaceKind: 'wiki',
+          historyVersions: [oldWikiVersion],
+        },
+      ],
+      includeHistory: true,
+    });
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'docs/wiki-history') });
+    expect(page).toBeTruthy();
+    expect(page!.title).toBe('Wiki History Current');
+
+    const revisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, page!.id),
+      orderBy: (r, { asc }) => asc(r.versionNumber),
+    });
+    expect(revisions).toHaveLength(2);
+    expect(revisions[0]!.contentSource).toBe('# Wiki History Old body');
+    expect(revisions[0]!.publishedAt?.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+    expect(revisions[1]!.contentSource).toBe('# Wiki History Current body');
+    expect(page!.currentPublishedVersionId).toBe(revisions[1]!.id);
+  });
+
+  it('rebuilds a raw page with per-version contentType and provenance on the current version', async () => {
+    await buildArchiveAndImport({
+      pages: [
+        {
+          id: 'r2',
+          path: 'raw/history-chat',
+          title: 'Raw History Chat',
+          markdown: 'current body',
+          spaceKind: 'raw',
+          markdownContentType: 'text/plain',
+          inputKind: 'chat-transcript',
+          rawSource: { sourceUrl: 'https://example.com/chat/2' },
+          historyVersions: [{
+            revisionId: 'r-r2-old',
+            versionNumber: 1,
+            markdown: 'old body',
+            title: 'Raw History Chat',
+            contentHash: sha256('old-raw'),
+            publishedAt: '2026-01-01T00:00:00.000Z',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            authorEmail: null,
+            authorDisplayName: null,
+            contentType: 'text/plain',
+            originalAssetId: null,
+          }],
+        },
+      ],
+      includeHistory: true,
+    });
+
+    const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'raw') });
+    const page = await db.query.pages.findFirst({
+      where: and(eq(schema.pages.spaceId, space!.id), eq(schema.pages.path, 'raw/history-chat')),
+    });
+    expect(page).toBeTruthy();
+    expect(page!.rawCategoryId).toBeTruthy();
+
+    const revisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, page!.id),
+      orderBy: (r, { asc }) => asc(r.versionNumber),
+    });
+    expect(revisions).toHaveLength(2);
+    expect(revisions[0]!.contentSource).toBe('old body');
+    expect(revisions[1]!.contentSource).toBe('current body');
+    // Only the current version carries the original inputKind/rawSource.
+    expect(revisions[1]!.sourceMetadata).toMatchObject({ inputKind: 'chat-transcript', sourceUrl: 'https://example.com/chat/2' });
+  });
+
+  it('downgrades a full-history replace to skip when the target page was not produced by this archive', async () => {
+    const defaultSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const [existingPage] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: defaultSpace!.id,
+        slug: 'unrelated-existing',
+        path: 'docs/unrelated-existing',
+        locale: 'en',
+        title: 'Unrelated pre-existing page',
+        authorId: adminId,
+      })
+      .returning();
+
+    await buildArchiveAndImport({
+      pages: [
+        {
+          id: 'w3',
+          path: 'docs/unrelated-existing',
+          title: 'From archive',
+          markdown: '# From archive',
+          spaceKind: 'wiki',
+          historyVersions: [oldWikiVersion],
+        },
+      ],
+      includeHistory: true,
+      conflictStrategy: 'replace',
+    });
+
+    // The guard downgraded action to skip, so the pre-existing page and its
+    // single original revision must be untouched.
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, existingPage!.id) });
+    expect(page!.title).toBe('Unrelated pre-existing page');
+    const revisions = await db.query.pageRevisions.findMany({ where: eq(schema.pageRevisions.pageId, existingPage!.id) });
+    expect(revisions).toHaveLength(0);
   });
 });

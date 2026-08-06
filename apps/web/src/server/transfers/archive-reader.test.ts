@@ -210,6 +210,59 @@ describe('inspectPortableArchive malicious inputs', () => {
     ).rejects.toMatchObject({ code: 'INVALID_ARCHIVE' });
   });
 
+  it('rejects a page historyEntries reference not declared in files[]', async () => {
+    const manifest = {
+      format: 'next-wiki-portable',
+      version: 2,
+      createdAt: NOW,
+      source: { instanceId: 'test-instance', product: 'next-wiki', version: '1.0.0', writingMode: 'copilot' },
+      snapshot: { capturedAt: NOW, spaces: [{ slug: 'default', kind: 'wiki', pageCount: 1 }] },
+      counts: { pages: 1, assets: 0 },
+      pages: [
+        {
+          id: 'p1',
+          entry: 'pages/en/a.md',
+          spaceKind: 'wiki',
+          spaceSlug: 'default',
+          path: 'a',
+          locale: 'en',
+          title: 'A',
+          contentType: 'text/markdown',
+          contentHash: sha256(Buffer.from('a')),
+          sizeBytes: 1,
+          revisionId: 'r1',
+          publishedAt: NOW,
+          createdAt: NOW,
+          updatedAt: NOW,
+          assetIds: [],
+          historyEntries: [
+            {
+              entry: 'pages/en/a/history/1.md',
+              versionNumber: 1,
+              revisionId: 'r0',
+              contentHash: sha256(Buffer.from('old')),
+              sizeBytes: 1,
+              publishedAt: NOW,
+              createdAt: NOW,
+              authorEmail: null,
+              authorDisplayName: null,
+              contentType: null,
+              originalAssetId: null,
+            },
+          ],
+        },
+      ],
+      assets: [],
+      files: [{ entry: 'pages/en/a.md', sha256: sha256(Buffer.from('a')), sizeBytes: 1 }],
+    };
+    const zip = new ZipFile();
+    zip.addBuffer(Buffer.from(JSON.stringify(manifest, null, 2)), 'manifest.json');
+    zip.addBuffer(Buffer.from('a'), 'pages/en/a.md');
+    await expect(
+      inspectPortableArchive(await writeZip('undeclared-history.zip', await finalize(zip))),
+    ).rejects.toMatchObject({ code: 'INVALID_ARCHIVE' });
+  });
+
   it('rejects a checksum mismatch on readEntry', async () => {
     const body = Buffer.from('hello world');
     const manifest = makeManifest({

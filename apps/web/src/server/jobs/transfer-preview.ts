@@ -42,7 +42,11 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   const inspected = await inspectPortableArchive(transferArtifactStore.pathFor(artifact.storageKey));
   const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
-  const strategy = (run.options as { conflictStrategy?: string }).conflictStrategy ?? 'skip';
+  const options = run.options as { conflictStrategy?: string; includeHistory?: boolean; historyLimit?: number };
+  const strategy = options.conflictStrategy ?? 'skip';
+  const includeHistory = Boolean(options.includeHistory);
+  const historyLimit = normalizeHistoryLimit(options.historyLimit);
+  const sourceIdentity = artifact.contentHash ?? artifact.id;
   const currentMode = await getMode();
   const sourceMode = inspected.manifest.source.writingMode;
   const hasModeMismatch = sourceMode !== currentMode;
@@ -52,6 +56,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   let replaced = 0;
   let skipped = 0;
   let crossModeSkips = 0;
+  let warnings = 0;
   const items: (typeof schema.transferItems.$inferInsert)[] = [];
   for (const page of inspected.manifest.pages) {
     const bytes = await inspected.readEntry(page.entry);
@@ -89,10 +94,45 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
         eq(schema.pages.locale, page.locale),
       ),
     });
-    const action = existing ? (strategy === 'replace' ? 'replace' : 'skip') : 'create';
+    let action: 'create' | 'replace' | 'skip' = existing ? (strategy === 'replace' ? 'replace' : 'skip') : 'create';
+
+    let itemStatus: 'completed' | 'warning' = 'completed';
+    let warningCode: string | undefined;
+    let warningMessage: string | undefined;
+
+    // Guard: a full-history "replace" clears the target page's existing
+    // revisions (see the *WithHistory writers). If that page was not produced
+    // by a prior import from this same archive, we cannot tell whether wiping
+    // it is safe — skip instead of guessing (mirrors previewWikiJs's guard).
+    if (includeHistory && action === 'replace') {
+      const mapping = await db.query.transferPageMappings.findFirst({
+        where: and(
+          eq(schema.transferPageMappings.sourceType, 'archive'),
+          eq(schema.transferPageMappings.sourceIdentity, sourceIdentity),
+          eq(schema.transferPageMappings.sourcePageKey, page.id),
+        ),
+      });
+      if (!mapping) {
+        action = 'skip';
+        itemStatus = 'warning';
+        warningCode = 'HISTORY_REPLACE_UNMAPPED_PAGE';
+        warningMessage = 'A page already exists at this path but was not created by a previous import from this archive; full-history replace was skipped to avoid overwriting unrelated content.';
+      }
+    }
+
+    let historyMeta: Record<string, unknown> | undefined;
+    if (includeHistory && action !== 'skip' && page.historyEntries?.length) {
+      historyMeta = {
+        totalAvailable: page.historyEntries.length + 1,
+        includedCount: page.historyEntries.length + 1,
+        limit: historyLimit,
+      };
+    }
+
     if (action === 'create') created += 1;
     else if (action === 'replace') replaced += 1;
     else skipped += 1;
+    if (itemStatus === 'warning') warnings += 1;
     items.push({
       runId: run.id,
       kind: 'page',
@@ -101,8 +141,10 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       displayName: `${page.locale}/${page.path}`,
       targetKey: `${page.locale}/${page.path}`,
       action,
-      status: 'completed',
-      metadata: { entry: page.entry, title: page.title },
+      status: itemStatus,
+      warningCode,
+      warningMessage,
+      metadata: { entry: page.entry, title: page.title, ...(historyMeta ? { history: historyMeta } : {}) },
       finishedAt: new Date(),
     });
   }
@@ -123,6 +165,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
     });
   }
   if (items.length) await db.insert(schema.transferItems).values(items).onConflictDoNothing();
+  const totalWarnings = crossModeSkips + warnings;
   const result: Record<string, unknown> = {
     sourceFingerprint: artifact.contentHash,
     totalItems: items.length,
@@ -130,12 +173,12 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
     createdItems: created,
     replacedItems: replaced,
     skippedItems: skipped,
-    warningItems: crossModeSkips > 0 ? crossModeSkips : undefined,
+    warningItems: totalWarnings > 0 ? totalWarnings : undefined,
   };
   if (hasModeMismatch) {
     result.warningMessage = `Archive was exported from ${sourceMode} mode; current instance is in ${currentMode} mode. Some content may be skipped.`;
   }
-  await markRunTerminal(run.id, hasModeMismatch || crossModeSkips > 0 ? 'completed_with_warnings' : 'completed', result);
+  await markRunTerminal(run.id, hasModeMismatch || totalWarnings > 0 ? 'completed_with_warnings' : 'completed', result);
 }
 
 async function flushPreviewItems(

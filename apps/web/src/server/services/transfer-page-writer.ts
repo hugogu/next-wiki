@@ -479,3 +479,273 @@ export async function writeImportedPageWithHistory(input: {
     action: existing && !(restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
   };
 }
+
+/** Same "wipe and rebuild the revision sequence" semantics as
+ * writeImportedPageWithHistory, adapted for raw entries: no persistRevisionMetadata
+ * (raw pages have no per-revision title — see writeImportedRawEntry), each version
+ * keeps its own declared contentType/originalAssetId, and an existing page's
+ * rawCategoryId is left untouched (category only applies on first creation). */
+export async function writeImportedRawEntryWithHistory(input: {
+  actorUserId: string;
+  path: string;
+  locale: string;
+  title: string;
+  versions: Array<{
+    body: string;
+    contentType: string;
+    createdAt: Date;
+    sourceMetadata: Record<string, unknown>;
+    originalAssetId?: string | null;
+  }>;
+  action: 'create' | 'replace' | 'skip';
+}): Promise<{ pageId: string | null; revisionIds: string[]; action: 'create' | 'replace' | 'skip' }> {
+  const space = await resolveSpace('raw');
+  if (!space || space.kind !== 'raw') throw new Error('Raw space not found');
+  const existing = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, input.path),
+      eq(schema.pages.locale, input.locale),
+    ),
+  });
+  if (input.action === 'skip') return { pageId: existing?.id ?? null, revisionIds: [], action: 'skip' };
+  if (existing && !existing.deletedAt && input.action === 'create') {
+    return { pageId: existing.id, revisionIds: [], action: 'skip' };
+  }
+  if (input.versions.length === 0) {
+    throw new Error('writeImportedRawEntryWithHistory requires at least one version');
+  }
+  const restoredDeletedPage = Boolean(existing?.deletedAt);
+
+  const defaultCategory = existing
+    ? null
+    : await db.query.rawCategories.findFirst({
+        where: and(eq(schema.rawCategories.isDefault, true), eq(schema.rawCategories.isRetired, false)),
+      });
+  if (!existing && !defaultCategory) {
+    throw new Error('No default raw category is configured — cannot import raw entries');
+  }
+
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
+    let pageId: string;
+    if (existing) {
+      const oldRevisions = await tx
+        .select({ id: schema.pageRevisions.id })
+        .from(schema.pageRevisions)
+        .where(eq(schema.pageRevisions.pageId, existing.id));
+      const oldRevisionIds = oldRevisions.map((row) => row.id);
+      await tx.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, existing.id));
+      if (oldRevisionIds.length > 0) {
+        await tx.delete(schema.storageReplicationTasks).where(
+          and(
+            eq(schema.storageReplicationTasks.objectKind, 'markdown'),
+            inArray(schema.storageReplicationTasks.objectId, oldRevisionIds),
+          ),
+        );
+      }
+      await tx
+        .update(schema.pages)
+        .set({ currentPublishedVersionId: null, latestVersionId: null })
+        .where(eq(schema.pages.id, existing.id));
+      await tx.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, existing.id));
+      pageId = existing.id;
+    } else {
+      const [page] = await tx
+        .insert(schema.pages)
+        .values({
+          spaceId: space.id,
+          slug: input.path.split('/').at(-1) ?? input.path,
+          path: input.path,
+          locale: input.locale,
+          title: input.title,
+          authorId: input.actorUserId,
+          nature: 'original',
+          visibility: 'restricted',
+          rawCategoryId: defaultCategory!.id,
+        })
+        .returning({ id: schema.pages.id });
+      pageId = page!.id;
+    }
+
+    let versionNumber = 1;
+    const revisionIds: string[] = [];
+    for (const version of input.versions) {
+      const revisionId = randomUUID();
+      const { html, hash } = renderMarkdown(version.body);
+      await tx.insert(schema.pageRevisions).values({
+        id: revisionId,
+        pageId,
+        versionNumber: versionNumber++,
+        contentType: version.contentType || 'text/plain',
+        contentSource: version.body,
+        contentHtml: html,
+        contentHash: hash,
+        authorId: input.actorUserId,
+        status: 'published',
+        publishedAt: version.createdAt,
+        createdAt: version.createdAt,
+        actorKind: 'machine',
+        sourceMetadata: version.sourceMetadata,
+        originalAssetId: version.originalAssetId ?? null,
+      });
+      await syncRevisionAssetRefs(tx, revisionId, version.body);
+      await addReplicationTasks(tx, 'markdown', revisionId, hash);
+      revisionIds.push(revisionId);
+    }
+
+    await tx
+      .update(schema.pages)
+      .set({
+        currentPublishedVersionId: revisionIds.at(-1),
+        latestVersionId: revisionIds.at(-1),
+        deletedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, pageId));
+
+    return { pageId, revisionIds };
+  });
+
+  await kickReplication();
+  await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
+  return {
+    pageId: result.pageId,
+    revisionIds: result.revisionIds,
+    action: existing && !(restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
+  };
+}
+
+/** Same "wipe and rebuild the revision sequence" semantics as
+ * writeImportedPageWithHistory, adapted for generated pages: every version runs
+ * through ensureOkfConformance and gets its own persistRevisionMetadata row,
+ * matching writeImportedGeneratedPage's per-write normalization. */
+export async function writeImportedGeneratedPageWithHistory(input: {
+  actorUserId: string;
+  path: string;
+  locale: string;
+  versions: Array<{
+    markdown: string;
+    title: string;
+    createdAt: Date;
+  }>;
+  action: 'create' | 'replace' | 'skip';
+}): Promise<{ pageId: string | null; revisionIds: string[]; action: 'create' | 'replace' | 'skip' }> {
+  const space = await resolveSpace('generated');
+  if (!space || space.kind !== 'generated') throw new Error('Generated space not found');
+  const existing = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, input.path),
+      eq(schema.pages.locale, input.locale),
+    ),
+  });
+  if (input.action === 'skip') return { pageId: existing?.id ?? null, revisionIds: [], action: 'skip' };
+  if (existing && !existing.deletedAt && input.action === 'create') {
+    return { pageId: existing.id, revisionIds: [], action: 'skip' };
+  }
+  if (input.versions.length === 0) {
+    throw new Error('writeImportedGeneratedPageWithHistory requires at least one version');
+  }
+  const restoredDeletedPage = Boolean(existing?.deletedAt);
+
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
+    let pageId: string;
+    if (existing) {
+      const oldRevisions = await tx
+        .select({ id: schema.pageRevisions.id })
+        .from(schema.pageRevisions)
+        .where(eq(schema.pageRevisions.pageId, existing.id));
+      const oldRevisionIds = oldRevisions.map((row) => row.id);
+      await tx.delete(schema.aiPageIndexStates).where(eq(schema.aiPageIndexStates.pageId, existing.id));
+      if (oldRevisionIds.length > 0) {
+        await tx.delete(schema.storageReplicationTasks).where(
+          and(
+            eq(schema.storageReplicationTasks.objectKind, 'markdown'),
+            inArray(schema.storageReplicationTasks.objectId, oldRevisionIds),
+          ),
+        );
+      }
+      await tx
+        .update(schema.pages)
+        .set({ currentPublishedVersionId: null, latestVersionId: null })
+        .where(eq(schema.pages.id, existing.id));
+      await tx.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, existing.id));
+      pageId = existing.id;
+    } else {
+      const [page] = await tx
+        .insert(schema.pages)
+        .values({
+          spaceId: space.id,
+          slug: input.path.split('/').at(-1) ?? input.path,
+          path: input.path,
+          locale: input.locale,
+          title: input.versions.at(-1)!.title,
+          authorId: input.actorUserId,
+          nature: 'generated',
+        })
+        .returning({ id: schema.pages.id });
+      pageId = page!.id;
+    }
+
+    let versionNumber = 1;
+    const revisionIds: string[] = [];
+    let finalTitle = input.versions.at(-1)!.title;
+    for (const version of input.versions) {
+      const revisionId = randomUUID();
+      const contentSource = ensureOkfConformance(version.markdown, {
+        title: version.title,
+        now: version.createdAt,
+      });
+      const { html, hash } = renderMarkdown(contentSource);
+      await tx.insert(schema.pageRevisions).values({
+        id: revisionId,
+        pageId,
+        versionNumber: versionNumber++,
+        contentType: 'text/markdown',
+        contentSource,
+        contentHtml: html,
+        contentHash: hash,
+        authorId: input.actorUserId,
+        status: 'published',
+        publishedAt: version.createdAt,
+        createdAt: version.createdAt,
+        actorKind: 'machine',
+      });
+      const metadata = await persistRevisionMetadata(tx, {
+        revisionId,
+        spaceId: space.id,
+        source: contentSource,
+        fallbackTitle: version.title,
+      });
+      await syncRevisionAssetRefs(tx, revisionId, contentSource);
+      await addReplicationTasks(tx, 'markdown', revisionId, hash);
+      revisionIds.push(revisionId);
+      finalTitle = metadata.title;
+    }
+
+    await tx
+      .update(schema.pages)
+      .set({
+        title: finalTitle,
+        currentPublishedVersionId: revisionIds.at(-1),
+        latestVersionId: revisionIds.at(-1),
+        deletedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.pages.id, pageId));
+
+    return { pageId, revisionIds };
+  });
+
+  await kickReplication();
+  await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
+  return {
+    pageId: result.pageId,
+    revisionIds: result.revisionIds,
+    action: existing && !(restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
+  };
+}

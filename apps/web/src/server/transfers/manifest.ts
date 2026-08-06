@@ -23,6 +23,16 @@ export function pageEntryPath(locale: string, canonicalPath: string): string {
   return `pages/${cleanLocale}/${cleanPath || '_root'}.md`;
 }
 
+export function pageHistoryEntryPath(locale: string, canonicalPath: string, versionNumber: number): string {
+  const cleanLocale = locale.normalize('NFC').replace(/[^A-Za-z0-9_-]/g, '_');
+  const cleanPath = canonicalPath
+    .normalize('NFC')
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `pages/${cleanLocale}/${cleanPath || '_root'}/history/${versionNumber}.md`;
+}
+
 export function serializePage(fm: PortablePageFrontmatter, markdown: string): string {
   const yaml = stringifyYaml(fm, { lineWidth: 0 }).trimEnd();
   return `---\n${yaml}\n---\n\n${markdown}`;

@@ -61,7 +61,7 @@ describe('transfer export REST routes', () => {
     expect(await response.json()).toEqual({ id: runId, status: 'queued' });
     expect(transfers.create).toHaveBeenCalledWith(
       { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
-      { kind: 'site_export' },
+      { kind: 'site_export', options: { includeHistory: false, historyLimit: 300 } },
     );
   });
 
@@ -79,7 +79,7 @@ describe('transfer export REST routes', () => {
     expect(response.status).toBe(202);
     expect(transfers.create).toHaveBeenCalledWith(
       { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
-      { kind: 'site_export', options: { space: 'generated', format: 'okf' } },
+      { kind: 'site_export', options: { space: 'generated', format: 'okf', includeHistory: false, historyLimit: 300 } },
     );
   });
 

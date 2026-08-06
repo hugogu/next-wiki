@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { TransferRunAccepted, TransferRunView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Tooltip } from '@/components/ui/Tooltip';
 import {
   DataTable,
   DataTableBody,
@@ -14,6 +16,7 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { InfoIcon } from '@/components/icons';
 import { useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -64,8 +67,13 @@ function ExportRunActions({ run }: { run: TransferRunView }) {
 export function ExportPanel({ runs }: { runs: TransferRunView[] }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const start = useApiMutation<{ kind: 'site_export' }, TransferRunAccepted>('/api/transfers');
+  const start = useApiMutation<
+    { kind: 'site_export'; options: { includeHistory: boolean; historyLimit: number } },
+    TransferRunAccepted
+  >('/api/transfers');
   const active = runs.some((run) => run.status === 'queued' || run.status === 'running');
+  const [includeHistory, setIncludeHistory] = useState(false);
+  const [historyLimit, setHistoryLimit] = useState(300);
 
   useEffect(() => {
     if (!active) return;
@@ -83,10 +91,47 @@ export function ExportPanel({ runs }: { runs: TransferRunView[] }) {
           </div>
           <Button
             disabled={start.isPending}
-            onClick={() => start.mutate({ kind: 'site_export' }, { onSuccess: () => router.refresh() })}
+            onClick={() => start.mutate({ kind: 'site_export', options: { includeHistory, historyLimit } }, { onSuccess: () => router.refresh() })}
           >
             {start.isPending ? t('admin.transfers.export.starting') : t('admin.transfers.export.start')}
           </Button>
+        </div>
+        <div className="mt-sm flex flex-wrap items-center gap-sm border-t border-border pt-sm text-sm">
+          <div className="flex items-center gap-xs">
+            <label className="flex items-center gap-xs">
+              <input
+                type="checkbox"
+                checked={includeHistory}
+                disabled={start.isPending}
+                onChange={(event) => setIncludeHistory(event.target.checked)}
+              />
+              {t('admin.transfers.export.includeHistory')}
+            </label>
+            {/* Kept outside the <label> — nesting it there made clicking
+                the icon also toggle the checkbox via label activation. */}
+            <Tooltip label={t('admin.transfers.export.includeHistoryHelp')}>
+              <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.export.includeHistoryHelp')}>
+                <InfoIcon className="h-4 w-4" />
+              </span>
+            </Tooltip>
+          </div>
+          {includeHistory && (
+            <label className="flex items-center gap-xs whitespace-nowrap text-muted">
+              {t('admin.transfers.export.historyLimit')}
+              <Input
+                type="number"
+                min={1}
+                max={2000}
+                value={historyLimit}
+                disabled={start.isPending}
+                className="w-20"
+                onChange={(event) => {
+                  const parsed = Number(event.target.value);
+                  if (Number.isFinite(parsed) && parsed > 0) setHistoryLimit(Math.min(2000, Math.floor(parsed)));
+                }}
+              />
+            </label>
+          )}
         </div>
         {start.error && <p className="mt-sm text-sm text-danger">{start.error.message}</p>}
       </div>

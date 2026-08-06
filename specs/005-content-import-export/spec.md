@@ -32,9 +32,11 @@ restore page identity and asset references.
 2. **Given** several pages reference the same image, **When** the archive is
    created, **Then** the image is included once and every page reference remains
    resolvable after restoration.
-3. **Given** drafts, deleted pages, users, permissions, comments, historical
-   revisions, and system configuration exist, **When** the archive is created,
-   **Then** those out-of-scope records are not included.
+3. **Given** drafts, deleted pages, users, permissions, comments, and system
+   configuration exist, **When** the archive is created, **Then** those
+   out-of-scope records are not included. Historical revisions are excluded by
+   default and are included only when the administrator opts in (see User
+   Story 5).
 4. **Given** an export is running, **When** the administrator views its status,
    **Then** they can see progress, totals, completion state, and any page or
    asset that could not be exported.
@@ -154,6 +156,57 @@ report without retaining plaintext credentials.
 4. **Given** a completed or failed run used a secret source credential, **When**
    its history is viewed or exported, **Then** the credential is never revealed.
 
+### User Story 5 - Carry Full Page History Across a Migration (Priority: P3)
+
+As an administrator, I want to optionally include each page's full published
+revision history in a Wiki.js import, a portable archive export, or an archive
+import, so that a migrated or restored site keeps its edit history instead of
+collapsing every page to a single current version.
+
+**Why this priority**: The default single-version behavior established by User
+Stories 1-3 already delivers a working migration path. Full history is a
+valuable but strictly additive opt-in on top of it, for administrators who need
+to preserve editorial history across the migration.
+
+**Independent Test**: Create a page with several published revisions in the
+wiki, raw, and generated spaces respectively; run a Wiki.js import (against a
+Wiki.js source with a matching history), a site export, and an archive import
+with the history option enabled; verify the destination page shows the same
+number of historical versions, in the same order, with matching content,
+timestamps, and author display information as the source.
+
+**Acceptance Scenarios**:
+
+1. **Given** an administrator enables "include full page history" with a
+   version-count limit before starting a Wiki.js preview, a site export, or an
+   archive preview, **When** the run executes, **Then** every included page's
+   previously-published revisions (not drafts) are captured up to that limit,
+   oldest to newest, alongside the current version.
+2. **Given** a page's revision count exceeds the configured limit, **When**
+   history is captured, **Then** the system keeps the oldest revision as the
+   history's starting point plus the most recent revisions up to the limit, and
+   reports the run as completed with a truncation warning rather than silently
+   dropping the oldest context.
+3. **Given** full-history import targets a page that already exists on the
+   target and was previously created by an import from that same source or
+   archive, **When** the conflict strategy is "replace", **Then** the target
+   page's revision sequence is rebuilt end-to-end from the source history.
+4. **Given** full-history import targets a page that already exists on the
+   target but was NOT previously created by an import from that same source or
+   archive, **When** the conflict strategy is "replace", **Then** the system
+   automatically downgrades that page's action to "skip" with a specific
+   warning instead of destroying the target page's unrelated history.
+5. **Given** a historical revision's original author has an email and display
+   name on the source, **When** that revision is imported, **Then** the
+   author's email and display name are retained only as informational metadata
+   on the revision; the revision's actual author of record on the target is
+   always the administrator who ran the import, matching FR-029.
+6. **Given** history is not enabled, **When** any export or import runs,
+   **Then** behavior is unchanged from User Stories 1-3: only the current
+   version of each page is captured.
+
+---
+
 ### Edge Cases
 
 - The archive is truncated, has an unsupported format version, has a checksum
@@ -182,6 +235,10 @@ report without retaining plaintext credentials.
   completed.
 - A source author does not exist on the target site.
 - An imported page references another page that was skipped or failed.
+- Full-history import's "replace" conflict strategy targets an existing page
+  the system cannot confirm came from the same source or archive.
+- A source token or archive lacks the permission or content needed to read a
+  page's revision history even though the page itself is readable.
 
 ## Requirements *(mandatory)*
 
@@ -199,9 +256,12 @@ report without retaining plaintext credentials.
 - **FR-004**: Each archive MUST contain a self-describing manifest with a format
   version, creation time, source identity, item counts, page metadata, asset
   metadata, relationships, and integrity information for every included file.
-- **FR-005**: Export MUST exclude drafts, deleted pages, revision history,
-  users, authentication data, permissions, comments, audit records, AI data,
-  storage configuration, and other system configuration.
+- **FR-005**: Export MUST exclude drafts, deleted pages, users, authentication
+  data, permissions, comments, audit records, AI data, storage configuration,
+  and other system configuration. Revision history MUST be excluded by
+  default; the administrator MAY opt in to including a page's
+  previously-published revision history (see FR-033), capped per page by a
+  configurable version limit (default 300).
 - **FR-006**: An administrator MUST be able to monitor export progress and
   download the archive only after the run completes successfully.
 - **FR-007**: Export archives and detailed reports MUST be access-controlled,
@@ -219,7 +279,11 @@ report without retaining plaintext credentials.
 - **FR-011**: The administrator MUST choose a conflict strategy before import:
   skip existing pages or replace existing pages. Skip MUST be the default.
 - **FR-012**: Replacing an existing page MUST create a new published revision;
-  it MUST NOT erase the target site's prior revision history.
+  it MUST NOT erase the target site's prior revision history. This applies to
+  the default (history-excluded) path; when full-history import is enabled and
+  the guard in FR-034 confirms the target page was produced by a prior import
+  from the same source, "replace" instead rebuilds the target page's entire
+  revision sequence from the source's history end to end, per FR-033.
 - **FR-013**: Archive import MUST restore supported page metadata, original
   Markdown, and local image references so restored pages do not depend on the
   source site.
@@ -279,6 +343,32 @@ report without retaining plaintext credentials.
   reported for a subsequent export, never mixed across revisions.
 - **FR-032**: The migration interface and all status, preview, warning, error,
   and report text MUST support the project's available locales.
+- **FR-033**: Wiki.js preview/import, site export, and archive preview/import
+  MUST each offer an opt-in "include full page history" option with a
+  configurable per-page version limit (default 300). When enabled, the system
+  MUST capture a page's previously-published revisions (not drafts), oldest to
+  newest, across all supported space kinds (wiki, raw, and generated), and
+  carry each historical revision's timestamps and the original author's email
+  and display name as informational metadata only — the target's actual
+  revision author of record remains the administrator who ran the import, per
+  FR-029. When a page's revision count exceeds the configured limit, the
+  system MUST keep the oldest revision as the history's starting point plus
+  the most recent revisions up to the limit, and MUST report the run with a
+  truncation warning rather than silently dropping history.
+- **FR-034**: When full-history import's conflict strategy is "replace" and
+  the target page already exists, the system MUST check whether that page was
+  previously produced by an import from the same source (Wiki.js source or
+  archive). If it was, "replace" MAY rebuild the target page's revision
+  sequence end to end from the source history. If it was not — the page exists
+  but has no recorded relationship to this source — the system MUST
+  automatically downgrade that page's action to "skip" and report a specific
+  warning, rather than destroying the target page's unrelated revision
+  history.
+- **FR-035**: When the history option is enabled for a Wiki.js source, the
+  system MUST verify up front that the source token has permission to read
+  revision history and MUST fail the run with a specific, actionable reason
+  before writing any content if that permission is missing, rather than
+  silently falling back to single-version import per page.
 
 ### Key Entities
 
@@ -294,6 +384,9 @@ report without retaining plaintext credentials.
   state.
 - **Portable Archive Manifest**: The versioned inventory that describes pages,
   assets, metadata, relationships, integrity values, and archive-wide totals.
+  When history is included, each page entry also lists its historical
+  revisions (oldest to newest) with their own content reference, timestamps,
+  and informational author metadata.
 - **Imported Page Mapping**: The durable relationship between a source page and
   its target page/path, used for idempotency, link rewriting, reporting, and
   retries.
@@ -307,8 +400,11 @@ report without retaining plaintext credentials.
 ## Assumptions and Dependencies
 
 - The portable archive represents current published wiki content, not a full
-  database backup. Drafts, deleted pages, revision history, users, permissions,
-  comments, and system settings are intentionally out of scope.
+  database backup. Drafts, deleted pages, users, permissions, comments, and
+  system settings are intentionally out of scope. Revision history is
+  opt-in — excluded by default, and available across the wiki, raw, and
+  generated spaces when the administrator enables it for a Wiki.js import,
+  site export, or archive preview/import.
 - The target site already has an administrator account and a default content
   space. Imported pages are attributed to the administrator who starts the
   import; source author names may be retained only as informational metadata.
@@ -352,3 +448,9 @@ report without retaining plaintext credentials.
 - **SC-008**: Unauthorized users can neither start transfer operations nor
   access archives, credentials, previews, reports, or migration history in
   100% of authorization tests.
+- **SC-009**: When full page history is enabled for a Wiki.js import, site
+  export, or archive import, 100% of a page's captured historical revisions
+  (within the configured limit) restore on the target with matching content,
+  order, and timestamps; a full-history "replace" never destroys an existing
+  target page's revision history when that page was not itself produced by a
+  prior import from the same source.

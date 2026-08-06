@@ -876,14 +876,20 @@
         "title": "Portable wiki archive",
         "description": "Export all published Markdown and referenced local images as a versioned ZIP archive.",
         "start": "Create export",
-        "starting": "Starting…"
+        "starting": "Starting…",
+        "includeHistory": "Include full page history",
+        "includeHistoryHelp": "Bundles every published revision of each page (not just the current version), so a restored archive keeps its full edit history.",
+        "historyLimit": "Version limit per page"
       },
       "archive": {
         "comingSoon": "Upload a portable next-wiki archive to preview and restore its content.",
         "preview": "Upload and preview",
         "chooseFile": "Choose a ZIP file…",
         "previewReady": "The latest archive preview is ready to import.",
-        "import": "Start import"
+        "import": "Start import",
+        "includeHistory": "Import full page history",
+        "includeHistoryHelp": "Existing pages previously imported from this archive are fully rebuilt from the archive's revision history; pages not previously imported from this archive are left untouched.",
+        "historyLimit": "Version limit per page"
       },
       "conflict": {
         "skip": "Skip existing pages",

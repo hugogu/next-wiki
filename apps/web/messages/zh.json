@@ -876,14 +876,20 @@
         "title": "可移植 Wiki 归档",
         "description": "将所有已发布 Markdown 及其引用的本地图片导出为带版本的 ZIP 归档。",
         "start": "创建导出",
-        "starting": "正在启动…"
+        "starting": "正在启动…",
+        "includeHistory": "包含完整页面历史",
+        "includeHistoryHelp": "将每个页面的所有已发布历史版本(而不仅是当前版本)一并打包，还原归档时可保留完整编辑历史。",
+        "historyLimit": "每页版本数上限"
       },
       "archive": {
         "comingSoon": "上传 next-wiki 可移植归档，预览并还原其中的内容。",
         "preview": "上传并预览",
         "chooseFile": "选择 ZIP 文件…",
         "previewReady": "最近一次归档预览已完成，可以开始导入。",
-        "import": "开始导入"
+        "import": "开始导入",
+        "includeHistory": "导入完整页面历史",
+        "includeHistoryHelp": "此前从该归档导入过的已有页面会按归档中的历史记录整体重建；未曾从该归档导入过的页面保持不变。",
+        "historyLimit": "每页版本数上限"
       },
       "conflict": {
         "skip": "跳过已有页面",

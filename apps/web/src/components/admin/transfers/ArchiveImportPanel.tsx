@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import type { TransferArtifactView, TransferRunAccepted, TransferRunView } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { FolderIcon } from '@/components/icons';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { FolderIcon, InfoIcon } from '@/components/icons';
 import { apiPost } from '@/lib/api/client';
 import { TransferRunList } from './TransferRunList';
 
@@ -15,6 +17,8 @@ export function ArchiveImportPanel({ runs }: { runs: TransferRunView[] }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [strategy, setStrategy] = useState<'skip' | 'replace'>('skip');
+  const [includeHistory, setIncludeHistory] = useState(false);
+  const [historyLimit, setHistoryLimit] = useState(300);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const completedPreview = runs.find(
@@ -48,11 +52,11 @@ export function ArchiveImportPanel({ runs }: { runs: TransferRunView[] }) {
       await apiPost<{
         kind: 'archive_preview';
         sourceArtifactId: string;
-        options: { conflictStrategy: 'skip' | 'replace' };
+        options: { conflictStrategy: 'skip' | 'replace'; includeHistory: boolean; historyLimit: number };
       }, TransferRunAccepted>('/api/transfers', {
         kind: 'archive_preview',
         sourceArtifactId: artifact.id,
-        options: { conflictStrategy: strategy },
+        options: { conflictStrategy: strategy, includeHistory, historyLimit },
       });
       router.refresh();
     } catch (cause) {
@@ -107,6 +111,50 @@ export function ArchiveImportPanel({ runs }: { runs: TransferRunView[] }) {
           <Button disabled={!file || busy} onClick={uploadAndPreview}>
             {t('admin.transfers.archive.preview')}
           </Button>
+        </div>
+        <div className="mt-sm flex flex-wrap items-center gap-sm text-sm">
+          <div className="flex items-center gap-xs">
+            <label className="flex items-center gap-xs">
+              <input
+                type="checkbox"
+                checked={includeHistory}
+                disabled={busy}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  // Re-importing history only does something for pages that
+                  // already exist, so default the conflict strategy to
+                  // 'replace' when checked, matching WikiJsSourcePanel.
+                  setIncludeHistory(checked);
+                  setStrategy(checked ? 'replace' : 'skip');
+                }}
+              />
+              {t('admin.transfers.archive.includeHistory')}
+            </label>
+            {/* Kept outside the <label> — nesting it there made clicking
+                the icon also toggle the checkbox via label activation. */}
+            <Tooltip label={t('admin.transfers.archive.includeHistoryHelp')}>
+              <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.archive.includeHistoryHelp')}>
+                <InfoIcon className="h-4 w-4" />
+              </span>
+            </Tooltip>
+          </div>
+          {includeHistory && (
+            <label className="flex items-center gap-xs whitespace-nowrap text-muted">
+              {t('admin.transfers.archive.historyLimit')}
+              <Input
+                type="number"
+                min={1}
+                max={2000}
+                value={historyLimit}
+                disabled={busy}
+                className="w-20"
+                onChange={(event) => {
+                  const parsed = Number(event.target.value);
+                  if (Number.isFinite(parsed) && parsed > 0) setHistoryLimit(Math.min(2000, Math.floor(parsed)));
+                }}
+              />
+            </label>
+          )}
         </div>
         {completedPreview && (
           <div className="mt-md flex items-center justify-between gap-sm rounded-md border border-border p-sm">

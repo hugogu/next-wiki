@@ -97,10 +97,11 @@ const MAX_HISTORY_LIMIT = 2000;
 
 /**
  * Coerce a persisted `run.options.historyLimit` value into the bounds the
- * wikijsTransferOptionsSchema enforces on write. Options are stored as
- * untyped jsonb, so a run created before this validation existed — or a row
- * edited by hand — could otherwise hand selectHistoryWindow() a 0 or NaN
- * limit and produce confusing truncation output.
+ * wikijsTransferOptionsSchema/archiveTransferOptionsSchema/siteExportOptionsSchema
+ * enforce on write. Options are stored as untyped jsonb, so a run created
+ * before this validation existed — or a row edited by hand — could otherwise
+ * hand selectHistoryWindow() a 0 or NaN limit and produce confusing
+ * truncation output.
  */
 export function normalizeHistoryLimit(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_HISTORY_LIMIT;
@@ -168,14 +169,16 @@ export function computeWikiJsHistoryFingerprint(pageFingerprint: string, trail: 
 /**
  * Pick which historical versions to keep when a page's trail exceeds `limit`.
  * The current version always occupies one slot; when the trail itself must be
- * trimmed, the oldest entry is kept as the import's "starting point" version
- * even if it falls outside the most-recent window, so page history always
- * begins at a real Wiki.js version rather than an arbitrary cutoff.
+ * trimmed, the oldest entry is kept as the import's (or export's) "starting
+ * point" version even if it falls outside the most-recent window, so page
+ * history always begins at a real prior version rather than an arbitrary
+ * cutoff. Generic over the trail entry type so both the Wiki.js import path
+ * and the site-export/archive-import path share one truncation algorithm.
  */
-export function selectHistoryWindow(
-  trail: WikiJsHistoryEntry[],
+export function selectHistoryWindow<T>(
+  trail: T[],
   limit: number,
-): { keep: WikiJsHistoryEntry[]; truncated: boolean } {
+): { keep: T[]; truncated: boolean } {
   const totalAvailable = trail.length + 1; // +1 = current version, not part of trail
   if (totalAvailable <= limit) return { keep: trail, truncated: false };
   const budgetForTrail = Math.max(limit - 1, 0); // 1 slot reserved for the current version

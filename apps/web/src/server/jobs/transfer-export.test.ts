@@ -33,6 +33,7 @@ async function truncate(): Promise<void> {
 
 const seed = {
   user: randomUUID(),
+  historyAuthor: randomUUID(),
   space: randomUUID(),
   generatedSpace: randomUUID(),
   assetShared: randomUUID(),
@@ -52,6 +53,9 @@ const seed = {
   generatedDraft: randomUUID(),
   legacyLink: randomUUID(),
   legacyLinkRevision: randomUUID(),
+  pubHistoried: randomUUID(),
+  revHistoriedOld: randomUUID(),
+  revHistoriedCurrent: randomUUID(),
 };
 
 beforeAll(async () => {
@@ -275,6 +279,55 @@ beforeAll(async () => {
     },
   ]);
 
+  // A page with two published revisions, for includeHistory coverage.
+  await db.insert(schema.users).values({
+    id: seed.historyAuthor,
+    email: `history-author-${seed.historyAuthor}@example.com`,
+    passwordHash: 'X',
+    role: 'editor',
+    displayName: 'History Author',
+  });
+  const mdHistoriedOld = '# Old body';
+  const mdHistoriedCurrent = '# Current body';
+  await db.insert(schema.pages).values({
+    id: seed.pubHistoried,
+    spaceId: seed.space,
+    slug: 'historied',
+    path: 'historied',
+    title: 'Historied current title',
+    authorId: seed.user,
+    currentPublishedVersionId: seed.revHistoriedCurrent,
+    latestVersionId: seed.revHistoriedCurrent,
+  });
+  await db.insert(schema.pageRevisions).values([
+    {
+      id: seed.revHistoriedOld,
+      pageId: seed.pubHistoried,
+      versionNumber: 1,
+      contentSource: mdHistoriedOld,
+      contentHtml: '<h1>Old</h1>',
+      contentHash: sha256(mdHistoriedOld),
+      authorId: seed.historyAuthor,
+      status: 'published',
+      publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+    },
+    {
+      id: seed.revHistoriedCurrent,
+      pageId: seed.pubHistoried,
+      versionNumber: 2,
+      contentSource: mdHistoriedCurrent,
+      contentHtml: '<h1>Current</h1>',
+      contentHash: sha256(mdHistoriedCurrent),
+      authorId: seed.user,
+      status: 'published',
+      publishedAt: new Date('2026-01-07T00:00:00.000Z'),
+    },
+  ]);
+  await db.insert(schema.pageRevisionMetadata).values({
+    revisionId: seed.revHistoriedOld,
+    title: 'Historied old title',
+  });
+
   archiveWriter.writePortableArchive.mockResolvedValue({
     stored: { storageKey: 'mock.zip', sizeBytes: 42, contentHash: 'f'.repeat(64) },
     manifest: { pages: [], assets: [], files: [] },
@@ -294,7 +347,7 @@ describe('capturePublishedSnapshot', () => {
     const snapshot = await capturePublishedSnapshot();
     // Draft B, soft-deleted E, and the retired link record are excluded;
     // pages are ordered by (locale, path).
-    expect(snapshot.pages.map((page) => page.path)).toEqual(['a', 'c', 'd']);
+    expect(snapshot.pages.map((page) => page.path)).toEqual(['a', 'c', 'd', 'historied']);
   });
 
   it('uses the published revision (currentPublishedVersionId) for each page', async () => {
@@ -306,7 +359,14 @@ describe('capturePublishedSnapshot', () => {
       a: seed.revA,
       c: seed.revC,
       d: seed.revD,
+      historied: seed.revHistoriedCurrent,
     });
+  });
+
+  it('omits historyVersions when includeHistory is not requested', async () => {
+    const snapshot = await capturePublishedSnapshot();
+    const pageHistoried = snapshot.pages.find((page) => page.path === 'historied')!;
+    expect(pageHistoried.historyVersions).toBeUndefined();
   });
 
   it('emits a shared local asset exactly once with its bytes', async () => {
@@ -337,6 +397,31 @@ describe('capturePublishedSnapshot', () => {
     expect(pageD).toBeDefined();
     expect(pageD.assetIds).toEqual([seed.assetMissing]);
     expect(snapshot.assets.some((asset) => asset.id === seed.assetMissing)).toBe(false);
+  });
+});
+
+describe('capturePublishedSnapshot with includeHistory', () => {
+  it('captures prior published revisions oldest-first, excluding the current version', async () => {
+    const snapshot = await capturePublishedSnapshot({ includeHistory: true, historyLimit: 300 });
+    const pageHistoried = snapshot.pages.find((page) => page.path === 'historied')!;
+    expect(pageHistoried.historyVersions).toHaveLength(1);
+    const [oldVersion] = pageHistoried.historyVersions!;
+    expect(oldVersion!.revisionId).toBe(seed.revHistoriedOld);
+    expect(oldVersion!.markdown).toBe('# Old body');
+    // The historical title comes from that revision's own pageRevisionMetadata
+    // row, not the page's current title.
+    expect(oldVersion!.title).toBe('Historied old title');
+    expect(oldVersion!.publishedAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(oldVersion!.authorEmail).toBe(`history-author-${seed.historyAuthor}@example.com`);
+    expect(oldVersion!.authorDisplayName).toBe('History Author');
+    expect(oldVersion!.contentType).toBeNull();
+    expect(oldVersion!.originalAssetId).toBeNull();
+  });
+
+  it('leaves pages with only a single published version without extra history entries', async () => {
+    const snapshot = await capturePublishedSnapshot({ includeHistory: true, historyLimit: 300 });
+    const pageA = snapshot.pages.find((page) => page.path === 'a')!;
+    expect(pageA.historyVersions).toEqual([]);
   });
 });
 
@@ -372,10 +457,10 @@ describe('runTransferExport', () => {
     });
     expect(updated!.status).toBe('completed');
     expect(updated!.phase).toBe('completed');
-    // 3 published wiki pages + 1 generated page + 1 unique shared asset.
-    expect(updated!.totalItems).toBe(5);
-    expect(updated!.processedItems).toBe(5);
-    expect(updated!.createdItems).toBe(5);
+    // 4 published wiki pages + 1 generated page + 1 unique shared asset.
+    expect(updated!.totalItems).toBe(6);
+    expect(updated!.processedItems).toBe(6);
+    expect(updated!.createdItems).toBe(6);
     expect(updated!.reportArtifactId).not.toBeNull();
 
     const artifact = await db.query.transferArtifacts.findFirst({

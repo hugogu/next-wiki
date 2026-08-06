@@ -83,17 +83,42 @@ export const transferOptionsSchema = z.object({
 });
 export type TransferOptions = z.infer<typeof transferOptionsSchema>;
 
+const historyLimitSchema = z.number().int().min(1).max(2000).default(300);
+
 export const wikijsTransferOptionsSchema = transferOptionsSchema.extend({
   includeHistory: z.boolean().default(false),
-  historyLimit: z.number().int().min(1).max(2000).default(300),
+  historyLimit: historyLimitSchema,
 });
 export type WikijsTransferOptions = z.infer<typeof wikijsTransferOptionsSchema>;
+
+/** archive_preview options: same includeHistory/historyLimit shape as Wiki.js
+ * imports, applied uniformly across wiki/raw/generated pages in the archive. */
+export const archiveTransferOptionsSchema = transferOptionsSchema.extend({
+  includeHistory: z.boolean().default(false),
+  historyLimit: historyLimitSchema,
+});
+export type ArchiveTransferOptions = z.infer<typeof archiveTransferOptionsSchema>;
 
 export const generatedOkfExportOptionsSchema = z.object({
   space: z.literal('generated'),
   format: z.literal('okf'),
 });
 export type GeneratedOkfExportOptions = z.infer<typeof generatedOkfExportOptionsSchema>;
+
+/** site_export options. `space`/`format` (OKF export) and `includeHistory`
+ * are orthogonal — a full portable-archive export can carry history
+ * regardless of whether an OKF sub-export is also requested. */
+export const siteExportOptionsSchema = z
+  .object({
+    space: z.literal('generated').optional(),
+    format: z.literal('okf').optional(),
+    includeHistory: z.boolean().default(false),
+    historyLimit: historyLimitSchema,
+  })
+  .refine((v) => (v.space === undefined) === (v.format === undefined), {
+    message: 'space and format must be provided together',
+  });
+export type SiteExportOptions = z.infer<typeof siteExportOptionsSchema>;
 
 export const transferSourceCreateSchema = z.object({
   type: transferSourceTypeSchema.default('wikijs'),
@@ -153,12 +178,16 @@ export type TransferArtifactView = z.infer<typeof transferArtifactViewSchema>;
 export const transferRunCreateSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('site_export'),
-    options: generatedOkfExportOptionsSchema.optional(),
+    options: siteExportOptionsSchema.default({ includeHistory: false, historyLimit: 300 }),
   }),
   z.object({
     kind: z.literal('archive_preview'),
     sourceArtifactId: z.string().uuid(),
-    options: transferOptionsSchema.default({ conflictStrategy: 'skip' }),
+    options: archiveTransferOptionsSchema.default({
+      conflictStrategy: 'skip',
+      includeHistory: false,
+      historyLimit: 300,
+    }),
   }),
   z.object({ kind: z.literal('archive_import'), previewRunId: z.string().uuid() }),
   z.object({ kind: z.literal('wikijs_source_test'), sourceId: z.string().uuid() }),
@@ -301,6 +330,13 @@ export const portablePageFrontmatterSchema = z.object({
   // Raw-only capture-source (channel/url/sessionId/...) — tolerated as a passthrough
   // object so v1 imports of older OKF or raw pages can round-trip through future writers.
   rawSource: z.record(z.unknown()).nullable().optional(),
+  // History entries only (absent on the current-version entry): which
+  // versionNumber this file represents, and the original author's display
+  // info for reference — authorship itself is never restorable across
+  // instances (see writeImportedPageWithHistory), this is presentation only.
+  versionNumber: z.number().int().positive().optional(),
+  authorEmail: z.string().nullable().optional(),
+  authorDisplayName: z.string().nullable().optional(),
 });
 export type PortablePageFrontmatter = z.infer<typeof portablePageFrontmatterSchema>;
 
@@ -361,6 +397,26 @@ export type PortableArchiveManifestV1 = z.infer<typeof portableArchiveManifestSc
 /** v2 archive writer. Captures wiki + raw + generated content with full
  * mode-aware metadata; assets accept any MIME (raw original-bytes may be
  * arbitrary application/ * types, not just images). */
+/** One historical (published, non-current) revision of a page, backed by its
+ * own zip entry under `pages/{locale}/{path}/history/{versionNumber}.md`.
+ * Never includes the current version — that stays on the page's own
+ * top-level fields, matching the pre-existing single-version shape. */
+export const portableHistoryEntrySchema = z.object({
+  entry: z.string().min(1),
+  versionNumber: z.number().int().positive(),
+  revisionId: z.string().min(1),
+  contentHash: sha256Schema,
+  sizeBytes: nonNegativeInt,
+  publishedAt: isoDateSchema,
+  createdAt: isoDateSchema,
+  authorEmail: z.string().nullable(),
+  authorDisplayName: z.string().nullable(),
+  // Raw-only; null for wiki/generated history entries.
+  contentType: z.string().nullable(),
+  originalAssetId: z.string().nullable(),
+});
+export type PortableHistoryEntry = z.infer<typeof portableHistoryEntrySchema>;
+
 export const portableArchiveManifestSchemaV2 = z
   .object({
     format: z.literal('next-wiki-portable'),
@@ -402,6 +458,10 @@ export const portableArchiveManifestSchemaV2 = z
         createdAt: isoDateSchema,
         updatedAt: isoDateSchema,
         assetIds: z.array(sha256Schema),
+        // Optional so older (pre-history) v2 archives and new archives
+        // exported with includeHistory:false both parse identically to the
+        // pre-existing shape — absent means "single version, as before".
+        historyEntries: z.array(portableHistoryEntrySchema).optional(),
       }),
     ),
     assets: z.array(
@@ -460,6 +520,7 @@ export interface NormalizedPortableManifest {
     createdAt: string;
     updatedAt: string;
     assetIds: string[];
+    historyEntries?: PortableHistoryEntry[];
   }>;
   assets: Array<{
     id: string;

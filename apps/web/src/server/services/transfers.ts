@@ -399,16 +399,30 @@ export async function retry(ctx: PermCtx, id: string): Promise<TransferRunAccept
     row.kind === 'site_export'
       ? ({
           kind: 'site_export',
-          ...(Object.keys(row.options as Record<string, unknown>).length
-            ? { options: row.options as { space: 'generated'; format: 'okf' } }
-            : {}),
+          options: (Object.keys(row.options as Record<string, unknown>).length
+            ? (row.options as {
+                space?: 'generated';
+                format?: 'okf';
+                includeHistory: boolean;
+                historyLimit: number;
+              })
+            : { includeHistory: false, historyLimit: 300 }) as {
+            space?: 'generated';
+            format?: 'okf';
+            includeHistory: boolean;
+            historyLimit: number;
+          },
         } as const)
       : row.kind === 'archive_import'
         ? ({ kind: 'archive_import', previewRunId: row.previewRunId! } as const)
         : row.kind === 'wikijs_import'
           ? ({ kind: 'wikijs_import', previewRunId: row.previewRunId! } as const)
           : row.kind === 'archive_preview'
-            ? ({ kind: 'archive_preview', sourceArtifactId: row.sourceArtifactId!, options: row.options as { conflictStrategy: 'skip' | 'replace' } } as const)
+            ? ({
+                kind: 'archive_preview',
+                sourceArtifactId: row.sourceArtifactId!,
+                options: row.options as { conflictStrategy: 'skip' | 'replace'; includeHistory: boolean; historyLimit: number },
+              } as const)
             : row.kind === 'wikijs_preview'
               ? ({
                   kind: 'wikijs_preview',

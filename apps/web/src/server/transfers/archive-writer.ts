@@ -8,6 +8,7 @@ import {
 } from './artifact-store';
 import {
   pageEntryPath,
+  pageHistoryEntryPath,
   serializePage,
   sha256,
   stableManifest,
@@ -93,6 +94,54 @@ export async function writePortableArchive(input: {
     const body = serializePage(frontmatter, bodyText);
     zip.addBuffer(Buffer.from(body), entry, { mtime: new Date(input.capturedAt), mode: 0o100644 });
     files.push({ entry, sha256: sha256(body), sizeBytes: Buffer.byteLength(body) });
+
+    const historyEntries = (page.historyVersions ?? []).map((version) => {
+      const historyEntry = pageHistoryEntryPath(page.locale, page.path, version.versionNumber);
+      const historyBodyText = page.spaceKind === 'raw'
+        ? version.markdown
+        : rewriteMarkdownImages(version.markdown, (url) => {
+            const id = /^\/api\/assets\/([0-9a-f-]{36})(?:[?#].*)?$/i.exec(url)?.[1];
+            const asset = id ? assetsBySourceId.get(id) : undefined;
+            return asset ? portableAssetReference(historyEntry, asset.entry) : null;
+          });
+      const historyFrontmatter: PortablePageFrontmatter = {
+        nextWikiArchiveVersion: 2,
+        sourcePageId: page.id,
+        sourceRevisionId: version.revisionId,
+        spaceKind: page.spaceKind,
+        spaceSlug: page.spaceSlug,
+        path: page.path,
+        locale: page.locale,
+        title: version.title,
+        contentType: version.contentType ?? page.markdownContentType,
+        contentHash: version.contentHash,
+        publishedAt: version.publishedAt,
+        createdAt: version.createdAt,
+        updatedAt: version.publishedAt ?? version.createdAt,
+        inputKind: null,
+        rawSource: null,
+        versionNumber: version.versionNumber,
+        authorEmail: version.authorEmail,
+        authorDisplayName: version.authorDisplayName,
+      };
+      const historyBody = serializePage(historyFrontmatter, historyBodyText);
+      zip.addBuffer(Buffer.from(historyBody), historyEntry, { mtime: new Date(input.capturedAt), mode: 0o100644 });
+      files.push({ entry: historyEntry, sha256: sha256(historyBody), sizeBytes: Buffer.byteLength(historyBody) });
+      return {
+        entry: historyEntry,
+        versionNumber: version.versionNumber,
+        revisionId: version.revisionId,
+        contentHash: version.contentHash,
+        sizeBytes: Buffer.byteLength(version.markdown),
+        publishedAt: version.publishedAt,
+        createdAt: version.createdAt,
+        authorEmail: version.authorEmail,
+        authorDisplayName: version.authorDisplayName,
+        contentType: version.contentType,
+        originalAssetId: version.originalAssetId ? assetsBySourceId.get(version.originalAssetId)?.hash ?? null : null,
+      };
+    });
+
     return {
       id: page.id,
       entry,
@@ -112,6 +161,7 @@ export async function writePortableArchive(input: {
         const asset = assetsBySourceId.get(id);
         return asset ? [asset.hash] : [];
       }),
+      ...(historyEntries.length ? { historyEntries } : {}),
     };
   });
 
@@ -134,9 +184,11 @@ export async function writePortableArchive(input: {
     spacesSummary.push({ slug, kind, pageCount: kindCounts.get(slug) ?? 0 });
   }
 
+  const exportedHistoryVersions = manifestPages.reduce((sum, page) => sum + (page.historyEntries?.length ?? 0), 0);
   const report = JSON.stringify({
     exportedPages: manifestPages.length,
     exportedAssets: manifestAssets.length,
+    ...(exportedHistoryVersions ? { exportedHistoryVersions } : {}),
   }, null, 2);
   const reportEntry = 'reports/export.json';
   zip.addBuffer(Buffer.from(report), reportEntry, { mtime: new Date(input.capturedAt), mode: 0o100644 });

@@ -3,7 +3,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { writeImportedPage, writeImportedPageWithHistory } from './transfer-page-writer';
+import {
+  writeImportedPage,
+  writeImportedPageWithHistory,
+  writeImportedRawEntryWithHistory,
+  writeImportedGeneratedPageWithHistory,
+} from './transfer-page-writer';
 
 vi.mock('@/server/pipeline', () => ({
   renderMarkdown: (source: string) => ({ html: `<p>${source}</p>`, hash: `hash-${source.length}` }),
@@ -13,10 +18,12 @@ vi.mock('./storage-replication', () => ({ addReplicationTasks: vi.fn(), kickRepl
 vi.mock('./ai-index', () => ({ reconcilePageAcrossIndexes: vi.fn() }));
 
 const TRUNCATE =
-  'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_models, ai_providers, storage_backends, ai_actions, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
+  'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_models, ai_providers, storage_backends, ai_actions, page_revisions, pages, raw_categories, users, spaces RESTART IDENTITY CASCADE';
 
 let adminId: string;
 let spaceId: string;
+let rawSpaceId: string;
+let generatedSpaceId: string;
 // Fixtures a real (unmocked) import would have created rows against — used to
 // prove writeImportedPageWithHistory's full-rebuild cleanup does not trip the
 // FK on ai_page_index_states or leave orphaned storage_replication_tasks rows.
@@ -40,6 +47,20 @@ beforeAll(async () => {
     .values({ slug: 'default', name: 'Default' })
     .returning();
   spaceId = space!.id;
+
+  const [rawSpace] = await db
+    .insert(schema.spaces)
+    .values({ slug: 'raw', name: 'Raw', kind: 'raw' })
+    .returning();
+  rawSpaceId = rawSpace!.id;
+
+  const [generatedSpace] = await db
+    .insert(schema.spaces)
+    .values({ slug: 'generated', name: 'Generated', kind: 'generated' })
+    .returning();
+  generatedSpaceId = generatedSpace!.id;
+
+  await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true });
 
   const [backend] = await db.insert(schema.storageBackends).values({ type: 'local' }).returning();
   backendId = backend!.id;
@@ -318,5 +339,192 @@ describe('writeImportedPageWithHistory', () => {
     const restoredPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, deletedPage!.id) });
     expect(restoredPage?.deletedAt).toBeNull();
     expect(restoredPage?.title).toBe('Restored');
+  });
+});
+
+describe('writeImportedRawEntryWithHistory', () => {
+  it('creates a raw page with a full, ordered, all-published revision history', async () => {
+    const result = await writeImportedRawEntryWithHistory({
+      actorUserId: adminId,
+      path: 'raw/history-create',
+      locale: 'en',
+      title: 'Raw history',
+      versions: [
+        { body: 'v1 body', contentType: 'text/plain', createdAt: new Date('2026-01-01T00:00:00.000Z'), sourceMetadata: { archiveVersionNumber: 1 } },
+        { body: 'v2 current body', contentType: 'text/plain', createdAt: new Date('2026-02-01T00:00:00.000Z'), sourceMetadata: { isCurrent: true } },
+      ],
+      action: 'create',
+    });
+
+    expect(result.action).toBe('create');
+    expect(result.revisionIds).toHaveLength(2);
+
+    const revisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, result.pageId!),
+      orderBy: (r, { asc }) => asc(r.versionNumber),
+    });
+    expect(revisions.map((r) => r.versionNumber)).toEqual([1, 2]);
+    expect(revisions.every((r) => r.status === 'published')).toBe(true);
+
+    // Raw revisions never get a page_revision_metadata row.
+    const metadataRows = await db.query.pageRevisionMetadata.findMany({
+      where: eq(schema.pageRevisionMetadata.revisionId, revisions[0]!.id),
+    });
+    expect(metadataRows).toHaveLength(0);
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId!) });
+    expect(page?.spaceId).toBe(rawSpaceId);
+    expect(page?.title).toBe('Raw history');
+    expect(page?.rawCategoryId).toBeTruthy();
+  });
+
+  it('wipes existing revisions on replace and leaves rawCategoryId untouched', async () => {
+    const category = await db.query.rawCategories.findFirst({ where: eq(schema.rawCategories.isDefault, true) });
+    const [page] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: rawSpaceId,
+        slug: 'history-replace',
+        path: 'raw/history-replace',
+        locale: 'en',
+        title: 'Old raw title',
+        authorId: adminId,
+        nature: 'original',
+        visibility: 'restricted',
+        rawCategoryId: category!.id,
+      })
+      .returning();
+    const [oldRevision] = await db
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: page!.id,
+        versionNumber: 1,
+        contentType: 'text/plain',
+        contentSource: 'old body',
+        contentHtml: '<p>old body</p>',
+        contentHash: 'old-hash',
+        authorId: adminId,
+        status: 'published',
+        publishedAt: new Date(),
+        actorKind: 'machine',
+      })
+      .returning();
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: oldRevision!.id, latestVersionId: oldRevision!.id })
+      .where(eq(schema.pages.id, page!.id));
+
+    const result = await writeImportedRawEntryWithHistory({
+      actorUserId: adminId,
+      path: 'raw/history-replace',
+      locale: 'en',
+      title: 'Old raw title',
+      versions: [
+        { body: 'new v1', contentType: 'text/plain', createdAt: new Date('2026-01-01T00:00:00.000Z'), sourceMetadata: {} },
+        { body: 'new v2 current', contentType: 'text/plain', createdAt: new Date('2026-02-01T00:00:00.000Z'), sourceMetadata: { isCurrent: true } },
+      ],
+      action: 'replace',
+    });
+
+    expect(result.pageId).toBe(page!.id);
+    expect(result.action).toBe('replace');
+    expect(result.revisionIds).toHaveLength(2);
+
+    const oldRevisionRow = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, oldRevision!.id) });
+    expect(oldRevisionRow).toBeUndefined();
+
+    const updatedPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) });
+    expect(updatedPage?.rawCategoryId).toBe(category!.id);
+    expect(updatedPage?.currentPublishedVersionId).toBe(result.revisionIds.at(-1));
+  });
+});
+
+describe('writeImportedGeneratedPageWithHistory', () => {
+  it('creates a generated page with OKF-conformant history and per-version metadata', async () => {
+    const result = await writeImportedGeneratedPageWithHistory({
+      actorUserId: adminId,
+      path: 'concepts/history-create',
+      locale: 'en',
+      versions: [
+        { markdown: '# v1 body', title: 'V1', createdAt: new Date('2026-01-01T00:00:00.000Z') },
+        { markdown: '# v2 current body', title: 'V2 current', createdAt: new Date('2026-02-01T00:00:00.000Z') },
+      ],
+      action: 'create',
+    });
+
+    expect(result.action).toBe('create');
+    expect(result.revisionIds).toHaveLength(2);
+
+    const revisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, result.pageId!),
+      orderBy: (r, { asc }) => asc(r.versionNumber),
+    });
+    expect(revisions.map((r) => r.versionNumber)).toEqual([1, 2]);
+    expect(revisions.every((r) => r.status === 'published')).toBe(true);
+    // ensureOkfConformance must have added YAML frontmatter to each version.
+    expect(revisions.every((r) => r.contentSource?.startsWith('---\n'))).toBe(true);
+
+    const metadataRows = await db.query.pageRevisionMetadata.findMany({
+      where: eq(schema.pageRevisionMetadata.revisionId, revisions[0]!.id),
+    });
+    expect(metadataRows).toHaveLength(1);
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId!) });
+    expect(page?.spaceId).toBe(generatedSpaceId);
+    expect(page?.title).toBe('V2 current');
+  });
+
+  it('wipes existing revisions on replace', async () => {
+    const [page] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: generatedSpaceId,
+        slug: 'history-replace',
+        path: 'concepts/history-replace',
+        locale: 'en',
+        title: 'Old generated title',
+        authorId: adminId,
+        nature: 'generated',
+      })
+      .returning();
+    const [oldRevision] = await db
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: page!.id,
+        versionNumber: 1,
+        contentType: 'text/markdown',
+        contentSource: '---\ntype: Note\ntitle: Old\n---\n\nold body',
+        contentHtml: '<p>old body</p>',
+        contentHash: 'old-hash',
+        authorId: adminId,
+        status: 'published',
+        publishedAt: new Date(),
+        actorKind: 'machine',
+      })
+      .returning();
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: oldRevision!.id, latestVersionId: oldRevision!.id })
+      .where(eq(schema.pages.id, page!.id));
+
+    const result = await writeImportedGeneratedPageWithHistory({
+      actorUserId: adminId,
+      path: 'concepts/history-replace',
+      locale: 'en',
+      versions: [
+        { markdown: '# new v1', title: 'New V1', createdAt: new Date('2026-01-01T00:00:00.000Z') },
+        { markdown: '# new v2 current', title: 'New V2', createdAt: new Date('2026-02-01T00:00:00.000Z') },
+      ],
+      action: 'replace',
+    });
+
+    expect(result.pageId).toBe(page!.id);
+    expect(result.action).toBe('replace');
+
+    const oldRevisionRow = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, oldRevision!.id) });
+    expect(oldRevisionRow).toBeUndefined();
+
+    const updatedPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, page!.id) });
+    expect(updatedPage?.title).toBe('New V2');
   });
 });

@@ -7,6 +7,7 @@ import { captureFullSnapshot, captureGeneratedSnapshot } from '@/server/services
 import { writePortableArchive } from '@/server/transfers/archive-writer';
 import { writeOkfArchive } from '@/server/transfers/okf-archive-writer';
 import { markRunTerminal } from '@/server/services/transfers';
+import { normalizeHistoryLimit } from '@/server/transfers/wikijs-client';
 import { logger } from '@/server/logger';
 
 export async function runTransferExport(runId: string): Promise<void> {
@@ -25,12 +26,16 @@ export async function runTransferExport(runId: string): Promise<void> {
 
   const artifactId = randomUUID();
   const storageKey = `${artifactId}.zip`;
-  const options = run.options as { space?: unknown; format?: unknown };
+  const options = run.options as { space?: unknown; format?: unknown; includeHistory?: boolean; historyLimit?: number };
   const isGeneratedOkfExport = options.space === 'generated' && options.format === 'okf';
+  // OKF bundles have no per-version frontmatter/history concept — includeHistory
+  // only applies to the portable-archive branch below.
+  const includeHistory = Boolean(options.includeHistory);
+  const historyLimit = normalizeHistoryLimit(options.historyLimit);
   try {
     const snapshot = isGeneratedOkfExport
       ? await captureGeneratedSnapshot()
-      : await captureFullSnapshot();
+      : await captureFullSnapshot({ includeHistory, historyLimit });
 
     // Each ExportPage carries its own spaceKind/spaceSlug so the writer can
     // dispatch frontmatter / contentType per page without a single space hint.
