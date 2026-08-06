@@ -144,4 +144,17 @@ describe('WikiJsClient.listHistory', () => {
     expect(trail.map((e) => e.versionId)).toEqual([1, 2, 3]);
     expect(mocks.fetchRemote).toHaveBeenCalledTimes(2);
   });
+
+  it('starts at offsetPage 0 — Wiki.js is 0-indexed, not 1-indexed', async () => {
+    // Regression: a live Wiki.js instance silently returns an empty `trail`
+    // (with a nonzero `total`) for an out-of-range page instead of an error,
+    // so starting the loop at offsetPage 1 skipped every page's entire
+    // history without any visible failure.
+    mocks.fetchRemote.mockReset();
+    mocks.fetchRemote.mockResolvedValueOnce(jsonResponse({ data: { pages: { history: { trail: [entry(1)], total: 1 } } } }));
+    await client.listHistory(42);
+    const [callArgs] = mocks.fetchRemote.mock.calls[0]!;
+    const parsedBody = JSON.parse((callArgs as { body: string }).body);
+    expect(parsedBody.variables.offsetPage).toBe(0);
+  });
 });

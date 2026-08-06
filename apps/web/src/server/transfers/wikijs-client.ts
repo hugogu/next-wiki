@@ -257,7 +257,11 @@ export class WikiJsClient {
    * Wiki.js's `history` query until `total` entries have been collected. */
   async listHistory(id: number): Promise<WikiJsHistoryEntry[]> {
     const trail: WikiJsHistoryEntry[] = [];
-    for (let offsetPage = 1; ; offsetPage += 1) {
+    // Wiki.js's `history` query is 0-indexed (confirmed against a live
+    // instance: offsetPage:1 silently returns an empty trail with a nonzero
+    // `total` whenever everything fits on the first page). Starting at 1
+    // skipped every page's entire history without ever surfacing an error.
+    for (let offsetPage = 0; ; offsetPage += 1) {
       const data = await this.query<{ pages: { history: unknown } }>(HISTORY_QUERY, {
         id,
         offsetPage,
@@ -285,7 +289,7 @@ export class WikiJsClient {
     try {
       await this.query<{ pages: { history: unknown } }>(HISTORY_QUERY, {
         id: probeId,
-        offsetPage: 1,
+        offsetPage: 0,
         offsetSize: 1,
       });
     } catch (error) {
