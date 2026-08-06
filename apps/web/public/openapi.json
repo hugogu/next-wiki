@@ -7170,6 +7170,19 @@
           "fingerprint"
         ]
       },
+      "SpaceMigrationIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Migration operation identifier."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "SpaceMigrationItem": {
         "type": "object",
         "properties": {
@@ -7230,6 +7243,28 @@
           "status",
           "warning",
           "failure"
+        ]
+      },
+      "SpaceMigrationItemList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpaceMigrationItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ]
       },
       "SpaceMigrationItemsQuery": {
@@ -7328,6 +7363,13 @@
           "startedAt",
           "completedAt"
         ]
+      },
+      "SpaceMigrationPath": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "pattern": "^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$",
+        "description": "Canonical page path: lowercase slash-separated segments with no leading, trailing, or consecutive slashes."
       },
       "SpaceMigrationPreview": {
         "type": "object",
@@ -7429,7 +7471,11 @@
             "format": "uuid"
           },
           "destinationPathPrefix": {
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SpaceMigrationPath"
+              }
+            ]
           },
           "visibility": {
             "type": "string",
@@ -7488,8 +7534,7 @@
                 "format": "uuid"
               },
               "pathPrefix": {
-                "type": "string",
-                "minLength": 1
+                "$ref": "#/components/schemas/SpaceMigrationPath"
               }
             },
             "required": [
@@ -19238,7 +19283,7 @@
           }
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful response",
             "content": {
               "application/json": {
@@ -19261,14 +19306,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Migration operation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Migration operation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19314,7 +19361,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful response",
             "content": {
               "application/json": {
@@ -19337,14 +19384,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Migration operation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Migration operation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19353,7 +19402,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful response",
             "content": {
               "application/json": {
@@ -19393,6 +19442,18 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Migration operation identifier."
+            },
+            "description": "Migration operation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19400,7 +19461,18 @@
             "BearerAuth": []
           }
         ],
-        "responses": {}
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceMigrationItemList"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/static-site/eligibility": {

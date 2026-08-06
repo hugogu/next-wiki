@@ -6,17 +6,22 @@ import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import { create, getHistory } from '@/server/services/pages';
 import { publish } from '@/server/services/revisions';
 import { setModeInternal } from '@/server/services/writing-mode';
-import { confirmCrossSpaceMigration, previewCrossSpaceMigration, runCrossSpaceMigration } from './cross-space-migrations';
+import { confirmCrossSpaceMigration, listCrossSpaceMigrationItems, previewCrossSpaceMigration, runCrossSpaceMigration } from './cross-space-migrations';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
 
 /** The authorization boundary is intentionally covered without a database: a
  * real service invocation additionally validates source/destination visibility. */
 describe('cross-space migration authorization contract', () => {
-  it('models the only two eligible caller forms', () => {
+  it('requires read and edit scopes for an API key caller', async () => {
     const admin = buildUserCtx('admin-id', 'admin');
-    const apiKey = buildApiKeyCtx('admin-id', 'admin', ['edit'], 'key-id');
+    const apiKey = buildApiKeyCtx('admin-id', 'admin', ['view', 'edit'], 'key-id');
     expect(admin.actor).toMatchObject({ kind: 'user', role: 'admin' });
-    expect(apiKey.actor).toMatchObject({ kind: 'api_key', role: 'admin', scopes: ['edit'] });
+    expect(apiKey.actor).toMatchObject({ kind: 'api_key', role: 'admin', scopes: ['view', 'edit'] });
+    await expect(previewCrossSpaceMigration(buildApiKeyCtx('admin-id', 'admin', ['edit'], 'key-id'), {
+      selection: { kind: 'page', pageId: '11111111-1111-4111-8111-111111111111' },
+      destinationSpaceId: '22222222-2222-4222-8222-222222222222',
+      adaptOkf: true,
+    })).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });
 
@@ -37,7 +42,7 @@ describe('cross-space migration workflow', () => {
   });
 
   it('previews, confirms, and moves a page while retaining its history', async () => {
-    const page = await create(admin, { path: 'imports/ai-note', title: 'Imported AI note', contentSource: '# Note' });
+    const page = await create(admin, { path: 'imports/ai-note', title: 'Imported AI note', contentSource: '# Note', visibility: 'restricted' });
     await publish(admin, { path: 'imports/ai-note', version: 1 });
     const generated = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') });
     const preview = await previewCrossSpaceMigration(admin, {
@@ -53,5 +58,29 @@ describe('cross-space migration workflow', () => {
     expect(await getHistory(admin, 'imports/ai-note', 'generated')).toHaveLength(2);
     const item = await db.query.crossSpaceMigrationItems.findFirst({ where: eq(schema.crossSpaceMigrationItems.migrationId, operation.id) });
     expect(item?.status).toBe('moved');
+  });
+
+  it('rejects unresolved destination conflicts and paginates by a stable cursor order', async () => {
+    const first = await create(admin, { path: 'imports/first', title: 'First', contentSource: '# First' });
+    await create(admin, { path: 'imports/second', title: 'Second', contentSource: '# Second' });
+    const generated = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') });
+    await create(admin, { path: 'target/first', title: 'Existing', contentSource: '# Existing' }, 'generated');
+    const conflictPreview = await previewCrossSpaceMigration(admin, {
+      selection: { kind: 'page', pageId: first.pageId }, destinationSpaceId: generated!.id, destinationPathPrefix: 'target', adaptOkf: true,
+    });
+    await expect(confirmCrossSpaceMigration(admin, { previewId: conflictPreview.id, fingerprint: conflictPreview.fingerprint })).rejects.toMatchObject({ code: 'MIGRATION_CONFLICT' });
+
+    const preview = await previewCrossSpaceMigration(admin, {
+      selection: { kind: 'folder', sourceSpaceId: (await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') }))!.id, pathPrefix: 'imports' },
+      destinationSpaceId: generated!.id, adaptOkf: true,
+    });
+    expect(preview.items).toHaveLength(2);
+    const operation = await confirmCrossSpaceMigration(admin, { previewId: preview.id, fingerprint: preview.fingerprint });
+    const firstPage = await listCrossSpaceMigrationItems(admin, operation.id, 1);
+    const secondPage = await listCrossSpaceMigrationItems(admin, operation.id, 1, firstPage.nextCursor ?? undefined);
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.nextCursor).not.toBeNull();
+    expect(secondPage.items).toHaveLength(1);
+    expect(secondPage.items[0]?.id).not.toBe(firstPage.items[0]?.id);
   });
 });

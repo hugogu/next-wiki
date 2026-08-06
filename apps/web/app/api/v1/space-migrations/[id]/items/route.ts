@@ -9,7 +9,9 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @summary List per-page cross-space migration outcomes
  * @tag Space migrations
  * @auth bearer
+ * @pathParams SpaceMigrationIdPathParams
  * @queryParams SpaceMigrationItemsQuery
+ * @response SpaceMigrationItemList
  */
 export const GET = withPublicApi<{ id: string }>(async (request, { params }, ctx) => {
   const parsedParams = paramsSchema.safeParse(await params);

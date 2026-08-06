@@ -8,7 +8,7 @@ import { previewCrossSpaceMigration } from '@/server/services/cross-space-migrat
  * @tag Space migrations
  * @auth bearer
  * @body SpaceMigrationPreviewInput
- * @response SpaceMigrationPreview
+ * @response 201:SpaceMigrationPreview
  */
 export const POST = withPublicApi(async (request, _context, ctx) => {
   const body = await parsePublicJson(request, spaceMigrationPreviewInputSchema);

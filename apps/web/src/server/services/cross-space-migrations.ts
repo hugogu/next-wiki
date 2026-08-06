@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, asc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { PermCtx } from '@/server/permissions';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -7,7 +7,6 @@ import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { canonicalSpacePath } from '@/server/services/space-routes';
-import { getEffectiveDefaultVisibility } from '@/server/services/spaces';
 import { deriveOkfTypeFromPath, ensureOkfConformance, ensureOkfConceptPath } from '@/server/services/okf';
 import { renderMarkdown } from '@/server/pipeline';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
@@ -35,9 +34,10 @@ type Snapshot = { items: SnapshotItem[]; sourceSpaceId: string; destinationSpace
 function assertMigrationAdmin(ctx: PermCtx): string {
   const actor = ctx.actor;
   if (actor.kind === 'user' && actor.role === 'admin') return actor.userId;
-  // API/MCP is intentionally available only to an Admin-owned key with edit
-  // authority; this is the closest existing public-key capability to a move.
-  if (actor.kind === 'api_key' && actor.role === 'admin' && actor.scopes.includes('edit')) return actor.userId;
+  // Preview exposes source paths and destinations, so a machine caller needs
+  // both read and edit authority; `edit` alone deliberately does not imply
+  // `view` for API keys.
+  if (actor.kind === 'api_key' && actor.role === 'admin' && actor.scopes.includes('view') && actor.scopes.includes('edit')) return actor.userId;
   throw new DomainError('FORBIDDEN', 'Administrator authority is required for cross-space migration');
 }
 
@@ -66,7 +66,7 @@ async function resolveSelection(input: SpaceMigrationPreviewInput) {
   if (selected.kind === 'page') {
     const page = await db.query.pages.findFirst({ where: and(eq(schema.pages.id, selected.pageId), isNull(schema.pages.deletedAt)) });
     if (!page || page.translationGroupId || page.kind !== 'native') {
-      throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'Select an active source page, not a translation or link');
+      throw new DomainError('MIGRATION_SELECTION_INVALID', 'Select an active source page, not a translation or link');
     }
     sourceSpaceId = page.spaceId;
     const translations = await db.query.pages.findMany({
@@ -85,7 +85,7 @@ async function resolveSelection(input: SpaceMigrationPreviewInput) {
       ),
       orderBy: [asc(schema.pages.path), asc(schema.pages.locale)],
     });
-    if (!pages.length) throw new DomainError('NOT_FOUND', 'The selected folder has no movable pages');
+    if (!pages.length) throw new DomainError('MIGRATION_SELECTION_INVALID', 'The selected folder has no movable pages');
   }
   return { sourceSpaceId, pages, basePath };
 }
@@ -95,11 +95,11 @@ async function validateSpaces(sourceSpaceId: string, destinationSpaceId: string)
     db.query.spaces.findFirst({ where: eq(schema.spaces.id, sourceSpaceId) }),
     db.query.spaces.findFirst({ where: eq(schema.spaces.id, destinationSpaceId) }),
   ]);
-  if (!source || !destination) throw new DomainError('NOT_FOUND', 'Source or destination space was not found');
+  if (!source || !destination) throw new DomainError('MIGRATION_DESTINATION_INVALID', 'Source or destination space was not found');
   await assertSpaceKindAllowed(source.kind);
   await assertSpaceKindAllowed(destination.kind);
   if (source.kind === 'raw' || destination.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw space cannot participate in migration');
-  if (source.id === destination.id) throw new DomainError('PAGE_SPACE_MOVE_INVALID', 'Source and destination must differ');
+  if (source.id === destination.id) throw new DomainError('MIGRATION_DESTINATION_INVALID', 'Source and destination must differ');
   return { source, destination };
 }
 
@@ -175,23 +175,26 @@ export async function previewCrossSpaceMigration(ctx: PermCtx, input: SpaceMigra
 
 export async function confirmCrossSpaceMigration(ctx: PermCtx, input: SpaceMigrationConfirmInput): Promise<SpaceMigrationOperation> {
   const userId = assertMigrationAdmin(ctx);
-  const operation = await db.transaction(async (tx) => {
+  const { operation, enqueueOperation } = await db.transaction(async (tx) => {
     const row = await tx.query.crossSpaceMigrations.findFirst({ where: eq(schema.crossSpaceMigrations.id, input.previewId) });
     if (!row || row.requestedBy !== userId || row.status === 'previewed' && (!row.expiresAt || row.expiresAt < new Date())) {
-      throw new DomainError('NOT_FOUND', 'Migration preview was not found');
+      throw new DomainError('MIGRATION_PREVIEW_NOT_FOUND', 'Migration preview was not found');
     }
-    if (row.fingerprint !== input.fingerprint) throw new DomainError('STALE_REVISION', 'Migration preview no longer matches the reviewed selection');
+    if (row.fingerprint !== input.fingerprint) throw new DomainError('STALE_MIGRATION_PREVIEW', 'Migration preview no longer matches the reviewed selection');
     if (row.status !== 'previewed') {
       const existing = await tx.query.crossSpaceMigrationItems.findMany({ where: eq(schema.crossSpaceMigrationItems.migrationId, row.id) });
-      return operationView(row, existing);
+      return { operation: operationView(row, existing), enqueueOperation: false };
     }
     await assertNoSwitchInProgress(tx);
     const snapshot = row.snapshot as Snapshot;
     for (const item of snapshot.items) {
       const page = await tx.query.pages.findFirst({ where: eq(schema.pages.id, item.pageId) });
       if (!page || page.updatedAt.toISOString() !== item.updatedAt || page.spaceId !== row.sourceSpaceId) {
-        throw new DomainError('STALE_REVISION', 'A selected page changed after preview');
+        throw new DomainError('STALE_MIGRATION_PREVIEW', 'A selected page changed after preview');
       }
+    }
+    if (snapshot.items.some((item) => item.warning?.startsWith('Destination path'))) {
+      throw new DomainError('MIGRATION_CONFLICT', 'Resolve destination conflicts and create a new preview before confirming');
     }
     await tx.insert(schema.crossSpaceMigrationItems).values(snapshot.items.map((item, ordinal) => ({
       migrationId: row.id, pageId: item.pageId, ordinal, sourcePath: item.sourcePath, destinationPath: item.destinationPath,
@@ -200,16 +203,16 @@ export async function confirmCrossSpaceMigration(ctx: PermCtx, input: SpaceMigra
     const [updated] = await tx.update(schema.crossSpaceMigrations).set({ status: 'queued', expiresAt: null, updatedAt: new Date() }).where(eq(schema.crossSpaceMigrations.id, row.id)).returning();
     const items = await tx.query.crossSpaceMigrationItems.findMany({ where: eq(schema.crossSpaceMigrationItems.migrationId, row.id) });
     if (!updated) throw new Error('Failed to confirm migration');
-    return operationView(updated, items);
+    return { operation: operationView(updated, items), enqueueOperation: true };
   });
-  await enqueue(QUEUES.crossSpaceMigration, { migrationId: operation.id });
+  if (enqueueOperation) await enqueue(QUEUES.crossSpaceMigration, { migrationId: operation.id }, { singletonKey: operation.id, singletonSeconds: 60 });
   return operation;
 }
 
 export async function getCrossSpaceMigration(ctx: PermCtx, id: string): Promise<SpaceMigrationOperation> {
   const userId = assertMigrationAdmin(ctx);
   const row = await db.query.crossSpaceMigrations.findFirst({ where: and(eq(schema.crossSpaceMigrations.id, id), eq(schema.crossSpaceMigrations.requestedBy, userId)) });
-  if (!row) throw new DomainError('NOT_FOUND', 'Migration not found');
+  if (!row) throw new DomainError('MIGRATION_PREVIEW_NOT_FOUND', 'Migration not found');
   const items = await db.query.crossSpaceMigrationItems.findMany({ where: eq(schema.crossSpaceMigrationItems.migrationId, id) });
   return operationView(row, items);
 }
@@ -217,13 +220,13 @@ export async function getCrossSpaceMigration(ctx: PermCtx, id: string): Promise<
 export async function listCrossSpaceMigrationItems(ctx: PermCtx, id: string, limit = 50, cursor?: string) {
   const userId = assertMigrationAdmin(ctx);
   const row = await db.query.crossSpaceMigrations.findFirst({ where: and(eq(schema.crossSpaceMigrations.id, id), eq(schema.crossSpaceMigrations.requestedBy, userId)) });
-  if (!row) throw new DomainError('NOT_FOUND', 'Migration not found');
+  if (!row) throw new DomainError('MIGRATION_PREVIEW_NOT_FOUND', 'Migration not found');
   const items = await db.query.crossSpaceMigrationItems.findMany({
-    where: and(eq(schema.crossSpaceMigrationItems.migrationId, id), cursor ? lt(schema.crossSpaceMigrationItems.id, cursor) : undefined),
-    orderBy: [asc(schema.crossSpaceMigrationItems.ordinal)], limit: limit + 1,
+    where: and(eq(schema.crossSpaceMigrationItems.migrationId, id), cursor ? gt(schema.crossSpaceMigrationItems.id, cursor) : undefined),
+    orderBy: [asc(schema.crossSpaceMigrationItems.id)], limit: limit + 1,
   });
-  const next = items.length > limit ? items.pop()!.id : null;
-  return { items: items.map((item) => itemView(item)), nextCursor: next };
+  const page = items.slice(0, limit);
+  return { items: page.map((item) => itemView(item)), nextCursor: items.length > limit ? page.at(-1)!.id : null };
 }
 
 export async function cancelCrossSpaceMigration(ctx: PermCtx, id: string): Promise<SpaceMigrationOperation> {
@@ -271,14 +274,14 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
       }
     }
     await tx.insert(schema.pageRouteRedirects).values({ legacyRoute: canonicalSpacePath(source, page.path, page.locale), targetPageId: page.id, reason: 'cross_space_migration' }).onConflictDoUpdate({ target: schema.pageRouteRedirects.legacyRoute, set: { targetPageId: page.id, reason: 'cross_space_migration' } });
-    await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, slug: item.destinationPath.split('/').at(-1)!, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? getEffectiveDefaultVisibility(destination), latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
+    await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, slug: item.destinationPath.split('/').at(-1)!, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
     await tx.update(schema.crossSpaceMigrationItems).set({ status: 'moved', completedAt: new Date(), updatedAt: new Date() }).where(eq(schema.crossSpaceMigrationItems.id, item.id));
-    return { pageId: page.id, destination, path: item.destinationPath, published: page.currentPublishedVersionId !== null };
+    return { pageId: page.id, destination, path: item.destinationPath, locale: page.locale, published: page.currentPublishedVersionId !== null };
   });
   invalidatePublicContentCache();
   await reconcilePageAcrossIndexes(effect.pageId, { actor: { kind: 'user', userId: row.requestedBy, role: 'admin' } });
   await notifyPublicContentChanged('publish');
-  if (effect.published) await enqueuePublicPageWarmup(canonicalSpacePath(effect.destination, effect.path));
+  if (effect.published) await enqueuePublicPageWarmup(canonicalSpacePath(effect.destination, effect.path, effect.locale));
 }
 
 async function finalizeMigration(id: string): Promise<void> {

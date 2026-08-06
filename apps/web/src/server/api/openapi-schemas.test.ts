@@ -141,6 +141,13 @@ describe('openapi-schemas.ts stays structurally in sync with @next-wiki/shared',
     );
   });
 
+  it('keeps migration paths as strict as the runtime validator', () => {
+    expect(docSchemas.SpaceMigrationPreviewInput.safeParse({
+      selection: { kind: 'folder', sourceSpaceId: '11111111-1111-4111-8111-111111111111', pathPrefix: 'Invalid//path' },
+      destinationSpaceId: '22222222-2222-4222-8222-222222222222',
+    }).success).toBe(false);
+  });
+
   describe.each(pairs.map((p) => [p.name, p] as const))('%s <-> runtime schema', (_name, pair) => {
     const docShape = shapeOf(pair.doc);
     const runtimeShape = shapeOf(pair.runtime);

@@ -8,7 +8,8 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @summary Cancel a queued or running cross-space migration
  * @tag Space migrations
  * @auth bearer
- * @response SpaceMigrationOperation
+ * @pathParams SpaceMigrationIdPathParams
+ * @response 202:SpaceMigrationOperation
  */
 export const POST = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {
   const parsed = paramsSchema.safeParse(await params);

@@ -1,15 +1,16 @@
+import { pathSchema } from '@next-wiki/shared';
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
 
 const selectionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('page'), pageId: z.string().uuid() }),
-  z.object({ kind: z.literal('folder'), sourceSpaceId: z.string().uuid(), pathPrefix: z.string().min(1) }),
+  z.object({ kind: z.literal('folder'), sourceSpaceId: z.string().uuid(), pathPrefix: pathSchema }),
 ]);
 
 export const previewSpaceMigrationSchema = {
   selection: selectionSchema,
   destinationSpaceId: z.string().uuid(),
-  destinationPathPrefix: z.string().min(1).optional(),
+  destinationPathPrefix: pathSchema.optional(),
   visibility: z.enum(['public', 'registered', 'restricted']).optional(),
   adaptOkf: z.boolean().optional(),
 };

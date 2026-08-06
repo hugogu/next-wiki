@@ -8,6 +8,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @summary Get cross-space migration status
  * @tag Space migrations
  * @auth bearer
+ * @pathParams SpaceMigrationIdPathParams
  * @response SpaceMigrationOperation
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {
