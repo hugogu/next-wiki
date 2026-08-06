@@ -117,6 +117,23 @@ describe('WikiApiClient', () => {
     expect(url.toString()).toBe('http://localhost:3000/api/v1/pages?include=latestRevision');
   });
 
+  it('uses the durable space-migration endpoints', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => new Response(JSON.stringify({ id: 'operation' }), { status: 202 }));
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+    await client.previewSpaceMigration({
+      selection: { kind: 'page', pageId: '33333333-3333-4333-8333-333333333333' },
+      destinationSpaceId: '22222222-2222-4222-8222-222222222222', adaptOkf: true,
+    });
+    await client.startSpaceMigration({ previewId: '33333333-3333-4333-8333-333333333333', fingerprint: 'a'.repeat(16) });
+    await client.getSpaceMigration('33333333-3333-4333-8333-333333333333');
+    await client.cancelSpaceMigration('33333333-3333-4333-8333-333333333333');
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls).toContain('http://localhost:3000/api/v1/space-migrations/previews');
+    expect(urls).toContain('http://localhost:3000/api/v1/space-migrations');
+    expect(urls).toContain('http://localhost:3000/api/v1/space-migrations/33333333-3333-4333-8333-333333333333');
+  });
+
   it('requests publishedRevision when publishing a page', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
     globalThis.fetch = fetchMock;

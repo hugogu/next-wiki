@@ -11,9 +11,9 @@
 
 **Purpose**: Establish reusable fixtures and conventions for isolated migration tests.
 
-- [ ] T001 [P] Add reusable multi-space, tagged-page, translation, and content-mode fixture builders in `apps/web/test/cross-space-migration-fixtures.ts`
-- [ ] T002 [P] Add migration-operation and pg-boss worker test helpers in `apps/web/test/cross-space-migration-fixtures.ts`
-- [ ] T003 [P] Add shared migration request/result fixtures for REST and MCP tests in `packages/shared/src/page-migrations.test.ts`
+- [X] T001 [P] Add reusable multi-space, tagged-page, translation, and content-mode fixture builders in `apps/web/test/cross-space-migration-fixtures.ts`
+- [X] T002 [P] Add migration-operation and pg-boss worker test helpers in `apps/web/test/cross-space-migration-fixtures.ts`
+- [X] T003 [P] Add shared migration request/result fixtures for REST and MCP tests in `packages/shared/src/page-migrations.test.ts`
 
 ---
 
@@ -123,7 +123,7 @@
 ### Tests for User Story 4
 
 - [ ] T042 [P] [US4] Add public API route tests for preview, create, status, item listing, cancellation, authorization, and no-store response headers in `apps/web/app/api/v1/space-migrations/route.test.ts`
-- [ ] T043 [P] [US4] Add MCP API-client serialization and error-mapping tests in `packages/mcp-server/src/api-client.test.ts`
+- [X] T043 [P] [US4] Add MCP API-client serialization and error-mapping tests in `packages/mcp-server/src/api-client.test.ts`
 - [ ] T044 [P] [US4] Add MCP tool registration, validation, and result-shaping tests in `packages/mcp-server/src/tools/tools.test.ts`
 
 ### Implementation for User Story 4
