@@ -32,6 +32,7 @@ import { createWikiJsLinkReplacer } from '@/server/transfers/markdown-links';
 import { patchMetadata } from '@/server/services/page-metadata';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { getSpaceByKind } from '@/server/services/spaces';
+import { runWithoutDataCache } from '@/server/cache/public-cache';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
 
 async function availableKinds(): Promise<Set<NormalizedPortableManifest['pages'][number]['spaceKind']>> {
@@ -719,7 +720,16 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   }
 }
 
-export async function runTransferImport(runId: string): Promise<void> {
+// Runs inside a pg-boss worker, not a Next.js request — there is no
+// incremental-cache work store there, so any cached space lookup
+// (resolveSpace/getSpaceByKind, which use unstable_cache) would otherwise
+// throw "Invariant: incrementalCache missing". Matches the same workaround
+// already used by other background jobs (see ai-question.ts, raw-conversations.ts).
+export function runTransferImport(runId: string): Promise<void> {
+  return runWithoutDataCache(() => runTransferImportWithoutDataCache(runId));
+}
+
+async function runTransferImportWithoutDataCache(runId: string): Promise<void> {
   const run = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
   if (!run) return;
   await db.update(schema.transferRuns).set({

@@ -17,6 +17,7 @@ import { getTransferConverter } from '@/server/transfers/registry';
 import { getSpaceByKind, resolveSpace } from '@/server/services/spaces';
 import { getMode } from '@/server/services/writing-mode';
 import { DomainError } from '@/server/errors';
+import { runWithoutDataCache } from '@/server/cache/public-cache';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
@@ -374,7 +375,16 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   });
 }
 
-export async function runTransferPreview(runId: string): Promise<void> {
+// Runs inside a pg-boss worker, not a Next.js request — there is no
+// incremental-cache work store there, so any cached space lookup
+// (resolveSpace/getSpaceByKind, which use unstable_cache) would otherwise
+// throw "Invariant: incrementalCache missing". Matches the same workaround
+// already used by other background jobs (see ai-question.ts, raw-conversations.ts).
+export function runTransferPreview(runId: string): Promise<void> {
+  return runWithoutDataCache(() => runTransferPreviewWithoutDataCache(runId));
+}
+
+async function runTransferPreviewWithoutDataCache(runId: string): Promise<void> {
   const run = await db.query.transferRuns.findFirst({
     where: eq(schema.transferRuns.id, runId),
   });

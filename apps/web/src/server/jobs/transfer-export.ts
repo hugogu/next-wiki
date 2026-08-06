@@ -8,9 +8,19 @@ import { writePortableArchive } from '@/server/transfers/archive-writer';
 import { writeOkfArchive } from '@/server/transfers/okf-archive-writer';
 import { markRunTerminal } from '@/server/services/transfers';
 import { normalizeHistoryLimit } from '@/server/transfers/wikijs-client';
+import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { logger } from '@/server/logger';
 
-export async function runTransferExport(runId: string): Promise<void> {
+// Runs inside a pg-boss worker, not a Next.js request — there is no
+// incremental-cache work store there, so any cached space lookup
+// (resolveSpace/getSpaceByKind, which use unstable_cache) would otherwise
+// throw "Invariant: incrementalCache missing". Matches the same workaround
+// already used by other background jobs (see ai-question.ts, raw-conversations.ts).
+export function runTransferExport(runId: string): Promise<void> {
+  return runWithoutDataCache(() => runTransferExportWithoutDataCache(runId));
+}
+
+async function runTransferExportWithoutDataCache(runId: string): Promise<void> {
   const run = await db.query.transferRuns.findFirst({
     where: eq(schema.transferRuns.id, runId),
   });
