@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { TransferCleanupResult, TransferItemList, TransferItemView, TransferRunView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -31,12 +31,19 @@ export function TransferRunDetail({
   run: initialRun,
   items: initialItems,
   total: initialTotal,
+  initialPage = 0,
+  initialFilter = 'all',
 }: {
   run: TransferRunView;
   items: TransferItemView[];
   total: number;
+  /** 0-based, mirrors the `page` query param (1-based) the server read. */
+  initialPage?: number;
+  initialFilter?: TransferItemView['status'] | 'all';
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t } = useTranslation();
   const cancel = useApiMutation(`/api/transfers/${initialRun.id}/cancellation`);
   const retry = useApiMutation(`/api/transfers/${initialRun.id}/retries`);
@@ -49,10 +56,26 @@ export function TransferRunDetail({
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [items, setItems] = useState(initialItems);
   const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(0);
-  const [filter, setFilter] = useState<TransferItemView['status'] | 'all'>('all');
+  const [page, setPage] = useState(initialPage);
+  const [filter, setFilter] = useState<TransferItemView['status'] | 'all'>(initialFilter);
   const active = !TERMINAL.includes(run.status);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Keep the page/filter in the URL so refresh, deep links, and browser
+  // back/forward all restore the same view instead of always snapping to
+  // page 1 (shallow — this must not retrigger the server component fetch).
+  const syncUrl = useCallback(
+    (targetPage: number, targetFilter: typeof filter) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (targetPage > 0) next.set('page', String(targetPage + 1));
+      else next.delete('page');
+      if (targetFilter !== 'all') next.set('status', targetFilter);
+      else next.delete('status');
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   const loadItems = useCallback(
     async (targetPage: number, targetFilter: typeof filter = filter) => {
@@ -67,12 +90,24 @@ export function TransferRunDetail({
     [initialRun.id, filter],
   );
 
+  // User-triggered navigation (page/filter controls) — updates the URL.
+  // The polling effect below calls loadItems directly so it doesn't spam
+  // history/URL replacements on every 2s tick.
+  const goToPage = useCallback(
+    (targetPage: number) => {
+      void loadItems(targetPage);
+      syncUrl(targetPage, filter);
+    },
+    [loadItems, syncUrl, filter],
+  );
+
   const applyFilter = useCallback(
     (next: typeof filter) => {
       setFilter(next);
       void loadItems(0, next);
+      syncUrl(0, next);
     },
-    [loadItems],
+    [loadItems, syncUrl],
   );
 
   // While the run is active, poll the run status and the visible item page so
@@ -207,13 +242,13 @@ export function TransferRunDetail({
       </section>
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <Button type="button" variant="ghost" disabled={page <= 0} onClick={() => void loadItems(page - 1)}>
+          <Button type="button" variant="ghost" disabled={page <= 0} onClick={() => goToPage(page - 1)}>
             <ChevronLeftIcon /><span className="ml-2">{t('userCenter.audit.prev')}</span>
           </Button>
           <span className="text-sm text-muted">
             {t('userCenter.audit.page')} {page + 1} {t('userCenter.audit.of')} {totalPages}
           </span>
-          <Button type="button" variant="ghost" disabled={page + 1 >= totalPages} onClick={() => void loadItems(page + 1)}>
+          <Button type="button" variant="ghost" disabled={page + 1 >= totalPages} onClick={() => goToPage(page + 1)}>
             <span className="mr-2">{t('userCenter.audit.next')}</span><ChevronRightIcon />
           </Button>
         </div>
