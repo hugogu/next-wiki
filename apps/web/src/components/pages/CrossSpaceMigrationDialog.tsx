@@ -83,16 +83,18 @@ export function CrossSpaceMigrationDialog({
   const terminal = operation && ['completed', 'completed_with_warnings', 'failed', 'cancelled'].includes(operation.status);
   return <ModalDialog title={t('admin.pages.move.title', { space: 'another space' })} description={t('admin.pages.move.description', { title, space: 'another space' })} onClose={() => { if (!pending) onClose(); }}>
     <div className="space-y-md" aria-live="polite">
-      {!preview && !operation && <label className="block space-y-xs text-sm font-medium">
-        <span>{t('admin.pages.move.destinationLabel')}</span>
-        <Select value={destinationId} onChange={(event) => { setDestinationId(event.target.value); setPreview(null); }} disabled={pending}>
-          {spaces.filter((space) => space.isActive && space.kind !== 'raw' && space.kind !== sourceSpaceKind).map((space) => <option key={space.id} value={space.id}>{space.kind === 'wiki' ? t('admin.pages.spaces.wiki') : t('admin.pages.spaces.generated')}</option>)}
-        </Select>
-      </label>}
-      {!preview && !operation && <label className="block space-y-xs text-sm font-medium">
-        <span>{t('admin.pages.move.destinationPathLabel')}</span>
-        <input value={destinationPathPrefix} onChange={(event) => setDestinationPathPrefix(event.target.value)} placeholder={t('admin.pages.move.destinationPathPlaceholder')} className="w-full rounded-md border border-border bg-surface px-sm py-xs text-sm" />
-      </label>}
+      {!preview && !operation && <div className="grid gap-md sm:grid-cols-2">
+        <label className="block min-w-0 space-y-xs text-sm font-medium">
+          <span>{t('admin.pages.move.destinationLabel')}</span>
+          <Select value={destinationId} onChange={(event) => { setDestinationId(event.target.value); setPreview(null); }} disabled={pending}>
+            {spaces.filter((space) => space.isActive && space.kind !== 'raw' && space.kind !== sourceSpaceKind).map((space) => <option key={space.id} value={space.id}>{space.kind === 'wiki' ? t('admin.pages.spaces.wiki') : t('admin.pages.spaces.generated')}</option>)}
+          </Select>
+        </label>
+        <label className="block min-w-0 space-y-xs text-sm font-medium">
+          <span>{t('admin.pages.move.destinationPathLabel')}</span>
+          <input value={destinationPathPrefix} onChange={(event) => setDestinationPathPrefix(event.target.value)} placeholder={t('admin.pages.move.destinationPathPlaceholder')} className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm" />
+        </label>
+      </div>}
       {preview && !operation && <div className="rounded-md border border-border p-sm text-sm">
         <p>{t('admin.pages.move.previewCount', { count: preview.items.length })}</p>
         {preview.items.some((item) => item.warning) && <ul className="mt-xs list-disc pl-lg text-muted">{preview.items.filter((item) => item.warning).map((item) => <li key={item.pageId}>{item.destinationPath}: {item.warning}</li>)}</ul>}

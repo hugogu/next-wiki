@@ -33,6 +33,7 @@ describe('ModalDialog focus', () => {
     );
 
     expect(container.innerHTML).toContain('z-[60]');
+    expect(container.querySelector('[role="dialog"]')?.className).toContain('text-left');
   });
 
   it('focuses the first form field on mount, not the close button', () => {

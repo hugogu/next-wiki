@@ -66,7 +66,7 @@ export const ModalDialog = forwardRef<HTMLDivElement, {
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`max-h-[90vh] w-full overflow-auto rounded-lg border border-border bg-surface p-lg shadow-lg ${maxWidth}`}
+        className={`max-h-[90vh] w-full overflow-auto rounded-lg border border-border bg-surface p-lg text-left shadow-lg ${maxWidth}`}
       >
         <div className="mb-md flex items-start justify-between gap-md">
           <div>
