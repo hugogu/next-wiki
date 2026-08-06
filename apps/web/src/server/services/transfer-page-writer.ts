@@ -356,6 +356,9 @@ export async function writeImportedPageWithHistory(input: {
   if (input.versions.length === 0) {
     throw new Error('writeImportedPageWithHistory requires at least one version');
   }
+  // Mirrors writeImportedPage: restoring a soft-deleted page on action:'create'
+  // is reported as 'create', not 'replace' — it's not overwriting live content.
+  const restoredDeletedPage = Boolean(existing?.deletedAt);
 
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -473,6 +476,6 @@ export async function writeImportedPageWithHistory(input: {
   return {
     pageId: result.pageId,
     revisionIds: result.revisionIds,
-    action: existing ? 'replace' : 'create',
+    action: existing && !(restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
   };
 }

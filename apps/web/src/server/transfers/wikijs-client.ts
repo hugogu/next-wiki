@@ -91,6 +91,21 @@ export type WikiJsVersionContent = z.infer<typeof versionContentSchema>;
 
 const HISTORY_PAGE_SIZE = 100;
 const HISTORY_ACCESS_ERROR_PATTERN = /permission|forbidden|unauthorized|access denied/i;
+export const DEFAULT_HISTORY_LIMIT = 300;
+const MIN_HISTORY_LIMIT = 1;
+const MAX_HISTORY_LIMIT = 2000;
+
+/**
+ * Coerce a persisted `run.options.historyLimit` value into the bounds the
+ * wikijsTransferOptionsSchema enforces on write. Options are stored as
+ * untyped jsonb, so a run created before this validation existed — or a row
+ * edited by hand — could otherwise hand selectHistoryWindow() a 0 or NaN
+ * limit and produce confusing truncation output.
+ */
+export function normalizeHistoryLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_HISTORY_LIMIT;
+  return Math.min(MAX_HISTORY_LIMIT, Math.max(MIN_HISTORY_LIMIT, Math.floor(value)));
+}
 
 type WikiJsPageMetadata = {
   id: number;

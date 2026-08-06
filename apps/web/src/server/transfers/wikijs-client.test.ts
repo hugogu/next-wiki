@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   computeWikiJsHistoryFingerprint,
   computeWikiJsPageFingerprint,
+  normalizeHistoryLimit,
   selectHistoryWindow,
   wikiJsTagNames,
   WikiJsClient,
@@ -50,6 +51,30 @@ describe('computeWikiJsHistoryFingerprint', () => {
     expect(same).toBe(first);
     expect(differentTrail).not.toBe(first);
     expect(differentPage).not.toBe(first);
+  });
+});
+
+describe('normalizeHistoryLimit', () => {
+  it('passes through a valid in-bounds integer', () => {
+    expect(normalizeHistoryLimit(50)).toBe(50);
+  });
+
+  it('clamps out-of-bounds values to the 1..2000 range', () => {
+    expect(normalizeHistoryLimit(0)).toBe(1);
+    expect(normalizeHistoryLimit(-5)).toBe(1);
+    expect(normalizeHistoryLimit(5000)).toBe(2000);
+  });
+
+  it('floors a non-integer value', () => {
+    expect(normalizeHistoryLimit(12.9)).toBe(12);
+  });
+
+  it('falls back to the default for missing, non-numeric, or non-finite values', () => {
+    expect(normalizeHistoryLimit(undefined)).toBe(300);
+    expect(normalizeHistoryLimit(null)).toBe(300);
+    expect(normalizeHistoryLimit('300')).toBe(300);
+    expect(normalizeHistoryLimit(NaN)).toBe(300);
+    expect(normalizeHistoryLimit(Infinity)).toBe(300);
   });
 });
 

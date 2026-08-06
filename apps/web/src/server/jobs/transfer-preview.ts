@@ -10,6 +10,7 @@ import {
   WikiJsClient,
   computeWikiJsHistoryFingerprint,
   computeWikiJsPageFingerprint,
+  normalizeHistoryLimit,
   selectHistoryWindow,
 } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
@@ -163,7 +164,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   const options = run.options as { conflictStrategy?: string; includeHistory?: boolean; historyLimit?: number };
   const strategy = options.conflictStrategy ?? 'skip';
   const includeHistory = Boolean(options.includeHistory);
-  const historyLimit = options.historyLimit ?? 300;
+  const historyLimit = normalizeHistoryLimit(options.historyLimit);
 
   // Probe history access once, up front, instead of discovering the gap page
   // by page — a missing read:history grant fails the whole run immediately.
@@ -270,7 +271,11 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
         if (truncated) {
           itemStatus = 'warning';
           warningCode = 'WIKIJS_HISTORY_TRUNCATED';
-          warningMessage = `Kept ${keep.length + 1} of ${trail.length + 1} historical versions (oldest kept: ${keep[0]?.versionDate ?? 'unknown'}).`;
+          // keep/trail counts are historical versions only (current is tracked
+          // separately) so this reads correctly even when keep is empty (a
+          // historyLimit of 1 leaves no room for any historical version).
+          const oldestKeptNote = keep.length > 0 ? ` (oldest kept: ${keep[0]!.versionDate})` : '';
+          warningMessage = `Kept ${keep.length} of ${trail.length} historical versions plus the current version${oldestKeptNote}.`;
         }
       }
       fingerprints.push(itemFingerprint);
@@ -340,8 +345,13 @@ export async function runTransferPreview(runId: string): Promise<void> {
     else if (run.kind === 'wikijs_preview') await previewWikiJs(run);
     else throw new Error('Unsupported preview kind');
   } catch (error) {
+    // A non-DomainError failure (e.g. a plain thrown Error from a missing
+    // source/space, or an unexpected exception) has no typed code to report.
+    // Fall back per run kind so a Wiki.js preview failure isn't mislabeled as
+    // an archive problem, which makes troubleshooting harder.
+    const fallbackCode = run.kind === 'wikijs_preview' ? 'WIKIJS_PREVIEW_FAILED' : 'INVALID_ARCHIVE';
     await markRunTerminal(runId, 'failed', {
-      errorCode: error instanceof DomainError ? error.code : 'INVALID_ARCHIVE',
+      errorCode: error instanceof DomainError ? error.code : fallbackCode,
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Preview failed',
     });
   }

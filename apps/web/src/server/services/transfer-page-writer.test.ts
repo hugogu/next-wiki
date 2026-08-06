@@ -287,4 +287,36 @@ describe('writeImportedPageWithHistory', () => {
     });
     expect(result).toEqual({ pageId: null, revisionIds: [], action: 'skip' });
   });
+
+  it('reports action "create" (not "replace") when restoring a soft-deleted page', async () => {
+    const [deletedPage] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId,
+        slug: 'history-restore',
+        path: 'docs/history-restore',
+        locale: 'en',
+        title: 'Deleted title',
+        authorId: adminId,
+        deletedAt: new Date('2026-06-01T00:00:00.000Z'),
+      })
+      .returning();
+
+    const result = await writeImportedPageWithHistory({
+      actorUserId: adminId,
+      path: 'docs/history-restore',
+      locale: 'en',
+      versions: [{ markdown: '# restored', title: 'Restored', createdAt: new Date('2026-07-01T00:00:00.000Z'), sourceMetadata: {} }],
+      action: 'create',
+    });
+
+    expect(result.pageId).toBe(deletedPage!.id);
+    // Restoring a soft-deleted page isn't overwriting live content, so this
+    // must read as 'create' — matching writeImportedPage's behavior.
+    expect(result.action).toBe('create');
+
+    const restoredPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, deletedPage!.id) });
+    expect(restoredPage?.deletedAt).toBeNull();
+    expect(restoredPage?.title).toBe('Restored');
+  });
 });

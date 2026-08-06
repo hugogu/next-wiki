@@ -209,20 +209,24 @@ export function WikiJsSourcePanel({
               </div>
             </div>
             <div className="mt-sm flex flex-wrap items-center gap-sm border-t border-border pt-sm text-sm">
-              <label className="flex items-center gap-xs">
-                <input
-                  type="checkbox"
-                  checked={includeHistory}
-                  disabled={busy}
-                  onChange={(event) => setHistoryOptionsFor(source.id, { includeHistory: event.target.checked })}
-                />
-                {t('admin.transfers.wikijs.includeHistory')}
+              <div className="flex items-center gap-xs">
+                <label className="flex items-center gap-xs">
+                  <input
+                    type="checkbox"
+                    checked={includeHistory}
+                    disabled={busy}
+                    onChange={(event) => setHistoryOptionsFor(source.id, { includeHistory: event.target.checked })}
+                  />
+                  {t('admin.transfers.wikijs.includeHistory')}
+                </label>
+                {/* Kept outside the <label> — nesting it there made clicking
+                    the icon also toggle the checkbox via label activation. */}
                 <Tooltip label={t('admin.transfers.wikijs.includeHistoryHelp')}>
                   <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.wikijs.includeHistoryHelp')}>
                     <InfoIcon className="h-4 w-4" />
                   </span>
                 </Tooltip>
-              </label>
+              </div>
               {includeHistory && (
                 <label className="flex items-center gap-xs text-muted">
                   {t('admin.transfers.wikijs.historyLimit')}

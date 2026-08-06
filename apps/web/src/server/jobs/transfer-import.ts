@@ -18,6 +18,7 @@ import { getRuntimeSource } from '@/server/services/transfer-sources';
 import {
   WikiJsClient,
   computeWikiJsHistoryFingerprint,
+  normalizeHistoryLimit,
   selectHistoryWindow,
   wikiJsTagNames,
   type WikiJsHistoryEntry,
@@ -246,7 +247,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
   const client = new WikiJsClient(source.baseUrl, source.apiToken, source.allowPrivateNetwork);
   const runOptions = run.options as { includeHistory?: boolean; historyLimit?: number };
   const includeHistory = Boolean(runOptions.includeHistory);
-  const historyLimit = runOptions.historyLimit ?? 300;
+  const historyLimit = normalizeHistoryLimit(runOptions.historyLimit);
   const plans = await db.query.transferItems.findMany({
     where: and(eq(schema.transferItems.runId, preview.id), eq(schema.transferItems.kind, 'page')),
   });
@@ -398,6 +399,12 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     let historyTruncated = false;
     let historyIncludedCount = 0;
     let historyTotalAvailable = 0;
+    // Historical-only counts (excluding the current version) for the
+    // human-readable warning message — historyIncludedCount/historyTotalAvailable
+    // above include the current version and are kept that way for the
+    // structured metadata, matching previewWikiJs's history metadata shape.
+    let historyKeptCount = 0;
+    let historyAvailableCount = 0;
 
     if (includeHistory) {
       const { keep, truncated } = selectHistoryWindow(trail, historyLimit);
@@ -462,6 +469,8 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       historyTruncated = truncated;
       historyIncludedCount = versions.length;
       historyTotalAvailable = trail.length + 1;
+      historyKeptCount = keep.length;
+      historyAvailableCount = trail.length;
       if (truncated) itemWarned = true;
     } else {
       const built = await processWikiJsContent({
@@ -530,7 +539,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       status: itemWarned ? 'warning' : 'completed',
       warningCode: historyTruncated ? 'WIKIJS_HISTORY_TRUNCATED' : undefined,
       warningMessage: historyTruncated
-        ? `Kept ${historyIncludedCount} of ${historyTotalAvailable} historical versions.`
+        ? `Kept ${historyKeptCount} of ${historyAvailableCount} historical versions plus the current version.`
         : undefined,
       metadata: {
         converted: anyConverted,
