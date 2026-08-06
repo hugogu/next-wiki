@@ -1,5 +1,6 @@
 import type {
   PublicAssetResource,
+  PublicAttachmentResource,
   PublicImageGeneration,
   PublicNeighborhoodResponse,
   PublicOutboundLinksResponse,
@@ -312,6 +313,24 @@ export function uploadImageResponse(source: PublicAssetResource): {
     markdown: source.markdown,
     contentType: source.contentType,
     sizeBytes: source.sizeBytes,
+  };
+}
+
+export function attachFileResponse(source: PublicAttachmentResource): {
+  id: string;
+  pageId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  url: string;
+} {
+  return {
+    id: source.id,
+    pageId: source.pageId,
+    fileName: source.fileName,
+    contentType: source.contentType,
+    sizeBytes: source.sizeBytes,
+    url: source.url,
   };
 }
 

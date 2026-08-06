@@ -21,6 +21,9 @@ export type DomainErrorCode =
   | 'INVALID_IMAGE' // 400: rejected upload (bad type/size)
   | 'STORAGE_MIGRATING' // 423: write blocked by an in-progress backend migration
   | 'STORAGE_UNAVAILABLE' // 503: the active backend could not be reached
+  // Page attachments (034).
+  | 'ATTACHMENT_TOO_LARGE' // 413: exceeds the configured max attachment size
+  | 'UNSUPPORTED_ATTACHMENT_TYPE' // 415: not in the FR-010 allowlist / disabled category
   | 'AI_DISABLED'
   | 'AI_NOT_CONFIGURED'
   | 'AI_FEATURE_DISABLED'

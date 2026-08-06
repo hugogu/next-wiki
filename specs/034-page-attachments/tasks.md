@@ -23,8 +23,8 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 **Purpose**: Add the new shared Zod contracts every later task type-checks against.
 
-- [ ] T001 [P] Add `'attachments'` to `apiKeyScopeSchema` in `packages/shared/src/api-keys.ts`
-- [ ] T002 [P] Add `'attachment'` to `contentAssetKindSchema`, and add `attachmentCategorySchema`, `publicAttachmentResourceSchema`, `attachmentSettingsViewSchema`, `attachmentSettingsUpsertSchema` to `packages/shared/src/content-storage.ts` (per contracts/attachments-api.md's "Shared Zod contracts" section)
+- [X] T001 [P] Add `'attachments'` to `apiKeyScopeSchema` in `packages/shared/src/api-keys.ts`
+- [X] T002 [P] Add `'attachment'` to `contentAssetKindSchema`, and add `attachmentCategorySchema`, `publicAttachmentResourceSchema`, `attachmentSettingsViewSchema`, `attachmentSettingsUpsertSchema` to `packages/shared/src/content-storage.ts` (per contracts/attachments-api.md's "Shared Zod contracts" section)
 
 ---
 
@@ -40,15 +40,15 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Add `page_attachments` table (`id, page_id, asset_id, file_name, uploaded_by, created_at, removed_at, removed_by` + the two indexes from data-model.md) to `apps/web/src/server/db/schema/index.ts`, preserving the lifecycle audit fields required by FR-016
-- [ ] T004 Add singleton `attachment_settings` table (`id, max_size_bytes, allowed_categories, updated_by, updated_at`, defaults `20971520` (20 MB) / `['image','video','document']`, mirroring `site_settings`'s pattern) to `apps/web/src/server/db/schema/index.ts` (same file as T003 — sequential with it)
-- [ ] T005 [P] Add `'attachments'` value to `apiKeyScopeEnum` in `apps/web/src/server/db/schema/enums.ts`
-- [ ] T006 Run `pnpm db:generate` for T003–T005, then run it a second time with no further edits and confirm it reports "No schema changes, nothing to migrate" per this repo's binding migration rule (depends on T003, T004, T005)
-- [ ] T007 Add `'attach_file'` to the `Action` union, a `roleAllows('attach_file', ...)` case mirroring `'edit'`, and `scopeToActions.attachments = ['attach_file']` (deliberately not added to `create`/`edit`'s mappings) in `apps/web/src/server/permissions/index.ts` (depends on T001)
-- [ ] T008 [P] Create `apps/web/src/server/content-store/attachment-validation.ts`: magic-byte + declared-MIME-fallback type sniffing for the fixed FR-010 allowlist, category mapping (`image`/`video`/`document`), and `validateAttachment(bytes, maxBytes, allowedCategories)` (research.md §7)
-- [ ] T009 [P] Add `ATTACHMENT_TOO_LARGE` and `UNSUPPORTED_ATTACHMENT_TYPE` to `DomainErrorCode` in `apps/web/src/server/errors.ts`, and map them to the existing public `ASSET_TOO_LARGE` (413) / `UNSUPPORTED_ASSET_TYPE` (415) codes in `apps/web/src/server/api/public-errors.ts`'s `mapPublicDomainErrorCode`
-- [ ] T010 Update `listAbandonedUploadIds` in `apps/web/src/server/content-store/atomic-write.ts` to also exclude any `content_assets` row referenced by a live (`removed_at IS NULL`) `page_attachments` row — **without this fix, the existing `orphan-cleanup` job (`apps/web/src/server/jobs/orphan-cleanup.ts`) will silently delete every attachment older than `CONTENT_UPLOAD_TTL_HOURS` (default 24h), because it currently only knows about `content_asset_refs` and `page_revisions.original_asset_id`** (depends on T003)
-- [ ] T011 [P] Update `apps/web/src/server/content-store/atomic-write.test.ts` and `apps/web/src/server/jobs/orphan-cleanup.test.ts` to cover T010: an attachment referenced only via `page_attachments` must survive cleanup past the TTL; a removed (`removed_at` set) attachment with no other reference is still reclaimable (depends on T010)
+- [X] T003 Add `page_attachments` table (`id, page_id, asset_id, file_name, uploaded_by, created_at, removed_at, removed_by` + the two indexes from data-model.md) to `apps/web/src/server/db/schema/index.ts`, preserving the lifecycle audit fields required by FR-016
+- [X] T004 Add singleton `attachment_settings` table (`id, max_size_bytes, allowed_categories, updated_by, updated_at`, defaults `20971520` (20 MB) / `['image','video','document']`, mirroring `site_settings`'s pattern) to `apps/web/src/server/db/schema/index.ts` (same file as T003 — sequential with it)
+- [X] T005 [P] Add `'attachments'` value to `apiKeyScopeEnum` in `apps/web/src/server/db/schema/enums.ts`
+- [X] T006 Run `pnpm db:generate` for T003–T005, then run it a second time with no further edits and confirm it reports "No schema changes, nothing to migrate" per this repo's binding migration rule (depends on T003, T004, T005)
+- [X] T007 Add `'attach_file'` to the `Action` union, a `roleAllows('attach_file', ...)` case mirroring `'edit'`, and `scopeToActions.attachments = ['attach_file']` (deliberately not added to `create`/`edit`'s mappings) in `apps/web/src/server/permissions/index.ts` (depends on T001)
+- [X] T008 [P] Create `apps/web/src/server/content-store/attachment-validation.ts`: magic-byte + declared-MIME-fallback type sniffing for the fixed FR-010 allowlist, category mapping (`image`/`video`/`document`), and `validateAttachment(bytes, maxBytes, allowedCategories)` (research.md §7)
+- [X] T009 [P] Add `ATTACHMENT_TOO_LARGE` and `UNSUPPORTED_ATTACHMENT_TYPE` to `DomainErrorCode` in `apps/web/src/server/errors.ts`, and map them to the existing public `ASSET_TOO_LARGE` (413) / `UNSUPPORTED_ASSET_TYPE` (415) codes in `apps/web/src/server/api/public-errors.ts`'s `mapPublicDomainErrorCode`
+- [X] T010 Update `listAbandonedUploadIds` in `apps/web/src/server/content-store/atomic-write.ts` to also exclude any `content_assets` row referenced by a live (`removed_at IS NULL`) `page_attachments` row — **without this fix, the existing `orphan-cleanup` job (`apps/web/src/server/jobs/orphan-cleanup.ts`) will silently delete every attachment older than `CONTENT_UPLOAD_TTL_HOURS` (default 24h), because it currently only knows about `content_asset_refs` and `page_revisions.original_asset_id`** (depends on T003)
+- [X] T011 [P] Update `apps/web/src/server/content-store/atomic-write.test.ts` and `apps/web/src/server/jobs/orphan-cleanup.test.ts` to cover T010: an attachment referenced only via `page_attachments` must survive cleanup past the TTL; a removed (`removed_at` set) attachment with no other reference is still reclaimable (depends on T010)
 
 **Checkpoint**: Foundation ready — user story implementation can now begin.
 
@@ -64,19 +64,19 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 > Write these first; confirm they fail before the implementation tasks below make them pass.
 
-- [ ] T012 [P] [US1] Unit tests for `attachFile` (size/type acceptance and rejection, dedup-safe distinct-attachment identity, original file name/size/type preserved, rejection of unsafe filenames, and no silent safety transformation of accepted bytes) in `apps/web/src/server/services/page-attachments.test.ts`
-- [ ] T013 [P] [US1] Permission tests for `canAttach`: session editor/author succeeds, session reader fails; `api_key` with `edit`+`create` but no `attachments` scope fails (FR-007); `api_key` with `attachments` scope succeeds (FR-007) in `apps/web/src/server/services/page-attachments-permissions.test.ts`
+- [X] T012 [P] [US1] Unit tests for `attachFile` (size/type acceptance and rejection, dedup-safe distinct-attachment identity, original file name/size/type preserved, rejection of unsafe filenames, and no silent safety transformation of accepted bytes) in `apps/web/src/server/services/page-attachments.test.ts`
+- [X] T013 [P] [US1] Permission tests for `canAttach`: session editor/author succeeds, session reader fails; `api_key` with `edit`+`create` but no `attachments` scope fails (FR-007); `api_key` with `attachments` scope succeeds (FR-007) in `apps/web/src/server/services/page-attachments-permissions.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Create `apps/web/src/server/services/attachment-settings.ts` with `getAttachmentSettings()` (returns the singleton row or the schema defaults when no row exists yet, mirroring `site-settings.ts`'s read pattern) (depends on T004)
-- [ ] T015 [US1] Create `apps/web/src/server/services/page-attachments.ts`: `canAttach(ctx, page)` (session → `can(ctx,'attach_file',...)`; api_key → additionally require `can(ctx,'read'|'read_draft',...)` on the same page per FR-007a) and `attachFile(ctx, pageId, bytes, fileName)` (validates a safe single display filename plus T008 + T014's limits, calls the existing generic `writeAsset(store, {kind:'attachment', ...})`, inserts a `page_attachments` row) (depends on T003, T007, T008, T014)
-- [ ] T016 [US1] Add `attachToPage(ctx, pageId, bytes, fileName)` to `apps/web/src/server/services/public-content.ts`, shaping the result into `PublicAttachmentResource` (depends on T002, T015)
-- [ ] T017 [US1] Create `apps/web/app/api/v1/pages/[pageId]/attachments/route.ts` with a `POST` handler (multipart `file` field → `attachToPage`), OpenAPI JSDoc per contracts/attachments-api.md, mapping `ATTACHMENT_TOO_LARGE`/`UNSUPPORTED_ATTACHMENT_TYPE`/`FORBIDDEN`/`NOT_FOUND` (depends on T009, T016)
-- [ ] T018 [US1] Add a `GET` handler (list current attachments for a page) to the same `apps/web/app/api/v1/pages/[pageId]/attachments/route.ts`, backed by a new `listAttachments(ctx, pageId)` in `page-attachments.ts`/`public-content.ts` (depends on T017)
-- [ ] T019 [US1] Create `apps/web/src/components/page/AttachmentsPanel.tsx` (client component): attach button/upload form, renders the current list (from the T018 endpoint), shows newly attached items immediately (depends on T018)
-- [ ] T020 [US1] Render `AttachmentsPanel` (with the page's id) from `apps/web/app/(public)/[...path]/page.tsx` for users who can read the page (depends on T019)
-- [ ] T021 [US1] Add MCP tool `attach_file`: schema + handler in `packages/mcp-server/src/tools/attach-file.ts`, an `attachFile` method on `packages/mcp-server/src/api-client.ts` (multipart POST to the T017 endpoint), and registration in `packages/mcp-server/src/server.ts` (depends on T017)
+- [X] T014 [P] [US1] Create `apps/web/src/server/services/attachment-settings.ts` with `getAttachmentSettings()` (returns the singleton row or the schema defaults when no row exists yet, mirroring `site-settings.ts`'s read pattern) (depends on T004)
+- [X] T015 [US1] Create `apps/web/src/server/services/page-attachments.ts`: `canAttach(ctx, page)` (session → `can(ctx,'attach_file',...)`; api_key → additionally require `can(ctx,'read'|'read_draft',...)` on the same page per FR-007a) and `attachFile(ctx, pageId, bytes, fileName)` (validates a safe single display filename plus T008 + T014's limits, calls the existing generic `writeAsset(store, {kind:'attachment', ...})`, inserts a `page_attachments` row) (depends on T003, T007, T008, T014)
+- [X] T016 [US1] Add `attachToPage(ctx, pageId, bytes, fileName)` to `apps/web/src/server/services/public-content.ts`, shaping the result into `PublicAttachmentResource` (depends on T002, T015)
+- [X] T017 [US1] Create `apps/web/app/api/v1/pages/[pageId]/attachments/route.ts` with a `POST` handler (multipart `file` field → `attachToPage`), OpenAPI JSDoc per contracts/attachments-api.md, mapping `ATTACHMENT_TOO_LARGE`/`UNSUPPORTED_ATTACHMENT_TYPE`/`FORBIDDEN`/`NOT_FOUND` (depends on T009, T016)
+- [X] T018 [US1] Add a `GET` handler (list current attachments for a page) to the same `apps/web/app/api/v1/pages/[pageId]/attachments/route.ts`, backed by a new `listAttachments(ctx, pageId)` in `page-attachments.ts`/`public-content.ts` (depends on T017)
+- [X] T019 [US1] Create `apps/web/src/components/page/AttachmentsPanel.tsx` (client component): attach button/upload form, renders the current list (from the T018 endpoint), shows newly attached items immediately (depends on T018)
+- [X] T020 [US1] Render `AttachmentsPanel` (with the page's id) from `apps/web/src/components/pages/ReaderPageView.tsx` (rendered by `apps/web/app/(public)/[...path]/page.tsx`) for read-only download access, and from `PagePropertiesPanel.tsx` (used by `EditPageForm.tsx`/`PagePropertiesDialog.tsx`) with `canManage` for attach/remove, since this codebase's edit UI is a dedicated `/edit` route rather than inline reader controls (depends on T019)
+- [X] T021 [US1] Add MCP tool `attach_file`: schema + handler in `packages/mcp-server/src/tools/attach-file.ts`, an `attachFile` method on `packages/mcp-server/src/api-client.ts` (multipart POST to the T017 endpoint), and registration in `packages/mcp-server/src/server.ts` (depends on T017)
 
 **Checkpoint**: User Story 1 is fully functional and independently testable (web UI, public API, and MCP).
 

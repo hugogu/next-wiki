@@ -21,7 +21,7 @@ export const storageReplicaStateSchema = z.enum([
 ]);
 export type StorageReplicaState = z.infer<typeof storageReplicaStateSchema>;
 
-export const contentAssetKindSchema = z.enum(['image']);
+export const contentAssetKindSchema = z.enum(['image', 'attachment']);
 export type ContentAssetKind = z.infer<typeof contentAssetKindSchema>;
 
 export const migrationStatusSchema = z.enum([
@@ -75,6 +75,54 @@ export type PublicAssetResource = z.infer<typeof publicAssetResourceSchema>;
 
 export const publicAssetUploadResultSchema = publicAssetResourceSchema;
 export type PublicAssetUploadResult = z.infer<typeof publicAssetUploadResultSchema>;
+
+// ---- Page attachments (034) -------------------------------------------------
+
+/** Admin-facing type category an attachment's detected/declared type maps to. */
+export const attachmentCategorySchema = z.enum(['image', 'video', 'document']);
+export type AttachmentCategory = z.infer<typeof attachmentCategorySchema>;
+
+export const publicAttachmentResourceSchema = z.object({
+  id: z.string().uuid(),
+  pageId: z.string().uuid(),
+  fileName: z.string().min(1),
+  contentType: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  url: z.string(),
+  createdAt: z.string(),
+  uploadedBy: z.string().uuid().nullable(),
+});
+export type PublicAttachmentResource = z.infer<typeof publicAttachmentResourceSchema>;
+
+export const publicAttachmentListSchema = z.object({
+  items: z.array(publicAttachmentResourceSchema),
+});
+export type PublicAttachmentList = z.infer<typeof publicAttachmentListSchema>;
+
+/** Wiki-wide admin-configured attachment limits (singleton `attachment_settings` row). */
+export const attachmentSettingsViewSchema = z.object({
+  maxSizeBytes: z.number().int().positive(),
+  allowedCategories: z.array(attachmentCategorySchema).min(1),
+  updatedAt: z.string(),
+  updatedBy: z.string().uuid().nullable(),
+});
+export type AttachmentSettingsView = z.infer<typeof attachmentSettingsViewSchema>;
+
+export const attachmentSettingsUpsertSchema = z.object({
+  maxSizeBytes: z.number().int().positive(),
+  allowedCategories: z.array(attachmentCategorySchema).min(1),
+});
+export type AttachmentSettingsUpsert = z.infer<typeof attachmentSettingsUpsertSchema>;
+
+/** Default attachment size cap: 20 MB, kept small so a synchronous attach
+ * request stays comfortably under the constitution's P7 500ms threshold
+ * (see specs/034-page-attachments/plan.md's Constitution Check). */
+export const DEFAULT_ATTACHMENT_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+export const DEFAULT_ATTACHMENT_ALLOWED_CATEGORIES: AttachmentCategory[] = [
+  'image',
+  'video',
+  'document',
+];
 
 // ---- Backend configuration (per-type, non-secret) --------------------------
 //

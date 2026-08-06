@@ -905,6 +905,48 @@ export const contentBlobs = pgTable('content_blobs', {
   bytes: bytea('bytes').notNull(),
 });
 
+/** 034: page-level association between a page and an attached file (asset
+ * kind = 'attachment'). Not revision-scoped — unlike content_asset_refs,
+ * which is derived by scanning a revision's Markdown for inline image
+ * references, an attachment is not embedded in the page body, so it is
+ * linked directly to the page instead. */
+export const pageAttachments = pgTable(
+  'page_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pageId: uuid('page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => contentAssets.id, { onDelete: 'restrict' }),
+    fileName: text('file_name').notNull(),
+    uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    removedBy: uuid('removed_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    pageIdx: index('page_attachments_page_idx').on(t.pageId).where(isNull(t.removedAt)),
+    assetIdx: index('page_attachments_asset_idx').on(t.assetId),
+  }),
+);
+
+/** 034: wiki-wide admin-configured attachment limits (singleton row, `id`
+ * fixed to 'default', mirroring `site_settings`/`system_theme_settings`).
+ * Read only at upload-validation time; changing it never affects
+ * already-stored attachments. */
+export const attachmentSettings = pgTable('attachment_settings', {
+  id: text('id').primaryKey().default('default'),
+  maxSizeBytes: integer('max_size_bytes').notNull().default(20 * 1024 * 1024),
+  allowedCategories: text('allowed_categories')
+    .array()
+    .notNull()
+    .default(['image', 'video', 'document']),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const contentMigrations = pgTable(
   'content_migrations',
   {

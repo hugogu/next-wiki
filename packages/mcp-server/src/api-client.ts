@@ -367,6 +367,25 @@ export const publicAssetResourceSchema = z.object({
 });
 export type PublicAssetResource = z.infer<typeof publicAssetResourceSchema>;
 
+// ---- 034: page attachments --------------------------------------------------
+
+export const publicAttachmentResourceSchema = z.object({
+  id: z.string().uuid(),
+  pageId: z.string().uuid(),
+  fileName: z.string(),
+  contentType: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  url: z.string(),
+  createdAt: z.string(),
+  uploadedBy: z.string().uuid().nullable(),
+});
+export type PublicAttachmentResource = z.infer<typeof publicAttachmentResourceSchema>;
+
+export const publicAttachmentListSchema = z.object({
+  items: z.array(publicAttachmentResourceSchema),
+});
+export type PublicAttachmentList = z.infer<typeof publicAttachmentListSchema>;
+
 // ---- 029: AI image tools ---------------------------------------------------
 
 export const publicImageSourceSchema = z.discriminatedUnion('kind', [
@@ -774,6 +793,16 @@ export class WikiApiClient {
     formData.set('file', file);
 
     return this.request<PublicAssetResource>('/assets', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async attachFile(pageId: string, file: File | Blob): Promise<PublicAttachmentResource> {
+    const formData = new FormData();
+    formData.set('file', file);
+
+    return this.request<PublicAttachmentResource>(`/pages/${encodeURIComponent(pageId)}/attachments`, {
       method: 'POST',
       body: formData,
     });

@@ -66,6 +66,7 @@ export type Action =
   | 'edit'
   | 'publish'
   | 'delete'
+  | 'attach_file'
   | 'manage_users'
   | 'manage_storage'
   | 'manage_preferences'
@@ -112,6 +113,10 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   manage_tags: ['manage_tags'],
   'ai.read': ['use_ai_search', 'use_ai_qa'],
   'ai.image': ['use_ai_image_generation'],
+  // 034: deliberately NOT added to `create`/`edit`'s mappings — an API key
+  // must hold this scope specifically to attach files, independent of its
+  // content create/edit permissions (spec FR-007).
+  attachments: ['attach_file'],
 };
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {
@@ -129,7 +134,13 @@ function roleAllows(
   // are deliberately evaluated separately: page visibility, not space kind,
   // determines whether an already-published document may be read anonymously.
   if (spaceKind === 'raw') {
-    if (action === 'edit' || action === 'delete' || action === 'publish' || action === 'read_draft') {
+    if (
+      action === 'edit' ||
+      action === 'delete' ||
+      action === 'publish' ||
+      action === 'read_draft' ||
+      action === 'attach_file'
+    ) {
       return false;
     }
     if (action === 'create') return role === 'admin';
@@ -142,11 +153,15 @@ function roleAllows(
       action === 'create' ||
       action === 'edit' ||
       action === 'publish' ||
-      action === 'delete')
+      action === 'delete' ||
+      action === 'attach_file')
   ) {
     return role === 'admin';
   }
-  if (visibility === 'restricted' && (action === 'read' || action === 'read_draft' || action === 'edit')) {
+  if (
+    visibility === 'restricted' &&
+    (action === 'read' || action === 'read_draft' || action === 'edit' || action === 'attach_file')
+  ) {
     return role === 'admin';
   }
 
@@ -161,6 +176,7 @@ function roleAllows(
       return isAuthor;
     case 'create':
     case 'edit':
+    case 'attach_file':
       return role === 'editor' || role === 'admin';
     case 'publish':
       if (role === 'admin') return true;

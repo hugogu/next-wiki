@@ -457,6 +457,19 @@
       "addPlaceholder": "标签名…",
       "remove": "移除标签 {name}",
       "saveError": "保存标签失败。"
+    },
+    "attachments": {
+      "heading": "附件",
+      "empty": "暂无附件。",
+      "attach": "添加附件",
+      "attaching": "上传中…",
+      "remove": "移除 {name}",
+      "removeConfirmTitle": "移除附件",
+      "removeConfirmMessage": "确定要从此页面移除“{name}”吗？此操作无法撤销。",
+      "removeConfirm": "移除",
+      "uploadError": "附件上传失败。",
+      "removeError": "移除附件失败。",
+      "unavailable": "该附件已不可用。"
     }
   },
   "space": {

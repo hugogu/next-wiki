@@ -16,6 +16,7 @@ import { saveDraft, saveDraftSchema } from './tools/save-draft';
 import { searchWiki, searchWikiSchema } from './tools/search-wiki';
 import { updatePageProperties, updatePagePropertiesSchema } from './tools/update-properties';
 import { uploadImage, uploadImageSchema } from './tools/upload-image';
+import { attachFile, attachFileSchema } from './tools/attach-file';
 import { batchCreatePages, batchCreatePagesSchema } from './tools/batch-create-pages';
 import { findSimilar, findSimilarSchema } from './tools/find-similar';
 import { submitSemanticSearch, submitSemanticSearchSchema } from './tools/submit-semantic-search';
@@ -149,6 +150,15 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('upload_image', 'Upload an image and receive a Markdown-ready reference.', uploadImageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await uploadImage(client, args)) }],
   }));
+
+  server.tool(
+    'attach_file',
+    'Attach a file (document, video, or image) to a page, separate from images embedded in the page body. Requires the attachments API key scope plus read access to the target page.',
+    attachFileSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await attachFile(client, args)) }],
+    }),
+  );
 
   server.tool(
     'generate_image',

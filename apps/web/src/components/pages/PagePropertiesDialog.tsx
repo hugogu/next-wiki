@@ -147,6 +147,7 @@ export function PagePropertiesDialog({
 
   return (
     <PagePropertiesPanel
+      pageId={pageId}
       title={title}
       onTitleChange={setTitle}
       path={pathReadOnly ? undefined : path}

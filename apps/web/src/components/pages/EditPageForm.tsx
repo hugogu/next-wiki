@@ -269,6 +269,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
 
         {propertiesOpen && (
           <PagePropertiesPanel
+            pageId={initial.pageId}
             title={title}
             onTitleChange={(v) => setValue('title', v, { shouldValidate: true })}
             titleError={errors.title?.message}

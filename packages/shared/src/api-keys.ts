@@ -13,6 +13,7 @@ export const apiKeyScopeSchema = z.enum([
   'manage_tags',
   'ai.read',
   'ai.image',
+  'attachments',
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 

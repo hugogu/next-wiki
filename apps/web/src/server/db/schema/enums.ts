@@ -28,6 +28,7 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'manage_tags',
   'ai.read',
   'ai.image',
+  'attachments',
 ]);
 
 // ---- Content storage (003) -------------------------------------------------

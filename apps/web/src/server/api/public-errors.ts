@@ -88,9 +88,11 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
     case 'REVISION_ALREADY_PUBLISHED':
       return { code: 'REVISION_ALREADY_PUBLISHED', status: 409 };
     case 'INVALID_IMAGE':
+    case 'UNSUPPORTED_ATTACHMENT_TYPE':
       return { code: 'UNSUPPORTED_ASSET_TYPE', status: 415 };
     case 'INPUT_TOO_LARGE':
     case 'ARCHIVE_TOO_LARGE':
+    case 'ATTACHMENT_TOO_LARGE':
       return { code: 'ASSET_TOO_LARGE', status: 413 };
     case 'RATE_LIMITED':
       return { code: 'RATE_LIMITED', status: 429 };

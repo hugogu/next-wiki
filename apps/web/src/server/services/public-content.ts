@@ -5,6 +5,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
+  PublicAttachmentResource,
   PublicBatchItemResult,
   PublicDanglingLink,
   PublicDraftCreateInput,
@@ -53,6 +54,7 @@ import { findFrontmatterRelatedPages, findMarkdownLinks } from '@/server/transfe
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
+import * as pageAttachments from '@/server/services/page-attachments';
 import * as searchAnalytics from '@/server/services/search-analytics';
 import { getSearchSettings } from '@/server/services/search-settings';
 import { runCoordinatedSearch } from '@/server/services/search/coordinator';
@@ -898,6 +900,37 @@ export async function getAsset(ctx: PermCtx, id: string): Promise<PublicAssetRes
 
 export async function getAssetContent(ctx: PermCtx, id: string) {
   return contentAssets.getServableImage(ctx, id);
+}
+
+function toPublicAttachmentResource(attachment: pageAttachments.AttachedFile): PublicAttachmentResource {
+  return {
+    id: attachment.id,
+    pageId: attachment.pageId,
+    fileName: attachment.fileName,
+    contentType: attachment.contentType,
+    sizeBytes: attachment.sizeBytes,
+    url: `/api/v1/attachments/${attachment.id}/content`,
+    createdAt: attachment.createdAt.toISOString(),
+    uploadedBy: attachment.uploadedBy,
+  };
+}
+
+export async function attachToPage(
+  ctx: PermCtx,
+  pageId: string,
+  bytes: Buffer,
+  fileName: string,
+): Promise<PublicAttachmentResource> {
+  const attachment = await pageAttachments.attachFile(ctx, pageId, bytes, fileName);
+  return toPublicAttachmentResource(attachment);
+}
+
+export async function listAttachmentsForPage(
+  ctx: PermCtx,
+  pageId: string,
+): Promise<PublicAttachmentResource[]> {
+  const items = await pageAttachments.listAttachments(ctx, pageId);
+  return items.map(toPublicAttachmentResource);
 }
 
 export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promise<PublicPageSearchResponse> {

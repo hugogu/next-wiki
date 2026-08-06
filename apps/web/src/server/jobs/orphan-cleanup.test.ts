@@ -35,6 +35,7 @@ async function makeAsset(opts: { createdAt?: Date }): Promise<string> {
 
 async function clearContent() {
   await db.delete(schema.contentAssetRefs);
+  await db.delete(schema.pageAttachments);
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
   await db.delete(schema.contentBlobs);
@@ -127,6 +128,38 @@ describe('runOrphanCleanup with the Database backend', () => {
     expect(kept!.deletedAt).toBeNull();
     const blob = await db.query.contentBlobs.findFirst({ where: eq(schema.contentBlobs.assetId, originalBytes) });
     expect(blob).toBeDefined();
+  });
+
+  it('preserves an attachment with a live page_attachments reference, but reclaims one whose attachment was removed', async () => {
+    const attached = await makeAsset({ createdAt: TWO_DAYS_AGO() });
+    const removedAttachment = await makeAsset({ createdAt: TWO_DAYS_AGO() });
+
+    const [page] = await db
+      .insert(schema.pages)
+      .values({ spaceId, slug: 's', path: `o/${randomUUID()}`, title: 'T', authorId: userId })
+      .returning();
+    await db.insert(schema.pageAttachments).values({
+      pageId: page!.id,
+      assetId: attached,
+      fileName: 'kept.pdf',
+      uploadedBy: userId,
+    });
+    await db.insert(schema.pageAttachments).values({
+      pageId: page!.id,
+      assetId: removedAttachment,
+      fileName: 'gone.pdf',
+      uploadedBy: userId,
+      removedAt: TWO_DAYS_AGO(),
+      removedBy: userId,
+    });
+
+    const result = await runOrphanCleanup();
+    expect(result.reclaimedUploads).toBe(1);
+
+    const kept = await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, attached) });
+    expect(kept!.deletedAt).toBeNull();
+    const reclaimed = await db.query.contentAssets.findFirst({ where: eq(schema.contentAssets.id, removedAttachment) });
+    expect(reclaimed!.deletedAt).not.toBeNull();
   });
 });
 

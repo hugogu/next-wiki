@@ -457,6 +457,19 @@
       "addPlaceholder": "Tag name…",
       "remove": "Remove tag {name}",
       "saveError": "Failed to save tags."
+    },
+    "attachments": {
+      "heading": "Attachments",
+      "empty": "No attachments.",
+      "attach": "Attach file",
+      "attaching": "Uploading…",
+      "remove": "Remove {name}",
+      "removeConfirmTitle": "Remove attachment",
+      "removeConfirmMessage": "Remove \"{name}\" from this page? This cannot be undone.",
+      "removeConfirm": "Remove",
+      "uploadError": "Failed to attach file.",
+      "removeError": "Failed to remove attachment.",
+      "unavailable": "This attachment is no longer available."
     }
   },
   "space": {

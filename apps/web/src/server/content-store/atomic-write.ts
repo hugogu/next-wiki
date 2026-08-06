@@ -85,14 +85,18 @@ export function isUploadExpired(createdAt: Date, ttlHours: number, now: Date = n
 }
 
 /**
- * Ids of abandoned uploads: live assets that no revision references and whose
- * upload TTL has elapsed. These are reclaimed by orphan cleanup (US3); the
- * grace period is the same TTL that bounds the uploader's temporary read access.
+ * Ids of abandoned uploads: live assets that no revision or attachment
+ * references and whose upload TTL has elapsed. These are reclaimed by
+ * orphan cleanup (US3); the grace period is the same TTL that bounds the
+ * uploader's temporary read access.
  *
- * A reference is either an inline content_asset_refs row (images embedded in a
- * revision) OR a raw revision's immutable original_asset_id (022 dual-track
- * storage) — both are excluded so raw original bytes are never reclaimed while
- * still referenced.
+ * A reference is an inline content_asset_refs row (images embedded in a
+ * revision), a raw revision's immutable original_asset_id (022 dual-track
+ * storage), or a live (034: not-yet-removed) page_attachments row — all
+ * three are excluded so referenced bytes are never reclaimed. Without the
+ * page_attachments check, every attachment would look identical to an
+ * abandoned image upload once it aged past the TTL, since an attachment is
+ * never linked through content_asset_refs/original_asset_id.
  */
 export async function listAbandonedUploadIds(
   ttlHours: number,
@@ -117,6 +121,17 @@ export async function listAbandonedUploadIds(
             .select({ one: sql`1` })
             .from(schema.pageRevisions)
             .where(eq(schema.pageRevisions.originalAssetId, schema.contentAssets.id)),
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(schema.pageAttachments)
+            .where(
+              and(
+                eq(schema.pageAttachments.assetId, schema.contentAssets.id),
+                isNull(schema.pageAttachments.removedAt),
+              ),
+            ),
         ),
       ),
     );

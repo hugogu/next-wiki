@@ -2,9 +2,11 @@ import { ModalDialog } from '@/components/ui/ModalDialog';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
+import { AttachmentsPanel } from '@/components/page/AttachmentsPanel';
 import { PagePropertiesFields } from './PagePropertiesFields';
 
 export function PagePropertiesPanel({
+  pageId,
   title,
   onTitleChange,
   titleError,
@@ -27,6 +29,9 @@ export function PagePropertiesPanel({
   onSave,
   onClose,
 }: {
+  /** Omitted while creating a new, unsaved page — attachments need an
+   * existing page to attach to. */
+  pageId?: string;
   title: string;
   onTitleChange: (value: string) => void;
   titleError?: string;
@@ -76,6 +81,12 @@ export function PagePropertiesPanel({
           visibility={visibility}
           onVisibilityChange={onVisibilityChange}
         />
+
+        {pageId && (
+          <div className="border-t border-border pt-md">
+            <AttachmentsPanel pageId={pageId} canManage />
+          </div>
+        )}
 
         {error && <Alert>{error}</Alert>}
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
+import { AttachmentsPanel } from '@/components/page/AttachmentsPanel';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ShareButton } from '@/components/pages/ShareButton';
@@ -139,6 +140,9 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
               labels={{ date: t('page.metadata.date'), summary: t('page.metadata.summary'), tags: t('page.metadata.tags') }}
             />
             <ContentRenderer html={bodyHtml} />
+            <div className="mt-lg">
+              <AttachmentsPanel pageId={page.pageId} />
+            </div>
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
               <div className="flex flex-wrap items-center gap-sm">
                 <span>{t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}

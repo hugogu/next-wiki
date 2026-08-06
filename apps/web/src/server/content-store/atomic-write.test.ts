@@ -47,6 +47,7 @@ let userId: string;
 async function cleanup() {
   await db.delete(schema.contentBlobs);
   await db.delete(schema.contentAssetRefs);
+  await db.delete(schema.pageAttachments);
   await db.delete(schema.contentAssets);
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
@@ -108,6 +109,7 @@ describe('writeImageAsset (external-first)', () => {
 describe('orphan detection', () => {
   beforeEach(async () => {
     await db.delete(schema.contentAssetRefs);
+    await db.delete(schema.pageAttachments);
     await db.delete(schema.contentAssets);
     await db.delete(schema.pageRevisions);
     await db.delete(schema.pages);
@@ -151,5 +153,43 @@ describe('orphan detection', () => {
     expect(ids).toContain(abandoned!.id);
     expect(ids).not.toContain(recent!.id);
     expect(ids).not.toContain(referenced!.id);
+  });
+
+  it('spares an old asset with a live page_attachments reference, but reclaims one whose attachment was removed', async () => {
+    const now = new Date();
+    const old = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const [attached] = await db
+      .insert(schema.contentAssets)
+      .values({ kind: 'attachment', contentHash: 'h', contentType: 'application/pdf', sizeBytes: 1, createdBy: userId, createdAt: old })
+      .returning();
+    const [removed] = await db
+      .insert(schema.contentAssets)
+      .values({ kind: 'attachment', contentHash: 'h', contentType: 'application/pdf', sizeBytes: 1, createdBy: userId, createdAt: old })
+      .returning();
+
+    const space = await db.query.spaces.findFirst();
+    const [page] = await db
+      .insert(schema.pages)
+      .values({ spaceId: space!.id, slug: 's', path: `o/${randomUUID()}`, title: 'T', authorId: userId })
+      .returning();
+    await db.insert(schema.pageAttachments).values({
+      pageId: page!.id,
+      assetId: attached!.id,
+      fileName: 'kept.pdf',
+      uploadedBy: userId,
+    });
+    await db.insert(schema.pageAttachments).values({
+      pageId: page!.id,
+      assetId: removed!.id,
+      fileName: 'gone.pdf',
+      uploadedBy: userId,
+      removedAt: old,
+      removedBy: userId,
+    });
+
+    const ids = await listAbandonedUploadIds(24, now);
+    expect(ids).not.toContain(attached!.id);
+    expect(ids).toContain(removed!.id);
   });
 });
