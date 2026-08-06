@@ -37,7 +37,9 @@ export function CrossSpaceMigrationDialog({
   useEffect(() => {
     void apiGet<{ spaces: Space[] }>('/api/settings/spaces').then((result) => {
       const eligible = result.spaces.filter((space) => space.isActive && space.kind !== 'raw' && space.kind !== sourceSpaceKind);
-      setSpaces(eligible);
+      // Keep the source space too: Navigator folder nodes are virtual paths,
+      // so their source UUID is resolved here after the settings request.
+      setSpaces(result.spaces);
       setDestinationId(eligible[0]?.id ?? '');
     }).catch((err: ApiError) => setError(err.message));
   }, [sourceSpaceKind]);
@@ -84,7 +86,7 @@ export function CrossSpaceMigrationDialog({
       {!preview && !operation && <label className="block space-y-xs text-sm font-medium">
         <span>{t('admin.pages.move.destinationLabel')}</span>
         <Select value={destinationId} onChange={(event) => { setDestinationId(event.target.value); setPreview(null); }} disabled={pending}>
-          {spaces.map((space) => <option key={space.id} value={space.id}>{space.kind === 'wiki' ? t('admin.pages.spaces.wiki') : t('admin.pages.spaces.generated')}</option>)}
+          {spaces.filter((space) => space.isActive && space.kind !== 'raw' && space.kind !== sourceSpaceKind).map((space) => <option key={space.id} value={space.id}>{space.kind === 'wiki' ? t('admin.pages.spaces.wiki') : t('admin.pages.spaces.generated')}</option>)}
         </Select>
       </label>}
       {!preview && !operation && <label className="block space-y-xs text-sm font-medium">
