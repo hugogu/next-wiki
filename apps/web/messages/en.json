@@ -907,14 +907,21 @@
         "testing": "Testing connection…",
         "testSuccess": "Connection OK",
         "testFailed": "Connection failed",
-        "preview": "Preview",
         "import": "Import",
         "delete": "Delete",
         "includeHistory": "Import full page history",
         "includeHistoryHelp": "Requires the API token to have the read:history permission. Existing pages previously imported from this source are fully rebuilt from their Wiki.js revision trail; pages not previously imported from this source are left untouched.",
         "existingPages": "Existing pages",
         "historyLimit": "Version limit per page",
-        "historyBadge": "History"
+        "historyBadge": "History",
+        "stepConfigure": "1. Configure",
+        "stepPreview": "2. Preview",
+        "stepImport": "3. Import",
+        "runPreview": "Run preview",
+        "previewNotRun": "No preview has been run yet.",
+        "previewCounts": "{created} created, {replaced} replaced, {skipped} skipped",
+        "importDisabledHint": "Run a preview first — import is only available once a preview has completed.",
+        "usingOlderPreview": "The latest preview attempt did not complete successfully; import will use an earlier successful preview from {time}."
       },
       "history": {
         "empty": "No transfer runs yet."

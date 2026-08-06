@@ -907,14 +907,21 @@
         "testing": "正在测试连接…",
         "testSuccess": "连接成功",
         "testFailed": "连接失败",
-        "preview": "预览",
         "import": "导入",
         "delete": "删除",
         "includeHistory": "导入完整页面历史",
         "includeHistoryHelp": "需要 API token 具备 read:history 权限。之前已从该数据源导入过的页面会按 Wiki.js 修订历史完整重建；未从该数据源导入过的同路径页面则保持不变。",
         "existingPages": "已存在的页面",
         "historyLimit": "单页历史版本上限",
-        "historyBadge": "含历史"
+        "historyBadge": "含历史",
+        "stepConfigure": "1. 配置选项",
+        "stepPreview": "2. 预览",
+        "stepImport": "3. 导入",
+        "runPreview": "运行预览",
+        "previewNotRun": "尚未运行过预览。",
+        "previewCounts": "新建 {created} 个，替换 {replaced} 个，跳过 {skipped} 个",
+        "importDisabledHint": "请先运行预览——只有预览完成后才能导入。",
+        "usingOlderPreview": "最近一次预览未成功完成，导入将使用 {time} 的较早一次成功预览结果。"
       },
       "history": {
         "empty": "暂无导入导出运行记录。"
