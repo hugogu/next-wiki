@@ -1,6 +1,6 @@
 # next-wiki Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-06-19
+Auto-generated from all feature plans. Last updated: 2026-08-06
 
 ## Active Technologies
 
@@ -37,6 +37,20 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
+- 034-page-attachments: Lets a page have arbitrary-type file attachments
+  (documents/video/images, distinct from inline-embedded images), reusing
+  the existing `content_assets`/`content_blobs` storage foundation via a new
+  `kind = 'attachment'` and a new page-scoped `page_attachments` join table
+  (not revision/Markdown-scanned, unlike embedded images). Upload and
+  download share one capability across the web UI, the public `/api/v1`
+  content API, and MCP tooling. Writing requires a new, independently
+  grantable API key scope (`attachments`) layered on top of existing
+  page-read access; reading needs no new scope. Admin-configurable max size
+  (default 100 MB) and allowed type categories live in a new singleton
+  `attachment_settings` table, mirroring `site_settings`. Over-size uploads
+  are rejected outright (buffer-then-validate, never truncated). No
+  in-app preview; downloads use a fixed, non-configurable inline-vs-forced-
+  download allowlist to avoid stored-XSS via arbitrary uploaded types.
 - 031-static-site-publishing: Publishes a reader-facing static HTML site of
   publicly readable pages to a Git-served host (GitHub Pages). Independent of
   Git export — that ships raw Markdown for backup, this ships rendered HTML for
