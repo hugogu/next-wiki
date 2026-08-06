@@ -320,7 +320,12 @@ async function visiblePageResource(
     path: page.path,
     locale: page.locale,
     title: page.title,
-    canonicalUrl: canonicalSpacePath(space, page.path, page.locale),
+    // A locale segment only routes for a genuine translation row
+    // (sourcePageId set — see getLiveTranslation). A source/original page's
+    // `locale` just records the language it's written in and is always
+    // served at the bare path; passing it unconditionally produced a
+    // canonicalUrl that 404s for any non-English original page.
+    canonicalUrl: canonicalSpacePath(space, page.path, page.sourcePageId ? page.locale : null),
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
     visibility: canViewProvenance ? page.visibility : undefined,

@@ -138,7 +138,10 @@ async function moveSpacePages(
     await tx
       .insert(schema.pageRouteRedirects)
       .values({
-        legacyRoute: canonicalSpacePath(input.sourceSpaceRow, page.path, page.locale),
+        // See candidate-projection.ts: only a translation row (sourcePageId
+        // set) routes at a locale-prefixed URL. Passing an original page's
+        // own locale here would record a legacy redirect target that 404s.
+        legacyRoute: canonicalSpacePath(input.sourceSpaceRow, page.path, page.sourcePageId ? page.locale : null),
         targetPageId: page.id,
         reason: 'writing_mode_switch',
       })

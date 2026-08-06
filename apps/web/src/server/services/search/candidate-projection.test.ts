@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { closeDb, db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -53,6 +54,30 @@ describe('search candidate projection', () => {
     // The draft-only page leaves no trace: no entry, no title, no excerpt source.
     expect(JSON.stringify([...projected.values()].map((entry) => entry.page))).not.toContain(HIDDEN_TOKEN);
     expect(projected.has(corpus.pages.hiddenDraft.pageId)).toBe(false);
+  });
+
+  it('omits the locale segment from canonicalUrl for a non-English original page', async () => {
+    await ensurePublicApiDefaultSpace();
+    const corpus = await createSearchFixtureCorpus(`projection-locale-${randomUUID().slice(0, 8)}`);
+    const path = `${corpus.pages.english.path}-zh-original`;
+    const created = await pageService.create(corpus.editorCtx, {
+      path,
+      title: '中文页面',
+      contentSource: '# 中文页面\n\nWiki.js 导入的原始页面，语言为中文但不是任何页面的翻译。',
+    });
+    // Original pages (sourcePageId/translationGroupId both null) are always
+    // served at the bare path — only a genuine translation row routes at a
+    // locale-prefixed URL (see getLiveTranslation). pageService.create has no
+    // locale param, so simulate a non-English *original* page (e.g. every
+    // Wiki.js-imported page) the same way import writes one: patch the
+    // column directly, matching writeImportedPage's own `locale` write.
+    await db.update(schema.pages).set({ locale: 'zh' }).where(eq(schema.pages.id, created.pageId));
+    await revisionService.publish(corpus.editorCtx, { path, version: 1 });
+
+    const projected = await projectReadableCandidatePages(corpus.readerCtx, [created.pageId], [await defaultSpaceId()]);
+    const entry = projected.get(created.pageId);
+    expect(entry?.page.locale).toBe('zh');
+    expect(entry?.page.canonicalUrl).toBe(`/wiki/${path}`);
   });
 
   it('returns nothing for an actor without page-list read permission', async () => {

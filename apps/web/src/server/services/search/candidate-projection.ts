@@ -132,7 +132,14 @@ export async function projectReadableCandidatePages(
         path: row.page.path,
         locale: row.page.locale,
         title: row.page.title,
-        canonicalUrl: canonicalSpacePath(space, row.page.path, row.page.locale),
+        // A locale segment only routes for genuine translation rows
+        // (sourcePageId set — see getLiveTranslation, which resolves
+        // /{locale}/{path} by looking up the sibling with that locale off
+        // the untranslated source). A source/original page's own `locale`
+        // column just records what language it happens to be written in —
+        // e.g. every Wiki.js-imported zh page — and is always served at the
+        // bare, unprefixed path; passing it here produced a 404ing link.
+        canonicalUrl: canonicalSpacePath(space, row.page.path, row.page.sourcePageId ? row.page.locale : null),
         frontmatter,
         metadata: row.page.currentPublishedVersionId ? await getRevisionMetadata(row.page.currentPublishedVersionId) : undefined,
         status: 'published',
