@@ -55,3 +55,10 @@
   permission is introduced, distinguishing it from the dedicated
   attachment-upload permission that gates writes. Checklist re-validated;
   all items still pass.
+- 2026-08-06 review: made the default accepted types explicit, excluded SVG
+  and other active formats so byte-for-byte delivery never conflicts with
+  existing sanitisation, made protected resources opaque, and added filename
+  safety and lifecycle-audit requirements. The attached plan is intentionally
+  marked blocked on the separate P7 architecture decision: a 100 MB
+  synchronous upload cannot be treated as compliant with the constitution's
+  mandatory async rule for large asset processing.

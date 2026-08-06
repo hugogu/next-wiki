@@ -55,7 +55,7 @@ FR-011, FR-011a.
   `attachment_settings.max_size_bytes`; whole request rejected, nothing
   persisted — FR-011a) · `415 UNSUPPORTED_ASSET_TYPE` (detected category not
   in `attachment_settings.allowed_categories`) · `422 VALIDATION_FAILED`
-  (missing `file` field).
+  (missing `file` field or an invalid filename).
 
 ### `GET /api/v1/pages/{pageId}/attachments`
 
@@ -81,9 +81,11 @@ FR-003b, FR-014.
 - **Permission**: same page-read derivation as the list endpoint, resolved
   via `page_attachments.page_id` → page (FR-003).
 - **Response 200**: raw bytes, `Content-Type` = the stored `content_type`,
-  `Content-Disposition` = `inline; filename="..."` for the fixed browser-safe
-  allowlist (images, `application/pdf`) or `attachment; filename="..."`
-  otherwise (FR-014, non-configurable — see research.md §8). No preview
+  `Content-Disposition` = `inline` for the fixed browser-safe allowlist
+  (raster images and `application/pdf`) or `attachment` otherwise. Both use a
+  safely encoded filename (including standards-compliant non-ASCII handling),
+  never the unvalidated multipart value (FR-011b/FR-014, non-configurable —
+  see research.md §8). No preview
   UI/embed; this is the only content-retrieval path for an attachment
   (FR-013).
 - **Errors**: `404 NOT_FOUND` (unreadable, removed, or the underlying blob

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Let a page author attach arbitrary-type files to a page (separate from
+Let a page author attach supported image, video, and document files to a page (separate from
 inline-embedded images) and let any reader with page-read access download
 them, through the web UI, the public content API, and MCP tooling alike.
 Attachments reuse the existing image storage foundation (`content_assets` +
@@ -14,9 +14,10 @@ Attachments reuse the existing image storage foundation (`content_assets` +
 adding a new asset `kind: 'attachment'`, and a new `page_attachments` table
 that links an asset to a page directly (not through revision-content
 scanning, since attachments are not embedded in Markdown). Writing
-(attach/detach) via API key or MCP requires a new, independently-grantable
+(attach) via API key or MCP requires a new, independently-grantable
 `attachments` permission scope layered on top of the credential's existing
-page-read access; reading (list/download) requires no new scope and follows
+page-read access; removal uses the established page-edit permission. Reading
+(list/download) requires no new scope and follows
 the same page-read permission already used everywhere else. An admin-facing
 settings surface (mirroring the existing `/api/settings/*` pattern) makes the
 per-file size cap (default 100 MB) and accepted type categories
@@ -104,8 +105,8 @@ admin settings page.
   footprint. Attachments run entirely on the existing PostgreSQL-only
   default deployment; S3/Local replicas remain optional, exactly as for
   images today. PASS.
-- **P2/P3 (AI-Native, Portable Memory)**: Attachments are ordinary versioned
-  wiki content reachable identically by the manual editor, the public API,
+- **P2/P3 (AI-Native, Portable Memory)**: Attachments are ordinary auditable
+  page-associated content reachable identically by the manual editor, the public API,
   and MCP — no AI-only code path, no vendor SDK dependency. Attaching a file
   via MCP goes through the same shared upload capability and permission
   chokepoint as the web UI (FR-006), so AI-authored and human-authored
@@ -117,15 +118,13 @@ admin settings page.
   interaction, never a bespoke check. Anonymous read of attachments is
   derived from the existing page-visibility/anonymous-read configuration,
   not a new special case. PASS.
-- **P7 (Async-First for Heavy Operations)**: Attachment upload/download stay
-  synchronous request/response, matching the existing (synchronous) image
-  upload path — the largest expected file (100 MB default cap) is well
-  under any operation the constitution's 500ms heavy-operation threshold
-  intends to cover for interactive request handling in this codebase's
-  existing precedent (image upload already does synchronous buffered I/O up
-  to its cap). No background job is introduced. Re-examined in Phase 0 if
-  research surfaces a reason synchronous handling of a 100 MB body is
-  materially slower than the existing image path at proportional scale.
+- **P7 (Async-First for Heavy Operations)**: **OPEN — not yet compliant.** A
+  100 MB upload can exceed the constitution's 500 ms threshold and is
+  explicitly within its "large asset processing" examples. The current
+  synchronous multipart design cannot be marked PASS merely because the image
+  path is synchronous. Before implementation, resolve whether this feature
+  uses a staged upload plus pg-boss finalization/status flow or narrows its
+  upload scope so no attachment processing can exceed that threshold.
 - **P8 (Version Everything)**: Attachments are **not** modeled as page
   revisions — mirroring the existing precedent that page property changes
   (`pages.updateProperties`: title/path) mutate the `pages` row directly
@@ -155,7 +154,9 @@ admin settings page.
   representation; only the (uncached, permission-checked) attachment list
   fetch is affected. PASS — documented in data-model.md's cache-impact note.
 
-No violation requires justification; Complexity Tracking is empty.
+P7 remains an unresolved constitution gate. Do not begin implementation or
+claim the plan is ready until the upload delivery design is chosen and the
+plan, data model, contracts, and tasks are updated accordingly.
 
 ## Project Structure
 
@@ -221,4 +222,4 @@ attachments are additive, not a parallel system.
 
 ## Complexity Tracking
 
-*No Constitution Check violations — table intentionally empty.*
+| P7 upload delivery | 100 MB synchronous upload conflicts with the mandatory async rule for large asset processing. | Choose staged upload + pg-boss finalization/status, or reduce/re-scope the upload path and update the specification before implementation. |

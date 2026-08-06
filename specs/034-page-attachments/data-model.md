@@ -33,7 +33,7 @@ this page," independent of any specific content revision.
 | `id` | uuid, PK | Attachment-link identity (distinct from `asset_id`, since the same asset could in principle be attached more than once) |
 | `page_id` | uuid, FK → `pages.id`, `onDelete: cascade` | The page this file is attached to |
 | `asset_id` | uuid, FK → `content_assets.id`, `onDelete: restrict` | The underlying blob (kind = `'attachment'`) |
-| `file_name` | text, not null | Original uploaded file name, exactly as supplied (not deduplicated — two rows may share a name, see spec Edge Cases) |
+| `file_name` | text, not null | Validated single display filename supplied at upload time (not deduplicated — two rows may share a name, see spec Edge Cases) |
 | `uploaded_by` | uuid, FK → `users.id`, `onDelete: set null` | Attacher; null if the user is later deleted |
 | `created_at` | timestamptz, not null, default now() | Attach time |
 | `removed_at` | timestamptz, nullable | Soft-delete marker; null = currently attached |
@@ -44,7 +44,12 @@ Indexes:
 - `page_attachments_asset_idx` on `(asset_id)` — used by `canReadAttachment`/`getServableAttachment` and by any future asset-usage/cleanup tooling.
 
 **Validation rules**:
-- `file_name` MUST be non-empty (post-trim) — UI/route-level Zod validation, not a DB constraint, matching the existing convention (`content_assets` has no CHECK on similar fields; validation lives in Zod schemas + service code).
+- `file_name` MUST be a non-empty, single display filename: control characters,
+  path separators, and path traversal are rejected; its rendered and
+  `Content-Disposition` representations are safely encoded. This is UI/route-
+  level Zod and service validation, not a DB constraint, matching the existing
+  convention (`content_assets` has no CHECK on similar fields; validation lives
+  in Zod schemas + service code).
 - A row is "currently attached" iff `removed_at IS NULL`; removal is a soft-delete (sets `removed_at`/`removed_by`), consistent with constitution P8's general "soft delete by default" convention even though this table is not a `page_revisions` row.
 - `asset_id` uses `onDelete: restrict` (not `cascade`, unlike `content_asset_refs`): an attachment's blob is never implicitly deleted by removing the link row; blob lifecycle (garbage collection of unreferenced assets) is a separate, existing concern (mirrors how `content_assets` rows already outlive individual `content_asset_refs` rows for images).
 

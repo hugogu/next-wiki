@@ -1,10 +1,10 @@
 # Phase 0 Research: Page Attachments
 
-All items below were resolved by reading the existing implementation of the
-directly analogous feature (embedded image assets: `content_assets`,
+The storage, permission, and delivery questions below were investigated by
+reading the existing directly analogous feature (embedded image assets: `content_assets`,
 `content_blobs`, `storage_backends`, the `can()` permission chokepoint, API
-key scopes, and the `/api/settings/*` admin pattern). No NEEDS CLARIFICATION
-markers remain in the Technical Context.
+key scopes, and the `/api/settings/*` admin pattern). The P7 upload-delivery
+decision remains open and is called out in §10.
 
 ## 1. Where attachment bytes live
 
@@ -159,17 +159,18 @@ category toggles keep the two in lockstep by construction.
 
 **Decision**: Extend the existing magic-byte sniffing pattern
 (`content-store/image-validation.ts:sniffImageType`) into a new
-`content-store/attachment-validation.ts`, detecting a fixed set of common
-container/document signatures (PDF `%PDF-`, ZIP-based Office/OpenDocument
-formats via the ZIP local-file-header magic plus internal
-`[Content_Types].xml` / `mimetype` entry sniffing, common video containers
-by magic bytes) with a declared-`Content-Type` fallback for formats with no
-reliable magic number (e.g. plain text, CSV), reusing `IMAGE_CONTENT_TYPES`
-for the image category so image attachments and embedded images stay
-byte-for-byte consistent. Each detected/declared type is mapped to exactly
-one of the three admin-facing categories (`image`, `video`, `document`); an
-unrecognized type is always rejected regardless of admin configuration
-(closed allowlist, not an open denylist).
+`content-store/attachment-validation.ts`, detecting the fixed FR-010 set:
+raster image signatures (PNG, JPEG, GIF, WebP), PDF `%PDF-`, ZIP-based
+Office/OpenDocument formats via the ZIP local-file-header magic plus internal
+`[Content_Types].xml` / `mimetype` entry sniffing, and MP4/WebM containers by
+magic bytes. Plain text, Markdown, and CSV use a declared-`Content-Type`
+fallback because they have no reliable magic number. SVG is deliberately
+excluded from attachment validation: its existing image path sanitizes bytes,
+which would violate the attachment contract's byte-for-byte delivery promise.
+Each detected/declared type is mapped to exactly one of the three admin-facing
+categories (`image`, `video`, `document`); an unrecognized type is always
+rejected regardless of admin configuration (closed allowlist, not an open
+denylist).
 
 **Rationale**: Matches the existing project convention of never trusting a
 client-declared content type over sniffed bytes where sniffing is possible
@@ -191,14 +192,12 @@ materially during implementation.
 ## 8. Download response disposition (Content-Disposition)
 
 **Decision**: A fixed, code-level (not admin-configurable) allowlist of
-"browser-safe-to-render" types — the existing `IMAGE_CONTENT_TYPES` minus
-nothing (images are already sanitized/served under strict CSP per the
-existing SVG handling) plus `application/pdf` — served with
-`Content-Disposition: inline`. Every other resolved type, and explicitly
-`text/html`/`image/svg+xml` is **already** covered by the existing
-sanitized-SVG-only path so it is not re-opened here for attachments) and any
-XML/script-capable type, is served with
-`Content-Disposition: attachment; filename="..."` (forced download).
+"browser-safe-to-render" types — PNG, JPEG, GIF, WebP, and
+`application/pdf` — is served with `Content-Disposition: inline`. Every other
+accepted type is served with `Content-Disposition: attachment`; HTML, SVG,
+XML, and script-capable types are not accepted at all for attachments. The
+filename value is validated before storage and safely encoded when forming the
+response header.
 
 **Rationale**: Implements FR-014, resolved in `/speckit.clarify` (Q1):
 "inline for browser-safe types … forced download for all other types … and
@@ -220,7 +219,7 @@ upload types, not render safety).
 
 ## 9. Enforcing "reject in full, never truncate" (FR-011a)
 
-**Decision**: Buffer the full multipart body (`Buffer.from(await
+**Rejected synchronous candidate**: Buffer the full multipart body (`Buffer.from(await
 file.arrayBuffer())`, the same call already used at
 `app/api/v1/assets/route.ts:23`), then check `bytes.length > maxBytes`
 *before* any call into the content-store write path — identical to
@@ -245,33 +244,25 @@ as today.
 exact existing pattern (rather than inventing streaming size-limiting)
 keeps the change minimal and consistent with KISS/避免过度设计.
 
-## 10. Synchronous handling vs. P7 (Async-First for Heavy Operations)
+## 10. Upload delivery vs. P7 (Async-First for Heavy Operations)
 
-**Decision**: Attach/upload stays synchronous request/response (no pg-boss
-job), for the same reason image upload already is: the dominant cost of a
-large attachment upload is client-to-server network transfer time, not
-server-side computation (hashing + one `content_blobs` write), and SC-001
-requires the attachment to be visible "in under 10 seconds," which a
-deferred/background job model would make categorically harder to guarantee
-for a user-initiated, result-needed-immediately action.
+**Status: unresolved architecture decision.** The synchronous, buffered
+multipart proposal in §9 does satisfy the no-partial-write requirement, but a
+100 MB upload can exceed P7's 500 ms threshold and P7 expressly includes
+large asset processing. Existing synchronous image-upload behaviour is not a
+constitutional exception.
 
-**Rationale**: P7 lists "large asset processing" among operations requiring
-a background job, but the existing image-upload feature — a strictly
-smaller instance of the same "large asset" concern — already treats
-buffered upload-and-store as synchronous, establishing project precedent
-that "processing" in P7's sense targets CPU/GPU-heavy transformation or
-external-service round trips (LLM calls, embedding rebuilds, Git sync,
-search reindexing), not a single hash-and-store write. Flagged explicitly
-in the plan's Constitution Check rather than silently assumed, so it can be
-revisited if implementation-time load testing shows synchronous handling of
-100 MB uploads materially degrades server responsiveness.
+Before implementation, choose one of these compliant paths:
 
-**Alternatives considered**: Background-job attachment finalization (accept
-+ 202 + pg-boss job + poll/webhook for completion) — rejected for v1 as
-disproportionate complexity for a feature whose own success criterion
-(SC-001) expects near-immediate synchronous completion, and as a
-UX regression (an author expects "attach" to behave like "upload an image"
-today, not like an async import job).
+1. Stage bytes through an upload-session flow and return an operation ID; use
+   pg-boss for validation, durable attachment creation, replication, and
+   status updates.
+2. Narrow the feature's maximum size and work so it demonstrably cannot be a
+   large/slow operation under P7, then update the specification's 100 MB
+   decision and success criterion accordingly.
+
+The plan and tasks must be regenerated after that choice. Until then, §9 is a
+rejected implementation candidate, not an approved design.
 
 ## 11. MCP tool surface
 

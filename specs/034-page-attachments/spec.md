@@ -10,10 +10,10 @@
 
 ## Summary
 
-Let a page author attach one or more files of any configured type — documents,
-archives, videos, images, and similar — directly to a wiki page, separate from
+Let a page author attach one or more files from the administrator-configured
+image, video, and document categories directly to a wiki page, separate from
 images embedded inline in the page body. Readers with access to the page see a
-list of its attachments and can download each one directly; no in-browser
+list of its attachments and can retrieve each one directly; no in-browser
 preview is required for this feature.
 
 Attachments reuse the same storage foundation already used for embedded
@@ -88,8 +88,8 @@ appears in the page's attachment list immediately afterward.
    stored and appears in the page's attachment list with its original file
    name, size, and content type.
 2. **Given** a page with an existing attachment, **When** the author attaches
-   another file with a different name, **Then** both attachments are listed
-   independently.
+   another allowed file, including one with the same name, **Then** both
+   attachments are listed independently.
 3. **Given** an author without edit access to a page, **When** they attempt to
    attach a file, **Then** the attempt is refused and no file is stored.
 
@@ -116,8 +116,9 @@ the page, and confirming it can list and fetch the same attachment.
 **Acceptance Scenarios**:
 
 1. **Given** a page with an attachment, **When** a reader with access to the
-   page selects the attachment, **Then** the original file downloads with its
-   original file name and unmodified content.
+   page selects the attachment, **Then** the original file is delivered with
+   its original file name and unmodified content, using the type-appropriate
+   browser disposition.
 2. **Given** a page with an attachment, **When** a user without read access to
    the page attempts to download the attachment directly, **Then** the
    download is refused.
@@ -243,7 +244,12 @@ granting that permission and confirming the same call succeeds.
   between the two.
 - What happens when the underlying file content is flagged as unsafe by any
   existing content-safety handling the platform already applies to uploads?
-  The same handling applies to attachments as to other uploaded content.
+  The same handling applies to attachments as to other uploaded content; if
+  that handling cannot retain the original bytes safely, the upload is
+  refused rather than silently altering the attachment.
+- What happens when the authoritative storage is temporarily unavailable?
+  The uploader or reader receives a clear retryable failure; no incomplete
+  attachment link is made visible on the page.
 
 ## Requirements *(mandatory)*
 
@@ -266,6 +272,10 @@ granting that permission and confirming the same call succeeds.
   same page-read permission derivation already used for web downloads
   (FR-002/FR-003); reading an attachment MUST NOT require the dedicated
   attachment-upload permission (FR-007), which gates writes only.
+- **FR-003c**: The system MUST make an attachment that is unreadable to a
+  caller indistinguishable from a missing attachment, so a direct list or
+  download request does not reveal whether a protected page or attachment
+  exists.
 - **FR-004**: The system MUST let a user who can edit a page remove an
   attachment from that page, and MUST stop offering that attachment for
   download to readers immediately afterward.
@@ -292,8 +302,11 @@ granting that permission and confirming the same call succeeds.
 - **FR-009**: The system MUST let an administrator configure which file types
   (or categories of file types) are accepted as attachments.
 - **FR-010**: The system MUST ship with a default configuration, usable
-  without any administrator change, that accepts common image, video, and
-  document file types up to a default maximum size of 100 MB per file.
+  without any administrator change, that accepts PNG, JPEG, GIF, and WebP
+  images; MP4 and WebM videos; and PDF, plain-text, Markdown, CSV,
+  Office Open XML (DOCX, XLSX, PPTX), and OpenDocument (ODT, ODS, ODP) files,
+  up to a default maximum size of 100 MB per file. SVG, HTML, and other active
+  document formats are not accepted as attachments in this feature.
 - **FR-011**: The system MUST refuse an upload that exceeds the currently
   configured maximum size or whose type is not currently accepted, and MUST
   tell the uploader why the specific file was refused.
@@ -301,6 +314,10 @@ granting that permission and confirming the same call succeeds.
   than silently truncating and storing a partial file; no attachment record
   or partial content is retained when an upload is refused for exceeding the
   size limit.
+- **FR-011b**: The system MUST validate an attachment's supplied file name as
+  a single non-empty display name and safely encode it wherever it is rendered
+  or sent in a download response; a supplied name MUST never be interpreted as
+  a storage path, markup, or response-header syntax.
 - **FR-012**: The system MUST NOT change the size/type limits or download
   eligibility of attachments already stored when the administrator later
   changes the configured limits; only new uploads are evaluated against the
@@ -318,10 +335,15 @@ granting that permission and confirming the same call succeeds.
   could execute code in the wiki's own origin (e.g. HTML, SVG) — MUST be
   served with a forced-download disposition regardless of administrator
   configuration.
-- **FR-015**: The system MUST apply the same content-safety handling to
-  attachment uploads that it already applies to other uploaded content (e.g.
-  image sanitization/quarantine paths), scoped to whichever attachment types
-  that handling covers.
+- **FR-015**: The system MUST apply the same applicable content-safety
+  handling to attachment uploads that it applies to other uploaded content.
+  An accepted attachment's bytes MUST remain unmodified; if safety handling
+  would require changing those bytes or cannot establish that they are safe,
+  the upload MUST be refused with a clear reason.
+- **FR-016**: The system MUST retain the uploader and attach time for each
+  attachment and the remover and removal time for each removal, so attachment
+  lifecycle actions remain auditable without introducing an
+  attachment-specific history UI or a dedicated replace operation.
 
 ### Public Content Delivery *(required when a feature changes anonymously readable published content)*
 
@@ -387,6 +409,10 @@ granting that permission and confirming the same call succeeds.
 - **SC-007**: An API key or MCP credential that can already read a page can
   list and download 100% of its attachments without requesting or being
   granted any permission beyond that existing read access.
+- **SC-008**: In every tested hostile filename case (path separators, control
+  characters, or markup), the request is rejected or every displayed and
+  downloaded representation remains a single safe filename; no additional
+  path, header, or executable content is created.
 
 ## Assumptions
 
@@ -395,10 +421,11 @@ granting that permission and confirming the same call succeeds.
   a separate, page-level list of downloadable files. The two may share
   underlying storage and upload mechanics without being the same
   user-visible feature.
-- The default accepted file-type categories are images, videos, and
-  documents (e.g. PDF, Office/OpenDocument formats, plain text), matching the
-  categories named in the request; the administrator can narrow or widen this
-  default at any time.
+- The default accepted file types are the explicit set in FR-010. The
+  administrator can enable or disable those supported image, video, and
+  document categories, but this feature does not add arbitrary MIME-type or
+  extension rules, archive support, or active-content formats such as SVG and
+  HTML.
 - The default maximum attachment size is 100 MB per file, chosen to cover
   common document, image, and short video files while remaining bounded; an
   administrator can raise or lower it at any time.
@@ -406,16 +433,17 @@ granting that permission and confirming the same call succeeds.
   continues to follow that user's existing permission to edit the page — no
   new permission concept is introduced for human authors, only for
   API-key/MCP credentials as explicitly requested.
-- Attachment list changes are tracked as part of the page's existing edit
-  history in the same way other page-level content changes are, so who
-  attached or removed a file and when remains auditable; no separate
-  attachment-specific history UI is required for this feature.
+- Attachment lifecycle changes are auditable through their attachment
+  association (uploader/attach time and remover/removal time). They do not
+  create a page-content revision and no attachment-specific history UI is
+  required for this feature.
 - No dedicated in-app preview experience (a built viewer/renderer inside the
   wiki UI) is built for this feature and may be considered later. Letting the
   browser open a browser-safe file type (e.g. PDF, image) directly via
   download-response disposition, per FR-014, is not such a feature and is in
   scope.
 - Malicious or unsafe file content is handled by whatever content-safety
-  mechanisms the platform already applies to uploads today; this feature
-  does not introduce new content-scanning capability, only routes attachment
-  uploads through existing applicable checks.
+  mechanisms the platform already applies to uploads today. This feature does
+  not introduce new content-scanning capability; it rejects, rather than
+  silently transforms, an attachment whose existing safety handling cannot
+  preserve its original bytes.
