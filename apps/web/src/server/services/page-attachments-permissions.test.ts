@@ -197,3 +197,43 @@ describe('removeAttachment — permission (FR-004, research.md §5)', () => {
     });
   });
 });
+
+/**
+ * US5 permission matrix (spec User Story 5's four acceptance scenarios).
+ * The same underlying service functions back the REST route, MCP tools, and
+ * the web UI, so this exercises what an MCP `attach_file` call would
+ * experience too — MCP is a thin wrapper with no separate permission logic.
+ */
+describe('US5 — API key/MCP attachment-upload permission matrix', () => {
+  it('scenario 1: edit+create scopes without the attachments scope fails', async () => {
+    const ctx = buildApiKeyCtx(editorId, 'editor', ['edit', 'create'], 'us5-key-1');
+    await expect(pageAttachments.attachFile(ctx, pageId, PDF, 'a.pdf')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
+  it('scenario 2: the attachments scope (plus read access) succeeds, subject to the same limits as web uploads', async () => {
+    const ctx = buildApiKeyCtx(editorId, 'editor', ['attachments', 'view'], 'us5-key-2');
+    const result = await pageAttachments.attachFile(ctx, pageId, PDF, 'a.pdf');
+    expect(result.fileName).toBe('a.pdf');
+  });
+
+  it('scenario 3: refused with a message identifying the denied action (not a silent/generic failure)', async () => {
+    const ctx = buildApiKeyCtx(editorId, 'editor', ['edit'], 'us5-key-3');
+    await expect(pageAttachments.attachFile(ctx, pageId, PDF, 'a.pdf')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      message: expect.stringContaining('attach'),
+    });
+  });
+
+  it('scenario 4: the attachments scope alone, without read access to this page, still fails (FR-007a)', async () => {
+    const [otherEditor] = await db
+      .insert(schema.users)
+      .values({ email: `us5-other-${randomUUID()}@example.com`, passwordHash: 'HASH', role: 'editor' })
+      .returning();
+    const ctx = buildApiKeyCtx(otherEditor!.id, 'editor', ['attachments'], 'us5-key-4');
+    await expect(pageAttachments.attachFile(ctx, pageId, PDF, 'a.pdf')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+});

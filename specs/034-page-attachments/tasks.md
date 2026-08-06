@@ -157,11 +157,11 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T041 [P] [US5] End-to-end permission-matrix test covering spec User Story 5's four acceptance scenarios (edit+create without `attachments` scope fails; `attachments` scope succeeds; MCP credential without the scope is refused with a permission-identifying message; `attachments` scope without page-read access still fails per FR-007a) in `apps/web/src/server/services/page-attachments-permissions.test.ts`
+- [X] T041 [P] [US5] End-to-end permission-matrix test covering spec User Story 5's four acceptance scenarios (edit+create without `attachments` scope fails; `attachments` scope succeeds; MCP credential without the scope is refused with a permission-identifying message; `attachments` scope without page-read access still fails per FR-007a) in `apps/web/src/server/services/page-attachments-permissions.test.ts`
 
 ### Implementation for User Story 5
 
-- [ ] T042 [US5] Add `'attachments'` to `SCOPE_ORDER` in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, and add `userCenter.apiKeys.scope.attachments` / `scopeDescriptions.attachments` labels to `apps/web/messages/en.json` and `apps/web/messages/zh.json` (depends on T001)
+- [X] T042 [US5] Add `'attachments'` to `SCOPE_ORDER` in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, and add `userCenter.apiKeys.scope.attachments` / `scopeDescriptions.attachments` labels to `apps/web/messages/en.json` and `apps/web/messages/zh.json` (depends on T001)
 
 **Checkpoint**: All five user stories are independently functional; the feature is complete end-to-end.
 

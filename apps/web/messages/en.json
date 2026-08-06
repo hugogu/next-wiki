@@ -2270,6 +2270,7 @@
         "run": "Run",
         "storage": "Storage",
         "preferences": "Preferences",
+        "attachments": "Attachments",
         "ai": {
           "read": "AI read",
           "image": "AI image generation"
@@ -2284,6 +2285,7 @@
         "run": "Reserved for future runner features",
         "storage": "Manage content storage configuration and migrations (admin only)",
         "preferences": "Update your own theme and language preferences",
+        "attachments": "Attach files to pages — independent of create/edit; also requires read access to the target page",
         "ai": {
           "read": "Use AI-powered search and semantic retrieval",
           "image": "Generate private Wiki images from editable page content"
