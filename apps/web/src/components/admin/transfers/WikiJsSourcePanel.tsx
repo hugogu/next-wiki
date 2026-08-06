@@ -143,15 +143,19 @@ export function WikiJsSourcePanel({
             <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('admin.transfers.wikijs.name')} />
             <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://wiki.example.com" />
             <Input type="password" value={apiToken} onChange={(event) => setApiToken(event.target.value)} placeholder={t('admin.transfers.wikijs.token')} />
-            <label className="flex items-center gap-sm text-sm">
-              <input type="checkbox" checked={privateNetwork} onChange={(event) => setPrivateNetwork(event.target.checked)} />
-              {t('admin.transfers.wikijs.privateNetwork')}
+            <div className="flex items-center gap-sm text-sm">
+              <label className="flex items-center gap-sm">
+                <input type="checkbox" checked={privateNetwork} onChange={(event) => setPrivateNetwork(event.target.checked)} />
+                {t('admin.transfers.wikijs.privateNetwork')}
+              </label>
+              {/* Kept outside the <label> — nesting it there made clicking
+                  the icon also toggle the checkbox via label activation. */}
               <Tooltip label={t('admin.transfers.wikijs.privateNetworkHelp')}>
                 <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.wikijs.privateNetworkHelp')}>
                   <InfoIcon className="h-4 w-4" />
                 </span>
               </Tooltip>
-            </label>
+            </div>
             <div className="mt-sm flex flex-wrap items-center gap-sm">
               <Button
                 disabled={busy || !baseUrl || !apiToken}
