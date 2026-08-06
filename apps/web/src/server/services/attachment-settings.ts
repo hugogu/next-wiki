@@ -8,6 +8,7 @@ import {
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { type PermCtx } from '@/server/permissions';
+import { DomainError } from '@/server/errors';
 import { assertCanManageStorage } from './storage-config';
 
 const SETTINGS_ID = 'default';
@@ -47,6 +48,12 @@ export async function updateAttachmentSettings(
   input: AttachmentSettingsUpsert,
 ): Promise<AttachmentSettingsView> {
   assertCanManageStorage(ctx);
+  if (!Number.isInteger(input.maxSizeBytes) || input.maxSizeBytes <= 0) {
+    throw new DomainError('BAD_REQUEST', 'maxSizeBytes must be a positive integer');
+  }
+  if (input.allowedCategories.length === 0) {
+    throw new DomainError('BAD_REQUEST', 'At least one allowed category is required');
+  }
   const userId = ctx.actor.kind === 'user' || ctx.actor.kind === 'api_key' ? ctx.actor.userId : null;
 
   const [row] = await db

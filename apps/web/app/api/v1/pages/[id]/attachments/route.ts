@@ -3,7 +3,7 @@ import { publicJson, withPublicApi } from '../../../_shared/route';
 import { publicApiError } from '@/server/api/public-errors';
 import * as publicContent from '@/server/services/public-content';
 
-const paramsSchema = z.object({ pageId: z.string().uuid() });
+const paramsSchema = z.object({ id: z.string().uuid() });
 
 /**
  * Attach a file to a page, or list its current attachments.
@@ -15,7 +15,7 @@ const paramsSchema = z.object({ pageId: z.string().uuid() });
  * @auth bearer
  * @response 201:PublicAttachmentResource
  */
-export const POST = withPublicApi<{ pageId: string }>(async (request, { params }, ctx) => {
+export const POST = withPublicApi<{ id: string }>(async (request, { params }, ctx) => {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) {
     return publicApiError('VALIDATION_FAILED', 'Invalid page id', 422);
@@ -35,7 +35,7 @@ export const POST = withPublicApi<{ pageId: string }>(async (request, { params }
     return publicApiError('VALIDATION_FAILED', 'Invalid multipart form data', 422);
   }
 
-  const attachment = await publicContent.attachToPage(ctx, parsedParams.data.pageId, bytes, fileName);
+  const attachment = await publicContent.attachToPage(ctx, parsedParams.data.id, bytes, fileName);
   return publicJson(attachment, { status: 201 });
 });
 
@@ -49,12 +49,12 @@ export const POST = withPublicApi<{ pageId: string }>(async (request, { params }
  * @auth bearer
  * @response PublicAttachmentList
  */
-export const GET = withPublicApi<{ pageId: string }>(async (_request, { params }, ctx) => {
+export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) {
     return publicApiError('VALIDATION_FAILED', 'Invalid page id', 422);
   }
 
-  const items = await publicContent.listAttachmentsForPage(ctx, parsedParams.data.pageId);
+  const items = await publicContent.listAttachmentsForPage(ctx, parsedParams.data.id);
   return publicJson({ items });
 });

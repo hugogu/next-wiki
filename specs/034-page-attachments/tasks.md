@@ -72,8 +72,8 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 - [X] T014 [P] [US1] Create `apps/web/src/server/services/attachment-settings.ts` with `getAttachmentSettings()` (returns the singleton row or the schema defaults when no row exists yet, mirroring `site-settings.ts`'s read pattern) (depends on T004)
 - [X] T015 [US1] Create `apps/web/src/server/services/page-attachments.ts`: `canAttach(ctx, page)` (session → `can(ctx,'attach_file',...)`; api_key → additionally require `can(ctx,'read'|'read_draft',...)` on the same page per FR-007a) and `attachFile(ctx, pageId, bytes, fileName)` (validates a safe single display filename plus T008 + T014's limits, calls the existing generic `writeAsset(store, {kind:'attachment', ...})`, inserts a `page_attachments` row) (depends on T003, T007, T008, T014)
 - [X] T016 [US1] Add `attachToPage(ctx, pageId, bytes, fileName)` to `apps/web/src/server/services/public-content.ts`, shaping the result into `PublicAttachmentResource` (depends on T002, T015)
-- [X] T017 [US1] Create `apps/web/app/api/v1/pages/[pageId]/attachments/route.ts` with a `POST` handler (multipart `file` field → `attachToPage`), OpenAPI JSDoc per contracts/attachments-api.md, mapping `ATTACHMENT_TOO_LARGE`/`UNSUPPORTED_ATTACHMENT_TYPE`/`FORBIDDEN`/`NOT_FOUND` (depends on T009, T016)
-- [X] T018 [US1] Add a `GET` handler (list current attachments for a page) to the same `apps/web/app/api/v1/pages/[pageId]/attachments/route.ts`, backed by a new `listAttachments(ctx, pageId)` in `page-attachments.ts`/`public-content.ts` (depends on T017)
+- [X] T017 [US1] Create `apps/web/app/api/v1/pages/[id]/attachments/route.ts` with a `POST` handler (multipart `file` field → `attachToPage`), OpenAPI JSDoc per contracts/attachments-api.md, mapping `ATTACHMENT_TOO_LARGE`/`UNSUPPORTED_ATTACHMENT_TYPE`/`FORBIDDEN`/`NOT_FOUND` (depends on T009, T016)
+- [X] T018 [US1] Add a `GET` handler (list current attachments for a page) to the same `apps/web/app/api/v1/pages/[id]/attachments/route.ts`, backed by a new `listAttachments(ctx, pageId)` in `page-attachments.ts`/`public-content.ts` (depends on T017)
 - [X] T019 [US1] Create `apps/web/src/components/page/AttachmentsPanel.tsx` (client component): attach button/upload form, renders the current list (from the T018 endpoint), shows newly attached items immediately (depends on T018)
 - [X] T020 [US1] Render `AttachmentsPanel` (with the page's id) from `apps/web/src/components/pages/ReaderPageView.tsx` (rendered by `apps/web/app/(public)/[...path]/page.tsx`) for read-only download access, and from `PagePropertiesPanel.tsx` (used by `EditPageForm.tsx`/`PagePropertiesDialog.tsx`) with `canManage` for attach/remove, since this codebase's edit UI is a dedicated `/edit` route rather than inline reader controls (depends on T019)
 - [X] T021 [US1] Add MCP tool `attach_file`: schema + handler in `packages/mcp-server/src/tools/attach-file.ts`, an `attachFile` method on `packages/mcp-server/src/api-client.ts` (multipart POST to the T017 endpoint), and registration in `packages/mcp-server/src/server.ts` (depends on T017)
@@ -135,15 +135,15 @@ Existing monorepo layout (no new packages): `apps/web/{app,src}/...`, `packages/
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T035 [P] [US4] Unit tests for `updateAttachmentSettings` (valid input persists; `maxSizeBytes <= 0` or empty `allowedCategories` rejected; existing attachments unaffected by a settings change — SC-005) in `apps/web/src/server/services/attachment-settings.test.ts`
-- [ ] T036 [P] [US4] Permission tests: `manage_storage`/admin-only gate on both read and write, mirroring `storage-config.ts`'s `isStorageAdmin` tests, in `apps/web/src/server/services/attachment-settings.test.ts`
+- [X] T035 [P] [US4] Unit tests for `updateAttachmentSettings` (valid input persists; `maxSizeBytes <= 0` or empty `allowedCategories` rejected; existing attachments unaffected by a settings change — SC-005) in `apps/web/src/server/services/attachment-settings.test.ts`
+- [X] T036 [P] [US4] Permission tests: `manage_storage`/admin-only gate on both read and write, mirroring `storage-config.ts`'s `isStorageAdmin` tests, in `apps/web/src/server/services/attachment-settings.test.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T037 [US4] Add `updateAttachmentSettings(ctx, input)` to `apps/web/src/server/services/attachment-settings.ts`, gated by `can(ctx, 'manage_storage', {kind:'storage'})` (depends on T014)
-- [ ] T038 [US4] Create `apps/web/app/api/settings/attachments/route.ts` with `GET`/`PUT` handlers, mirroring the sibling `apps/web/app/api/settings/*` routes (depends on T002, T037)
-- [ ] T039 [US4] Create the admin settings page `apps/web/app/(admin)/admin/attachments/page.tsx` (max size input, category checkboxes) (depends on T038)
-- [ ] T040 [P] [US4] E2E test `apps/web/e2e/admin-attachments.spec.ts` covering: default limits work out of the box, admin lowers the limit and an over-limit upload is refused, admin narrows categories and a disallowed type is refused, pre-existing attachments remain downloadable after the change (depends on T039)
+- [X] T037 [US4] Add `updateAttachmentSettings(ctx, input)` to `apps/web/src/server/services/attachment-settings.ts`, gated by `can(ctx, 'manage_storage', {kind:'storage'})` (depends on T014) — built alongside T014
+- [X] T038 [US4] Create `apps/web/app/api/settings/attachments/route.ts` with `GET`/`PATCH` handlers (PATCH, not PUT — matches every sibling `/api/settings/*` route), mirroring the sibling `apps/web/app/api/settings/*` routes (depends on T002, T037)
+- [X] T039 [US4] Create the admin settings page `apps/web/app/(admin)/admin/attachments/page.tsx` (max size input, category switches) plus an admin nav entry for discoverability (depends on T038)
+- [X] T040 [P] [US4] E2E test `apps/web/e2e/admin-attachments.spec.ts` covering: default limits work out of the box, admin lowers the limit and an over-limit upload is refused, admin narrows categories and a disallowed type is refused, pre-existing attachments remain downloadable after the change (depends on T039) — real browser run caught and fixed a Next.js dynamic-route-name collision (`[pageId]` vs. existing `[id]`) in T017/T018's route folder
 
 **Checkpoint**: Admin-configurable limits work and are enforced by the upload path built in User Story 1.
 

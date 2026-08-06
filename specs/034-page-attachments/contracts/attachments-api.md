@@ -120,18 +120,26 @@ key or MCP.
   ["image","video","document"], "updatedAt": "...", "updatedBy": "uuid |
   null" }`.
 
-### `PUT /api/settings/attachments`
+### `PATCH /api/settings/attachments`
 
-Implements FR-008, FR-009, FR-010, FR-012.
+Implements FR-008, FR-009, FR-010, FR-012. Uses `PATCH`, not `PUT`, matching
+every sibling `/api/settings/*` route's convention in this codebase
+(analytics/search/site/writing-mode all use `PATCH`) — there is no `PUT`
+handler anywhere under `/api/settings/*`.
 
 - **Permission**: same as GET.
 - **Request**: `{ "maxSizeBytes": number (>0), "allowedCategories":
   Array<'image'|'video'|'document'> (non-empty) }`.
 - **Response 200**: the updated settings view (same shape as GET).
 - **Behavior**: Never touches existing `content_assets`/`page_attachments`
-  rows — read only at future upload-validation time (FR-012/SC-005).
-- **Errors**: `422 VALIDATION_FAILED` (bad shape) · `403 FORBIDDEN`
-  (non-admin).
+  rows — read only at future upload-validation time (FR-012/SC-005). The
+  service layer also independently validates `maxSizeBytes > 0` and a
+  non-empty `allowedCategories` (defense-in-depth beyond the route's Zod
+  schema, so the function is safe to call from any caller).
+- **Errors**: `400 BAD_REQUEST` (bad shape or failed service-layer
+  validation, via the session API's `apiError`/`mapDomainError`, which reuse
+  `DomainError` codes directly rather than the public API's separate code
+  union) · `403 FORBIDDEN` (non-admin).
 
 ## MCP Tools
 

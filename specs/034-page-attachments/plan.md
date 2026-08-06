@@ -209,7 +209,7 @@ apps/web/
 │   ├── page-attachments-permissions.test.ts  # NEW
 │   └── attachment-settings.ts            # NEW: admin config read/write (mirrors storage-config.ts)
 ├── app/api/v1/
-│   ├── pages/[pageId]/attachments/route.ts        # NEW: POST (attach), GET (list)
+│   ├── pages/[id]/attachments/route.ts        # NEW: POST (attach), GET (list)
 │   └── attachments/[id]/
 │       ├── route.ts                               # NEW: DELETE (remove)
 │       └── content/route.ts                       # NEW: GET (download; sets Content-Disposition)

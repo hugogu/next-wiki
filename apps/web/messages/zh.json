@@ -597,6 +597,7 @@
       "pages": "页面",
       "tags": "标签",
       "storage": "内容存储",
+      "attachments": "附件",
       "apiAudit": "访问日志",
       "requestLog": "请求日志",
       "transfers": "导入 / 导出",
@@ -683,6 +684,24 @@
       "saved": "已保存。",
       "saveError": "搜索设置保存失败。",
       "lexicalRequired": "请保持全文搜索或模糊搜索处于启用状态。"
+    },
+    "attachmentSettings": {
+      "title": "附件设置",
+      "description": "控制页面附件的最大大小以及可接受的文件类型分类。",
+      "maxSize": {
+        "label": "最大附件大小（MB）",
+        "help": "仅影响新上传的附件；即使之后调低此值，已存储的附件仍可下载。"
+      },
+      "categories": {
+        "title": "允许的分类",
+        "description": "新附件仅接受以下分类；已停用分类的现有附件仍可下载。",
+        "image": "图片（PNG、JPEG、GIF、WebP）",
+        "video": "视频（MP4、WebM）",
+        "document": "文档（PDF、纯文本、Markdown、CSV、Office、OpenDocument）"
+      },
+      "atLeastOneCategory": "请至少选择一个分类。",
+      "saved": "已保存。",
+      "saveError": "附件设置保存失败。"
     },
     "pages": {
       "metadataTitle": "页面管理",

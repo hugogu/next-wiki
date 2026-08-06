@@ -597,6 +597,7 @@
       "pages": "Pages",
       "tags": "Tags",
       "storage": "Content Storage",
+      "attachments": "Attachments",
       "apiAudit": "Access Log",
       "requestLog": "Request Log",
       "transfers": "Import / Export",
@@ -683,6 +684,24 @@
       "saved": "Saved.",
       "saveError": "Failed to save search settings.",
       "lexicalRequired": "Keep full-text search or fuzzy search enabled."
+    },
+    "attachmentSettings": {
+      "title": "Attachment Settings",
+      "description": "Control the maximum size and accepted file-type categories for files attached to pages.",
+      "maxSize": {
+        "label": "Maximum attachment size (MB)",
+        "help": "Applies only to new uploads; attachments already stored remain downloadable even if you lower this later."
+      },
+      "categories": {
+        "title": "Accepted categories",
+        "description": "Only these categories are accepted for new attachments; existing attachments of a disabled category remain downloadable.",
+        "image": "Images (PNG, JPEG, GIF, WebP)",
+        "video": "Videos (MP4, WebM)",
+        "document": "Documents (PDF, plain text, Markdown, CSV, Office, OpenDocument)"
+      },
+      "atLeastOneCategory": "Select at least one category.",
+      "saved": "Saved.",
+      "saveError": "Failed to save attachment settings."
     },
     "pages": {
       "metadataTitle": "Page management",

@@ -33,6 +33,7 @@ import {
   LayersIcon,
   FunctionPlotIcon,
   MoveIcon,
+  ArchiveIcon,
 } from '@/components/icons';
 import { getConfiguredSpaceHref, getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
@@ -371,6 +372,11 @@ export function Navigator({
           href: '/admin/storage',
           label: t('admin.nav.storage'),
           icon: <DatabaseIcon className="shrink-0" />,
+        },
+        {
+          href: '/admin/attachments',
+          label: t('admin.nav.attachments'),
+          icon: <ArchiveIcon className="shrink-0" />,
         },
       ],
     },
