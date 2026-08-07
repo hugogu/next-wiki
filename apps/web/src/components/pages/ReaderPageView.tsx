@@ -9,9 +9,9 @@ import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { buildPageDescription } from '@/lib/seo';
 import { canonicalSpacePath } from '@/server/services/space-routes';
-import { canCreate, getReadablePublishedTranslationLocales, getCachedPublishedTranslationLocales } from '@/server/services/pages';
+import { getReadablePublishedTranslationLocales, getCachedPublishedTranslationLocales } from '@/server/services/pages';
 import type { ResolvedReaderPage } from '@/server/services/reader-routing';
-import type { Actor } from '@/server/permissions';
+import { can, pagePermissionOptions, type Actor } from '@/server/permissions';
 import type { Locale } from '@/i18n/config';
 import { getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
@@ -70,8 +70,13 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
 
   const { page } = resolved;
   const isTranslation = resolved.kind === 'translation';
-  const canEdit = await canCreate({ actor }, resolved.space.slug);
   const isAuthor = actor.kind === 'user' ? page.authorId === actor.userId : false;
+  const canEdit = can(
+    { actor },
+    'edit',
+    { kind: 'page', pageId: page.pageId },
+    pagePermissionOptions(resolved.space, page, { isAuthor }),
+  );
   const canPublish =
     !isTranslation &&
     page.status === 'draft' &&

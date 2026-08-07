@@ -33,6 +33,7 @@ export function AppShell({
   userCenter = false,
   fitViewport = false,
   aiEntitlements: initialAiEntitlements,
+  staticPublic = false,
   footer,
   siteName,
   children,
@@ -47,11 +48,12 @@ export function AppShell({
   const [aiMaximized, setAiMaximized] = useState(false);
 
   useEffect(() => {
-    // initialUser reflects what the server actually resolved. A staticPublic
-    // page always renders with an anonymous placeholder actor (see
-    // Layout.tsx), so this is the reliable signal that private controls still
-    // need to be established client-side.
-    if (initialUser.kind !== 'anonymous') return;
+    // A staticPublic document was rendered against a placeholder anonymous
+    // actor (see Layout.tsx) — it never reflects the real visitor, so this is
+    // the only case that needs a client-side correction. Dynamically
+    // rendered pages already resolved the real actor server-side (including
+    // a genuinely logged-out visitor), so there's nothing to re-check there.
+    if (!staticPublic) return;
     let cancelled = false;
 
     async function hydratePrivateControls() {
@@ -79,7 +81,7 @@ export function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [initialUser]);
+  }, [staticPublic]);
 
   useEffect(() => {
     if (user.kind !== 'user' || user.role !== 'admin') return;
@@ -116,7 +118,7 @@ export function AppShell({
           // when that's the case; a dynamically-rendered page's canEdit is
           // already authoritative and must not be widened here. Either way
           // the edit route re-verifies real authorization server-side.
-          canEdit: pageContext.canEdit || (initialUser.kind === 'anonymous' && (user.role === 'admin' || user.role === 'editor')),
+          canEdit: pageContext.canEdit || (staticPublic && (user.role === 'admin' || user.role === 'editor')),
         }
       : pageContext;
 

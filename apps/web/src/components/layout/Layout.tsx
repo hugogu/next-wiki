@@ -71,6 +71,7 @@ export async function Layout({
       userCenter={userCenter}
       fitViewport={fitViewport}
       aiEntitlements={aiEntitlements}
+      staticPublic={staticPublic}
       space={space}
       routePrefix={routePrefix}
       writingMode={writingMode}

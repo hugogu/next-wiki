@@ -52,6 +52,14 @@ export type AppShellProps = {
    */
   fitViewport?: boolean;
   aiEntitlements?: AiEntitlementView | null;
+  /**
+   * True exactly when this render used a placeholder anonymous actor because
+   * the document is a shared, cached (staticPublic/ISR) page (see
+   * Layout.tsx) — the one case where the client must independently resolve
+   * the real session, since the server-rendered actor is known-unreliable
+   * for this specific visitor.
+   */
+  staticPublic?: boolean;
   space?: ReaderSpace;
   routePrefix?: string;
   writingMode?: WritingMode;
