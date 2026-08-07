@@ -30,18 +30,23 @@ export function useResizableWidth({
   side: 'left' | 'right';
 }) {
   const [width, setWidth] = useState(defaultWidth);
+  // Mirrors `width` synchronously (unlike a post-render effect) so a
+  // pointerup that fires immediately after the last pointermove — before
+  // React has committed/run effects for that update — still persists the
+  // latest dragged width instead of a stale one.
   const widthRef = useRef(width);
-  useEffect(() => {
-    widthRef.current = width;
-  });
+  const updateWidth = useCallback((next: number) => {
+    widthRef.current = next;
+    setWidth(next);
+  }, []);
 
   useEffect(() => {
     const stored = readStoredWidth(storageKey, minWidth, maxWidth);
     if (stored !== null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the persisted width once after mount so SSR/hydration render the SSR-safe default first
-      setWidth(stored);
+      updateWidth(stored);
     }
-  }, [storageKey, minWidth, maxWidth]);
+  }, [storageKey, minWidth, maxWidth, updateWidth]);
 
   const startResize = useCallback(
     (event: React.PointerEvent) => {
@@ -56,19 +61,21 @@ export function useResizableWidth({
       const handleMove = (moveEvent: PointerEvent) => {
         const delta = moveEvent.clientX - startX;
         const signedDelta = side === 'right' ? delta : -delta;
-        setWidth(Math.min(maxWidth, Math.max(minWidth, startWidth + signedDelta)));
+        updateWidth(Math.min(maxWidth, Math.max(minWidth, startWidth + signedDelta)));
       };
-      const handleUp = () => {
+      const stopResize = () => {
         window.removeEventListener('pointermove', handleMove);
-        window.removeEventListener('pointerup', handleUp);
+        window.removeEventListener('pointerup', stopResize);
+        window.removeEventListener('pointercancel', stopResize);
         document.body.style.cursor = previousCursor;
         document.body.style.userSelect = previousUserSelect;
         window.localStorage.setItem(storageKey, String(widthRef.current));
       };
       window.addEventListener('pointermove', handleMove);
-      window.addEventListener('pointerup', handleUp);
+      window.addEventListener('pointerup', stopResize);
+      window.addEventListener('pointercancel', stopResize);
     },
-    [side, minWidth, maxWidth, storageKey],
+    [side, minWidth, maxWidth, storageKey, updateWidth],
   );
 
   return { width, startResize };
