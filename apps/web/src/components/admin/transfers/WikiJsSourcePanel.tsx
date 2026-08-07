@@ -152,11 +152,12 @@ export function WikiJsSourcePanel({
     return historyOptions[sourceId] ?? defaultRunOptions;
   }
   function setHistoryOptionsFor(sourceId: string, patch: Partial<WikiJsRunOptions>) {
-    setHistoryOptions((prev) => {
-      const next = { ...(prev[sourceId] ?? defaultRunOptions), ...patch };
-      window.localStorage.setItem(historyOptionsStorageKey(sourceId), JSON.stringify(next));
-      return { ...prev, [sourceId]: next };
-    });
+    // Compute from the current render's state (not the updater's `prev`) so the
+    // localStorage write stays outside the updater — React may invoke a
+    // functional updater more than once, and it must stay a pure merge.
+    const next = { ...historyOptionsFor(sourceId), ...patch };
+    window.localStorage.setItem(historyOptionsStorageKey(sourceId), JSON.stringify(next));
+    setHistoryOptions((prev) => ({ ...prev, [sourceId]: next }));
   }
 
   async function createSource() {

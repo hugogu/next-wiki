@@ -18,9 +18,9 @@ const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warn
 
 /**
  * `TransferRunView.options` is a free-form jsonb blob whose shape varies by
- * run kind; only `includeHistory`/`historyLimit`/`conflictStrategy` are ever
- * set (site export, archive preview, Wiki.js preview), so this only surfaces
- * those known keys and renders nothing for kinds that don't set them.
+ * run kind (e.g. site export also allows `space`/`format`). This only
+ * surfaces the `includeHistory`/`historyLimit`/`conflictStrategy` keys the
+ * "Configure" step exposes, and renders nothing for a run that has none.
  */
 function runOptionsSummary(options: Record<string, unknown>, t: TranslateFunction): { label: string; value: string }[] {
   const summary: { label: string; value: string }[] = [];
