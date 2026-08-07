@@ -98,7 +98,16 @@ export function buildConversationContext(messages: ChatMessage[]): { question: s
     }
     if (message.role === 'assistant' && pendingQuestion) {
       const answer = message.text.trim().slice(0, 4_000);
-      if (answer) turns.push({ question: pendingQuestion, answer });
+      const isBareToolProtocol = /(?:^|\n)\s*tool_calls\s*:\s*\n\s*-\s*tool\s*:/i.test(answer) ||
+        /^\s*\{\s*"tool_calls"\s*:/i.test(answer);
+      if (answer && !isBareToolProtocol) {
+        turns.push({ question: pendingQuestion, answer });
+      } else if (message.error || message.toolCalls?.length || isBareToolProtocol) {
+        turns.push({
+          question: pendingQuestion,
+          answer: 'The previous assistant turn did not produce a usable final answer. Preserve and continue the user\'s underlying request rather than interpreting a short follow-up as a new topic.',
+        });
+      }
       pendingQuestion = null;
     }
   }

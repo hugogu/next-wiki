@@ -23,6 +23,29 @@ describe('useAiChat payload helpers', () => {
     ]);
   });
 
+  it('retains a failed tool turn so a retry keeps the original request context', () => {
+    const messages: ChatMessage[] = [
+      { id: 'u1', role: 'user', text: '写一篇《股票作手回忆录》的读书笔记并保存到 Wiki。' },
+      { id: 'a1', role: 'assistant', text: '', error: 'The AI request failed.' },
+    ];
+
+    expect(buildConversationContext(messages)).toEqual([
+      {
+        question: '写一篇《股票作手回忆录》的读书笔记并保存到 Wiki。',
+        answer: expect.stringContaining('did not produce a usable final answer'),
+      },
+    ]);
+  });
+
+  it('does not keep a bare tool protocol as if it were an assistant answer', () => {
+    const messages: ChatMessage[] = [
+      { id: 'u1', role: 'user', text: '创建笔记。' },
+      { id: 'a1', role: 'assistant', text: 'tool_calls:\n  - tool: search_wiki\n    arguments: {}' },
+    ];
+
+    expect(buildConversationContext(messages)[0]?.answer).toContain('did not produce a usable final answer');
+  });
+
   it('sends Wiki AI follow-up turns as tool-enabled requests with prior answer context', () => {
     const messages: ChatMessage[] = [
       { id: 'u1', role: 'user', text: 'Summarize the design.' },

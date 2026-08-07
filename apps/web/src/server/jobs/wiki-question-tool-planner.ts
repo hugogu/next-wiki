@@ -196,6 +196,13 @@ function looksLikeForeignToolCall(output: string): boolean {
   return NATIVE_TOOL_SYNTAX.some((pattern) => pattern.test(output));
 }
 
+/** A model occasionally omits the fence required by the textual tool protocol.
+ * It is still a tool-call attempt, never a user-facing answer. */
+function looksLikeBareToolProtocol(output: string): boolean {
+  return /(?:^|\n)\s*tool_calls\s*:\s*\n\s*-\s*tool\s*:/i.test(output) ||
+    /^\s*\{\s*"tool_calls"\s*:/i.test(output);
+}
+
 /** Parse one planner turn: a valid tool-call block requests tools; malformed
  * protocol output is explicitly retried by the caller; plain prose is final. */
 export function parseToolPlan(output: string): ToolPlannerParseResult {
@@ -243,7 +250,7 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
   // A model that tried to call a tool in its own dialect did not write an
   // answer. Delivering this text would show the user raw protocol and silently
   // drop the work they asked for, so retry with explicit protocol feedback.
-  if (looksLikeForeignToolCall(output)) {
+  if (looksLikeForeignToolCall(output) || looksLikeBareToolProtocol(output)) {
     return { kind: 'invalid_tool_calls' };
   }
   return { kind: 'final', text: output.trim() };

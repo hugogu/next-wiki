@@ -70,6 +70,18 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     expect(step.kind).toBe('invalid_tool_calls');
   });
 
+  it('retries an unfenced YAML tool call instead of rendering it as an answer', () => {
+    const output = [
+      'tool_calls:',
+      '  - tool: search_wiki',
+      '    arguments:',
+      '      query: "股票作手回忆录"',
+      '      scope: all',
+    ].join('\n');
+
+    expect(parseToolPlan(output)).toEqual({ kind: 'invalid_tool_calls' });
+  });
+
   it('treats an empty tool_calls list as a final answer', () => {
     const step = parseToolPlan('```tool\n{"tool_calls":[]}\n```');
     expect(step.kind).toBe('invalid_tool_calls');

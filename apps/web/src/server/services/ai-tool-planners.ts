@@ -122,7 +122,15 @@ export function createNativeToolPlanner(
         })),
       };
     }
-    return { kind: 'final', text: text.trim() };
+    // Some providers return a text-protocol tool call in `content` even when
+    // native tools were requested. Reuse the protocol parser so that malformed
+    // YAML/JSON is never rendered as a chat answer; a valid fenced call still
+    // enters the same governed tool loop as a native call.
+    const parsed = parseToolPlan(text);
+    if (parsed.kind === 'invalid_tool_calls') {
+      throw new DomainError('INVALID_RESPONSE', 'The AI provider returned an invalid tool call.');
+    }
+    return parsed;
   };
 }
 

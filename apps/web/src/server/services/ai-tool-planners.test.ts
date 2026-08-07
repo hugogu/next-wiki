@@ -116,6 +116,20 @@ describe('planner equivalence', () => {
     }
   });
 
+  it('does not expose an unfenced tool protocol as a native-planner answer', async () => {
+    const fixture = await startAiProviderFixture({
+      textResponse: 'tool_calls:\n  - tool: search_wiki\n    arguments:\n      query: "backup"',
+    });
+    try {
+      await expect(createNativeToolPlanner({
+        ...deps(fixture.baseUrl, [], []),
+        tools: () => listToolDefinitions().filter((tool) => tool.name === 'search_wiki'),
+      })(STATE)).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+    } finally {
+      await fixture.close();
+    }
+  });
+
   it('offers the same tool catalogue in both protocols', async () => {
     const fixture = await startAiProviderFixture({ toolMode: 'single' });
     try {
