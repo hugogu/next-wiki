@@ -4,6 +4,7 @@ import * as authService from '@/server/services/auth';
 import * as publicContent from '@/server/services/public-content';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
+import { buildAnonymousCtx } from '@/server/permissions';
 import { getMyEntitlements } from '@/server/services/ai-entitlements';
 import { getSiteView } from '@/server/services/site-settings';
 import { Footer } from '@/components/ui/Footer';
@@ -32,7 +33,11 @@ export async function Layout({
   space?: ReaderSpace;
   routePrefix?: string;
 }) {
-  const actor = await authService.getCurrentActor();
+  // staticPublic output is cached and shared by every visitor (ISR). Resolving
+  // the real per-request session here would bake one visitor's identity into
+  // that shared cache for everyone else; real identity is only ever
+  // established client-side afterward via AppShell's /api/auth/me hydration.
+  const actor = staticPublic ? buildAnonymousCtx().actor : await authService.getCurrentActor();
 
   if (!skipPasswordGate && actor.kind === 'user') {
     const needsReset = await authService.mustResetPassword({ actor });
@@ -66,7 +71,6 @@ export async function Layout({
       userCenter={userCenter}
       fitViewport={fitViewport}
       aiEntitlements={aiEntitlements}
-      hydrateSession={staticPublic}
       space={space}
       routePrefix={routePrefix}
       writingMode={writingMode}
