@@ -19,6 +19,14 @@ async function createTestUser(email: string, role: 'admin' | 'editor' | 'reader'
 }
 
 describe('clientIp', () => {
+  it('prefers cf-connecting-ip over x-forwarded-for', () => {
+    const headers = new Headers({
+      'cf-connecting-ip': '198.51.100.42',
+      'x-forwarded-for': '172.71.182.46',
+    });
+    expect(auditService.clientIp(headers)).toBe('198.51.100.42');
+  });
+
   it('takes the first entry of an x-forwarded-for chain', () => {
     const headers = new Headers({ 'x-forwarded-for': '198.51.100.42, 10.0.0.1' });
     expect(auditService.clientIp(headers)).toBe('198.51.100.42');
