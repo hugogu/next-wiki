@@ -2270,6 +2270,8 @@
         "run": "Run",
         "storage": "Storage",
         "preferences": "Preferences",
+        "transfers": "Transfers",
+        "manage_tags": "Manage tags",
         "attachments": "Attachments",
         "ai": {
           "read": "AI read",
@@ -2285,6 +2287,8 @@
         "run": "Reserved for future runner features",
         "storage": "Manage content storage configuration and migrations (admin only)",
         "preferences": "Update your own theme and language preferences",
+        "transfers": "Manage content transfers and migrations (admin only)",
+        "manage_tags": "Curate the shared tag vocabulary",
         "attachments": "Attach files to pages — independent of create/edit; also requires read access to the target page",
         "ai": {
           "read": "Use AI-powered search and semantic retrieval",

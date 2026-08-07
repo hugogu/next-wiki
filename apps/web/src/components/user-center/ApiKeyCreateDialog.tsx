@@ -2,13 +2,11 @@
 
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
-import type { ApiKeyScope, ApiKeyCreated } from '@next-wiki/shared';
+import { API_KEY_SCOPES, type ApiKeyScope, type ApiKeyCreated } from '@next-wiki/shared';
 import { apiPost } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { XIcon } from '@/components/icons';
-
-const SCOPE_ORDER: ApiKeyScope[] = ['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'attachments', 'ai.read', 'ai.image'];
 
 interface ApiKeyCreateDialogProps {
   onClose: () => void;
@@ -88,7 +86,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated }: ApiKeyCreateDialogPro
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.scopesLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.scopesHint')}</p>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
-              {SCOPE_ORDER.map((scope) => (
+              {API_KEY_SCOPES.map((scope) => (
                 <label key={scope} className="flex items-start gap-sm rounded-md border border-border p-sm cursor-pointer hover:bg-surface-elevated">
                   <input
                     type="checkbox"

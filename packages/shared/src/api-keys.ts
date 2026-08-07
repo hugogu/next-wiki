@@ -17,6 +17,14 @@ export const apiKeyScopeSchema = z.enum([
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
+/**
+ * Canonical scope list, in display order. Single source of truth for any UI
+ * that enumerates scopes (creation form, scope badges) — deriving from the
+ * schema means a newly added scope can never be silently excluded from one
+ * screen while present on another.
+ */
+export const API_KEY_SCOPES: readonly ApiKeyScope[] = apiKeyScopeSchema.options;
+
 export const createApiKeyInputSchema = z.object({
   name: z.string().min(1).max(100),
   scopes: z

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
-import type { ApiKeyView, ApiKeyCreated, ApiKeyScope } from '@next-wiki/shared';
+import { API_KEY_SCOPES, type ApiKeyView, type ApiKeyCreated } from '@next-wiki/shared';
 import { apiGet, apiDelete } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import {
@@ -17,8 +17,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PlusIcon, TrashIcon, EyeIcon } from '@/components/icons';
 import { ApiKeyCreateDialog } from './ApiKeyCreateDialog';
 import { ApiKeyReveal } from './ApiKeyReveal';
-
-const SCOPE_ORDER: ApiKeyScope[] = ['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'attachments', 'ai.read', 'ai.image'];
 
 interface ApiKeyListProps {
   initialKeys: ApiKeyView[];
@@ -106,7 +104,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
                     <DataTableCell className="font-medium">{key.name}</DataTableCell>
                     <DataTableCell>
                       <div className="flex flex-wrap gap-xs">
-                        {SCOPE_ORDER.filter((s) => key.scopes.includes(s)).map((scope) => (
+                        {API_KEY_SCOPES.filter((s) => key.scopes.includes(s)).map((scope) => (
                           <span
                             key={scope}
                             className="inline-flex items-center rounded-full bg-surface-elevated px-2 py-0.5 text-xs border border-border"
