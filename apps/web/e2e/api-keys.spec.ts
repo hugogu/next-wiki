@@ -45,6 +45,16 @@ test.describe('api keys', () => {
     await expect(page.getByRole('checkbox', { name: 'AI image generation' })).toBeVisible();
   });
 
+  test('attachments scope is preserved and shown after creation', async ({ page }) => {
+    const timestamp = Date.now();
+    await register(page, `api-attachments-scope-${timestamp}@example.com`, 'Password123!');
+    await createApiKey(page, 'Attachments Key', ['View', 'Attachments']);
+
+    await page.goto('/user-center/api-keys');
+    const row = page.locator('tr', { hasText: 'Attachments Key' });
+    await expect(row.getByText('Attachments', { exact: true })).toBeVisible();
+  });
+
   test('view scope key can read but not write; create scope as reader is role-denied; revocation blocks access and audit logs attempts', async ({ page }) => {
     const timestamp = Date.now();
     const email = `api-keys-${timestamp}@example.com`;
