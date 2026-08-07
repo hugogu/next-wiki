@@ -967,6 +967,13 @@
           "all": "全部",
           "warning": "警告",
           "failed": "错误"
+        },
+        "options": {
+          "title": "运行参数",
+          "includeHistory": "完整页面历史",
+          "historyOn": "已包含（每页最多 {limit} 个版本）",
+          "historyOff": "未包含",
+          "existingPages": "已存在的页面"
         }
       },
       "table": {

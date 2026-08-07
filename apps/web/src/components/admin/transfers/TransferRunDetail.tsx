@@ -11,9 +11,35 @@ import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, RedoIcon, Trash
 import { apiGet, useApiMutation } from '@/lib/api/client';
 import { getPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
+import type { TranslateFunction } from '@/i18n';
 
 const PAGE_SIZE = 20;
 const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warnings', 'failed', 'cancelled'];
+
+/**
+ * `TransferRunView.options` is a free-form jsonb blob whose shape varies by
+ * run kind; only `includeHistory`/`historyLimit`/`conflictStrategy` are ever
+ * set (site export, archive preview, Wiki.js preview), so this only surfaces
+ * those known keys and renders nothing for kinds that don't set them.
+ */
+function runOptionsSummary(options: Record<string, unknown>, t: TranslateFunction): { label: string; value: string }[] {
+  const summary: { label: string; value: string }[] = [];
+  if (typeof options.includeHistory === 'boolean') {
+    summary.push({
+      label: t('admin.transfers.detail.options.includeHistory'),
+      value: options.includeHistory
+        ? t('admin.transfers.detail.options.historyOn', { limit: typeof options.historyLimit === 'number' ? options.historyLimit : '' })
+        : t('admin.transfers.detail.options.historyOff'),
+    });
+  }
+  if (options.conflictStrategy === 'skip' || options.conflictStrategy === 'replace') {
+    summary.push({
+      label: t('admin.transfers.detail.options.existingPages'),
+      value: t(`admin.transfers.conflict.${options.conflictStrategy}`),
+    });
+  }
+  return summary;
+}
 
 /**
  * Page items are recorded with a `locale/path` display name and the imported
@@ -177,6 +203,23 @@ export function TransferRunDetail({
             {run.reportArtifactId && <a className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text" href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}>{t('admin.transfers.actions.download')}</a>}
           </div>
         </div>
+        {(() => {
+          const options = runOptionsSummary(run.options, t);
+          if (options.length === 0) return null;
+          return (
+            <div className="mt-md border-t border-border pt-md">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">{t('admin.transfers.detail.options.title')}</p>
+              <dl className="mt-xs grid gap-x-lg gap-y-xs text-sm sm:grid-cols-2">
+                {options.map(({ label, value }) => (
+                  <div key={label} className="flex justify-between gap-sm sm:justify-start">
+                    <dt className="text-muted">{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })()}
         {cleanupMessage && <p className="mt-md text-sm text-success">{cleanupMessage}</p>}
         {run.errorMessage && <p className="mt-md text-sm text-danger">{run.errorMessage}</p>}
         {run.errorDetail && <pre className="mt-sm overflow-auto rounded-md bg-surface-elevated p-sm text-xs">{run.errorDetail}</pre>}
