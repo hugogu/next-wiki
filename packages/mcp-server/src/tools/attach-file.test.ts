@@ -29,7 +29,7 @@ describe('attach_file', () => {
 
     await attachFile(client, { pageId, fileBase64: Buffer.from('hello').toString('base64'), fileName });
 
-    const file = attachFileMock.mock.calls[0][1] as File;
+    const [, file] = attachFileMock.mock.calls[0] as [unknown, File];
     expect(file.type).toBe(expectedType);
   });
 
@@ -38,7 +38,7 @@ describe('attach_file', () => {
 
     await attachFile(client, { pageId, fileBase64: Buffer.from('hello').toString('base64'), fileName: 'archive.zip' });
 
-    const file = attachFileMock.mock.calls[0][1] as File;
+    const [, file] = attachFileMock.mock.calls[0] as [unknown, File];
     expect(file.type).toBe('application/octet-stream');
   });
 
@@ -52,7 +52,7 @@ describe('attach_file', () => {
       mimeType: 'application/pdf',
     });
 
-    const file = attachFileMock.mock.calls[0][1] as File;
+    const [, file] = attachFileMock.mock.calls[0] as [unknown, File];
     expect(file.type).toBe('application/pdf');
   });
 
@@ -62,7 +62,7 @@ describe('attach_file', () => {
 
     await attachFile(client, { pageId, fileBase64: original.toString('base64'), fileName: 'blob.bin' });
 
-    const file = attachFileMock.mock.calls[0][1] as File;
+    const [, file] = attachFileMock.mock.calls[0] as [unknown, File];
     const roundTripped = Buffer.from(await file.arrayBuffer());
     expect(roundTripped.equals(original)).toBe(true);
   });
@@ -77,7 +77,7 @@ describe('attach_file', () => {
       fileName: 'notes.txt',
     });
 
-    const file = attachFileMock.mock.calls[0][1] as File;
+    const [, file] = attachFileMock.mock.calls[0] as [unknown, File];
     const roundTripped = Buffer.from(await file.arrayBuffer());
     expect(roundTripped.equals(original)).toBe(true);
   });
