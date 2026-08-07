@@ -46,7 +46,7 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
   content API, and MCP tooling. Writing requires a new, independently
   grantable API key scope (`attachments`) layered on top of existing
   page-read access; reading needs no new scope. Admin-configurable max size
-  (default 100 MB) and allowed type categories live in a new singleton
+  (default 20 MB) and allowed type categories live in a new singleton
   `attachment_settings` table, mirroring `site_settings`. Over-size uploads
   are rejected outright (buffer-then-validate, never truncated). No
   in-app preview; downloads use a fixed, non-configurable inline-vs-forced-
