@@ -60,6 +60,7 @@ import {
 import { logger } from '@/server/logger';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { listEnabledSkills } from '@/server/services/skills/registry';
+import { loadWebConversationContext } from '@/server/services/ai-conversation-context';
 import { buildWikiToolSystemPrompt } from './wiki-question-tool-planner';
 import { expandScheduledJobContext } from './scheduled-ai-job-context';
 import {
@@ -167,6 +168,12 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
     throw new DomainError('CANCELLED', 'Question action is no longer authorized');
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
+  const conversation = await loadWebConversationContext({
+    actorUserId: user.id,
+    queuedAt: action.queuedAt,
+    requestMetadata: action.requestMetadata,
+    clientConversation: input.conversation,
+  });
 
   // Recorded once, up front, so the session history panel can show what was
   // asked even though the encrypted raw input is purged as soon as the action
@@ -200,7 +207,7 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
       const prompt = buildWikiQuestionPrompt(
         input.question,
         promptSources,
-        input.conversation,
+        conversation,
         runtimeConfig.answerLanguage,
       );
       const maxOutputTokens = computeAnswerMaxOutputTokens(
@@ -295,6 +302,12 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   }
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
+  const conversation = await loadWebConversationContext({
+    actorUserId: user.id,
+    queuedAt: action.queuedAt,
+    requestMetadata: action.requestMetadata,
+    clientConversation: input.conversation,
+  });
   const metadata = action.requestMetadata as Record<string, unknown>;
   const scheduledRunId =
     typeof metadata.scheduledAiJobRunId === 'string' ? metadata.scheduledAiJobRunId : null;
@@ -469,7 +482,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       ctx,
       actorUserId: user.id,
       question,
-      conversation: input.conversation ?? [],
+      conversation,
       wikiSources,
       currentPage: input.currentPage,
       planner,

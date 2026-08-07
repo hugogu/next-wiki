@@ -132,7 +132,7 @@ product feedback disagrees.
 `'image' | 'video' | 'document'`), `updated_by`, `updated_at`), following
 the exact existing singleton pattern of `site_settings` and
 `system_theme_settings` (`id text primary key default 'default'`). Exposed
-at `GET`/`PUT /api/settings/attachments`, mirroring the sibling routes under
+at `GET`/`PATCH /api/settings/attachments`, mirroring the sibling routes under
 `apps/web/app/api/settings/*` (analytics, search, spaces, site, …), gated by
 the existing `manage_storage` action (same admin-only gate
 `storage-config.ts`'s `isStorageAdmin` already uses — attachment limits are

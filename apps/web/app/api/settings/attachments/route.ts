@@ -5,10 +5,12 @@ import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
 import { DomainError } from '@/server/errors';
 import { getAttachmentSettings, updateAttachmentSettings } from '@/server/services/attachment-settings';
+import { assertCanManageStorage } from '@/server/services/storage-config';
 
 /** @openapi @summary Get attachment settings @tag Attachments Admin @auth bearer */
 export async function GET() {
   try {
+    assertCanManageStorage(await createApiContext());
     return NextResponse.json(await getAttachmentSettings());
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);

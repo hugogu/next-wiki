@@ -77,3 +77,26 @@ describe('Navigator hybrid node (page that also has children)', () => {
     expect(html).toContain('Supernovae');
   });
 });
+
+describe('Navigator LLM Wiki space tabs', () => {
+  it('renders persistent title-bar tabs outside the scrolling navigation', () => {
+    const html = renderToStaticMarkup(
+      <Navigator
+        tree={[]}
+        isOpen={false}
+        onClose={() => {}}
+        user={{ kind: 'user', userId: 'admin-1', role: 'admin' }}
+        space="generated"
+        writingMode="llm-wiki"
+      />,
+    );
+
+    const tabsStart = html.indexOf('aria-label="layout.nav.spaces.label"');
+    const navigationStart = html.indexOf('<nav');
+    expect(tabsStart).toBeGreaterThan(-1);
+    expect(tabsStart).toBeLessThan(navigationStart);
+    expect(html).toContain('href="/"');
+    expect(html).toContain('href="/spaces/generated" aria-current="page"');
+    expect(html).toContain('href="/spaces/raw"');
+  });
+});

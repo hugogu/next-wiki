@@ -7,12 +7,7 @@ export const downloadAttachmentSchema = {
 export type DownloadAttachmentInput = z.infer<z.ZodObject<typeof downloadAttachmentSchema>>;
 
 function uint8ArrayToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
+  return Buffer.from(bytes).toString('base64');
 }
 
 /**

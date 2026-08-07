@@ -665,6 +665,31 @@ export function Navigator({
           </button>
         </div>
 
+        {canSwitchSpaces && (
+          <div className="shrink-0 border-b border-border bg-surface px-sm pt-xs">
+            <div className="grid grid-cols-3" aria-label={t('layout.nav.spaces.label')}>
+              {(['wiki', 'generated', 'raw'] as const).map((candidate) => {
+                const active = space === candidate;
+                return (
+                  <Link
+                    key={candidate}
+                    href={getSpaceHref(candidate)}
+                    onClick={onClose}
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex min-h-10 items-center justify-center border-b-2 px-2 text-sm transition-colors ${
+                      active
+                        ? 'border-primary font-medium text-foreground'
+                        : 'border-transparent text-muted hover:border-border hover:text-foreground'
+                    }`}
+                  >
+                    {t(`layout.nav.spaces.${candidate}`)}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <nav
           ref={scrollRef}
           onScroll={(event) =>
@@ -729,31 +754,6 @@ export function Navigator({
             </div>
           ) : (
             <>
-              {canSwitchSpaces && (
-                <div
-                  className="mb-md grid grid-cols-3 gap-1"
-                  aria-label={t('layout.nav.spaces.label')}
-                >
-                  {(['wiki', 'generated', 'raw'] as const).map((candidate) => {
-                    const active = space === candidate;
-                    return (
-                      <Link
-                        key={candidate}
-                        href={getSpaceHref(candidate)}
-                        onClick={onClose}
-                        aria-current={active ? 'page' : undefined}
-                        className={`rounded-md px-2 py-1.5 text-center text-xs transition-colors ${
-                          active
-                            ? 'bg-primary text-primary-text'
-                            : 'text-muted hover:bg-surface-elevated hover:text-foreground'
-                        }`}
-                      >
-                        {t(`layout.nav.spaces.${candidate}`)}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
               {tree.length === 0 ? (
                 <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
               ) : (
