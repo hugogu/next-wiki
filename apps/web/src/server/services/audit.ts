@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { eq, and, desc, sql, gte, lt, lte, or, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -39,14 +40,17 @@ export type AuditEntryInput = {
  * so it overwrites `x-forwarded-for` with its immediate peer — Cloudflare's
  * anycast edge node, which differs per request/colo — rather than the
  * original client. `cf-connecting-ip` is untouched by Caddy and always holds
- * the true client IP for Cloudflare-proxied traffic. Falls back to
+ * the true client IP for Cloudflare-proxied traffic. It's only trusted when
+ * it parses as a real IPv4/IPv6 address, since a request that reaches the
+ * origin without going through Cloudflare (misconfigured DNS, direct IP
+ * access) could carry an attacker-supplied, malformed value. Falls back to
  * `x-forwarded-for` (first entry of the chain), then `x-real-ip`, for
  * deployments not behind Cloudflare. Returns null when none are present
  * (e.g. direct local requests without a proxy).
  */
 export function clientIp(headers: Headers): string | null {
   const cfConnectingIp = headers.get('cf-connecting-ip')?.trim();
-  if (cfConnectingIp) return cfConnectingIp;
+  if (cfConnectingIp && isIP(cfConnectingIp)) return cfConnectingIp;
 
   const forwarded = headers.get('x-forwarded-for');
   if (forwarded) {

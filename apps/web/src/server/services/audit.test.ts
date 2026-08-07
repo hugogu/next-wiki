@@ -27,6 +27,14 @@ describe('clientIp', () => {
     expect(auditService.clientIp(headers)).toBe('198.51.100.42');
   });
 
+  it('falls back to x-forwarded-for when cf-connecting-ip is not a valid IP', () => {
+    const headers = new Headers({
+      'cf-connecting-ip': 'not-an-ip',
+      'x-forwarded-for': '198.51.100.42',
+    });
+    expect(auditService.clientIp(headers)).toBe('198.51.100.42');
+  });
+
   it('takes the first entry of an x-forwarded-for chain', () => {
     const headers = new Headers({ 'x-forwarded-for': '198.51.100.42, 10.0.0.1' });
     expect(auditService.clientIp(headers)).toBe('198.51.100.42');
