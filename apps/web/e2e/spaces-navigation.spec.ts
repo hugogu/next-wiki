@@ -110,6 +110,41 @@ test.describe('LLM Wiki space navigation', () => {
     await page.waitForURL('/spaces/raw');
   });
 
+  test('generated-space reader shows the attachments panel', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    const sql = database();
+    let pageId: string;
+    try {
+      const [row] = await sql<{ id: string }[]>`
+        SELECT p.id FROM pages p JOIN spaces s ON p.space_id = s.id
+        WHERE s.slug = 'generated' AND p.path = 'e2e/generated'
+      `;
+      pageId = row!.id;
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+
+    const attachResponse = await page.request.post(`/api/v1/pages/${pageId}/attachments`, {
+      multipart: {
+        file: {
+          name: 'notes.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('generated-space attachment e2e content\n'),
+        },
+      },
+    });
+    expect(attachResponse.ok()).toBe(true);
+
+    // 034's AttachmentsPanel is wired into ReaderPageView for /wiki/... but
+    // this admin-only draft/private viewer (SpaceReaderPage, used for
+    // restricted or unpublished raw/generated pages) is a separate component
+    // — regression coverage for that gap.
+    await page.goto('/spaces/generated/e2e/generated');
+    await expect(page.getByRole('link', { name: 'notes.txt' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Attach file' })).toBeVisible();
+  });
+
   test('editor has no switcher and cannot read a private space route', async ({ page }) => {
     const email = `spaces-editor-${Date.now()}@example.com`;
     await register(page, email);

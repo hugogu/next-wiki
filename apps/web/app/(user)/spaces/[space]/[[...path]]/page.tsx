@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { RawContentRenderer } from '@/components/pages/raw-content/RawContentRenderer';
+import { AttachmentsPanel } from '@/components/page/AttachmentsPanel';
 import { ConversationStatusBadge } from '@/components/chat/ConversationSessionView';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
@@ -173,6 +174,9 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
             ) : (
               <ContentRenderer html={bodyHtml} />
             )}
+            <div className="mt-lg">
+              <AttachmentsPanel pageId={page.id} canManage={pageContext.canEdit} />
+            </div>
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
               {t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
               {t('page.read.authorSuffix', { name: page.author.displayName ?? t('common.unknownAuthor') })}
