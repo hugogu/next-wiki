@@ -44,8 +44,8 @@ export function ApiKeyReveal({ title, secret, name, created = false, onClose }: 
           <XIcon className="h-4 w-4 shrink-0" />
         </Button>
 
-        <div className="space-y-md pr-12">
-          <div>
+        <div className="space-y-md">
+          <div className="pr-12">
             <h3 className="font-display text-xl font-semibold">{title}</h3>
             <p className="mt-xs text-sm text-muted">
               {created ? t('userCenter.apiKeys.createdWarning') : t('userCenter.apiKeys.revealWarning')}
