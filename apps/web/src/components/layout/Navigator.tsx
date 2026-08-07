@@ -43,8 +43,13 @@ import { NavFooterMenu } from './NavFooterMenu';
 import { AiChatHistory } from '@/components/chat/AiChatHistory';
 import type { WritingMode } from '@next-wiki/shared';
 import { CrossSpaceMigrationDialog } from '@/components/pages/CrossSpaceMigrationDialog';
+import { useResizableWidth } from '@/hooks/use-resizable-width';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
+const NAV_WIDTH_STORAGE_KEY = 'next-wiki:nav-width';
+const NAV_DEFAULT_WIDTH = 256;
+const NAV_MIN_WIDTH = 200;
+const NAV_MAX_WIDTH = 480;
 
 /** Folder paths on the way to the active page, so its branch starts expanded. */
 function ancestorPaths(currentPath?: string): string[] {
@@ -517,6 +522,13 @@ export function Navigator({
       icon: <ClipboardListIcon className="shrink-0" />,
     },
   ];
+  const { width: navWidth, startResize } = useResizableWidth({
+    storageKey: NAV_WIDTH_STORAGE_KEY,
+    defaultWidth: NAV_DEFAULT_WIDTH,
+    minWidth: NAV_MIN_WIDTH,
+    maxWidth: NAV_MAX_WIDTH,
+    side: 'right',
+  });
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(ancestorPaths(currentPath)));
   const adminNavHrefs = ADMIN_GROUPS.flatMap((group) => group.items.map((item) => item.href));
   const userCenterNavHrefs = USER_CENTER_ITEMS.map((item) => item.href);
@@ -637,14 +649,25 @@ export function Navigator({
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-50
-          w-nav bg-surface border-r border-border
+          w-nav lg:w-[var(--nav-resizable-width)] bg-surface border-r border-border
           transform transition-transform duration-200 ease-out
           lg:transform-none
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           flex flex-col
         `}
-        style={{ top: 'var(--header-height)' }}
+        style={{
+          top: 'var(--header-height)',
+          '--nav-resizable-width': `${navWidth}px`,
+        } as React.CSSProperties}
       >
+        <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t('layout.nav.resizeHandle')}
+          onPointerDown={startResize}
+          className="absolute inset-y-0 right-0 z-10 hidden w-1.5 -mr-px cursor-col-resize touch-none select-none hover:bg-primary/30 active:bg-primary/50 lg:block"
+        />
         <div className="flex items-center justify-between p-md border-b border-border lg:hidden">
           <span className="font-display font-semibold text-lg">
             {aiChatMaximized
@@ -708,6 +731,7 @@ export function Navigator({
                     <Link
                       href={item.href}
                       onClick={onClose}
+                      title={item.label}
                       className={`flex items-center gap-sm px-md py-sm rounded-md text-sm transition-colors ${
                         active
                           ? 'bg-primary text-primary-text'
@@ -736,6 +760,7 @@ export function Navigator({
                           <Link
                             href={item.href}
                             onClick={onClose}
+                            title={item.label}
                             className={`flex items-center gap-sm px-md py-sm rounded-md text-sm transition-colors ${
                               active
                                 ? 'bg-primary text-primary-text'
@@ -784,6 +809,7 @@ export function Navigator({
         </nav>
 
         <NavFooterMenu user={user} onNavigate={onClose} />
+        </div>
       </aside>
     </>
   );

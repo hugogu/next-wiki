@@ -64,14 +64,15 @@ describe('AiChatPane viewport modes', () => {
   it('renders a maximize control in the normal docked panel', () => {
     const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
     expect(html).toContain('aria-label="ai.chat.maximize"');
-    expect(html).toContain('relative h-full w-[24rem]');
+    expect(html).toContain('relative h-full w-[var(--ai-chat-width)]');
+    expect(html).toContain('style="--ai-chat-width:384px"');
     expect(html).toContain('border-b border-border px-sm py-sm');
     expect(html).toContain('title="ai.chat.newSession"');
   });
 
   it('uses the entire dynamic viewport when maximized', () => {
     expect(aiChatPaneClassName(true)).toContain('relative h-full w-full flex-1 max-w-none');
-    expect(aiChatPaneClassName(false)).toContain('relative h-full w-[24rem]');
+    expect(aiChatPaneClassName(false)).toContain('relative h-full w-[var(--ai-chat-width)]');
   });
 
   it('shows the generating placeholder only on the latest assistant turn', () => {

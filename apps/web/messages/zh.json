@@ -2141,6 +2141,7 @@
       "empty": "暂无已发布页面。",
       "loadError": "加载失败，点击重试。",
       "addChild": "在此新建页面",
+      "resizeHandle": "拖动以调整导航栏宽度",
       "spaces": {
         "label": "内容空间",
         "wiki": "知识库",
@@ -2342,6 +2343,7 @@
       "maximize": "最大化",
       "restore": "还原",
       "newSession": "新建会话",
+      "resizeHandle": "拖动以调整 AI 面板宽度",
       "providerNotice": "你的问题和相关 Wiki 内容可能会发送给系统配置的 AI 平台。",
       "empty": "提出一个基于本 Wiki 内容的问题。",
       "streaming": "生成中…",

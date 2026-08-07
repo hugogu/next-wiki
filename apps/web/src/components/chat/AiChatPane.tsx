@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AiEntitlementView } from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
+import { useResizableWidth } from '@/hooks/use-resizable-width';
 import { Button } from '@/components/ui/Button';
 import { useTranslation } from '@/i18n/client';
 import {
@@ -27,10 +28,15 @@ import { ToolCallTimeline } from './ToolCallTimeline';
 
 export { buildMessagesFromDetail } from './load-conversation';
 
+const AI_CHAT_WIDTH_STORAGE_KEY = 'next-wiki:ai-chat-width';
+const AI_CHAT_DEFAULT_WIDTH = 384;
+const AI_CHAT_MIN_WIDTH = 320;
+const AI_CHAT_MAX_WIDTH = 720;
+
 export function aiChatPaneClassName(maximized: boolean): string {
   const position = maximized
     ? 'relative h-full w-full flex-1 max-w-none'
-    : 'relative h-full w-[24rem] max-w-full shrink-0 border-l border-border';
+    : 'relative h-full w-[var(--ai-chat-width)] max-w-full shrink-0 border-l border-border';
   return `${position} flex min-h-0 flex-col overflow-hidden bg-surface`;
 }
 
@@ -54,6 +60,13 @@ export function AiChatPane({
     onMaximizedChange?.(value);
     setInternalMaximized(value);
   };
+  const { width: chatWidth, startResize: startChatResize } = useResizableWidth({
+    storageKey: AI_CHAT_WIDTH_STORAGE_KEY,
+    defaultWidth: AI_CHAT_DEFAULT_WIDTH,
+    minWidth: AI_CHAT_MIN_WIDTH,
+    maxWidth: AI_CHAT_MAX_WIDTH,
+    side: 'left',
+  });
   const chat = useAiChat(
     pageContext?.pageId && pageContext.revisionId
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
@@ -231,7 +244,19 @@ export function AiChatPane({
   const lastAssistantId = [...chat.messages].reverse().find((message) => message.role === 'assistant')?.id;
   const streamingAssistantId = chat.running ? lastAssistantId : undefined;
   return (
-    <aside className={aiChatPaneClassName(maximized)}>
+    <aside
+      className={aiChatPaneClassName(maximized)}
+      style={{ '--ai-chat-width': `${chatWidth}px` } as React.CSSProperties}
+    >
+      {!maximized && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t('ai.chat.resizeHandle')}
+          onPointerDown={startChatResize}
+          className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize touch-none select-none hover:bg-primary/30 active:bg-primary/50"
+        />
+      )}
       <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-border px-sm py-sm">
         <div>
           <div className="flex items-center gap-xs">

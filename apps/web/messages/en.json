@@ -2141,6 +2141,7 @@
       "empty": "No published pages yet.",
       "loadError": "Failed to load. Click to retry.",
       "addChild": "New page here",
+      "resizeHandle": "Drag to resize the navigator",
       "spaces": {
         "label": "Content space",
         "wiki": "Wiki",
@@ -2342,6 +2343,7 @@
       "maximize": "Maximize",
       "restore": "Restore",
       "newSession": "New session",
+      "resizeHandle": "Drag to resize the AI panel",
       "providerNotice": "Your question and relevant Wiki content may be sent to the configured AI provider.",
       "empty": "Ask a question grounded in this Wiki.",
       "streaming": "Generating…",
