@@ -66,6 +66,22 @@ function formatTime(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString() : '';
 }
 
+type WikiJsRunOptions = { includeHistory: boolean; historyLimit: number; conflictStrategy: 'skip' | 'replace' };
+
+function historyOptionsStorageKey(sourceId: string): string {
+  return `next-wiki:wikijs-import-options:${sourceId}`;
+}
+
+function isWikiJsRunOptions(value: unknown): value is WikiJsRunOptions {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.includeHistory === 'boolean' &&
+    typeof candidate.historyLimit === 'number' &&
+    (candidate.conflictStrategy === 'skip' || candidate.conflictStrategy === 'replace')
+  );
+}
+
 /** Inline status line for a run: badge + timestamp + (for terminal runs) a
  * link to the full run detail page, so the user never has to guess whether
  * — or when — a preview/import actually happened. */
@@ -112,18 +128,36 @@ export function WikiJsSourcePanel({
 
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
-  type WikiJsRunOptions = { includeHistory: boolean; historyLimit: number; conflictStrategy: 'skip' | 'replace' };
   const defaultRunOptions: WikiJsRunOptions = { includeHistory: false, historyLimit: 300, conflictStrategy: 'skip' };
-  const [historyOptions, setHistoryOptions] = useState<Record<string, WikiJsRunOptions>>({});
+  // Step 1's options live only in this component's state and would otherwise
+  // reset to defaults on every page refresh; restore them from localStorage
+  // on init so a refresh doesn't lose what the user configured.
+  const [historyOptions, setHistoryOptions] = useState<Record<string, WikiJsRunOptions>>(() => {
+    if (typeof window === 'undefined') return {};
+    const restored: Record<string, WikiJsRunOptions> = {};
+    for (const source of sources) {
+      const raw = window.localStorage.getItem(historyOptionsStorageKey(source.id));
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (isWikiJsRunOptions(parsed)) restored[source.id] = parsed;
+      } catch {
+        // ignore malformed storage
+      }
+    }
+    return restored;
+  });
 
   function historyOptionsFor(sourceId: string) {
     return historyOptions[sourceId] ?? defaultRunOptions;
   }
   function setHistoryOptionsFor(sourceId: string, patch: Partial<WikiJsRunOptions>) {
-    setHistoryOptions((prev) => ({
-      ...prev,
-      [sourceId]: { ...(prev[sourceId] ?? defaultRunOptions), ...patch },
-    }));
+    // Compute from the current render's state (not the updater's `prev`) so the
+    // localStorage write stays outside the updater — React may invoke a
+    // functional updater more than once, and it must stay a pure merge.
+    const next = { ...historyOptionsFor(sourceId), ...patch };
+    window.localStorage.setItem(historyOptionsStorageKey(sourceId), JSON.stringify(next));
+    setHistoryOptions((prev) => ({ ...prev, [sourceId]: next }));
   }
 
   async function createSource() {
@@ -289,7 +323,7 @@ export function WikiJsSourcePanel({
                   </Button>
                 </Tooltip>
                 <Tooltip label={t('admin.transfers.wikijs.delete')}>
-                  <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.delete')} disabled={busy} onClick={async () => { await apiDelete(`/api/transfer-sources/${source.id}`); router.refresh(); }}>
+                  <Button size="icon" variant="ghost" aria-label={t('admin.transfers.wikijs.delete')} disabled={busy} onClick={async () => { await apiDelete(`/api/transfer-sources/${source.id}`); window.localStorage.removeItem(historyOptionsStorageKey(source.id)); router.refresh(); }}>
                     <TrashIcon className="h-4 w-4" />
                   </Button>
                 </Tooltip>

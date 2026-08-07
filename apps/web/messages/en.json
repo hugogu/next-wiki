@@ -967,6 +967,13 @@
           "all": "All",
           "warning": "Warnings",
           "failed": "Errors"
+        },
+        "options": {
+          "title": "Run options",
+          "includeHistory": "Full page history",
+          "historyOn": "Included (up to {limit} versions per page)",
+          "historyOff": "Not included",
+          "existingPages": "Existing pages"
         }
       },
       "table": {
