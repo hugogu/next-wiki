@@ -162,6 +162,10 @@ export const CreateApiKeyInput = z
       .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image']))
       .min(1)
       .describe('Permission scopes granted to the key. At least one is required; scopes must be unique.'),
+    spaceAccess: z
+      .array(z.enum(['wiki', 'raw', 'generated']))
+      .optional()
+      .describe('Content spaces the key may read, independent of scopes. Defaults to wiki-only; raw/generated require an admin owner.'),
   })
   .describe('Create an API key.');
 
@@ -173,6 +177,9 @@ export const ApiKeyViewList = z
       scopes: z
         .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image']))
         .describe('Permission scopes granted to the key.'),
+      spaceAccess: z
+        .array(z.enum(['wiki', 'raw', 'generated']))
+        .describe('Content spaces the key may read, independent of scopes.'),
       keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
       createdAt: z.string().describe('Timestamp when the key was created.'),
       revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
@@ -188,6 +195,9 @@ export const ApiKeyCreated = z
     scopes: z
         .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image']))
       .describe('Permission scopes granted to the key.'),
+    spaceAccess: z
+      .array(z.enum(['wiki', 'raw', 'generated']))
+      .describe('Content spaces the key may read, independent of scopes.'),
     keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
     createdAt: z.string().describe('Timestamp when the key was created.'),
     revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
