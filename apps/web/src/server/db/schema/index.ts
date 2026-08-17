@@ -596,6 +596,10 @@ export const apiKeys = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     scopes: apiKeyScopeEnum('scopes').array().notNull(),
+    // 046: independent from `scopes` (action capabilities) — which content
+    // spaces (wiki/raw/generated) this key may read. 'wiki' is always
+    // implicitly allowed regardless of this list; see spaceAllowedForKey().
+    spaceAccess: spaceKindEnum('space_access').array().notNull().default(['wiki']),
     keyPrefix: text('key_prefix').notNull().unique(),
     keySecretEncrypted: text('key_secret_encrypted').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
