@@ -176,6 +176,83 @@ describe('public content read facade', () => {
     });
   });
 
+  // 046: listPages/searchPages resolve an omitted `space` server-side, in one
+  // SQL query across every space the actor's key may read — proving the
+  // result is a true global sort (not a client-side per-space concatenation)
+  // and that a key's spaceAccess grant, not just role, gates the fan-out.
+  describe('server-side multi-space fan-out (046)', () => {
+    it('merges and globally sorts pages from every space an admin key may read', async () => {
+      await setModeInternal('llm-wiki', null);
+      await ensurePrivateSpaces();
+      const admin = await createPublicApiUser('space-fanout-admin@example.com', 'admin');
+      const adminCtx = buildUserCtx(admin.id, 'admin');
+      await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true }).onConflictDoNothing();
+      const suffix = Date.now();
+
+      // Interleave creation across spaces so a "concatenate per space, then
+      // sort" bug (grouping by space) would produce a different order than a
+      // true single-query ORDER BY across the merged set.
+      await publicContent.createPage(adminCtx, {
+        path: `raw/fanout-${suffix}`, title: 'Raw fanout', contentSource: 'source',
+        space: 'raw', inputKind: 'manual-note',
+      });
+      await pageService.create(adminCtx, {
+        path: `library/fanout-${suffix}`, title: 'Wiki fanout', contentSource: 'wiki body',
+      });
+      await revisions.publish(adminCtx, { path: `library/fanout-${suffix}`, version: 1 });
+      await pageService.create(adminCtx, {
+        path: `concepts/fanout-${suffix}`, title: 'Generated fanout', contentSource: 'generated body',
+      }, 'generated');
+      await revisions.publish(adminCtx, { path: `concepts/fanout-${suffix}`, version: 1, space: 'generated' });
+
+      const adminKeyCtx = buildApiKeyCtx(admin.id, 'admin', ['view'], 'admin-fanout-key', ['wiki', 'raw', 'generated']);
+      const result = await publicContent.listPages(adminKeyCtx, {
+        status: 'published', order: 'createdAtDesc', limit: 20, include: [],
+      });
+
+      const ourPaths = result.items.filter((item) => item.path.includes(String(suffix))).map((item) => item.path);
+      // Chronological (newest first) across spaces, i.e. the reverse of
+      // creation order — not grouped by space.
+      expect(ourPaths).toEqual([
+        `concepts/fanout-${suffix}`,
+        `library/fanout-${suffix}`,
+        `raw/fanout-${suffix}`,
+      ]);
+
+      await setModeInternal('copilot', null);
+    });
+
+    it('limits an omitted-space listPages call to wiki-only for a key without raw/generated spaceAccess', async () => {
+      await setModeInternal('llm-wiki', null);
+      await ensurePrivateSpaces();
+      const admin = await createPublicApiUser('space-fanout-scoped-admin@example.com', 'admin');
+      const adminCtx = buildUserCtx(admin.id, 'admin');
+      await db.insert(schema.rawCategories).values({ name: 'General', slug: 'general', isDefault: true }).onConflictDoNothing();
+      const suffix = Date.now();
+
+      await publicContent.createPage(adminCtx, {
+        path: `raw/scoped-${suffix}`, title: 'Raw scoped', contentSource: 'source',
+        space: 'raw', inputKind: 'manual-note',
+      });
+      await pageService.create(adminCtx, {
+        path: `library/scoped-${suffix}`, title: 'Wiki scoped', contentSource: 'wiki body',
+      });
+      await revisions.publish(adminCtx, { path: `library/scoped-${suffix}`, version: 1 });
+
+      // Default spaceAccess (['wiki']) — this key was never granted raw,
+      // even though its owner is an admin who could grant it.
+      const scopedKeyCtx = buildApiKeyCtx(admin.id, 'admin', ['view'], 'scoped-fanout-key');
+      const result = await publicContent.listPages(scopedKeyCtx, {
+        status: 'published', order: 'createdAtDesc', limit: 20, include: [],
+      });
+
+      const ourPaths = result.items.filter((item) => item.path.includes(String(suffix))).map((item) => item.path);
+      expect(ourPaths).toEqual([`library/scoped-${suffix}`]);
+
+      await setModeInternal('copilot', null);
+    });
+  });
+
   it('hides draft-only pages from reader API keys', async () => {
     const editor = await createPublicApiUser('public-draft-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-draft-reader@example.com', 'reader');
@@ -782,7 +859,10 @@ describe('public content read facade', () => {
     await setModeInternal('copilot', null);
   });
 
-  it('allows an explicitly scoped raw-space search while still applying page visibility', async () => {
+  // 046: an api_key actor's spaceAccess grant is now a hard boundary on top of
+  // role — a reader key defaults to wiki-only spaceAccess, so an explicit
+  // space=raw request is rejected up front rather than silently emptied.
+  it('rejects an explicitly scoped raw-space search from a key without raw in spaceAccess', async () => {
     await setModeInternal('llm-wiki', null);
     await ensurePrivateSpaces();
     const reader = await createPublicApiUser('public-raw-hybrid-reader@example.com', 'reader');
@@ -792,6 +872,24 @@ describe('public content read facade', () => {
     });
 
     await expect(publicContent.hybridSearchPages(readerCtx, {
+      kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
+      searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'raw evidence', limit: 20, space: 'raw',
+    })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(searchAnalytics.getOrCreateSearchRecord).not.toHaveBeenCalled();
+
+    await setModeInternal('copilot', null);
+  });
+
+  it('allows an explicitly scoped raw-space search once the key is granted raw spaceAccess (admin owner)', async () => {
+    await setModeInternal('llm-wiki', null);
+    await ensurePrivateSpaces();
+    const admin = await createPublicApiUser('public-raw-hybrid-admin-key@example.com', 'admin');
+    const adminKeyCtx = buildApiKeyCtx(admin.id, 'admin', ['view'], 'admin-raw-key', ['wiki', 'raw']);
+    await db.insert(schema.searchSettings).values({
+      id: 'default', fullTextSearchEnabled: true, fuzzySearchEnabled: true, semanticSearchEnabled: true,
+    });
+
+    await expect(publicContent.hybridSearchPages(adminKeyCtx, {
       kind: 'query', searchRecordId: '11111111-1111-4111-8111-111111111111',
       searchSessionId: '22222222-2222-4222-8222-222222222222', q: 'raw evidence', limit: 20, space: 'raw',
     })).resolves.toMatchObject({ items: [] });

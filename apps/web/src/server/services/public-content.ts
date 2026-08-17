@@ -484,6 +484,22 @@ type ListPagesQuery = {
 type SearchPagesQuery = Omit<PublicPageSearchQuery, 'order'> & { order?: PublicPageSearchQuery['order'] };
 
 /**
+ * 046: resolve the space(s) a list/search request should query. An explicit
+ * slug stays a single-space lookup (unchanged behavior — permission is
+ * checked by the caller afterward). Omitted space fans out, in one SQL query,
+ * across every space this actor may read — `readableSpaces()` already
+ * applies `can()` per space, so an api_key actor's `spaceAccess` allow-list
+ * (wired into `can()`) transparently limits this set without any change here.
+ */
+async function resolveQuerySpaces(ctx: PermCtx, spaceSlug: string | undefined): Promise<SpaceRow[]> {
+  if (spaceSlug) {
+    const space = await resolveSpace(spaceSlug);
+    return space ? [space] : [];
+  }
+  return readableSpaces(ctx);
+}
+
+/**
  * Shared row-fetch/permission-filter logic for both the list endpoint and search
  * (search reuses this rather than the public listPages so it can read contentSource
  * for match/excerpt computation before the public list shape strips it).
@@ -493,12 +509,19 @@ async function listPagesInternal(
   query: ListPagesQuery,
   options: { includeContent: boolean },
 ): Promise<PublicPageListResponse> {
-  const space = await resolveSpace(query.space);
-  if (!space) return { items: [], nextCursor: null };
-  await assertSpaceKindAllowed(space.kind);
+  const spaces = await resolveQuerySpaces(ctx, query.space);
+  if (spaces.length === 0) return { items: [], nextCursor: null };
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
-    return { items: [], nextCursor: null };
+  for (const kind of new Set(spaces.map((s) => s.kind))) {
+    await assertSpaceKindAllowed(kind);
+  }
+
+  if (query.space) {
+    // Omitted-space fan-out is already permission-filtered inside
+    // readableSpaces(); an explicit single space still needs its own check.
+    if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(spaces[0]!))) {
+      return { items: [], nextCursor: null };
+    }
   }
 
   if (query.path) {
@@ -506,12 +529,18 @@ async function listPagesInternal(
     return { items: page && (!query.filterType || matchesTypeFilter(page, query.filterType)) ? [page] : [], nextCursor: null };
   }
 
+  // Draft-visibility and soft-delete gates below need one representative
+  // space's anonymousRead flag; use the default/wiki space when it's in the
+  // set, matching resolveSearchScope's primarySpace convention.
+  const primarySpace = spaces.find((s) => s.slug === DEFAULT_SPACE_SLUG) ?? spaces[0]!;
+  const spaceById = new Map(spaces.map((s) => [s.id, s]));
+
   const canSeeDeleted = query.status === 'deleted' || query.status === 'all'
-    ? can(ctx, 'delete', { kind: 'page_list' }, spacePermissionOptions(space))
+    ? can(ctx, 'delete', { kind: 'page_list' }, spacePermissionOptions(primarySpace))
     : false;
 
   const cursor = decodePublicCursor(query.cursor);
-  const conditions: SQL[] = [eq(schema.pages.spaceId, space.id)];
+  const conditions: SQL[] = [inArray(schema.pages.spaceId, spaces.map((s) => s.id))];
   if (query.status === 'deleted') {
     conditions.push(isNotNull(schema.pages.deletedAt));
   } else if (query.status !== 'all') {
@@ -563,14 +592,14 @@ async function listPagesInternal(
       ctx,
       'read_draft',
       { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 },
-      pagePermissionOptions(space, { visibility: 'public' }, { isAuthor: false }),
+      pagePermissionOptions(primarySpace, { visibility: 'public' }, { isAuthor: false }),
     );
     const canSeeOwnDraft = actorUserId
       ? can(
           ctx,
           'read_draft',
           { kind: 'revision', pageId: '00000000-0000-0000-0000-000000000000', version: 0 },
-          pagePermissionOptions(space, { visibility: 'public' }, { isAuthor: true }),
+          pagePermissionOptions(primarySpace, { visibility: 'public' }, { isAuthor: true }),
         )
       : false;
     if (canSeeEveryDraft) {
@@ -604,19 +633,23 @@ async function listPagesInternal(
     }
   }
 
+  // Multi-space fan-out means `path` is no longer unique across the result
+  // set, so a final `spaceId` tiebreaker keeps the ORDER BY a true total order
+  // (otherwise offset pagination could theoretically skip/repeat a row when
+  // two spaces share both a path and a timestamp).
   const orderBy = query.order === 'path'
-    ? [asc(schema.pages.path)]
+    ? [asc(schema.pages.path), asc(schema.pages.spaceId)]
     : query.order === 'relevance'
       ? relevanceOrderBy(query.q)
       : query.order === 'recent'
-        ? [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path)]
+        ? [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path), asc(schema.pages.spaceId)]
         : query.order === 'createdAtAsc'
-          ? [asc(schema.pages.createdAt), asc(schema.pages.path)]
+          ? [asc(schema.pages.createdAt), asc(schema.pages.path), asc(schema.pages.spaceId)]
           : query.order === 'createdAtDesc'
-            ? [desc(schema.pages.createdAt), asc(schema.pages.path)]
+            ? [desc(schema.pages.createdAt), asc(schema.pages.path), asc(schema.pages.spaceId)]
             : query.order === 'updatedAtAsc'
-              ? [asc(schema.pages.updatedAt), asc(schema.pages.path)]
-              : [desc(schema.pages.updatedAt), asc(schema.pages.path)];
+              ? [asc(schema.pages.updatedAt), asc(schema.pages.path), asc(schema.pages.spaceId)]
+              : [desc(schema.pages.updatedAt), asc(schema.pages.path), asc(schema.pages.spaceId)];
 
   const rows = await db
     .select({ page: schema.pages })
@@ -630,10 +663,11 @@ async function listPagesInternal(
   // Resolve the whole row window concurrently — these are independent per-row reads.
   const resolved = await Promise.all(
     rows.map(({ page }) => {
+      const rowSpace = spaceById.get(page.spaceId)!;
       if (page.deletedAt) {
-        return canSeeDeleted ? minimalDeletedPageResource(space, page) : Promise.resolve(null);
+        return canSeeDeleted ? minimalDeletedPageResource(rowSpace, page) : Promise.resolve(null);
       }
-      return visiblePageResource(ctx, space, page, {
+      return visiblePageResource(ctx, rowSpace, page, {
         includeContent: options.includeContent,
         include: query.include,
       });
@@ -943,11 +977,15 @@ export async function removeAttachment(ctx: PermCtx, id: string): Promise<void> 
 }
 
 export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promise<PublicPageSearchResponse> {
-  const space = await resolveSpace(query.space);
-  if (!space) return { items: [], nextCursor: null };
-  await assertSpaceKindAllowed(space.kind);
-  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
-    return { items: [], nextCursor: null };
+  const spaces = await resolveQuerySpaces(ctx, query.space);
+  if (spaces.length === 0) return { items: [], nextCursor: null };
+  for (const kind of new Set(spaces.map((s) => s.kind))) {
+    await assertSpaceKindAllowed(kind);
+  }
+  if (query.space) {
+    if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(spaces[0]!))) {
+      return { items: [], nextCursor: null };
+    }
   }
   const settings = await getSearchSettings();
   const order = query.order ?? 'relevance';
@@ -971,8 +1009,8 @@ export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promis
     excerpt: { windowSize: query.excerptLength, show: true },
     minRelevanceScore: settings.minRelevanceScore,
     immediateSearchTimeoutMs: settings.immediateSearchTimeoutMs,
-    spaceIds: [space.id],
-    spaceSlugs: [space.slug],
+    spaceIds: spaces.map((s) => s.id),
+    spaceSlugs: spaces.map((s) => s.slug),
   });
 
   const tagFilters = extractTagFilters(query);
