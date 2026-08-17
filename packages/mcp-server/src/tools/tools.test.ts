@@ -224,6 +224,145 @@ describe('tools', () => {
     }));
   });
 
+  // 046: cross-space fan-out when space is omitted or 'all'.
+  // See https://github.com/hugogu/next-wiki/issues/46
+  const fixturePage = (id: string, spaceSlug: string, path: string) => ({
+    id,
+    spaceSlug,
+    path,
+    locale: 'en',
+    title: `Title ${id}`,
+    status: 'published',
+    author: { id: null, displayName: null },
+    latestRevision: null,
+    publishedRevision: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    links: { self: '', byPath: '', revisions: '', drafts: '' },
+  });
+
+  it('list_pages fans out across all spaces when space is omitted (#046)', async () => {
+    const listPagesClient = vi.fn().mockImplementation(async (q: { space?: string }) => {
+      if (q.space === 'default') return { items: [fixturePage('d1', 'default', 'a/d1'), fixturePage('d2', 'default', 'a/d2')], nextCursor: null };
+      if (q.space === 'raw') return { items: [fixturePage('r1', 'raw', 'a/r1')], nextCursor: null };
+      if (q.space === 'generated') return { items: [fixturePage('g1', 'generated', 'a/g1'), fixturePage('g2', 'generated', 'a/g2'), fixturePage('g3', 'generated', 'a/g3')], nextCursor: null };
+      return { items: [], nextCursor: null };
+    });
+    const client = createClient({ listPages: listPagesClient });
+
+    const result = await listPages(client, { pathPrefix: 'a' });
+
+    expect(listPagesClient).toHaveBeenCalledTimes(3);
+    expect(result.pages.map((p) => p.id)).toEqual(['d1', 'd2', 'r1', 'g1', 'g2', 'g3']);
+    expect(result.hasMore).toBe(false);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it('list_pages fans out across all spaces when space="all" (#046)', async () => {
+    const listPagesClient = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ listPages: listPagesClient });
+
+    await listPages(client, { pathPrefix: 'docs', space: 'all' });
+
+    expect(listPagesClient).toHaveBeenCalledTimes(3);
+    const calledSpaces = listPagesClient.mock.calls.map((c) => (c[0] as { space?: string }).space).sort();
+    expect(calledSpaces).toEqual(['default', 'generated', 'raw']);
+  });
+
+  it('list_pages throws when cursor is provided with cross-space fan-out (#046)', async () => {
+    const client = createClient({ listPages: vi.fn().mockResolvedValue({ items: [], nextCursor: null }) });
+
+    await expect(listPages(client, { cursor: 'abc' })).rejects.toThrow(/Cursor pagination is not supported/);
+  });
+
+  it('list_pages does not fan out when an explicit space is provided (#046)', async () => {
+    const listPagesClient = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ listPages: listPagesClient });
+
+    await listPages(client, { space: 'generated' });
+
+    expect(listPagesClient).toHaveBeenCalledTimes(1);
+    expect(listPagesClient).toHaveBeenCalledWith(expect.objectContaining({ space: 'generated' }));
+  });
+
+  it('list_pages applies generated-only and raw-only filters only to the relevant space during fan-out (#046)', async () => {
+    const listPagesClient = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ listPages: listPagesClient });
+
+    await listPages(client, {
+      pathPrefix: 'docs',
+      filterType: 'concept',
+      filterInputKind: 'chat-transcript',
+      filterCategoryId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    });
+
+    expect(listPagesClient).toHaveBeenCalledTimes(3);
+    const bySpace = Object.fromEntries(
+      listPagesClient.mock.calls.map((c) => [(c[0] as { space: string }).space, c[0]]),
+    ) as Record<string, Record<string, unknown>>;
+    expect(bySpace.generated?.filterType).toBe('concept');
+    expect(bySpace.generated?.filterInputKind).toBeUndefined();
+    expect(bySpace.generated?.filterCategoryId).toBeUndefined();
+    expect(bySpace.raw?.filterInputKind).toBe('chat-transcript');
+    expect(bySpace.raw?.filterCategoryId).toBe('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(bySpace.raw?.filterType).toBeUndefined();
+    expect(bySpace.default?.filterType).toBeUndefined();
+    expect(bySpace.default?.filterInputKind).toBeUndefined();
+  });
+
+  it('search_wiki fans out across all spaces when space is omitted (#046)', async () => {
+    const fixtureItem = (id: string, spaceSlug: string) => ({
+      page: fixturePage(id, spaceSlug, `${spaceSlug}/${id}`),
+      matchType: 'title' as const,
+      excerpt: null,
+      score: null,
+    });
+    const searchPages = vi.fn().mockImplementation(async (q: { space?: string }) => {
+      if (q.space === 'default') return { items: [fixtureItem('d1', 'default')], nextCursor: null };
+      if (q.space === 'raw') return { items: [fixtureItem('r1', 'raw'), fixtureItem('r2', 'raw')], nextCursor: null };
+      if (q.space === 'generated') return { items: [fixtureItem('g1', 'generated')], nextCursor: null };
+      return { items: [], nextCursor: null };
+    });
+    const client = createClient({ searchPages });
+
+    const result = await searchWiki(client, { query: 'test' });
+
+    expect(searchPages).toHaveBeenCalledTimes(3);
+    expect(result.results.map((r) => r.id)).toEqual(['d1', 'r1', 'r2', 'g1']);
+    expect(result.hasMore).toBe(false);
+  });
+
+  it('search_wiki fans out across all spaces when space="all" (#046)', async () => {
+    const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ searchPages });
+
+    await searchWiki(client, { query: 'test', space: 'all' });
+
+    expect(searchPages).toHaveBeenCalledTimes(3);
+  });
+
+  it('search_wiki applies generated-only and raw-only filters only to the relevant space during fan-out (#046)', async () => {
+    const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const client = createClient({ searchPages });
+
+    await searchWiki(client, {
+      query: 'test',
+      filterType: 'concept',
+      filterInputKind: 'chat-transcript',
+    });
+
+    expect(searchPages).toHaveBeenCalledTimes(3);
+    const bySpace = Object.fromEntries(
+      searchPages.mock.calls.map((c) => [(c[0] as { space: string }).space, c[0]]),
+    ) as Record<string, Record<string, unknown>>;
+    expect(bySpace.generated?.filterType).toBe('concept');
+    expect(bySpace.generated?.filterInputKind).toBeUndefined();
+    expect(bySpace.raw?.filterInputKind).toBe('chat-transcript');
+    expect(bySpace.raw?.filterType).toBeUndefined();
+    expect(bySpace.default?.filterType).toBeUndefined();
+    expect(bySpace.default?.filterInputKind).toBeUndefined();
+  });
+
   it('get_page_tree flattens the tree response', async () => {
     const client = createClient({
       getPageTree: vi.fn().mockResolvedValue({
