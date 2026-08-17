@@ -2251,7 +2251,21 @@
       "namePlaceholder": "例如：CI 机器人",
       "scopesLabel": "权限范围",
       "scopesHint": "至少选择一个权限范围。创建后无法修改。",
+      "spaceAccessLabel": "空间访问范围",
+      "spaceAccessHint": "该密钥可以读取哪些内容空间。Wiki 空间始终包含,创建后无法修改。",
+      "spaceAccessAdminOnly": "需要管理员账号",
+      "space": {
+        "wiki": "Wiki",
+        "raw": "Raw",
+        "generated": "Generated"
+      },
+      "spaceDescriptions": {
+        "wiki": "主 Wiki 空间——始终可读",
+        "raw": "原始采集证据(仅限管理员账号)",
+        "generated": "AI 生成的概念(仅限管理员账号)"
+      },
       "keyPrefix": "前缀",
+      "spaceAccessHeader": "空间访问范围",
       "createdAt": "创建时间",
       "lastUsed": "最后使用",
       "statusHeader": "状态",

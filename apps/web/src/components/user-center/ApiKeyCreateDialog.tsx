@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
-import { API_KEY_SCOPES, type ApiKeyScope, type ApiKeyCreated } from '@next-wiki/shared';
+import {
+  API_KEY_SCOPES,
+  API_KEY_SPACE_KINDS,
+  type ApiKeyScope,
+  type ApiKeyCreated,
+  type SpaceKind,
+} from '@next-wiki/shared';
 import { apiPost } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,18 +17,28 @@ import { XIcon } from '@/components/icons';
 interface ApiKeyCreateDialogProps {
   onClose: () => void;
   onCreated: (key: ApiKeyCreated) => void;
+  /** 046: only admins may grant raw/generated space access to a new key. */
+  currentUserIsAdmin: boolean;
 }
 
-export function ApiKeyCreateDialog({ onClose, onCreated }: ApiKeyCreateDialogProps) {
+export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: ApiKeyCreateDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<ApiKeyScope[]>([]);
+  const [spaceAccess, setSpaceAccess] = useState<SpaceKind[]>(['wiki']);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const toggleScope = (scope: ApiKeyScope) => {
     setScopes((prev) =>
       prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    );
+  };
+
+  const toggleSpace = (space: SpaceKind) => {
+    if (space === 'wiki') return; // always included, not user-toggleable
+    setSpaceAccess((prev) =>
+      prev.includes(space) ? prev.filter((s) => s !== space) : [...prev, space],
     );
   };
 
@@ -35,9 +51,13 @@ export function ApiKeyCreateDialog({ onClose, onCreated }: ApiKeyCreateDialogPro
     setSubmitting(true);
     setError('');
     try {
-      const result = await apiPost<{ name: string; scopes: ApiKeyScope[] }, ApiKeyCreated>('/api/api-keys', {
+      const result = await apiPost<
+        { name: string; scopes: ApiKeyScope[]; spaceAccess: SpaceKind[] },
+        ApiKeyCreated
+      >('/api/api-keys', {
         name,
         scopes,
+        spaceAccess,
       });
       onCreated(result);
       onClose();
@@ -100,6 +120,38 @@ export function ApiKeyCreateDialog({ onClose, onCreated }: ApiKeyCreateDialogPro
                   </div>
                 </label>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.spaceAccessLabel')}</span>
+            <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.spaceAccessHint')}</p>
+            <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
+              {API_KEY_SPACE_KINDS.map((space) => {
+                const disabled = space !== 'wiki' && !currentUserIsAdmin;
+                const checked = space === 'wiki' || spaceAccess.includes(space);
+                return (
+                  <label
+                    key={space}
+                    className={`flex items-start gap-sm rounded-md border border-border p-sm ${disabled ? 'opacity-50' : 'cursor-pointer hover:bg-surface-elevated'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={space === 'wiki' || disabled}
+                      onChange={() => toggleSpace(space)}
+                      className="mt-1"
+                    />
+                    <div className="text-sm">
+                      <div className="font-medium">{t(`userCenter.apiKeys.space.${space}` as never)}</div>
+                      <div className="text-muted text-xs">{t(`userCenter.apiKeys.spaceDescriptions.${space}` as never)}</div>
+                      {disabled && (
+                        <div className="text-warning text-xs">{t('userCenter.apiKeys.spaceAccessAdminOnly')}</div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

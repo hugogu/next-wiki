@@ -2251,7 +2251,21 @@
       "namePlaceholder": "e.g. CI bot",
       "scopesLabel": "Scopes",
       "scopesHint": "Select at least one scope. Scopes cannot be changed later.",
+      "spaceAccessLabel": "Space access",
+      "spaceAccessHint": "Which content spaces this key may read. Wiki is always included and cannot be changed later.",
+      "spaceAccessAdminOnly": "Requires an admin account",
+      "space": {
+        "wiki": "Wiki",
+        "raw": "Raw",
+        "generated": "Generated"
+      },
+      "spaceDescriptions": {
+        "wiki": "The main wiki space — always readable",
+        "raw": "Raw captured evidence (admin accounts only)",
+        "generated": "AI-curated generated concepts (admin accounts only)"
+      },
       "keyPrefix": "Prefix",
+      "spaceAccessHeader": "Space access",
       "createdAt": "Created",
       "lastUsed": "Last used",
       "statusHeader": "Status",

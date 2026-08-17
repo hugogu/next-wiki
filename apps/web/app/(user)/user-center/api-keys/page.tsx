@@ -20,9 +20,10 @@ export default async function ApiKeysPage() {
   }
 
   const keys = await apiKeyService.list({ actor });
+  const currentUserIsAdmin = actor.kind === 'user' && actor.role === 'admin';
   return (
     <div className="w-full min-w-0">
-      <ApiKeyList initialKeys={keys} />
+      <ApiKeyList initialKeys={keys} currentUserIsAdmin={currentUserIsAdmin} />
     </div>
   );
 }

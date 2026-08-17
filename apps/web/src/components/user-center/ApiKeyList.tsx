@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
-import { API_KEY_SCOPES, type ApiKeyView, type ApiKeyCreated } from '@next-wiki/shared';
+import { API_KEY_SCOPES, API_KEY_SPACE_KINDS, type ApiKeyView, type ApiKeyCreated } from '@next-wiki/shared';
 import { apiGet, apiDelete } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import {
@@ -20,9 +20,10 @@ import { ApiKeyReveal } from './ApiKeyReveal';
 
 interface ApiKeyListProps {
   initialKeys: ApiKeyView[];
+  currentUserIsAdmin: boolean;
 }
 
-export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
+export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps) {
   const { t, locale } = useTranslation();
   const [keys, setKeys] = useState(initialKeys);
   const [createOpen, setCreateOpen] = useState(false);
@@ -89,6 +90,7 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
               <tr>
                 <DataTableHeader>{t('userCenter.apiKeys.nameLabel')}</DataTableHeader>
                 <DataTableHeader>{t('userCenter.apiKeys.scopesLabel')}</DataTableHeader>
+                <DataTableHeader>{t('userCenter.apiKeys.spaceAccessHeader')}</DataTableHeader>
                 <DataTableHeader>{t('userCenter.apiKeys.keyPrefix')}</DataTableHeader>
                 <DataTableHeader>{t('userCenter.apiKeys.createdAt')}</DataTableHeader>
                 <DataTableHeader>{t('userCenter.apiKeys.lastUsed')}</DataTableHeader>
@@ -110,6 +112,18 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
                             className="inline-flex items-center rounded-full bg-surface-elevated px-2 py-0.5 text-xs border border-border"
                           >
                             {t(`userCenter.apiKeys.scope.${scope}` as never)}
+                          </span>
+                        ))}
+                      </div>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <div className="flex flex-wrap gap-xs">
+                        {API_KEY_SPACE_KINDS.filter((s) => key.spaceAccess.includes(s)).map((space) => (
+                          <span
+                            key={space}
+                            className="inline-flex items-center rounded-full bg-surface-elevated px-2 py-0.5 text-xs border border-border"
+                          >
+                            {t(`userCenter.apiKeys.space.${space}` as never)}
                           </span>
                         ))}
                       </div>
@@ -159,7 +173,11 @@ export function ApiKeyList({ initialKeys }: ApiKeyListProps) {
       )}
 
       {createOpen && (
-        <ApiKeyCreateDialog onClose={() => setCreateOpen(false)} onCreated={handleCreated} />
+        <ApiKeyCreateDialog
+          onClose={() => setCreateOpen(false)}
+          onCreated={handleCreated}
+          currentUserIsAdmin={currentUserIsAdmin}
+        />
       )}
 
       {createdKey && (
