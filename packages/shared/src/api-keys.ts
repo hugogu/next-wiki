@@ -25,6 +25,15 @@ export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
  */
 export const API_KEY_SCOPES: readonly ApiKeyScope[] = apiKeyScopeSchema.options;
 
+// 046: content-space access is an independent dimension from `scopes`
+// (action capabilities) — which spaces (wiki/raw/generated) a key may read.
+// 'wiki' is always implicitly allowed; 'raw'/'generated' require the owner
+// to be an admin, both at grant time and on every request.
+export const spaceKindSchema = z.enum(['wiki', 'raw', 'generated']);
+export type SpaceKind = z.infer<typeof spaceKindSchema>;
+
+export const API_KEY_SPACE_KINDS: readonly SpaceKind[] = spaceKindSchema.options;
+
 export const createApiKeyInputSchema = z.object({
   name: z.string().min(1).max(100),
   scopes: z
@@ -33,6 +42,12 @@ export const createApiKeyInputSchema = z.object({
     .refine((items) => items.length === new Set(items).size, {
       message: 'Scopes must be unique',
     }),
+  spaceAccess: z
+    .array(spaceKindSchema)
+    .refine((items) => items.length === new Set(items).size, {
+      message: 'Space access entries must be unique',
+    })
+    .optional(),
 });
 export type CreateApiKeyInput = z.infer<typeof createApiKeyInputSchema>;
 
@@ -40,6 +55,7 @@ export const apiKeyViewSchema = z.object({
   id: z.string(),
   name: z.string(),
   scopes: z.array(apiKeyScopeSchema),
+  spaceAccess: z.array(spaceKindSchema),
   keyPrefix: z.string(),
   createdAt: z.string(),
   revokedAt: z.string().nullable(),
