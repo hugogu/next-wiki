@@ -617,13 +617,17 @@ export class WikiApiClient {
     return (await response.json()) as T;
   }
 
-  async searchPages(query: Partial<PublicPageSearchQuery>): Promise<PublicPageSearchResponse> {
+  async searchPages(
+    query: Omit<Partial<PublicPageSearchQuery>, 'space'> & { space?: ContentSpace | 'all' },
+  ): Promise<PublicPageSearchResponse> {
     const params = new URLSearchParams();
     params.set('q', query.q ?? '');
     if (query.scope) params.set('scope', query.scope);
     if (query.status) params.set('status', query.status);
     if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
-    if (query.space) params.set('space', query.space);
+    // 046: omitting `space` (or passing 'all' explicitly) asks the server to
+    // fan out across every space this API key may read, in one query.
+    if (query.space && query.space !== 'all') params.set('space', query.space);
     if (query.filterType) params.set('filter[type]', query.filterType);
     if (query.filterInputKind) params.set('filterInputKind', query.filterInputKind);
     if (query.filterCategoryId) params.set('filterCategoryId', query.filterCategoryId);
@@ -643,13 +647,17 @@ export class WikiApiClient {
     return this.request<PublicPageSearchResponse>(`/search/pages?${params.toString()}`);
   }
 
-  async listPages(query: Partial<PublicPageListQuery>): Promise<{ items: PublicPageResource[]; nextCursor: string | null }> {
+  async listPages(
+    query: Omit<Partial<PublicPageListQuery>, 'space'> & { space?: ContentSpace | 'all' },
+  ): Promise<{ items: PublicPageResource[]; nextCursor: string | null }> {
     const params = new URLSearchParams();
     if (query.status) params.set('status', query.status);
     if (query.q) params.set('q', query.q);
     if (query.path) params.set('path', query.path);
     if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);
-    if (query.space) params.set('space', query.space);
+    // 046: omitting `space` (or passing 'all' explicitly) asks the server to
+    // fan out across every space this API key may read, in one query.
+    if (query.space && query.space !== 'all') params.set('space', query.space);
     if (query.filterType) params.set('filter[type]', query.filterType);
     if (query.filterInputKind) params.set('filterInputKind', query.filterInputKind);
     if (query.filterCategoryId) params.set('filterCategoryId', query.filterCategoryId);

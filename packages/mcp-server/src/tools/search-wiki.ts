@@ -2,11 +2,22 @@ import { z } from 'zod';
 import { contentSpaceSchema, publicRawInputKindSchema, type WikiApiClient } from '../api-client';
 import { searchWikiResponse } from '../shapes';
 
+// 046: 'all' (or omitting the field entirely) asks the server to fan out
+// across every space this API key may read — the server resolves that
+// server-side in one query, scoped by the key's own space-access grant.
+export const searchWikiSpaceSchema = z
+  .union([contentSpaceSchema, z.literal('all')])
+  .optional()
+  .describe(
+    'Content space to search: default wiki, raw evidence, or generated concepts. ' +
+      'Pass "all" or omit to search across every space this API key can read.',
+  );
+
 export const searchWikiSchema = {
   query: z.string().min(1).max(200).describe('Search term'),
   scope: z.enum(['path', 'title', 'content', 'all']).optional().describe('Search scope; defaults to all'),
   pathPrefix: z.string().optional().describe('Restrict matching to pages under a directory subtree (e.g. "docs")'),
-  space: contentSpaceSchema.optional().describe('Content space to search: default wiki, raw evidence, or generated concepts'),
+  space: searchWikiSpaceSchema,
   filterType: z.string().min(1).max(200).optional().describe('Exact OKF frontmatter type filter (generated space only)'),
   filterInputKind: publicRawInputKindSchema.optional().describe('Raw-only: exact capture-channel filter, independent from filterType'),
   filterCategoryId: z.string().uuid().optional().describe('Raw-only: taxonomy category id filter, independent from filterType'),
