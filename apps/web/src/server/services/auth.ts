@@ -65,6 +65,7 @@ export async function resolveActor(): Promise<ResolvedActor> {
         role: resolved.role,
         scopes: resolved.scopes,
         keyId: resolved.keyId,
+        spaceAccess: resolved.spaceAccess,
       },
       apiKeyInfo: { keyId: resolved.keyId, userId: resolved.userId },
     };

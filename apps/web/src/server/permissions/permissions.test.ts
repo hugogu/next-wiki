@@ -77,4 +77,33 @@ describe('permissions', () => {
     expect(can(buildApiKeyCtx('u1', 'reader', ['preferences'], 'k1'), 'manage_preferences', { kind: 'preferences' })).toBe(true);
     expect(can(buildApiKeyCtx('u1', 'reader', ['view'], 'k1'), 'manage_preferences', { kind: 'preferences' })).toBe(false);
   });
+
+  // 046: per-key space access, independent of scopes ∩ role.
+  describe('space-scoped api_key reads', () => {
+    it('wiki is always readable regardless of spaceAccess', () => {
+      const ctx = buildApiKeyCtx('u1', 'admin', ['view'], 'k1', []);
+      expect(can(ctx, 'read', { kind: 'page_list' }, { spaceKind: 'wiki' })).toBe(true);
+    });
+
+    it('admin key with raw in spaceAccess can read raw but not generated', () => {
+      const ctx = buildApiKeyCtx('u1', 'admin', ['view'], 'k1', ['wiki', 'raw']);
+      expect(can(ctx, 'read', { kind: 'page_list' }, { spaceKind: 'raw' })).toBe(true);
+      expect(can(ctx, 'read', { kind: 'page_list' }, { spaceKind: 'generated' })).toBe(false);
+    });
+
+    it('non-admin key is denied raw/generated even if spaceAccess still lists them (stale grant after demotion)', () => {
+      const ctx = buildApiKeyCtx('u1', 'editor', ['view'], 'k1', ['wiki', 'raw', 'generated']);
+      expect(can(ctx, 'read', { kind: 'page_list' }, { spaceKind: 'raw' })).toBe(false);
+      expect(can(ctx, 'read', { kind: 'page_list' }, { spaceKind: 'generated' })).toBe(false);
+    });
+
+    it('admin key without raw in spaceAccess is still denied raw (grant is required, not just role)', () => {
+      const ctx = buildApiKeyCtx('u1', 'admin', ['view'], 'k1', ['wiki']);
+      expect(can(ctx, 'read', { kind: 'page_list' }, { spaceKind: 'raw' })).toBe(false);
+    });
+
+    it('session user actors are unaffected by spaceAccess (roleAllows governs them instead)', () => {
+      expect(can(buildUserCtx('u1', 'reader'), 'read', { kind: 'page_list' }, { spaceKind: 'raw' })).toBe(true);
+    });
+  });
 });

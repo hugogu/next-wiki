@@ -81,6 +81,40 @@ describe('api-keys service', () => {
 
       await expect(apiKeyService.create(ctx, 'overflow', ['view'])).rejects.toThrow(DomainError);
     });
+
+    // 046: spaceAccess is an independent grant from scopes, gated at creation
+    // time by the owning user's current role (not by the key's own scopes).
+    describe('spaceAccess', () => {
+      it('defaults to wiki-only when omitted', async () => {
+        const user = await createTestUser('apikey-space-default@example.com');
+        const ctx = buildUserCtx(user.id, user.role);
+
+        const created = await apiKeyService.create(ctx, 'no-space-arg', ['view']);
+        expect(created.spaceAccess).toEqual(['wiki']);
+      });
+
+      it('rejects raw/generated for a non-admin owner', async () => {
+        const user = await createTestUser('apikey-space-nonadmin@example.com');
+        await db.update(schema.users).set({ role: 'editor' }).where(eq(schema.users.id, user.id));
+        const ctx = buildUserCtx(user.id, 'editor');
+
+        await expect(
+          apiKeyService.create(ctx, 'wants-raw', ['view'], ['wiki', 'raw']),
+        ).rejects.toThrow(DomainError);
+      });
+
+      it('allows raw/generated for an admin owner', async () => {
+        const user = await createTestUser('apikey-space-admin@example.com');
+        await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, user.id));
+        const ctx = buildUserCtx(user.id, 'admin');
+
+        const created = await apiKeyService.create(ctx, 'admin-key', ['view'], ['wiki', 'raw', 'generated']);
+        expect(created.spaceAccess).toEqual(['wiki', 'raw', 'generated']);
+
+        const row = await db.query.apiKeys.findFirst({ where: eq(schema.apiKeys.id, created.id) });
+        expect(row!.spaceAccess).toEqual(['wiki', 'raw', 'generated']);
+      });
+    });
   });
 
   describe('list', () => {
@@ -147,6 +181,7 @@ describe('api-keys service', () => {
       expect(resolved).toBeTruthy();
       expect(resolved!.userId).toBe(user.id);
       expect(resolved!.scopes).toEqual(['view']);
+      expect(resolved!.spaceAccess).toEqual(['wiki']);
     });
 
     it('rejects an invalid token', async () => {

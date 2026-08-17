@@ -14,6 +14,9 @@ export const actorSchema = z.discriminatedUnion('kind', [
     role: z.enum(['admin', 'editor', 'reader']),
     scopes: z.array(apiKeyScopeSchema),
     keyId: z.string(),
+    // 046: independent from `scopes` — which content spaces this key may
+    // read. Checked in `can()` via spaceAllowedForKey(), never in roleAllows().
+    spaceAccess: z.array(z.enum(['wiki', 'raw', 'generated'])),
   }),
 ]);
 
@@ -121,6 +124,28 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {
   return actor.scopes.some((scope) => scopeToActions[scope].includes(action));
+}
+
+/**
+ * 046: actions this grant gates. Writes to raw/generated are already fully
+ * gated by `roleAllows`'s space-kind branches (admin-only, same for session
+ * and api_key actors) — spaceAccess only narrows *default read visibility*,
+ * so it must never additionally block an otherwise-authorized write.
+ */
+const SPACE_GATED_READ_ACTIONS: readonly Action[] = ['read', 'read_draft'];
+
+/**
+ * 046: per-key content-space allow-list, independent of `scopes` and of
+ * `roleAllows`'s space-kind branches (which govern session/UI users). `wiki`
+ * is always implicitly allowed. `raw`/`generated` reads require both that the
+ * key was granted the space at creation *and* that the owner is still an
+ * admin today — mirroring the existing scope ∩ role intersection so a key
+ * doesn't keep raw/generated access after its owner is demoted.
+ */
+function spaceAllowedForKey(actor: Extract<Actor, { kind: 'api_key' }>, action: Action, spaceKind?: SpaceKind): boolean {
+  if (!spaceKind || spaceKind === 'wiki') return true;
+  if (!SPACE_GATED_READ_ACTIONS.includes(action)) return true;
+  return actor.role === 'admin' && actor.spaceAccess.includes(spaceKind);
 }
 
 function roleAllows(
@@ -252,6 +277,7 @@ export function can(
       return false;
     }
     if (!actionAllowedByScope(actor, action)) return false;
+    if (!spaceAllowedForKey(actor, action, spaceKind)) return false;
     return roleAllows(action, actor.role, { isAuthor, anonymousRead, spaceKind, visibility });
   }
 
@@ -272,8 +298,9 @@ export function buildApiKeyCtx(
   role: 'admin' | 'editor' | 'reader',
   scopes: ApiKeyScope[],
   keyId: string,
+  spaceAccess: SpaceKind[] = ['wiki'],
 ): PermCtx {
-  return { actor: { kind: 'api_key', userId, role, scopes, keyId } };
+  return { actor: { kind: 'api_key', userId, role, scopes, keyId, spaceAccess } };
 }
 
 export function getActorUserId(ctx: PermCtx): string | null {

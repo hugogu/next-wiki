@@ -97,7 +97,9 @@ describe('generated page service', () => {
 
   it('defaults API-key creation to generated in LLM Wiki mode and projects provenance', async () => {
     const { userId } = await createAdminUser();
-    const apiCtx = buildApiKeyCtx(userId, 'admin', ['create', 'view'], 'generated-api-key');
+    // 046: creating into (and reading back from) the generated space requires
+    // the key to be explicitly granted generated spaceAccess.
+    const apiCtx = buildApiKeyCtx(userId, 'admin', ['create', 'view'], 'generated-api-key', ['wiki', 'generated']);
     const sessionCtx = buildUserCtx(userId, 'admin');
 
     const created = await publicContent.createPage(apiCtx, {
@@ -123,7 +125,7 @@ describe('generated page service', () => {
 
   it('derives a missing OKF type from the path for machine-created generated pages', async () => {
     const { userId } = await createAdminUser();
-    const apiCtx = buildApiKeyCtx(userId, 'admin', ['create', 'view', 'edit'], 'generated-okf-key');
+    const apiCtx = buildApiKeyCtx(userId, 'admin', ['create', 'view', 'edit'], 'generated-okf-key', ['wiki', 'generated']);
 
     const source = '---\ntitle: 量化交易学习指南\ntags:\n  - 量化交易\n---\n\n# 量化交易学习指南';
     const created = await publicContent.createPage(apiCtx, {

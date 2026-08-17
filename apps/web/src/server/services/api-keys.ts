@@ -5,7 +5,9 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal } from '@next-wiki/shared';
+import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, SpaceKind } from '@next-wiki/shared';
+
+const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
 const KEY_PREFIX = 'nwk_';
 const KEY_RANDOM_BYTES = 32;
@@ -39,8 +41,15 @@ export async function create(
   ctx: PermCtx,
   name: string,
   scopes: ApiKeyScope[],
+  requestedSpaceAccess?: SpaceKind[],
 ): Promise<ApiKeyCreated> {
   const userId = requireUserId(ctx);
+
+  const spaceAccess: SpaceKind[] = requestedSpaceAccess && requestedSpaceAccess.length > 0 ? requestedSpaceAccess : ['wiki'];
+  const grantsAdminOnlySpace = spaceAccess.some((kind) => ADMIN_ONLY_SPACE_KINDS.includes(kind));
+  if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
+    throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
+  }
 
   const activeCount = await db.$count(
     schema.apiKeys,
@@ -87,6 +96,7 @@ export async function create(
       userId,
       name: name.trim(),
       scopes,
+      spaceAccess,
       keyPrefix: prefix,
       keySecretEncrypted: encrypted,
     })
@@ -100,6 +110,7 @@ export async function create(
     id: row.id,
     name: row.name,
     scopes: row.scopes,
+    spaceAccess: row.spaceAccess,
     keyPrefix: row.keyPrefix,
     keySecret: key,
     createdAt: row.createdAt.toISOString(),
@@ -120,6 +131,7 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     id: row.id,
     name: row.name,
     scopes: row.scopes,
+    spaceAccess: row.spaceAccess,
     keyPrefix: row.keyPrefix,
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
@@ -163,6 +175,7 @@ type ResolvedKey = {
   userId: string;
   role: 'admin' | 'editor' | 'reader';
   scopes: ApiKeyScope[];
+  spaceAccess: SpaceKind[];
 };
 
 export async function lookupByToken(token: string): Promise<ResolvedKey | null> {
@@ -194,5 +207,6 @@ export async function lookupByToken(token: string): Promise<ResolvedKey | null> 
     userId: row.userId,
     role: row.user.role,
     scopes: row.scopes,
+    spaceAccess: row.spaceAccess,
   };
 }

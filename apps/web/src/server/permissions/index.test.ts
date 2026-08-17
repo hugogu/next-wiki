@@ -34,10 +34,16 @@ describe('permissions space-kind matrix (022)', () => {
     });
 
     it('api_key still needs the matching scope (scope ∩ role)', () => {
-      expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1'), 'read', pageList, { spaceKind: 'raw' })).toBe(true);
-      expect(can(buildApiKeyCtx('u1', 'admin', ['create'], 'k1'), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
+      // 046: reads additionally need the key's own spaceAccess grant — pass it
+      // explicitly here so this test isolates scope ∩ role as originally intended.
+      expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1', ['wiki', 'raw']), 'read', pageList, { spaceKind: 'raw' })).toBe(true);
+      expect(can(buildApiKeyCtx('u1', 'admin', ['create'], 'k1', ['wiki', 'raw']), 'read', pageList, { spaceKind: 'raw' })).toBe(false);
+      // Writes are governed by roleAllows alone — no spaceAccess grant needed.
       expect(can(buildApiKeyCtx('u1', 'admin', ['create'], 'k1'), 'create', pageList, { spaceKind: 'raw' })).toBe(true);
-      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'raw', visibility: 'public' })).toBe(true);
+      // An editor-role key defaults to wiki-only spaceAccess — unlike a
+      // session/UI editor, it can no longer read even public raw content
+      // without an explicit grant (spaceAccess is stricter than roleAllows).
+      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'raw', visibility: 'public' })).toBe(false);
       expect(can(buildApiKeyCtx('u1', 'editor', ['create'], 'k1'), 'create', pageList, { spaceKind: 'raw' })).toBe(false);
     });
 
@@ -71,10 +77,17 @@ describe('permissions space-kind matrix (022)', () => {
     });
 
     it('api_key still needs the matching scope (scope ∩ role)', () => {
-      expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1'), 'read', pageList, { spaceKind: 'generated' })).toBe(true);
-      expect(can(buildApiKeyCtx('u1', 'admin', ['delete'], 'k1'), 'read', pageList, { spaceKind: 'generated' })).toBe(false);
+      // 046: reads additionally need the key's own spaceAccess grant — pass it
+      // explicitly here so this test isolates scope ∩ role as originally intended.
+      expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1', ['wiki', 'generated']), 'read', pageList, { spaceKind: 'generated' })).toBe(true);
+      expect(can(buildApiKeyCtx('u1', 'admin', ['delete'], 'k1', ['wiki', 'generated']), 'read', pageList, { spaceKind: 'generated' })).toBe(false);
+      // Writes are governed by roleAllows alone — no spaceAccess grant needed.
       expect(can(buildApiKeyCtx('u1', 'admin', ['delete'], 'k1'), 'delete', page, { spaceKind: 'generated' })).toBe(true);
-      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'generated', visibility: 'public' })).toBe(true);
+      // An editor-role key defaults to wiki-only spaceAccess — unlike a
+      // session/UI editor, it can no longer read even public generated
+      // content without an explicit grant (spaceAccess is stricter than
+      // roleAllows).
+      expect(can(buildApiKeyCtx('u1', 'editor', ['view'], 'k1'), 'read', pageList, { spaceKind: 'generated', visibility: 'public' })).toBe(false);
     });
   });
 
