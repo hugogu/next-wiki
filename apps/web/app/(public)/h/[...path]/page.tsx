@@ -149,6 +149,7 @@ export default async function HistoryPage({
             path={path}
             pageId={page?.pageId}
             space={space ?? 'wiki'}
+            currentVersion={page?.version}
             selectedPair={shownPair ? { earlier: shownPair.earlier, later: shownPair.later } : undefined}
             selectedVersion={selectedVersion}
             earlier={

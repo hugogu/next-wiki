@@ -31,6 +31,7 @@ export function HistoryRevisionSelector({
   revisions,
   pageId,
   space = 'wiki',
+  currentVersion,
   selectedPair,
   selectedVersion,
   earlier,
@@ -41,6 +42,7 @@ export function HistoryRevisionSelector({
   revisions: HistoryRevision[];
   pageId?: string;
   space?: ReaderSpace;
+  currentVersion?: number;
   selectedPair?: { earlier: number; later: number };
   selectedVersion?: number;
   earlier?: ComparedRevision;
@@ -96,20 +98,35 @@ export function HistoryRevisionSelector({
               >
                 <button
                   type="button"
-                  className="flex min-w-0 flex-1 items-center gap-xs px-xs py-1 text-left"
+                  className="flex min-w-0 flex-1 flex-col items-start gap-0.5 px-xs py-1 text-left"
                   aria-pressed={isSelected}
                   onClick={() => select(revision.version)}
                 >
-                  <span className="shrink-0 font-medium">
-                    {t('page.history.compare.selectVersion', { version: revision.version })}
-                  </span>
-                  <span className="rounded bg-surface-elevated px-xs py-px text-xs text-muted capitalize">
-                    {revision.status}
+                  <span className="flex min-w-0 items-center gap-xs">
+                    <span className="shrink-0 font-medium">
+                      {t('page.history.compare.selectVersion', { version: revision.version })}
+                    </span>
+                    <span className="rounded bg-surface-elevated px-xs py-px text-xs text-muted capitalize">
+                      {revision.status}
+                    </span>
                   </span>
                   <span className="min-w-0 truncate text-xs text-muted">{revision.meta}</span>
                 </button>
                 {revision.status === 'draft' && revision.canPublish && pageId ? (
                   <PublishButton pageId={pageId} path={path} space={space} version={revision.version} iconOnly />
+                ) : null}
+                {revision.status === 'published' &&
+                revision.canPublish &&
+                pageId &&
+                revision.version !== currentVersion ? (
+                  <PublishButton
+                    pageId={pageId}
+                    path={path}
+                    space={space}
+                    version={revision.version}
+                    iconOnly
+                    variant="restore"
+                  />
                 ) : null}
               </li>
             );

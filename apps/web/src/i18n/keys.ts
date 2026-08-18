@@ -234,6 +234,8 @@ export const translationKeys = [
   "page.diff.noChanges",
   "page.publish.button.submit",
   "page.publish.button.submitting",
+  "page.publish.button.restore",
+  "page.publish.button.restoring",
   "page.publish.error.forbidden",
   "page.publish.error.generic",
   "page.publish.error.signInRequired",

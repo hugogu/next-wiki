@@ -7,7 +7,7 @@ import { getPublicApiPagePublicationUrl, getSpaceHref, type ReaderSpace } from '
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { getLocalizedErrorMessage } from '@/i18n/error-messages';
-import { PublishIcon } from '@/components/icons';
+import { PublishIcon, UndoIcon } from '@/components/icons';
 
 export function PublishButton({
   pageId,
@@ -15,12 +15,14 @@ export function PublishButton({
   space = 'wiki',
   version,
   iconOnly = false,
+  variant = 'publish',
 }: {
   pageId: string;
   path: string;
   space?: ReaderSpace;
   version: number;
   iconOnly?: boolean;
+  variant?: 'publish' | 'restore';
 }) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
@@ -40,16 +42,25 @@ export function PublishButton({
     },
   );
 
+  const label =
+    variant === 'restore'
+      ? t('page.publish.button.restore')
+      : t('page.publish.button.submit');
+  const pendingLabel =
+    variant === 'restore'
+      ? t('page.publish.button.restoring')
+      : t('page.publish.button.submitting');
+
   return (
     <div className="space-y-xs">
       {error && <Alert>{error}</Alert>}
       <Button
         type="button"
-        variant="primary"
+        variant={variant === 'restore' ? 'secondary' : 'primary'}
         size={iconOnly ? 'icon' : 'default'}
         className={iconOnly ? 'h-8 w-8' : ''}
-        aria-label={t('page.publish.button.submit')}
-        title={t('page.publish.button.submit')}
+        aria-label={label}
+        title={label}
         disabled={publish.isPending}
         onClick={() => {
           setError(null);
@@ -57,11 +68,15 @@ export function PublishButton({
         }}
       >
         {iconOnly ? (
-          <PublishIcon className="h-4 w-4" />
+          variant === 'restore' ? (
+            <UndoIcon className="h-4 w-4" />
+          ) : (
+            <PublishIcon className="h-4 w-4" />
+          )
         ) : publish.isPending ? (
-          t('page.publish.button.submitting')
+          pendingLabel
         ) : (
-          t('page.publish.button.submit')
+          label
         )}
       </Button>
     </div>

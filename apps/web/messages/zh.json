@@ -375,7 +375,9 @@
     "publish": {
       "button": {
         "submit": "发布此版本",
-        "submitting": "发布中..."
+        "submitting": "发布中...",
+        "restore": "恢复为当前版本",
+        "restoring": "恢复中..."
       },
       "error": {
         "forbidden": "你没有权限发布此版本。",

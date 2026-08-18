@@ -375,7 +375,9 @@
     "publish": {
       "button": {
         "submit": "Publish this revision",
-        "submitting": "Publishing..."
+        "submitting": "Publishing...",
+        "restore": "Restore as current version",
+        "restoring": "Restoring..."
       },
       "error": {
         "forbidden": "You do not have permission to publish this revision.",
