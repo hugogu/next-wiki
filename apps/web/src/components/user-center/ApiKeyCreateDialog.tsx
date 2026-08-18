@@ -71,7 +71,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md">
-      <div className="w-full max-w-2xl rounded-lg border border-border bg-surface p-lg shadow-lg">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg border border-border bg-surface p-lg shadow-lg">
         <div className="mb-md flex items-center justify-between gap-md">
           <h3 className="font-display text-xl font-semibold">{t('userCenter.apiKeys.createTitle')}</h3>
           <Button
