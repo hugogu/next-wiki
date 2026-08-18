@@ -27,6 +27,9 @@ export type ReadableCandidatePage = {
   page: PublicPageResource;
   /** Published Markdown source, kept server-side for excerpt evidence only. */
   contentSource: string | null;
+  /** Current published revision identity, for callers that cite a specific revision (e.g. Wiki AI). */
+  revisionId: string;
+  revisionHash: string;
 };
 
 /**
@@ -80,6 +83,8 @@ export async function projectReadableCandidatePages(
     .select({
       page: schema.pages,
       contentSource: schema.pageRevisions.contentSource,
+      revisionId: schema.pageRevisions.id,
+      revisionHash: schema.pageRevisions.contentHash,
       author: {
         id: schema.users.id,
         displayName: schema.users.displayName,
@@ -126,6 +131,8 @@ export async function projectReadableCandidatePages(
     }
     result.set(row.page.id, {
       contentSource: row.contentSource,
+      revisionId: row.revisionId,
+      revisionHash: row.revisionHash,
       page: {
         id: row.page.id,
         spaceSlug: space.slug,

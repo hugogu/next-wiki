@@ -10,53 +10,37 @@ import { logger } from '@/server/logger';
 import type { PermCtx } from '@/server/permissions';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { retrieve } from '@/server/services/ai-retrieval';
+import { readableSpaces } from '@/server/services/public-content';
+import { getSearchSettings } from '@/server/services/search-settings';
+import {
+  buildExcerpt,
+  compareFusedCandidates,
+  fuseCandidates,
+  productionSearchEngineRegistry,
+  projectReadableCandidatePages,
+  type EngineContribution,
+  type SearchCandidate,
+  type SearchEngineOutcome,
+} from '@/server/services/search';
 import { loadReadableFullContext } from './full-context';
 
 /**
- * Retrieval cutoff, relative to the best hit of the same query.
- *
- * This deliberately does NOT reuse the admin `minRelevanceScore` dial. That
- * number grades keyword matches on a hand-assigned scale (`scoreSearchMatch`:
- * 0.95 for a path match, 0.8 for a title match, 0.3–0.7 for content), while
- * vector hits are raw cosine similarity — the two are not the same
- * measurement, and an embedding model's absolute cosine range is a property of
- * the model, not of the corpus or of the operator's intent. Setting the dial
- * to 0.5 for keyword search silently discarded 7 of 8 candidates on a question
- * whose genuinely relevant pages topped out near 0.51.
- *
- * The ratio is loose on purpose. It exists to drop a long tail, not to pick
- * winners: `retrieve()` already bounds the candidate list, and a cross-lingual
- * question scores every real page low without making any of them less
- * relevant to each other. A strict ratio is actively dangerous when the top
- * hit is an outlier — at 0.7, one captured conversation scoring 0.795 for the
- * question it was captured from would have set the bar at 0.557 and excluded
- * every real page in the corpus.
+ * Raw cosine noise floor for the semantic leg only, applied before fusion —
+ * never compared against a lexical engine's own 0.3-1.0 heuristic scale (see
+ * `toLexicalCandidate`). pgvector kNN always returns its nearest chunks even
+ * when nothing in the corpus is actually close to the question, so this
+ * guards against a fully-unrelated corpus leaking noise into the candidate
+ * pool. Cross-engine relevance is instead decided by `fuseCandidates`'
+ * reciprocal-rank fusion and, downstream, the shared `minRelevanceScore`
+ * admin setting — never by comparing raw scores across engines.
  */
-export const RELATIVE_SCORE_FLOOR = 0.5;
+export const SEMANTIC_NOISE_FLOOR = 0.2;
 
-/**
- * Absolute floor below which nothing is a source at any ratio.
- *
- * Only guards the case where the whole corpus is unrelated to the question: a
- * top hit of 0.2 must not drag in a tail at 0.14 as "evidence". Kept far below
- * any plausible relevant score so it never becomes the effective cutoff.
- */
-export const ABSOLUTE_SCORE_FLOOR = 0.2;
+/** Candidates requested per engine before fusion; final sources stay capped below. */
+const CANDIDATE_POOL_LIMIT = 20;
 
-/**
- * Keep the hits that are competitive with the best one. `results` arrive sorted
- * by descending score from `retrieve()`; rank order is preserved.
- *
- * Note what is *not* filtered here: captured conversations never reach this
- * point, because they are excluded from the candidate list itself. Filtering
- * them at the end would be too late — they outrank real pages, so they would
- * already have consumed the bounded candidate window.
- */
-export function filterWikiQuestionResults(results: AiSearchResult[]): AiSearchResult[] {
-  const best = results[0]?.score ?? 0;
-  const cutoff = Math.max(best * RELATIVE_SCORE_FLOOR, ABSOLUTE_SCORE_FLOOR);
-  return results.filter((result) => result.score >= cutoff);
-}
+/** Citations attached to one answer — bounds prompt size, unchanged from before. */
+const SOURCE_LIMIT = 8;
 
 const QUERY_EMBEDDING_MAX_ATTEMPTS = 3;
 const QUERY_EMBEDDING_RETRY_DELAYS_MS = [250, 750];
@@ -104,6 +88,28 @@ async function embedQuestionWithRetries(input: {
   throw lastError ?? new AiProviderError('PROVIDER_UNAVAILABLE', 'Embedding provider is unavailable', true);
 }
 
+/**
+ * Converts grouped vector hits (already page-deduped and permission-checked
+ * once by `retrieve()`) into the engine-agnostic candidate shape `fuseCandidates`
+ * expects, applying the semantic-only noise floor first.
+ */
+function toSemanticCandidates(results: AiSearchResult[]): SearchCandidate[] {
+  return results
+    .filter((result) => result.score >= SEMANTIC_NOISE_FLOOR)
+    .map((result, index) => ({
+      pageId: result.pageId,
+      revisionId: result.revisionId,
+      rank: index,
+      excerpt: result.excerpt,
+      field: 'content' as const,
+      compatRelevance: Math.max(-1, Math.min(1, result.score)),
+    }));
+}
+
+function readyCandidates(outcome: SearchEngineOutcome): SearchCandidate[] {
+  return outcome.state === 'ready' ? outcome.candidates : [];
+}
+
 export async function loadWikiQuestionSources(input: {
   ctx: PermCtx;
   actionId: string;
@@ -138,52 +144,132 @@ export async function loadWikiQuestionSources(input: {
     throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
   }
 
-  let embedded: EmbeddingOutput;
-  try {
-    embedded = await embedQuestionWithRetries({
-      actionId: input.actionId,
-      question: input.question,
-      modelExternalId: embeddingModel.externalId,
-      expectedDimensions: generation.embeddingDimensions,
-      providerId: embeddingProvider.id,
-    });
-  } catch (error) {
-    const normalized = normalizeProviderError(error);
-    // RAG improves an answer but must not make the conversational agent
-    // unavailable when its embedding endpoint fails. The deterministic setup
-    // errors (missing index/model/provider) are thrown above, outside this
-    // try, so everything caught here is a failure of the embedding call
-    // itself and degrades to an unretrieved answer.
-    //
-    // This deliberately does not gate on `retryable`: an upstream gateway
-    // reports its own outage however it likes, and one returning HTTP 400 for
-    // "circuit breaker is open" was classified INVALID_RESPONSE —
-    // non-retryable — and killed the whole turn with "The AI could not
-    // produce a valid Wiki operation. Retry or rephrase the request.", advice
-    // no rephrasing could satisfy. A cancel still propagates: the user asked
-    // for the turn to stop, not for a degraded one.
-    if (normalized.code === 'CANCELLED') throw normalized;
-    logger.warn('Wiki question retrieval degraded after embedding retries', {
-      actionId: input.actionId,
-      errorCode: normalized.code,
-    });
-    return {
-      sources: [],
-      usage: { retrieval: { status: 'unavailable', errorCode: normalized.code } },
-      results: [],
-      degradation: { code: normalized.code },
-    };
+  // Same admin dials, same "every space this actor can read" resolution, and
+  // the same engine adapters + RRF fusion + permission projection Search uses
+  // (`apps/web/src/server/services/search/coordinator.ts`) — Wiki AI citations
+  // and site Search results are found by one shared pipeline, not two.
+  const settings = await getSearchSettings();
+  const spaces = await readableSpaces(input.ctx);
+  const spaceIds = spaces.map((space) => space.id);
+  const spaceSlugs = spaces.map((space) => space.slug);
+
+  const registry = productionSearchEngineRegistry();
+  const engineQuery = {
+    q: input.question,
+    limit: CANDIDATE_POOL_LIMIT,
+    deadlineMs: settings.immediateSearchTimeoutMs,
+    spaceIds,
+    spaceSlugs,
+  };
+
+  const [fullTextOutcome, fuzzyOutcome] = await Promise.all([
+    settings.fullTextSearchEnabled
+      ? registry.get('full_text')!.run(input.ctx, engineQuery)
+      : Promise.resolve<SearchEngineOutcome>({ state: 'unavailable' }),
+    settings.fuzzySearchEnabled
+      ? registry.get('fuzzy')!.run(input.ctx, engineQuery)
+      : Promise.resolve<SearchEngineOutcome>({ state: 'unavailable' }),
+  ]);
+
+  let semanticCandidates: SearchCandidate[] = [];
+  // chunkId only exists for a chunk-level (vector) hit — see aiCitationSchema.
+  let chunkIdByPageId = new Map<string, string>();
+  let retrievalUsage: Record<string, unknown> = {};
+  let degradation: RetrievalDegradation | undefined;
+  if (settings.semanticSearchEnabled) {
+    try {
+      const embedded: EmbeddingOutput = await embedQuestionWithRetries({
+        actionId: input.actionId,
+        question: input.question,
+        modelExternalId: embeddingModel.externalId,
+        expectedDimensions: generation.embeddingDimensions,
+        providerId: embeddingProvider.id,
+      });
+      retrievalUsage = embedded.usage ?? {};
+      // Captured conversations are excluded in SQL here (not in the shared
+      // post-fusion filter below) because `limit` bounds the *chunk* window:
+      // one production index held 886 conversation chunks that would
+      // otherwise crowd out real content before fusion ever sees it. See
+      // `exactCosineSearch`'s own docstring for the numbers.
+      const semanticResults = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, CANDIDATE_POOL_LIMIT, {
+        excludeCapturedConversations: true,
+      });
+      semanticCandidates = toSemanticCandidates(semanticResults);
+      chunkIdByPageId = new Map(semanticResults.map((result) => [result.pageId, result.chunkId!]));
+    } catch (error) {
+      const normalized = normalizeProviderError(error);
+      // RAG improves an answer but must not make the conversational agent
+      // unavailable when its embedding endpoint fails: fall back to whatever
+      // full_text/fuzzy already found instead of failing the whole turn.
+      //
+      // This deliberately does not gate on `retryable`: an upstream gateway
+      // reports its own outage however it likes, and one returning HTTP 400 for
+      // "circuit breaker is open" was classified INVALID_RESPONSE —
+      // non-retryable — and killed the whole turn with "The AI could not
+      // produce a valid Wiki operation. Retry or rephrase the request.", advice
+      // no rephrasing could satisfy. A cancel still propagates: the user asked
+      // for the turn to stop, not for a degraded one.
+      if (normalized.code === 'CANCELLED') throw normalized;
+      logger.warn('Wiki question semantic retrieval degraded after embedding retries', {
+        actionId: input.actionId,
+        errorCode: normalized.code,
+      });
+      degradation = { code: normalized.code };
+    }
   }
 
-  // Captured conversations are excluded from the baseline: see
-  // `filterWikiQuestionResults` for why they cannot be sources of an answer.
-  const results = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, 8, {
-    excludeCapturedConversations: true,
+  const contributions: EngineContribution[] = [
+    // Semantic first so its richer, chunk-grounded excerpt wins the
+    // "first non-null excerpt" tie-break in `fuseCandidates` over a shorter
+    // lexical snippet, when both engines match the same page.
+    { capability: 'semantic', candidates: semanticCandidates },
+    { capability: 'full_text', candidates: readyCandidates(fullTextOutcome) },
+    { capability: 'fuzzy', candidates: readyCandidates(fuzzyOutcome) },
+  ];
+  const fused = fuseCandidates(contributions);
+
+  // The single permission boundary, shared with Search: a candidate that
+  // survives fusion but isn't readable (restricted visibility, disallowed
+  // space kind, etc.) never becomes a citation.
+  const readable = await projectReadableCandidatePages(input.ctx, fused.map((candidate) => candidate.pageId), spaceIds);
+
+  const survivors = fused
+    .filter((candidate) => {
+      const entry = readable.get(candidate.pageId);
+      if (!entry) return false;
+      // Captured conversations can only reach here via full_text/fuzzy (the
+      // semantic leg already excludes them in SQL above); a Feishu-captured
+      // conversation must never become the evidence for an answer.
+      if (entry.page.rawCategorySystemKey === 'conversation') return false;
+      const relevance = Math.max(-1, Math.min(1, candidate.compatRelevance));
+      return relevance >= settings.minRelevanceScore;
+    })
+    .sort(compareFusedCandidates)
+    .slice(0, SOURCE_LIMIT);
+
+  const results: AiSearchResult[] = survivors.map((candidate) => {
+    const entry = readable.get(candidate.pageId)!;
+    const excerpt = candidate.excerpt ?? buildExcerpt(entry.contentSource ?? '', input.question, 1200) ?? '';
+    return {
+      pageId: candidate.pageId,
+      title: entry.page.title,
+      path: entry.page.path,
+      locale: entry.page.locale,
+      revisionId: entry.revisionId,
+      revisionHash: entry.revisionHash,
+      chunkId: chunkIdByPageId.get(candidate.pageId),
+      excerpt,
+      score: Math.max(-1, Math.min(1, candidate.compatRelevance)),
+      spaceSlug: entry.page.spaceSlug,
+      canonicalUrl: entry.page.canonicalUrl,
+      rawCategorySystemKey: entry.page.rawCategorySystemKey ?? null,
+    };
   });
-  const filtered = filterWikiQuestionResults(results);
+
   return {
-    sources: searchResultsToSources(filtered),
-    usage: embedded.usage ?? {},
-    results: filtered,
+    sources: searchResultsToSources(results),
+    usage: retrievalUsage,
+    results,
+    ...(degradation ? { degradation } : {}),
   };
 }

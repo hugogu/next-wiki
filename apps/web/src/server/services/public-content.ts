@@ -1185,8 +1185,12 @@ function compareSearchResults(
  * decides which kinds exist at all, and the space's own visibility decides who
  * may read it. Anonymous readers of a default deployment get just the wiki
  * space; an administrator in LLM Wiki mode also gets Generated and Raw.
+ *
+ * Exported so Wiki AI's citation retrieval (wiki-question-sources.ts) resolves
+ * "every space this actor can read" the same way the search coordinator does,
+ * instead of maintaining a second copy of this judgment.
  */
-async function readableSpaces(ctx: PermCtx): Promise<SpaceRow[]> {
+export async function readableSpaces(ctx: PermCtx): Promise<SpaceRow[]> {
   const readable: SpaceRow[] = [];
   for (const space of await listSpaces()) {
     try {
