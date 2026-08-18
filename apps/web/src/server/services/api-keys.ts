@@ -45,7 +45,10 @@ export async function create(
 ): Promise<ApiKeyCreated> {
   const userId = requireUserId(ctx);
 
-  const spaceAccess: SpaceKind[] = requestedSpaceAccess && requestedSpaceAccess.length > 0 ? requestedSpaceAccess : ['wiki'];
+  // 'wiki' is always implicitly allowed (see spaceAllowedForKey), but the
+  // stored/returned list should reflect that canonically rather than only
+  // when the caller happened to include it explicitly.
+  const spaceAccess: SpaceKind[] = Array.from(new Set(['wiki', ...(requestedSpaceAccess ?? [])]));
   const grantsAdminOnlySpace = spaceAccess.some((kind) => ADMIN_ONLY_SPACE_KINDS.includes(kind));
   if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');

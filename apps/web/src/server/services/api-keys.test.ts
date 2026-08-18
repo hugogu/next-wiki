@@ -93,6 +93,15 @@ describe('api-keys service', () => {
         expect(created.spaceAccess).toEqual(['wiki']);
       });
 
+      it('normalizes wiki into the stored list even when the caller omits it', async () => {
+        const user = await createTestUser('apikey-space-normalize@example.com');
+        await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, user.id));
+        const ctx = buildUserCtx(user.id, 'admin');
+
+        const created = await apiKeyService.create(ctx, 'wiki-implicit', ['view'], ['raw']);
+        expect(created.spaceAccess).toEqual(['wiki', 'raw']);
+      });
+
       it('rejects raw/generated for a non-admin owner', async () => {
         const user = await createTestUser('apikey-space-nonadmin@example.com');
         await db.update(schema.users).set({ role: 'editor' }).where(eq(schema.users.id, user.id));

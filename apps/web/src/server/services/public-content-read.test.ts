@@ -222,6 +222,21 @@ describe('public content read facade', () => {
       await setModeInternal('copilot', null);
     });
 
+    it('treats space="all" the same as omitting space, not as an unknown slug', async () => {
+      const editor = await createPublicApiUser('space-all-alias-editor@example.com', 'editor');
+      const editorCtx = buildUserCtx(editor.id, 'editor');
+      const path = `library/space-all-${Date.now()}`;
+      await pageService.create(editorCtx, { path, title: 'Space all alias', contentSource: 'body' });
+      await revisions.publish(editorCtx, { path, version: 1 });
+
+      const readerCtx = buildApiKeyCtx(editor.id, 'editor', ['view'], 'space-all-key');
+      const result = await publicContent.listPages(readerCtx, {
+        space: 'all', path, status: 'published', order: 'path', limit: 20, include: [],
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.path).toBe(path);
+    });
+
     it('limits an omitted-space listPages call to wiki-only for a key without raw/generated spaceAccess', async () => {
       await setModeInternal('llm-wiki', null);
       await ensurePrivateSpaces();

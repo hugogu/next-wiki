@@ -115,7 +115,10 @@ function likePattern(term: string): string {
  * notion of relevance that later scores it.
  */
 function relevanceOrderBy(q: string | undefined): SQL[] {
-  const recency = [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path)];
+  // Multi-space fan-out means `path` is no longer unique across the result
+  // set — see the orderBy note in listPagesInternal for why spaceId is
+  // needed as a final tiebreaker to keep this a true total order.
+  const recency = [desc(schema.pageRevisions.publishedAt), asc(schema.pages.path), asc(schema.pages.spaceId)];
   if (!q) return recency;
   const term = q.toLowerCase();
   const pattern = likePattern(q);
@@ -492,7 +495,10 @@ type SearchPagesQuery = Omit<PublicPageSearchQuery, 'order'> & { order?: PublicP
  * (wired into `can()`) transparently limits this set without any change here.
  */
 async function resolveQuerySpaces(ctx: PermCtx, spaceSlug: string | undefined): Promise<SpaceRow[]> {
-  if (spaceSlug) {
+  // 'all' is a documented alias for omitting `space` (MCP tools send it
+  // explicitly for self-documentation) — resolving it as a literal slug
+  // would look up a nonexistent space and silently return nothing.
+  if (spaceSlug && spaceSlug !== 'all') {
     const space = await resolveSpace(spaceSlug);
     return space ? [space] : [];
   }
@@ -516,28 +522,58 @@ async function listPagesInternal(
     await assertSpaceKindAllowed(kind);
   }
 
-  if (query.space) {
-    // Omitted-space fan-out is already permission-filtered inside
-    // readableSpaces(); an explicit single space still needs its own check.
+  if (query.space && query.space !== 'all') {
+    // Omitted-space (and 'all') fan-out is already permission-filtered
+    // inside readableSpaces(); an explicit single space still needs its own
+    // check.
     if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(spaces[0]!))) {
       return { items: [], nextCursor: null };
     }
   }
 
-  if (query.path) {
-    const page = await getPageByPath(ctx, query.path, query.include, query.space);
-    return { items: page && (!query.filterType || matchesTypeFilter(page, query.filterType)) ? [page] : [], nextCursor: null };
-  }
-
-  // Draft-visibility and soft-delete gates below need one representative
-  // space's anonymousRead flag; use the default/wiki space when it's in the
-  // set, matching resolveSearchScope's primarySpace convention.
-  const primarySpace = spaces.find((s) => s.slug === DEFAULT_SPACE_SLUG) ?? spaces[0]!;
   const spaceById = new Map(spaces.map((s) => [s.id, s]));
 
-  const canSeeDeleted = query.status === 'deleted' || query.status === 'all'
-    ? can(ctx, 'delete', { kind: 'page_list' }, spacePermissionOptions(primarySpace))
-    : false;
+  if (query.path) {
+    // Path uniqueness is per-space, so an omitted/'all' space can have a
+    // match in more than one of `spaces` — search across the same resolved
+    // set (not just the default space) and return the first visible match,
+    // keeping the "at most one" contract.
+    const pathRows = await db.query.pages.findMany({
+      where: and(
+        inArray(schema.pages.spaceId, spaces.map((s) => s.id)),
+        eq(schema.pages.path, query.path),
+        isNull(schema.pages.deletedAt),
+      ),
+    });
+    for (const row of pathRows) {
+      const resource = await visiblePageResource(ctx, spaceById.get(row.spaceId)!, row, {
+        ...DEFAULT_VISIBLE_PAGE_OPTIONS,
+        include: query.include,
+      });
+      if (resource && (!query.filterType || matchesTypeFilter(resource, query.filterType))) {
+        return { items: [resource], nextCursor: null };
+      }
+    }
+    return { items: [], nextCursor: null };
+  }
+
+  // Draft-visibility gate below needs one representative space's
+  // anonymousRead flag; use the default/wiki space when it's in the set,
+  // matching resolveSearchScope's primarySpace convention.
+  const primarySpace = spaces.find((s) => s.slug === DEFAULT_SPACE_SLUG) ?? spaces[0]!;
+
+  // Soft-delete visibility is a per-space permission (delete is admin-only
+  // in some space kinds) — computing it once from `primarySpace` and
+  // applying it to every row would leak deleted-page stubs from spaces the
+  // actor can't delete in.
+  const canSeeDeletedBySpace = new Map(
+    spaces.map((space) => [
+      space.id,
+      query.status === 'deleted' || query.status === 'all'
+        ? can(ctx, 'delete', { kind: 'page_list' }, spacePermissionOptions(space))
+        : false,
+    ]),
+  );
 
   const cursor = decodePublicCursor(query.cursor);
   const conditions: SQL[] = [inArray(schema.pages.spaceId, spaces.map((s) => s.id))];
@@ -665,7 +701,7 @@ async function listPagesInternal(
     rows.map(({ page }) => {
       const rowSpace = spaceById.get(page.spaceId)!;
       if (page.deletedAt) {
-        return canSeeDeleted ? minimalDeletedPageResource(rowSpace, page) : Promise.resolve(null);
+        return canSeeDeletedBySpace.get(page.spaceId) ? minimalDeletedPageResource(rowSpace, page) : Promise.resolve(null);
       }
       return visiblePageResource(ctx, rowSpace, page, {
         includeContent: options.includeContent,
@@ -982,7 +1018,7 @@ export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promis
   for (const kind of new Set(spaces.map((s) => s.kind))) {
     await assertSpaceKindAllowed(kind);
   }
-  if (query.space) {
+  if (query.space && query.space !== 'all') {
     if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(spaces[0]!))) {
       return { items: [], nextCursor: null };
     }
