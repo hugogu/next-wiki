@@ -101,6 +101,23 @@ describe('loadWikiQuestionSources', () => {
     }
   });
 
+  it('succeeds with lexical-only citations when semantic search is disabled and no semantic index/model/provider is configured at all', async () => {
+    // Deliberately no readyGeneration() call: clearAiData() in beforeEach
+    // leaves ai_index_generations empty. An administrator who turns semantic
+    // search off must not be blocked by an unconfigured/not-ready semantic
+    // stack — that used to throw INDEX_NOT_READY before the settings that
+    // would have skipped it were ever read.
+    const corpus = await createSearchFixtureCorpus(`wq-nosemantic-${randomUUID().slice(0, 8)}`);
+    const result = await loadWikiQuestionSources({
+      ctx: corpus.editorCtx,
+      actionId: randomUUID(),
+      question: ENGLISH_TERM,
+      mode: 'retrieval',
+      textContextWindow: null,
+    });
+    expect(result.results.some((r) => r.pageId === corpus.pages.english.pageId)).toBe(true);
+  });
+
   it('never lets a page a reader cannot see become a citation, even when it matches lexically', async () => {
     const corpus = await createSearchFixtureCorpus(`wq-perm-${randomUUID().slice(0, 8)}`);
     const admin = await createAiTestUser('admin');

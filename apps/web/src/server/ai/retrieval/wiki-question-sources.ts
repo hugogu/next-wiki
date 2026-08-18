@@ -125,25 +125,6 @@ export async function loadWikiQuestionSources(input: {
     };
   }
 
-  const generation = await db.query.aiIndexGenerations.findFirst({
-    where: eq(schema.aiIndexGenerations.isActive, true),
-  });
-  if (!generation || generation.status !== 'ready') {
-    throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
-  }
-
-  const embeddingModel = await db.query.aiModels.findFirst({
-    where: eq(schema.aiModels.id, generation.modelId),
-  });
-  if (!embeddingModel) throw new DomainError('MODEL_NOT_FOUND', 'Embedding model not found');
-
-  const embeddingProvider = await db.query.aiProviders.findFirst({
-    where: eq(schema.aiProviders.id, embeddingModel.providerId),
-  });
-  if (!embeddingProvider?.enabled) {
-    throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
-  }
-
   // Same admin dials, same "every space this actor can read" resolution, and
   // the same engine adapters + RRF fusion + permission projection Search uses
   // (`apps/web/src/server/services/search/coordinator.ts`) — Wiki AI citations
@@ -177,6 +158,25 @@ export async function loadWikiQuestionSources(input: {
   let retrievalUsage: Record<string, unknown> = {};
   let degradation: RetrievalDegradation | undefined;
   if (settings.semanticSearchEnabled) {
+    // Enforced only here, not up front: an administrator who has turned
+    // semantic search off must still get lexical-only citations even when
+    // the semantic index/model/provider isn't configured at all.
+    const generation = await db.query.aiIndexGenerations.findFirst({
+      where: eq(schema.aiIndexGenerations.isActive, true),
+    });
+    if (!generation || generation.status !== 'ready') {
+      throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
+    }
+    const embeddingModel = await db.query.aiModels.findFirst({
+      where: eq(schema.aiModels.id, generation.modelId),
+    });
+    if (!embeddingModel) throw new DomainError('MODEL_NOT_FOUND', 'Embedding model not found');
+    const embeddingProvider = await db.query.aiProviders.findFirst({
+      where: eq(schema.aiProviders.id, embeddingModel.providerId),
+    });
+    if (!embeddingProvider?.enabled) {
+      throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
+    }
     try {
       const embedded: EmbeddingOutput = await embedQuestionWithRetries({
         actionId: input.actionId,
