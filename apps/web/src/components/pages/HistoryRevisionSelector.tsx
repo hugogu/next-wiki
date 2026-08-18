@@ -89,12 +89,14 @@ export function HistoryRevisionSelector({
         <ul className="space-y-xs" aria-label={t('page.history.compare.selectionLabel')}>
           {revisions.map((revision) => {
             const isSelected = selected.includes(revision.version);
+            const isCurrent = revision.version === currentVersion;
             return (
               <li
                 key={revision.version}
                 className={`flex items-center gap-xs rounded-md border p-xs ${
                   isSelected ? 'border-primary bg-primary/10' : 'border-border bg-surface'
-                }`}
+                } ${isCurrent ? 'border-l-4' : ''}`}
+                style={isCurrent ? { borderLeftColor: 'var(--color-diff-added)' } : undefined}
               >
                 <button
                   type="button"
@@ -109,6 +111,17 @@ export function HistoryRevisionSelector({
                     <span className="rounded bg-surface-elevated px-xs py-px text-xs text-muted capitalize">
                       {revision.status}
                     </span>
+                    {isCurrent ? (
+                      <span
+                        className="shrink-0 rounded px-xs py-px text-xs font-medium"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-diff-added) 18%, transparent)',
+                          color: 'var(--color-diff-added)',
+                        }}
+                      >
+                        {t('page.history.current')}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="min-w-0 truncate text-xs text-muted">{revision.meta}</span>
                 </button>

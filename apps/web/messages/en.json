@@ -341,6 +341,7 @@
         "forbidden": "You do not have permission to view this page's history."
       },
       "versionLink": "Version {version}",
+      "current": "Current",
       "revisionMeta": "{date} by {name}",
       "compare": {
         "selectionLabel": "Select revisions to compare",

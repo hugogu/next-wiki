@@ -210,6 +210,7 @@ export const translationKeys = [
   "page.history.empty.title",
   "page.history.empty.forbidden",
   "page.history.versionLink",
+  "page.history.current",
   "page.history.revisionMeta",
   "page.history.compare.selectionLabel",
   "page.history.compare.selectVersion",

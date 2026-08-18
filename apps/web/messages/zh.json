@@ -341,6 +341,7 @@
         "forbidden": "你没有权限查看此页面的历史。"
       },
       "versionLink": "版本 {version}",
+      "current": "当前",
       "revisionMeta": "{date}，作者 {name}",
       "compare": {
         "selectionLabel": "选择要比较的版本",
