@@ -115,22 +115,32 @@ Backups older than `BACKUP_RETENTION_DAYS` (default 14) are pruned.
 
 ## Public read-only demo
 
-To run a publicly embeddable demo instance (for example, iframed from a
-marketing/home page) without risking vandalism:
+A demo instance is just another production deployment (see
+[Prepare the server](#prepare-the-server) and [First deploy](#first-deploy)
+above): it runs the same published `docker-compose.prod.yml` image from
+Docker Hub/GHCR, not a local build. No separate pipeline or image is needed.
 
-```bash
-NEXT_WIKI_SEED=true docker compose up -d --build   # seed once, or restore a snapshot
+Follow the normal production setup, then in that deployment's `.env`:
+
+```ini
+NEXT_WIKI_SEED=true            # seed once, or restore a snapshot instead
+NEXT_WIKI_DEMO_READONLY=true
 ```
 
-then set `NEXT_WIKI_DEMO_READONLY=true` in `.env` and restart the web
-container. This blocks every write action — page create/edit/publish/delete,
-attachments, and admin settings — for every actor, including admins, while
-reads and AI Q&A/search stay live. Page responses do not set
-`X-Frame-Options`/`frame-ancestors` by default (some asset routes send their
-own unrelated `Content-Security-Policy`, but that header does not restrict
-embedding pages), so the app can already be embedded in an `<iframe>` from
-another origin; scope that down with a reverse-proxy header if the demo
-should only be embeddable from a specific origin.
+```bash
+docker compose -f docker-compose.prod.yml pull web
+docker compose -f docker-compose.prod.yml up -d
+```
+
+`NEXT_WIKI_DEMO_READONLY=true` blocks every write action — page
+create/edit/publish/delete, attachments, and admin settings — for every
+actor, including admins, while reads and AI Q&A/search stay live. Page
+responses do not set `X-Frame-Options`/`frame-ancestors` by default (some
+asset routes send their own unrelated `Content-Security-Policy`, but that
+header does not restrict embedding pages), so the app can already be
+embedded in an `<iframe>` from another origin; scope that down with a
+reverse-proxy header if the demo should only be embeddable from a specific
+origin.
 
 ## Updating
 

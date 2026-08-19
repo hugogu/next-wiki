@@ -24,6 +24,9 @@ services:
       APP_INTERNAL_URL: ${APP_INTERNAL_URL:-http://127.0.0.1:3000}
       NODE_ENV: production
       NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
+      # Public read-only demo mode: rejects every write action for every
+      # actor, including admins. See docs/deployment.md#public-read-only-demo.
+      NEXT_WIKI_DEMO_READONLY: ${NEXT_WIKI_DEMO_READONLY:-false}
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       CONTENT_LOCAL_BASE_PATH: ${CONTENT_LOCAL_BASE_PATH:-/data/content}

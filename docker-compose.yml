@@ -36,6 +36,9 @@ services:
       # hard-coded, publicly-known admin account. Set NEXT_WIKI_SEED=true to
       # restore the sample data (also auto-enabled when NODE_ENV != production).
       NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
+      # Public read-only demo mode: rejects every write action for every
+      # actor, including admins. See docs/deployment.md#public-read-only-demo.
+      NEXT_WIKI_DEMO_READONLY: ${NEXT_WIKI_DEMO_READONLY:-false}
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       CONTENT_LOCAL_BASE_PATH: ${CONTENT_LOCAL_BASE_PATH:-/data/content}
