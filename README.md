@@ -14,8 +14,15 @@ client.
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](apps/web/package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](tsconfig.base.json)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-next--wiki.hugogu.cn-8A2BE2)](https://next-wiki.hugogu.cn/)
 
 </div>
+
+> GitHub strips `<iframe>`/`<script>` tags from rendered READMEs, so this page
+> can only link out rather than embed the demo inline. The
+> [project home page](https://next-wiki.hugogu.cn/) embeds a real, live
+> instance you can click through — not a recorded walkthrough — running in
+> read-only demo mode (see [`NEXT_WIKI_DEMO_READONLY`](docs/deployment.md#public-read-only-demo)).
 
 > **Project status:** next-wiki is actively developed and currently in an
 > early open-source release. Interfaces and configuration may evolve.
