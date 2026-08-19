@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { I18nProvider } from '@/i18n/client';
 import { useIslandMessages } from '@/i18n/message-store';
@@ -44,7 +44,12 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
   // Re-scans only when `html` replaces the DOM subtree; locale changes flow
   // through the shared I18nProvider below without touching this list, so a
   // language switch never re-renders 80+ independent islands at once.
-  useEffect(() => {
+  // Runs as a layout effect (synchronously, before paint) so the raw
+  // `<pre>` markup is cleared before the browser ever paints it — unlike
+  // `createRoot(el).render(...)`, a portal doesn't replace a container's
+  // existing children, so leaving the raw markup in place would duplicate
+  // it alongside the rendered island.
+  useLayoutEffect(() => {
     if (!containerRef.current) return;
 
     const found: Island[] = [];
@@ -54,6 +59,7 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
       const pre = element.querySelector('pre');
       if (!pre) return;
       found.push({ kind: 'code', element, source: pre.textContent ?? '', rawHtmlProp: { __html: pre.outerHTML } });
+      element.replaceChildren();
     });
 
     containerRef.current.querySelectorAll('[data-mermaid-block]').forEach((el) => {
@@ -61,6 +67,7 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
       const pre = element.querySelector('pre');
       if (!pre) return;
       found.push({ kind: 'mermaid', element, source: pre.textContent ?? '' });
+      element.replaceChildren();
     });
 
     setIslands(found);
