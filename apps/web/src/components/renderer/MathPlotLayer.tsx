@@ -3,7 +3,7 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { I18nProvider, useTranslation } from '@/i18n/client';
-import { messages } from '@/i18n/catalog';
+import { useIslandMessages } from '@/i18n/message-store';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { FunctionPlotIcon } from '@/components/icons';
@@ -81,7 +81,7 @@ export function MathPlotLayer({
     };
   }, [containerRef, html]);
 
-  const catalog = messages[locale] ?? messages.en;
+  const catalog = useIslandMessages(locale);
 
   return (
     <I18nProvider initialLocale={locale} messages={catalog}>

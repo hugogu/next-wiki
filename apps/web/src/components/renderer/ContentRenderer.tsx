@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { I18nProvider } from '@/i18n/client';
-import { messages } from '@/i18n/catalog';
+import { useIslandMessages } from '@/i18n/message-store';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { CodeBlock } from './CodeBlock';
 import { MermaidBlock } from './MermaidBlock';
@@ -23,6 +23,7 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
   const [locale, setLocale] = useState<Locale>(() =>
     typeof document === 'undefined' ? defaultLocale : getLocaleFromDocument(),
   );
+  const catalog = useIslandMessages(locale);
 
   useEffect(() => {
     const observer = new MutationObserver(() => setLocale(getLocaleFromDocument()));
@@ -41,7 +42,7 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
       const root = rootsRef.current.get(el) ?? createRoot(el);
       rootsRef.current.set(el, root);
       root.render(
-        <I18nProvider initialLocale={locale} messages={messages[locale]}>
+        <I18nProvider initialLocale={locale} messages={catalog}>
           <ThemeProvider>
             <CodeBlock source={source}>
               <div dangerouslySetInnerHTML={{ __html: rawHtml }} />
@@ -57,7 +58,7 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
       const root = rootsRef.current.get(el) ?? createRoot(el);
       rootsRef.current.set(el, root);
       root.render(
-        <I18nProvider initialLocale={locale} messages={messages[locale]}>
+        <I18nProvider initialLocale={locale} messages={catalog}>
           <ThemeProvider>
             <MermaidBlock source={source} key={source} />
           </ThemeProvider>
@@ -86,7 +87,7 @@ export const ContentRenderer = memo(function ContentRenderer({ html }: { html: s
         islandRef.current.delete(element);
       }
     }
-  }, [html, locale]);
+  }, [html, locale, catalog]);
 
   return (
     <div ref={containerRef}>

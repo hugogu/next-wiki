@@ -5,9 +5,11 @@ import {
   useLocale,
   useTranslations,
 } from 'next-intl';
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { localeCookieName, defaultLocale, type Locale, isLocale } from './config';
-import { getMessagePath, type AppMessages, messages } from './catalog';
+import { getMessagePath } from './message-path';
+import type { AppMessages } from './catalog';
+import { getCachedMessages, loadMessages, prefetchOtherLocale, seedMessages } from './message-store';
 import type { TranslationKey, TranslateFunction } from './types';
 
 interface I18nContextValue {
@@ -65,7 +67,45 @@ export function I18nProvider({
     isLocale(initialLocale) ? initialLocale : defaultLocale,
   );
 
-  const catalog = providedMessages && locale === initialLocale ? providedMessages : messages[locale];
+  if (providedMessages) seedMessages(initialLocale, providedMessages);
+
+  const [catalogLocale, setCatalogLocale] = useState(locale);
+  const [catalog, setCatalog] = useState<AppMessages>(
+    () => providedMessages ?? getCachedMessages(locale) ?? ({} as AppMessages),
+  );
+
+  // Derived-during-render update (not an effect): when `locale` changes and
+  // its catalog is already cached, adopt it in the same render pass instead
+  // of committing a stale frame first. See:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  if (locale !== catalogLocale) {
+    const cached = getCachedMessages(locale);
+    if (cached) {
+      setCatalogLocale(locale);
+      setCatalog(cached);
+    }
+  }
+
+  useEffect(() => {
+    if (getCachedMessages(locale)) return;
+    let cancelled = false;
+    void loadMessages(locale).then((loaded) => {
+      if (!cancelled) {
+        setCatalog(loaded);
+        setCatalogLocale(locale);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
+
+  // Warm the other locale in the background so a later switch has no
+  // visible load, without shipping both dictionaries on the critical path.
+  useEffect(() => {
+    prefetchOtherLocale(locale);
+  }, [locale]);
+
   const setLocale = useCallback((next: Locale) => {
     if (!isLocale(next)) return;
     setLocaleState(next);

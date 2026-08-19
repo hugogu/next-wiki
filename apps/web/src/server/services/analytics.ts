@@ -47,10 +47,13 @@ export const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
     buildScriptContent: (trackingId) => `
   var _hmt = _hmt || [];
   (function() {
-    var hm = document.createElement("script");
-    hm.src = "https://hm.baidu.com/hm.js?${trackingId}";
-    var s = document.getElementsByTagName("script")[0];
-    s.parentNode.insertBefore(hm, s);
+    function load() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?${trackingId}";
+      document.body.appendChild(hm);
+    }
+    if (document.readyState === "complete") load();
+    else window.addEventListener("load", load, { once: true });
   })();`,
   },
   {
@@ -60,17 +63,20 @@ export const REGISTERED_ANALYTICS_PROVIDERS: AnalyticsProviderDefinition[] = [
     trackingIdFormatHint: 'G-XXXXXXXX (e.g. G-A1B2C3D4E5)',
     trackingIdPattern: /^G-[A-Z0-9]{6,12}$/,
     buildScriptContent: (trackingId) => `
-  (function() {
-    var gtagScript = document.createElement("script");
-    gtagScript.async = true;
-    gtagScript.src = "https://www.googletagmanager.com/gtag/js?id=${trackingId}";
-    var s = document.getElementsByTagName("script")[0];
-    s.parentNode.insertBefore(gtagScript, s);
-  })();
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', '${trackingId}');`,
+  gtag('config', '${trackingId}');
+  (function() {
+    function load() {
+      var gtagScript = document.createElement("script");
+      gtagScript.async = true;
+      gtagScript.src = "https://www.googletagmanager.com/gtag/js?id=${trackingId}";
+      document.head.appendChild(gtagScript);
+    }
+    if (document.readyState === "complete") load();
+    else window.addEventListener("load", load, { once: true });
+  })();`,
   },
 ];
 
