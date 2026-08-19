@@ -15,11 +15,35 @@ export function MermaidBlock({ source }: { source: string }) {
   const [zoomOpen, setZoomOpen] = useState(false);
   const [svg, setSvg] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // jsdom (tests) has no IntersectionObserver; treat that as "always
+  // visible" so environments without it keep the previous, non-lazy
+  // behavior instead of never rendering.
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
   const baseId = useId().replace(/:/g, '_');
   const renderId = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Defer rendering until the diagram is near the viewport. mermaid's
+  // dagre-based auto-layout does synchronous DOM measurement (a classic
+  // forced-reflow source), so a content page with several diagrams would
+  // otherwise render all of them at once on load and block the main thread
+  // for each.
+  useEffect(() => {
+    if (visible) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visible]);
 
   useEffect(() => {
-    if (mode !== 'diagram') return;
+    if (mode !== 'diagram' || !visible) return;
 
     let cancelled = false;
     const id = `${baseId}-${renderId.current++}`;
@@ -51,7 +75,7 @@ export function MermaidBlock({ source }: { source: string }) {
     return () => {
       cancelled = true;
     };
-  }, [mode, source, resolved, baseId]);
+  }, [mode, source, resolved, baseId, visible]);
 
   const codePanel = (
     <CodeBlock source={source}>
@@ -62,7 +86,7 @@ export function MermaidBlock({ source }: { source: string }) {
   );
 
   return (
-    <div className="my-md">
+    <div className="my-md" ref={containerRef}>
       <div className="flex items-center justify-end gap-xs mb-xs">
         <button
           type="button"
