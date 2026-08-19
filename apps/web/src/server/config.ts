@@ -72,12 +72,29 @@ const envSchema = z.object({
 const DEV_DATABASE_URL = 'postgresql://wiki:wiki@127.0.0.1:15433/wiki';
 const DEV_API_KEY_ENCRYPTION_KEY = '0'.repeat(64);
 
-export const env = envSchema.parse({
-  ...process.env,
-  DATABASE_URL:
-    process.env.DATABASE_URL ??
-    (process.env.NODE_ENV === 'production' ? undefined : DEV_DATABASE_URL),
-  API_KEY_ENCRYPTION_KEY:
-    process.env.API_KEY_ENCRYPTION_KEY ??
-    (process.env.NODE_ENV === 'production' ? undefined : DEV_API_KEY_ENCRYPTION_KEY),
-});
+function parseEnv() {
+  const result = envSchema.safeParse({
+    ...process.env,
+    DATABASE_URL:
+      process.env.DATABASE_URL ??
+      (process.env.NODE_ENV === 'production' ? undefined : DEV_DATABASE_URL),
+    API_KEY_ENCRYPTION_KEY:
+      process.env.API_KEY_ENCRYPTION_KEY ??
+      (process.env.NODE_ENV === 'production' ? undefined : DEV_API_KEY_ENCRYPTION_KEY),
+  });
+  if (!result.success) {
+    // Rethrow as a plain Error rather than let the raw ZodError escape: zod's
+    // ZodError defines `message` as a getter with no setter, which crashes
+    // with an opaque "Cannot set property message of [object Object] which
+    // has only a getter" as soon as anything (including Next.js's own error
+    // normalization) tries `err.message = ...` on it, hiding which
+    // environment variable was actually missing or invalid.
+    const issues = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`Invalid environment configuration:\n${issues}`);
+  }
+  return result.data;
+}
+
+export const env = parseEnv();
