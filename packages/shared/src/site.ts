@@ -28,3 +28,13 @@ export const siteSettingsViewSchema = z.object({
   publicSecurity: filingViewSchema,
 });
 export type SiteSettingsView = z.infer<typeof siteSettingsViewSchema>;
+
+export const demoModeUpdateSchema = z.object({
+  enabled: z.boolean(),
+});
+export type DemoModeUpdate = z.infer<typeof demoModeUpdateSchema>;
+
+export const demoModeViewSchema = z.object({
+  enabled: z.boolean(),
+});
+export type DemoModeView = z.infer<typeof demoModeViewSchema>;

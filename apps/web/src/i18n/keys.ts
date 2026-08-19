@@ -398,6 +398,8 @@ export const translationKeys = [
   "admin.tags.description",
   "admin.title",
   "admin.demoReadonly.banner",
+  "admin.demoReadonly.toggle.label",
+  "admin.demoReadonly.toggle.description",
   "admin.nav.users",
   "admin.nav.pages",
   "admin.nav.tags",

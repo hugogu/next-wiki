@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { SiteSettingsForm } from '@/components/admin/appearance/SiteSettingsForm';
+import { DemoModeToggle } from '@/components/admin/appearance/DemoModeToggle';
 import { getCurrentActor } from '@/server/services/auth';
-import { can } from '@/server/permissions';
+import { can, isDemoReadOnly } from '@/server/permissions';
 import { getSiteView } from '@/server/services/site-settings';
 import { getLocale, getDictionary } from '@/i18n/server';
 
@@ -11,6 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminSitePage() {
   const actor = await getCurrentActor();
   if (!can({ actor }, 'manage_appearance', { kind: 'appearance' })) notFound();
+  const canManageDemoMode = can({ actor }, 'manage_demo_mode', { kind: 'demo_mode' });
 
   const view = await getSiteView();
   const locale = await getLocale();
@@ -23,6 +25,7 @@ export default async function AdminSitePage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.site.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.site.description')}</p>
         </div>
+        {canManageDemoMode && <DemoModeToggle enabled={isDemoReadOnly()} />}
         <SiteSettingsForm initial={view} />
       </div>
     </Layout>

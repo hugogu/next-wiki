@@ -1,0 +1,1 @@
+ALTER TABLE "site_settings" ADD COLUMN "demo_readonly" boolean DEFAULT false NOT NULL;

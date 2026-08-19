@@ -14,9 +14,11 @@ export async function register() {
 
   const { runMigrations } = await import('./src/server/db/migrate');
   const { seedDatabase } = await import('./src/server/seed');
+  const { loadDemoReadOnlyFromDb } = await import('./src/server/services/demo-mode');
 
   await runMigrations();
   await seedDatabase();
+  await loadDemoReadOnlyFromDb();
 
   // Start the in-process pg-boss worker for migration and cleanup jobs. A
   // worker failure is logged but never blocks serving reads (jobs simply do not

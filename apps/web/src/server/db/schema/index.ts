@@ -1213,6 +1213,11 @@ export const siteSettings = pgTable('site_settings', {
   publicSecurityUrl: text('public_security_url'),
   iconData: bytea('icon_data'),
   iconMime: text('icon_mime'),
+  // Admin-toggleable public read-only demo mode (see server/permissions
+  // isDemoReadOnly()). NEXT_WIKI_DEMO_READONLY only seeds this column's
+  // initial value the first time this row is created; this DB value is the
+  // sole source of truth afterward.
+  demoReadonly: boolean('demo_readonly').notNull().default(false),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

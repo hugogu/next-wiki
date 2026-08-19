@@ -134,13 +134,18 @@ docker compose -f docker-compose.prod.yml up -d
 
 `NEXT_WIKI_DEMO_READONLY=true` blocks every write action — page
 create/edit/publish/delete, attachments, and admin settings — for every
-actor, including admins, while reads and AI Q&A/search stay live. Page
-responses do not set `X-Frame-Options`/`frame-ancestors` by default (some
-asset routes send their own unrelated `Content-Security-Policy`, but that
-header does not restrict embedding pages), so the app can already be
-embedded in an `<iframe>` from another origin; scope that down with a
-reverse-proxy header if the demo should only be embeddable from a specific
-origin.
+actor, including admins, while reads and AI Q&A/search stay live. It only
+seeds the setting's initial value the very first time the app boots against
+a fresh database; the persisted value in `site_settings` is the sole source
+of truth after that. An admin can flip it on/off at runtime from
+**Admin → Site** — no restart or redeploy needed — and that toggle itself is
+never blocked by the mode it controls, so turning it back off never requires
+a database edit. Page responses do not set `X-Frame-Options`/`frame-ancestors`
+by default (some asset routes send their own unrelated
+`Content-Security-Policy`, but that header does not restrict embedding
+pages), so the app can already be embedded in an `<iframe>` from another
+origin; scope that down with a reverse-proxy header if the demo should only
+be embeddable from a specific origin.
 
 ## Updating
 

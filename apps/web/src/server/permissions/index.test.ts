@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { buildAnonymousCtx, buildUserCtx, buildApiKeyCtx, can } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx, buildApiKeyCtx, can, setDemoReadOnlyCache } from '@/server/permissions';
 
 const pageList = { kind: 'page_list' } as const;
 const page = { kind: 'page', pageId: 'p1' } as const;
@@ -146,19 +146,13 @@ describe('permissions visibility matrix (022)', () => {
   });
 });
 
-describe('NEXT_WIKI_DEMO_READONLY', () => {
-  const originalValue = process.env.NEXT_WIKI_DEMO_READONLY;
-
+describe('demo-readonly mode (DB-backed via setDemoReadOnlyCache)', () => {
   afterEach(() => {
-    if (originalValue === undefined) {
-      delete process.env.NEXT_WIKI_DEMO_READONLY;
-    } else {
-      process.env.NEXT_WIKI_DEMO_READONLY = originalValue;
-    }
+    setDemoReadOnlyCache(false);
   });
 
   it('blocks writes for every actor, including admins, once enabled', () => {
-    process.env.NEXT_WIKI_DEMO_READONLY = 'true';
+    setDemoReadOnlyCache(true);
     const admin = buildUserCtx('u1', 'admin');
     expect(can(admin, 'edit', page)).toBe(false);
     expect(can(admin, 'create', pageList)).toBe(false);
@@ -170,14 +164,23 @@ describe('NEXT_WIKI_DEMO_READONLY', () => {
   });
 
   it('leaves reads and AI Q&A/search untouched', () => {
-    process.env.NEXT_WIKI_DEMO_READONLY = 'true';
+    setDemoReadOnlyCache(true);
     const reader = buildUserCtx('u1', 'reader');
     expect(can(reader, 'read', pageList)).toBe(true);
     expect(can(reader, 'use_ai_search', { kind: 'ai_action', actionId: 'a1' })).toBe(true);
     expect(can(reader, 'use_ai_qa', { kind: 'ai_action', actionId: 'a1' })).toBe(true);
   });
 
-  it('is a no-op when unset', () => {
+  it('still lets an admin turn the mode back off — the toggle itself is never blocked', () => {
+    setDemoReadOnlyCache(true);
+    const admin = buildUserCtx('u1', 'admin');
+    expect(can(admin, 'manage_demo_mode', { kind: 'demo_mode' })).toBe(true);
+    // But a non-admin still can't, and an API key never can (no scope maps to it).
+    expect(can(buildUserCtx('u1', 'editor'), 'manage_demo_mode', { kind: 'demo_mode' })).toBe(false);
+    expect(can(buildApiKeyCtx('u1', 'admin', ['edit'], 'k1'), 'manage_demo_mode', { kind: 'demo_mode' })).toBe(false);
+  });
+
+  it('is a no-op when disabled', () => {
     const admin = buildUserCtx('u1', 'admin');
     expect(can(admin, 'edit', page)).toBe(true);
   });

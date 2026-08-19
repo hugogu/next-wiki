@@ -596,7 +596,11 @@
     },
     "title": "Administration",
     "demoReadonly": {
-      "banner": "Read-only demo — all changes are disabled, including for admins."
+      "banner": "Read-only demo — all changes are disabled, including for admins.",
+      "toggle": {
+        "label": "Read-only demo mode",
+        "description": "When on, every write action is rejected for every account, including admins. Safe to enable before publicly embedding this instance."
+      }
     },
     "nav": {
       "users": "Users",

@@ -80,6 +80,7 @@ export type Action =
   | 'manage_tags'
   | 'manage_request_logs'
   | 'manage_static_site'
+  | 'manage_demo_mode'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -101,7 +102,8 @@ export type Resource =
   | { kind: 'appearance' }
   | { kind: 'tags' }
   | { kind: 'request_logs' }
-  | { kind: 'static_site' };
+  | { kind: 'static_site' }
+  | { kind: 'demo_mode' };
 
 const scopeToActions: Record<ApiKeyScope, Action[]> = {
   view: ['read', 'read_draft'],
@@ -229,6 +231,13 @@ function roleAllows(
       // deliberately session-admin only, so a key issued for storage or
       // transfers can never publish the wiki to the internet.
       return role === 'admin';
+    case 'manage_demo_mode':
+      // Deliberately session-admin only (see the api_key exclusion list
+      // below) and always allowed through the DEMO_READONLY_ALLOWED_ACTIONS
+      // gate below: an admin must always be able to turn demo-readonly back
+      // off from the UI, or enabling it would lock out the only way to
+      // disable it again short of a database edit.
+      return role === 'admin';
     case 'manage_tags':
       // Tags are shared editorial vocabulary. Editors may curate it when a
       // session/API key carries the explicit manage_tags capability; readers
@@ -246,16 +255,43 @@ function roleAllows(
 }
 
 /**
- * Actions NEXT_WIKI_DEMO_READONLY permits, regardless of role — everything
+ * Actions the demo-readonly mode permits, regardless of role — everything
  * else is blocked. Deliberately an allowlist rather than a write-action
  * blocklist: a new `Action` added later is blocked in demo mode by default
  * until explicitly allowed here, instead of silently slipping through.
+ * `manage_demo_mode` is included so an admin can always turn the mode back
+ * off through the same UI that turned it on (see the case in `roleAllows`).
  */
-const DEMO_READONLY_ALLOWED_ACTIONS: readonly Action[] = ['read', 'read_draft', 'use_ai_search', 'use_ai_qa'];
+const DEMO_READONLY_ALLOWED_ACTIONS: readonly Action[] = [
+  'read',
+  'read_draft',
+  'use_ai_search',
+  'use_ai_qa',
+  'manage_demo_mode',
+];
 
-/** Exported so UI code (e.g. the admin shell) can show a demo-mode notice without duplicating the env check. */
+/**
+ * The `site_settings.demo_readonly` DB column is this flag's sole source of
+ * truth, but `can()` must stay synchronous and dependency-free (no DB import
+ * here) since it is called from deep inside request-handling code with no
+ * guarantee a settings row was already fetched. `server/services/demo-mode`
+ * owns reading/writing that column and keeps this in-memory mirror in sync:
+ * loaded once at boot and write-through updated on every admin toggle.
+ *
+ * This assumes a single web process, matching the project's current
+ * single-container deployment (see docker-compose*.yml). A future
+ * horizontally-scaled deployment would need a shared cache instead.
+ */
+let cachedDemoReadOnly = false;
+
+/** Only `server/services/demo-mode` should call this. */
+export function setDemoReadOnlyCache(value: boolean): void {
+  cachedDemoReadOnly = value;
+}
+
+/** Exported so UI code (e.g. the admin shell) can show a demo-mode notice without a second DB read. */
 export function isDemoReadOnly(): boolean {
-  return process.env.NEXT_WIKI_DEMO_READONLY === 'true';
+  return cachedDemoReadOnly;
 }
 
 /**
@@ -287,6 +323,7 @@ export function can(
       action === 'manage_appearance' ||
       action === 'manage_request_logs' ||
       action === 'manage_static_site' ||
+      action === 'manage_demo_mode' ||
       action === 'use_ai_text_optimization'
     ) {
       return false;
