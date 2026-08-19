@@ -246,6 +246,35 @@ function roleAllows(
 }
 
 /**
+ * Actions that persist a change. NEXT_WIKI_DEMO_READONLY blocks all of these
+ * regardless of role, so a publicly embedded demo instance can't be edited or
+ * reconfigured by visitors — everything else (read, AI Q&A) stays live.
+ */
+const WRITE_ACTIONS: readonly Action[] = [
+  'create',
+  'edit',
+  'publish',
+  'delete',
+  'attach_file',
+  'manage_users',
+  'manage_storage',
+  'manage_preferences',
+  'manage_ai',
+  'manage_transfers',
+  'manage_translations',
+  'manage_appearance',
+  'manage_tags',
+  'manage_request_logs',
+  'manage_static_site',
+  'use_ai_text_optimization',
+  'use_ai_image_generation',
+];
+
+function isDemoReadOnly(): boolean {
+  return process.env.NEXT_WIKI_DEMO_READONLY === 'true';
+}
+
+/**
  * Permission chokepoint for the whole app.
  *
  * For API key actors, permission is the intersection of the key's scopes and
@@ -260,6 +289,8 @@ export function can(
 ): boolean {
   const { actor } = ctx;
   const { isAuthor = false, anonymousRead = true, spaceKind, visibility } = opts;
+
+  if (isDemoReadOnly() && WRITE_ACTIONS.includes(action)) return false;
 
   if (actor.kind === 'api_key') {
     // manage_users is never allowed via API key (no scope maps to it).

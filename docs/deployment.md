@@ -113,6 +113,23 @@ Backups older than `BACKUP_RETENTION_DAYS` (default 14) are pruned.
    docker compose -f docker-compose.prod.yml start web
    ```
 
+## Public read-only demo
+
+To run a publicly embeddable demo instance (for example, iframed from a
+marketing/home page) without risking vandalism:
+
+```bash
+NEXT_WIKI_SEED=true docker compose up -d --build   # seed once, or restore a snapshot
+```
+
+then set `NEXT_WIKI_DEMO_READONLY=true` in `.env` and restart the web
+container. This blocks every write action — page create/edit/publish/delete,
+attachments, and admin settings — for every actor, including admins, while
+reads and AI Q&A/search stay live. No X-Frame-Options/CSP is sent by default,
+so the app can already be embedded in an `<iframe>` from another origin; scope
+that down with a reverse-proxy header if the demo should only be embeddable
+from a specific origin.
+
 ## Updating
 
 Pushing to `main` automatically deploys the new image. For a more explicit

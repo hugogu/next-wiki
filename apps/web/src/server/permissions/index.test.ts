@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { buildAnonymousCtx, buildUserCtx, buildApiKeyCtx, can } from '@/server/permissions';
 
 const pageList = { kind: 'page_list' } as const;
@@ -143,5 +143,36 @@ describe('permissions visibility matrix (022)', () => {
   it('public visibility is unchanged', () => {
     expect(can(buildAnonymousCtx(), 'read', pageList, { visibility: 'public', anonymousRead: true })).toBe(true);
     expect(can(buildUserCtx('u1', 'editor'), 'edit', page, { visibility: 'public' })).toBe(true);
+  });
+});
+
+describe('NEXT_WIKI_DEMO_READONLY', () => {
+  afterEach(() => {
+    delete process.env.NEXT_WIKI_DEMO_READONLY;
+  });
+
+  it('blocks writes for every actor, including admins, once enabled', () => {
+    process.env.NEXT_WIKI_DEMO_READONLY = 'true';
+    const admin = buildUserCtx('u1', 'admin');
+    expect(can(admin, 'edit', page)).toBe(false);
+    expect(can(admin, 'create', pageList)).toBe(false);
+    expect(can(admin, 'publish', revision)).toBe(false);
+    expect(can(admin, 'delete', page)).toBe(false);
+    expect(can(admin, 'attach_file', page)).toBe(false);
+    expect(can(admin, 'manage_users', { kind: 'users' })).toBe(false);
+    expect(can(buildApiKeyCtx('u1', 'admin', ['edit'], 'k1'), 'edit', page)).toBe(false);
+  });
+
+  it('leaves reads and AI Q&A/search untouched', () => {
+    process.env.NEXT_WIKI_DEMO_READONLY = 'true';
+    const reader = buildUserCtx('u1', 'reader');
+    expect(can(reader, 'read', pageList)).toBe(true);
+    expect(can(reader, 'use_ai_search', { kind: 'ai_action', actionId: 'a1' })).toBe(true);
+    expect(can(reader, 'use_ai_qa', { kind: 'ai_action', actionId: 'a1' })).toBe(true);
+  });
+
+  it('is a no-op when unset', () => {
+    const admin = buildUserCtx('u1', 'admin');
+    expect(can(admin, 'edit', page)).toBe(true);
   });
 });
