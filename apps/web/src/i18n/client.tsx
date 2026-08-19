@@ -89,12 +89,17 @@ export function I18nProvider({
   useEffect(() => {
     if (getCachedMessages(locale)) return;
     let cancelled = false;
-    void loadMessages(locale).then((loaded) => {
-      if (!cancelled) {
-        setCatalog(loaded);
-        setCatalogLocale(locale);
-      }
-    });
+    loadMessages(locale)
+      .then((loaded) => {
+        if (!cancelled) {
+          setCatalog(loaded);
+          setCatalogLocale(locale);
+        }
+      })
+      .catch(() => {
+        // Stay on the already-cached catalog; the load can be retried
+        // later since `loadMessages` clears its in-flight entry on failure.
+      });
     return () => {
       cancelled = true;
     };

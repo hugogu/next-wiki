@@ -40,11 +40,19 @@ export function loadMessages(locale: UiLocale): Promise<AppMessages> {
   const inFlight = pending.get(locale);
   if (inFlight) return inFlight;
 
-  const promise = loaders[locale]().then(({ default: catalog }) => {
-    cache.set(locale, catalog);
-    pending.delete(locale);
-    return catalog;
-  });
+  const promise = loaders[locale]()
+    .then(({ default: catalog }) => {
+      cache.set(locale, catalog);
+      pending.delete(locale);
+      return catalog;
+    })
+    .catch((error: unknown) => {
+      // Clear the in-flight entry on failure too, otherwise a rejected
+      // promise (chunk load failure, offline, ...) sticks around forever
+      // and the locale can never be retried without a full page reload.
+      pending.delete(locale);
+      throw error;
+    });
   pending.set(locale, promise);
   return promise;
 }
@@ -58,7 +66,10 @@ export function prefetchOtherLocale(currentLocale: UiLocale): void {
 
   const schedule = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 2000));
   schedule(() => {
-    void loadMessages(other);
+    loadMessages(other).catch(() => {
+      // Best-effort background prefetch; a real switch to this locale
+      // will retry via `useIslandMessages`/`I18nProvider`.
+    });
   });
 }
 
@@ -90,12 +101,18 @@ export function useIslandMessages(locale: UiLocale): AppMessages {
   useEffect(() => {
     if (getCachedMessages(locale)) return;
     let cancelled = false;
-    void loadMessages(locale).then((loaded) => {
-      if (!cancelled) {
-        setCatalog(loaded);
-        setCatalogLocale(locale);
-      }
-    });
+    loadMessages(locale)
+      .then((loaded) => {
+        if (!cancelled) {
+          setCatalog(loaded);
+          setCatalogLocale(locale);
+        }
+      })
+      .catch(() => {
+        // Stay on the already-cached/default-locale catalog; the load can
+        // be retried later (e.g. on the next locale switch) since
+        // `loadMessages` clears its in-flight entry on failure.
+      });
     return () => {
       cancelled = true;
     };
