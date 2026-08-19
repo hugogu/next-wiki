@@ -125,10 +125,12 @@ NEXT_WIKI_SEED=true docker compose up -d --build   # seed once, or restore a sna
 then set `NEXT_WIKI_DEMO_READONLY=true` in `.env` and restart the web
 container. This blocks every write action — page create/edit/publish/delete,
 attachments, and admin settings — for every actor, including admins, while
-reads and AI Q&A/search stay live. No X-Frame-Options/CSP is sent by default,
-so the app can already be embedded in an `<iframe>` from another origin; scope
-that down with a reverse-proxy header if the demo should only be embeddable
-from a specific origin.
+reads and AI Q&A/search stay live. Page responses do not set
+`X-Frame-Options`/`frame-ancestors` by default (some asset routes send their
+own unrelated `Content-Security-Policy`, but that header does not restrict
+embedding pages), so the app can already be embedded in an `<iframe>` from
+another origin; scope that down with a reverse-proxy header if the demo
+should only be embeddable from a specific origin.
 
 ## Updating
 

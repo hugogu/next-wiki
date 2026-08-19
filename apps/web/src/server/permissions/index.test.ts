@@ -147,8 +147,14 @@ describe('permissions visibility matrix (022)', () => {
 });
 
 describe('NEXT_WIKI_DEMO_READONLY', () => {
+  const originalValue = process.env.NEXT_WIKI_DEMO_READONLY;
+
   afterEach(() => {
-    delete process.env.NEXT_WIKI_DEMO_READONLY;
+    if (originalValue === undefined) {
+      delete process.env.NEXT_WIKI_DEMO_READONLY;
+    } else {
+      process.env.NEXT_WIKI_DEMO_READONLY = originalValue;
+    }
   });
 
   it('blocks writes for every actor, including admins, once enabled', () => {
