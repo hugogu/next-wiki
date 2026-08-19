@@ -1578,6 +1578,7 @@ export const translationKeys = [
   "layout.nav.spaces.wiki",
   "layout.nav.spaces.generated",
   "layout.nav.spaces.raw",
+  "layout.footer.poweredBy",
   "apiDocs.metadataTitle",
   "userCenter.metadataTitle",
   "userCenter.title",

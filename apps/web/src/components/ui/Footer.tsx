@@ -1,13 +1,17 @@
 import type { SiteSettingsView } from '@next-wiki/shared';
+import type { Locale } from '@/i18n/config';
+import { getDictionary } from '@/i18n/server';
+
+const REPO_URL = 'https://github.com/hugogu/next-wiki';
 
 /**
- * Site footer: copyright plus optional China regulatory filing numbers (ICP /
- * 公安备案), each linked to the official registry. Renders nothing when no
- * footer content is configured.
+ * Site footer: copyright, optional China regulatory filing numbers (ICP /
+ * 公安备案) each linked to the official registry, and a "Powered by" link
+ * back to the next-wiki repository.
  */
-export function Footer({ site }: { site: SiteSettingsView }) {
+export function Footer({ site, locale }: { site: SiteSettingsView; locale: Locale }) {
   const { footerCopyright, icp, publicSecurity } = site;
-  if (!footerCopyright && !icp.number && !publicSecurity.number) return null;
+  const t = getDictionary(locale);
 
   return (
     <footer className="shrink-0 border-t border-border px-lg py-md text-center text-xs text-muted">
@@ -33,6 +37,12 @@ export function Footer({ site }: { site: SiteSettingsView }) {
             {publicSecurity.number}
           </a>
         )}
+        <span>
+          {t('layout.footer.poweredBy')}{' '}
+          <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className="hover:text-foreground">
+            next-wiki
+          </a>
+        </span>
       </div>
     </footer>
   );

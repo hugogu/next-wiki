@@ -11,6 +11,7 @@ import { Footer } from '@/components/ui/Footer';
 import { sparsifyTree } from '@/lib/page-tree';
 import type { ReaderSpace } from '@/lib/path';
 import { getMode } from '@/server/services/writing-mode';
+import { getLocale, getStaticLocale } from '@/i18n/server';
 
 export async function Layout({
   children,
@@ -61,6 +62,9 @@ export async function Layout({
       : null;
   const site = await getSiteView();
   const writingMode = staticPublic ? undefined : await getMode();
+  // staticPublic output is cached/shared (see actor note above): resolve the
+  // request-independent locale rather than reading the per-visitor cookie.
+  const locale = staticPublic ? getStaticLocale() : await getLocale();
 
   return (
     <AppShell
@@ -76,7 +80,7 @@ export async function Layout({
       space={space}
       routePrefix={routePrefix}
       writingMode={writingMode}
-      footer={<Footer site={site} />}
+      footer={<Footer site={site} locale={locale} />}
       siteName={site.siteName}
     >
       {children}
