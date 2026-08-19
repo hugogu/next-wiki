@@ -397,6 +397,7 @@ export const translationKeys = [
   "admin.tags.title",
   "admin.tags.description",
   "admin.title",
+  "admin.demoReadonly.banner",
   "admin.nav.users",
   "admin.nav.pages",
   "admin.nav.tags",

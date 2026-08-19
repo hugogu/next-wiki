@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./Header', () => ({ Header: () => <header /> }));
 vi.mock('./Navigator', () => ({ Navigator: () => <nav /> }));
+vi.mock('./DemoReadonlyBanner', () => ({ DemoReadonlyBanner: () => <div data-testid="demo-readonly-banner" /> }));
 vi.mock('@/components/ai/AiAvailabilityContext', () => ({ AiAvailabilityProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 
 import { AppShell } from './AppShell';
@@ -48,5 +49,34 @@ describe('AppShell scrolling', () => {
     // the footer is pushed below the fold and only appears on scroll.
     expect(html).toContain('class="h-full min-w-0 shrink-0"><div class="h-full">Editor</div></div><footer>Footer</footer>');
     expect(html).not.toContain('grow shrink-0 basis-auto');
+  });
+});
+
+describe('AppShell demo-readonly banner', () => {
+  it('shows the banner only for admin pages in demo-readonly mode', () => {
+    const html = renderToStaticMarkup(
+      <AppShell user={{ kind: 'anonymous' }} tree={[]} siteName="Wiki" admin demoReadOnly footer={<footer>Footer</footer>}>
+        <div>Page</div>
+      </AppShell>,
+    );
+    expect(html).toContain('data-testid="demo-readonly-banner"');
+  });
+
+  it('hides the banner on non-admin pages even when demoReadOnly is set', () => {
+    const html = renderToStaticMarkup(
+      <AppShell user={{ kind: 'anonymous' }} tree={[]} siteName="Wiki" demoReadOnly footer={<footer>Footer</footer>}>
+        <div>Page</div>
+      </AppShell>,
+    );
+    expect(html).not.toContain('data-testid="demo-readonly-banner"');
+  });
+
+  it('hides the banner on admin pages when demoReadOnly is not set', () => {
+    const html = renderToStaticMarkup(
+      <AppShell user={{ kind: 'anonymous' }} tree={[]} siteName="Wiki" admin footer={<footer>Footer</footer>}>
+        <div>Page</div>
+      </AppShell>,
+    );
+    expect(html).not.toContain('data-testid="demo-readonly-banner"');
   });
 });

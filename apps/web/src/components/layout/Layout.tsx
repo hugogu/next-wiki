@@ -4,7 +4,7 @@ import * as authService from '@/server/services/auth';
 import * as publicContent from '@/server/services/public-content';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
-import { buildAnonymousCtx } from '@/server/permissions';
+import { buildAnonymousCtx, isDemoReadOnly } from '@/server/permissions';
 import { getMyEntitlements } from '@/server/services/ai-entitlements';
 import { getSiteView } from '@/server/services/site-settings';
 import { Footer } from '@/components/ui/Footer';
@@ -68,6 +68,7 @@ export async function Layout({
       tree={tree}
       pageContext={pageContext}
       admin={admin}
+      demoReadOnly={admin ? isDemoReadOnly() : false}
       userCenter={userCenter}
       fitViewport={fitViewport}
       aiEntitlements={aiEntitlements}

@@ -253,7 +253,8 @@ function roleAllows(
  */
 const DEMO_READONLY_ALLOWED_ACTIONS: readonly Action[] = ['read', 'read_draft', 'use_ai_search', 'use_ai_qa'];
 
-function isDemoReadOnly(): boolean {
+/** Exported so UI code (e.g. the admin shell) can show a demo-mode notice without duplicating the env check. */
+export function isDemoReadOnly(): boolean {
   return process.env.NEXT_WIKI_DEMO_READONLY === 'true';
 }
 

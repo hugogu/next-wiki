@@ -44,6 +44,8 @@ export type AppShellProps = {
   tree: LazyPublicPageTreeNode[];
   pageContext?: PageContext;
   admin?: boolean;
+  /** NEXT_WIKI_DEMO_READONLY (see server/permissions). Shows a banner in the admin shell; enforcement itself lives in the permission chokepoint. */
+  demoReadOnly?: boolean;
   userCenter?: boolean;
   /**
    * When true, the content region is locked to the viewport height so an

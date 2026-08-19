@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Header } from './Header';
 import { Navigator } from './Navigator';
+import { DemoReadonlyBanner } from './DemoReadonlyBanner';
 import type { AppShellProps } from './types';
 import { AiChatPane } from '@/components/chat/AiChatPane';
 import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
@@ -30,6 +31,7 @@ export function AppShell({
   tree,
   pageContext,
   admin = false,
+  demoReadOnly = false,
   userCenter = false,
   fitViewport = false,
   aiEntitlements: initialAiEntitlements,
@@ -126,6 +128,7 @@ export function AppShell({
     <AiAvailabilityProvider value={aiEntitlements ?? null}>
       <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
         <Header user={user} pageContext={resolvedPageContext} onMenuClick={() => setNavOpen(true)} siteName={siteName} />
+        {admin && demoReadOnly && <DemoReadonlyBanner />}
         <div className="min-h-0 flex-1 flex overflow-hidden">
           <Navigator
             tree={tree}

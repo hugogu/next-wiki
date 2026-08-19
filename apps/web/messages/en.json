@@ -595,6 +595,9 @@
       "description": "Maintain wiki tags, review where they are used, and clean up duplicate or unused tags."
     },
     "title": "Administration",
+    "demoReadonly": {
+      "banner": "Read-only demo — all changes are disabled, including for admins."
+    },
     "nav": {
       "users": "Users",
       "pages": "Pages",
