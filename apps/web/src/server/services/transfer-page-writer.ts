@@ -11,6 +11,30 @@ import { persistRevisionMetadata } from './page-metadata';
 import { resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 import { ensureOkfConformance } from '@/server/services/okf';
+import { deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * 035 (US5/FR-025/FR-026): the address a newly created imported page gets.
+ * Never called for an existing page — FR-026 forbids altering the address of
+ * a page that already holds one. Queries this space's current addresses
+ * once per call rather than per candidate suffix, since Wiki.js imports run
+ * one page per transaction, sequentially — each call already sees every
+ * page committed by an earlier one in the same run.
+ */
+async function deriveNewPageAddress(
+  tx: Tx,
+  spaceId: string,
+  sourcePath: string,
+): Promise<{ address: string; reason: ImportAddressAdjustmentReason | null }> {
+  const [slugRows, aliasRows] = await Promise.all([
+    tx.query.pages.findMany({ where: eq(schema.pages.spaceId, spaceId), columns: { slug: true } }),
+    tx.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.spaceId, spaceId), columns: { address: true } }),
+  ]);
+  const taken = new Set([...slugRows.map((r) => r.slug), ...aliasRows.map((r) => r.address)]);
+  return deriveImportAddress(sourcePath, (address) => taken.has(address));
+}
 
 export async function writeImportedRawEntry(input: {
   actorUserId: string;
@@ -232,7 +256,13 @@ export async function writeImportedPage(input: {
   title: string;
   markdown: string;
   action: 'create' | 'replace' | 'skip';
-}): Promise<{ pageId: string | null; revisionId: string | null; action: typeof input.action }> {
+}): Promise<{
+  pageId: string | null;
+  revisionId: string | null;
+  action: typeof input.action;
+  address?: string;
+  addressAdjustmentReason?: ImportAddressAdjustmentReason | null;
+}> {
   const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   // Match the database uniqueness contract exactly. The canonical page key is
@@ -259,6 +289,7 @@ export async function writeImportedPage(input: {
     let pageId: string;
     let versionNumber = 1;
     let restoredDeletedPage = false;
+    let derivedAddress: { address: string; reason: ImportAddressAdjustmentReason | null } | null = null;
     if (existing) {
       const versions = await tx
         .select({ value: max(schema.pageRevisions.versionNumber) })
@@ -268,14 +299,15 @@ export async function writeImportedPage(input: {
       pageId = existing.id;
       restoredDeletedPage = Boolean(existing.deletedAt);
     } else {
+      // 035 (FR-025/FR-026): default address is the Wiki.js source path,
+      // adjusted only when it collides or is otherwise unusable — never
+      // touching whatever page already holds a candidate.
+      derivedAddress = await deriveNewPageAddress(tx, space.id, input.path);
       const [page] = await tx
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          // 035 (FR-025/FR-026): default address is the full path; conflict
-          // and invalid-character resolution (deriveImportAddress) lands in
-          // US5.
-          slug: input.path,
+          slug: derivedAddress.address,
           path: input.path,
           locale: input.locale,
           title: input.title,
@@ -317,7 +349,7 @@ export async function writeImportedPage(input: {
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, pageId));
-    return { pageId, restoredDeletedPage };
+    return { pageId, restoredDeletedPage, derivedAddress };
   });
   await kickReplication();
   await reconcilePageAcrossIndexes(result.pageId, buildUserCtx(input.actorUserId, 'admin'));
@@ -325,6 +357,8 @@ export async function writeImportedPage(input: {
     pageId: result.pageId,
     revisionId,
     action: existing && !(result.restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
+    address: result.derivedAddress?.address,
+    addressAdjustmentReason: result.derivedAddress?.reason,
   };
 }
 
@@ -348,7 +382,13 @@ export async function writeImportedPageWithHistory(input: {
     sourceMetadata: Record<string, unknown>;
   }>;
   action: 'create' | 'replace' | 'skip';
-}): Promise<{ pageId: string | null; revisionIds: string[]; action: 'create' | 'replace' | 'skip' }> {
+}): Promise<{
+  pageId: string | null;
+  revisionIds: string[];
+  action: 'create' | 'replace' | 'skip';
+  address?: string;
+  addressAdjustmentReason?: ImportAddressAdjustmentReason | null;
+}> {
   const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
   const existing = await db.query.pages.findFirst({
@@ -373,6 +413,7 @@ export async function writeImportedPageWithHistory(input: {
     await assertNoSwitchInProgress(tx);
 
     let pageId: string;
+    let derivedAddress: { address: string; reason: ImportAddressAdjustmentReason | null } | null = null;
     if (existing) {
       // Full re-import: wipe this page's existing revision sequence before
       // rebuilding it from the Wiki.js trail. Order matters:
@@ -409,14 +450,12 @@ export async function writeImportedPageWithHistory(input: {
       await tx.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, existing.id));
       pageId = existing.id;
     } else {
+      derivedAddress = await deriveNewPageAddress(tx, space.id, input.path);
       const [page] = await tx
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          // 035 (FR-025/FR-026): default address is the full path; conflict
-          // and invalid-character resolution (deriveImportAddress) lands in
-          // US5.
-          slug: input.path,
+          slug: derivedAddress.address,
           path: input.path,
           locale: input.locale,
           title: input.versions.at(-1)!.title,
@@ -477,7 +516,7 @@ export async function writeImportedPageWithHistory(input: {
       })
       .where(eq(schema.pages.id, pageId));
 
-    return { pageId, revisionIds };
+    return { pageId, revisionIds, derivedAddress };
   });
 
   // Per-page reconcile/replication kick, not per-revision: both only care
@@ -489,6 +528,8 @@ export async function writeImportedPageWithHistory(input: {
     pageId: result.pageId,
     revisionIds: result.revisionIds,
     action: existing && !(restoredDeletedPage && input.action === 'create') ? 'replace' : 'create',
+    address: result.derivedAddress?.address,
+    addressAdjustmentReason: result.derivedAddress?.reason,
   };
 }
 

@@ -183,6 +183,53 @@ describe('writeImportedPage', () => {
     expect(metadata?.title).toBe('Tagged import');
     expect(assignments.map((tag) => tag.normalizedName).sort()).toEqual(['devops', 'docker']);
   });
+
+  it('gives a new page the source path as its address when free (FR-025)', async () => {
+    const result = await writeImportedPage({
+      actorUserId: adminId,
+      path: 'docs/address-free',
+      locale: 'en',
+      title: 'Address Free',
+      markdown: '# Address Free',
+      action: 'create',
+    });
+
+    expect(result.address).toBe('docs/address-free');
+    expect(result.addressAdjustmentReason).toBeNull();
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId!) });
+    expect(page?.slug).toBe('docs/address-free');
+  });
+
+  it('adjusts a new page\'s address with a numeric suffix when the source path is already taken (FR-025/FR-026)', async () => {
+    await db.insert(schema.pages).values({
+      spaceId,
+      slug: 'docs/address-taken',
+      path: 'docs/address-taken-holder',
+      locale: 'en',
+      title: 'Existing Holder',
+      authorId: adminId,
+    });
+
+    const result = await writeImportedPage({
+      actorUserId: adminId,
+      path: 'docs/address-taken',
+      locale: 'fr',
+      title: 'Address Taken',
+      markdown: '# Address Taken',
+      action: 'create',
+    });
+
+    expect(result.address).not.toBe('docs/address-taken');
+    expect(result.address).toMatch(/^docs\/address-taken-\d+$/);
+    expect(result.addressAdjustmentReason).toBe('taken');
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId!) });
+    expect(page?.slug).toBe(result.address);
+    // The existing holder's own address is untouched (FR-026).
+    const holder = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'docs/address-taken-holder') });
+    expect(holder?.slug).toBe('docs/address-taken');
+  });
 });
 
 describe('writeImportedPageWithHistory', () => {
@@ -339,6 +386,34 @@ describe('writeImportedPageWithHistory', () => {
     const restoredPage = await db.query.pages.findFirst({ where: eq(schema.pages.id, deletedPage!.id) });
     expect(restoredPage?.deletedAt).toBeNull();
     expect(restoredPage?.title).toBe('Restored');
+  });
+
+  it('adjusts a new page\'s address with a numeric suffix when the source path is already taken (FR-025/FR-026)', async () => {
+    await db.insert(schema.pages).values({
+      spaceId,
+      slug: 'docs/history-address-taken',
+      path: 'docs/history-address-taken-holder',
+      locale: 'en',
+      title: 'Existing Holder',
+      authorId: adminId,
+    });
+
+    const result = await writeImportedPageWithHistory({
+      actorUserId: adminId,
+      path: 'docs/history-address-taken',
+      locale: 'fr',
+      versions: [{ markdown: '# v1', title: 'V1', createdAt: new Date('2026-01-01T00:00:00.000Z'), sourceMetadata: { isCurrent: true } }],
+      action: 'create',
+    });
+
+    expect(result.address).not.toBe('docs/history-address-taken');
+    expect(result.address).toMatch(/^docs\/history-address-taken-\d+$/);
+    expect(result.addressAdjustmentReason).toBe('taken');
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId!) });
+    expect(page?.slug).toBe(result.address);
+    const holder = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'docs/history-address-taken-holder') });
+    expect(holder?.slug).toBe('docs/history-address-taken');
   });
 });
 

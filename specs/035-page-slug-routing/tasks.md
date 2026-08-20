@@ -188,7 +188,7 @@ tooling in `packages/mcp-server/`.
 ### Implementation for User Story 5
 
 - [X] T067 [US5] Implement `deriveImportAddress(sourcePath, taken)` in `apps/web/src/server/services/page-addresses.ts` following the four-step algorithm in research.md R8
-- [ ] T068 [US5] Set each imported page's slug from its Wiki.js source path in `apps/web/src/server/jobs/transfer-import.ts` and collect `addressAdjustments` in the run result
+- [X] T068 [US5] Set each imported page's slug from its Wiki.js source path in `apps/web/src/server/jobs/transfer-import.ts` and collect `addressAdjustments` in the run result — implemented via a shared `deriveNewPageAddress()` helper in `transfer-page-writer.ts` (batches a space-wide taken-address query once per new-page write, reused by `writeImportedPage`/`writeImportedPageWithHistory`; never invoked for an `existing` page, per FR-026), threaded through both writers' return values (`address`, `addressAdjustmentReason`) and recorded as `metadata.addressAdjustment` on the `transferItems` row in both `runArchiveImport` and `runWikiJsImport` call sites whenever the reason is non-null; covered by new tests in `transfer-page-writer.test.ts`
 - [ ] T069 [US5] Show the resulting address and any adjustment reason per item in `apps/web/src/server/jobs/transfer-preview.ts` and the preview UI
 - [ ] T070 [US5] Carry `slug` and the alias list through the archive manifest in `apps/web/src/server/transfers/manifest.ts`, `archive-writer.ts`, and `archive-reader.ts`
 - [ ] T071 [US5] Report `addressAdjustments` from batch create in `apps/web/app/api/v1/pages/batch` and from `next-wiki_batch_create_pages`

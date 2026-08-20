@@ -34,6 +34,7 @@ import { notifyPublicContentChanged } from '@/server/services/public-content-eve
 import { getSpaceByKind } from '@/server/services/spaces';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
+import type { ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 
 async function availableKinds(): Promise<Set<NormalizedPortableManifest['pages'][number]['spaceKind']>> {
   const available: Set<NormalizedPortableManifest['pages'][number]['spaceKind']> = new Set(['wiki']);
@@ -145,7 +146,13 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
         return targetId ? `/api/assets/${targetId}` : null;
       });
     const markdown = page.spaceKind === 'raw' ? parsed.markdown : rewriteImages(page.entry, parsed.markdown);
-    let writeResult: { pageId: string | null; revisionId: string | null; action: 'create' | 'replace' | 'skip' };
+    let writeResult: {
+      pageId: string | null;
+      revisionId: string | null;
+      action: 'create' | 'replace' | 'skip';
+      address?: string;
+      addressAdjustmentReason?: ImportAddressAdjustmentReason | null;
+    };
     const historyMeta: Record<string, unknown> | undefined =
       includeHistory && action !== 'skip' && page.historyEntries?.length
         ? { totalAvailable: page.historyEntries.length + 1, includedCount: page.historyEntries.length + 1 }
@@ -245,7 +252,13 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
           versions,
           action,
         });
-        writeResult = { pageId: result.pageId, revisionId: result.revisionIds.at(-1) ?? null, action: result.action };
+        writeResult = {
+          pageId: result.pageId,
+          revisionId: result.revisionIds.at(-1) ?? null,
+          action: result.action,
+          address: result.address,
+          addressAdjustmentReason: result.addressAdjustmentReason,
+        };
       }
     } else if (page.spaceKind === 'raw') {
       writeResult = await writeImportedRawEntry({
@@ -321,7 +334,13 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
       targetKey: writeResult.pageId,
       action: writeResult.action,
       status: 'completed',
-      metadata: { entry: page.entry, ...(historyMeta ? { history: historyMeta } : {}) },
+      metadata: {
+        entry: page.entry,
+        ...(historyMeta ? { history: historyMeta } : {}),
+        ...(writeResult.addressAdjustmentReason
+          ? { addressAdjustment: { address: writeResult.address, reason: writeResult.addressAdjustmentReason } }
+          : {}),
+      },
       finishedAt: new Date(),
     }).onConflictDoNothing();
     await db.update(schema.transferRuns).set({
@@ -547,6 +566,8 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
 
     let writePageId: string | null;
     let writeResultAction: 'create' | 'replace' | 'skip';
+    let resultAddress: string | undefined;
+    let addressAdjustmentReason: ImportAddressAdjustmentReason | null | undefined;
     let anyConverted = false;
     let itemWarned = false;
     let historyTruncated = false;
@@ -619,6 +640,8 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       });
       writePageId = result.pageId;
       writeResultAction = result.action;
+      resultAddress = result.address;
+      addressAdjustmentReason = result.addressAdjustmentReason;
       historyTruncated = truncated;
       historyIncludedCount = versions.length;
       historyTotalAvailable = trail.length + 1;
@@ -646,6 +669,8 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
       });
       writePageId = result.pageId;
       writeResultAction = result.action;
+      resultAddress = result.address;
+      addressAdjustmentReason = result.addressAdjustmentReason;
     }
 
     if (writeResultAction === 'create') created += 1;
@@ -699,6 +724,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
         ...(includeHistory
           ? { history: { totalAvailable: historyTotalAvailable, includedCount: historyIncludedCount, limit: historyLimit, truncated: historyTruncated } }
           : {}),
+        ...(addressAdjustmentReason ? { addressAdjustment: { address: resultAddress, reason: addressAdjustmentReason } } : {}),
       },
       finishedAt: new Date(),
     }).onConflictDoNothing();
