@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PublicPageAddress, PublicPageAddressList } from '@next-wiki/shared';
 import { pageAddressSchema } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
@@ -20,7 +20,17 @@ import type { ApiError } from '@/lib/api/client';
  * a `FORBIDDEN` error rather than a client-side capability check, since a
  * plain editor can still legitimately open this panel.
  */
-export function AddressManager({ pageId }: { pageId: string }) {
+export function AddressManager({
+  pageId,
+  canonicalAddress,
+  onCanonicalAddressChange,
+  canonicalError,
+}: {
+  pageId: string;
+  canonicalAddress?: string;
+  onCanonicalAddressChange?: (value: string) => void;
+  canonicalError?: string;
+}) {
   const { t } = useTranslation();
   const [list, setList] = useState<PublicPageAddressList | null>(null);
   const [newAddress, setNewAddress] = useState('');
@@ -29,19 +39,38 @@ export function AddressManager({ pageId }: { pageId: string }) {
   const [pendingRemoval, setPendingRemoval] = useState<PublicPageAddress | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  // Every fetch (the initial load and every post-mutation refresh) bumps
+  // this and stamps its own resolution with the value it saw. Whichever
+  // fetch resolves *last* no longer necessarily reflects the *latest*
+  // request — this guard applies only the reply for the most recently
+  // issued request, so a slow initial load can never clobber a fast
+  // follow-up add/remove (or vice versa) regardless of resolution order.
+  const fetchSeq = useRef(0);
+
+  // Only called from handleAdd/performRemove (ordinary event-handler code),
+  // never from the effect below — the effect fetches inline instead, since
+  // a shared helper referenced *from* an effect trips
+  // react-hooks/set-state-in-effect even though the actual setState is only
+  // reachable after an await.
+  async function refresh() {
+    const seq = ++fetchSeq.current;
+    try {
+      const result = await listAddresses(pageId);
+      if (fetchSeq.current === seq) setList(result);
+    } catch {
+      if (fetchSeq.current === seq) setList({ canonical: { address: '', url: '' }, aliases: [] });
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false;
+    const seq = ++fetchSeq.current;
     void listAddresses(pageId)
       .then((result) => {
-        if (!cancelled) setList(result);
+        if (fetchSeq.current === seq) setList(result);
       })
       .catch(() => {
-        if (!cancelled) setList({ canonical: { address: '', url: '' }, aliases: [] });
+        if (fetchSeq.current === seq) setList({ canonical: { address: '', url: '' }, aliases: [] });
       });
-    return () => {
-      cancelled = true;
-    };
   }, [pageId]);
 
   function describeError(error: ApiError, fallback: string): string {
@@ -72,8 +101,15 @@ export function AddressManager({ pageId }: { pageId: string }) {
     }
     setAdding(true);
     try {
-      const created = await addAddressAlias(pageId, parsed.data);
-      setList((current) => (current ? { ...current, aliases: [...current.aliases, created] } : current));
+      await addAddressAlias(pageId, parsed.data);
+      // Re-fetch from the server rather than splicing local state: the
+      // initial load this component fires on mount may still be in flight
+      // when a fast test/user adds an alias immediately, and patching two
+      // independent snapshots together is exactly how a stale reply and an
+      // optimistic append end up duplicating the same row. `refresh()`
+      // shares the sequence guard with that initial load, so whichever of
+      // the two was issued last is the one that wins.
+      await refresh();
       setNewAddress('');
     } catch (cause) {
       setAddError(describeError(cause as ApiError, t('page.addresses.error.generic')));
@@ -96,7 +132,7 @@ export function AddressManager({ pageId }: { pageId: string }) {
     setRemoveError(null);
     try {
       await removeAddressAlias(pageId, alias.id, options);
-      setList((current) => (current ? { ...current, aliases: current.aliases.filter((a) => a.id !== alias.id) } : current));
+      await refresh();
       setPendingRemoval(null);
     } catch (cause) {
       setRemoveError(describeError(cause as ApiError, t('page.addresses.error.generic')));
@@ -105,20 +141,42 @@ export function AddressManager({ pageId }: { pageId: string }) {
     }
   }
 
-  if (list === null) return null;
+  if (list === null && canonicalAddress === undefined) return null;
+
+  const editableCanonical = canonicalAddress !== undefined && onCanonicalAddressChange !== undefined;
+  const aliases = list?.aliases ?? [];
+  const currentCanonical = canonicalAddress ?? list?.canonical.address ?? '';
 
   return (
     <section aria-label={t('page.addresses.heading')} className="space-y-xs">
       <h2 className="text-sm font-medium text-muted">{t('page.addresses.heading')}</h2>
 
-      <ul className="flex flex-col gap-xs">
-        <li className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
+      {editableCanonical ? (
+        <div>
+          <label htmlFor="prop-slug" className="block text-sm font-medium mb-xs">
+            {t('editor.properties.fields.slugLabel')}
+          </label>
+          <Input
+            id="prop-slug"
+            value={currentCanonical}
+            onChange={(event) => onCanonicalAddressChange?.(event.target.value)}
+            placeholder={t('editor.properties.fields.slugPlaceholder')}
+            aria-label={t('editor.properties.fields.slugLabel')}
+          />
+          {canonicalError && <p className="text-danger text-xs mt-xs">{canonicalError}</p>}
+          {!canonicalError && <p className="text-xs text-muted mt-xs">{t('editor.properties.fields.slugHint')}</p>}
+        </div>
+      ) : (
+        <div className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
           <span className="shrink-0 rounded-full bg-primary/10 px-sm py-0.5 text-xs font-medium text-primary">
             {t('page.addresses.kindCanonical')}
           </span>
-          <span className="min-w-0 flex-1 truncate">{list.canonical.address}</span>
-        </li>
-        {list.aliases.map((alias) => (
+          <span className="min-w-0 flex-1 truncate">{currentCanonical}</span>
+        </div>
+      )}
+
+      {aliases.length > 0 && <ul className="flex flex-col gap-xs">
+        {aliases.map((alias) => (
           <li key={alias.id} className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
             <span className="shrink-0 rounded-full bg-surface-elevated px-sm py-0.5 text-xs font-medium text-muted">
               {alias.kind === 'retained' ? t('page.addresses.kindRetained') : t('page.addresses.kindManual')}
@@ -134,7 +192,7 @@ export function AddressManager({ pageId }: { pageId: string }) {
             </button>
           </li>
         ))}
-      </ul>
+      </ul>}
 
       <div className="flex gap-sm">
         <Input

@@ -79,9 +79,8 @@ export function PagePropertiesPanel({
           onPathChange={onPathChange}
           pathError={pathError}
           pathReadOnly={pathReadOnly}
-          slug={slug}
-          onSlugChange={onSlugChange}
-          slugError={slugError}
+          pathLabel={pageId ? t('editor.properties.fields.storagePathLabel') : undefined}
+          pathHint={pageId ? t('editor.properties.fields.storagePathHint', { example: 'docs/getting-started' }) : undefined}
           date={date}
           onDateChange={onDateChange}
           tags={tags}
@@ -96,7 +95,12 @@ export function PagePropertiesPanel({
 
         {pageId && (
           <div className="border-t border-border pt-md">
-            <AddressManager pageId={pageId} />
+            <AddressManager
+              pageId={pageId}
+              canonicalAddress={slug}
+              onCanonicalAddressChange={onSlugChange}
+              canonicalError={slugError}
+            />
           </div>
         )}
 

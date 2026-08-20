@@ -379,6 +379,8 @@ export const translationKeys = [
   "editor.properties.fields.pathLabel",
   "editor.properties.fields.pathPlaceholder",
   "editor.properties.fields.pathHint",
+  "editor.properties.fields.storagePathLabel",
+  "editor.properties.fields.storagePathHint",
   "editor.properties.fields.addressPreview",
   "editor.properties.fields.slugLabel",
   "editor.properties.fields.slugPlaceholder",

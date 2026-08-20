@@ -569,6 +569,8 @@
         "pathLabel": "Path",
         "pathPlaceholder": "path/to/page",
         "pathHint": "Use slashes to create directories, e.g. {example}.",
+        "storagePathLabel": "Storage path",
+        "storagePathHint": "The internal tree location used to organize this page. Use slashes to create directories, e.g. {example}.",
         "addressPreview": "This page will be published at {address}.",
         "slugLabel": "Address",
         "slugPlaceholder": "docs/getting-started",

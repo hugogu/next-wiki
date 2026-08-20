@@ -41,7 +41,7 @@ async function renameSlug(page: Page, nextSlug: string) {
   await page.getByRole('button', { name: 'Page settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Page properties' });
   await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Address').fill(nextSlug);
+  await dialog.getByLabel('Address', { exact: true }).fill(nextSlug);
   await dialog.getByRole('button', { name: 'Save properties' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }

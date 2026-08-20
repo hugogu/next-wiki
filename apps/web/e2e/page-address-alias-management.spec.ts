@@ -126,7 +126,7 @@ test.describe('managing a page address from the page itself', () => {
     await publishPage(page, path);
 
     const renameDialog = await openPageSettings(page);
-    await renameDialog.getByLabel('Address').fill(renamedTo);
+    await renameDialog.getByLabel('Address', { exact: true }).fill(renamedTo);
     await renameDialog.getByRole('button', { name: 'Save properties' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.waitForURL(`/wiki/${renamedTo}`);

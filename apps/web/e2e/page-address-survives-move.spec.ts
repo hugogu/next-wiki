@@ -61,7 +61,7 @@ test.describe('page address survives reorganization', () => {
     await page.getByRole('button', { name: 'Page settings' }).click();
     const dialog = page.getByRole('dialog', { name: 'Page properties' });
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel('Path').fill(newTreeLocation);
+    await dialog.getByLabel('Storage path').fill(newTreeLocation);
     await dialog.getByRole('button', { name: 'Save properties' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 

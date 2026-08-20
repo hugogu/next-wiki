@@ -11,6 +11,8 @@ export function PagePropertiesFields({
   onPathChange,
   pathError,
   pathReadOnly = false,
+  pathLabel,
+  pathHint,
   addressPreview,
   slug,
   onSlugChange,
@@ -33,6 +35,8 @@ export function PagePropertiesFields({
   onPathChange?: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
+  pathLabel?: string;
+  pathHint?: string;
   /** 035: the public address this page will be reachable at, shown before
    * saving. Only meaningful where the path is still editable (creation). */
   addressPreview?: string;
@@ -144,20 +148,20 @@ export function PagePropertiesFields({
       {path !== undefined && onPathChange && (
         <div>
           <label htmlFor="prop-path" className="block text-sm font-medium mb-xs">
-            {t('editor.properties.fields.pathLabel')}
+            {pathLabel ?? t('editor.properties.fields.pathLabel')}
           </label>
           <Input
             id="prop-path"
             value={path}
             onChange={(e) => !pathReadOnly && onPathChange(e.target.value)}
             placeholder={t('editor.properties.fields.pathPlaceholder')}
-            aria-label={t('editor.properties.fields.pathLabel')}
+            aria-label={pathLabel ?? t('editor.properties.fields.pathLabel')}
             disabled={pathReadOnly}
           />
           {pathError && <p className="text-danger text-xs mt-xs">{pathError}</p>}
           {!pathReadOnly && (
             <p className="text-xs text-muted mt-xs">
-              {t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}
+              {pathHint ?? t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}
             </p>
           )}
           {!pathReadOnly && addressPreview && (

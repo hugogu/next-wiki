@@ -34,8 +34,9 @@ describe('PagePropertiesDialog', () => {
     expect(html).toContain('Date');
     expect(html).toContain('Tags');
     expect(html).toContain('Summary');
-    expect(html).toContain('Path');
+    expect(html).toContain('Storage path');
     expect(html).toContain('Address');
+    expect(html).toContain('Addresses');
     expect(html).toContain('Page visibility');
     expect(html).not.toContain('Write page metadata to Markdown frontmatter');
   });
