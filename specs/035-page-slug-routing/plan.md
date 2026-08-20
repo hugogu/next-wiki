@@ -47,9 +47,8 @@ floor) — unchanged from the rest of the monorepo.
 pg-boss (existing import/migration jobs only). **No new third-party
 dependency.**
 
-**Storage**: PostgreSQL 16+. One repurposed column (`pages.slug`), one
-immutable address-change record on `page_revisions`, one new table
-(`page_addresses`), one dropped table (`page_route_redirects`), and two new
+**Storage**: PostgreSQL 16+. One repurposed column (`pages.slug`), one new
+table (`page_addresses`), one dropped table (`page_route_redirects`), two new
 unique indexes. All produced by `pnpm db:generate` — see § Migration Sequencing
 for the two-run requirement.
 
@@ -92,7 +91,7 @@ write paths, 1 reader route, 1 static-site generator, 1 import pipeline.
 | P5 Permissions first-class | **PASS** | Both permission levels go through the existing `can()` chokepoint (research R10). Alias resolution re-checks read permission on the *final target* and returns the same not-found/forbidden response as a direct request — no existence or address leak (FR-023). |
 | P6 Style system independence | **PASS** | Address-management UI reuses `src/components/ui/` primitives inside the existing page-properties dialog. No new entry point. |
 | P7 Async-first for heavy operations | **PASS** | The one bulk operation (backfill) is a SQL data migration, not a request. Import/migration address derivation already runs inside pg-boss jobs. |
-| P8 Version everything | **PASS** | Every address mutation creates a normal immutable `page_revision`, preserving the current content snapshot and recording an immutable before/after address-change record. The revision is linked as the page's latest revision; retained aliases and audit entries remain additional history, not substitutes for a revision. |
+| P8 Version everything | **PASS** | Address changes are page metadata, not content, so they create no `page_revision` — the established convention for every page-metadata mutation in this codebase (`updateProperties` changes path and title, `setVisibility` changes who may read the page; neither writes a revision). Address history is nonetheless immutable and complete: every retained alias is an append-only row with `created_at` + `reason`, and both irreversible actions emit audit entries. See research R13 for why writing a revision here was evaluated and rejected. |
 | P9 Open standards | **PASS** | REST + OpenAPI extended; HTTP 301 and `<link rel="canonical">` are the standard mechanisms. |
 | P10 Explicit over implicit | **PASS** | Reserved-address rules stay in one module (`server/routes/reserved-paths.ts`) fed by the existing route manifest; address validation has exactly one exported chokepoint. |
 | P11 Native navigation & unified entry points | **PASS with mandate amendment** | Strengthens the one-canonical-entry rule (every non-canonical address 301s). But it changes two documented invariants — the public page URL becomes `/<space-prefix>/<slug>` rather than `/<space-prefix>/<path>`, and breadcrumbs derive from the tree rather than from URL segments. See § Complexity Tracking. |
@@ -159,7 +158,6 @@ packages/shared/src/
 apps/web/src/server/
 ├── db/
 │   ├── schema/index.ts                   # pages.slug repurposed; page_addresses added;
-│   │                                     #   page_revisions.address_change added;
 │   │                                     #   page_route_redirects dropped (2nd generate run)
 │   └── migrations/                       # generated only — never hand-authored
 ├── routes/
@@ -211,9 +209,8 @@ is modification of existing files listed above.
 hazard documented in `CLAUDE.md`:
 
 1. **Run 1** — repurpose `pages.slug` (widen semantics, add unique index on
-   `(space_id, slug) WHERE translation_group_id IS NULL`), add the immutable
-   `page_revisions.address_change` field, and create `page_addresses`. Append
-   two backfill statements to the *generated* `.sql`
+   `(space_id, slug) WHERE translation_group_id IS NULL`) and create
+   `page_addresses`. Append the backfill statements to the *generated* `.sql`
    only: `UPDATE pages SET slug = path WHERE translation_group_id IS NULL`
    (including soft-deleted rows) and the `page_route_redirects → page_addresses`
    conversion described in research R3.

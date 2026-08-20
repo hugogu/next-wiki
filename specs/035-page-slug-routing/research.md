@@ -316,3 +316,54 @@ what preserves the spec's permanence guarantee on the published copy.
 `findPathConflicts` in `static-site/paths.ts` continues to run, now over slugs
 and alias addresses together, so a case collision between a slug and an alias
 still fails the run before anything is written.
+
+---
+
+## R13. Address mutations do not create page revisions
+
+**Decision**: An address mutation — slug change, alias add/remove, address
+release, cross-space or prefix migration — updates the `pages` row and the
+`page_addresses` rows only. It writes no `page_revision` and does not move
+`pages.latest_version_id`.
+
+**Rationale**: This was raised as a possible P8 ("Version Everything")
+violation, on the reading that the Content Versioning mandate's "every page
+mutation creates a `page_revision`" covers metadata as well as content. It was
+evaluated against the codebase and rejected on four grounds.
+
+*It would contradict the established convention.* `updateProperties()` changes
+a page's path and title without writing a revision. `setVisibility()` changes
+who is allowed to read the page at all — a more consequential metadata change
+than any address — and also writes no revision. Both simply update the `pages`
+row and invalidate the public cache. Writing a revision for slug changes alone
+would make the slug the only page attribute that is versioned, which is less
+consistent than the status quo, not more.
+
+*It would break optimistic concurrency.* Both `newDraft()` and
+`updateProperties()` reject a write when `page.latestVersionId !==
+input.baseRevisionId`, raising `STALE_REVISION`. Moving `latestVersionId` on an
+address change would make anyone holding an open editor get a spurious conflict
+because a colleague added an alias — a real bug in exchange for a bookkeeping
+nicety.
+
+*It would pollute revision history.* `page_revisions.content_html` is stored
+inline and `NOT NULL`, so a metadata-only revision duplicates the whole rendered
+body per address mutation. Worse, the resulting revision has no content
+difference from its predecessor, and `defaultComparePair()` selects the two
+newest revisions as History's default view — so adding an alias would leave a
+reader opening History on an empty diff.
+
+*It has no unanswerable status.* `page_revisions.status` is `draft |
+published`. A metadata revision marked `published` would perturb
+`current_published_version_id`; marked `draft` it would make a fully published
+page appear to have unreviewed work pending. Neither is correct.
+
+The versioning goal is met without any of that: `page_addresses` rows are
+append-only, carry `created_at` and `reason`, and are never mutated, so the
+complete address history of a page is reconstructible at any time; the two
+irreversible actions additionally emit audit entries.
+
+**If the project does want strict metadata versioning**, that is a real and
+defensible position — but it is a pre-existing gap covering path, title, and
+visibility, and it should be closed uniformly in its own feature rather than
+introduced for one attribute here.

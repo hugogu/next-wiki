@@ -61,7 +61,7 @@ Coverage this feature must add:
 | Cross-space uniqueness | same | Same slug in two spaces both save (FR-005) |
 | Concurrency | same | Two transactions racing for one address — one commits, one fails on the unique index, neither leaves a partial write |
 | Slug lifecycle | `src/server/services/pages.test.ts` | Default slug = full tree path; tree move leaves slug untouched; published rename retains an alias; unpublished rename retains none and frees the address |
-| Address revisions | `src/server/services/page-addresses.test.ts` | Every successful address mutation creates one next-numbered immutable page revision containing its complete before/after address change; content-only revisions leave that record empty |
+| Revision chain untouched | `src/server/services/page-addresses.test.ts` | No address mutation creates a page revision or moves `latestVersionId`, so a held `baseRevisionId` survives a concurrent slug or alias change without a spurious `STALE_REVISION` |
 | Chain collapse | same | A → B → C rename sequence leaves both A and B pointing at the page, so either resolves in one hop |
 | Resolution order | `src/server/services/reader-routing.test.ts` | Live canonical beats stale alias; translation beats original; alias resolves; unknown 404s |
 | No existence leak | same | An alias of a page the actor cannot read returns the same response as a direct request — no 301, no canonical address |

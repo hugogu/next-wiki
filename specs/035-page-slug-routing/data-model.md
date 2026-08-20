@@ -47,18 +47,15 @@ character rules to the existing `pathSchema` — `^[a-z0-9][a-z0-9_-]*(/[a-z0-9]
 1–200 characters, no leading/trailing/consecutive separators. Uppercase and
 non-ASCII are **rejected**, never transliterated (FR-006).
 
-### Address-mutation revision record
+### Address history is not a page revision
 
-`page_revisions` gains a nullable immutable `address_change` JSONB value. Every
-successful slug change, alias add/remove, address release, and cross-space or
-prefix migration creates a normal next-numbered revision with the current full
-content snapshot and this value populated. It records the operation and the
-complete before/after canonical address plus alias set. Content-only revisions
-leave it `NULL`.
-
-This lets revision history explain address changes without treating metadata
-updates as an exception to the page-revision mandate; `page_addresses` remains
-the live resolver state, while a revision's `address_change` is never updated.
+`page_revisions` is **not** touched by this feature. Address mutations follow
+the established convention for page metadata — `updateProperties` (path, title)
+and `setVisibility` both mutate the `pages` row without writing a revision.
+Address history lives in the append-only `page_addresses` rows below, plus
+audit entries for the two irreversible actions. Research R13 records why
+writing a content-duplicating revision per address change was evaluated and
+rejected.
 
 ---
 
