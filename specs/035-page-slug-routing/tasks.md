@@ -192,7 +192,7 @@ tooling in `packages/mcp-server/`.
 - [ ] T069 [US5] Show the resulting address and any adjustment reason per item in `apps/web/src/server/jobs/transfer-preview.ts` and the preview UI
 - [ ] T070 [US5] Carry `slug` and the alias list through the archive manifest in `apps/web/src/server/transfers/manifest.ts`, `archive-writer.ts`, and `archive-reader.ts`
 - [ ] T071 [US5] Report `addressAdjustments` from batch create in `apps/web/app/api/v1/pages/batch` and from `next-wiki_batch_create_pages`
-- [ ] T072 [US5] Record the previous full address as a `retained` alias on cross-space migration in `apps/web/src/server/services/cross-space-migrations.ts`, and invalidate and warm the old and new public route states
+- [X] T072 [US5] Record the previous full address as a `retained` alias on cross-space migration in `apps/web/src/server/services/cross-space-migrations.ts`, and invalidate and warm the old and new public route states (already landed with T037; old-address warmup coverage revisited in T081's comprehensive audit)
 
 ### Tests for User Story 5
 
