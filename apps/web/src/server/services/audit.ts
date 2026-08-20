@@ -173,6 +173,49 @@ export function auditProposalApply(
   });
 }
 
+/**
+ * 035 (T057, US4): the two address actions that can break a public link a
+ * reader already holds — removing a retained alias and releasing a deleted
+ * page's addresses. Both require space-manage permission. Neither route goes
+ * through the generic HTTP audit wrapper (`api/audit-wrapper.ts`, used only
+ * by the public v1 API), so this records them explicitly; the removed
+ * address (or the page whose addresses were released) is encoded in the
+ * synthetic path, matching this file's existing tool-audit convention.
+ */
+export function auditRetainedAliasRemoval(
+  userId: string | null,
+  removal: { pageId: string; address: string },
+): Promise<void> {
+  return writeEntry({
+    keyId: null,
+    userId,
+    entryType: 'api',
+    method: 'DELETE',
+    path: `/pages/${removal.pageId}/addresses/${encodeURIComponent(removal.address)}`,
+    statusCode: 200,
+    durationMs: 0,
+    authStatus: 'authenticated',
+    errorMessage: null,
+  });
+}
+
+export function auditAddressRelease(
+  userId: string | null,
+  release: { pageId: string },
+): Promise<void> {
+  return writeEntry({
+    keyId: null,
+    userId,
+    entryType: 'api',
+    method: 'DELETE',
+    path: `/pages/${release.pageId}/addresses?release=true`,
+    statusCode: 200,
+    durationMs: 0,
+    authStatus: 'authenticated',
+    errorMessage: null,
+  });
+}
+
 export function auditImmediateToolMutation(
   userId: string | null,
   mutation: { toolName: string; target: string },

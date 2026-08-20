@@ -186,6 +186,14 @@ export function getPublicApiPageDraftsUrl(pageId: string): string {
   return `/api/v1/pages/${encodeURIComponent(pageId)}/drafts`;
 }
 
+export function getPublicApiPageAddressesUrl(pageId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/addresses`;
+}
+
+export function getPublicApiPageAddressUrl(pageId: string, addressId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/addresses/${encodeURIComponent(addressId)}`;
+}
+
 export function getPublicApiPageRevisionsUrl(pageId: string): string {
   return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions`;
 }

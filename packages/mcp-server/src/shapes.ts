@@ -5,6 +5,7 @@ import type {
   PublicImageGeneration,
   PublicNeighborhoodResponse,
   PublicOutboundLinksResponse,
+  PublicPageAddress,
   PublicPageBatchDeleteResult,
   PublicPageBatchUpdateResult,
   PublicPageResource,
@@ -132,7 +133,14 @@ export function listPagesResponse(source: { items: PublicPageResource[]; nextCur
   };
 }
 
-export function getPageResponse(source: PublicPageResource): {
+export function getPageResponse(
+  source: PublicPageResource,
+  // 035 (US4): the page's retained/manual aliases, fetched separately (GET
+  // .../addresses) since the plain page resource does not carry them —
+  // callers that don't need aliases (e.g. list/search results) skip that
+  // extra request.
+  aliases?: PublicPageAddress[],
+): {
   id: string;
   space: string;
   path: string;
@@ -148,6 +156,7 @@ export function getPageResponse(source: PublicPageResource): {
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aliases?: PublicPageAddress[];
 } {
   return {
     id: source.id,
@@ -161,6 +170,7 @@ export function getPageResponse(source: PublicPageResource): {
     publishedRevisionId: source.publishedRevision?.id,
     updatedAt: source.updatedAt,
     metadata: source.metadata,
+    ...(aliases ? { aliases } : {}),
   };
 }
 

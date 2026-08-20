@@ -1209,7 +1209,7 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
 
 export async function create(
   ctx: PermCtx,
-  input: { path: string; title: string; contentSource: string; nature?: 'original' | 'generated'; visibility?: 'public' | 'registered' | 'restricted' },
+  input: { path: string; title: string; contentSource: string; slug?: string; nature?: 'original' | 'generated'; visibility?: 'public' | 'registered' | 'restricted' },
   spaceSlug?: string,
 ): Promise<{ pageId: string; versionId: string }> {
   const userId = getUserId(ctx);
@@ -1237,6 +1237,13 @@ export async function create(
 
   assertPathNotReserved(input.path);
 
+  if (input.slug) {
+    const slugCheck = pageAddressSchema.safeParse(input.slug);
+    if (!slugCheck.success) {
+      throw new DomainError('PAGE_SLUG_INVALID', slugCheck.error.issues[0]?.message ?? 'Invalid page address');
+    }
+  }
+
   await assertNotMigrating();
   const revisionId = randomUUID();
   const contentSource = space.kind === 'generated'
@@ -1259,8 +1266,10 @@ export async function create(
     }
 
     // 035 (FR-004): the default slug is the page's full tree path, captured
-    // once at creation — a later tree move does not re-derive it.
-    await assertAddressAvailable(tx, space.id, input.path);
+    // once at creation — a later tree move does not re-derive it. An author
+    // may instead supply their own slug up front.
+    const slug = input.slug ?? input.path;
+    await assertAddressAvailable(tx, space.id, slug, undefined, ctx);
 
     const { html, hash } = renderMarkdown(contentSource);
 
@@ -1268,7 +1277,7 @@ export async function create(
       .insert(schema.pages)
       .values({
         spaceId: space.id,
-        slug: input.path,
+        slug,
         path: input.path,
         title: sourceMetadata.title,
         authorId: userId,
@@ -1544,7 +1553,7 @@ export async function updateProperties(
     // address (slug) untouched — moving a page in the tree changes where it
     // lives, never where it is publicly reachable. A slug change is the
     // opposite: it never touches `path`.
-    const slugResult = input.slug ? await setSlug(tx, space.id, page.id, input.slug) : null;
+    const slugResult = input.slug ? await setSlug(tx, space.id, page.id, input.slug, ctx) : null;
 
     await tx
       .update(schema.pages)

@@ -175,6 +175,8 @@ export type PublicPageListResponse = z.infer<typeof publicPageListResponseSchema
 
 export const publicPageCreateInputSchema = z.object({
   path: pathSchema,
+  // 035: the canonical public address. Defaults to `path` when omitted.
+  slug: pathSchema.optional(),
   locale: z.string().min(1).max(20).optional(),
   title: z.string().min(1).max(200),
   contentSource: z.string().default(''),
@@ -188,12 +190,31 @@ export const publicPageCreateInputSchema = z.object({
 });
 export type PublicPageCreateInput = z.infer<typeof publicPageCreateInputSchema>;
 
+// 035 (US4): GET /pages/{id}/addresses response shape.
+export const publicPageAddressSchema = z.object({
+  id: z.string().uuid(),
+  address: pathSchema,
+  kind: z.enum(['retained', 'manual']),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type PublicPageAddress = z.infer<typeof publicPageAddressSchema>;
+
+export const publicPageAddressListSchema = z.object({
+  canonical: z.object({ address: pathSchema, url: z.string() }),
+  aliases: z.array(publicPageAddressSchema),
+});
+export type PublicPageAddressList = z.infer<typeof publicPageAddressListSchema>;
+
 export const publicPagePropertiesInputSchema = z.object({
   path: pathSchema.optional(),
   title: z.string().min(1).max(200).optional(),
+  // 035: the canonical public address. Distinct from `path` — changing it
+  // never moves the page in the tree, only where it is publicly reachable.
+  slug: pathSchema.optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).refine((value) => value.path || value.title, {
-  message: 'Provide path or title',
+}).refine((value) => value.path || value.title || value.slug, {
+  message: 'Provide path, title, or slug',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 
@@ -689,6 +710,11 @@ export class WikiApiClient {
   // publishedRevisionId, which the API omits by default (see shapes.ts getPageResponse).
   async getPage(id: string): Promise<PublicPageResource> {
     return this.request<PublicPageResource>(`/pages/${id}?include=latestRevision,publishedRevision`);
+  }
+
+  // 035 (US4): a page's canonical address plus every retained/manual alias.
+  async listAddresses(id: string): Promise<PublicPageAddressList> {
+    return this.request<PublicPageAddressList>(`/pages/${id}/addresses`);
   }
 
   // include=latestRevision so the response carries the initial draft's revisionId.

@@ -37,14 +37,28 @@ export const pageAddressSchema = pathSchema;
 export const pageAddressKindSchema = z.enum(['retained', 'manual']);
 export type PageAddressKind = z.infer<typeof pageAddressKindSchema>;
 
-export const pageAddressSchemaObject = z.object({
+// 035 (US4): named `publicPageAddressSchema` (not `pageAddressSchema`) to
+// avoid colliding with the plain-string validator of that name above — the
+// openapi doc/runtime parity check pairs `Foo` <-> `fooSchema` by name alone
+// and would otherwise silently mismatch (see next-openapi-gen project notes).
+export const publicPageAddressSchema = z.object({
   id: z.string().uuid(),
   address: pageAddressSchema,
   kind: pageAddressKindSchema,
   reason: z.string().nullable(),
   createdAt: z.string(),
 });
-export type PageAddress = z.infer<typeof pageAddressSchemaObject>;
+export type PublicPageAddress = z.infer<typeof publicPageAddressSchema>;
+
+// 035 (US4): GET/POST .../addresses response and request shapes.
+export const publicPageAddressListSchema = z.object({
+  canonical: z.object({ address: pageAddressSchema, url: z.string() }),
+  aliases: z.array(publicPageAddressSchema),
+});
+export type PublicPageAddressList = z.infer<typeof publicPageAddressListSchema>;
+
+export const publicPageAddressCreateInputSchema = z.object({ address: pageAddressSchema }).strict();
+export type PublicPageAddressCreateInput = z.infer<typeof publicPageAddressCreateInputSchema>;
 
 /**
  * RFC 2046 MIME type (`type/subtype`, structured `+suffix` allowed). Parameters
@@ -398,6 +412,9 @@ export type RawSource = z.infer<typeof rawSourceSchema>;
 
 export const publicPageCreateInputSchema = z.object({
   path: pathSchema,
+  // 035: the canonical public address. Defaults to `path` when omitted
+  // (FR-004) — distinct from `path`, which is only the tree location.
+  slug: pageAddressSchema.optional(),
   locale: z.string().min(1).max(20).optional(),
   title: z.string().min(1).max(200),
   contentSource: z.string().default(''),

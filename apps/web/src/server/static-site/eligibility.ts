@@ -54,6 +54,11 @@ export type PublishableSet = {
   slugByAddress: Map<string, string>;
   /** translation group id → locale → slug (035), for the language switcher. */
   translationGroups: Map<string, Map<string, string>>;
+  /** page id → its retained/manual alias addresses (035, US4), each already
+   * fully formed (a translation's alias carries its own locale prefix as
+   * text — see `setSlug`), so no further locale-prefixing applies. Scoped to
+   * publishable pages only: an alias of an excluded page is not published. */
+  aliasesByPageId: Map<string, string[]>;
   /** Assets referenced by the published revisions of publishable pages only. */
   assetIds: Set<string>;
   /** Counts only. A reason with a page attached would make this a disclosure channel. */
@@ -198,6 +203,23 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
     for (const ref of refs) assetIds.add(ref.assetId);
   }
 
+  // 035 (US4): every retained/manual alias of a publishable page, keyed by
+  // that page's own id (a translation's alias rows point at the translation
+  // row itself, matching setSlug's write, not at its source).
+  const aliasesByPageId = new Map<string, string[]>();
+  const pageIds = pages.map((page) => page.id);
+  if (pageIds.length > 0) {
+    const aliasRows = await db
+      .select({ pageId: schema.pageAddresses.pageId, address: schema.pageAddresses.address })
+      .from(schema.pageAddresses)
+      .where(inArray(schema.pageAddresses.pageId, pageIds));
+    for (const row of aliasRows) {
+      const list = aliasesByPageId.get(row.pageId) ?? [];
+      list.push(row.address);
+      aliasesByPageId.set(row.pageId, list);
+    }
+  }
+
   const { counts } = await countExclusions();
 
   return {
@@ -205,6 +227,7 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
     pageIdsByAddress,
     slugByAddress,
     translationGroups,
+    aliasesByPageId,
     assetIds,
     exclusions: counts,
     defaultLocale,

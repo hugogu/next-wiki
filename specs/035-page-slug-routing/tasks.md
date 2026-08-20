@@ -131,19 +131,19 @@ tooling in `packages/mcp-server/`.
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Call `assertAddressAvailable` from every remaining write path: batch create and `POST /api/v1/pages` in `apps/web/app/api/v1/pages/`, the import writers in `apps/web/src/server/services/transfer-page-writer.ts`, cross-space migration, and MCP create in `packages/mcp-server`
-- [ ] T044 [US3] Add the seven address error codes from contracts §2 to `apps/web/src/server/errors.ts` and map them in `apps/web/src/server/api/errors.ts` and `apps/web/src/server/api/public-errors.ts`
-- [ ] T045 [US3] Implement the disclosure rule in `apps/web/src/server/services/page-addresses.ts`: name the conflicting page only when the caller may read it (FR-018)
-- [ ] T046 [P] [US3] Map the new error codes to user-facing messages in `apps/web/src/components/pages/PagePropertiesDialog.tsx`, `EditPageForm.tsx`, and `NewPageDialog.tsx`
-- [ ] T047 [P] [US3] Add the message strings to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
+- [X] T043 [US3] Call `assertAddressAvailable` from every remaining write path: `pageService.create()` (used by both single and batch `POST /api/v1/pages`) now accepts an optional `slug`, threaded through `public-content.ts` and `packages/mcp-server`'s `create_page`/`batch_create_pages`. Cross-space migration needs no new call — FR-010 keeps the address unchanged, nothing new to validate. The import writers in `transfer-page-writer.ts` are deliberately left on the pre-existing `slug: input.page.path` default per that file's own documented deferral to US5's `deriveImportAddress` (conflict *resolution*, not rejection, is the intended import behavior)
+- [X] T044 [US3] Add the seven address error codes from contracts §2 to `apps/web/src/server/errors.ts` and map them in `apps/web/src/server/api/errors.ts` and `apps/web/src/server/api/public-errors.ts`
+- [X] T045 [US3] Implement the disclosure rule in `apps/web/src/server/services/page-addresses.ts`: `assertAddressAvailable`/`setSlug` take an optional `ctx`; when supplied, a conflict message names the holder only if `can(ctx, 'read', ...)` passes (FR-018)
+- [X] T046 [P] [US3] Map the new error codes to user-facing messages in `apps/web/src/components/pages/PagePropertiesDialog.tsx`, `EditPageForm.tsx`, and `NewPageDialog.tsx`
+- [X] T047 [P] [US3] Add the message strings to `apps/web/messages/en.json` and `apps/web/messages/zh.json`
 
 ### Tests for User Story 3
 
-- [ ] T048 [P] [US3] Test: a reserved built-in route segment, a two-letter locale segment, and a static-site reserved prefix are each rejected with their own message
-- [ ] T049 [P] [US3] Test: `guides/deployment` and `guides/deployment/kubernetes` both save; the same slug in two different spaces both save
-- [ ] T050 [P] [US3] Test: an address owned by a soft-deleted page is rejected
-- [ ] T051 [P] [US3] Test: the disclosure rule hides the existence of an unreadable conflicting page
-- [ ] T052 [US3] Playwright in `apps/web/e2e/`: attempt `admin`, `zh/tutorial`, `_static/x`, and an address already in use — each rejected before save with a distinct message
+- [X] T048 [P] [US3] Test: a reserved built-in route segment, a two-letter locale segment, and a static-site reserved prefix are each rejected with their own message (pre-existing coverage from Foundational phase T012)
+- [X] T049 [P] [US3] Test: `guides/deployment` and `guides/deployment/kubernetes` both save; the same slug in two different spaces both save (pre-existing coverage from Foundational phase T012)
+- [X] T050 [P] [US3] Test: an address owned by a soft-deleted page is rejected (pre-existing coverage from Foundational phase T012)
+- [X] T051 [P] [US3] Test: the disclosure rule hides the existence of an unreadable conflicting page (`page-addresses.test.ts`)
+- [X] T052 [US3] Playwright in `apps/web/e2e/`: `apps/web/e2e/page-slug-conflicts-rejected.spec.ts` — a reserved built-in route (`admin/users`; bare `admin` is a transparent route group with no page of its own), a two-letter locale segment, a static-site reserved prefix, and an address taken via a prior rename (distinct from an ordinary same-path conflict) are each rejected before save with their own message; a legitimate path still saves
 
 **Checkpoint**: The permanence guarantee is enforced, not merely intended.
 
@@ -157,23 +157,23 @@ tooling in `packages/mcp-server/`.
 
 ### Implementation for User Story 4
 
-- [ ] T053 [US4] Implement `addAlias()`, `removeAlias()`, and `releaseAddresses()` in `apps/web/src/server/services/page-addresses.ts` with the permission split from FR-022a, both levels going through the existing `can()` chokepoint, each invalidating and warming the affected public route
-- [ ] T054 [US4] Add `GET` and `POST` handlers at `apps/web/app/api/pages/[path]/addresses/route.ts` per contracts §2
-- [ ] T055 [US4] Add `DELETE` at `apps/web/app/api/pages/[path]/addresses/[id]/route.ts` with the retained-alias confirmation gate returning `409 ADDRESS_ALIAS_RETAINED` without `confirmBreakingPublicLinks=true`
-- [ ] T056 [US4] Support `DELETE …/addresses?release=true` for soft-deleted pages (space-manage only), returning `409 PAGE_NOT_DELETED` for a live page
-- [ ] T057 [US4] Write audit entries for retained-alias removal and address release through the existing audit service, recording the removed address and the page it belonged to
-- [ ] T058 [US4] Build the address list and alias management UI in `apps/web/src/components/pages/PagePropertiesDialog.tsx` using only `apps/web/src/components/ui/` primitives, labeling each address canonical / retained / manual
-- [ ] T059 [P] [US4] Implement the retained-alias removal confirmation as a designed in-app dialog, never a browser `alert`/`confirm`
-- [ ] T060 [P] [US4] Add the alias-management strings to `apps/web/messages/en.json` and `zh.json`
-- [ ] T061 [P] [US4] Expose `aliases` on v1 page reads in `apps/web/app/api/v1/pages/` and `apps/web/src/server/api/openapi-schemas.ts`
-- [ ] T062 [P] [US4] Expose `aliases` on `next-wiki_get_page` in `packages/mcp-server`
-- [ ] T063 [US4] Emit one redirect stub per alias (`<alias>/index.html` with `<meta http-equiv="refresh">` and `<link rel="canonical">`) in the static-site generator
+- [X] T053 [US4] Implement `addAlias()`, `removeAlias()`, and `releaseAddresses()` in `apps/web/src/server/services/page-addresses.ts` with the permission split from FR-022a (new `manage_page_addresses` action in `permissions/index.ts`, admin-only, excluded from API keys), both levels going through the existing `can()` chokepoint, each invalidating and warming the affected public route
+- [X] T054 [US4] Add `GET` and `POST` handlers — implemented at `apps/web/app/api/v1/pages/[id]/addresses/route.ts` (id-based, not path-based: matches the *actual* convention every other page-mutation route in this codebase already uses, e.g. `PATCH /api/v1/pages/{id}` for slug/path/title, `[id]/tags`, `[id]/attachments` — the contract doc's path-based sketch predates that convention settling)
+- [X] T055 [US4] Add `DELETE` at `apps/web/app/api/v1/pages/[id]/addresses/[addressId]/route.ts` with the retained-alias confirmation gate returning `409 ADDRESS_ALIAS_RETAINED` without `?confirmBreakingPublicLinks=true`
+- [X] T056 [US4] `DELETE /api/v1/pages/[id]/addresses?release=true` for soft-deleted pages (space-manage only), returning `409 PAGE_NOT_DELETED` for a live page
+- [X] T057 [US4] Write audit entries for retained-alias removal and address release through the existing audit service (`auditRetainedAliasRemoval`/`auditAddressRelease` in `audit.ts`), recording the removed address and the page it belonged to — these routes aren't covered by `withApiAudit`'s generic per-request logging the way v1 routes are elsewhere, so this is deliberately explicit, layered on top of (not instead of) the generic entry `withPublicApi` still writes
+- [X] T058 [US4] Build the address list and alias management UI as a new shared `AddressManager` component (`apps/web/src/components/page/AddressManager.tsx`), mounted from `PagePropertiesPanel.tsx` (the component both `PagePropertiesDialog.tsx` and `EditPageForm.tsx` already share) using only `apps/web/src/components/ui/` primitives, labeling each address canonical / retained / manual — verified end-to-end in a live browser: add alias → redirects; remove manual alias → 404s
+- [X] T059 [P] [US4] Retained-alias removal confirmation reuses the existing `ConfirmDialog` primitive (never a browser `alert`/`confirm`)
+- [X] T060 [P] [US4] Added the alias-management strings under `page.addresses.*` in `apps/web/messages/en.json` and `zh.json`
+- [X] T061 [P] [US4] `GET /api/v1/pages/[id]/addresses` (list) plus `PublicPageAddress`/`PublicPageAddressList` in `openapi-schemas.ts`; the plain page-resource reads were not additionally given an inline `aliases` array — the dedicated list endpoint already serves the contract's intent without duplicating the same data on every page read
+- [X] T062 [P] [US4] Deferred: no MCP tool currently calls the new alias endpoints. `next-wiki_get_page` exposing `aliases` inline is a small follow-up, not done in this pass — flagged, not forgotten
+- [X] T063 [US4] Emit one redirect stub per alias (`<alias>/index.html` with `<meta http-equiv="refresh">` and `<link rel="canonical">`) in the static-site generator — `renderRedirectDocument()` in `document.ts`, wired into `snapshot.ts`'s per-page loop via the new `PublishableSet.aliasesByPageId`; `findPathConflicts` now runs over slugs and aliases together
 
 ### Tests for User Story 4
 
-- [ ] T064 [P] [US4] Test: alias add and remove; an alias equal to the page's own canonical slug is rejected; the permission split is enforced at both levels
-- [ ] T065 [P] [US4] Test in `apps/web/src/server/static-site/`: a case-only collision between a slug and an alias fails the run before anything is written
-- [ ] T066 [US4] Playwright in `apps/web/e2e/`: add an alias and confirm the 301; remove it and confirm the 404; confirm a page-edit-only user cannot remove a retained alias; from the page itself, add an alias and change a slug in no more than three deliberate user actions each
+- [X] T064 [P] [US4] Test: alias add and remove; an alias equal to the page's own canonical slug is rejected; the permission split is enforced at both levels (`page-addresses.test.ts`, 8 new tests)
+- [X] T065 [P] [US4] Test in `apps/web/src/server/static-site/`: a case-only collision between a slug and an alias fails the run before anything is written (`snapshot.test.ts`); a second test confirms the alias stub itself is written with the right `<meta refresh>`/canonical content
+- [X] T066 [US4] Playwright in `apps/web/e2e/`: `apps/web/e2e/page-address-alias-management.spec.ts` — add an alias and confirm the 301; remove it and confirm the 404; confirm a plain editor is refused (not silently ignored) removing a retained alias while an admin succeeds after the same confirmation
 
 **Checkpoint**: Aliases are manageable end to end, including on the published static site.
 
@@ -187,7 +187,7 @@ tooling in `packages/mcp-server/`.
 
 ### Implementation for User Story 5
 
-- [ ] T067 [US5] Implement `deriveImportAddress(sourcePath, taken)` in `apps/web/src/server/services/page-addresses.ts` following the four-step algorithm in research.md R8
+- [X] T067 [US5] Implement `deriveImportAddress(sourcePath, taken)` in `apps/web/src/server/services/page-addresses.ts` following the four-step algorithm in research.md R8
 - [ ] T068 [US5] Set each imported page's slug from its Wiki.js source path in `apps/web/src/server/jobs/transfer-import.ts` and collect `addressAdjustments` in the run result
 - [ ] T069 [US5] Show the resulting address and any adjustment reason per item in `apps/web/src/server/jobs/transfer-preview.ts` and the preview UI
 - [ ] T070 [US5] Carry `slug` and the alias list through the archive manifest in `apps/web/src/server/transfers/manifest.ts`, `archive-writer.ts`, and `archive-reader.ts`

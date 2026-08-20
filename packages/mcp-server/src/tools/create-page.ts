@@ -10,7 +10,9 @@ import {
 import { createPageResponse } from '../shapes';
 
 export const createPageSchema = {
-  path: pathSchema.describe('Canonical page path, e.g. docs/getting-started'),
+  path: pathSchema.describe('Tree path (organizational location), e.g. docs/getting-started'),
+  // 035: the canonical public address. Defaults to `path` when omitted.
+  slug: pathSchema.optional().describe('Canonical public address. Defaults to path when omitted.'),
   title: z.string().min(1).max(200).describe('Page title'),
   contentSource: z.string().default('').describe('Markdown source content; required for raw entries.'),
   locale: z.string().min(1).max(20).optional().describe('Locale; defaults to wiki default'),
@@ -32,6 +34,7 @@ export async function createPage(client: WikiApiClient, args: CreatePageInput) {
   const space = args.space ?? 'generated';
   const response = await client.createPage({
     path: args.path,
+    slug: args.slug,
     title: args.title,
     contentSource: args.contentSource,
     locale: args.locale,

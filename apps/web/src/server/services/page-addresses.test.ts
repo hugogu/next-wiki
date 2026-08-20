@@ -2,8 +2,16 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
+import {
+  addAlias,
+  assertAddressAvailable,
+  deriveImportAddress,
+  releaseAddresses,
+  removeAlias,
+  setSlug,
+} from '@/server/services/page-addresses';
 import { DomainError } from '@/server/errors';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 
 async function ensureSpace(slug: string) {
   let space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, slug) });
@@ -117,6 +125,24 @@ describe('assertAddressAvailable', () => {
       .rejects.toMatchObject({ code: 'PAGE_SLUG_INVALID' } satisfies Partial<DomainError>);
   });
 
+  it('names the conflicting page only when the caller may read it (FR-018)', async () => {
+    await createPage(spaceA, authorId, { path: 'secret-plans', slug: 'secret-plans' });
+    await db.update(schema.pages).set({ visibility: 'restricted', title: 'Secret Plans' }).where(eq(schema.pages.slug, 'secret-plans'));
+
+    // No ctx supplied: today's default, generic message — never names a page.
+    await expect(db.transaction((tx) => assertAddressAvailable(tx, spaceA, 'secret-plans')))
+      .rejects.toMatchObject({ code: 'PAGE_SLUG_TAKEN', message: expect.not.stringContaining('Secret Plans') });
+
+    // Anonymous caller cannot read a restricted page: same generic message,
+    // no disclosure that a page exists at this address at all.
+    await expect(db.transaction((tx) => assertAddressAvailable(tx, spaceA, 'secret-plans', undefined, buildAnonymousCtx())))
+      .rejects.toMatchObject({ code: 'PAGE_SLUG_TAKEN', message: expect.not.stringContaining('Secret Plans') });
+
+    // Admin can read any page: the conflict message names it.
+    await expect(db.transaction((tx) => assertAddressAvailable(tx, spaceA, 'secret-plans', undefined, buildUserCtx(authorId, 'admin'))))
+      .rejects.toMatchObject({ code: 'PAGE_SLUG_TAKEN', message: expect.stringContaining('Secret Plans') });
+  });
+
   it('does not treat a prefix relationship as a conflict', async () => {
     await createPage(spaceA, authorId, { path: 'guides/deployment', slug: 'guides/deployment' });
     await expect(
@@ -206,6 +232,70 @@ describe('assertAddressAvailable', () => {
     const rows = await db.query.pages.findMany({ where: eq(schema.pages.slug, address) });
     expect(rows).toHaveLength(1);
   });
+
+  it('serializes a canonical-versus-alias race in the shared address namespace', async () => {
+    const address = 'cross-table-race-address';
+    const aliasHolder = await createPage(spaceA, authorId, { path: 'alias-holder', slug: 'alias-holder' });
+
+    const claimCanonical = () => db.transaction(async (tx) => {
+      await assertAddressAvailable(tx, spaceA, address);
+      await tx.insert(schema.pages).values({
+        spaceId: spaceA,
+        authorId,
+        path: 'canonical-claimant',
+        slug: address,
+        title: 'Canonical claimant',
+      });
+    });
+    const claimAlias = () => db.transaction(async (tx) => {
+      await assertAddressAvailable(tx, spaceA, address);
+      await tx.insert(schema.pageAddresses).values({
+        spaceId: spaceA,
+        pageId: aliasHolder.id,
+        address,
+        kind: 'manual',
+      });
+    });
+
+    const results = await Promise.allSettled([claimCanonical(), claimAlias()]);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+
+    const canonicalRows = await db.query.pages.findMany({
+      where: and(eq(schema.pages.spaceId, spaceA), eq(schema.pages.slug, address)),
+    });
+    const aliasRows = await db.query.pageAddresses.findMany({
+      where: and(eq(schema.pageAddresses.spaceId, spaceA), eq(schema.pageAddresses.address, address)),
+    });
+    expect(canonicalRows.length + aliasRows.length).toBe(1);
+  });
+});
+
+describe('deriveImportAddress (035, US5)', () => {
+  it('derives deterministic conforming addresses for malformed external paths', () => {
+    expect(deriveImportAddress('Guides/Café Setup', () => false))
+      .toEqual({ address: 'guides/caf-setup', reason: 'invalid_characters' });
+    expect(deriveImportAddress('///Hello__World///', () => false))
+      .toEqual({ address: 'hello__world', reason: 'invalid_characters' });
+  });
+
+  it('moves a reserved or empty source address under the page prefix', () => {
+    expect(deriveImportAddress('admin/users', () => false))
+      .toEqual({ address: 'page/admin/users', reason: 'reserved' });
+    expect(deriveImportAddress('zh/tutorial', () => false))
+      .toEqual({ address: 'page/zh/tutorial', reason: 'reserved' });
+    expect(deriveImportAddress('---', () => false))
+      .toEqual({ address: 'page', reason: 'reserved' });
+  });
+
+  it('suffixes taken addresses without changing their holder and is repeatable', () => {
+    const taken = new Set(['guides/setup', 'guides/setup-2']);
+    const derive = () => deriveImportAddress('guides/setup', (address) => taken.has(address));
+
+    expect(derive()).toEqual({ address: 'guides/setup-3', reason: 'taken' });
+    expect(derive()).toEqual({ address: 'guides/setup-3', reason: 'taken' });
+    expect([...taken]).toEqual(['guides/setup', 'guides/setup-2']);
+  });
 });
 
 describe('setSlug (035, US2)', () => {
@@ -220,7 +310,6 @@ describe('setSlug (035, US2)', () => {
 
   afterAll(async () => {
     await cleanup();
-    await closeDb();
   });
 
   it('retains the former address as an alias when renaming a published page', async () => {
@@ -329,11 +418,139 @@ describe('setSlug (035, US2)', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it('removes a same-page alias when a draft promotes it to its canonical slug', async () => {
+    const page = await createPage(spaceA, authorId, { path: 'guides/draft-alias', slug: 'draft-original' });
+    await db.insert(schema.pageAddresses).values({
+      spaceId: spaceA,
+      pageId: page.id,
+      address: 'draft-promoted-alias',
+      kind: 'manual',
+    });
+
+    await db.transaction((tx) => setSlug(tx, spaceA, page.id, 'draft-promoted-alias'));
+
+    const aliases = await db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.pageId, page.id) });
+    expect(aliases).toHaveLength(0);
+  });
+
   it('rejects renaming to an address already taken by another page', async () => {
     await createPage(spaceA, authorId, { path: 'guides/taken', slug: 'taken' });
     const page = await createPage(spaceA, authorId, { path: 'guides/mover', slug: 'mover' });
 
     await expect(db.transaction((tx) => setSlug(tx, spaceA, page.id, 'taken')))
       .rejects.toMatchObject({ code: 'PAGE_SLUG_TAKEN' } satisfies Partial<DomainError>);
+  });
+});
+
+describe('addAlias / removeAlias / releaseAddresses (035, US4)', () => {
+  let space: Awaited<ReturnType<typeof ensureSpace>>;
+  let authorId: string;
+  let adminId: string;
+
+  beforeEach(async () => {
+    await cleanup();
+    space = await ensureSpace('addr-space-us4');
+    authorId = (await createUser(`us4-author-${Date.now()}@example.com`)).id;
+    const [admin] = await db
+      .insert(schema.users)
+      .values({ email: `us4-admin-${Date.now()}@example.com`, passwordHash: 'HASH', role: 'admin', status: 'active' })
+      .returning();
+    adminId = admin!.id;
+  });
+
+  afterAll(async () => {
+    await cleanup();
+    await closeDb();
+  });
+
+  it('adds a manually added alias with edit permission', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/a', slug: 'us4-a' });
+    const editorCtx = buildUserCtx(authorId, 'editor');
+
+    const alias = await addAlias(editorCtx, space, page.id, 'us4-quickstart');
+    expect(alias).toMatchObject({ address: 'us4-quickstart', kind: 'manual', reason: null });
+
+    const row = await db.query.pageAddresses.findFirst({ where: eq(schema.pageAddresses.id, alias.id) });
+    expect(row).toMatchObject({ pageId: page.id, kind: 'manual' });
+  });
+
+  it('rejects an alias equal to the page\'s own canonical slug', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/self', slug: 'us4-self' });
+    const editorCtx = buildUserCtx(authorId, 'editor');
+
+    await expect(addAlias(editorCtx, space, page.id, 'us4-self'))
+      .rejects.toMatchObject({ code: 'PAGE_ADDRESS_SELF' } satisfies Partial<DomainError>);
+  });
+
+  it('rejects adding an alias without edit permission', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/noperm', slug: 'us4-noperm' });
+    const readerId = (await createUser(`us4-reader-${Date.now()}@example.com`)).id;
+    await db.update(schema.users).set({ role: 'reader' }).where(eq(schema.users.id, readerId));
+
+    await expect(addAlias(buildUserCtx(readerId, 'reader'), space, page.id, 'us4-blocked'))
+      .rejects.toMatchObject({ code: 'FORBIDDEN' } satisfies Partial<DomainError>);
+    await expect(addAlias(buildAnonymousCtx(), space, page.id, 'us4-blocked'))
+      .rejects.toMatchObject({ code: 'FORBIDDEN' } satisfies Partial<DomainError>);
+  });
+
+  it('removes a manually added alias with edit permission alone', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/remove-manual', slug: 'us4-remove-manual' });
+    const editorCtx = buildUserCtx(authorId, 'editor');
+    const alias = await addAlias(editorCtx, space, page.id, 'us4-manual-alias');
+
+    const result = await removeAlias(editorCtx, space, page.id, alias.id);
+    expect(result).toEqual({ address: 'us4-manual-alias', kind: 'manual' });
+    expect(await db.query.pageAddresses.findFirst({ where: eq(schema.pageAddresses.id, alias.id) })).toBeUndefined();
+  });
+
+  it('requires space-manage permission and explicit confirmation to remove a retained alias (FR-022/FR-022a)', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/retained', slug: 'us4-retained-b' });
+    await publishPage(page.id, authorId);
+    // Rename to generate a genuine retained alias for the *previous* slug.
+    await db.transaction((tx) => setSlug(tx, space.id, page.id, 'us4-retained-b-renamed'));
+    const alias = await db.query.pageAddresses.findFirst({
+      where: and(eq(schema.pageAddresses.spaceId, space.id), eq(schema.pageAddresses.address, 'us4-retained-b')),
+    });
+    expect(alias?.kind).toBe('retained');
+
+    const editorCtx = buildUserCtx(authorId, 'editor');
+    // An editor with plain edit permission cannot remove a retained alias.
+    await expect(removeAlias(editorCtx, space, page.id, alias!.id))
+      .rejects.toMatchObject({ code: 'FORBIDDEN' } satisfies Partial<DomainError>);
+
+    const adminCtx = buildUserCtx(adminId, 'admin');
+    // An admin without confirmation is told the consequence, not silently blocked.
+    await expect(removeAlias(adminCtx, space, page.id, alias!.id))
+      .rejects.toMatchObject({ code: 'ADDRESS_ALIAS_RETAINED' } satisfies Partial<DomainError>);
+    expect(await db.query.pageAddresses.findFirst({ where: eq(schema.pageAddresses.id, alias!.id) })).toBeDefined();
+
+    // With confirmation, the same admin succeeds.
+    const result = await removeAlias(adminCtx, space, page.id, alias!.id, { confirmBreakingPublicLinks: true });
+    expect(result).toEqual({ address: 'us4-retained-b', kind: 'retained' });
+    expect(await db.query.pageAddresses.findFirst({ where: eq(schema.pageAddresses.id, alias!.id) })).toBeUndefined();
+  });
+
+  it('rejects releasing addresses of a page that is not deleted', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/live', slug: 'us4-live' });
+    await expect(releaseAddresses(buildUserCtx(adminId, 'admin'), space, page.id))
+      .rejects.toMatchObject({ code: 'PAGE_NOT_DELETED' } satisfies Partial<DomainError>);
+  });
+
+  it('requires space-manage permission to release addresses even for a deleted page', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/deleted-noperm', slug: 'us4-deleted-noperm', deletedAt: new Date() });
+    await expect(releaseAddresses(buildUserCtx(authorId, 'editor'), space, page.id))
+      .rejects.toMatchObject({ code: 'FORBIDDEN' } satisfies Partial<DomainError>);
+  });
+
+  it('releases a deleted page\'s addresses back to the available pool (FR-014a)', async () => {
+    const page = await createPage(space.id, authorId, { path: 'us4/deleted', slug: 'us4-deleted', deletedAt: new Date() });
+    await db.insert(schema.pageAddresses).values({ spaceId: space.id, address: 'us4-deleted-alias', pageId: page.id, kind: 'manual' });
+
+    const result = await releaseAddresses(buildUserCtx(adminId, 'admin'), space, page.id);
+    expect(result.released).toBe(2); // canonical slug + one manual alias
+
+    expect(await db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.pageId, page.id) })).toHaveLength(0);
+    // The original slug text is now claimable by another page.
+    await expect(db.transaction((tx) => assertAddressAvailable(tx, space.id, 'us4-deleted'))).resolves.toBeUndefined();
   });
 });

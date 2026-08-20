@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { useTranslation } from '@/i18n/client';
 import { AttachmentsPanel } from '@/components/page/AttachmentsPanel';
+import { AddressManager } from '@/components/page/AddressManager';
 import { PagePropertiesFields } from './PagePropertiesFields';
 
 export function PagePropertiesPanel({
@@ -92,6 +93,12 @@ export function PagePropertiesPanel({
           visibility={visibility}
           onVisibilityChange={onVisibilityChange}
         />
+
+        {pageId && (
+          <div className="border-t border-border pt-md">
+            <AddressManager pageId={pageId} />
+          </div>
+        )}
 
         {pageId && (
           <div className="border-t border-border pt-md">

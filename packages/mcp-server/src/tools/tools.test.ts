@@ -33,6 +33,7 @@ describe('tools', () => {
       searchPages: vi.fn(),
       listPages: vi.fn(),
       getPage: vi.fn(),
+      listAddresses: vi.fn().mockResolvedValue({ canonical: { address: '', url: '' }, aliases: [] }),
       deletePage: vi.fn(),
       getBacklinks: vi.fn(),
       getDiff: vi.fn(),
@@ -124,6 +125,59 @@ describe('tools', () => {
 
     const result = await getPage(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
     expect(result.contentSource).toBe('# Hello');
+  });
+
+  it('get_page surfaces the page\'s address aliases (035, US4)', async () => {
+    const client = createClient({
+      getPage: vi.fn().mockResolvedValue({
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        spaceSlug: 'main',
+        path: 'docs/test',
+        slug: 'test',
+        locale: 'en',
+        title: 'Test',
+        contentSource: '# Hello',
+        status: 'published',
+        author: { id: null, displayName: null },
+        latestRevision: null,
+        publishedRevision: null,
+        createdAt: '',
+        updatedAt: '',
+        links: { self: '', byPath: '', revisions: '', drafts: '' },
+      }),
+      listAddresses: vi.fn().mockResolvedValue({
+        canonical: { address: 'test', url: '/wiki/test' },
+        aliases: [{ id: 'b1', address: 'old-test', kind: 'retained', reason: 'slug_change', createdAt: '' }],
+      }),
+    });
+
+    const result = await getPage(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
+    expect(result.aliases).toEqual([{ id: 'b1', address: 'old-test', kind: 'retained', reason: 'slug_change', createdAt: '' }]);
+  });
+
+  it('get_page omits aliases rather than failing when the addresses lookup errors', async () => {
+    const client = createClient({
+      getPage: vi.fn().mockResolvedValue({
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        spaceSlug: 'main',
+        path: 'docs/test',
+        locale: 'en',
+        title: 'Test',
+        contentSource: '# Hello',
+        status: 'published',
+        author: { id: null, displayName: null },
+        latestRevision: null,
+        publishedRevision: null,
+        createdAt: '',
+        updatedAt: '',
+        links: { self: '', byPath: '', revisions: '', drafts: '' },
+      }),
+      listAddresses: vi.fn().mockRejectedValue(new Error('network')),
+    });
+
+    const result = await getPage(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
+    expect(result.contentSource).toBe('# Hello');
+    expect(result.aliases).toBeUndefined();
   });
 
   it('list_pages forwards pathPrefix to the client', async () => {

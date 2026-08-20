@@ -81,6 +81,11 @@ export type Action =
   | 'manage_request_logs'
   | 'manage_static_site'
   | 'manage_demo_mode'
+  // 035 (FR-022a): removing an automatically retained alias, or releasing a
+  // deleted page's addresses — the two address actions that can break a
+  // public link a reader already holds. Distinct from `edit`, which already
+  // governs the slug change itself and manually added aliases.
+  | 'manage_page_addresses'
   | 'use_ai_search'
   | 'use_ai_qa'
   | 'use_ai_text_optimization'
@@ -231,6 +236,8 @@ function roleAllows(
       // deliberately session-admin only, so a key issued for storage or
       // transfers can never publish the wiki to the internet.
       return role === 'admin';
+    case 'manage_page_addresses':
+      return role === 'admin';
     case 'manage_demo_mode':
       // Deliberately session-admin only (see the api_key exclusion list
       // below) and always allowed through the DEMO_READONLY_ALLOWED_ACTIONS
@@ -324,6 +331,7 @@ export function can(
       action === 'manage_request_logs' ||
       action === 'manage_static_site' ||
       action === 'manage_demo_mode' ||
+      action === 'manage_page_addresses' ||
       action === 'use_ai_text_optimization'
     ) {
       return false;

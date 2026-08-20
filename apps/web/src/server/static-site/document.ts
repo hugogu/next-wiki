@@ -69,6 +69,32 @@ export type RenderDocumentInput = {
   searchLanguage?: string;
 };
 
+/**
+ * 035 (US4): one of these is written per page address, at
+ * `<address>/index.html`, for every retained or manually added alias. A
+ * static host has no server to issue a real 301, so the redirect is
+ * expressed as `<meta http-equiv="refresh">` (research R12) — instant,
+ * requires no JavaScript, and every crawler/browser honors it. The
+ * `<link rel="canonical">` carries the actual intent for search engines,
+ * which by convention prefer it over following the meta refresh.
+ */
+export function renderRedirectDocument(targetUrl: string, siteName: string): string {
+  const escapedUrl = escapeHtml(targetUrl);
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=${escapedUrl}">
+<link rel="canonical" href="${escapedUrl}">
+<title>${escapeHtml(siteName)}</title>
+</head>
+<body>
+<p>This page has moved to <a href="${escapedUrl}">${escapedUrl}</a>.</p>
+</body>
+</html>
+`;
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')

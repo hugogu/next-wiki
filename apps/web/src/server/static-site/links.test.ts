@@ -72,6 +72,7 @@ function setFrom(pages: PublishablePage[], defaultLocale = 'en'): PublishableSet
     pageIdsByAddress,
     slugByAddress,
     translationGroups,
+    aliasesByPageId: new Map(),
     assetIds: new Set(),
     exclusions: {},
     defaultLocale,

@@ -68,6 +68,9 @@ import { canonicalSpacePath } from '@/server/services/space-routes';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConformance } from '@/server/services/okf';
 import * as rawEntries from '@/server/services/raw-entries';
+import * as pageAddresses from '@/server/services/page-addresses';
+import { getPageHref } from '@/lib/path';
+import type { PublicPageAddressList, PublicPageAddress } from '@next-wiki/shared';
 
 type PageRow = typeof schema.pages.$inferSelect;
 type RevisionRow = typeof schema.pageRevisions.$inferSelect;
@@ -813,6 +816,7 @@ export async function createPage(
       })
     : await pageService.create(ctx, {
         path: input.path,
+        slug: input.slug,
         title: input.title,
         contentSource: targetSpace.kind === 'generated'
           ? adaptGeneratedContent(input.contentSource ?? '', input.path, input.title)
@@ -867,6 +871,51 @@ export async function updateProperties(
   const view = await getPageById(ctx, updated.pageId, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Updated page is not visible');
   return view;
+}
+
+function toWireAddress(address: { id: string; address: string; kind: 'retained' | 'manual'; reason: string | null; createdAt: Date }): PublicPageAddress {
+  return { id: address.id, address: address.address, kind: address.kind, reason: address.reason, createdAt: address.createdAt.toISOString() };
+}
+
+// 035 (US4): a page's canonical address and every alias (FR-020).
+export async function listPageAddresses(pageId: string): Promise<PublicPageAddressList> {
+  const { canonical, aliases } = await pageAddresses.listAddresses(pageId);
+  return {
+    canonical: { address: canonical, url: getPageHref(canonical) },
+    aliases: aliases.map(toWireAddress),
+  };
+}
+
+export async function addPageAddressAlias(ctx: PermCtx, pageId: string, address: string): Promise<PublicPageAddress> {
+  const page = await getPageRowById(pageId);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getPageSpace(page);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  const created = await pageAddresses.addAlias(ctx, space, pageId, address);
+  return toWireAddress(created);
+}
+
+export async function removePageAddressAlias(
+  ctx: PermCtx,
+  pageId: string,
+  addressId: string,
+  options: { confirmBreakingPublicLinks?: boolean } = {},
+): Promise<{ address: string; kind: 'retained' | 'manual' }> {
+  const page = await getPageRowById(pageId);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getPageSpace(page);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  return pageAddresses.removeAlias(ctx, space, pageId, addressId, options);
+}
+
+export async function releasePageAddresses(ctx: PermCtx, pageId: string): Promise<{ released: number }> {
+  // Unlike getPageRowById, this MUST find a soft-deleted page — releasing
+  // addresses only ever applies to one (FR-014a).
+  const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getPageSpace(page);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  return pageAddresses.releaseAddresses(ctx, space, pageId);
 }
 
 // Revision history never returns Markdown source — fetch a single revision

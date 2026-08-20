@@ -34,6 +34,7 @@
           "themeId"
         ]
       },
+      "ADDRESS_ALIAS_RETAINED": {},
       "AiActionView": {
         "type": "object",
         "properties": {
@@ -1076,6 +1077,18 @@
             },
             "description": "Permission scopes granted to the key."
           },
+          "spaceAccess": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wiki",
+                "raw",
+                "generated"
+              ]
+            },
+            "description": "Content spaces the key may read, independent of scopes."
+          },
           "keyPrefix": {
             "type": "string",
             "description": "Non-secret prefix of the key, shown for identification."
@@ -1107,6 +1120,7 @@
           "id",
           "name",
           "scopes",
+          "spaceAccess",
           "keyPrefix",
           "createdAt",
           "revokedAt",
@@ -1167,6 +1181,18 @@
               },
               "description": "Permission scopes granted to the key."
             },
+            "spaceAccess": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "wiki",
+                  "raw",
+                  "generated"
+                ]
+              },
+              "description": "Content spaces the key may read, independent of scopes."
+            },
             "keyPrefix": {
               "type": "string",
               "description": "Non-secret prefix of the key, shown for identification."
@@ -1194,6 +1220,7 @@
             "id",
             "name",
             "scopes",
+            "spaceAccess",
             "keyPrefix",
             "createdAt",
             "revokedAt",
@@ -1692,6 +1719,18 @@
             },
             "minItems": 1,
             "description": "Permission scopes granted to the key. At least one is required; scopes must be unique."
+          },
+          "spaceAccess": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wiki",
+                "raw",
+                "generated"
+              ]
+            },
+            "description": "Content spaces the key may read, independent of scopes. Defaults to wiki-only; raw/generated require an admin owner."
           }
         },
         "required": [
@@ -1715,6 +1754,18 @@
           "sourceThemeId"
         ]
       },
+      "deleteQuerySchema": {
+        "type": "object",
+        "properties": {
+          "confirmBreakingPublicLinks": {
+            "type": "string",
+            "enum": [
+              "true"
+            ]
+          }
+        }
+      },
+      "DemoModeUpdate": {},
       "errorResponseSchema": {
         "type": "object",
         "properties": {
@@ -2381,7 +2432,69 @@
         ],
         "description": "Simple OK response"
       },
+      "PAGE_ADDRESS_TAKEN": {},
+      "PAGE_NOT_DELETED": {},
       "PAGE_PATH_RESERVED": {},
+      "PageAddressDeleteQuery": {
+        "type": "object",
+        "properties": {
+          "confirmBreakingPublicLinks": {
+            "type": "string",
+            "enum": [
+              "true"
+            ],
+            "description": "Required (must be exactly \"true\") to remove a retained alias; omit for a manual alias."
+          }
+        },
+        "description": "Query parameters for removing a page address."
+      },
+      "PageAddressReleaseQuery": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "string",
+            "enum": [
+              "true"
+            ],
+            "description": "Must be exactly \"true\" to release a soft-deleted page's addresses."
+          }
+        },
+        "description": "Query parameters for releasing a deleted page's addresses."
+      },
+      "PageAddressReleaseResult": {
+        "type": "object",
+        "properties": {
+          "released": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Count of addresses freed, including the canonical slug."
+          }
+        },
+        "required": [
+          "released"
+        ],
+        "description": "Result of releasing a deleted page's addresses."
+      },
+      "PageAddressRemoveResult": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "retained",
+              "manual"
+            ]
+          }
+        },
+        "required": [
+          "address",
+          "kind"
+        ],
+        "description": "The address that was removed."
+      },
       "paramsSchema": {
         "type": "object",
         "properties": {
@@ -2605,6 +2718,49 @@
         ],
         "description": "Uploaded public wiki asset metadata."
       },
+      "PublicAttachmentList": {},
+      "PublicAttachmentResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pageId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "uploadedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "pageId",
+          "createdAt",
+          "contentType",
+          "sizeBytes",
+          "fileName",
+          "uploadedBy",
+          "url"
+        ]
+      },
       "PublicAuthor": {
         "type": "object",
         "properties": {
@@ -2646,6 +2802,10 @@
             ],
             "description": "Canonical path of the page containing the link."
           },
+          "slug": {
+            "type": "string",
+            "description": "Canonical public address (035) of the page containing the link."
+          },
           "title": {
             "type": "string",
             "description": "Title of the page containing the link."
@@ -2658,6 +2818,7 @@
         "required": [
           "pageId",
           "path",
+          "slug",
           "title",
           "linkText"
         ],
@@ -3366,6 +3527,94 @@
         ],
         "description": "Outbound link graph for a single page."
       },
+      "PublicPageAddress": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "address": {
+            "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "retained",
+              "manual"
+            ],
+            "description": "retained: kept automatically from a previous slug or translation locale. manual: added explicitly by an owner."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why a retained alias exists, e.g. \"slug_change\". Null for a manual alias."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "address",
+          "kind",
+          "reason",
+          "createdAt"
+        ],
+        "description": "One non-canonical public address of a page."
+      },
+      "PublicPageAddressCreateInput": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "The alias address to add. Always created as kind=manual."
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "description": "Add a manually added alias address to a page."
+      },
+      "PublicPageAddressList": {
+        "type": "object",
+        "properties": {
+          "canonical": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "$ref": "#/components/schemas/PublicPagePath"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "address",
+              "url"
+            ],
+            "description": "The page's current canonical address."
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPageAddress"
+            }
+          }
+        },
+        "required": [
+          "canonical",
+          "aliases"
+        ],
+        "description": "A page's canonical address plus every retained and manually added alias."
+      },
       "PublicPageBatchCreateInput": {
         "type": "object",
         "properties": {
@@ -3532,6 +3781,14 @@
         "properties": {
           "path": {
             "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "slug": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "Canonical public address. Defaults to path when omitted (FR-004) — distinct from path, which is only the tree location."
           },
           "locale": {
             "type": "string",
@@ -3901,13 +4158,21 @@
             "maxLength": 200,
             "description": "New page title."
           },
+          "slug": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              }
+            ],
+            "description": "New canonical public address. Distinct from `path`: changing it never moves the page in the tree, only where it is publicly reachable. A published page's former address is retained as a redirect."
+          },
           "baseRevisionId": {
             "type": "string",
             "format": "uuid",
             "description": "Expected current revision id, used for optimistic concurrency control."
           }
         },
-        "description": "Update page properties. Provide at least one of path or title."
+        "description": "Update page properties. Provide at least one of path, title, or slug."
       },
       "PublicPageResource": {
         "type": "object",
@@ -3923,6 +4188,10 @@
           },
           "path": {
             "$ref": "#/components/schemas/PublicPagePath"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Canonical public address (035) — the effective slug this page resolves at. For a translation, this is its source page's slug."
           },
           "locale": {
             "type": "string",
@@ -4134,6 +4403,7 @@
           "id",
           "spaceSlug",
           "path",
+          "slug",
           "locale",
           "title",
           "frontmatter",
@@ -4414,6 +4684,13 @@
             "format": "uuid",
             "description": "Page id when a page exists at this path, otherwise null."
           },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Canonical public address (035) when a page exists at this path, otherwise null."
+          },
           "status": {
             "type": [
               "string",
@@ -4439,6 +4716,7 @@
           "segment",
           "title",
           "pageId",
+          "slug",
           "status",
           "children"
         ],
@@ -5889,6 +6167,17 @@
           "userId"
         ],
         "description": "Registration response"
+      },
+      "releaseQuerySchema": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "string",
+            "enum": [
+              "true"
+            ]
+          }
+        }
       },
       "ReplicaSyncStatus": {
         "type": "object",
@@ -13315,6 +13604,12 @@
                               {
                                 "type": "string",
                                 "enum": [
+                                  "manual"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
                                   "provider"
                                 ]
                               },
@@ -13322,12 +13617,6 @@
                                 "type": "string",
                                 "enum": [
                                   "catalog"
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "manual"
                                 ]
                               }
                             ]
@@ -16262,6 +16551,200 @@
         }
       }
     },
+    "/v1/attachments/{id}": {
+      "delete": {
+        "operationId": "delete-v1-attachments-{id}",
+        "summary": "Remove an attachment",
+        "description": "Removes (soft-deletes) an attachment. Requires the same edit permission as the owning page — no independent scope, unlike attaching.",
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/v1/attachments/{id}/content": {
+      "get": {
+        "operationId": "get-v1-attachments-{id}-content",
+        "summary": "Download an attachment",
+        "description": "Streams an attachment's bytes if the caller may read its page. Browser-safe types (images, PDF) are served inline; every other type forces a download — never administrator-configurable.",
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/attachments": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-attachments",
+        "summary": "List a page's attachments",
+        "description": "Lists the files currently attached to a page. Requires the same read access as reading the page's other content — no independent permission.",
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicAttachmentList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-v1-pages-{id}-attachments",
+        "summary": "Attach a file to a page",
+        "description": "Uploads a file (image, video, or document, per the wiki's configured limits) and attaches it to a page, separate from images embedded in the page body.",
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicAttachmentResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/attachments": {
+      "get": {
+        "operationId": "get-settings-attachments",
+        "summary": "Get attachment settings @tag Attachments Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "Attachments Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-settings-attachments",
+        "summary": "Update attachment settings @tag Attachments Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "Attachments Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "post-auth-login",
@@ -17414,6 +17897,151 @@
         }
       }
     },
+    "/v1/pages/{id}/addresses": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-addresses",
+        "summary": "List page addresses",
+        "description": "Returns the page's canonical address plus every retained and manually added alias.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageAddressList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-v1-pages-{id}-addresses",
+        "summary": "Add a page address alias",
+        "description": "Registers an additional public address for the page (kind=manual). Requires edit permission on the page.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageAddressCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageAddress"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAGE_ADDRESS_TAKEN"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-v1-pages-{id}-addresses",
+        "summary": "Release a deleted page's addresses",
+        "description": "Space-manage only. Requires ?release=true and that the page is currently soft-deleted; returns 409 PAGE_NOT_DELETED for a live page.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "release",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ],
+              "description": "Must be exactly \"true\" to release a soft-deleted page's addresses."
+            },
+            "description": "Must be exactly \"true\" to release a soft-deleted page's addresses."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageAddressReleaseResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAGE_NOT_DELETED"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/pages/{id}/appends": {
       "post": {
         "operationId": "post-v1-pages-{id}-appends",
@@ -17757,6 +18385,58 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicPageBatchUpdateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/addresses/{addressId}": {
+      "delete": {
+        "operationId": "delete-v1-pages-{id}-addresses-{addressId}",
+        "summary": "Remove a page address",
+        "description": "A manually added alias (kind=manual) is removed immediately with edit permission. A retained alias (kind=retained) additionally requires space-manage permission and ?confirmBreakingPublicLinks=true; without it, returns 409 ADDRESS_ALIAS_RETAINED stating the consequence.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "confirmBreakingPublicLinks",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ],
+              "description": "Required (must be exactly \"true\") to remove a retained alias; omit for a manual alias."
+            },
+            "description": "Required (must be exactly \"true\") to remove a retained alias; omit for a manual alias."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageAddressRemoveResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADDRESS_ALIAS_RETAINED"
                 }
               }
             }
@@ -19252,6 +19932,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SetupStateView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/demo-mode": {
+      "get": {
+        "operationId": "get-settings-demo-mode",
+        "summary": "Get demo-readonly mode state",
+        "description": "Returns whether the public read-only demo mode is currently active.",
+        "tags": [
+          "Site Settings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-settings-demo-mode",
+        "summary": "Toggle demo-readonly mode",
+        "description": "Enables or disables the public read-only demo mode. Always permitted for admins, even while the mode is currently active.",
+        "tags": [
+          "Site Settings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoModeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -22716,6 +23459,12 @@
       "name": "Assets"
     },
     {
+      "name": "Attachments"
+    },
+    {
+      "name": "Attachments Admin"
+    },
+    {
       "name": "Auth"
     },
     {
@@ -22762,6 +23511,9 @@
     },
     {
       "name": "Setup"
+    },
+    {
+      "name": "Site Settings"
     },
     {
       "name": "Space migrations"

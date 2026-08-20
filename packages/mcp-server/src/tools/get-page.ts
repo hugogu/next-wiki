@@ -8,6 +8,9 @@ export const getPageSchema = {
 export type GetPageInput = z.infer<z.ZodObject<typeof getPageSchema>>;
 
 export async function getPage(client: WikiApiClient, args: GetPageInput) {
-  const response = await client.getPage(args.pageId);
-  return getPageResponse(response);
+  const [response, addresses] = await Promise.all([
+    client.getPage(args.pageId),
+    client.listAddresses(args.pageId).catch(() => null),
+  ]);
+  return getPageResponse(response, addresses?.aliases);
 }

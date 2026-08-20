@@ -74,6 +74,12 @@ export function NewPageDialog({
           setServerError(t('page.create.error.pathExists'));
         } else if (error.code === 'PAGE_PATH_RESERVED') {
           setServerError(t('page.create.error.pathReserved'));
+        } else if (error.code === 'PAGE_SLUG_TAKEN' || error.code === 'PAGE_ADDRESS_TAKEN') {
+          setServerError(t('page.create.error.slugTaken'));
+        } else if (error.code === 'PAGE_SLUG_RESERVED') {
+          setServerError(t('page.create.error.slugReserved'));
+        } else if (error.code === 'PAGE_SLUG_INVALID') {
+          setServerError(t('page.create.error.slugInvalid'));
         } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
           setServerError(t('page.create.error.forbidden'));
         } else if (error.code === 'RAW_CATEGORY_REQUIRED') {

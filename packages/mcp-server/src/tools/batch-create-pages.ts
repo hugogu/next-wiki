@@ -5,7 +5,9 @@ export const batchCreatePagesSchema = {
   pages: z
     .array(
       z.object({
-        path: z.string().describe('Canonical path'),
+        path: z.string().describe('Tree path (organizational location)'),
+        // 035: the canonical public address. Defaults to `path` when omitted.
+        slug: z.string().optional().describe('Canonical public address. Defaults to path when omitted.'),
         title: z.string().describe('Page title'),
         contentSource: z.string().describe('Markdown source'),
         locale: z.string().optional().describe('Locale (defaults to workspace default)'),

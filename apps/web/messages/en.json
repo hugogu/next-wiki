@@ -294,6 +294,9 @@
       "error": {
         "pathExists": "A page with this path already exists.",
         "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
+        "slugTaken": "This page's default address is already used by another page. Try a different path.",
+        "slugReserved": "This page's default address is reserved by built-in functionality. Please choose a different path.",
+        "slugInvalid": "This page's default address is invalid.",
         "forbidden": "You do not have permission to create pages.",
         "rawContentRequired": "Raw entries require content.",
         "rawCategoryRequired": "No default raw category is configured. Ask an administrator to create one before adding raw entries.",
@@ -478,6 +481,28 @@
       "uploadError": "Failed to attach file.",
       "removeError": "Failed to remove attachment.",
       "unavailable": "This attachment is no longer available."
+    },
+    "addresses": {
+      "heading": "Addresses",
+      "kindCanonical": "Canonical",
+      "kindRetained": "Retained",
+      "kindManual": "Manual",
+      "addLabel": "Add an alias address",
+      "addPlaceholder": "docs/quickstart",
+      "add": "Add alias",
+      "adding": "Adding…",
+      "remove": "Remove {address}",
+      "removeConfirm": "Remove",
+      "removeRetainedConfirmTitle": "Remove retained alias",
+      "removeRetainedConfirmMessage": "\"{address}\" will permanently stop working — any existing public link to it will break. This cannot be undone.",
+      "error": {
+        "taken": "This address is already used by another page.",
+        "reserved": "This address is reserved by built-in functionality.",
+        "invalid": "This address is invalid.",
+        "self": "This is already the page's own canonical address.",
+        "forbidden": "You do not have permission to do this.",
+        "generic": "Failed to update addresses."
+      }
     }
   },
   "space": {

@@ -20,6 +20,7 @@ import {
   renderDocument,
   renderHomeDocument,
   renderNotFoundDocument,
+  renderRedirectDocument,
   type DocumentAssets,
   type DocumentStrings,
 } from './document';
@@ -142,10 +143,19 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   // failure rather than a silent takedown.
   if (set.pages.length === 0) throw new EmptySnapshotError();
 
-  // 035: conflicts are checked over the published address space (slug),
-  // not the organizational tree path.
+  // 035: conflicts are checked over the published address space — every
+  // canonical slug *and* every retained/manual alias together (contracts §6)
+  // — not the organizational tree path, so a case-only collision between a
+  // slug and an alias still fails the run before anything is written. Alias
+  // addresses are already fully formed text (a translation's retained alias
+  // carries its own locale prefix, per `setSlug`), so they pass `locale:
+  // null` to skip the additional prefixing canonical slugs still need.
+  const allAliases = [...set.aliasesByPageId.values()].flat();
   const conflicts = findPathConflicts(
-    set.pages.map((page) => ({ path: page.slug, locale: page.locale })),
+    [
+      ...set.pages.map((page) => ({ path: page.slug, locale: page.locale })),
+      ...allAliases.map((address) => ({ path: address, locale: null })),
+    ],
     set.defaultLocale,
   );
   if (conflicts.length > 0) throw new PathConflictError(conflicts.map(describeConflict));
@@ -208,6 +218,20 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
       filePath: address.filePath,
       bytes: await write(rootDir, address.filePath, document),
     });
+
+    // 035 (US4, contracts §6): one redirect stub per address alias. A static
+    // host cannot issue a real 301 (research R12), so each alias gets its
+    // own `<alias>/index.html` that immediately forwards to the canonical
+    // href via `<meta http-equiv="refresh">`, with a `<link rel="canonical">`
+    // for crawlers.
+    for (const aliasAddress of set.aliasesByPageId.get(page.id) ?? []) {
+      const aliasFile = pageAddress(baseUrl, aliasAddress, null, set.defaultLocale);
+      const stub = renderRedirectDocument(`${origin}${address.href}`, siteName);
+      documents.push({
+        filePath: aliasFile.filePath,
+        bytes: await write(rootDir, aliasFile.filePath, stub),
+      });
+    }
   }
 
   // A remaining /api/assets reference would make the published site call back

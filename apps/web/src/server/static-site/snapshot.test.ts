@@ -81,6 +81,8 @@ async function clearContent() {
   await db.update(schema.pages).set({ currentPublishedVersionId: null, latestVersionId: null });
   await db.delete(schema.contentAssetRefs);
   await db.delete(schema.pageRevisions);
+  // page_addresses.pageId is ON DELETE RESTRICT, so it must go before pages.
+  await db.delete(schema.pageAddresses);
   await db.delete(schema.pages);
   await db.delete(schema.spaces);
 }
@@ -145,6 +147,28 @@ describe('artifact layout', () => {
       ['.nojekyll', '404.html', 'about/index.html', 'guides/setup/index.html', 'index.html', 'sitemap.xml'].sort(),
     );
     expect(manifest.pagesPublished).toBe(2);
+  });
+
+  it('writes a redirect stub per address alias (035, US4)', async () => {
+    const space = await makeSpace('wiki');
+    const page = await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup' });
+    await db.insert(schema.pageAddresses).values([
+      { spaceId: space, address: 'guides/old-setup', pageId: page.pageId, kind: 'retained', reason: 'slug_change' },
+      { spaceId: space, address: 'quickstart', pageId: page.pageId, kind: 'manual' },
+    ]);
+
+    const root = await stage();
+    await snapshot(root);
+
+    const artifact = await readArtifact(root);
+    const stub = artifact.find((f) => f.path === join('guides', 'old-setup', 'index.html'));
+    expect(stub).toBeDefined();
+    expect(stub!.text).toContain('http-equiv="refresh"');
+    expect(stub!.text).toContain('rel="canonical"');
+    expect(stub!.text).toContain(`${BASE_URL.replace(/\/$/, '')}/guides/setup/`);
+
+    const secondStub = artifact.find((f) => f.path === join('quickstart', 'index.html'));
+    expect(secondStub).toBeDefined();
   });
 
   it('publishes a CNAME for a custom domain, so a publish does not clear it', async () => {
@@ -532,6 +556,27 @@ describe('guards', () => {
     await makePage({ spaceId: space, path: '_assets/logo', title: 'Logo' });
     const root = await stage();
     await expect(snapshot(root)).rejects.toBeInstanceOf(PathConflictError);
+  });
+
+  it('fails a case-only collision between a slug and an alias, before writing anything (035, US4)', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup' });
+    const other = await makePage({ spaceId: space, path: 'other', title: 'Other' });
+    // A manually added alias case-colliding with an unrelated page's slug —
+    // constructed directly since `assertAddressAvailable` (the app-level
+    // write path) would itself reject this; `findPathConflicts` is the
+    // defense for data that reaches this point some other way.
+    await db.insert(schema.pageAddresses).values({ spaceId: space, address: 'Guides/Setup', pageId: other.pageId, kind: 'manual' });
+
+    const root = await stage();
+    const error = await snapshot(root).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PathConflictError);
+    expect((error as Error).message).toContain('guides/setup');
+    expect((error as Error).message).toContain('Guides/Setup');
+
+    // Nothing was written — the conflict check runs before the artifact
+    // directory is even created.
+    await expect(readdir(root)).resolves.toEqual([]);
   });
 });
 

@@ -294,6 +294,9 @@
       "error": {
         "pathExists": "该路径的页面已存在。",
         "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
+        "slugTaken": "该页面的默认访问地址已被其他页面占用，请尝试其他路径。",
+        "slugReserved": "该页面的默认访问地址已被系统功能占用，请尝试其他路径。",
+        "slugInvalid": "该页面的默认访问地址无效。",
         "forbidden": "你没有权限创建页面。",
         "rawContentRequired": "原始条目需要内容。",
         "rawCategoryRequired": "尚未配置默认原始分类。请让管理员先创建分类,再添加原始条目。",
@@ -478,6 +481,28 @@
       "uploadError": "附件上传失败。",
       "removeError": "移除附件失败。",
       "unavailable": "该附件已不可用。"
+    },
+    "addresses": {
+      "heading": "访问地址",
+      "kindCanonical": "规范地址",
+      "kindRetained": "保留",
+      "kindManual": "手动添加",
+      "addLabel": "添加别名地址",
+      "addPlaceholder": "docs/quickstart",
+      "add": "添加别名",
+      "adding": "添加中…",
+      "remove": "移除 {address}",
+      "removeConfirm": "移除",
+      "removeRetainedConfirmTitle": "移除保留别名",
+      "removeRetainedConfirmMessage": "“{address}”将永久失效——任何指向该地址的现有公开链接都会失效。此操作无法撤销。",
+      "error": {
+        "taken": "该地址已被其他页面占用。",
+        "reserved": "该地址已被系统功能占用。",
+        "invalid": "该地址无效。",
+        "self": "该地址已经是当前页面自身的规范地址。",
+        "forbidden": "你没有权限执行此操作。",
+        "generic": "更新访问地址失败。"
+      }
     }
   },
   "space": {

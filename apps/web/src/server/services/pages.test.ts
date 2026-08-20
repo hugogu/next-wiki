@@ -130,6 +130,32 @@ describe('pageService US3', () => {
       expect(page?.slug).toBe('docs/intro');
     });
 
+    it('accepts an explicit slug distinct from the path (FR-004)', async () => {
+      const editor = await createUser('editor-explicit-slug@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const result = await pageService.create(ctx, {
+        path: 'docs/getting-started/install',
+        slug: 'install',
+        title: 'Install',
+        contentSource: 'hello',
+      });
+
+      const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, result.pageId) });
+      expect(page?.path).toBe('docs/getting-started/install');
+      expect(page?.slug).toBe('install');
+    });
+
+    it('rejects an explicit slug that collides with another page\'s address', async () => {
+      const editor = await createUser('editor-slug-conflict@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      await pageService.create(ctx, { path: 'guides/holder', title: 'Holder', contentSource: 'c' });
+      await expect(
+        pageService.create(ctx, { path: 'guides/other', slug: 'guides/holder', title: 'Other', contentSource: 'c' }),
+      ).rejects.toMatchObject({ code: 'PAGE_SLUG_TAKEN' });
+    });
+
     it('stores the body verbatim in the wiki space: OKF injection is generated-only', async () => {
       const editor = await createUser('editor-no-okf@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');

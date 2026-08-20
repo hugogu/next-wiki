@@ -1080,6 +1080,9 @@ export const PublicPageListResponse = z
 export const PublicPageCreateInput = z
   .object({
     path: PublicPagePath,
+    slug: PublicPagePath.optional().describe(
+      'Canonical public address. Defaults to path when omitted (FR-004) — distinct from path, which is only the tree location.',
+    ),
     locale: z.string().min(1).max(20).optional().describe('Locale of the page content (e.g. "en"). Defaults to the workspace default.'),
     title: z.string().min(1).max(200).describe('Human-readable page title.'),
     contentSource: z.string().optional().default('').describe('Markdown source of the initial page revision. Optional; defaults to an empty draft.'),
@@ -1203,6 +1206,45 @@ export const PublicPagePropertiesInput = z
       .describe('Expected current revision id, used for optimistic concurrency control.'),
   })
   .describe('Update page properties. Provide at least one of path, title, or slug.');
+
+export const PublicPageAddress = z
+  .object({
+    id: z.string().uuid(),
+    address: PublicPagePath,
+    kind: z.enum(['retained', 'manual']).describe('retained: kept automatically from a previous slug or translation locale. manual: added explicitly by an owner.'),
+    reason: z.string().nullable().describe('Why a retained alias exists, e.g. "slug_change". Null for a manual alias.'),
+    createdAt: z.string().datetime(),
+  })
+  .describe('One non-canonical public address of a page.');
+
+export const PublicPageAddressList = z
+  .object({
+    canonical: z.object({ address: PublicPagePath, url: z.string() }).describe("The page's current canonical address."),
+    aliases: z.array(PublicPageAddress),
+  })
+  .describe("A page's canonical address plus every retained and manually added alias.");
+
+export const PublicPageAddressCreateInput = z
+  .object({ address: PublicPagePath.describe('The alias address to add. Always created as kind=manual.') })
+  .describe('Add a manually added alias address to a page.');
+
+export const PageAddressReleaseQuery = z
+  .object({ release: z.enum(['true']).optional().describe('Must be exactly "true" to release a soft-deleted page\'s addresses.') })
+  .describe('Query parameters for releasing a deleted page\'s addresses.');
+
+export const PageAddressReleaseResult = z
+  .object({ released: z.number().int().nonnegative().describe('Count of addresses freed, including the canonical slug.') })
+  .describe('Result of releasing a deleted page\'s addresses.');
+
+export const PageAddressDeleteQuery = z
+  .object({
+    confirmBreakingPublicLinks: z.enum(['true']).optional().describe('Required (must be exactly "true") to remove a retained alias; omit for a manual alias.'),
+  })
+  .describe('Query parameters for removing a page address.');
+
+export const PageAddressRemoveResult = z
+  .object({ address: PublicPagePath, kind: z.enum(['retained', 'manual']) })
+  .describe('The address that was removed.');
 
 export const PublicRevisionListQuery = z
   .object({
