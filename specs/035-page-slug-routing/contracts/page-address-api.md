@@ -65,11 +65,17 @@ Existing endpoint; request body gains `slug`.
   "newPath": "operations/onboarding/install",
   "slug": "install",
   "url": "/wiki/install",
-  "retainedAlias": "getting-started/install"  // present when a published page's slug changed
+  "retainedAlias": "getting-started/install", // present when a published page's slug changed
+  "revisionId": "…"
 }
 ```
 
 Requires `edit` on the page — the same check the endpoint already performs.
+
+Every successful address mutation creates a normal immutable page revision. Its
+`address_change` record captures the before/after address state while the
+revision preserves the current content snapshot. Mutating responses include the
+new `revisionId`; clients use it as the next `baseRevisionId`.
 
 ### `GET /api/pages/{path}/addresses`
 
@@ -93,8 +99,8 @@ Requires `edit` on the page — the same check the endpoint already performs.
 { "address": "quickstart" }
 ```
 
-`201` with the created alias. Requires `edit` on the page. Always creates
-`kind: "manual"`.
+`201` with the created alias and `revisionId`. Requires `edit` on the page.
+Always creates `kind: "manual"`.
 
 ### `DELETE /api/pages/{path}/addresses/{id}`
 
@@ -103,11 +109,13 @@ Requires `edit` on the page — the same check the endpoint already performs.
   `?confirmBreakingPublicLinks=true`; without the flag returns `409
   ADDRESS_ALIAS_RETAINED` carrying the warning text (FR-022).
 
+A successful deletion returns the new `revisionId`.
+
 ### `DELETE /api/pages/{path}/addresses?release=true`
 
 Releases every address of a **soft-deleted** page back to the available pool.
 Requires `manage` on the space. Returns `409 PAGE_NOT_DELETED` when the page is
-live. Writes an audit entry (FR-014a).
+live. Writes an audit entry and returns the new `revisionId` (FR-014a).
 
 ### Error codes
 

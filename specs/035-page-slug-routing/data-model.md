@@ -16,7 +16,7 @@ places and read in none. Its meaning changes; its type does not.
 
 | Field | Type | Before | After |
 |---|---|---|---|
-| `slug` | `text NOT NULL` | Leaf segment of `path` (`"install"`) | Full canonical address within the space, no prefix, no leading separator (`"getting-started/install"`) |
+| `slug` | `text NOT NULL` | Leaf segment of `path` (`"install"`) | Full canonical address of a non-translation page within the space, no prefix, no leading separator (`"getting-started/install"`). Translation rows retain `''` and derive their address from their source page. |
 
 **New constraint**
 
@@ -38,13 +38,27 @@ UPDATE pages SET slug = path WHERE translation_group_id IS NULL;
 UPDATE pages SET slug = ''   WHERE translation_group_id IS NOT NULL;
 ```
 
-This is what makes SC-001 true by construction: every address that worked
-before the upgrade is now a canonical slug.
+This is what makes SC-001 true by construction: every non-translation address
+that worked before the upgrade is now a canonical slug, while every translation
+continues to derive the same locale-prefixed address from its source slug.
 
 **Validation** (`slugSchema` in `packages/shared/src/pages.ts`): identical
 character rules to the existing `pathSchema` — `^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$`,
 1–200 characters, no leading/trailing/consecutive separators. Uppercase and
 non-ASCII are **rejected**, never transliterated (FR-006).
+
+### Address-mutation revision record
+
+`page_revisions` gains a nullable immutable `address_change` JSONB value. Every
+successful slug change, alias add/remove, address release, and cross-space or
+prefix migration creates a normal next-numbered revision with the current full
+content snapshot and this value populated. It records the operation and the
+complete before/after canonical address plus alias set. Content-only revisions
+leave it `NULL`.
+
+This lets revision history explain address changes without treating metadata
+updates as an exception to the page-revision mandate; `page_addresses` remains
+the live resolver state, while a revision's `address_change` is never updated.
 
 ---
 
@@ -140,6 +154,8 @@ change slug  B → C
   ├─ pages.slug := C
   └─ if page was ever published:                (FR-008, FR-012)
        INSERT page_addresses (B, kind='retained', reason='slug_change')
+       INSERT one retained `{locale}/B` alias for every published translation
+       of the page, each pointing to its translation row
 
 add manual alias A
   ├─ assertAddressAvailable(A)

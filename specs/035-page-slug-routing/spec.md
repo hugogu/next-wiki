@@ -304,8 +304,11 @@ request several of those addresses.
 
 #### Address model
 
-- **FR-001**: Every page MUST have exactly one canonical public address (its
-  slug) that determines where readers, links, and search engines find it.
+- **FR-001**: Every non-translation page MUST have exactly one canonical public
+  address (its slug) that determines where readers, links, and search engines
+  find it. A translation has exactly one canonical public address composed from
+  its locale and its source page's slug; translations do not own independent
+  slugs.
 - **FR-002**: A page's tree path MUST remain the organizational location used
   for the page tree, breadcrumbs, permission inheritance, import, and export,
   and MUST NOT determine the page's public address once the page has a slug.
@@ -329,8 +332,11 @@ request several of those addresses.
 #### Permanence and redirection
 
 - **FR-007**: Once a page has been published at an address, that address MUST
-  remain resolvable for the life of the wiki: it MUST never return not-found
+  remain resolvable for the life of the wiki and MUST never return not-found
   because of a later slug change, tree move, space move, or reorganization.
+  The only exceptions are an explicit, authorized breaking action that removes
+  a retained alias or releases a deleted page's addresses under FR-014a and
+  FR-022; that action must warn the operator before it takes effect.
 - **FR-008**: Changing the slug of a page that has been published MUST
   automatically retain the previous address as a permanent alias of that page.
 - **FR-009**: Requesting any non-canonical address of a page — a retained
@@ -405,9 +411,11 @@ request several of those addresses.
 
 #### Migration and interoperability
 
-- **FR-024**: Every page that exists when this feature is deployed MUST receive
-  a slug equal to its current public address so that no address changes on
-  upgrade.
+- **FR-024**: Every non-translation page that exists when this feature is
+  deployed MUST receive a slug equal to its current public address. Translation
+  rows retain no independent slug and continue to resolve at
+  `{locale}/{source-slug}`. Together, those rules ensure no public address
+  changes on upgrade.
 - **FR-025**: Wiki.js import MUST set each imported page's slug to its Wiki.js
   source path, and the import preview MUST show the resulting public address for
   each page.
@@ -522,9 +530,13 @@ request several of those addresses.
 - **Uniqueness is scoped to a space**, since every address is already qualified
   by the space's public prefix.
 - **Translations keep their current shape**: the language segment precedes the
-  page's slug. Translations do not get independent slugs in this feature.
+  source page's slug. Translations do not get independent slugs in this feature;
+  changing a source slug retains the previous locale-prefixed translation
+  addresses as aliases too.
 - **Retained aliases are not garbage-collected.** They are small, permanent
-  records; no expiry or retention policy is introduced here.
+  records with no expiry or retention policy. They can be removed only by the
+  explicit, authorized breaking action described in FR-022, and deleted-page
+  addresses can be released only under FR-014a.
 - **Vanity or short-link addresses at the site root are out of scope.** Every
   address introduced by this feature lives under a space's public prefix.
 - **Per-locale slugs, per-alias analytics, and bulk address-rewriting tools are

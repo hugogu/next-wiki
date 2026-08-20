@@ -47,8 +47,9 @@ floor) — unchanged from the rest of the monorepo.
 pg-boss (existing import/migration jobs only). **No new third-party
 dependency.**
 
-**Storage**: PostgreSQL 16+. One repurposed column (`pages.slug`), one new
-table (`page_addresses`), one dropped table (`page_route_redirects`), two new
+**Storage**: PostgreSQL 16+. One repurposed column (`pages.slug`), one
+immutable address-change record on `page_revisions`, one new table
+(`page_addresses`), one dropped table (`page_route_redirects`), and two new
 unique indexes. All produced by `pnpm db:generate` — see § Migration Sequencing
 for the two-run requirement.
 
@@ -91,7 +92,7 @@ write paths, 1 reader route, 1 static-site generator, 1 import pipeline.
 | P5 Permissions first-class | **PASS** | Both permission levels go through the existing `can()` chokepoint (research R10). Alias resolution re-checks read permission on the *final target* and returns the same not-found/forbidden response as a direct request — no existence or address leak (FR-023). |
 | P6 Style system independence | **PASS** | Address-management UI reuses `src/components/ui/` primitives inside the existing page-properties dialog. No new entry point. |
 | P7 Async-first for heavy operations | **PASS** | The one bulk operation (backfill) is a SQL data migration, not a request. Import/migration address derivation already runs inside pg-boss jobs. |
-| P8 Version everything | **PASS with note** | Address changes are page metadata, not content, so they create no `page_revision` — consistent with how `updateProperties` treats path and title today. Address history is nonetheless durable and auditable: every retained alias is a row with `created_at` + `reason`, and both irreversible actions emit audit entries. |
+| P8 Version everything | **PASS** | Every address mutation creates a normal immutable `page_revision`, preserving the current content snapshot and recording an immutable before/after address-change record. The revision is linked as the page's latest revision; retained aliases and audit entries remain additional history, not substitutes for a revision. |
 | P9 Open standards | **PASS** | REST + OpenAPI extended; HTTP 301 and `<link rel="canonical">` are the standard mechanisms. |
 | P10 Explicit over implicit | **PASS** | Reserved-address rules stay in one module (`server/routes/reserved-paths.ts`) fed by the existing route manifest; address validation has exactly one exported chokepoint. |
 | P11 Native navigation & unified entry points | **PASS with mandate amendment** | Strengthens the one-canonical-entry rule (every non-canonical address 301s). But it changes two documented invariants — the public page URL becomes `/<space-prefix>/<slug>` rather than `/<space-prefix>/<path>`, and breadcrumbs derive from the tree rather than from URL segments. See § Complexity Tracking. |
@@ -117,7 +118,8 @@ write paths, 1 reader route, 1 static-site generator, 1 import pipeline.
   page's addresses, moving a page within or between spaces, publishing,
   unpublishing, deleting, restoring, and changing a space's route prefix.
   Because the existing invalidation is tag-wide rather than per-path, no new
-  invalidation granularity is required — only new call sites.
+  invalidation granularity is required — only explicit, tested call sites for
+  every mutation listed here.
 - **Personalization**: unaffected. Address resolution uses only anonymous
   published data on the anonymous path.
 
@@ -157,6 +159,7 @@ packages/shared/src/
 apps/web/src/server/
 ├── db/
 │   ├── schema/index.ts                   # pages.slug repurposed; page_addresses added;
+│   │                                     #   page_revisions.address_change added;
 │   │                                     #   page_route_redirects dropped (2nd generate run)
 │   └── migrations/                       # generated only — never hand-authored
 ├── routes/
@@ -208,8 +211,9 @@ is modification of existing files listed above.
 hazard documented in `CLAUDE.md`:
 
 1. **Run 1** — repurpose `pages.slug` (widen semantics, add unique index on
-   `(space_id, slug) WHERE translation_group_id IS NULL`) and create
-   `page_addresses`. Append two backfill statements to the *generated* `.sql`
+   `(space_id, slug) WHERE translation_group_id IS NULL`), add the immutable
+   `page_revisions.address_change` field, and create `page_addresses`. Append
+   two backfill statements to the *generated* `.sql`
    only: `UPDATE pages SET slug = path WHERE translation_group_id IS NULL`
    (including soft-deleted rows) and the `page_route_redirects → page_addresses`
    conversion described in research R3.
@@ -235,7 +239,7 @@ to a mandate's one-line invariant a **MAJOR** bump (2.3.0 → 3.0.0).
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | **Page Tree & Path System**: "path is … authoritative for routing" becomes "slug is authoritative for routing; path is authoritative for organization, permissions, import, and export". | This *is* the feature. Decoupling tree structure from the URL is impossible while the path is the routing key. | Keeping the path authoritative and layering aliases on top was considered: every tree move would still change the canonical URL and merely leave a forward behind, so URLs would churn with every reorganization and the "published address never changes" guarantee would be reduced to "published address always forwards". Rejected — it inverts the guarantee the user asked for. |
-| **Frontend Routing & URL Contract**: public page URL `/<space-slug>/<path>` becomes `/<space-prefix>/<slug>`; breadcrumb segments derive from the page tree rather than from URL segments. | Follows necessarily from the first amendment. Once the URL no longer mirrors the tree, URL-derived breadcrumbs would describe a hierarchy that does not exist. | Deriving breadcrumbs from slug segments was considered and rejected: a page deliberately given the short slug `faq` would render one meaningless crumb while genuinely sitting three levels deep, losing exactly the organizational signal a breadcrumb exists to carry (research R7). |
+| **Frontend Routing & URL Contract**: public page URL `/<space-prefix>/<path>` becomes `/<space-prefix>/<slug>`; breadcrumb segments derive from the page tree rather than from URL segments. | Follows necessarily from the first amendment. Once the URL no longer mirrors the tree, URL-derived breadcrumbs would describe a hierarchy that does not exist. | Deriving breadcrumbs from slug segments was considered and rejected: a page deliberately given the short slug `faq` would render one meaningless crumb while genuinely sitting three levels deep, losing exactly the organizational signal a breadcrumb exists to carry (research R7). |
 
 **Not** treated as complexity requiring justification, because each is a
 narrowing rather than a new capability: the two-table address namespace (R2),
